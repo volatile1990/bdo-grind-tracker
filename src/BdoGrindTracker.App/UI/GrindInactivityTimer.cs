@@ -51,9 +51,19 @@ internal sealed class GrindInactivityTimer(TimeProvider? timeProvider = null)
 
     public void Pause()
     {
+        PauseAndGetIdleDuration();
+    }
+
+    /// <summary>Atomically freezes activity and returns the final idle interval.</summary>
+    public TimeSpan PauseAndGetIdleDuration()
+    {
         lock (_sync)
         {
+            var idleDuration = _isRunning
+                ? _timeProvider.GetElapsedTime(_lastActivityAt)
+                : TimeSpan.Zero;
             _isRunning = false;
+            return idleDuration;
         }
     }
 

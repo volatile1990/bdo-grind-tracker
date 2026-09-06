@@ -116,7 +116,13 @@ Buchungen ein Aktivitätssignal. `GrindInactivityTimer` speichert dessen monoton
 Zeitpunkt im Capture-Thread; UI-Verzögerungen, wiederholte Zeilen und negative
 Korrekturen verlängern das Wartefenster nicht. Nach dem einstellbaren Zeitraum
 (Standard 3 Minuten) verwendet die UI denselben geordneten Pause-/Flushpfad wie
-eine manuelle Pause. Fortsetzen beginnt ein neues Wartefenster.
+eine manuelle Pause. Nach Abschluss einer laufenden Analyse wird die gesamte
+abschließende Inaktivitätsdauer atomar gelesen und von der aktiven Sessionzeit
+abgezogen. Der Abzug ist auf den aktuellen Start-/Fortsetzen-Abschnitt begrenzt;
+frühere Abschnitte bleiben erhalten und die Dauer wird niemals negativ. Ein noch
+gezählter Drop aus einer laufenden Analyse aktualisiert vorher den Grenzzeitpunkt.
+Manuelles Pausieren zieht nichts ab. Fortsetzen beginnt ein neues Wartefenster.
+Anzeige und Garmoth-Upload verwenden dieselbe korrigierte Sessionuhr.
 
 Die [passive Klassenerkennung](CLASS_DETECTION.md) liest gespeicherte Skill-Slots
 unabhängig von der OCR. Der [optionale Garmoth-Upload](GARMOTH_INTEGRATION.md)

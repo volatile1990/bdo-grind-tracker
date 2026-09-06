@@ -8,7 +8,7 @@ internal static class AppBranding
 {
     public const string Name = "Grindcrest";
     public const string WindowTitle = "Grindcrest · Black Desert Loot Tracker";
-    public const string UserAgent = "Grindcrest/0.9.2";
+    public const string UserAgent = "Grindcrest/0.9.3";
 
     public static Bitmap CreateLogo()
     {

@@ -107,6 +107,88 @@ public sealed class GrindSessionClockTests
     }
 
     [Fact]
+    public void AutomaticPauseExcludesTheEntireTrailingIdleInterval()
+    {
+        var time = new ManualTimeProvider();
+        var clock = new GrindSessionClock(time);
+        clock.Start();
+        time.Advance(TimeSpan.FromMinutes(12));
+        time.Advance(TimeSpan.FromSeconds(193.75));
+
+        clock.Pause(TimeSpan.FromSeconds(193.75));
+        time.Advance(TimeSpan.FromHours(1));
+
+        Assert.False(clock.IsRunning);
+        Assert.Equal(TimeSpan.FromMinutes(12), clock.Elapsed);
+    }
+
+    [Theory]
+    [InlineData(180)]
+    [InlineData(181)]
+    [InlineData(3600)]
+    public void ExcludingAnEntireResumedSegmentPreservesEarlierActiveTime(int idleSeconds)
+    {
+        var time = new ManualTimeProvider();
+        var clock = new GrindSessionClock(time);
+        clock.Start();
+        time.Advance(TimeSpan.FromMinutes(10));
+        clock.Pause();
+        time.Advance(TimeSpan.FromHours(2));
+        clock.Start();
+        time.Advance(TimeSpan.FromMinutes(3));
+
+        clock.Pause(TimeSpan.FromSeconds(idleSeconds));
+
+        Assert.Equal(TimeSpan.FromMinutes(10), clock.Elapsed);
+        clock.Start();
+        time.Advance(TimeSpan.FromMinutes(5));
+        clock.Pause(TimeSpan.FromMinutes(3));
+        Assert.Equal(TimeSpan.FromMinutes(12), clock.Elapsed);
+    }
+
+    [Fact]
+    public void ExcludingMoreThanFirstSegmentNeverCreatesNegativeDuration()
+    {
+        var time = new ManualTimeProvider();
+        var clock = new GrindSessionClock(time);
+        clock.Start();
+        time.Advance(TimeSpan.FromMinutes(3));
+
+        clock.Pause(TimeSpan.FromMinutes(4));
+
+        Assert.Equal(TimeSpan.Zero, clock.Elapsed);
+    }
+
+    [Fact]
+    public void RepeatedAutomaticPauseCannotSubtractTwice()
+    {
+        var time = new ManualTimeProvider();
+        var clock = new GrindSessionClock(time);
+        clock.Start();
+        time.Advance(TimeSpan.FromMinutes(5));
+        clock.Pause(TimeSpan.FromMinutes(3));
+        time.Advance(TimeSpan.FromMinutes(3));
+
+        clock.Pause(TimeSpan.FromMinutes(3));
+
+        Assert.Equal(TimeSpan.FromMinutes(2), clock.Elapsed);
+    }
+
+    [Fact]
+    public void NegativeIdleExclusionIsRejectedWithoutChangingRunningState()
+    {
+        var time = new ManualTimeProvider();
+        var clock = new GrindSessionClock(time);
+        clock.Start();
+        time.Advance(TimeSpan.FromMinutes(1));
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => clock.Pause(TimeSpan.FromTicks(-1)));
+
+        Assert.True(clock.IsRunning);
+        Assert.Equal(TimeSpan.FromMinutes(1), clock.Elapsed);
+    }
+
+    [Fact]
     public void WallClockAdjustmentsDoNotAffectSessionTime()
     {
         var time = new ManualTimeProvider();

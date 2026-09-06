@@ -29,14 +29,22 @@ internal sealed class GrindSessionClock(TimeProvider? timeProvider = null)
         IsRunning = true;
     }
 
-    public void Pause()
+    /// <summary>
+    /// Stops this active segment, optionally excluding its trailing idle time.
+    /// Never removes time accumulated before the most recent Start call.
+    /// </summary>
+    public void Pause(TimeSpan excludedTrailingDuration = default)
     {
+        ArgumentOutOfRangeException.ThrowIfLessThan(excludedTrailingDuration, TimeSpan.Zero);
         if (!IsRunning)
         {
             return;
         }
 
-        _accumulated += _timeProvider.GetElapsedTime(_startedAt);
+        var segmentDuration = _timeProvider.GetElapsedTime(_startedAt);
+        _accumulated += segmentDuration > excludedTrailingDuration
+            ? segmentDuration - excludedTrailingDuration
+            : TimeSpan.Zero;
         IsRunning = false;
     }
 

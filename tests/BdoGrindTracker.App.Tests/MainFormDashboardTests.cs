@@ -252,7 +252,7 @@ public sealed class MainFormDashboardTests(ITestOutputHelper output)
             SetField(form, "_uiRunning", true);
             clock.Start();
             activity.Start();
-            time.Advance(TimeSpan.FromSeconds(179));
+            time.Advance(TimeSpan.FromMinutes(2));
             InvokeTask(form, "PauseIfInactiveAsync");
             Assert.True(clock.IsRunning);
             activity.RecordDrop();
@@ -264,9 +264,154 @@ public sealed class MainFormDashboardTests(ITestOutputHelper output)
             Assert.False(clock.IsRunning);
             Assert.False(activity.IsRunning);
             Assert.False(GetField<bool>(form, "_uiRunning"));
+            Assert.Equal(TimeSpan.FromMinutes(2), clock.Elapsed);
+            Assert.Equal("00:02:00", FindByAccessibleName<Label>(
+                form, "Dauer der aktuellen Grindsession").Text);
             Assert.Equal(12, Find<LootTotalsView>(form).Single().EntryCount);
             Assert.Contains("Automatisch pausiert", GetField<Label>(form, "_statusLabel").Text);
             Assert.Equal("Fortsetzen", GetField<BdoButton>(form, "_trackingButton").Text);
+            Assert.False(form.Visible);
+        });
+    }
+
+    [Fact]
+    public void DelayedAutomaticPauseRemovesTheEntireIdleTailNotOnlyTheConfiguredTimeout()
+    {
+        RunInSta(() =>
+        {
+            using var settings = new IsolatedSettingsStore();
+            var time = new ManualTimeProvider();
+            var clock = new GrindSessionClock(time);
+            var activity = new GrindInactivityTimer(time);
+            using var form = CreateForm(settings.Store, clock, activity);
+            SetField(form, "_hasSession", true);
+            SetField(form, "_uiRunning", true);
+            clock.Start();
+            activity.Start();
+            time.Advance(TimeSpan.FromSeconds(137));
+            PublishItems(form, ("Black Crystal Fragment", 3));
+            activity.RecordDrop();
+
+            // Model a delayed UI timer tick, well past the three-minute limit.
+            time.Advance(TimeSpan.FromSeconds(367));
+            InvokeTask(form, "PauseIfInactiveAsync");
+
+            Assert.Equal(TimeSpan.FromSeconds(137), clock.Elapsed);
+            Assert.Equal("00:02:17", FindByAccessibleName<Label>(
+                form, "Dauer der aktuellen Grindsession").Text);
+            Assert.False(clock.IsRunning);
+            Assert.Equal(3, GetField<LootSessionSnapshot>(form, "_sessionSummary").TotalQuantity);
+            time.Advance(TimeSpan.FromHours(1));
+            InvokeTask(form, "PauseIfInactiveAsync");
+            Invoke(form, "RefreshPendingUi");
+            Assert.Equal(TimeSpan.FromSeconds(137), clock.Elapsed);
+            Assert.False(form.Visible);
+        });
+    }
+
+    [Theory]
+    [InlineData(180)]
+    [InlineData(480)]
+    public void AutomaticPauseBeforeAnyDropLeavesZeroSessionDuration(int idleSeconds)
+    {
+        RunInSta(() =>
+        {
+            using var settings = new IsolatedSettingsStore();
+            var time = new ManualTimeProvider();
+            var clock = new GrindSessionClock(time);
+            var activity = new GrindInactivityTimer(time);
+            using var form = CreateForm(settings.Store, clock, activity);
+            SetField(form, "_hasSession", true);
+            SetField(form, "_uiRunning", true);
+            clock.Start();
+            activity.Start();
+
+            time.Advance(TimeSpan.FromSeconds(idleSeconds));
+            InvokeTask(form, "PauseIfInactiveAsync");
+
+            Assert.False(clock.IsRunning);
+            Assert.False(activity.IsRunning);
+            Assert.Equal(TimeSpan.Zero, clock.Elapsed);
+            Assert.Equal("00:00:00", FindByAccessibleName<Label>(
+                form, "Dauer der aktuellen Grindsession").Text);
+            Assert.False(form.Visible);
+        });
+    }
+
+    [Fact]
+    public void ResumingWithoutNewDropsDoesNotRemoveEarlierActiveSessionTime()
+    {
+        RunInSta(() =>
+        {
+            using var settings = new IsolatedSettingsStore();
+            var time = new ManualTimeProvider();
+            var clock = new GrindSessionClock(time);
+            var activity = new GrindInactivityTimer(time);
+            using var form = CreateForm(settings.Store, clock, activity);
+            SetField(form, "_hasSession", true);
+            SetField(form, "_uiRunning", true);
+            clock.Start();
+            activity.Start();
+            time.Advance(TimeSpan.FromMinutes(10));
+            PublishItems(form, ("Black Crystal Fragment", 3));
+            activity.RecordDrop();
+            time.Advance(TimeSpan.FromMinutes(3));
+            InvokeTask(form, "PauseIfInactiveAsync");
+            Assert.Equal(TimeSpan.FromMinutes(10), clock.Elapsed);
+
+            time.Advance(TimeSpan.FromHours(1));
+            // Resume just the clocks/UI state, never the real capture session.
+            SetField(form, "_uiRunning", true);
+            clock.Start();
+            activity.Start();
+            time.Advance(TimeSpan.FromMinutes(4));
+            InvokeTask(form, "PauseIfInactiveAsync");
+            Assert.Equal(TimeSpan.FromMinutes(10), clock.Elapsed);
+            Assert.Equal("00:10:00", FindByAccessibleName<Label>(
+                form, "Dauer der aktuellen Grindsession").Text);
+
+            // A later segment with new loot still adds its own active time.
+            SetField(form, "_uiRunning", true);
+            clock.Start();
+            activity.Start();
+            time.Advance(TimeSpan.FromMinutes(2));
+            PublishItems(form, ("Black Crystal Fragment", 1));
+            activity.RecordDrop();
+            time.Advance(TimeSpan.FromMinutes(3));
+            InvokeTask(form, "PauseIfInactiveAsync");
+            Assert.Equal(TimeSpan.FromMinutes(12), clock.Elapsed);
+            Assert.Equal(4, GetField<LootSessionSnapshot>(form, "_sessionSummary").TotalQuantity);
+            Assert.False(form.Visible);
+        });
+    }
+
+    [Fact]
+    public void ManualPauseStillIncludesTimeSinceTheLastDrop()
+    {
+        RunInSta(() =>
+        {
+            using var settings = new IsolatedSettingsStore();
+            var time = new ManualTimeProvider();
+            var clock = new GrindSessionClock(time);
+            var activity = new GrindInactivityTimer(time);
+            using var form = CreateForm(settings.Store, clock, activity);
+            SetField(form, "_hasSession", true);
+            SetField(form, "_uiRunning", true);
+            clock.Start();
+            activity.Start();
+            time.Advance(TimeSpan.FromMinutes(2));
+            PublishItems(form, ("Black Crystal Fragment", 3));
+            activity.RecordDrop();
+            time.Advance(TimeSpan.FromMinutes(2));
+
+            InvokeTask(form, "StopTrackingAsync", false);
+
+            Assert.False(clock.IsRunning);
+            Assert.False(activity.IsRunning);
+            Assert.Equal(TimeSpan.FromMinutes(4), clock.Elapsed);
+            Assert.Equal("00:04:00", FindByAccessibleName<Label>(
+                form, "Dauer der aktuellen Grindsession").Text);
+            Assert.DoesNotContain("Automatisch", GetField<Label>(form, "_statusLabel").Text);
             Assert.False(form.Visible);
         });
     }
@@ -295,15 +440,16 @@ public sealed class MainFormDashboardTests(ITestOutputHelper output)
             Assert.Equal(1, settings.Store.Load().AutoPauseMinutes);
             InvokeTask(form, "PauseIfInactiveAsync");
             Assert.False(clock.IsRunning);
+            Assert.Equal(TimeSpan.Zero, clock.Elapsed);
             Assert.Contains("Seit 1 Minute", GetField<Label>(form, "_statusLabel").Text);
         });
     }
 
-    private static void InvokeTask(object target, string name)
+    private static void InvokeTask(object target, string name, params object?[]? args)
     {
         var method = target.GetType().GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.NotNull(method);
-        var task = Assert.IsAssignableFrom<Task>(method.Invoke(target, null));
+        var task = Assert.IsAssignableFrom<Task>(method.Invoke(target, args));
         PumpUntilCompleted(task);
     }
 
@@ -531,6 +677,53 @@ public sealed class MainFormDashboardTests(ITestOutputHelper output)
             Assert.Contains("Teilsumme", GetField<Label>(form, "_statusLabel").Text);
             InvokeTask(form, "UploadToGarmothAsync");
             Assert.Equal(1, requests);
+            Assert.False(form.Visible);
+        });
+    }
+
+    [Fact]
+    public void UploadAfterAutomaticPauseUsesTheCorrectedDurationAndHourlyValue()
+    {
+        RunInSta(() =>
+        {
+            using var settings = new IsolatedSettingsStore();
+            settings.KeyStore.Save("synthetic-auto-pause-key");
+            var time = new ManualTimeProvider();
+            var clock = new GrindSessionClock(time);
+            var activity = new GrindInactivityTimer(time);
+            var requests = 0;
+            using var client = new GarmothUploadClient(new MockUploadHandler(async request =>
+            {
+                requests++;
+                using var json = JsonDocument.Parse(await request.Content!.ReadAsStringAsync());
+                Assert.Equal(2L, json.RootElement.GetProperty("minutes").GetInt64());
+                Assert.Equal(321078L, json.RootElement.GetProperty("total").GetInt64());
+                Assert.Equal(9632340L, json.RootElement.GetProperty("hourly").GetInt64());
+                Assert.Equal(2L, json.RootElement.GetProperty("drops").GetProperty("980128_0").GetInt64());
+                return new HttpResponseMessage(HttpStatusCode.OK);
+            }));
+            using var form = CreateForm(settings.Store, clock, activity,
+                uploadClient: client, keyStore: settings.KeyStore);
+            SetField(form, "_hasSession", true);
+            SetField(form, "_uiRunning", true);
+            clock.Start();
+            activity.Start();
+            time.Advance(TimeSpan.FromMinutes(2));
+            PublishItems(form, ("Black Crystal Fragment", 2));
+            activity.RecordDrop();
+            SetField(form, "_sessionSpotId", LootSpotCatalog.HermesiaId);
+            SetField(form, "_sessionClass", CompanionCharacterClassCatalog.FindById("warrior-awakening")!);
+            time.Advance(TimeSpan.FromMinutes(5));
+            InvokeTask(form, "PauseIfInactiveAsync");
+            Assert.Equal(TimeSpan.FromMinutes(2), clock.Elapsed);
+            Assert.Equal(0, requests);
+
+            time.Advance(TimeSpan.FromHours(1));
+            InvokeTask(form, "UploadToGarmothAsync");
+
+            Assert.Equal(1, requests);
+            Assert.True(GetField<bool>(form, "_sessionSubmitted"));
+            Assert.Equal(TimeSpan.FromMinutes(2), clock.Elapsed);
             Assert.False(form.Visible);
         });
     }

@@ -815,10 +815,10 @@ internal sealed class MainForm : Form
             UpdateControlState();
 
             _inactivityTimer.Start();
+            _sessionClock.Start();
             _captureSession.StartCompanion(
                 monitor.Bounds,
                 ProcessFrameAsync);
-            _sessionClock.Start();
             UpdateSessionDuration();
             if (_optionsExpanded)
                 ToggleOptions();
@@ -846,11 +846,22 @@ internal sealed class MainForm : Form
 
     private async Task StopTrackingAsync(bool automatic = false)
     {
-        _sessionClock.Pause();
-        _inactivityTimer.Pause();
+        if (!automatic)
+        {
+            _sessionClock.Pause();
+            _inactivityTimer.Pause();
+        }
         UpdateSessionDuration();
         SetStatus(UiStatusKind.Paused, "Wird pausiert", "Die letzten Drops werden noch übernommen …");
         await _captureSession.StopAsync();
+        if (automatic)
+        {
+            // Drain an in-flight analysis before freezing activity: a last accepted
+            // drop must still update the cutoff. Exclude actual idle time (which
+            // may exceed the timeout), only within the current active segment.
+            _sessionClock.Pause(_inactivityTimer.PauseAndGetIdleDuration());
+            UpdateSessionDuration();
+        }
         CompleteCaptureSegment(DateTimeOffset.UtcNow);
         _uiRunning = false;
 
@@ -859,7 +870,7 @@ internal sealed class MainForm : Form
         {
             SetStatus(UiStatusKind.Paused, automatic ? "Automatisch pausiert" : "Pausiert",
                 automatic
-                    ? $"Seit {_autoPauseMinutes.Value:0} {(_autoPauseMinutes.Value == 1 ? "Minute" : "Minuten")} kein neuer Drop. Mit Fortsetzen geht es weiter."
+                    ? $"Seit {_autoPauseMinutes.Value:0} {(_autoPauseMinutes.Value == 1 ? "Minute" : "Minuten")} kein neuer Drop. Die Zeit ohne Drops wurde abgezogen. Mit Fortsetzen geht es weiter."
                     : "Die Session bleibt erhalten.");
         }
         else

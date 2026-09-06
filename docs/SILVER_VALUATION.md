@@ -9,7 +9,7 @@ not change OCR, the spot loot pool, deduplication or any counted quantity.
 The application makes an anonymous batched GET to
 `https://api.arsha.io/v2/{region}/GetWorldMarketSubList?id={catalogIds}&lang=en`.
 It uses `basePrice` for enhancement sub-ID `sid=0`, not `lastSoldPrice` and not
-the price of an enhanced accessory. Its own user agent is `Grindcrest/0.9.2`.
+the price of an enhanced accessory. Its own user agent is `Grindcrest/0.9.3`.
 No screenshot, session quantity, class, API key, account or other session data
 is sent. Cookie handling and redirects are disabled.
 

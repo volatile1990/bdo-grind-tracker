@@ -1,9 +1,13 @@
 # Grindcrest
 
-Lokaler, passiver Loot-Tracker für Black Desert, Version 0.9.2 (bisher BDO Grind Tracker). Die Erkennung und
+Lokaler, passiver Loot-Tracker für Black Desert, Version 0.9.3 (bisher BDO Grind Tracker). Die Erkennung und
 Zählung verwenden wieder den Companion-basierten Stand 0.5.1. Die zusätzlichen
 Bestätigungs- und Lebensdauerregeln aus 0.6.0/0.6.1 sind entfernt. Erhalten bleiben
 der automatisch erkannte Spotfilter und die Verbesserungen der UI-Geschwindigkeit.
+
+0.9.3 zieht bei einer automatischen Pause die gesamte abschließende Zeit ohne
+neue Drops von der Sessiondauer ab. Manuelles Pausieren bleibt unverändert;
+Anzeige und Garmoth-Upload verwenden dieselbe korrigierte aktive Dauer.
 
 0.9.2 entfernt die Screenshot-Ausblendung, damit das Fenster auch in der
 Snipping-Ansicht enthalten ist, und zentriert Itemname und Menge als kompakte
@@ -72,7 +76,12 @@ Nach **3 Minuten ohne neuen gezählten Drop** pausieren Aufnahme und Sitzungsuhr
 automatisch. Unter **Optionen → Automatische Pause** sind 1–60 Minuten einstellbar,
 auch während der Sitzung; der Wert wird gespeichert. Wiederholt sichtbare Zeilen
 und negative Mengenkorrekturen setzen den Timer nicht zurück. **Fortsetzen** startet
-ein neues Wartefenster. Die Zeit bis zur automatischen Pause zählt zur aktiven Dauer.
+ein neues Wartefenster. Bei der automatischen Pause wird die gesamte Zeit seit dem
+letzten neuen Drop im aktuellen Laufabschnitt von der Sessiondauer abgezogen –
+auch bei einer verspäteten Timerprüfung, nicht nur die eingestellte Minutenzahl.
+Ohne Drop seit Start/Fortsetzen trägt dieser Abschnitt keine Zeit bei; zuvor
+gesammelte aktive Zeit bleibt erhalten. Manuelles Pausieren zieht keine Zeit ab.
+Der Garmoth-Upload verwendet ebenfalls die so korrigierte Sessiondauer.
 
 Die Klasse einschließlich Spezialisierung wird aus den gespeicherten Skill-Slots
 ermittelt und neben dem Spot angezeigt. Unbekannt/mehrdeutig bleibt ausdrücklich
