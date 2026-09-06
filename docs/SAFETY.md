@@ -49,8 +49,9 @@ nicht automatisch gelöscht; der Benutzer kann sie im angezeigten Ordner entfern
 Auch ein Lootausschnitt kann bei überdecktem Spiel andere sichtbare Inhalte enthalten.
 Deshalb Diagnose nur mit tatsächlich sichtbarem Lootpanel aktivieren.
 
-Die Einstellungsdatei speichert Monitor, Auto-Pause, Preisregion, Steueroptionen und
-technische Versionsangaben, keine Bilder oder Klartext-Zugangsdaten.
+Die Einstellungsdatei speichert Monitor, Auto-Pause, Preisregion, Steueroptionen,
+das Opt-in für stündliche Garmoth-Uploads und technische Versionsangaben, keine
+Bilder oder Klartext-Zugangsdaten.
 Eine aus 0.6.0/0.6.1 vorhandene manuelle Spot-Einstellung wird für die Erkennung
 ignoriert. Der aktive Spot wird ausschließlich aus dem erkannten Trashloot bestimmt,
 nicht aus Prozessdaten oder internen Spielzuständen. Das Offline-Replay liest nur
@@ -63,8 +64,11 @@ durch `.gitignore` ausgeschlossen.
 
 ## Optionaler Garmoth-Upload
 
-Nur ein ausdrücklich ausgelöster Klick auf **Garmoth-Upload** sendet per HTTPS an
-`api.garmoth.com/api/external/grind-tracker/sessions/create`. Der manuell eingegebene
+Ein Klick auf **Garmoth-Upload** oder die unter **Optionen → Garmoth-Key** ausdrücklich
+aktivierte Stundenautomatik sendet per HTTPS an
+`api.garmoth.com/api/external/grind-tracker/sessions/create`. Die Automatik ist
+standardmäßig aus und sendet jede volle aktive Stunde als eigenen, noch nicht
+übertragenen Abschnitt; das Tracking läuft weiter. Der manuell eingegebene
 API-Key wird einmal unter Optionen hinterlegt und mit Windows-DPAPI (CurrentUser)
 in einer separaten lokalen Datei verschlüsselt. Beim Upload steht er ausschließlich
 im Header `apiKey`, nicht in Payload/URL/Logs. Die App kann ihn unter demselben
@@ -74,12 +78,15 @@ Browser-Cookies, keine übernommenen Companion-Zugangsdaten, keine Weiterleitung
 keine automatischen Wiederholungen. Header- und Antwort-Lesezeit sind begrenzt;
 Fehlertexte zeigen weder Serverantworten noch Schlüssel an.
 
-Übertragen werden ausschließlich Sitzungsmetadaten und Lootmengen samt dem vom
-Tracker berechneten Netto-Silberwert. Nicht unterstützte Garmoth-Items werden nur
+Übertragen werden ausschließlich Sitzungsmetadaten und neue Lootmengen samt dem
+Netto-Silberwert dieses Abschnitts zu den aktuellen Preisen und Steuereinstellungen.
+Nicht unterstützte Garmoth-Items werden nur
 aus der Übertragung ausgelassen, lokale Mengen bleiben unverändert. Keine Datei, kein Screenshot, kein Roh-OCR,
-kein Konten- oder Charakterverzeichnispfad. Nach unklarem Ausgang verhindert eine
-Sitzungs-ID-Sperre im laufenden Programm einen möglichen Doppelupload.
-Die automatische Pause ist lokal und löst niemals einen Upload aus.
+kein Konten- oder Charakterverzeichnispfad. Nach unklarem automatischem Ausgang
+verhindert eine Sitzungssperre im laufenden Programm weitere automatische und
+manuelle Uploads; lokales Tracking bleibt nutzbar. Die Auto-Pause erzeugt keinen
+zusätzlichen Reststunden-Upload. Details zu Intervallen, manuellen Uploads und
+Fehlerfällen: [Garmoth-Integration](GARMOTH_INTEGRATION.md).
 
 ## Öffentliche Marktpreise
 

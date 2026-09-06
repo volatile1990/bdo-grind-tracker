@@ -1,4 +1,4 @@
-# Erkennungsarchitektur 0.9.4
+# Erkennungsarchitektur 0.9.5
 
 Seit 0.9.4 wird der folgende Companion-Basispfad durch ausschließlich additive
 [Normal-Loot-Leseversuche](OCR_RECOVERY.md) ergänzt: fehlende Mengen nachlesen und
@@ -136,8 +136,12 @@ Anzeige und Garmoth-Upload verwenden dieselbe korrigierte Sessionuhr.
 
 Die [passive Klassenerkennung](CLASS_DETECTION.md) liest gespeicherte Skill-Slots
 unabhängig von der OCR. Der [optionale Garmoth-Upload](GARMOTH_INTEGRATION.md)
-arbeitet nur mit einer pausierten Summenkopie und ausdrücklicher Bestätigung;
-keine seiner Validierungen beeinflusst die lokale Erkennung oder Zählung.
+sendet auf manuellen Klick oder nach ausdrücklich gespeichertem Opt-in für
+stündliche Uploads. Keine seiner Validierungen beeinflusst die lokale Erkennung
+oder Zählung. Die Automatik sendet feste Abschnitte von 60 aktiven Minuten, ohne
+das Tracking zu pausieren; Pausen und noch abziehbare abschließende Inaktivität
+zählen nicht mit. Abschnittsstände werden ab Sitzungsbeginn unabhängig vom Opt-in
+festgehalten. Bereits gesendete Zeit und Mengen werden für weitere Uploads abgezogen.
 
 Seit 0.9.0 gilt der Klick auf **Garmoth-Upload** als Sendeauftrag und pausiert bei
 Bedarf selbst. Der einmal gespeicherte Key liegt separat Windows-DPAPI-verschlüsselt.
@@ -145,10 +149,19 @@ Ein regionsgetrennter, asynchroner Preisprovider liefert ausschließlich öffent
 Marktpreise; `SilverValuation` projiziert die vorhandenen Summen in Vor-/Nachsteuerwerte
 mit der bestätigten Companion-Steuer-/Stückrundung. Es gibt keinen Datenpfad von
 Preisen oder Upload-Itemlisten zurück in Aufnahme oder Zählledger. Der Upload
-verwendet den Dashboard-Netto-Wert und lässt nicht unterstützte Garmoth-Items aus.
-Ein unabhängiger Upload-Lock schützt auch bei gleichzeitigem Capture-Fehler vor
-Reset/Fortsetzen/erneutem Versand. Preiswechsel während eines Abrufs können niemals
-fremde Regionenpreise in die Sitzung übernehmen.
+bewertet ausschließlich die neuen Abschnittsmengen zu aktuellen Preisen und
+Steuereinstellungen und lässt nicht unterstützte Garmoth-Items aus. Frühere
+Silber-Gesamtsummen werden nicht voneinander abgezogen. Preiswechsel während eines
+Abrufs können niemals fremde Regionenpreise in die Sitzung übernehmen.
+
+Ein unabhängiger Upload-Lock verhindert überlappende Sendevorgänge. Automatischer
+Erfolg gibt die nächsten Stundenabschnitte frei; ein unklarer automatischer Ausgang
+sperrt sämtliche weiteren Uploads dieser Sitzung, während das lokale Tracking
+nutzbar bleibt. Der manuelle Upload sendet den gesamten verbleibenden Abschnitt
+und behält bei Erfolg oder unklarem Ausgang die Sperre für Fortsetzen und erneuten
+Versand bei. Einzelheiten zu Korrekturen, Wiederaufnahme nach eindeutiger Ablehnung
+und den prozesslokalen Schutzgrenzen stehen in der
+[Garmoth-Integration](GARMOTH_INTEGRATION.md).
 
 ## Diagnose und Offline-Replay
 

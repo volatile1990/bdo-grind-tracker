@@ -2,27 +2,63 @@
 
 ## Umfang und Datensicherheit
 
-Die Integration sendet die Sitzung ausschließlich nach Klick auf **Garmoth-Upload**.
-Eine laufende Aufnahme wird dabei pausiert und abgeschlossen; kein weiterer Dialog
-oder Bestätigungsschritt ist nötig. Die App meldet sich nicht selbstständig an und
+Die Integration sendet nach Klick auf **Garmoth-Upload** oder mit ausdrücklich
+aktivierter Stundenautomatik. Beim manuellen Upload wird die laufende Aufnahme
+pausiert und ausstehender Loot abgeschlossen; kein weiterer Dialog oder
+Bestätigungsschritt ist nötig. Automatische Uploads lassen das Tracking weiterlaufen.
+Die App meldet sich nicht selbstständig an und
 liest weder Browser-Cookies noch gespeicherte Companion-API-Keys. Der eigene Key
 wird einmal unter **Optionen → Garmoth-Key** hinterlegt und mit Windows-DPAPI für
 CurrentUser plus App-spezifischer Entropie in `garmoth-api-key.dpapi` gespeichert.
 Beim Upload steht er nur im HTTPS-Request-Header `apiKey`, niemals in URL, Payload,
 Klartext-Einstellungen oder Diagnoseausgaben. Entfernen im Einstellungsdialog löscht
-die verschlüsselte Datei erst nach Speichern; Abbrechen verändert nichts.
+die verschlüsselte Datei erst nach Speichern und deaktiviert automatische Uploads;
+Abbrechen verändert nichts. Die Option **Automatisch jede Grind-Stunde an Garmoth
+senden** ist standardmäßig aus und wird getrennt vom Key in den normalen Einstellungen
+gespeichert. Sie benötigt einen gültigen, nicht leeren Key.
 
 Die HTTP-Komponente hat keine automatischen Wiederholungsversuche, Cookies oder
 Weiterleitungen. Ein 30-Sekunden-Limit umfasst auch das Lesen des Antwortkörpers;
 JSON-Antworten sind auf 64 KiB begrenzt. Fehlermeldungen enthalten weder den
 Serverantworttext noch Exception-Nachrichten, die Zugangsdaten enthalten könnten.
 
-Nach erfolgreichem oder unklarem Upload wird dieselbe lokale Sitzungs-ID nicht
-erneut gesendet. Bei Zeitüberschreitung, Abbruch nach Versand, Weiterleitung,
-Serverfehler oder mehrdeutiger Antwort muss der Nutzer zuerst in Garmoth prüfen:
-Der Server könnte die Sitzung bereits gespeichert haben. Eine ausdrücklich
-abgelehnte Anfrage lässt einen neuen manuellen Versuch zu. Dieser Schutz ist
-sitzungs-/prozesslokal; es wird kein serverseitiger Idempotency-Key erfunden.
+## Stundenabschnitte und Doppelupload-Schutz
+
+Ab Sitzungsbeginn werden die Lootstände an jeder vollen aktiven Stunde festgehalten,
+auch wenn die Automatik ausgeschaltet ist. Pausen zählen nicht mit; eine noch durch
+Auto-Pause abziehbare abschließende Leerlaufphase wird nicht vorzeitig als volle
+Stunde gesendet. Aktivieren während einer bestehenden Sitzung überträgt bereits
+vollständige, ungesendete Stunden nacheinander, jeweils als eigenen 60-Minuten-Eintrag.
+Eine angefangene Reststunde wird erst mit der nächsten vollen Stunde oder bei einem
+manuellen Upload gesendet. Neue Sitzung und Programmende lösen keinen Upload aus.
+
+Jeder Abschnitt erhält eine eigene ID sowie die ID der übergeordneten lokalen
+Sitzung in seiner Notiz. Erfolgreich gesendete Zeit und Mengen werden für weitere
+Uploads abgezogen. Der manuelle Upload sendet die gesamte verbleibende Zeit und
+Beute in einem Eintrag. Spätere negative Mengenkorrekturen bleiben als Verrechnung
+gegen zukünftige Mengen erhalten: Ein Zähler, der unter den bereits gesendeten
+Stand fällt und sich erholt, erzeugt dadurch keine erneute Buchung derselben Beute.
+Bereits gespeicherte Garmoth-Einträge werden nicht nachträglich korrigiert.
+
+Ein erfolgreicher automatischer Upload sperrt die lokale Sitzung nicht. Nach einem
+unklaren automatischen Ergebnis sind dagegen sämtliche weiteren Uploads dieser
+Sitzung gesperrt, einschließlich manuellem Upload und erneutem Aktivieren der Option;
+das lokale Tracking bleibt nutzbar. Bei Zeitüberschreitung, Abbruch nach Versand,
+Weiterleitung, Serverfehler oder mehrdeutiger Antwort muss der Nutzer zuerst in
+Garmoth prüfen: Der Server könnte den Abschnitt bereits gespeichert haben.
+
+Eine eindeutig abgelehnte Anfrage oder fehlende lokale Voraussetzung setzt die
+automatischen Versuche aus. Nach Beheben der Ursache kann der Nutzer die
+Garmoth-Optionen erneut speichern oder manuell hochladen. Erneutes Speichern gibt
+nur eindeutig fehlgeschlagene Versuche frei, niemals ein unklares Ergebnis.
+Ein erfolgreicher oder unklarer manueller Upload sperrt wie bisher weitere Uploads
+und das Fortsetzen dieser Sitzung; eine ausdrücklich abgelehnte Anfrage erlaubt
+einen neuen manuellen Versuch.
+
+Stundenstände, bereits gesendete Mengen und Sperren sind sitzungs-/prozesslokal,
+da Sitzungen nach einem Neustart nicht wiederhergestellt werden. Es wird kein
+serverseitiger Idempotency-Key erfunden; unklare Ergebnisse werden nicht automatisch
+wiederholt.
 
 ## Statisch belegter Vertrag
 
@@ -56,10 +92,13 @@ nicht unterstützt) zusätzlich belegt. Klassen mit nur einer Spielweise verwend
 das allein unterstützte Flag: Archer/Scholar/Wukong `0`,
 Shai/Deadeye/Seraph/Agent `1`.
 
-Der Tracker übernimmt den berechneten Netto-Silberwert aus der
-[Companion-basierten Bewertung](SILVER_VALUATION.md) automatisch. Die Serializer-
+Der Tracker berechnet den Netto-Silberwert der jeweiligen Abschnittsmengen mit der
+[Companion-basierten Bewertung](SILVER_VALUATION.md) und den aktuellen Preisen und
+Steuereinstellungen. Er subtrahiert keine früheren Silber-Gesamtsummen; Preis- oder
+Steueränderungen verfälschen dadurch nicht die Bewertung des neuen Loots. Die Serializer-
 Zugriffe `0x1401158BF`/`0x1401158E6` bestätigen `+0xE0=pre_tax`, `+0xE8=post_tax`.
-Klasse/Spec, Spot, Loot und Dauer stammen aus der vorhandenen Sitzung. Ein noch
+Klasse/Spec und Spot stammen aus der vorhandenen Sitzung, Loot und Dauer aus dem
+jeweils ungesendeten Abschnitt. Ein noch
 laufender Preisabruf wird abgewartet; nach Regionenwechsel nur die richtige Region.
 Fehlende Preise ergeben eine gekennzeichnete bekannte Teilsumme, alte Preise einen
 gekennzeichneten Cachewert. Ohne einen einzigen bekannten Preis wird kein erfundener
@@ -109,8 +148,9 @@ in Garmoths untersuchten Spotlisten und wird daher nur beim Upload ausgelassen.
 Die konfigurierten Uploadlisten enthalten 25/27/29/35/35/38 Itemkeys für
 Aphrodon/Hermesia/Magaia/Aresion/Scales of Judgment/Event Horizon.
 Diese Transportlisten schränken weder lokale Erkennung noch Bewertung ein. Der
-übermittelte Netto-Gesamtwert entspricht weiterhin der Dashboard-Bewertung; ein
-bekannter lokaler Festwert kann deshalb enthalten sein, obwohl seine Itemmenge in
+übermittelte Netto-Gesamtwert verwendet dieselben Bewertungsregeln wie das Dashboard,
+bezogen auf die Mengen des übertragenen Abschnitts. Ein bekannter lokaler Festwert
+kann deshalb enthalten sein, obwohl seine Itemmenge in
 Garmoth nicht unterstützt wird. IDs werden niemals aus Namen/Iconpfaden erraten.
 Sind keine unterstützten Items übrig, wird keine leere Sitzung gesendet.
 
@@ -123,8 +163,10 @@ Die Implementierung folgt dem statisch belegten externen Vertrag, nicht einer
 
 Geprüft werden lokale Payloads und HTTP-Verhalten ausschließlich mit synthetischen
 Mock-Antworten: richtige IDs/Feldtypen, explizites Auslassen nicht unterstützter Items,
-Minuten-/Silberarithmetik, keine Zugangsdaten in Fehlern, Abbruch/Zeitlimit,
-begrenzte Antworten und Doppelupload-Schutz. **Es wurde keine reale Sitzung
+Minuten-/Silberarithmetik, Stundenabgrenzung einschließlich Pausen und Leerlaufabzug,
+Mengendeltas und spätere Korrekturen, gespeicherte Opt-in-Einstellung, keine
+Zugangsdaten in Fehlern, Abbruch/Zeitlimit, begrenzte Antworten und Doppelupload-Schutz.
+**Es wurde keine reale Sitzung
 hochgeladen und kein fremdes Konto aufgerufen.** Die Annahme eines echten
 API-Keys und einer echten Sitzung durch den aktuellen Garmoth-Server bleibt ein
 vom Nutzer auszulösender Integrationstest. Öffentliche HTTP-Metadatenanfragen

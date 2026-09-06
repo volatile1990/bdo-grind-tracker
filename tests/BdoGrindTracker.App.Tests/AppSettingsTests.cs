@@ -6,6 +6,32 @@ namespace BdoGrindTracker.App.Tests;
 
 public sealed class AppSettingsTests
 {
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("{ \"SettingsVersion\": 6, \"AutoPauseMinutes\": 12 }")]
+    public void AutomaticGarmothUploadsRequireExplicitOptIn(string json)
+    {
+        var settings = JsonSerializer.Deserialize<AppSettings>(json)!;
+
+        settings.UpgradeDefaults();
+
+        Assert.False(settings.GarmothAutoUploadEnabled);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AutomaticGarmothUploadPreferenceSurvivesUpgradeAndJsonRoundTrip(bool enabled)
+    {
+        var settings = new AppSettings { GarmothAutoUploadEnabled = enabled };
+
+        settings.UpgradeDefaults();
+        var reloaded = JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(settings))!;
+        reloaded.UpgradeDefaults();
+
+        Assert.Equal(enabled, reloaded.GarmothAutoUploadEnabled);
+    }
+
     [Fact]
     public void ExistingSettingsGainThreeMinuteAutoPauseWithoutChangingPreferences()
     {

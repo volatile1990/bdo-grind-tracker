@@ -7,6 +7,72 @@ namespace BdoGrindTracker.App.Tests;
 
 public sealed class GarmothOptionsDialogTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AutomaticUploadChangesAreOnlyPublishedOnSave(bool initialValue)
+    {
+        RunInSta(() =>
+        {
+            using var dialog = new GarmothOptionsDialog("original-test-key", initialValue);
+            var checkbox = Get<CheckBox>(dialog, "_autoUploadCheckBox");
+            Assert.True(checkbox.Enabled);
+            Assert.Equal(initialValue, checkbox.Checked);
+
+            checkbox.Checked = !initialValue;
+
+            Assert.Equal(initialValue, dialog.AutoUploadEnabled);
+            Assert.Equal(DialogResult.None, dialog.DialogResult);
+            Invoke(dialog, "SaveChanges");
+            Assert.Equal(DialogResult.OK, dialog.DialogResult);
+            Assert.Equal(!initialValue, dialog.AutoUploadEnabled);
+        });
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void CancelDiscardsAutomaticUploadChanges(bool initialValue)
+    {
+        RunInSta(() =>
+        {
+            using var dialog = new GarmothOptionsDialog("original-test-key", initialValue);
+            Get<CheckBox>(dialog, "_autoUploadCheckBox").Checked = !initialValue;
+
+            Invoke(dialog, "CancelChanges");
+
+            Assert.Equal(DialogResult.Cancel, dialog.DialogResult);
+            Assert.Equal(initialValue, dialog.AutoUploadEnabled);
+        });
+    }
+
+    [Fact]
+    public void AutomaticUploadsNeedAValidKeyAndRemainOffAfterReplacingRemovedKey()
+    {
+        RunInSta(() =>
+        {
+            using var dialog = new GarmothOptionsDialog();
+            var checkbox = Get<CheckBox>(dialog, "_autoUploadCheckBox");
+            var input = Get<TextBox>(dialog, "_apiKeyTextBox");
+            Assert.False(checkbox.Enabled);
+            Assert.False(checkbox.Checked);
+
+            input.Text = "valid-test-key";
+            Assert.True(checkbox.Enabled);
+            checkbox.Checked = true;
+            input.Clear();
+            Assert.False(checkbox.Enabled);
+            Assert.False(checkbox.Checked);
+
+            input.Text = "replacement-test-key";
+            Assert.True(checkbox.Enabled);
+            Assert.False(checkbox.Checked);
+            Invoke(dialog, "SaveChanges");
+            Assert.Equal(DialogResult.OK, dialog.DialogResult);
+            Assert.False(dialog.AutoUploadEnabled);
+        });
+    }
+
     [Fact]
     public void KeyIsMaskedAndEditingDoesNotPublishIt()
     {
@@ -61,16 +127,20 @@ public sealed class GarmothOptionsDialogTests
     {
         RunInSta(() =>
         {
-            using var dialog = new GarmothOptionsDialog("original-test-key");
+            using var dialog = new GarmothOptionsDialog("original-test-key", autoUploadEnabled: true);
 
             Invoke(dialog, "StageRemoval");
 
             Assert.Empty(Get<TextBox>(dialog, "_apiKeyTextBox").Text);
             Assert.Equal("original-test-key", dialog.ApiKey);
+            Assert.True(dialog.AutoUploadEnabled);
+            Assert.False(Get<CheckBox>(dialog, "_autoUploadCheckBox").Checked);
+            Assert.False(Get<CheckBox>(dialog, "_autoUploadCheckBox").Enabled);
             Assert.Contains("entfernt", Get<Label>(dialog, "_statusLabel").Text);
             Invoke(dialog, "SaveChanges");
             Assert.Equal(DialogResult.OK, dialog.DialogResult);
             Assert.Empty(dialog.ApiKey);
+            Assert.False(dialog.AutoUploadEnabled);
         });
     }
 
@@ -79,13 +149,14 @@ public sealed class GarmothOptionsDialogTests
     {
         RunInSta(() =>
         {
-            using var dialog = new GarmothOptionsDialog("original-test-key");
+            using var dialog = new GarmothOptionsDialog("original-test-key", autoUploadEnabled: true);
             Invoke(dialog, "StageRemoval");
 
             Invoke(dialog, "CancelChanges");
 
             Assert.Equal(DialogResult.Cancel, dialog.DialogResult);
             Assert.Equal("original-test-key", dialog.ApiKey);
+            Assert.True(dialog.AutoUploadEnabled);
         });
     }
 
@@ -96,14 +167,17 @@ public sealed class GarmothOptionsDialogTests
     {
         RunInSta(() =>
         {
-            using var dialog = new GarmothOptionsDialog("original-test-key");
+            using var dialog = new GarmothOptionsDialog("original-test-key", autoUploadEnabled: true);
             Get<TextBox>(dialog, "_apiKeyTextBox").Text = value;
 
             Invoke(dialog, "SaveChanges");
 
             Assert.False(Get<BdoButton>(dialog, "_saveButton").Enabled);
+            Assert.False(Get<CheckBox>(dialog, "_autoUploadCheckBox").Enabled);
+            Assert.False(Get<CheckBox>(dialog, "_autoUploadCheckBox").Checked);
             Assert.Equal(DialogResult.None, dialog.DialogResult);
             Assert.Equal("original-test-key", dialog.ApiKey);
+            Assert.True(dialog.AutoUploadEnabled);
             Assert.DoesNotContain(value, Get<Label>(dialog, "_statusLabel").Text);
         });
     }
@@ -116,7 +190,7 @@ public sealed class GarmothOptionsDialogTests
             using var dialog = new GarmothOptionsDialog();
             dialog.Size = dialog.MinimumSize;
             LayoutHandles(dialog);
-            foreach (var name in new[] { "_apiKeyTextBox", "_saveButton", "_cancelButton", "_forgetButton" })
+            foreach (var name in new[] { "_apiKeyTextBox", "_autoUploadCheckBox", "_saveButton", "_cancelButton", "_forgetButton" })
             {
                 var control = (Control)dialog.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(dialog)!;
                 Assert.True(dialog.ClientRectangle.Contains(BoundsInForm(control, dialog)), name);

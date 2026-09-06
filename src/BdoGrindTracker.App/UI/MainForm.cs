@@ -38,10 +38,12 @@ internal sealed class MainForm : Form
     private bool _classDetectionInProgress;
     private readonly GarmothUploadClient _garmothClient;
     private readonly GarmothApiKeyStore _garmothKeyStore;
+    private readonly GarmothUploadIntervals _garmothIntervals = new();
     private readonly BdoButton _garmothButton = new();
     private readonly BdoButton _garmothOptionsButton = new();
     private string _garmothApiKey = string.Empty;
     private bool _garmothUploadInProgress;
+    private bool _uploadOptionsOpen;
     private Guid _sessionId = Guid.NewGuid();
     private DateTimeOffset? _sessionStartedAt;
     private string? _sessionSpotId;
@@ -68,7 +70,6 @@ internal sealed class MainForm : Form
     private readonly ILootPriceProvider _priceProvider;
     private readonly CancellationTokenSource _priceLifetime = new();
     private LootPriceSnapshot _prices;
-    private SilverValuationResult? _silverValuation;
     private bool _priceRefreshEnabled;
     private bool _priceRefreshInProgress;
     private Task? _priceRefreshTask;
@@ -266,7 +267,7 @@ internal sealed class MainForm : Form
         _garmothButton.Width = 144;
         _garmothButton.Margin = new Padding(0, 0, 10, 0);
         _garmothButton.AccessibleName = "Sitzung mit einem Klick nach Garmoth hochladen";
-        _garmothButton.AccessibleDescription = "Pausiert bei Bedarf und überträgt die aktuellen Sitzungswerte sofort.";
+        _garmothButton.AccessibleDescription = "Pausiert bei Bedarf und überträgt den noch nicht gesendeten Grind sofort.";
         actions.Controls.Add(_resetButton);
         actions.Controls.Add(_garmothButton);
         actions.Controls.Add(_trackingButton);
@@ -661,6 +662,7 @@ internal sealed class MainForm : Form
         {
             RefreshPendingUi();
             await PauseIfInactiveAsync();
+            await UploadHourlyToGarmothAsync();
             if (_priceRefreshEnabled && !_priceRefreshInProgress && DateTimeOffset.UtcNow >= _nextPriceRefreshAt)
                 await RefreshPricesAsync();
         };
@@ -881,7 +883,9 @@ internal sealed class MainForm : Form
 
     private async Task PauseIfInactiveAsync()
     {
-        if (!_uiRunning || IsBusy || _shutdownStarted ||
+        // Background hourly HTTP must not defer the inactivity cutoff. Manual
+        // upload/pause operations already hold _operationInProgress.
+        if (!_uiRunning || _operationInProgress || _shutdownStarted ||
             !_inactivityTimer.ShouldPause(TimeSpan.FromMinutes((double)_autoPauseMinutes.Value)))
             return;
 
@@ -913,6 +917,7 @@ internal sealed class MainForm : Form
         _sessionStartedAt = null;
         _sessionSpotId = null;
         _sessionSubmitted = false;
+        _garmothIntervals.Reset();
         _garmothButton.Text = "Garmoth-Upload";
         _sessionClass = null;
         _classOverrideComboBox.SelectedIndex = 0;
@@ -950,8 +955,14 @@ internal sealed class MainForm : Form
 
         // Apply every event before returning; render only the latest aggregate.
         // No UI screenshots, raw-text formatting, or growing decision log.
-        if (_uiMailbox.Publish(analysis))
-            _inactivityTimer.RecordDrop();
+        _uiMailbox.Publish(analysis, onPublished: ObserveGarmothTotals);
+    }
+
+    private void ObserveGarmothTotals(IReadOnlyDictionary<string, long> totals, bool hasNewDrop)
+    {
+        if (hasNewDrop) _inactivityTimer.RecordDrop();
+        var confirmedDuration = _sessionClock.GetElapsedExcludingTrailingIdle(_inactivityTimer.IdleDuration);
+        _garmothIntervals.Observe(confirmedDuration, totals, DateTimeOffset.UtcNow);
     }
 
     private void RefreshPendingUi()
@@ -980,7 +991,8 @@ internal sealed class MainForm : Form
             UpdateControlState();
         }
 
-        if (!_uiRunning || _shutdownStarted)
+        if (!_uiRunning || _shutdownStarted || _garmothUploadInProgress ||
+            _garmothIntervals.IsBlocked || _garmothIntervals.AutomaticSuspended)
             return;
 
         var message = update.Analysis.PanelRegion is null
@@ -1005,62 +1017,38 @@ internal sealed class MainForm : Form
 
     private async Task UploadToGarmothAsync()
     {
-        if (IsBusy || _sessionSubmitted || _sessionSummary.ItemTypeCount == 0 || _shutdownStarted)
+        if (IsBusy || _sessionSubmitted || _garmothIntervals.IsBlocked || _shutdownStarted)
             return;
+        RefreshPendingUi();
+        if (_sessionSummary.ItemTypeCount == 0) return;
         if (string.IsNullOrEmpty(_garmothApiKey))
         {
             if (!_optionsExpanded) ToggleOptions();
             SetStatus(UiStatusKind.Error, "Garmoth", "API-Key einmal unter Optionen → Garmoth-Key hinterlegen.");
             return;
         }
-        RefreshPendingUi();
         _operationInProgress = true;
         _garmothUploadInProgress = true;
         UpdateControlState();
+        GarmothUploadInterval? interval = null;
         try
         {
             if (_uiRunning)
                 await StopTrackingAsync();
             RefreshPendingUi();
-            await RefreshPricesAsync();
-            var character = _sessionClass ?? SelectedCharacterClass;
-            if (character is null)
-            {
-                await RefreshClassDetectionAsync();
-                character = _sessionClass ?? SelectedCharacterClass;
-            }
-            if (character is null)
-                throw new ArgumentException("Klasse noch unbekannt. Unter Optionen einmal wählen.");
-            UpdateSilverValuation();
-            var valuation = _silverValuation!;
-            if (!valuation.IsComplete && !valuation.HasKnownValue)
-                throw new ArgumentException("Noch kein Silberpreis verfügbar. Nach dem nächsten Preisabruf erneut hochladen.");
-            if (valuation.AfterTax < 0 || valuation.AfterTax > long.MaxValue || valuation.OverflowItems.Count > 0)
-                throw new ArgumentException("Der berechnete Silberwert ist nicht für Garmoth darstellbar.");
-            var draft = new GarmothSessionDraft(_sessionId, _sessionSpotId ?? "", character.Name,
-                character.Specialization switch
-                {
-                    CharacterSpecialization.Succession => GarmothSpecialization.Succession,
-                    CharacterSpecialization.Awakening => GarmothSpecialization.Awakening,
-                    _ => GarmothSpecialization.Unique
-                }, _sessionClock.Elapsed, _sessionSummary.Totals,
-                (long)decimal.Truncate(valuation.AfterTax), _sessionStartedAt ?? DateTimeOffset.UtcNow);
-            var payload = GarmothSessionPayload.Create(draft);
-            SetStatus(UiStatusKind.Paused, "Garmoth", "Sitzung wird übertragen …");
-            var result = await _garmothClient.UploadAsync(draft, _garmothApiKey);
-            var notes = new List<string>();
-            if (payload.OmittedItems.Count > 0)
-                notes.Add("Ohne Garmoth-Zuordnung ausgelassen: " + string.Join(", ", payload.OmittedItems) + ".");
-            if (!valuation.IsComplete)
-                notes.Add("Silber ist eine Teilsumme; fehlende Preise wurden nicht geschätzt.");
-            if (valuation.IsStale)
-                notes.Add("Silber verwendet den letzten gespeicherten Preisstand.");
-            if (notes.Count > 0)
-                result = result with { Message = result.Message + " " + string.Join(" ", notes) };
+            interval = _garmothIntervals.PrepareManual(_sessionClock.Elapsed, _sessionSummary.Totals,
+                _sessionStartedAt ?? DateTimeOffset.UtcNow);
+            if (interval is null)
+                throw new ArgumentException("Kein neuer Loot mit mindestens einer vollen Minute seit dem letzten Upload vorhanden.");
+            SetStatus(UiStatusKind.Paused, "Garmoth", "Noch nicht übertragener Grind wird gesendet …");
+            var result = await SendGarmothIntervalAsync(interval);
+            _garmothIntervals.Complete(interval, result);
             ApplyGarmothResult(result);
         }
         catch (ArgumentException exception)
         {
+            if (interval is not null)
+                _garmothIntervals.Complete(interval, new(GarmothUploadStatus.Rejected, exception.Message));
             SetStatus(UiStatusKind.Error, "Garmoth nicht gesendet", exception.Message);
         }
         finally
@@ -1071,23 +1059,123 @@ internal sealed class MainForm : Form
         }
     }
 
+    private async Task UploadHourlyToGarmothAsync()
+    {
+        if (!_settings.GarmothAutoUploadEnabled || !_hasSession || IsBusy || _sessionSubmitted ||
+            _shutdownStarted || _uploadOptionsOpen || _garmothIntervals.IsBlocked || _garmothIntervals.AutomaticSuspended)
+            return;
+
+        var interval = _garmothIntervals.PrepareAutomatic();
+        if (interval is null) return;
+        _garmothUploadInProgress = true;
+        UpdateControlState();
+        try
+        {
+            if (string.IsNullOrEmpty(_garmothApiKey))
+                throw new ArgumentException("API-Key unter Optionen → Garmoth-Key hinterlegen.");
+            SetStatus(_uiRunning ? UiStatusKind.Active : UiStatusKind.Paused, "Garmoth automatisch",
+                "Abgeschlossene Grindstunde wird übertragen …");
+            var result = await SendGarmothIntervalAsync(interval);
+            _garmothIntervals.Complete(interval, result);
+            _garmothButton.Text = _garmothIntervals.IsBlocked ? "Upload prüfen" : "Garmoth-Upload";
+            var guidance = result.Status == GarmothUploadStatus.Succeeded
+                ? " Nur dieser Stundenabschnitt wurde übertragen."
+                : _garmothIntervals.IsBlocked
+                    ? " Weitere Uploads dieser Sitzung sind gesperrt. Tracking läuft weiter; bitte in Garmoth prüfen."
+                    : " Auto-Upload angehalten. Nach der Korrektur Garmoth-Optionen speichern oder manuell hochladen.";
+            SetStatus(result.Status == GarmothUploadStatus.Succeeded
+                    ? (_uiRunning ? UiStatusKind.Active : UiStatusKind.Paused) : UiStatusKind.Error,
+                "Garmoth automatisch", result.Message + guidance);
+        }
+        catch (ArgumentException exception)
+        {
+            _garmothIntervals.Complete(interval, new(GarmothUploadStatus.Rejected, exception.Message));
+            SetStatus(UiStatusKind.Error, "Garmoth automatisch",
+                exception.Message + " Auto-Upload angehalten. Angaben korrigieren und Garmoth-Optionen speichern oder manuell hochladen.");
+        }
+        finally
+        {
+            _garmothUploadInProgress = false;
+            UpdateControlState();
+        }
+    }
+
+    private async Task<GarmothUploadResult> SendGarmothIntervalAsync(GarmothUploadInterval interval)
+    {
+        await RefreshPricesAsync();
+        var character = _sessionClass ?? SelectedCharacterClass;
+        if (character is null)
+        {
+            await RefreshClassDetectionAsync();
+            character = _sessionClass ?? SelectedCharacterClass;
+        }
+        if (character is null)
+            throw new ArgumentException("Klasse noch unbekannt. Unter Optionen einmal wählen.");
+
+        // Value only this frozen quantity delta. Subtracting two lifetime silver
+        // values would charge old loot again whenever prices or tax options change.
+        var valuation = SilverValuation.Calculate(interval.Totals, _prices, _settings.GetSilverTaxOptions());
+        if (!valuation.IsComplete && !valuation.HasKnownValue)
+            throw new ArgumentException("Noch kein Silberpreis verfügbar. Nach dem nächsten Preisabruf erneut hochladen.");
+        if (valuation.AfterTax < 0 || valuation.AfterTax > long.MaxValue || valuation.OverflowItems.Count > 0)
+            throw new ArgumentException("Der berechnete Silberwert ist nicht für Garmoth darstellbar.");
+        var draft = new GarmothSessionDraft(interval.Id, _sessionSpotId ?? "", character.Name,
+            character.Specialization switch
+            {
+                CharacterSpecialization.Succession => GarmothSpecialization.Succession,
+                CharacterSpecialization.Awakening => GarmothSpecialization.Awakening,
+                _ => GarmothSpecialization.Unique
+            }, interval.ActiveDuration, interval.Totals,
+            (long)decimal.Truncate(valuation.AfterTax), interval.StartedAt)
+        {
+            SourceSessionId = _sessionId
+        };
+        var payload = GarmothSessionPayload.Create(draft);
+        var result = await _garmothClient.UploadAsync(draft, _garmothApiKey);
+        var notes = new List<string>();
+        if (payload.OmittedItems.Count > 0)
+            notes.Add("Ohne Garmoth-Zuordnung ausgelassen: " + string.Join(", ", payload.OmittedItems) + ".");
+        if (!valuation.IsComplete)
+            notes.Add("Silber ist eine Teilsumme; fehlende Preise wurden nicht geschätzt.");
+        if (valuation.IsStale)
+            notes.Add("Silber verwendet den letzten gespeicherten Preisstand.");
+        return notes.Count == 0 ? result
+            : result with { Message = result.Message + " " + string.Join(" ", notes) };
+    }
+
     private void GarmothOptionsButton_Click(object? sender, EventArgs e)
     {
         if (IsBusy || _shutdownStarted) return;
-        using var dialog = new GarmothOptionsDialog(_garmothApiKey);
-        if (dialog.ShowDialog(this) == DialogResult.OK)
-            SaveGarmothApiKey(dialog.ApiKey);
+        using var dialog = new GarmothOptionsDialog(_garmothApiKey, _settings.GarmothAutoUploadEnabled);
+        _uploadOptionsOpen = true;
+        try
+        {
+            if (dialog.ShowDialog(this) == DialogResult.OK)
+                SaveGarmothPreferences(dialog.ApiKey, dialog.AutoUploadEnabled);
+        }
+        finally { _uploadOptionsOpen = false; }
     }
 
-    private void SaveGarmothApiKey(string apiKey)
+    private void SaveGarmothApiKey(string apiKey) =>
+        SaveGarmothPreferences(apiKey, _settings.GarmothAutoUploadEnabled);
+
+    private void SaveGarmothPreferences(string apiKey, bool autoUploadEnabled)
     {
         apiKey = apiKey.Trim();
         try
         {
             _garmothKeyStore.Save(apiKey);
             _garmothApiKey = apiKey;
+            _settings.GarmothAutoUploadEnabled = autoUploadEnabled && apiKey.Length > 0;
+            _settingsStore.Save(_settings);
+            _garmothIntervals.ResumeAutomatic();
             SetStatus(UiStatusKind.Ready, "Garmoth", string.IsNullOrEmpty(apiKey)
-                ? "API-Key entfernt." : "API-Key Windows-verschlüsselt gespeichert. Upload ist jetzt mit einem Klick möglich.");
+                ? "API-Key entfernt. Automatischer Upload ist aus."
+                : _garmothIntervals.IsBlocked
+                    ? "Optionen gespeichert. Unklares Upload-Ergebnis zuerst in Garmoth prüfen; diese Sitzung bleibt für Uploads gesperrt."
+                    : _settings.GarmothAutoUploadEnabled
+                        ? "Automatischer Upload aktiv: jede volle Grindstunde wird einmal übertragen. Pausen zählen nicht mit."
+                        : "API-Key Windows-verschlüsselt gespeichert. Automatischer Upload ist aus.");
             UpdateControlState();
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or
@@ -1149,7 +1237,6 @@ internal sealed class MainForm : Form
     {
         var tax = _settings.GetSilverTaxOptions();
         var valuation = SilverValuation.Calculate(_sessionSummary.Totals, _prices, tax);
-        _silverValuation = valuation;
         var prefix = valuation.IsComplete ? "" : "≥ ";
         _silverBeforeTaxValue.Text = !valuation.IsComplete && !valuation.HasKnownValue ? "—"
             : prefix + decimal.Truncate(valuation.BeforeTax).ToString("N0", SilverCulture);
@@ -1183,9 +1270,14 @@ internal sealed class MainForm : Form
         if (_shutdownStarted || _garmothUploadInProgress)
             return;
         using var dialog = new SilverOptionsDialog(_settings.MarketRegion, _settings.GetSilverTaxOptions());
-        if (dialog.ShowDialog(this) != DialogResult.OK)
-            return;
-        ApplySilverPreferences(dialog.SelectedRegion, dialog.SelectedTaxOptions);
+        _uploadOptionsOpen = true;
+        try
+        {
+            if (dialog.ShowDialog(this) != DialogResult.OK)
+                return;
+            ApplySilverPreferences(dialog.SelectedRegion, dialog.SelectedTaxOptions);
+        }
+        finally { _uploadOptionsOpen = false; }
         _priceRefreshEnabled = true;
         await RefreshPricesAsync();
     }
@@ -1302,7 +1394,7 @@ internal sealed class MainForm : Form
         var completed = _analyzer.CompleteSession(completedAt);
         _captureSegmentCompleted = true;
         _recording?.RecordCompletion(completedAt, completed.TrackingResult);
-        _uiMailbox.Publish(completed);
+        _uiMailbox.Publish(completed, onPublished: ObserveGarmothTotals);
         RefreshPendingUi();
     }
 
@@ -1378,9 +1470,12 @@ internal sealed class MainForm : Form
         _recordingCheckBox.Enabled = !_uiRunning && !IsBusy && !_hasSession;
         _classOverrideComboBox.Enabled = !_uiRunning && !IsBusy && !_sessionSubmitted;
         _garmothButton.Enabled = !IsBusy && !_sessionSubmitted &&
-            _sessionSummary.ItemTypeCount > 0;
+            !_garmothIntervals.IsBlocked && _sessionSummary.ItemTypeCount > 0;
         _garmothOptionsButton.Enabled = !IsBusy;
-        _garmothOptionsButton.Text = string.IsNullOrEmpty(_garmothApiKey) ? "Garmoth-Key" : "Garmoth-Key ✓";
+        _garmothOptionsButton.Text = string.IsNullOrEmpty(_garmothApiKey) ? "Garmoth-Key"
+            : _settings.GarmothAutoUploadEnabled
+                ? _garmothIntervals.AutomaticSuspended ? "Garmoth · prüfen" : "Garmoth · Auto"
+                : "Garmoth-Key ✓";
         _silverOptionsButton.Enabled = !_garmothUploadInProgress;
         _trackingButton.Text = _uiRunning
             ? "Pausieren"

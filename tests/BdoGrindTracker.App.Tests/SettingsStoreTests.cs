@@ -15,6 +15,7 @@ public sealed class SettingsStoreTests
 
         Assert.Equal(3, settings.AutoPauseMinutes);
         Assert.Equal(6, settings.SettingsVersion);
+        Assert.False(settings.GarmothAutoUploadEnabled);
     }
 
     [Fact]
@@ -47,6 +48,23 @@ public sealed class SettingsStoreTests
 
         Assert.Equal(12, reloaded.AutoPauseMinutes);
         Assert.Equal("DISPLAY3", reloaded.MonitorDeviceName);
+    }
+
+    [Fact]
+    public void AutomaticGarmothUploadsCanBeEnabledAndDisabledPersistently()
+    {
+        using var fixture = new IsolatedStore();
+        var settings = fixture.Store.Load();
+        settings.GarmothAutoUploadEnabled = true;
+        Assert.False(File.Exists(fixture.Path));
+
+        fixture.Store.Save(settings);
+        var reloaded = fixture.Store.Load();
+        Assert.True(reloaded.GarmothAutoUploadEnabled);
+
+        reloaded.GarmothAutoUploadEnabled = false;
+        fixture.Store.Save(reloaded);
+        Assert.False(fixture.Store.Load().GarmothAutoUploadEnabled);
     }
 
     [Fact]
