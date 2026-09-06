@@ -249,7 +249,7 @@ internal sealed class MainForm : Form
         _liveTrackerView.Visible = !showHistory;
         _historyView.Visible = showHistory;
         _liveIdentity.Visible = !showHistory;
-        _optionsButton.Visible = !showHistory;
+        _optionsButton.Visible = true;
         StyleMainAreaButton(_liveTabButton, selected: !showHistory);
         StyleMainAreaButton(_historyTabButton, selected: showHistory);
 
@@ -557,6 +557,13 @@ internal sealed class MainForm : Form
         _optionsButton.AccessibleDescription = _optionsExpanded ? "Ausgeklappt" : "Eingeklappt";
     }
 
+    private void OptionsButton_Click(object? sender, EventArgs e)
+    {
+        if (_historyView.Visible)
+            ShowMainArea(showHistory: false);
+        ToggleOptions();
+    }
+
     private Control BuildSummary()
     {
         var summary = new TableLayoutPanel
@@ -744,7 +751,7 @@ internal sealed class MainForm : Form
         _resetButton.Click += ResetButton_Click;
         _garmothButton.Click += GarmothButton_Click;
         _garmothOptionsButton.Click += GarmothOptionsButton_Click;
-        _optionsButton.Click += (_, _) => ToggleOptions();
+        _optionsButton.Click += OptionsButton_Click;
         _silverOptionsButton.Click += SilverOptionsButton_Click;
         Shown += async (_, _) =>
         {

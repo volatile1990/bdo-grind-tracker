@@ -17,6 +17,10 @@ internal sealed class LootHistoryView : UserControl
         Path.Combine(AppContext.BaseDirectory, "data", "spot-backgrounds"));
     private readonly ImageAssetRepository _spotIcons = new(
         Path.Combine(AppContext.BaseDirectory, "data", "spot-icons"));
+    private readonly ImageAssetRepository _crystalIcons = new(
+        Path.Combine(AppContext.BaseDirectory, "data", "crystal-icons"));
+    private readonly ImageAssetRepository _classIcons = new(
+        Path.Combine(AppContext.BaseDirectory, "data", "class-icons"));
     private readonly LootIconRepository _icons = new(
         Path.Combine(AppContext.BaseDirectory, "data", "icons"));
     private readonly Font _headingFont = new(
@@ -115,6 +119,8 @@ internal sealed class LootHistoryView : UserControl
             _headingFont.Dispose();
             _backgrounds.Dispose();
             _spotIcons.Dispose();
+            _crystalIcons.Dispose();
+            _classIcons.Dispose();
             _icons.Dispose();
         }
         base.Dispose(disposing);
@@ -207,6 +213,7 @@ internal sealed class LootHistoryView : UserControl
                 sessions,
                 _backgrounds.Get(profile.BackgroundFileName),
                 _spotIcons.Get(profile.IconFileName),
+                _crystalIcons.Get(profile.RecommendedCrystalFileName),
                 _icons)
             {
                 Margin = new Padding(0, 0, 11, 11)
@@ -233,6 +240,8 @@ internal sealed class LootHistoryView : UserControl
             sessions,
             _backgrounds.Get(profile.BackgroundFileName),
             _spotIcons.Get(profile.IconFileName),
+            _crystalIcons.Get(profile.RecommendedCrystalFileName),
+            _classIcons,
             _icons)
         {
             Margin = new Padding(0, 0, 0, 11)
@@ -359,6 +368,7 @@ internal sealed class SpotHistoryCard : Control
     private readonly IReadOnlyList<LootHistoryEntry> _sessions;
     private readonly Image? _background;
     private readonly Image? _spotIcon;
+    private readonly Image? _crystalIcon;
     private readonly LootIconRepository _icons;
     private Font? _titleFont;
     private Font? _captionFont;
@@ -371,12 +381,14 @@ internal sealed class SpotHistoryCard : Control
         IReadOnlyList<LootHistoryEntry> sessions,
         Image? background,
         Image? spotIcon,
+        Image? crystalIcon,
         LootIconRepository icons)
     {
         _profile = profile ?? throw new ArgumentNullException(nameof(profile));
         _sessions = sessions ?? throw new ArgumentNullException(nameof(sessions));
         _background = background;
         _spotIcon = spotIcon;
+        _crystalIcon = crystalIcon;
         _icons = icons ?? throw new ArgumentNullException(nameof(icons));
         SetStyle(ControlStyles.AllPaintingInWmPaint |
                  ControlStyles.OptimizedDoubleBuffer |
@@ -533,13 +545,14 @@ internal sealed class SpotHistoryCard : Control
             TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
 
         DrawTrash(graphics, bounds);
-        DrawStat(graphics, padding, ScaleLogical(68), ScaleLogical(68),
+        DrawCrystal(graphics, bounds);
+        DrawStat(graphics, padding, ScaleLogical(68), ScaleLogical(60),
             "REC. AP", _profile.RecommendedAp.ToString(CultureInfo.InvariantCulture) + "+",
             Color.FromArgb(231, 160, 95));
-        DrawStat(graphics, padding + ScaleLogical(72), ScaleLogical(68), ScaleLogical(68),
+        DrawStat(graphics, padding + ScaleLogical(62), ScaleLogical(68), ScaleLogical(60),
             "MAX AP", _profile.MaxApLimit.ToString(CultureInfo.InvariantCulture),
             Color.FromArgb(240, 200, 111));
-        DrawStat(graphics, padding + ScaleLogical(144), ScaleLogical(68), ScaleLogical(68),
+        DrawStat(graphics, padding + ScaleLogical(124), ScaleLogical(68), ScaleLogical(60),
             "REC. DP", _profile.RecommendedDp.ToString(CultureInfo.InvariantCulture) + "+",
             Color.FromArgb(131, 209, 153));
         DrawCompactTraits(graphics, padding, ScaleLogical(126), bounds.Width - padding * 2);
@@ -578,6 +591,38 @@ internal sealed class SpotHistoryCard : Control
             TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
     }
 
+    private void DrawCrystal(Graphics graphics, Rectangle bounds)
+    {
+        var size = ScaleLogical(49);
+        var trashWidth = ScaleLogical(154);
+        var right = ScaleLogical(14);
+        var gap = ScaleLogical(7);
+        var box = new Rectangle(bounds.Right - right - trashWidth - gap - size,
+            ScaleLogical(65), size, size);
+        using var path = BdoTheme.CreateRoundedRectangle(box, ScaleLogical(6));
+        using var fill = new SolidBrush(Color.FromArgb(224, 18, 21, 22));
+        using var border = new Pen(Color.FromArgb(145, 121, 169, 211));
+        graphics.FillPath(fill, path);
+        graphics.DrawPath(border, path);
+        var iconBounds = Rectangle.Inflate(box, -ScaleLogical(3), -ScaleLogical(3));
+        if (_crystalIcon is not null)
+            graphics.DrawImage(_crystalIcon, iconBounds);
+        var label = _profile.RecommendedCrystalName switch
+        {
+            "Adamantine" => "ADAM.",
+            "Fighting Spirit" => "SPIRIT",
+            _ => _profile.RecommendedCrystalName.ToUpperInvariant()
+        };
+        var labelBounds = new Rectangle(box.X + ScaleLogical(2), box.Bottom - ScaleLogical(15),
+            box.Width - ScaleLogical(4), ScaleLogical(13));
+        using (var labelPath = BdoTheme.CreateRoundedRectangle(labelBounds, ScaleLogical(3)))
+        using (var labelFill = new SolidBrush(Color.FromArgb(225, 8, 10, 12)))
+            graphics.FillPath(labelFill, labelPath);
+        TextRenderer.DrawText(graphics, label, _captionFont, labelBounds, Color.White,
+            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter |
+            TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
+    }
+
     private void DrawStat(Graphics graphics, int x, int y, int width, string label, string value, Color color)
     {
         TextRenderer.DrawText(graphics, label, _captionFont,
@@ -592,18 +637,21 @@ internal sealed class SpotHistoryCard : Control
 
     private void DrawCompactTraits(Graphics graphics, int startX, int startY, int availableWidth)
     {
+        var traits = _profile.Traits
+            .Where(static trait => !LootSpotPresentationCatalog.IsResistanceTrait(trait))
+            .ToArray();
         var x = startX;
         var height = ScaleLogical(20);
         var hidden = 0;
-        for (var index = 0; index < _profile.Traits.Count; index++)
+        for (var index = 0; index < traits.Length; index++)
         {
-            var trait = _profile.Traits[index];
+            var trait = traits[index];
             var textSize = TextRenderer.MeasureText(graphics, trait, _traitFont,
                 Size.Empty, TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
             var width = textSize.Width + ScaleLogical(12);
             if (x + width > startX + availableWidth - ScaleLogical(30))
             {
-                hidden = _profile.Traits.Count - index;
+                hidden = traits.Length - index;
                 break;
             }
             var chip = new Rectangle(x, startY, width, height);
@@ -633,7 +681,8 @@ internal sealed class SpotHistoryCard : Control
 
     private void UpdateAccessibility()
     {
-        AccessibleDescription = $"{_sessions.Count:N0} gespeicherte Stunden. Öffnet die maximierte Detailansicht.";
+        AccessibleDescription = $"{_sessions.Count:N0} gespeicherte Stunden. Empfohlener Kristall: " +
+                                $"{_profile.RecommendedCrystalName}. Öffnet die maximierte Detailansicht.";
     }
 
     private void RecreateFonts()
@@ -683,7 +732,7 @@ internal sealed class SpotHistoryCard : Control
             BdoTheme.Gold, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
     }
 
-    private static (Color Foreground, Color Background) ResolveTraitColors(string trait) => trait switch
+    internal static (Color Foreground, Color Background) ResolveTraitColors(string trait) => trait switch
     {
         "#CombatEXP" => (Color.FromArgb(131, 205, 208), Color.FromArgb(205, 48, 101, 105)),
         "#MarnisRealmPrivate" => (Color.FromArgb(242, 200, 89), Color.FromArgb(210, 103, 77, 27)),

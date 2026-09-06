@@ -12,17 +12,17 @@ public sealed class LootHistoryViewTests
     {
         Assert.Collection(LootSpotPresentationCatalog.Profiles,
             profile => AssertProfile(profile, LootSpotCatalog.AphrodonId, 2090, 2120, 810,
-                "Branch of Abundance", 155_127, "#Knockdown/Bound"),
+                "Branch of Abundance", 155_127, "#Knockdown/Bound", "Adamantine", "adamantine.png"),
             profile => AssertProfile(profile, LootSpotCatalog.HermesiaId, 2220, 2250, 830,
-                "Black Crystal Fragment", 160_539, "#Knockback/Floating"),
+                "Black Crystal Fragment", 160_539, "#Knockback/Floating", "Fighting Spirit", "fighting-spirit.png"),
             profile => AssertProfile(profile, LootSpotCatalog.MagaiaId, 2340, 2370, 840,
-                "Elion Follower's Helmet", 181_042, "#Stun/Stiffness/Freezing"),
+                "Elion Follower's Helmet", 181_042, "#Stun/Stiffness/Freezing", "Giant", "giant.png"),
             profile => AssertProfile(profile, LootSpotCatalog.AresionId, 2455, 2485, 850,
-                "Scorched Belt Ornament", 182_049, "#DivineAuthority"),
+                "Scorched Belt Ornament", 182_049, "#DivineAuthority", "Adamantine", "adamantine.png"),
             profile => AssertProfile(profile, LootSpotCatalog.ScalesOfJudgmentId, 2455, 2485, 860,
-                "Elion Follower's Mark", 186_458, "#PartyOf3"),
+                "Elion Follower's Mark", 186_458, "#PartyOf3", "Giant", "giant.png"),
             profile => AssertProfile(profile, LootSpotCatalog.EventHorizonId, 2570, 2600, 870,
-                "Broken Gloves of the Void", 196_501, "#FeverPowerfulMobs"));
+                "Broken Gloves of the Void", 196_501, "#FeverPowerfulMobs", "Giant", "giant.png"));
 
         Assert.All(LootSpotPresentationCatalog.Profiles, profile =>
         {
@@ -35,8 +35,42 @@ public sealed class LootHistoryViewTests
                 "data", "spot-icons", profile.IconFileName)),
                 $"Packaged spot icon is missing: {profile.IconFileName}");
             Assert.True(File.Exists(Path.Combine(AppContext.BaseDirectory,
+                "data", "crystal-icons", profile.RecommendedCrystalFileName)),
+                $"Packaged crystal icon is missing: {profile.RecommendedCrystalFileName}");
+            Assert.True(File.Exists(Path.Combine(AppContext.BaseDirectory,
                 "data", "icons", LootIconRepository.CreateSlug(profile.TrashItemName) + ".png")),
                 $"Packaged trash icon is missing: {profile.TrashItemName}");
+        });
+    }
+
+    [Fact]
+    public void MaximizedLootTableKeepsEveryLootColumnAndOffersHorizontalScrolling()
+    {
+        RunInSta(() =>
+        {
+            var profile = LootSpotPresentationCatalog.GetRequired(LootSpotCatalog.AphrodonId);
+            var itemNames = new[]
+            {
+                "Ancient Spirit Dust", "Black Stone", "Caphras Stone", "Refined Essence of Devouring",
+                "Fusion Shard", "Bon Origin Shard", "Jin Origin Shard", "Han Origin Shard",
+                "Nev's Fragment", "Silent Crystal of Origin", "Refined Origin of Hunger", "Laila's Petal",
+                "Corrupt Oil of Immortality", "Black Gem Fragment", "Pure Black Stone"
+            };
+            var loot = itemNames.Select((name, index) => new KeyValuePair<string, long>(name, index + 1L))
+                .ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.Ordinal);
+            loot[profile.TrashItemName] = 18_432;
+            using var view = new LootHistoryView { Size = new Size(900, 700) };
+            view.SetEntries([
+                CreateEntry(profile.SpotId, profile.TrashItemName, 18_432,
+                    new DateTimeOffset(2026, 9, 6, 20, 14, 0, TimeSpan.FromHours(2)), totals: loot)
+            ]);
+            view.ShowSpotDetails(profile.SpotId);
+            LayoutRecursively(view);
+
+            var details = Assert.Single(FindDescendants<SpotHistoryDetailView>(view));
+            Assert.Equal(16, details.LootItemNames.Count);
+            Assert.Equal(profile.TrashItemName, details.LootItemNames[0]);
+            Assert.True(details.HasScrollableLootOverflow);
         });
     }
 
@@ -106,6 +140,16 @@ public sealed class LootHistoryViewTests
     }
 
     [Theory]
+    [InlineData("Maegu", "maegu.png")]
+    [InlineData("Dark Knight", "dark-knight.png")]
+    [InlineData("Wukong", "wukong.png")]
+    public void OfficialClassSymbolsArePackagedUnderStableNames(string className, string fileName)
+    {
+        Assert.Equal(fileName, SpotHistoryDetailView.CreateClassIconFileName(className));
+        Assert.True(File.Exists(Path.Combine(AppContext.BaseDirectory, "data", "class-icons", fileName)));
+    }
+
+    [Theory]
     [InlineData(1_310_000_000, "1,31 Mrd.")]
     [InlineData(994_000_000, "994 Mio.")]
     [InlineData(155_127, "155.127")]
@@ -162,7 +206,7 @@ public sealed class LootHistoryViewTests
 
     private static void AssertProfile(LootSpotPresentation profile, string spotId,
         int recommendedAp, int maxAp, int recommendedDp, string trashName, long trashSilver,
-        string distinctiveTrait)
+        string distinctiveTrait, string crystalName, string crystalFileName)
     {
         Assert.Equal(spotId, profile.SpotId);
         Assert.Equal(recommendedAp, profile.RecommendedAp);
@@ -171,10 +215,13 @@ public sealed class LootHistoryViewTests
         Assert.Equal(trashName, profile.TrashItemName);
         Assert.Equal(trashSilver, profile.TrashSilver);
         Assert.Contains(distinctiveTrait, profile.Traits);
+        Assert.Equal(crystalName, profile.RecommendedCrystalName);
+        Assert.Equal(crystalFileName, profile.RecommendedCrystalFileName);
     }
 
     private static LootHistoryEntry CreateEntry(string spotId, string trashName, long trash,
-        DateTimeOffset updatedAt, TimeSpan? duration = null, decimal silver = 1_310_000_000m) =>
+        DateTimeOffset updatedAt, TimeSpan? duration = null, decimal silver = 1_310_000_000m,
+        IReadOnlyDictionary<string, long>? totals = null) =>
         new()
         {
             SessionId = Guid.NewGuid(),
@@ -183,11 +230,14 @@ public sealed class LootHistoryViewTests
             Duration = duration ?? TimeSpan.FromHours(1),
             SpotId = spotId,
             CharacterClass = "Maegu · Awakening",
-            Totals = new Dictionary<string, long>
-            {
-                [trashName] = trash,
-                ["Caphras Stone"] = 124
-            },
+            Totals = totals is null
+                ? new Dictionary<string, long>
+                {
+                    [trashName] = trash,
+                    ["Caphras Stone"] = 124
+                }
+                : totals.ToDictionary(static pair => pair.Key, static pair => pair.Value,
+                    StringComparer.Ordinal),
             SilverBeforeTax = silver,
             SilverAfterTax = silver,
             SilverIsComplete = true
