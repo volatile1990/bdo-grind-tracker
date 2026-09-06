@@ -1,4 +1,11 @@
-# Erkennungsarchitektur 0.9.0
+# Erkennungsarchitektur 0.9.4
+
+Seit 0.9.4 wird der folgende Companion-Basispfad durch ausschließlich additive
+[Normal-Loot-Leseversuche](OCR_RECOVERY.md) ergänzt: fehlende Mengen nachlesen und
+gescheiterte Zeilen aus Originalpixeln mit Graustufen/adaptiver Binarisierung lesen.
+Erfolgreiche Baseline-Beobachtungen brauchen keine zusätzliche Bestätigung. Der
+zeitliche Zähler, Capture-Takt und Rare-Pfad bleiben unverändert. Die vollständige
+Erkennung ist damit ausdrücklich nicht mehr identisch zum wiederhergestellten Stand.
 
 ## Rückkehr zum Erkennungsstand 0.5.1
 

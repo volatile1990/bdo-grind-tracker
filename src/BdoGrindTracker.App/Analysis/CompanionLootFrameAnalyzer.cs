@@ -4,16 +4,18 @@ using OpenCvSharp;
 
 namespace BdoGrindTracker.App.Analysis;
 
-/// <summary>Restored 0.5.1 recognition and reconciliation, with an automatic spot allowlist.</summary>
+/// <summary>Companion baseline with optional additive normal-row recovery and unchanged reconciliation.</summary>
 internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilterConfigurableAnalyzer
 {
     internal const string ExactVariantName = "bdo-companion-0.7.4";
+    internal const string RecoveryVariantName = "companion-0.7.4+normal-recovery-v1";
     private readonly CompanionCalibration _calibration;
     private readonly CompanionItemMatcher _itemMatcher;
     private readonly ICompanionBitmapDecoder _frameDecoder;
     private readonly ICompanionNormalRowPipeline _rowPipeline;
     private readonly ICompanionRareRowPipeline? _rareRowPipeline;
     private readonly ICompanionNameRecognizer _nameRecognizer;
+    private readonly INormalLootRecovery? _normalRecovery;
     private readonly ICompanionReconciliation _reconciliation;
     private readonly ICompanionRareReconciliation? _rareReconciliation;
     private readonly CompanionLootLedger _ledger = new();
@@ -24,6 +26,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
     private readonly Rectangle? _rareBandBounds;
     private bool _includeEventLoot;
     private bool _disposed;
+    private int _recoveryCursor;
 
     public CompanionLootFrameAnalyzer(
         CompanionCalibration calibration,
@@ -33,12 +36,14 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
         ICompanionReconciliation? reconciliation = null,
         ICompanionBitmapDecoder? frameDecoder = null,
         ICompanionRareRowPipeline? rareRowPipeline = null,
-        ICompanionRareReconciliation? rareReconciliation = null)
+        ICompanionRareReconciliation? rareReconciliation = null,
+        INormalLootRecovery? normalRecovery = null)
     {
         _calibration = calibration ?? throw new ArgumentNullException(nameof(calibration));
         _itemMatcher = itemMatcher ?? throw new ArgumentNullException(nameof(itemMatcher));
         _rowPipeline = rowPipeline ?? throw new ArgumentNullException(nameof(rowPipeline));
         _nameRecognizer = nameRecognizer ?? throw new ArgumentNullException(nameof(nameRecognizer));
+        _normalRecovery = normalRecovery;
         _reconciliation = reconciliation ?? new CompanionReconciliationAdapter();
         _frameDecoder = frameDecoder ?? CompanionBitmapDecoder.Instance;
         _panelBounds = CompanionNormalLootGeometry.CalculatePanelBounds(calibration);
@@ -113,7 +118,63 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
                 Observe(preparedRows[index], LootSource.Normal, preparedRows.Count - 1 - index, normal);
             if (rareRow is not null) Observe(rareRow, LootSource.Rare, 0, rare);
 
-            normal.Reverse();
+            var recoveryDiagnostics = NormalLootRecoveryDiagnostics.Empty;
+            if (_normalRecovery is not null)
+            {
+                // Baseline trash takes priority over a rescued row when selecting
+                // the spot. Finish every original read before spending time on retries.
+                _spotLock.Observe(normal.AsEnumerable().Reverse().Where(IsAccepted)
+                    .Select(row => row.ItemName!));
+                var baselineByY = normal.ToDictionary(row => row.NativeY!.Value);
+                var cursor = _recoveryCursor;
+                _recoveryCursor = (_recoveryCursor + 1) % Math.Max(preparedRows.Count, 1);
+                var candidates = preparedRows.Select((row, index) =>
+                    (Row: row, Index: index, Baseline: baselineByY.GetValueOrDefault(row.Y)))
+                    .Where(candidate => candidate.Baseline is not { Quantity: not null } original ||
+                        !IsAccepted(original))
+                    .OrderBy(candidate => candidate.Baseline is { } original && IsAccepted(original)
+                        ? 0 : candidate.Baseline is not null ? 1 : !candidate.Row.IsBlank ? 2 : 3)
+                    .ThenBy(candidate => (candidate.Index - cursor + preparedRows.Count) % preparedRows.Count);
+                var budget = new NormalLootRecoveryBudget();
+                var quantitiesRecovered = 0;
+                var rowsRecovered = 0;
+                var rowsAttempted = 0;
+                foreach (var candidate in candidates)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (!budget.CanContinue) break;
+                    rowsAttempted++;
+                    var bounds = _slotBounds.Single(bounds => bounds.Top - _panelBounds.Top == candidate.Row.Y);
+                    using var originalBand = new Mat(panel, new Rect(bounds.Left - _panelBounds.Left,
+                        candidate.Row.Y, bounds.Width, bounds.Height));
+                    var recovered = _normalRecovery.Recover(originalBand, candidate.Row, candidate.Baseline,
+                        preparedRows.Count - 1 - candidate.Index, _calibration.UiScale, budget, cancellationToken);
+                    if (recovered is null || !IsAccepted(recovered)) continue;
+                    if (candidate.Baseline is { } baseline && IsAccepted(baseline))
+                    {
+                        // Recovery is allowed to fill only the missing quantity of
+                        // an accepted row, never change its identity or existing value.
+                        if (baseline.Quantity.HasValue || recovered.Quantity is not > 0 ||
+                            !string.Equals(baseline.ItemName, recovered.ItemName, StringComparison.Ordinal))
+                            continue;
+                        recovered = baseline with { Quantity = recovered.Quantity };
+                        quantitiesRecovered++;
+                    }
+                    else
+                    {
+                        recovered = recovered with { NativeY = candidate.Row.Y,
+                            Slot = preparedRows.Count - 1 - candidate.Index, Source = LootSource.Normal };
+                        rowsRecovered++;
+                    }
+                    if (candidate.Baseline is not null) normal.Remove(candidate.Baseline);
+                    normal.Add(recovered);
+                }
+                ocrCalls += budget.OcrCalls;
+                recoveryDiagnostics = new(rowsAttempted, budget.OcrCalls,
+                    quantitiesRecovered, rowsRecovered, budget.Errors);
+            }
+
+            normal.Sort((left, right) => right.NativeY!.Value.CompareTo(left.NativeY!.Value));
             // The only added recognition restriction: identify from the newest native
             // trash match, then filter canonical items without rematching them into the pool.
             _spotLock.Observe(normal.Where(IsAccepted).Select(row => row.ItemName!));
@@ -134,7 +195,10 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
             var rareChanges = _rareReconciliation?.ProcessFrame(rareEntries) ?? [];
             return Task.FromResult(CreateResult(reconciled, rareChanges, capturedAt, frame.Size,
                 rawLines, observations, preparedRows.Count + (rareRow is null ? 0 : 1),
-                preparedRows.Count(row => !row.IsBlank) + (rareRow is { IsBlank: false } ? 1 : 0), ocrCalls));
+                preparedRows.Count(row => !row.IsBlank) + (rareRow is { IsBlank: false } ? 1 : 0), ocrCalls) with
+            {
+                Recovery = recoveryDiagnostics,
+            });
 
             void Observe(ICompanionPreparedRow row, LootSource source, int slot, List<LootObservation> target)
             {
@@ -194,6 +258,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
         _rareReconciliation?.Reset();
         _ledger.Reset();
         _spotLock.Reset();
+        _recoveryCursor = 0;
     }
 
     public void Dispose()
@@ -237,7 +302,8 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
         }
         return new FrameAnalysisResult(events, rawLines,
             accepted.Length == 0 ? 0 : accepted.Average(row => row.NameConfidence),
-            ExactVariantName, prepared, nonBlank, ocrCalls, accepted.Length, _panelBounds)
+            _normalRecovery is null ? ExactVariantName : RecoveryVariantName,
+            prepared, nonBlank, ocrCalls, accepted.Length, _panelBounds)
         {
             FrameSize = frameSize,
             SlotRegions = _slotBounds,

@@ -1,9 +1,15 @@
 # Grindcrest
 
-Lokaler, passiver Loot-Tracker für Black Desert, Version 0.9.3 (bisher BDO Grind Tracker). Die Erkennung und
-Zählung verwenden wieder den Companion-basierten Stand 0.5.1. Die zusätzlichen
+Lokaler, passiver Loot-Tracker für Black Desert, Version 0.9.4 (bisher BDO Grind Tracker). Der erste Erkennungspfad und
+die Zählung verwenden den Companion-basierten Stand 0.5.1. Die zusätzlichen
 Bestätigungs- und Lebensdauerregeln aus 0.6.0/0.6.1 sind entfernt. Erhalten bleiben
 der automatisch erkannte Spotfilter und die Verbesserungen der UI-Geschwindigkeit.
+
+0.9.4 ergänzt ausschließlich für fehlgeschlagene normale Lootzeilen zwei zusätzliche
+Lesewege: isoliertes Mengen-Nachlesen sowie Graustufen-/adaptive Bildaufbereitung
+aus dem Originalausschnitt. Erfolgreiche bisherige Erkennungen bleiben unverändert;
+keine zusätzliche Bestätigung, kein Warten auf weitere Frames, kein Mengenaufschlag.
+Capture-Takt und Zählalgorithmus bleiben unverändert. [Details und Grenzen](docs/OCR_RECOVERY.md).
 
 0.9.3 zieht bei einer automatischen Pause die gesamte abschließende Zeit ohne
 neue Drops von der Sessiondauer ab. Manuelles Pausieren bleibt unverändert;
@@ -135,7 +141,11 @@ eine Teilsumme, **—** einen noch nicht bewertbaren Lootstand. Details per Maus
 ## Erkennung und Zählung
 
 - Companion-Kalibrierung, Bildaufbereitung, Ziffernvorlagen, OCR, Textreparaturen
-  und ursprünglicher globaler Katalogmatcher bilden wieder die Erkennung.
+  und ursprünglicher globaler Katalogmatcher bilden den unveränderten ersten Erkennungsweg.
+- Seit 0.9.4 erhalten fehlende Mengen und nicht erkannte normale Zeilen zusätzliche
+  Leseversuche auf den Originalpixeln. Pro Zeilenplatz entsteht höchstens eine
+  Beobachtung; erfolgreiche Namen/Mengen werden nicht überschrieben. Rare-Loot
+  verwendet weiterhin ausschließlich seinen bisherigen Erkennungsweg.
 - Normal- und Rare-Loot verwenden wieder den 10-Frame-Abgleich und das gemeinsame
   Korrektur-Ledger aus 0.5.1, einschließlich dessen Mengen- und Lückenreparaturen.
 - Es gibt keine zusätzliche verpflichtende zweite Lesung, eigene Mengenbestätigung,
@@ -171,7 +181,8 @@ Die Sitzungsuhr läuft unabhängig von neuen Frames und benutzt monotone Zeitmes
 damit Änderungen der Systemuhr die Dauer nicht verfälschen. UI-Screenshot-Thumbnails,
 OCR-Debuganzeigen und das Entscheidungslog werden im laufenden Dashboard nicht mehr
 erzeugt. Die optionale lokale Diagnose bleibt unter **Optionen** verfügbar und ist
-standardmäßig aus. OCR, Aufnahmeintervall, Spotfilter und Zählung sind unverändert.
+standardmäßig aus. Die Oberfläche verändert Aufnahmeintervall, Spotfilter und
+Zählung nicht. Die zusätzlichen OCR-Leseversuche aus 0.9.4 sind oben beschrieben.
 
 Das Trackerfenster und seine Optionen sind normale, aufnehmbare Fenster. Der frühere
 Windows-Schalter `WDA_EXCLUDEFROMCAPTURE` ließ sie aus der eingefrorenen Ansicht des

@@ -40,4 +40,13 @@ internal sealed record FrameAnalysisResult(
     public IReadOnlyList<LootObservation> Observations { get; init; } = [];
 
     public TrackerFrameResult TrackingResult { get; init; } = new([], []);
+
+    public NormalLootRecoveryDiagnostics Recovery { get; init; } = NormalLootRecoveryDiagnostics.Empty;
+}
+
+// Fixed-size per-frame counters only; no growing UI log or retained screenshots.
+internal sealed record NormalLootRecoveryDiagnostics(
+    int RowsAttempted, int OcrCalls, int QuantitiesRecovered, int RowsRecovered, int Errors)
+{
+    public static NormalLootRecoveryDiagnostics Empty { get; } = new(0, 0, 0, 0, 0);
 }

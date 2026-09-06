@@ -93,7 +93,8 @@ internal sealed class DiagnosticRecordingSession : IDisposable
         TrackerFrameResult result,
         Bitmap sourceFrame,
         Rectangle? normalPanel,
-        Rectangle? rareBand)
+        Rectangle? rareBand,
+        NormalLootRecoveryDiagnostics? recovery = null)
     {
         lock (sync)
         {
@@ -122,6 +123,7 @@ internal sealed class DiagnosticRecordingSession : IDisposable
                     "frame", sequence, capturedAt, observations, result.NewEvents, result.Decisions, crops)
                 {
                     RareEnabled = rareBand is not null,
+                    Recovery = recovery,
                 };
                 var jsonBytes = SerializeLine(entry);
                 EnsureBudget(jsonBytes.LongLength + encodedCrops.Sum(static crop => crop.Bytes.LongLength));

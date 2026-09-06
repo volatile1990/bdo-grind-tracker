@@ -1,4 +1,5 @@
 using System.Text.Json;
+using BdoGrindTracker.App.Analysis;
 using BdoGrindTracker.App.Diagnostics;
 using BdoGrindTracker.Core;
 
@@ -10,6 +11,30 @@ public sealed class LootDiagnosticRecordingTests : IDisposable
         Path.GetTempPath(), "BdoGrindTracker-DiagnosticTests-" + Guid.NewGuid().ToString("N"));
 
     private static DateTimeOffset StartTime => new(2026, 9, 4, 20, 0, 0, TimeSpan.Zero);
+
+    [Fact]
+    public void RecoveryCountersAreRecordedWithoutChangingCounterReplayOrAddingImages()
+    {
+        using var source = new Bitmap(4, 4);
+        using var recording = DiagnosticRecordingSession.Start(temporaryDirectory, "hermesia");
+        var tracker = new CompanionDiagnosticCounter(Header().Catalog);
+        var observations = new[] { Observation() };
+        var recovery = new NormalLootRecoveryDiagnostics(2, 4, 1, 1, 0);
+        recording.RecordFrame(StartTime, observations,
+            tracker.ProcessFrame(StartTime, observations, false), source, null, null, recovery);
+        recording.RecordCompletion(StartTime.AddSeconds(1), tracker.CompleteSession(StartTime.AddSeconds(1)));
+        recording.Dispose();
+
+        var lines = File.ReadAllLines(recording.RecordingPath!);
+        var entry = JsonSerializer.Deserialize<LootDiagnosticEntry>(lines[1], LootDiagnosticFormat.JsonOptions)!;
+        Assert.Equal(recovery, entry.Recovery);
+        Assert.Equal(observations, entry.Observations);
+        Assert.Empty(entry.Crops);
+        Assert.Single(Directory.GetFiles(Path.GetDirectoryName(recording.RecordingPath!)!));
+        var replay = LootDiagnosticReplay.Run(recording.RecordingPath!);
+        Assert.True(replay.TotalsMatch);
+        Assert.True(replay.EventTimelineMatches);
+    }
 
     [Fact]
     public void RecordsOnlyRequestedLootCropsAndMachineReadableEvidence()

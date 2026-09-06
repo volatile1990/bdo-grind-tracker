@@ -946,7 +946,7 @@ internal sealed class MainForm : Form
                 cancellationToken)
             .ConfigureAwait(false);
         _recording?.RecordFrame(metadata.CapturedAtUtc, analysis.Observations,
-            analysis.TrackingResult, frame, analysis.PanelRegion, analysis.RareBandRegion);
+            analysis.TrackingResult, frame, analysis.PanelRegion, analysis.RareBandRegion, analysis.Recovery);
 
         // Apply every event before returning; render only the latest aggregate.
         // No UI screenshots, raw-text formatting, or growing decision log.

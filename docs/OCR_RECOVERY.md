@@ -1,0 +1,63 @@
+# Additive OCR-Leseversuche (0.9.4)
+
+Der Companion-basierte erste Erkennungsweg bleibt unverändert. Erst nachdem alle
+normalen Baseline-Zeilen und das Rare-Band gelesen wurden, werden unvollständige
+oder nicht erkannte normale Zeilen nachgelesen. Es gibt keine neue erforderliche
+Zweitbestätigung, keinen Lebensdauerfilter und keine pauschale Mengenkorrektur.
+
+## Zwei zusätzliche Lesewege
+
+1. Bei erkanntem Item ohne Menge wird der äußerste rechte, durch Hintergrundabstand
+   getrennte Zeichenblock isoliert und vergrößert mit Windows OCR gelesen. Der
+   Parser akzeptiert ausschließlich ein vollständiges positives ASCII-Zahlentoken,
+   optional mit vorangestelltem `x`/`×`. Keine Umdeutung von Buchstaben, Verkettung
+   mehrerer Zahlen, Dezimal-/Tausendertrennzeichen oder Wahl der größeren Menge.
+   Windows OCR selbst erhält dabei keine Ziffern-Whitelist; die Spezialisierung
+   besteht aus dem engen Bildausschnitt und der vollständigen Tokenprüfung.
+2. Gescheiterte Zeilen werden zusätzlich aus den Original-BGR-Pixeln vorbereitet:
+   zuerst Graustufen ohne die ursprüngliche HSV-/Festschwellenmaske, danach lokal
+   adaptive Binarisierung. Die bestehende Normalisierung auf 100 Pixel Höhe und
+   Namensskalierung bleiben erhalten. Normale Namensgeometrie, Textpipeline und
+   Katalogmatcher werden weiter verwendet. Die erste erfolgreiche zusätzliche
+   Lesung gewinnt, nicht die mit der größten Menge. Auch Mengen aus diesen
+   Gesamtzeilen benötigen ein vollständiges numerisches `x`-/`×`-Suffix; ein
+   unvollständiges `x4O` wird nicht zu `4`, eine fünfstellige Zahl nicht abgeschnitten.
+
+Auch ursprünglich als leer behandelte oder am oberen Rand aussortierte Zeilen
+können so eine Lesechance erhalten. Die Ausschnitte selbst werden nicht verschoben;
+es gibt keine neuen Zwischenbilder und keine höhere Aufnahmefrequenz.
+
+## Bestehende Ergebnisse schützen, Zusatzarbeit begrenzen
+
+- Ein erfolgreicher Name mit vorhandener Menge wird nicht erneut ausgewertet.
+- Bei einem bereits erkannten Namen darf ausschließlich die fehlende Menge ergänzt
+  werden. Ein anderer Name aus einem Zusatzversuch ersetzt ihn nicht.
+- Bekannte Mengen werden bei der Rettung eines Namens beibehalten. Eine zusätzliche
+  OCR-Zahl überschreibt weder einen bereits akzeptierten Wert noch wird sie addiert.
+- Pro ursprünglichem Zeilenplatz bleibt genau eine Beobachtung mit derselben
+  Position. Nur diese geht in den unveränderten 10-Frame-Abgleich und das Ledger.
+- Der zuerst aus Baseline-Trash bestimmte Spot hat Vorrang; gerettete Zeilen
+  unterliegen weiterhin dem bisherigen Spotpool. Rare-Loot bleibt unverändert.
+- Fehlende Mengen haben Vorrang vor fehlgeschlagenen Namen und leeren Zeilen.
+  Gleichrangige Zeilen rotieren, damit nicht immer nur derselbe Platz nachgelesen wird.
+- Zusatzarbeit ist pro Frame auf acht weitere OCR-Aufrufe und ein kooperatives
+  Zeitbudget von 120 ms begrenzt. Ein bereits laufender OCR-Aufruf kann länger dauern;
+  danach startet kein weiterer. Das Budget verwirft keine Baseline-Erkennung.
+- Gleichförmige Originalbänder benötigen keine OCR-Wiederholung. Fehler im optionalen
+  Leseweg behalten das Baseline-Ergebnis; echte Abbruchanforderungen werden beachtet.
+
+## Diagnose und Nachweisgrenze
+
+Nur bei ausdrücklich aktivierter lokaler Diagnose enthalten die vorhandenen
+JSONL-Frame-Einträge zusätzlich kompakte `recovery`-Zähler (versuchte Zeilen,
+OCR-Aufrufe, gerettete Mengen/Katalogzeilen, Fehler). Kein wachsendes Dashboardlog,
+keine zusätzlichen Screenshots und keine Uploads. Gerettete Zeilen können weiterhin
+am unveränderten Spotfilter scheitern; Rettungszähler sind keine echten Inventarmengen.
+
+Die neue Erkennungsvariante heißt `companion-0.7.4+normal-recovery-v1`. Das
+Diagnose-Replay bleibt ein Zählungs-Replay bereits gespeicherter Beobachtungen,
+kein erneuter OCR-Lauf. Sein Engineformat bleibt kompatibel, weil der Zähler
+unverändert ist. Die Tests prüfen additive Auswahl, negative Fälle, Bildaufbereitung
+und unveränderte Baseline-Verträge. Sie belegen keine bestimmte Genauigkeitssteigerung
+im Spiel. Dafür sind nach Pausieren abgeglichene reale Lootfolgen erforderlich;
+verpasste Drops und zusätzliche Fehlzählungen sind getrennt zu prüfen.

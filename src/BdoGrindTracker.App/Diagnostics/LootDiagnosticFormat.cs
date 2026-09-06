@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using BdoGrindTracker.Core;
+using BdoGrindTracker.App.Analysis;
 
 namespace BdoGrindTracker.App.Diagnostics;
 
@@ -46,6 +47,9 @@ internal sealed record LootDiagnosticEntry(
     IReadOnlyList<LootDiagnosticCrop> Crops)
 {
     public bool RareEnabled { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public NormalLootRecoveryDiagnostics? Recovery { get; init; }
 }
 
 internal sealed record LootDiagnosticCrop(string Source, string FileName, int Width, int Height);

@@ -41,11 +41,14 @@ internal static class FrameAnalyzerFactory
                     preferredLanguageTag: "en-US",
                     throwIfUnavailable: true) ??
                 throw new InvalidOperationException("Windows OCR konnte nicht erstellt werden.");
+            var matcher = new CompanionItemMatcher(catalog);
+            var nameRecognizer = new CompanionNameRecognizer(windowsOcr);
             var analyzer = new CompanionLootFrameAnalyzer(
                 calibration,
-                new CompanionItemMatcher(catalog),
+                matcher,
                 rowPipeline,
-                new CompanionNameRecognizer(windowsOcr));
+                nameRecognizer,
+                normalRecovery: new NormalLootRecovery(matcher, nameRecognizer));
             rowPipeline = null;
             return analyzer;
         }
