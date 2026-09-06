@@ -333,7 +333,7 @@ internal sealed class LootHistoryView : UserControl
         FitChildren(_chronologicalList);
     }
 
-    private static FlowLayoutPanel CreateList(string accessibleName) => new()
+    private static FlowLayoutPanel CreateList(string accessibleName) => new BdoScrollableFlowLayoutPanel
     {
         Dock = DockStyle.Fill,
         FlowDirection = FlowDirection.TopDown,
@@ -345,7 +345,7 @@ internal sealed class LootHistoryView : UserControl
         AccessibleName = accessibleName
     };
 
-    private static FlowLayoutPanel CreateSpotList() => new()
+    private static FlowLayoutPanel CreateSpotList() => new BdoScrollableFlowLayoutPanel
     {
         Dock = DockStyle.Fill,
         FlowDirection = FlowDirection.LeftToRight,
@@ -1013,7 +1013,10 @@ internal sealed class ChronologicalHistoryCard : Control
             new Rectangle(spotTextX, 0, nameWidth, topHeight),
             Color.FromArgb(255, 226, 172), TextFormatFlags.Left | TextFormatFlags.VerticalCenter |
             TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
-        DrawHeaderLoot(graphics, spotTextX + nameWidth + ScaleLogical(5), lootCellWidth);
+        var renderedNameWidth = Math.Min(nameWidth,
+            TextRenderer.MeasureText(graphics, spotName, _titleFont, Size.Empty,
+                TextFormatFlags.SingleLine | TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix).Width);
+        DrawHeaderLoot(graphics, spotTextX + renderedNameWidth + ScaleLogical(7), lootCellWidth);
 
         var durationX = spotX + spotWidth;
         TextRenderer.DrawText(graphics, "GRINDZEIT", _captionFont,

@@ -97,6 +97,7 @@ internal sealed class BdoButton : Button
     private bool _hovered;
     private bool _pressed;
     private BdoButtonStyle _buttonStyle;
+    private int _cornerRadius = 10;
 
     public BdoButton()
     {
@@ -127,6 +128,23 @@ internal sealed class BdoButton : Button
             }
 
             _buttonStyle = value;
+            Invalidate();
+        }
+    }
+
+    [DefaultValue(10)]
+    public int CornerRadius
+    {
+        get => _cornerRadius;
+        set
+        {
+            var normalized = Math.Max(0, value);
+            if (_cornerRadius == normalized)
+            {
+                return;
+            }
+
+            _cornerRadius = normalized;
             Invalidate();
         }
     }
@@ -174,7 +192,7 @@ internal sealed class BdoButton : Button
     {
         pevent.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
         var bounds = new Rectangle(0, 0, Math.Max(1, Width - 1), Math.Max(1, Height - 1));
-        var radius = Math.Max(8, (int)Math.Round(10 * DeviceDpi / 96d));
+        var radius = Math.Max(1, (int)Math.Round(CornerRadius * DeviceDpi / 96d));
 
         var background = ResolveBackground();
         var foreground = Enabled

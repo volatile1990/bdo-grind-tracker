@@ -83,6 +83,7 @@ internal sealed class HistoryPaginationBar : UserControl
     internal int PageIndex => _pageIndex;
     internal int SelectedPageSize => _selectedPageSize;
     internal int PageCount => Math.Max(1, (_totalItems + _selectedPageSize - 1) / _selectedPageSize);
+    internal IEnumerable<BdoButton> PageSizeButtons => _pageSizeButtons.Values;
 
     internal void Configure(int totalItems, int pageIndex, int pageSize)
     {
@@ -129,6 +130,7 @@ internal sealed class HistoryPaginationBar : UserControl
     {
         var button = CreateButton(pageSize.ToString(), $"{pageSize} Einträge pro Seite");
         button.Size = new Size(pageSize == 100 ? 48 : 42, 32);
+        button.CornerRadius = 16;
         return button;
     }
 }

@@ -342,6 +342,17 @@ public sealed class LootHistoryViewTests
             var pager = Assert.Single(FindDescendants<HistoryPaginationBar>(view));
             Assert.Equal([10, 25, 50, 100], HistoryPaginationBar.PageSizeOptions);
             Assert.Equal(3, pager.PageCount);
+            Assert.All(pager.PageSizeButtons, button => Assert.Equal(16, button.CornerRadius));
+
+            var chronologicalList = Assert.Single(FindDescendants<BdoScrollableFlowLayoutPanel>(view),
+                panel => panel.Visible && panel.AccessibleName == "Chronologischer Loot-Verlauf");
+            Assert.True(chronologicalList.HasCustomScrollBar);
+            var thumbAtTop = chronologicalList.ScrollThumbBounds;
+            chronologicalList.AutoScrollPosition = new Point(0, 180);
+            LayoutRecursively(view);
+            Assert.True(chronologicalList.ScrollThumbBounds.Top > thumbAtTop.Top);
+
+            SavePreviewWhenRequested(view, "chronological-pagination-windowed");
 
             pager.RequestPage(1);
             LayoutRecursively(view);
