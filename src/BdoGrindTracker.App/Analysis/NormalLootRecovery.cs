@@ -91,14 +91,20 @@ internal sealed partial class NormalLootRecovery(
                 var knownQuantity = baseline?.Quantity ??
                     (original.TemplateQuantity >= 0 ? original.TemplateQuantity : (int?)null);
                 var hasFullQuantity = TryParseTrailingQuantity(ocr.Text, out var fullQuantity, out var nameText);
+                // The original row failed recognition, so its number is only a
+                // fallback. A complete quantity in the recovered text takes the
+                // same precedence as in the baseline text pipeline. Otherwise a
+                // template misread (for example 1 instead of x8) changes the row's
+                // identity and can count an already visible drop again.
+                var rowQuantity = hasFullQuantity ? fullQuantity : knownQuantity ?? -1;
                 var text = CompanionTextPipeline.Process(hasFullQuantity ? nameText : ocr.Text,
-                    knownQuantity ?? (hasFullQuantity ? fullQuantity : -1), false, images.RecognizedTextWidth);
+                    rowQuantity, false, images.RecognizedTextWidth);
                 // Companion's legacy regex can parse only a prefix of x4O or
                 // x12345. Its baseline contract stays untouched, but a NEW
                 // recovery quantity must come from a complete numeric token.
                 text = text with
                 {
-                    Quantity = knownQuantity ?? (hasFullQuantity ? fullQuantity : -1),
+                    Quantity = rowQuantity,
                     HasParsedOcrQuantity = hasFullQuantity,
                 };
                 if (!CompanionTextPipeline.PassesExpectedWidth(text,

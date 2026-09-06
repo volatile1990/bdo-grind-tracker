@@ -172,28 +172,82 @@ public sealed class NormalLootRecoveryTests(Xunit.Abstractions.ITestOutputHelper
         images.AssertDisposed();
     }
 
-    [Fact]
-    public void RecoveringANameRetainsKnownTemplateQuantityDespiteAConflictingOcrSuffix()
+    [Theory]
+    [InlineData(1, null, "x4", 4)]
+    [InlineData(1, null, "x6", 6)]
+    [InlineData(1, null, "x8", 8)]
+    [InlineData(8, null, "x1", 1)]
+    [InlineData(1, 1, "x8", 8)]
+    [InlineData(1, -1, "x8", 8)]
+    public void RecoveringANameUsesTheCompleteOcrSuffixBeforeAnUnverifiedQuantity(
+        int templateQuantity, int? rejectedQuantity, string suffix, int expected)
     {
         using var source = SyntheticBand();
-        using var original = new Row(17);
+        using var original = new Row(templateQuantity);
+        var baseline = rejectedQuantity.HasValue
+            ? Observation(rejectedQuantity) with { ItemName = null, RejectionReason = "native-catalog-miss" }
+            : null;
         var images = new Images();
         var names = new Recognizer((image, _) =>
         {
             Assert.True(image.Width > 500);
-            return Ocr("Black Crystal Fragment x999");
+            return Ocr("Black Crystal Fragment " + suffix);
         });
         var recovery = new NormalLootRecovery(Matcher(), names, images.Prepare);
 
-        var result = recovery.Recover(source, original, null, 2, 1f, Budget(), default);
+        var result = recovery.Recover(source, original, baseline, 2, 1f, Budget(), default);
 
         Assert.NotNull(result);
         Assert.Equal("Black Crystal Fragment", result.ItemName);
-        Assert.Equal(17, result.Quantity);
+        Assert.Equal(expected, result.Quantity);
+        Assert.Equal("Black Crystal Fragment " + suffix, result.RawText);
         Assert.Equal(original.Y, result.NativeY);
         Assert.Equal(2, result.Slot);
         Assert.Equal(1, names.Calls);
         images.AssertDisposed();
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("x4O")]
+    [InlineData("x4 2")]
+    public void RecoveringANameWithoutACompleteOcrQuantityKeepsTheTemplateFallback(string suffix)
+    {
+        using var source = SyntheticBand();
+        using var original = new Row(17);
+        var names = new Recognizer((_, _) => Ocr("Black Crystal Fragment " + suffix));
+        var recovery = new NormalLootRecovery(Matcher(), names);
+
+        var result = recovery.Recover(source, original, null, 0, 1f, Budget(), default);
+
+        Assert.NotNull(result);
+        Assert.Equal("Black Crystal Fragment", result.ItemName);
+        Assert.Equal(17, result.Quantity);
+    }
+
+    [Fact]
+    public void RecoveredNameBetweenTwoBaselineReadsKeepsTheVisibleDropIdentityAndCountsItOnce()
+    {
+        using var source = SyntheticBand();
+        using var original = new Row(1);
+        var names = new Recognizer((_, _) => Ocr("Black Crystal Fragment x8"));
+        var recovery = new NormalLootRecovery(Matcher(), names);
+        var reconciler = new CompanionFrameReconciler();
+        var baseline = Observation(8) with { RawText = "Black Crystal Fragment x8" };
+
+        foreach (var input in new LootObservation?[] { baseline, null, baseline })
+        {
+            var observation = recovery.Recover(source, original, input, 0, 1f, Budget(), default);
+            Assert.NotNull(observation);
+            Assert.Equal(8, observation.Quantity);
+            Assert.Empty(reconciler.ProcessFrame([new(observation.ItemName!,
+                (uint)observation.Quantity!.Value, observation.NativeY!.Value)]));
+        }
+
+        var counted = Assert.Single(reconciler.Complete());
+        Assert.Equal("Black Crystal Fragment", counted.Name);
+        Assert.Equal(8u, counted.Count);
+        Assert.Equal(1, names.Calls);
     }
 
     [Fact]

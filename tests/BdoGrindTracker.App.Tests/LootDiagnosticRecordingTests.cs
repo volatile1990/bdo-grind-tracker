@@ -70,6 +70,7 @@ public sealed class LootDiagnosticRecordingTests : IDisposable
         var lines = File.ReadAllLines(recording.RecordingPath!);
         var entry = JsonSerializer.Deserialize<LootDiagnosticEntry>(lines[1], LootDiagnosticFormat.JsonOptions)!;
         var header = JsonSerializer.Deserialize<LootDiagnosticHeader>(lines[0], LootDiagnosticFormat.JsonOptions)!;
+        Assert.Equal(LootDiagnosticFormat.EngineVersion, header.EngineVersion);
         Assert.NotEmpty(header.Catalog);
         Assert.True(entry.RareEnabled);
         Assert.Equal(observation, Assert.Single(entry.Observations));
@@ -380,6 +381,37 @@ public sealed class LootDiagnosticRecordingTests : IDisposable
             Serialize(new LootDiagnosticEntry("frame", 2, StartTime.AddSeconds(1), [], [], [], [])),
         ]);
         Assert.Throws<InvalidDataException>(() => LootDiagnosticReplay.Run(path));
+    }
+
+    [Theory]
+    [InlineData(LootDiagnosticFormat.EngineVersion, 1)]
+    [InlineData(LootDiagnosticFormat.PreviousEngineVersion, 4)]
+    public void ReplayDistinguishesCurrentRecordingsFromPreviousCounterComparisons(string engine, int recordedBookings)
+    {
+        Directory.CreateDirectory(temporaryDirectory);
+        var path = Path.Combine(temporaryDirectory, "counter-version.jsonl");
+        var lines = new List<string> { Serialize(Header() with { EngineVersion = engine }) };
+        for (var frame = 1; frame <= 10; frame++)
+        {
+            var timestamp = StartTime.AddMilliseconds(frame * 450);
+            var events = frame == 10
+                ? Enumerable.Range(0, recordedBookings).Select(_ =>
+                    new TrackedLootEvent(Guid.NewGuid(), timestamp, "BON Origin Shard", 8)).ToArray()
+                : [];
+            lines.Add(Serialize(new LootDiagnosticEntry("frame", frame, timestamp,
+                [Observation() with { RawText = "BON Origin Shard x8", Quantity = 8 }], events, [], [])));
+        }
+        File.WriteAllLines(path, lines);
+
+        var replay = LootDiagnosticReplay.Run(path);
+        Assert.Equal(engine, replay.RecordingEngineVersion);
+        Assert.Equal(8, replay.Totals["BON Origin Shard"]);
+        Assert.Equal(8 * recordedBookings, replay.RecordedTotals["BON Origin Shard"]);
+        Assert.Equal(recordedBookings == 1, replay.UsesCurrentEngine);
+        Assert.Equal(recordedBookings == 1, replay.TotalsMatch);
+        Assert.Equal(recordedBookings == 1, replay.EventTimelineMatches);
+        if (!replay.UsesCurrentEngine)
+            Assert.Contains("Versionsvergleich", replay.ToDisplayText());
     }
 
     public void Dispose()

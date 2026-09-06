@@ -2,8 +2,8 @@ using BdoGrindTracker.Core;
 
 namespace BdoGrindTracker.Core.Tests;
 
-// These tests preserve the measured 0.5.1 contract, including its frame-tag
-// behavior. They do not claim that a synthetic frame sequence is ground truth.
+// Explicit row histories distinguish a continuing display from newly inserted
+// drops. They cover the normal-counter contract, not real-world OCR accuracy.
 public sealed class CompanionFrameReconcilerTests
 {
     [Fact]
@@ -15,8 +15,74 @@ public sealed class CompanionFrameReconcilerTests
             Assert.Empty(reconciler.ProcessFrame([new("Trash", 10, 250)]));
         }
         IReadOnlyList<CompanionRecognizedEntry> result = reconciler.ProcessFrame([new("Trash", 10, 250)]);
-        Assert.Equal(4, result.Count);
-        Assert.All(result, item => Assert.Equal(10u, item.Count));
+        Assert.Equal(new CompanionRecognizedEntry("Trash", 10, 250), Assert.Single(result));
+    }
+
+    [Fact]
+    public void ContinuingRowsAreCountedOnceAcrossBatchesAndCompletion()
+    {
+        var reconciler = new CompanionFrameReconciler();
+        CompanionRecognizedEntry[] rows = [new("Trash", 8, 220), new("Black Stone", 1, 175)];
+        var events = new List<CompanionRecognizedEntry>();
+        for (var frame = 0; frame < 37; frame++)
+            events.AddRange(reconciler.ProcessFrame(rows));
+        events.AddRange(reconciler.Complete());
+        Assert.Equal(rows, events);
+        Assert.Empty(reconciler.Complete());
+
+        // Flushing during a pause does not turn the last visible loot into a
+        // fresh drop on resume, even across another batch boundary.
+        for (var frame = 0; frame < 13; frame++)
+            Assert.Empty(reconciler.ProcessFrame(rows));
+        Assert.Empty(reconciler.Complete());
+    }
+
+    [Fact]
+    public void NewIdenticalDropsInsertedAheadOfContinuingRowsAreStillCounted()
+    {
+        var reconciler = new CompanionFrameReconciler();
+        var events = new List<CompanionRecognizedEntry>();
+        for (var frame = 0; frame < 12; frame++)
+            events.AddRange(reconciler.ProcessFrame([new("Trash", 8, 250), new("Black Stone", 1, 200)]));
+
+        events.AddRange(reconciler.ProcessFrame([
+            new("Trash", 8, 250), new("Trash", 8, 200), new("Black Stone", 1, 150)]));
+        events.AddRange(reconciler.ProcessFrame([
+            new("Trash", 8, 250), new("Trash", 8, 200), new("Trash", 8, 150), new("Black Stone", 1, 100)]));
+        events.AddRange(reconciler.Complete());
+
+        Assert.Equal(3, events.Count(entry => entry.Name == "Trash"));
+        Assert.Equal(24L, events.Where(entry => entry.Name == "Trash").Sum(entry => (long)entry.Count));
+        Assert.Single(events, entry => entry.Name == "Black Stone");
+    }
+
+    [Fact]
+    public void ScrollingFullPanelKeepsANewIdenticalDropSeparateFromTheOldOne()
+    {
+        var reconciler = new CompanionFrameReconciler();
+        var events = new List<CompanionRecognizedEntry>();
+        for (var frame = 0; frame < 9; frame++)
+            events.AddRange(reconciler.ProcessFrame([
+                new("Trash", 8, 250), new("Black Stone", 1, 200), new("Trash", 4, 150)]));
+        events.AddRange(reconciler.ProcessFrame([
+            new("Trash", 8, 250), new("Trash", 8, 200), new("Black Stone", 1, 150)]));
+        events.AddRange(reconciler.Complete());
+
+        Assert.Equal(new uint[] { 8, 4, 8 }, events.Where(entry => entry.Name == "Trash").Select(entry => entry.Count));
+        Assert.Single(events, entry => entry.Name == "Black Stone");
+    }
+
+    [Fact]
+    public void IdenticalDropAfterAnEmptyPanelCountsAgain()
+    {
+        var reconciler = new CompanionFrameReconciler();
+        reconciler.ProcessFrame([new("Trash", 8, 220)]);
+        reconciler.ProcessFrame([]);
+        reconciler.ProcessFrame([new("Trash", 8, 220)]);
+
+        var events = reconciler.Complete();
+        Assert.Equal(2, events.Count);
+        Assert.All(events, entry => Assert.Equal(8u, entry.Count));
     }
 
     [Fact]
