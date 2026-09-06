@@ -91,9 +91,10 @@ internal sealed class HistoryPaginationBar : UserControl
         _selectedPageSize = PageSizeOptions.Contains(pageSize) ? pageSize : DefaultPageSize;
         _pageIndex = Math.Clamp(pageIndex, 0, PageCount - 1);
         foreach (var (option, button) in _pageSizeButtons)
-            button.ButtonStyle = option == _selectedPageSize
-                ? BdoButtonStyle.Primary
-                : BdoButtonStyle.Secondary;
+        {
+            button.ButtonStyle = BdoButtonStyle.Navigation;
+            button.Selected = option == _selectedPageSize;
+        }
 
         var first = _totalItems == 0 ? 0 : _pageIndex * _selectedPageSize + 1;
         var last = Math.Min(_totalItems, first + _selectedPageSize - 1);
@@ -131,6 +132,7 @@ internal sealed class HistoryPaginationBar : UserControl
         var button = CreateButton(pageSize.ToString(), $"{pageSize} Einträge pro Seite");
         button.Size = new Size(pageSize == 100 ? 48 : 42, 32);
         button.CornerRadius = 16;
+        button.ButtonStyle = BdoButtonStyle.Navigation;
         return button;
     }
 }

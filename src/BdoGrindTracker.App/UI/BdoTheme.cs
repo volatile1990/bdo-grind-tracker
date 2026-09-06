@@ -91,7 +91,7 @@ internal enum BdoButtonStyle
 }
 
 /// <summary>
-/// Small owner-drawn button used for the two session actions.
+/// Shared owner-drawn button for primary actions, secondary actions and navigation.
 /// </summary>
 internal sealed class BdoButton : Button
 {
@@ -107,8 +107,10 @@ internal sealed class BdoButton : Button
             ControlStyles.AllPaintingInWmPaint |
             ControlStyles.OptimizedDoubleBuffer |
             ControlStyles.ResizeRedraw |
+            ControlStyles.SupportsTransparentBackColor |
             ControlStyles.UserPaint,
             true);
+        BackColor = Color.Transparent;
         FlatStyle = FlatStyle.Flat;
         FlatAppearance.BorderSize = 0;
         UseVisualStyleBackColor = false;
@@ -208,6 +210,7 @@ internal sealed class BdoButton : Button
 
     protected override void OnPaint(PaintEventArgs pevent)
     {
+        base.OnPaintBackground(pevent);
         pevent.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
         var bounds = new Rectangle(0, 0, Math.Max(1, Width - 1), Math.Max(1, Height - 1));
         var radius = Math.Max(1, (int)Math.Round(CornerRadius * DeviceDpi / 96d));
@@ -235,8 +238,15 @@ internal sealed class BdoButton : Button
 
         if (Focused && ShowFocusCues)
         {
-            var focusBounds = Rectangle.Inflate(bounds, -4, -4);
-            ControlPaint.DrawFocusRectangle(pevent.Graphics, focusBounds, foreground, background);
+            var focusBounds = Rectangle.Inflate(bounds, -3, -3);
+            using var focusPath = BdoTheme.CreateRoundedRectangle(
+                focusBounds, Math.Max(1, radius - 3));
+            using var focusPen = new Pen(Color.FromArgb(225, BdoTheme.GoldBright),
+                Math.Max(1f, DeviceDpi / 96f))
+            {
+                DashStyle = DashStyle.Dot
+            };
+            pevent.Graphics.DrawPath(focusPen, focusPath);
         }
     }
 
@@ -291,6 +301,8 @@ internal sealed class BdoButton : Button
 
     private Color ResolveBorder(Color background)
     {
+        if (!Enabled)
+            return Color.FromArgb(110, BdoTheme.BorderSoft);
         if (ButtonStyle == BdoButtonStyle.Primary)
             return background;
         if (ButtonStyle == BdoButtonStyle.Navigation)

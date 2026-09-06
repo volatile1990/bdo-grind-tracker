@@ -364,6 +364,9 @@ public sealed class LootHistoryViewTests
             Assert.Equal([10, 25, 50, 100], HistoryPaginationBar.PageSizeOptions);
             Assert.Equal(3, pager.PageCount);
             Assert.All(pager.PageSizeButtons, button => Assert.Equal(16, button.CornerRadius));
+            Assert.All(pager.PageSizeButtons,
+                button => Assert.Equal(BdoButtonStyle.Navigation, button.ButtonStyle));
+            Assert.Single(pager.PageSizeButtons, button => button.Selected);
 
             var chronologicalList = Assert.Single(FindDescendants<BdoScrollableFlowLayoutPanel>(view),
                 panel => panel.Visible && panel.AccessibleName == "Chronologischer Loot-Verlauf");
