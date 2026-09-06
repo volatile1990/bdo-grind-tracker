@@ -1,4 +1,4 @@
-// Restored from the verified 0.5.1 assembly; recognition behavior is intentionally unchanged.
+// Companion normal-loot reconciliation with persistent tags for continuing rows.
 using System;
 using System.Collections.Generic;
 
@@ -170,7 +170,10 @@ public sealed class CompanionFrameReconciler
         {
             Entry entry = left.Entries[i];
             Entry entry2 = right.Entries[num + i];
-            entry2.Frame = ((entry.Frame > 2) ? 1 : (entry.Frame + 1));
+            // A still-visible row must not become new merely because it survived
+            // three observations. Newly inserted rows retain their initial tag;
+            // only rows matched by the existing overlap advance their tag.
+            entry2.Frame = checked(entry.Frame + 1);
             for (int j = 0; j < num + i; j++)
             {
                 Entry entry3 = right.Entries[j];
@@ -295,4 +298,3 @@ public sealed class CompanionFrameReconciler
         return false;
     }
 }
-

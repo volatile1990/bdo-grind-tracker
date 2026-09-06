@@ -8,7 +8,8 @@ namespace BdoGrindTracker.App.Diagnostics;
 internal static class LootDiagnosticFormat
 {
     public const int Version = 2;
-    public const string EngineVersion = "companion-0.7.4-restore-v1";
+    public const string EngineVersion = "companion-0.7.4-overcount-fix-v2";
+    public const string PreviousEngineVersion = "companion-0.7.4-restore-v1";
     public const string RecordingFileName = "observations.jsonl";
     public const int MaximumObservationsPerFrame = 32;
     public const int MaximumTextLength = 2048;

@@ -1,4 +1,4 @@
-# Additive OCR-Leseversuche (0.9.4)
+# Zusätzliche OCR-Leseversuche (seit 0.9.4, Mengenübernahme korrigiert in 0.9.6-test.1)
 
 Der Companion-basierte erste Erkennungsweg bleibt unverändert. Erst nachdem alle
 normalen Baseline-Zeilen und das Rare-Band gelesen wurden, werden unvollständige
@@ -32,10 +32,13 @@ es gibt keine neuen Zwischenbilder und keine höhere Aufnahmefrequenz.
 - Ein erfolgreicher Name mit vorhandener Menge wird nicht erneut ausgewertet.
 - Bei einem bereits erkannten Namen darf ausschließlich die fehlende Menge ergänzt
   werden. Ein anderer Name aus einem Zusatzversuch ersetzt ihn nicht.
-- Bekannte Mengen werden bei der Rettung eines Namens beibehalten. Eine zusätzliche
-  OCR-Zahl überschreibt weder einen bereits akzeptierten Wert noch wird sie addiert.
+- Beim Nachlesen eines zuvor nicht erkannten Namens hat eine vollständig gelesene
+  numerische OCR-Endmenge Vorrang vor einer Template-Menge oder einer Menge aus der
+  abgelehnten Zeile. So wird beispielsweise `x8` nicht mehr als Template-Wert `1`
+  an die Zählung übergeben. Ohne vollständige Endmenge bleibt die vorhandene Menge
+  der Rückfallwert. Bereits akzeptierte vollständige Baseline-Zeilen werden nicht geändert.
 - Pro ursprünglichem Zeilenplatz bleibt genau eine Beobachtung mit derselben
-  Position. Nur diese geht in den unveränderten 10-Frame-Abgleich und das Ledger.
+  Position. Nur diese geht in den 10-Frame-Abgleich und das Ledger.
 - Der zuerst aus Baseline-Trash bestimmte Spot hat Vorrang; gerettete Zeilen
   unterliegen weiterhin dem bisherigen Spotpool. Rare-Loot bleibt unverändert.
 - Fehlende Mengen haben Vorrang vor fehlgeschlagenen Namen und leeren Zeilen.
@@ -56,8 +59,11 @@ am unveränderten Spotfilter scheitern; Rettungszähler sind keine echten Invent
 
 Die neue Erkennungsvariante heißt `companion-0.7.4+normal-recovery-v1`. Das
 Diagnose-Replay bleibt ein Zählungs-Replay bereits gespeicherter Beobachtungen,
-kein erneuter OCR-Lauf. Sein Engineformat bleibt kompatibel, weil der Zähler
-unverändert ist. Die Tests prüfen additive Auswahl, negative Fälle, Bildaufbereitung
-und unveränderte Baseline-Verträge. Sie belegen keine bestimmte Genauigkeitssteigerung
+kein erneuter OCR-Lauf. Seit der Korrektur des normalen Zählers in 0.9.6-test.1 tragen
+neue Aufnahmen die Enginekennung `companion-0.7.4-overcount-fix-v2`. Alte Aufnahmen
+mit `companion-0.7.4-restore-v1` werden als Versionsvergleich ausgewiesen; gespeicherte
+OCR-Mengen werden dabei nicht neu erkannt oder repariert. Die Tests prüfen Auswahl,
+negative Fälle, Bildaufbereitung, Mengenwidersprüche und erhaltene Baseline-Verträge.
+Sie belegen keine bestimmte Genauigkeitssteigerung
 im Spiel. Dafür sind nach Pausieren abgeglichene reale Lootfolgen erforderlich;
 verpasste Drops und zusätzliche Fehlzählungen sind getrennt zu prüfen.

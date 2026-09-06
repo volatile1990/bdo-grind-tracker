@@ -17,6 +17,10 @@ internal sealed record LootDiagnosticReplayResult(
     int? FirstDifferentSequence,
     bool HasFinalCompletion)
 {
+    public string RecordingEngineVersion { get; init; } = LootDiagnosticFormat.EngineVersion;
+
+    public bool UsesCurrentEngine => RecordingEngineVersion == LootDiagnosticFormat.EngineVersion;
+
     public string ToDisplayText()
     {
         var text = new StringBuilder();
@@ -24,7 +28,10 @@ internal sealed record LootDiagnosticReplayResult(
         text.AppendLine($"Aufnahme: {RecordingPath}");
         text.AppendLine($"Spot: {SpotId ?? "nicht angegeben"}");
         text.AppendLine($"Frames: {FrameCount}; Sitzungsabschlüsse: {CompletionCount}");
-        text.AppendLine("Umfang: Companion-Zähllogik (Stand 0.5.1); gespeicherte OCR-/Matching-Ergebnisse werden wiederverwendet.");
+        text.AppendLine($"Aufnahme-Engine: {RecordingEngineVersion}; Replay-Engine: {LootDiagnosticFormat.EngineVersion}");
+        text.AppendLine("Umfang: aktuelle Companion-basierte Zähllogik; gespeicherte OCR-/Matching-Ergebnisse werden wiederverwendet.");
+        if (!UsesCurrentEngine)
+            text.AppendLine("Versionsvergleich: Die Aufnahme verwendet den früheren Zähler. Abweichungen können durch die Zählerkorrektur entstehen; gespeicherte OCR-Mengen bleiben unverändert.");
         text.AppendLine("Bildausschnitte werden nicht geöffnet. OCR-Erkennung wird nicht erneut ausgeführt.");
         text.AppendLine($"Summen identisch: {(TotalsMatch ? "ja" : "nein")}");
         text.AppendLine($"Ereignisse je Frame identisch: {(EventTimelineMatches ? "ja" : "nein")}");
@@ -54,7 +61,7 @@ internal sealed record LootDiagnosticReplayResult(
 }
 
 /// <summary>
-/// Replays serialized accepted observations through the restored Companion counters. It does not execute
+/// Replays serialized accepted observations through the current Companion-based counters. It does not execute
 /// OCR, capture a screen, interact with a game, or follow any image path from the recording.
 /// </summary>
 internal static class LootDiagnosticReplay
@@ -73,7 +80,8 @@ internal static class LootDiagnosticReplay
         using var reader = new StreamReader(stream, new UTF8Encoding(false, true));
         var header = Deserialize<LootDiagnosticHeader>(ReadBoundedLine(reader), 1);
         if (header.Kind != "header" || header.FormatVersion != LootDiagnosticFormat.Version ||
-            header.EngineVersion != LootDiagnosticFormat.EngineVersion ||
+            (header.EngineVersion != LootDiagnosticFormat.EngineVersion &&
+             header.EngineVersion != LootDiagnosticFormat.PreviousEngineVersion) ||
             header.SpotId?.Length > LootDiagnosticFormat.MaximumTextLength ||
             header.Catalog is null || header.Catalog.Count is 0 or > 1024 ||
             header.Catalog.Any(static item => item is null || string.IsNullOrWhiteSpace(item.Name) ||
@@ -152,7 +160,10 @@ internal static class LootDiagnosticReplay
             TotalsEqual(totals, recordedTotals),
             firstDifferentSequence is null,
             firstDifferentSequence,
-            finalCompletion);
+            finalCompletion)
+        {
+            RecordingEngineVersion = header.EngineVersion,
+        };
     }
 
     private static T Deserialize<T>(string? line, int lineNumber)
