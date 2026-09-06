@@ -18,6 +18,9 @@ public sealed class AutomaticLootSpotLock
                 "Branch of Abundance" => LootSpotCatalog.AphrodonId,
                 "Black Crystal Fragment" => LootSpotCatalog.HermesiaId,
                 "Elion Follower's Helmet" => LootSpotCatalog.MagaiaId,
+                "Scorched Belt Ornament" => LootSpotCatalog.AresionId,
+                "Elion Follower's Mark" => LootSpotCatalog.ScalesOfJudgmentId,
+                "Broken Gloves of the Void" => LootSpotCatalog.EventHorizonId,
                 _ => null,
             };
             if (id is null) continue;

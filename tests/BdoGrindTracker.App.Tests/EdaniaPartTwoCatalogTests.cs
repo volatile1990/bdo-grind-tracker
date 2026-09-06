@@ -2,7 +2,7 @@ using BdoGrindTracker.Core;
 
 namespace BdoGrindTracker.App.Tests;
 
-public sealed class EdaniaPartTwoCatalogTests
+public sealed class InnerEdaniaCatalogTests
 {
     private static readonly string[] SharedHighestTierLoot =
     [
@@ -79,12 +79,98 @@ public sealed class EdaniaPartTwoCatalogTests
                 "Sunset Primordial Luster - Edana",
                 "Elion Follower's Helmet",
             ],
+            ["Aresion Temple"] =
+            [
+                "HAN Wandering Origin Crystal",
+                "HAN Origin Shard",
+                "Embers of Ynix - Gloves",
+                "Apeiron Earring",
+                "Apeiron Ring",
+                "Apeiron Belt",
+                "Apeiron Necklace",
+                "Twilight of the End - Earring",
+                "Twilight of the End - Ring",
+                "Twilight of the End - Belt",
+                "Twilight of the End - Necklace",
+                "Sunset Primordial Pigment - Edana",
+                "Sunset Primordial Luster - Edana",
+                "Broken Vestige of Crimsonflare",
+                "White Primordial Pigment - Sovereign",
+                "White Primordial Pigment - Edana",
+                "White Primordial Luster - Sovereign",
+                "White Primordial Luster - Edana",
+                "Silent Fragment of Origin",
+                "Silent Crystal of Origin",
+                "Nev's Fragment",
+                "Fusion Shard",
+                "Corrupt Oil of Immortality",
+                "Scorched Belt Ornament",
+            ],
+            ["Scales of Judgment"] =
+            [
+                "HAN Wandering Origin Crystal",
+                "HAN Origin Shard",
+                "Embers of Ynix - Shoes",
+                "Apeiron Earring",
+                "Apeiron Ring",
+                "Apeiron Belt",
+                "Apeiron Necklace",
+                "Twilight of the End - Earring",
+                "Twilight of the End - Ring",
+                "Twilight of the End - Belt",
+                "Twilight of the End - Necklace",
+                "Sunset Primordial Pigment - Edana",
+                "Sunset Primordial Luster - Edana",
+                "Broken Vestige of Everlight",
+                "White Primordial Pigment - Sovereign",
+                "White Primordial Pigment - Edana",
+                "White Primordial Luster - Sovereign",
+                "White Primordial Luster - Edana",
+                "Silent Fragment of Origin",
+                "Silent Crystal of Origin",
+                "Nev's Fragment",
+                "Fusion Shard",
+                "Corrupt Oil of Immortality",
+                "Elion Follower's Mark",
+            ],
+            ["Event Horizon"] =
+            [
+                "HAN Wandering Origin Crystal",
+                "HAN Origin Shard",
+                "Embers of Ynix - Armor",
+                "Embers of Ynix - Helmet",
+                "Embers of Ynix - Gloves",
+                "Embers of Ynix - Shoes",
+                "Apeiron Earring",
+                "Apeiron Ring",
+                "Apeiron Belt",
+                "Apeiron Necklace",
+                "Twilight of the End - Earring",
+                "Twilight of the End - Ring",
+                "Twilight of the End - Belt",
+                "Twilight of the End - Necklace",
+                "Sunset Primordial Pigment - Edana",
+                "Sunset Primordial Luster - Edana",
+                "Broken Vestige of Voidreach",
+                "White Primordial Pigment - Sovereign",
+                "White Primordial Pigment - Edana",
+                "White Primordial Luster - Sovereign",
+                "White Primordial Luster - Edana",
+                "Silent Fragment of Origin",
+                "Silent Crystal of Origin",
+                "Nev's Fragment",
+                "Fusion Shard",
+                "Corrupt Oil of Immortality",
+                "Broken Gloves of the Void",
+            ],
         };
 
     [Fact]
-    public void BundledCatalogContainsKnownMainLootForFirstThreeEdaniaPartTwoSpots()
+    public void BundledCatalogContainsKnownMainLootForAllInnerEdaniaSpots()
     {
         var catalog = LoadBundledCatalog();
+
+        Assert.Equal(6, LootSpotCatalog.Spots.Count);
 
         foreach (var (spot, expectedLoot) in SpotLoot)
         {
@@ -181,7 +267,10 @@ public sealed class EdaniaPartTwoCatalogTests
     [InlineData(LootSpotCatalog.AphrodonId, "Branch of Abundance")]
     [InlineData(LootSpotCatalog.HermesiaId, "Black Crystal Fragment")]
     [InlineData(LootSpotCatalog.MagaiaId, "Elion Follower's Helmet")]
-    public void EveryEdaniaPartTwoTrashLootNameResolvesExactly(
+    [InlineData(LootSpotCatalog.AresionId, "Scorched Belt Ornament")]
+    [InlineData(LootSpotCatalog.ScalesOfJudgmentId, "Elion Follower's Mark")]
+    [InlineData(LootSpotCatalog.EventHorizonId, "Broken Gloves of the Void")]
+    public void EveryInnerEdaniaTrashLootNameResolvesExactly(
         string spotId,
         string trashLoot)
     {

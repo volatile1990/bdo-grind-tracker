@@ -32,7 +32,10 @@ public sealed class GarmothIntegrationTests
     [InlineData("aphrodon", "Branch of Abundance", 213, "980127_0")]
     [InlineData("hermesia", "Black Crystal Fragment", 214, "980128_0")]
     [InlineData("magaia", "Elion Follower's Helmet", 215, "980129_0")]
-    public void AllThreeSpotTrashMappingsAreExact(string spot, string name, int id, string key)
+    [InlineData("aresion", "Scorched Belt Ornament", 216, "980131_0")]
+    [InlineData("scales-of-judgment", "Elion Follower's Mark", 217, "980130_0")]
+    [InlineData("event-horizon", "Broken Gloves of the Void", 218, "980132_0")]
+    public void AllInnerEdaniaSpotTrashMappingsAreExact(string spot, string name, int id, string key)
     {
         var payload = GarmothSessionPayload.Create(Draft() with
         {
@@ -98,7 +101,10 @@ public sealed class GarmothIntegrationTests
     [InlineData("aphrodon", 25)]
     [InlineData("hermesia", 27)]
     [InlineData("magaia", 29)]
-    public void UploadSpotListsMatchVerifiedGarmothMetadataWithoutNarrowingLocalPools(string spotId, int count)
+    [InlineData("aresion", 35)]
+    [InlineData("scales-of-judgment", 35)]
+    [InlineData("event-horizon", 38)]
+    public void UploadSpotListsMatchConfiguredGarmothMetadataWithoutNarrowingLocalPools(string spotId, int count)
     {
         var names = LootSpotCatalog.GetRequired(spotId).AllowedItems;
         Assert.Contains("Laila's Petal", names);

@@ -4,10 +4,19 @@ namespace BdoGrindTracker.Core.Tests;
 
 public sealed class AutomaticLootSpotLockTests
 {
+    private static readonly string[] TrashItems =
+    [
+        "Branch of Abundance",
+        "Black Crystal Fragment",
+        "Elion Follower's Helmet",
+        "Scorched Belt Ornament",
+        "Elion Follower's Mark",
+        "Broken Gloves of the Void",
+    ];
+
     public static IEnumerable<object[]> SharedGlobalDropCases()
     {
-        string[] trashItems = ["Branch of Abundance", "Black Crystal Fragment", "Elion Follower's Helmet"];
-        foreach (var trash in trashItems)
+        foreach (var trash in TrashItems)
         {
             foreach (var item in LootSpotCatalog.SharedGlobalItems)
             {
@@ -66,10 +75,26 @@ public sealed class AutomaticLootSpotLockTests
         Assert.True(filter.Allows("[Event] Mysterious Ore", includeEventLoot: true));
     }
 
+    [Fact]
+    public void EveryLockedSpotRejectsEveryForeignTrash()
+    {
+        foreach (var trash in TrashItems)
+        {
+            var filter = new AutomaticLootSpotLock();
+            filter.Observe([trash]);
+
+            Assert.All(TrashItems.Where(candidate => candidate != trash),
+                foreignTrash => Assert.False(filter.Allows(foreignTrash)));
+        }
+    }
+
     [Theory]
     [InlineData("Branch of Abundance", LootSpotCatalog.AphrodonId)]
     [InlineData("Black Crystal Fragment", LootSpotCatalog.HermesiaId)]
     [InlineData("Elion Follower's Helmet", LootSpotCatalog.MagaiaId)]
+    [InlineData("Scorched Belt Ornament", LootSpotCatalog.AresionId)]
+    [InlineData("Elion Follower's Mark", LootSpotCatalog.ScalesOfJudgmentId)]
+    [InlineData("Broken Gloves of the Void", LootSpotCatalog.EventHorizonId)]
     public void RecognizedTrashLocksItsSpot(string trash, string expected)
     {
         var filter = new AutomaticLootSpotLock();

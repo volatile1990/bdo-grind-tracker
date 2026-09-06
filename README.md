@@ -5,6 +5,11 @@ die Zählung verwenden den Companion-basierten Stand 0.5.1. Die zusätzlichen
 Bestätigungs- und Lebensdauerregeln aus 0.6.0/0.6.1 sind entfernt. Erhalten bleiben
 der automatisch erkannte Spotfilter und die Verbesserungen der UI-Geschwindigkeit.
 
+Der aktuelle Entwicklungsstand unterstützt alle sechs Inner-Edania-Zonen. Zu den
+bisherigen Spots kommen Aresion Temple, Scales of Judgment und Event Horizon mit
+automatischer Erkennung am jeweiligen Trashloot, vollständigem Hauptloot-Pool,
+Silberbewertung, Originalicons und Garmoth-Zuordnung hinzu.
+
 0.9.4 ergänzt ausschließlich für fehlgeschlagene normale Lootzeilen zwei zusätzliche
 Lesewege: isoliertes Mengen-Nachlesen sowie Graustufen-/adaptive Bildaufbereitung
 aus dem Originalausschnitt. Erfolgreiche bisherige Erkennungen bleiben unverändert;
@@ -65,6 +70,9 @@ Drop-Tabellen. Quellen, Einordnung und verbleibende Grenzen stehen in
    | Branch of Abundance | Aphrodon Temple |
    | Black Crystal Fragment | Hermesia Inner Castle |
    | Elion Follower's Helmet | Magaia Temple |
+   | Scorched Belt Ornament | Aresion Temple |
+   | Elion Follower's Mark | Scales of Judgment |
+   | Broken Gloves of the Void | Event Horizon |
 
 5. **Pausieren** erhält die Session und stoppt die Sitzungsuhr. **Fortsetzen** zählt
    aktive Grindzeit weiter; Pausen zählen nicht mit. **Neue Sitzung** setzt Uhr,
@@ -155,7 +163,7 @@ eine Teilsumme, **—** einen noch nicht bewertbaren Lootstand. Details per Maus
   Er umfasst den Spot-Hauptloot, den gemeinsamen HighestTier-Pool und die
   gemeinsamen Standard-/Worlddrops; letztere benötigen keinen Event-Schalter.
   Ein fremdes Item wird nicht in den nächstähnlichen erlaubten Namen umgedeutet.
-  `Black Gem Fragment` gehört nicht zu den drei Standardpools und wird nach
+  `Black Gem Fragment` gehört nicht zu den sechs Inner-Edania-Pools und wird nach
   Erkennung eines dieser Spots ausgefiltert.
 - Negative Rare-Korrekturen ändern die Summen, zählen aber nicht als neue
   Logeinträge. Auf null korrigierte Itemarten verschwinden aus der Summenliste.

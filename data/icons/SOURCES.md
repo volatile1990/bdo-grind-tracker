@@ -1,6 +1,6 @@
 # Item icon sources
 
-The local 44 × 44 pixel PNG files were converted without visual modification
+The local PNG files were converted without visual modification
 from the corresponding BDO Codex WebP item icons. The original set was collected
 on 2026-09-02; additions are dated below and in `catalog.json`. Item names and
 source pages for the original set:
@@ -80,6 +80,35 @@ icons in total**. All three trash-loot names have their own exact icon. The sole
 supported-spot exception is the intentionally ambiguous `Pure Black Stone`, as
 explained below. `IconCoverageTests` verifies packaged files, every checksum and
 dimension, unique names, expected item IDs and the actual UI repository lookup.
+
+## Remaining Inner Edania additions — 2026-09-06
+
+The remaining three zones added 14 new exact-name icons. They were downloaded
+with the same script and converted by ImageMagick without recoloring, redrawing
+or enlargement. BDO Codex serves `Broken Gloves of the Void` as 48 × 44 pixels;
+that original aspect ratio is retained and the UI scales it into the standard
+icon rectangle. Every other new source is 44 × 44 pixels.
+
+| Item | BDO Codex source |
+| --- | --- |
+| Apeiron Necklace | https://bdocodex.com/us/item/11733/ |
+| Broken Gloves of the Void | https://bdocodex.com/us/item/980132/ |
+| Broken Vestige of Crimsonflare | https://bdocodex.com/us/item/980142/ |
+| Broken Vestige of Voidreach | https://bdocodex.com/us/item/980143/ |
+| Elion Follower's Mark | https://bdocodex.com/us/item/980130/ |
+| Embers of Ynix - Gloves | https://bdocodex.com/us/item/821463/ |
+| HAN Origin Shard | https://bdocodex.com/us/item/821433/ |
+| HAN Wandering Origin Crystal | https://bdocodex.com/us/item/15297/ |
+| Scorched Belt Ornament | https://bdocodex.com/us/item/980131/ |
+| Twilight of the End - Necklace | https://bdocodex.com/us/item/821421/ |
+| White Primordial Luster - Edana | https://bdocodex.com/us/item/821420/ |
+| White Primordial Luster - Sovereign | https://bdocodex.com/us/item/821419/ |
+| White Primordial Pigment - Edana | https://bdocodex.com/us/item/767344/ |
+| White Primordial Pigment - Sovereign | https://bdocodex.com/us/item/767343/ |
+
+Coverage is now **54 of 55 distinct items across all six Inner Edania zones**,
+plus Black Gem Fragment and the event ore: **56 catalog icons in total**. The
+sole supported-spot exception remains the ambiguous `Pure Black Stone` below.
 
 `Pure Black Stone` deliberately has no single icon entry. The visible name
 is shared by several buff variants with different icons (for example, BDO Codex

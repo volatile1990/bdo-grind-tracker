@@ -1,8 +1,162 @@
 {
   "schemaVersion": 1,
   "generatedAtUtc": "2026-09-02T18:09:05.4827749+00:00",
-  "updatedAtUtc": "2026-09-05T13:21:47.8999024+00:00",
+  "updatedAtUtc": "2026-09-06T15:48:01.9843857+00:00",
   "items": [
+    {
+      "itemId": "11733",
+      "name": "Apeiron Necklace",
+      "file": "apeiron-necklace.png",
+      "page": "https://bdocodex.com/us/item/11733/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/06_pc_equipitem/00_common/15_necklace/00011733_1.webp",
+      "sha256": "3e1f583ce1f586f5000895b10d7849feae11d3047c2e2f264e2e9b7a7f428fdc",
+      "width": 44,
+      "height": 44,
+      "addedAtUtc": "2026-09-06T15:48:01.9843857+00:00"
+    },
+    {
+      "itemId": "980132",
+      "name": "Broken Gloves of the Void",
+      "file": "broken-gloves-of-the-void.png",
+      "page": "https://bdocodex.com/us/item/980132/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/04_dropitem/00980132.webp",
+      "sha256": "fd268e038082ada44ac57c26fa5034d89efee215c5e733d3a585cbd58c2ca907",
+      "width": 48,
+      "height": 44,
+      "addedAtUtc": "2026-09-06T15:48:01.9843857+00:00"
+    },
+    {
+      "itemId": "980142",
+      "name": "Broken Vestige of Crimsonflare",
+      "file": "broken-vestige-of-crimsonflare.png",
+      "page": "https://bdocodex.com/us/item/980142/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/00980142.webp",
+      "sha256": "122dc59414e0113ee769fddd80c5489241b45e4e61c1e3b175bf7da62cd4469b",
+      "width": 44,
+      "height": 44,
+      "addedAtUtc": "2026-09-06T15:48:01.9843857+00:00"
+    },
+    {
+      "itemId": "980143",
+      "name": "Broken Vestige of Voidreach",
+      "file": "broken-vestige-of-voidreach.png",
+      "page": "https://bdocodex.com/us/item/980143/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/00980143.webp",
+      "sha256": "94ebbb5ecdefa8b1f1979df536bb4160123f88fb99b5f578f0e52ead56f2634e",
+      "width": 44,
+      "height": 44,
+      "addedAtUtc": "2026-09-06T15:48:01.9843857+00:00"
+    },
+    {
+      "itemId": "980130",
+      "name": "Elion Follower's Mark",
+      "file": "elion-followers-mark.png",
+      "page": "https://bdocodex.com/us/item/980130/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/04_dropitem/00980130.webp",
+      "sha256": "57b568addf43bd1017efb157709a810d5e4001ec9d2b96706234914c2f1dad45",
+      "width": 44,
+      "height": 44,
+      "addedAtUtc": "2026-09-06T15:48:01.9843857+00:00"
+    },
+    {
+      "itemId": "821463",
+      "name": "Embers of Ynix - Gloves",
+      "file": "embers-of-ynix-gloves.png",
+      "page": "https://bdocodex.com/us/item/821463/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/07_productmaterial/00821463.webp",
+      "sha256": "72ce40c536926101febd9ef0b146c96aa1a3ab54c63a42d24cccefc0a0a45e3d",
+      "width": 44,
+      "height": 44,
+      "addedAtUtc": "2026-09-06T15:48:01.9843857+00:00"
+    },
+    {
+      "itemId": "821433",
+      "name": "HAN Origin Shard",
+      "file": "han-origin-shard.png",
+      "page": "https://bdocodex.com/us/item/821433/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/07_productmaterial/00821433.webp",
+      "sha256": "63dd056a2dca2a05215856301121f883743c95fcc476ea4d5fcfd79949a9d4af",
+      "width": 44,
+      "height": 44,
+      "addedAtUtc": "2026-09-06T15:48:01.9843857+00:00"
+    },
+    {
+      "itemId": "15297",
+      "name": "HAN Wandering Origin Crystal",
+      "file": "han-wandering-origin-crystal.png",
+      "page": "https://bdocodex.com/us/item/15297/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/11_enchant_material/00015297_1.webp",
+      "sha256": "40b755a72252b2d38e2754a318b99597df677c2d0f903f6adbc10387efe3691a",
+      "width": 44,
+      "height": 44,
+      "addedAtUtc": "2026-09-06T15:48:01.9843857+00:00"
+    },
+    {
+      "itemId": "980131",
+      "name": "Scorched Belt Ornament",
+      "file": "scorched-belt-ornament.png",
+      "page": "https://bdocodex.com/us/item/980131/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/04_dropitem/00980131.webp",
+      "sha256": "4986535d5317959c69e836459ad15ed97740974ee90b523d9842c4ed48e9e228",
+      "width": 44,
+      "height": 44,
+      "addedAtUtc": "2026-09-06T15:48:01.9843857+00:00"
+    },
+    {
+      "itemId": "821421",
+      "name": "Twilight of the End - Necklace",
+      "file": "twilight-of-the-end-necklace.png",
+      "page": "https://bdocodex.com/us/item/821421/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/07_productmaterial/00821421.webp",
+      "sha256": "d463772dc0ba7ae46e6eac8c387bc71a88ecfba5523d2d2443d02bdd8501c9d3",
+      "width": 44,
+      "height": 44,
+      "addedAtUtc": "2026-09-06T15:48:01.9843857+00:00"
+    },
+    {
+      "itemId": "821420",
+      "name": "White Primordial Luster - Edana",
+      "file": "white-primordial-luster-edana.png",
+      "page": "https://bdocodex.com/us/item/821420/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/07_productmaterial/00821420.webp",
+      "sha256": "1fedc34f76e7ba0b7bdb07779e75d196074d5a1dc0932934b140ce593284b0d0",
+      "width": 44,
+      "height": 44,
+      "addedAtUtc": "2026-09-06T15:48:01.9843857+00:00"
+    },
+    {
+      "itemId": "821419",
+      "name": "White Primordial Luster - Sovereign",
+      "file": "white-primordial-luster-sovereign.png",
+      "page": "https://bdocodex.com/us/item/821419/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/07_productmaterial/00821419.webp",
+      "sha256": "45aa7fa042a48342d52cfd1678c48e2154f9f80030dc992c2e15ca013e534f84",
+      "width": 44,
+      "height": 44,
+      "addedAtUtc": "2026-09-06T15:48:01.9843857+00:00"
+    },
+    {
+      "itemId": "767344",
+      "name": "White Primordial Pigment - Edana",
+      "file": "white-primordial-pigment-edana.png",
+      "page": "https://bdocodex.com/us/item/767344/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/00767344.webp",
+      "sha256": "a45974020d9dd38a3b79bcfac01c742e7e58c922f0e1df0c486d96eacab97b50",
+      "width": 44,
+      "height": 44,
+      "addedAtUtc": "2026-09-06T15:48:01.9843857+00:00"
+    },
+    {
+      "itemId": "767343",
+      "name": "White Primordial Pigment - Sovereign",
+      "file": "white-primordial-pigment-sovereign.png",
+      "page": "https://bdocodex.com/us/item/767343/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/00767343.webp",
+      "sha256": "e20b04a4212f5c75d8d09680f9750d2609403db65820fa84cc39017f8a22f5d4",
+      "width": 44,
+      "height": 44,
+      "addedAtUtc": "2026-09-06T15:48:01.9843857+00:00"
+    },
     {
       "itemId": "12298",
       "name": "Apeiron Belt",

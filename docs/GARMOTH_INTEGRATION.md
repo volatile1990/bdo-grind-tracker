@@ -84,11 +84,17 @@ Bestätigte Spotzuordnungen:
 - Aphrodon: `213`, Trash `980127_0`
 - Hermesia: `214`, Trash `980128_0`
 - Magaia: `215`, Trash `980129_0`
+- Aresion: `216`, Trash `980131_0`
+- Scales of Judgment: `217`, Trash `980130_0`
+- Event Horizon: `218`, Trash `980132_0`
 
 Diese IDs sind zusätzlich durch Garmoths öffentliche Seiten für
 [Aphrodon](https://garmoth.com/grind-tracker/best-grind-spots/213),
 [Hermesia](https://garmoth.com/grind-tracker/best-grind-spots/214) und
-[Magaia](https://garmoth.com/grind-tracker/best-grind-spots/215) bestätigt.
+[Magaia](https://garmoth.com/grind-tracker/best-grind-spots/215) sowie
+[Aresion](https://garmoth.com/grind-tracker/best-grind-spots/216),
+[Scales of Judgment](https://garmoth.com/grind-tracker/best-grind-spots/217) und
+[Event Horizon](https://garmoth.com/grind-tracker/best-grind-spots/218) bestätigt.
 Das statische Klassenmapping befindet sich außerdem in der EXE bei
 `0x1414FC8D0` (31 Datensätze); der Metadatencache ergänzt Agent als ID 31.
 
@@ -100,7 +106,8 @@ Erkennung oder die vorhandenen Spot-Lootpools.
 
 `Laila's Petal` hat einen bestätigten allgemeinen Item-Key `54031_0`, fehlt jedoch
 in Garmoths untersuchten Spotlisten und wird daher nur beim Upload ausgelassen.
-Die bestätigten Garmoth-Listen enthalten 25/27/29 Itemkeys für Aphrodon/Hermesia/Magaia.
+Die konfigurierten Uploadlisten enthalten 25/27/29/35/35/38 Itemkeys für
+Aphrodon/Hermesia/Magaia/Aresion/Scales of Judgment/Event Horizon.
 Diese Transportlisten schränken weder lokale Erkennung noch Bewertung ein. Der
 übermittelte Netto-Gesamtwert entspricht weiterhin der Dashboard-Bewertung; ein
 bekannter lokaler Festwert kann deshalb enthalten sein, obwohl seine Itemmenge in

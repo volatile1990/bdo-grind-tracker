@@ -1,6 +1,6 @@
 # Silver valuation provenance and limits
 
-Audited on 2026-09-05. This is a read-only projection of the tracker's existing
+Audited on 2026-09-06. This is a read-only projection of the tracker's existing
 item totals. Pricing, missing prices, tax options and Garmoth upload filtering do
 not change OCR, the spot loot pool, deduplication or any counted quantity.
 
@@ -23,7 +23,7 @@ one item's enhancement rows. This shape was confirmed by public GET and is
 covered by parser tests. The app currently offers PC **EU (default)** and **NA**;
 the API documents additional regions but these are deliberately not exposed yet.
 
-One batch requests the 24 verified market IDs in `LootPriceCatalog`. The provider
+One batch requests the 30 verified market IDs in `LootPriceCatalog`. The provider
 does not make HTTP calls in its constructor. Requests are serialized; successful
 refreshes suppress further requests for 10 minutes. Timeout is 8 seconds over
 both headers **and body**; response/cache size is limited to 1 MiB, JSON depth
@@ -68,7 +68,7 @@ two flags and location IDs. The item section ends at offset 165,498; it is
 followed by 200 spot definitions, then 32 class definitions at offset 248,976.
 Only item mapping, taxability and explicitly fixed appraisals are used here.
 
-The three untaxed NPC trash prices are independently supported by the
+The six untaxed NPC trash prices are independently supported by the
 [publisher's 2026-08-13 update](https://www.naeu.playblackdesert.com/en-US/News/Detail?groupContentNo=10451):
 
 | Item | Silver per item |
@@ -76,16 +76,19 @@ The three untaxed NPC trash prices are independently supported by the
 | Branch of Abundance | 155,127 |
 | Black Crystal Fragment | 160,539 |
 | Elion Follower's Helmet | 181,042 |
+| Scorched Belt Ornament | 182,049 |
+| Elion Follower's Mark | 186,458 |
+| Broken Gloves of the Void | 196,501 |
 
 Other untaxed **Companion appraisals** retained from that metadata are:
 
 | Items | Silver per item |
 | --- | ---: |
-| WON / BON / JIN Origin Shard | 12m / 15m / 17m |
-| WON / BON / JIN Wandering Origin Crystal | 1.2b / 1.5b / 1.7b |
-| Broken Vestige of Goldroot / Ebonmere / Everlight | 3.0b / 3.1b / 3.2b |
+| WON / BON / JIN / HAN Origin Shard | 12m / 15m / 17m / 20m |
+| WON / BON / JIN / HAN Wandering Origin Crystal | 1.2b / 1.5b / 1.7b / 2.0b |
+| Broken Vestige of Goldroot / Ebonmere / Everlight / Crimsonflare / Voidreach | 3.0b / 3.1b / 3.2b / 3.3b / 4.0b |
 | Laila's Petal | 500,000 |
-| Embers of Ynix — Armor / Helmet / Shoes | 0 |
+| Embers of Ynix — Armor / Helmet / Gloves / Shoes | 0 |
 
 These are identified as fixed catalog appraisals, not claimed to be live market
 quotes or newly verified NPC cash-out prices for every non-trash item. In
@@ -142,6 +145,7 @@ appraisal, malformed JSON types, enhancement filtering, immutability, region
 isolation, partial responses, stale/offline cache, retry delays, caller
 cancellation, full-response timeout and response limits. Tests use mock HTTP,
 not internet calls. Native tax behavior has separate `SilverValuationTests`.
-Public anonymous GET checks on 2026-09-05 returned all 24 requested base market
-prices; a transient non-success response was also observed and correctly
+Public anonymous GET checks on 2026-09-05 returned all 24 then-requested base market
+prices, and the six additions were verified on 2026-09-06. A transient
+non-success response was also observed and correctly
 produced fixed-only/incomplete valuation rather than fabricated prices.

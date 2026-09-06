@@ -34,7 +34,7 @@ public sealed class IconCoverageTests
         Assert.True(bytes.AsSpan(0, 8).SequenceEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }));
         using var stream = new MemoryStream(bytes, writable: false);
         using var image = Image.FromStream(stream, useEmbeddedColorManagement: false, validateImageData: true);
-        Assert.Equal(44, image.Width);
+        Assert.InRange(image.Width, 44, 48);
         Assert.Equal(44, image.Height);
         Assert.Equal(image.Width, entry.GetProperty("width").GetInt32());
         Assert.Equal(image.Height, entry.GetProperty("height").GetInt32());
@@ -58,13 +58,16 @@ public sealed class IconCoverageTests
         using var repository = new LootIconRepository(IconDirectory);
         var uiIcon = repository.GetIcon(name);
         Assert.NotNull(uiIcon);
-        Assert.Equal(new Size(44, 44), uiIcon.Size);
+        Assert.Equal(new Size(image.Width, image.Height), uiIcon.Size);
     }
 
     [Theory]
     [InlineData("Branch of Abundance", "980127")]
     [InlineData("Black Crystal Fragment", "980128")]
     [InlineData("Elion Follower's Helmet", "980129")]
+    [InlineData("Scorched Belt Ornament", "980131")]
+    [InlineData("Elion Follower's Mark", "980130")]
+    [InlineData("Broken Gloves of the Void", "980132")]
     public void EachSpotTrashHasItsOwnExactItemIcon(string name, string itemId)
     {
         var entry = ReadCatalog()[name];
@@ -78,14 +81,14 @@ public sealed class IconCoverageTests
         var catalog = ReadCatalog();
         var names = LootSpotCatalog.Spots.SelectMany(static spot => spot.AllowedItems)
             .Distinct(StringComparer.Ordinal).ToArray();
-        Assert.Equal(41, names.Length);
+        Assert.Equal(55, names.Length);
         Assert.Equal(new[] { "Pure Black Stone" }, names.Where(name => !catalog.ContainsKey(name)));
-        Assert.Equal(42, catalog.Count);
-        Assert.Equal(42, Directory.GetFiles(IconDirectory, "*.png").Length);
+        Assert.Equal(56, catalog.Count);
+        Assert.Equal(56, Directory.GetFiles(IconDirectory, "*.png").Length);
         Assert.False(catalog.ContainsKey("Pure Black Stone"));
         using var repository = new LootIconRepository(IconDirectory);
         Assert.Null(repository.GetIcon("Pure Black Stone"));
-        Assert.Equal(20, catalog.Values.Count(static entry => entry.TryGetProperty("addedAtUtc", out _)));
+        Assert.Equal(34, catalog.Values.Count(static entry => entry.TryGetProperty("addedAtUtc", out _)));
     }
 
     private static Dictionary<string, JsonElement> ReadCatalog()

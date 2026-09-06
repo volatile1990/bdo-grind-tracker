@@ -1,8 +1,9 @@
-# Lootpools – 0.6.3, Prüfstand 2026-09-05
+# Lootpools – Prüfstand 2026-09-06
 
-Der Tracker unterstützt weiterhin Aphrodon Temple, Hermesia Inner Castle und
-Magaia Temple. Der Spotfilter soll mögliche Beute durchlassen, nicht nur die
-prominenten Hauptdrops. Eine geringe Dropchance ist kein Ausschlussgrund.
+Der Tracker unterstützt alle sechs Inner-Edania-Zonen: Aphrodon Temple, Hermesia
+Inner Castle, Magaia Temple, Aresion Temple, Scales of Judgment und Event Horizon.
+Der Spotfilter soll mögliche Beute durchlassen, nicht nur die prominenten
+Hauptdrops. Eine geringe Dropchance ist kein Ausschlussgrund.
 
 ## Zusammensetzung
 
@@ -25,13 +26,13 @@ Die OCR-, Matching- und Zählalgorithmen sind unverändert.
 | Black Stone | Offiziell als direkter Inner-Edania-Monsterdrop belegt; bewusst als gemeinsames Material zugelassen. |
 | Caphras Stone | Dieselbe Einordnung wie Black Stone. |
 | Laila's Petal | Pearl Abyss beschreibt Monsterbeute unabhängig von der Region. |
-| Pure Black Stone | Historisch als sehr seltener Worlddrop beschrieben; vorsorglich als theoretisch mögliche Beute zugelassen. Kein neuer offizieller Nachweis für jeden der drei Spots. |
+| Pure Black Stone | Historisch als sehr seltener Worlddrop beschrieben; vorsorglich als theoretisch mögliche Beute zugelassen. Kein neuer offizieller Nachweis für jede der sechs Zonen. |
 
 Für die ersten drei Materialien nennt die offizielle NA/EU-Änderung vom
 [3. September 2026](https://www.naeu.playblackdesert.com/en-US/News/Detail?countryType=en-US&groupContentNo=10550)
 eine gemeinsame Drop-Ratenänderung bei Monstern in Event Horizon. Das belegt
 regionale Kampfbeute, aber keine technisch identische Tabelle jedes Monsters
-in Aphrodon, Hermesia und Magaia. Die Zulassung für alle drei ist eine
+in allen sechs Zonen. Die gemeinsame Zulassung ist eine
 bewusst auf mögliche Beute ausgerichtete Produkteinstellung.
 
 Die [offizielle Fairy-GM-Note](https://blackdesert.pearlabyss.com/Asia/en-US/News/Notice/Detail?_boardNo=844)
@@ -54,6 +55,15 @@ kennzeichnet ihre Spottabellen ausdrücklich als Main Loot. Diese Tabellen sind
 kein Vollständigkeitsnachweis. Die bestehenden Haupt-/HighestTier-Einträge bleiben
 erhalten; die neue gemeinsame Liste ergänzt sie.
 
+Die drei neu ergänzten automatischen Erkennungsanker sind die Junkloots aus
+denselben offiziellen Tabellen:
+
+| Junkloot | Spot |
+|---|---|
+| Scorched Belt Ornament | Aresion Temple |
+| Elion Follower's Mark | Scales of Judgment |
+| Broken Gloves of the Void | Event Horizon |
+
 Der vorhandene Eintrag `[Event] Mysterious Ore` bleibt optional verfügbar.
 Das bedeutet nicht, dass dieses Event derzeit aktiv ist. Eine Ereignisliste kann
 nicht im Voraus alle zukünftigen Eventnamen enthalten.
@@ -65,7 +75,7 @@ Solche Items wurden nicht allein aufgrund einer Erwähnung in derselben Patchnot
 zu Globaldrops erklärt.
 
 `Black Gem Fragment` bleibt entsprechend dem gemeldeten Fehlzählungsfall außerhalb
-dieser drei Spotpools, aber als Vergleichskandidat im globalen Namensmatcher.
+aller sechs Spotpools, aber als Vergleichskandidat im globalen Namensmatcher.
 Ein solcher Treffer darf nicht zu Black Crystal Fragment umgedeutet werden.
 Der Trashloot eines anderen unterstützten Spots bleibt ebenfalls ausgeschlossen.
 

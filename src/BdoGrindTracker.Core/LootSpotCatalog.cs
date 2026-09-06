@@ -51,7 +51,7 @@ public sealed class LootSpot
 }
 
 /// <summary>
-/// Compile-time loot pools for the supported Edania Part 2 spots, including shared drops.
+/// Compile-time loot pools for the supported Inner Edania spots, including shared drops.
 /// Event loot is deliberately kept outside every spot's default allow-list.
 /// </summary>
 public static class LootSpotCatalog
@@ -59,6 +59,9 @@ public static class LootSpotCatalog
     public const string AphrodonId = "aphrodon";
     public const string HermesiaId = "hermesia";
     public const string MagaiaId = "magaia";
+    public const string AresionId = "aresion";
+    public const string ScalesOfJudgmentId = "scales-of-judgment";
+    public const string EventHorizonId = "event-horizon";
 
     private static readonly string[] SharedGlobalItemNames =
     [
@@ -144,6 +147,93 @@ public static class LootSpotCatalog
                 "Silent Fragment of Origin",
                 "Silent Crystal of Origin",
                 "Elion Follower's Helmet")),
+        new(
+            AresionId,
+            "Aresion Temple",
+            WithSharedItems(
+                "HAN Wandering Origin Crystal",
+                "HAN Origin Shard",
+                "Embers of Ynix - Gloves",
+                "Apeiron Earring",
+                "Apeiron Ring",
+                "Apeiron Belt",
+                "Apeiron Necklace",
+                "Twilight of the End - Earring",
+                "Twilight of the End - Ring",
+                "Twilight of the End - Belt",
+                "Twilight of the End - Necklace",
+                "Sunset Primordial Pigment - Edana",
+                "Sunset Primordial Luster - Edana",
+                "Broken Vestige of Crimsonflare",
+                "White Primordial Pigment - Sovereign",
+                "White Primordial Pigment - Edana",
+                "White Primordial Luster - Sovereign",
+                "White Primordial Luster - Edana",
+                "Silent Fragment of Origin",
+                "Silent Crystal of Origin",
+                "Nev's Fragment",
+                "Fusion Shard",
+                "Corrupt Oil of Immortality",
+                "Scorched Belt Ornament")),
+        new(
+            ScalesOfJudgmentId,
+            "Scales of Judgment",
+            WithSharedItems(
+                "HAN Wandering Origin Crystal",
+                "HAN Origin Shard",
+                "Embers of Ynix - Shoes",
+                "Apeiron Earring",
+                "Apeiron Ring",
+                "Apeiron Belt",
+                "Apeiron Necklace",
+                "Twilight of the End - Earring",
+                "Twilight of the End - Ring",
+                "Twilight of the End - Belt",
+                "Twilight of the End - Necklace",
+                "Sunset Primordial Pigment - Edana",
+                "Sunset Primordial Luster - Edana",
+                "Broken Vestige of Everlight",
+                "White Primordial Pigment - Sovereign",
+                "White Primordial Pigment - Edana",
+                "White Primordial Luster - Sovereign",
+                "White Primordial Luster - Edana",
+                "Silent Fragment of Origin",
+                "Silent Crystal of Origin",
+                "Nev's Fragment",
+                "Fusion Shard",
+                "Corrupt Oil of Immortality",
+                "Elion Follower's Mark")),
+        new(
+            EventHorizonId,
+            "Event Horizon",
+            WithSharedItems(
+                "HAN Wandering Origin Crystal",
+                "HAN Origin Shard",
+                "Embers of Ynix - Armor",
+                "Embers of Ynix - Helmet",
+                "Embers of Ynix - Gloves",
+                "Embers of Ynix - Shoes",
+                "Apeiron Earring",
+                "Apeiron Ring",
+                "Apeiron Belt",
+                "Apeiron Necklace",
+                "Twilight of the End - Earring",
+                "Twilight of the End - Ring",
+                "Twilight of the End - Belt",
+                "Twilight of the End - Necklace",
+                "Sunset Primordial Pigment - Edana",
+                "Sunset Primordial Luster - Edana",
+                "Broken Vestige of Voidreach",
+                "White Primordial Pigment - Sovereign",
+                "White Primordial Pigment - Edana",
+                "White Primordial Luster - Sovereign",
+                "White Primordial Luster - Edana",
+                "Silent Fragment of Origin",
+                "Silent Crystal of Origin",
+                "Nev's Fragment",
+                "Fusion Shard",
+                "Corrupt Oil of Immortality",
+                "Broken Gloves of the Void")),
     ];
 
     private static readonly HashSet<string> EventItemSet = new(

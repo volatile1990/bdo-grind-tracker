@@ -54,10 +54,10 @@ im Stand 0.5.1 bleiben erlaubt; native Mengen-/Lückenreparatur ist wieder aktiv
 
 ## Automatischer Spotfilter
 
-`LootSpotCatalog` enthält die Edania-Part-2-Hauptloot-Tabellen,
+`LootSpotCatalog` enthält die Hauptloot-Tabellen aller sechs Inner-Edania-Zonen,
 den gemeinsamen HighestTier-Pool, eine separate `SharedGlobalItems`-Liste und
 eine explizite Event-Liste. Seit 0.6.3 ergänzen Ancient Spirit Dust, Black Stone,
-Caphras Stone, Laila's Petal und Pure Black Stone jeden der drei Spotpools.
+Caphras Stone, Laila's Petal und Pure Black Stone jeden der sechs Spotpools.
 Die Quellen und deren Grenzen sind in [LOOT_POOLS.md](LOOT_POOLS.md) dokumentiert.
 Eine fehlende Erwähnung in einer Main-Loot-Tabelle belegt kein Dropverbot. Die Zuordnung
 verändert keine OCR- oder Matchingentscheidung: Zunächst bestimmt der globale
@@ -72,6 +72,9 @@ legt den Spot fest:
 | Branch of Abundance | Aphrodon Temple |
 | Black Crystal Fragment | Hermesia Inner Castle |
 | Elion Follower's Helmet | Magaia Temple |
+| Scorched Belt Ornament | Aresion Temple |
+| Elion Follower's Mark | Scales of Judgment |
+| Broken Gloves of the Void | Event Horizon |
 
 Vor dieser Erkennung bleibt der Spot unbekannt; es wirkt noch kein zusätzlicher
 Spotfilter. Der erkannte Spot bleibt bis `Reset` gesperrt. Pause/Fortsetzen erhält

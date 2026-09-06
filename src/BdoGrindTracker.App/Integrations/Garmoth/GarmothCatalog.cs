@@ -1,7 +1,8 @@
 namespace BdoGrindTracker.App.Integrations.Garmoth;
 
 /// <summary>
-/// Names/IDs verified against Companion's public-metadata cache on 2026-09-05.
+/// Names/IDs verified against Companion's public-metadata cache and public
+/// Garmoth/BDO metadata on 2026-09-06.
 /// The application never reads Companion settings, credentials or caches at runtime.
 /// See docs/GARMOTH_INTEGRATION.md for sources and native contract anchors.
 /// </summary>
@@ -11,6 +12,7 @@ internal static class GarmothCatalog
         new Dictionary<string, int>(StringComparer.Ordinal)
         {
             ["aphrodon"] = 213, ["hermesia"] = 214, ["magaia"] = 215,
+            ["aresion"] = 216, ["scales-of-judgment"] = 217, ["event-horizon"] = 218,
         };
 
     private static readonly IReadOnlyDictionary<string, string> DropKeys =
@@ -19,36 +21,46 @@ internal static class GarmothCatalog
             ["Ancient Spirit Dust"] = "721002_0",
             ["Apeiron Belt"] = "12298_0",
             ["Apeiron Earring"] = "11898_0",
+            ["Apeiron Necklace"] = "11733_0",
             ["Apeiron Ring"] = "12144_0",
             ["BON Origin Shard"] = "821431_0",
             ["BON Wandering Origin Crystal"] = "15295_0",
             ["Black Crystal Fragment"] = "980128_0",
             ["Black Stone"] = "16001_0",
             ["Branch of Abundance"] = "980127_0",
+            ["Broken Gloves of the Void"] = "980132_0",
+            ["Broken Vestige of Crimsonflare"] = "980142_0",
             ["Broken Vestige of Ebonmere"] = "980140_0",
             ["Broken Vestige of Everlight"] = "980141_0",
             ["Broken Vestige of Goldroot"] = "980139_0",
+            ["Broken Vestige of Voidreach"] = "980143_0",
             ["Caphras Stone"] = "721003_0",
             ["Corrupt Oil of Immortality"] = "1178_0",
             ["Crimson Primordial Luster - Sovereign"] = "821341_0",
             ["Crimson Primordial Pigment - Sovereign"] = "767293_0",
             ["Elion Follower's Helmet"] = "980129_0",
+            ["Elion Follower's Mark"] = "980130_0",
             ["Embers of Ynix - Armor"] = "821462_0",
+            ["Embers of Ynix - Gloves"] = "821463_0",
             ["Embers of Ynix - Helmet"] = "821461_0",
             ["Embers of Ynix - Shoes"] = "821464_0",
             ["Fusion Shard"] = "821471_0",
+            ["HAN Origin Shard"] = "821433_0",
+            ["HAN Wandering Origin Crystal"] = "15297_0",
             ["JIN Origin Shard"] = "821432_0",
             ["JIN Wandering Origin Crystal"] = "15296_0",
             ["Laila's Petal"] = "54031_0",
             ["Nev's Fragment"] = "821460_0",
             ["Refined Essence of Devouring"] = "767338_0",
             ["Refined Origin of Hunger"] = "767337_0",
+            ["Scorched Belt Ornament"] = "980131_0",
             ["Silent Crystal of Origin"] = "761803_0",
             ["Silent Fragment of Origin"] = "821318_0",
             ["Sunset Primordial Luster - Edana"] = "821459_0",
             ["Sunset Primordial Pigment - Edana"] = "767353_0",
             ["Twilight of the End - Belt"] = "821424_0",
             ["Twilight of the End - Earring"] = "821422_0",
+            ["Twilight of the End - Necklace"] = "821421_0",
             ["Twilight of the End - Ring"] = "821423_0",
             ["Violet Primordial Luster - Edana"] = "821343_0",
             ["Violet Primordial Luster - Sovereign"] = "821342_0",
@@ -56,6 +68,10 @@ internal static class GarmothCatalog
             ["Violet Primordial Pigment - Sovereign"] = "767294_0",
             ["WON Origin Shard"] = "821430_0",
             ["WON Wandering Origin Crystal"] = "15294_0",
+            ["White Primordial Luster - Edana"] = "821420_0",
+            ["White Primordial Luster - Sovereign"] = "821419_0",
+            ["White Primordial Pigment - Edana"] = "767344_0",
+            ["White Primordial Pigment - Sovereign"] = "767343_0",
         };
 
     // Garmoth's spot metadata is intentionally separate from the local OCR
@@ -76,6 +92,16 @@ internal static class GarmothCatalog
             ["aphrodon"] = WithCommonKeys("980127_0", "821430_0", "15294_0", "980139_0", "821462_0"),
             ["hermesia"] = WithCommonKeys("980128_0", "821431_0", "15295_0", "12144_0", "821423_0", "980140_0", "821461_0"),
             ["magaia"] = WithCommonKeys("980129_0", "821432_0", "15296_0", "821423_0", "821424_0", "12144_0", "12298_0", "980141_0", "821464_0"),
+            ["aresion"] = WithCommonKeys(
+                "980131_0", "821433_0", "15297_0", "821463_0", "12144_0", "12298_0", "11733_0",
+                "821423_0", "821424_0", "821421_0", "980142_0", "767343_0", "767344_0", "821419_0", "821420_0"),
+            ["scales-of-judgment"] = WithCommonKeys(
+                "980130_0", "821433_0", "15297_0", "821464_0", "12144_0", "12298_0", "11733_0",
+                "821423_0", "821424_0", "821421_0", "980141_0", "767343_0", "767344_0", "821419_0", "821420_0"),
+            ["event-horizon"] = WithCommonKeys(
+                "980132_0", "821433_0", "15297_0", "821462_0", "821461_0", "821463_0", "821464_0",
+                "12144_0", "12298_0", "11733_0", "821423_0", "821424_0", "821421_0", "980143_0",
+                "767343_0", "767344_0", "821419_0", "821420_0"),
         };
 
     private static readonly string[] ClassNames =
