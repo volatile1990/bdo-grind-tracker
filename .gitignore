@@ -8,3 +8,13 @@ TestResults/
 artifacts/
 debug-captures/
 .repro-real/
+node_modules/
+web/dist/
+src/Grindcrest.Api/data/
+*.db
+*.db-shm
+*.db-wal
+*.dpapi
+.env
+.env.*
+!.env.example

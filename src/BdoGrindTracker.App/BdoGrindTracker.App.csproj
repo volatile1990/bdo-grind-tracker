@@ -23,6 +23,7 @@
   <ItemGroup>
     <ProjectReference Include="..\BdoGrindTracker.Core\BdoGrindTracker.Core.csproj" />
     <ProjectReference Include="..\BdoGrindTracker.Ocr\BdoGrindTracker.Ocr.csproj" />
+    <ProjectReference Include="..\Grindcrest.Live\Grindcrest.Live.csproj" />
   </ItemGroup>
 
   <ItemGroup>

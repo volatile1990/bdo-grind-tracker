@@ -20,6 +20,12 @@ internal sealed class AppSettings
 
     public bool GarmothAutoUploadEnabled { get; set; }
 
+    public bool LiveSharingEnabled { get; set; }
+
+    public string LiveApiUrl { get; set; } = "";
+
+    public string LiveDisplayName { get; set; } = "";
+
     public string MarketRegion { get; set; } = LootPriceCatalog.DefaultRegion;
 
     public bool SilverValuePack { get; set; }
@@ -30,6 +36,11 @@ internal sealed class AppSettings
 
     public void UpgradeDefaults()
     {
+        LiveApiUrl ??= "";
+        LiveDisplayName ??= "";
+        if (!Grindcrest.Live.LiveEndpoint.TryParse(LiveApiUrl, out _) ||
+            string.IsNullOrWhiteSpace(LiveDisplayName) || LiveDisplayName.Length > 40 || LiveDisplayName.Any(char.IsControl))
+            LiveSharingEnabled = false;
         if (AutoPauseMinutes is < MinimumAutoPauseMinutes or > MaximumAutoPauseMinutes)
         {
             AutoPauseMinutes = DefaultAutoPauseMinutes;

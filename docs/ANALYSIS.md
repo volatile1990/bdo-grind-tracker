@@ -163,6 +163,17 @@ Versand bei. Einzelheiten zu Korrekturen, Wiederaufnahme nach eindeutiger Ablehn
 und den prozesslokalen Schutzgrenzen stehen in der
 [Garmoth-Integration](GARMOTH_INTEGRATION.md).
 
+## Öffentliche Live-Sessions
+
+`Grindcrest.Live` enthält den plattformunabhängigen Vertrag und einen seriellen,
+begrenzten HTTP-Worker. `MainForm.Live` übergibt ausschließlich Kopien des bereits
+gezählten Sessionstands; es gibt keinen Rückkanal in OCR, Mailbox oder Zählregeln.
+Die Freigabe ist optional und verwendet einen eigenen, an die API gebundenen
+DPAPI-Schlüssel. `Grindcrest.Api` speichert aktuelle Sessions in SQLite, erzwingt
+Besitzerrechte und Sequenzen und lässt Einträge nach 90 Sekunden ohne Update ablaufen.
+`web/` lädt diese Daten alle 15 Sekunden und wird unabhängig über GitHub Pages
+ausgeliefert. [Vertrag, Betrieb und Grenzen](LIVE_SESSIONS.md).
+
 ## Diagnose und Offline-Replay
 
 Nur bei ausdrücklichem Opt-in schreibt `DiagnosticRecordingSession` Loot-PNGs und

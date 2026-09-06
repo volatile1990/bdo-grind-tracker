@@ -1,0 +1,14 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: src/Grindcrest.Api/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5080:8080"
+    environment:
+      Live__AllowedOrigins__0: https://volatile1990.github.io
+    volumes:
+      - live-data:/data
+volumes:
+  live-data:

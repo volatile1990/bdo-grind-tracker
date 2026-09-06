@@ -1,0 +1,35 @@
+name: Checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  desktop:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '9.0.x'
+      - run: dotnet test BdoGrindTracker.slnx -c Release
+  api-and-web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '9.0.x'
+      - run: dotnet test tests/Grindcrest.Live.Tests/Grindcrest.Live.Tests.csproj -c Release
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - run: npm test
+        working-directory: web
+      - run: npm run build
+        working-directory: web
+        env:
+          API_BASE_URL: https://api.example.com/
+      - run: docker build -f src/Grindcrest.Api/Dockerfile -t grindcrest-api-check .

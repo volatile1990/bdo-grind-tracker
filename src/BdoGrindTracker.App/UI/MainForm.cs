@@ -11,7 +11,7 @@ using System.Security.Cryptography;
 
 namespace BdoGrindTracker.App.UI;
 
-internal sealed class MainForm : Form
+internal sealed partial class MainForm : Form
 {
     private readonly ILootFrameAnalyzer _analyzer;
     private readonly SettingsStore _settingsStore;
@@ -111,6 +111,7 @@ internal sealed class MainForm : Form
         _analyzer = analyzer ?? throw new ArgumentNullException(nameof(analyzer));
         _settingsStore = settingsStore ?? throw new ArgumentNullException(nameof(settingsStore));
         _settings = settingsStore.Load();
+        InitializeLiveSharing();
         _captureSession = new PassiveCaptureSession(screenCapture);
         _sessionClock = sessionClock ?? new GrindSessionClock();
         _inactivityTimer = inactivityTimer ?? new GrindInactivityTimer();
@@ -420,6 +421,12 @@ internal sealed class MainForm : Form
         _garmothOptionsButton.Margin = new Padding(16, 0, 0, 0);
         _garmothOptionsButton.AccessibleName = "Garmoth-API-Key hinterlegen";
         flags.Controls.Add(_garmothOptionsButton);
+        _liveOptionsButton.Text = "Live-Freigabe";
+        _liveOptionsButton.ButtonStyle = BdoButtonStyle.Secondary;
+        _liveOptionsButton.Size = new Size(138, 24);
+        _liveOptionsButton.Margin = new Padding(16, 0, 0, 0);
+        _liveOptionsButton.AccessibleName = "Öffentliche Live-Session konfigurieren";
+        flags.Controls.Add(_liveOptionsButton);
 
         _optionsHint.AutoSize = true;
         _optionsHint.ForeColor = BdoTheme.TextMuted;
@@ -639,6 +646,8 @@ internal sealed class MainForm : Form
         _resetButton.Click += ResetButton_Click;
         _garmothButton.Click += GarmothButton_Click;
         _garmothOptionsButton.Click += GarmothOptionsButton_Click;
+        _liveOptionsButton.Click += LiveOptionsButton_Click;
+        SetLiveStatus(_liveStatus);
         _optionsButton.Click += (_, _) => ToggleOptions();
         _silverOptionsButton.Click += SilverOptionsButton_Click;
         Shown += async (_, _) =>
@@ -661,6 +670,7 @@ internal sealed class MainForm : Form
         _uiRefreshTimer.Tick += async (_, _) =>
         {
             RefreshPendingUi();
+            PublishLiveSession();
             await PauseIfInactiveAsync();
             await UploadHourlyToGarmothAsync();
             if (_priceRefreshEnabled && !_priceRefreshInProgress && DateTimeOffset.UtcNow >= _nextPriceRefreshAt)
@@ -825,6 +835,7 @@ internal sealed class MainForm : Form
             if (_optionsExpanded)
                 ToggleOptions();
             _lastCaptureDesktopRegion = monitor.Bounds;
+            PublishLiveSession();
             SetStatus(
                 UiStatusKind.Active,
                 "Tracking aktiv",
@@ -868,6 +879,7 @@ internal sealed class MainForm : Form
         _uiRunning = false;
 
         var failure = Interlocked.CompareExchange(ref _lastCaptureStopError, null, null);
+        PublishLiveSession();
         if (failure is null)
         {
             SetStatus(UiStatusKind.Paused, automatic ? "Automatisch pausiert" : "Pausiert",
@@ -913,6 +925,7 @@ internal sealed class MainForm : Form
         _recording?.Dispose();
         _recording = null;
         _hasSession = false;
+        _livePublisher?.Offer(null);
         _sessionId = Guid.NewGuid();
         _sessionStartedAt = null;
         _sessionSpotId = null;
@@ -1434,6 +1447,7 @@ internal sealed class MainForm : Form
         }
         finally
         {
+            await StopLiveSharingAsync();
             _shutdownCompleted = true;
             Close();
         }
@@ -1522,6 +1536,7 @@ internal sealed class MainForm : Form
             _uiMailbox.Dispose();
             _recording?.Dispose();
             _garmothClient.Dispose();
+            _livePublisher?.Dispose();
             _garmothApiKey = string.Empty;
             _baseFont.Dispose();
             _titleFont.Dispose();

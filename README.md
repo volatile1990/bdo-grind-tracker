@@ -66,6 +66,22 @@ Drop-Tabellen. Quellen, Einordnung und verbleibende Grenzen stehen in
 
 ## Benutzung
 
+### Homepage mit Live-Sessions
+
+Die neue Homepage unter `web/` zeigt öffentlich freigegebene Grind-Sessions mit
+Spot, Klasse, aktiver Dauer, Silber/h und aufklappbarem Loot. Die separate API unter
+`src/Grindcrest.Api` empfängt die Updates und entfernt Sessions ohne Lebenszeichen
+nach 90 Sekunden. Website und API lassen sich unabhängig von der Desktop-App ausliefern.
+
+In der App unter **Optionen → Live-Freigabe** API-Adresse, Anzeigename und persönlichen
+Schreibschlüssel eintragen und **Session öffentlich teilen** aktivieren. Standardmäßig
+bleibt die Freigabe aus. Pausen bleiben als solche sichtbar; neue Sitzung, Schließen
+oder Deaktivieren beenden die Veröffentlichung. Der Garmoth-Upload bleibt unabhängig.
+
+[Lokaler Start, Docker, Schlüsselvergabe und GitHub-Pages-Einrichtung](docs/LIVE_SESSIONS.md).
+
+### Tracking
+
 1. `Grindcrest.exe` starten und unter **Optionen** den Spielmonitor prüfen.
 2. Dort optional **Event-Loot zulassen** aktivieren. Das ergänzt ausschließlich die
    explizite Event-Liste, keine beliebigen fremden Items.

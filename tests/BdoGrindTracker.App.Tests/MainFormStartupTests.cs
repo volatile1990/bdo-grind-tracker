@@ -45,7 +45,7 @@ public sealed class MainFormStartupTests
             Assert.Empty(FindDescendants<LiveDetectionDebugView>(form));
             Assert.Empty(FindDescendants<DetectionRegionPreview>(form));
             Assert.All(FindDescendants<TextBox>(form), textBox => Assert.IsAssignableFrom<UpDownBase>(textBox.Parent));
-            Assert.Equal(6, FindDescendants<BdoButton>(form).Count);
+            Assert.Equal(7, FindDescendants<BdoButton>(form).Count);
             Assert.DoesNotContain(FindDescendants<Label>(form), label => label.Text is "DROPS" or "ITEMARTEN");
             Assert.Equal("0", FindByAccessibleName<Label>(form, "Silberwert vor Steuer").Text);
             Assert.Equal("0", FindByAccessibleName<Label>(form, "Silberwert nach Steuer").Text);
@@ -71,6 +71,26 @@ public sealed class MainFormStartupTests
                 FindByAccessibleName<Label>(form, "Automatisch erkannter Grindspot").Text);
             Assert.NotEmpty(FindByAccessibleName<ComboBox>(form, "Spielmonitor").Items);
             Assert.True(trackingButton.Enabled);
+        });
+    }
+
+    [Fact]
+    public void LiveSnapshotUsesContractRegionAndPreservesUnknownPricesWithoutStartingPublisher()
+    {
+        using var settings = new IsolatedSettingsStore();
+        RunInSta(() =>
+        {
+            using var form = CreateForm(settings.Store);
+            Assert.Null(form.CreateLiveSnapshot());
+            Assert.Null(typeof(MainForm).GetField("_livePublisher", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(form));
+            SetPrivateField(form, "_hasSession", true);
+            SetPrivateField(form, "_sessionStartedAt", (DateTimeOffset?)DateTimeOffset.UtcNow.AddMinutes(-1));
+            var snapshot = Assert.IsType<Grindcrest.Live.LiveSessionUpdate>(form.CreateLiveSnapshot());
+            Assert.Equal("EU", snapshot.Region);
+            Assert.Null(snapshot.SilverAfterTax);
+            Assert.True(snapshot.Paused);
+            SetPrivateField(form, "_sessionSubmitted", true);
+            Assert.Null(form.CreateLiveSnapshot());
         });
     }
 

@@ -33,8 +33,8 @@ Download für die Erkennung.
 
 Grindcrest setzt seine Fenster auf die normale Windows-Aufnahmefreigabe (`WDA_NONE`),
 statt sie global aus Screenshots auszublenden. Das behebt ihr Verschwinden in der
-Snipping-Ansicht; es löst selbst keine Bildschirmaufnahme aus. Auch die beiden
-Optionsdialoge bleiben aufnehmbar. Der API-Key ist dort weiterhin maskiert.
+Snipping-Ansicht; es löst selbst keine Bildschirmaufnahme aus. Auch die
+Optionsdialoge bleiben aufnehmbar. API-Schlüssel sind dort weiterhin maskiert.
 Während des Trackings dürfen die eigenen Fenster das kalibrierte Lootpanel nicht
 überdecken; es werden weiterhin ausschließlich tatsächlich sichtbare Pixel gelesen.
 
@@ -50,7 +50,8 @@ Auch ein Lootausschnitt kann bei überdecktem Spiel andere sichtbare Inhalte ent
 Deshalb Diagnose nur mit tatsächlich sichtbarem Lootpanel aktivieren.
 
 Die Einstellungsdatei speichert Monitor, Auto-Pause, Preisregion, Steueroptionen,
-das Opt-in für stündliche Garmoth-Uploads und technische Versionsangaben, keine
+das Opt-in für stündliche Garmoth-Uploads, Live-Freigabe, API-Adresse, Anzeigename
+und technische Versionsangaben, keine
 Bilder oder Klartext-Zugangsdaten.
 Eine aus 0.6.0/0.6.1 vorhandene manuelle Spot-Einstellung wird für die Erkennung
 ignoriert. Der aktive Spot wird ausschließlich aus dem erkannten Trashloot bestimmt,
@@ -87,6 +88,18 @@ verhindert eine Sitzungssperre im laufenden Programm weitere automatische und
 manuelle Uploads; lokales Tracking bleibt nutzbar. Die Auto-Pause erzeugt keinen
 zusätzlichen Reststunden-Upload. Details zu Intervallen, manuellen Uploads und
 Fehlerfällen: [Garmoth-Integration](GARMOTH_INTEGRATION.md).
+
+## Optionale öffentliche Live-Sessions
+
+Nur nach Aktivierung von **Session öffentlich teilen** sendet die App etwa alle
+15 Sekunden Anzeigename, Spot, Klasse, Region, aktive Dauer, Lootmengen und Silberwerte
+an die konfigurierte Session-API. Diese Daten sind auf der Homepage öffentlich.
+Screenshots, OCR-Rohtexte, lokale Pfade und Garmoth-Zugangsdaten werden nicht übertragen.
+Der persönliche Live-Schreibschlüssel liegt separat mit Windows-DPAPI verschlüsselt
+und ist an die API-Adresse gebunden. HTTP ist nur lokal erlaubt; Weiterleitungen und
+Cookies sind aus. Ein begrenzter Hintergrund-Worker beeinflusst weder OCR noch Auto-Pause.
+Pausen werden markiert; Ende/Deaktivieren/Schließen melden ab. Fehlende Lebenszeichen
+entfernen eine Session nach 90 Sekunden. [Details](LIVE_SESSIONS.md).
 
 ## Öffentliche Marktpreise
 
