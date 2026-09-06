@@ -86,7 +86,8 @@ internal static class BdoTheme
 internal enum BdoButtonStyle
 {
     Primary,
-    Secondary
+    Secondary,
+    Navigation
 }
 
 /// <summary>
@@ -98,6 +99,7 @@ internal sealed class BdoButton : Button
     private bool _pressed;
     private BdoButtonStyle _buttonStyle;
     private int _cornerRadius = 10;
+    private bool _selected;
 
     public BdoButton()
     {
@@ -149,6 +151,22 @@ internal sealed class BdoButton : Button
         }
     }
 
+    [DefaultValue(false)]
+    public bool Selected
+    {
+        get => _selected;
+        set
+        {
+            if (_selected == value)
+            {
+                return;
+            }
+
+            _selected = value;
+            Invalidate();
+        }
+    }
+
     protected override void OnMouseEnter(EventArgs e)
     {
         base.OnMouseEnter(e);
@@ -195,12 +213,8 @@ internal sealed class BdoButton : Button
         var radius = Math.Max(1, (int)Math.Round(CornerRadius * DeviceDpi / 96d));
 
         var background = ResolveBackground();
-        var foreground = Enabled
-            ? ButtonStyle == BdoButtonStyle.Primary ? BdoTheme.Background : BdoTheme.Text
-            : BdoTheme.TextMuted;
-        var borderColor = ButtonStyle == BdoButtonStyle.Primary
-            ? background
-            : _hovered && Enabled ? BdoTheme.Gold : BdoTheme.Border;
+        var foreground = ResolveForeground();
+        var borderColor = ResolveBorder(background);
 
         using var path = BdoTheme.CreateRoundedRectangle(bounds, radius);
         using var fill = new SolidBrush(background);
@@ -250,9 +264,39 @@ internal sealed class BdoButton : Button
                 : _hovered ? BdoTheme.GoldBright : BdoTheme.Gold;
         }
 
+        if (ButtonStyle == BdoButtonStyle.Navigation)
+        {
+            if (Selected)
+                return _pressed ? Color.FromArgb(117, 88, 46) :
+                    _hovered ? Color.FromArgb(105, 82, 48) : Color.FromArgb(84, 67, 44);
+            return _pressed ? BdoTheme.SurfacePressed :
+                _hovered ? BdoTheme.SurfaceHover : BdoTheme.Surface;
+        }
+
         return _pressed
             ? BdoTheme.SurfacePressed
             : _hovered ? BdoTheme.SurfaceHover : BdoTheme.SurfaceRaised;
+    }
+
+    private Color ResolveForeground()
+    {
+        if (!Enabled)
+            return BdoTheme.TextMuted;
+        if (ButtonStyle == BdoButtonStyle.Primary)
+            return BdoTheme.Background;
+        if (ButtonStyle == BdoButtonStyle.Navigation)
+            return Selected ? BdoTheme.GoldBright : BdoTheme.TextMuted;
+        return BdoTheme.Text;
+    }
+
+    private Color ResolveBorder(Color background)
+    {
+        if (ButtonStyle == BdoButtonStyle.Primary)
+            return background;
+        if (ButtonStyle == BdoButtonStyle.Navigation)
+            return Selected ? Color.FromArgb(195, BdoTheme.Gold) :
+                _hovered && Enabled ? BdoTheme.Border : BdoTheme.BorderSoft;
+        return _hovered && Enabled ? BdoTheme.Gold : BdoTheme.Border;
     }
 }
 

@@ -45,6 +45,23 @@ public sealed class LootHistoryViewTests
         });
     }
 
+    [Theory]
+    [InlineData(LootSpotCatalog.AphrodonId, "Knockdown/Bound", 245, 157, 64)]
+    [InlineData(LootSpotCatalog.HermesiaId, "Knockback/Float", 151, 124, 255)]
+    [InlineData(LootSpotCatalog.MagaiaId, "Stun/Stiff/Freeze", 75, 205, 239)]
+    [InlineData(LootSpotCatalog.AresionId, "Knockdown/Bound", 245, 157, 64)]
+    [InlineData(LootSpotCatalog.ScalesOfJudgmentId, "Stun/Stiff/Freeze", 75, 205, 239)]
+    [InlineData(LootSpotCatalog.EventHorizonId, "Stun/Stiff/Freeze", 75, 205, 239)]
+    public void CompactSpotCardsExposeCcUsingTheRecommendedCrystalColor(
+        string spotId, string expectedCc, int red, int green, int blue)
+    {
+        var profile = LootSpotPresentationCatalog.GetRequired(spotId);
+
+        Assert.Equal(expectedCc, SpotHistoryCard.GetCcLabel(profile));
+        Assert.Equal(Color.FromArgb(red, green, blue),
+            SpotHistoryCard.ResolveCrystalAccent(profile.RecommendedCrystalName));
+    }
+
     [Fact]
     public void MaximizedLootTableKeepsEveryLootColumnAndOffersHorizontalScrolling()
     {
@@ -276,6 +293,10 @@ public sealed class LootHistoryViewTests
             var aphrodon = Assert.Single(cards,
                 card => card.Profile.SpotId == LootSpotCatalog.AphrodonId);
             Assert.Equal(1, aphrodon.SessionCount);
+            Assert.Equal("Knockdown/Bound", SpotHistoryCard.GetCcLabel(aphrodon.Profile));
+            Assert.Equal(Color.FromArgb(245, 157, 64),
+                SpotHistoryCard.ResolveCrystalAccent(aphrodon.Profile.RecommendedCrystalName));
+            SavePreviewWhenRequested(view, "spot-overview-cc-and-buttons");
 
             view.ShowSpotDetails(LootSpotCatalog.AphrodonId);
             LayoutRecursively(view);

@@ -82,8 +82,8 @@ internal sealed class MainForm : Form
     private readonly Label _statusLabel = new();
     private readonly Panel _mainContentHost = new();
     private readonly FlowLayoutPanel _liveIdentity = new();
-    private readonly Button _liveTabButton = new();
-    private readonly Button _historyTabButton = new();
+    private readonly BdoButton _liveTabButton = new();
+    private readonly BdoButton _historyTabButton = new();
     private Control _liveTrackerView = null!;
     private readonly LootHistoryView _historyView;
 
@@ -266,12 +266,9 @@ internal sealed class MainForm : Form
         }
     }
 
-    private void StyleMainAreaButton(Button button, bool selected)
+    private void StyleMainAreaButton(BdoButton button, bool selected)
     {
-        button.BackColor = selected ? BdoTheme.SurfaceRaised : BdoTheme.Background;
-        button.ForeColor = selected ? BdoTheme.GoldBright : BdoTheme.TextMuted;
-        button.FlatAppearance.BorderColor = selected ? BdoTheme.Gold : BdoTheme.Border;
-        button.FlatAppearance.BorderSize = selected ? 1 : 0;
+        button.Selected = selected;
         button.AccessibleDescription = selected ? "Ausgewählt" : "Nicht ausgewählt";
     }
 
@@ -411,17 +408,16 @@ internal sealed class MainForm : Form
         return strip;
     }
 
-    private void ConfigureMainAreaButton(Button button, string text, string accessibleName)
+    private void ConfigureMainAreaButton(BdoButton button, string text, string accessibleName)
     {
         button.Text = text;
         button.AccessibleName = accessibleName;
         button.Width = 116;
         button.Height = 34;
         button.Margin = Padding.Empty;
-        button.FlatStyle = FlatStyle.Flat;
-        button.UseVisualStyleBackColor = false;
-        button.Cursor = Cursors.Hand;
-        button.Font = _baseFont;
+        button.Padding = Padding.Empty;
+        button.CornerRadius = 9;
+        button.ButtonStyle = BdoButtonStyle.Navigation;
     }
 
     private Control BuildTrackingOptions()

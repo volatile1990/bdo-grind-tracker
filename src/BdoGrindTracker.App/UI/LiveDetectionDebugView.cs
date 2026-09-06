@@ -20,7 +20,7 @@ internal sealed class LiveDetectionDebugView : UserControl
     private readonly Label _captureMetricsLabel = new();
     private readonly Label _pipelineMetricsLabel = new();
     private readonly Label _ocrMetricsLabel = new();
-    private readonly Button _copyButton = new();
+    private readonly BdoButton _copyButton = new();
     private readonly ToolTip _toolTip = new();
     private readonly Font _headingFont = new(
         "Segoe UI Semibold",
@@ -330,18 +330,11 @@ internal sealed class LiveDetectionDebugView : UserControl
         _copyButton.Text = "Diagnose kopieren";
         _copyButton.AutoSize = true;
         _copyButton.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-        _copyButton.MinimumSize = new Size(112, 25);
-        _copyButton.FlatStyle = FlatStyle.Flat;
-        _copyButton.FlatAppearance.BorderColor = BdoTheme.Border;
-        _copyButton.FlatAppearance.MouseOverBackColor = BdoTheme.SurfaceRaised;
-        _copyButton.FlatAppearance.MouseDownBackColor = BdoTheme.Border;
-        _copyButton.BackColor = BdoTheme.Surface;
-        _copyButton.ForeColor = BdoTheme.TextMuted;
-        _copyButton.Cursor = Cursors.Hand;
-        _copyButton.Font = _captionFont;
+        _copyButton.MinimumSize = new Size(124, 28);
+        _copyButton.ButtonStyle = BdoButtonStyle.Secondary;
+        _copyButton.CornerRadius = 8;
         _copyButton.Margin = Padding.Empty;
-        _copyButton.Padding = new Padding(5, 1, 5, 1);
-        _copyButton.UseVisualStyleBackColor = false;
+        _copyButton.Padding = new Padding(9, 1, 9, 1);
         _copyButton.AccessibleName = "Diagnose kopieren";
         _copyButton.Enabled = false;
         _copyButton.Click += CopyButton_Click;

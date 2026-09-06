@@ -45,7 +45,9 @@ public sealed class MainFormStartupTests
             Assert.Empty(FindDescendants<LiveDetectionDebugView>(form));
             Assert.Empty(FindDescendants<DetectionRegionPreview>(form));
             Assert.All(FindDescendants<TextBox>(form), textBox => Assert.IsAssignableFrom<UpDownBase>(textBox.Parent));
-            Assert.Equal(6, FindDescendants<BdoButton>(form).Count);
+            Assert.Equal(10, FindDescendants<BdoButton>(form).Count);
+            Assert.DoesNotContain(FindDescendants<Button>(form), button => button is not BdoButton);
+            Assert.All(FindDescendants<BdoButton>(form), button => Assert.True(button.CornerRadius >= 8));
             Assert.DoesNotContain(FindDescendants<Label>(form), label => label.Text is "DROPS" or "ITEMARTEN");
             Assert.Equal("0", FindByAccessibleName<Label>(form, "Silberwert vor Steuer").Text);
             Assert.Equal("0", FindByAccessibleName<Label>(form, "Silberwert nach Steuer").Text);

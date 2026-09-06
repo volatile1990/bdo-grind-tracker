@@ -12,8 +12,8 @@ internal sealed class LootHistoryView : UserControl
     private readonly FlowLayoutPanel _spotList = CreateSpotList();
     private readonly FlowLayoutPanel _spotDetailList = CreateList("Grindspot-Details im Loot-Verlauf");
     private readonly FlowLayoutPanel _chronologicalList = CreateList("Chronologischer Loot-Verlauf");
-    private readonly Button _chronologicalButton = CreateModeButton("Chronologisch");
-    private readonly Button _spotsButton = CreateModeButton("Nach Spots");
+    private readonly BdoButton _chronologicalButton = CreateModeButton("Chronologisch");
+    private readonly BdoButton _spotsButton = CreateModeButton("Nach Spots");
     private readonly ImageAssetRepository _backgrounds = new(
         Path.Combine(AppContext.BaseDirectory, "data", "spot-backgrounds"));
     private readonly ImageAssetRepository _spotIcons = new(
@@ -357,22 +357,20 @@ internal sealed class LootHistoryView : UserControl
         AccessibleName = "Kompakte Grindspot-Auswahl im Loot-Verlauf"
     };
 
-    private static Button CreateModeButton(string text) => new()
+    private static BdoButton CreateModeButton(string text) => new()
     {
         Text = text,
+        ButtonStyle = BdoButtonStyle.Navigation,
         AutoSize = false,
         Size = new Size(126, 34),
-        FlatStyle = FlatStyle.Flat,
-        FlatAppearance = { BorderSize = 0 },
-        UseVisualStyleBackColor = false,
-        Cursor = Cursors.Hand,
+        CornerRadius = 9,
+        Padding = Padding.Empty,
         Margin = Padding.Empty
     };
 
-    private static void StyleModeButton(Button button, bool selected)
+    private static void StyleModeButton(BdoButton button, bool selected)
     {
-        button.BackColor = selected ? Color.FromArgb(91, 73, 48) : BdoTheme.Surface;
-        button.ForeColor = selected ? BdoTheme.GoldBright : BdoTheme.TextMuted;
+        button.Selected = selected;
         button.AccessibleDescription = selected ? "Ausgewählt" : "Nicht ausgewählt";
     }
 
@@ -592,26 +590,32 @@ internal sealed class SpotHistoryCard : Control
             BdoTheme.GoldBright,
             TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
 
-        DrawTrash(graphics, bounds);
-        DrawCrystal(graphics, bounds);
-        DrawStat(graphics, padding, ScaleLogical(68), ScaleLogical(60),
+        var trashBounds = GetTrashBounds(bounds);
+        DrawTrash(graphics, trashBounds);
+        DrawStat(graphics, padding, ScaleLogical(68), ScaleLogical(50),
             "REC. AP", _profile.RecommendedAp.ToString(CultureInfo.InvariantCulture) + "+",
             Color.FromArgb(231, 160, 95));
-        DrawStat(graphics, padding + ScaleLogical(62), ScaleLogical(68), ScaleLogical(60),
+        DrawStat(graphics, padding + ScaleLogical(54), ScaleLogical(68), ScaleLogical(50),
             "MAX AP", _profile.MaxApLimit.ToString(CultureInfo.InvariantCulture),
             Color.FromArgb(240, 200, 111));
-        DrawStat(graphics, padding + ScaleLogical(124), ScaleLogical(68), ScaleLogical(60),
+        DrawStat(graphics, padding + ScaleLogical(108), ScaleLogical(68), ScaleLogical(50),
             "REC. DP", _profile.RecommendedDp.ToString(CultureInfo.InvariantCulture) + "+",
             Color.FromArgb(131, 209, 153));
+        DrawCcStat(graphics, padding + ScaleLogical(162), ScaleLogical(68),
+            Math.Max(ScaleLogical(68), trashBounds.Left - padding - ScaleLogical(168)));
         DrawCompactTraits(graphics, padding, ScaleLogical(126), bounds.Width - padding * 2);
     }
 
-    private void DrawTrash(Graphics graphics, Rectangle bounds)
+    private Rectangle GetTrashBounds(Rectangle bounds)
     {
-        var width = ScaleLogical(154);
+        var width = ScaleLogical(136);
         var height = ScaleLogical(49);
         var right = ScaleLogical(14);
-        var box = new Rectangle(bounds.Right - right - width, ScaleLogical(65), width, height);
+        return new Rectangle(bounds.Right - right - width, ScaleLogical(65), width, height);
+    }
+
+    private void DrawTrash(Graphics graphics, Rectangle box)
+    {
         using var path = BdoTheme.CreateRoundedRectangle(box, ScaleLogical(6));
         using var fill = new SolidBrush(Color.FromArgb(224, 18, 21, 22));
         using var border = new Pen(Color.FromArgb(118, 217, 186, 121));
@@ -639,36 +643,21 @@ internal sealed class SpotHistoryCard : Control
             TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
     }
 
-    private void DrawCrystal(Graphics graphics, Rectangle bounds)
+    private void DrawCcStat(Graphics graphics, int x, int y, int width)
     {
-        var size = ScaleLogical(49);
-        var trashWidth = ScaleLogical(154);
-        var right = ScaleLogical(14);
-        var gap = ScaleLogical(7);
-        var box = new Rectangle(bounds.Right - right - trashWidth - gap - size,
-            ScaleLogical(65), size, size);
-        using var path = BdoTheme.CreateRoundedRectangle(box, ScaleLogical(6));
-        using var fill = new SolidBrush(Color.FromArgb(224, 18, 21, 22));
-        using var border = new Pen(Color.FromArgb(145, 121, 169, 211));
-        graphics.FillPath(fill, path);
-        graphics.DrawPath(border, path);
-        var iconBounds = Rectangle.Inflate(box, -ScaleLogical(3), -ScaleLogical(3));
+        var accent = ResolveCrystalAccent(_profile.RecommendedCrystalName);
+        TextRenderer.DrawText(graphics, "CC", _captionFont,
+            new Rectangle(x, y, width, ScaleLogical(17)),
+            Color.FromArgb(174, 179, 179),
+            TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+        var iconSize = ScaleLogical(15);
+        var iconBounds = new Rectangle(x + ScaleLogical(17), y + ScaleLogical(1), iconSize, iconSize);
         if (_crystalIcon is not null)
             graphics.DrawImage(_crystalIcon, iconBounds);
-        var label = _profile.RecommendedCrystalName switch
-        {
-            "Adamantine" => "ADAM.",
-            "Fighting Spirit" => "SPIRIT",
-            _ => _profile.RecommendedCrystalName.ToUpperInvariant()
-        };
-        var labelBounds = new Rectangle(box.X + ScaleLogical(2), box.Bottom - ScaleLogical(15),
-            box.Width - ScaleLogical(4), ScaleLogical(13));
-        using (var labelPath = BdoTheme.CreateRoundedRectangle(labelBounds, ScaleLogical(3)))
-        using (var labelFill = new SolidBrush(Color.FromArgb(225, 8, 10, 12)))
-            graphics.FillPath(labelFill, labelPath);
-        TextRenderer.DrawText(graphics, label, _captionFont, labelBounds, Color.White,
-            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter |
-            TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
+        TextRenderer.DrawText(graphics, GetCcLabel(_profile), _captionFont,
+            new Rectangle(x, y + ScaleLogical(17), width, ScaleLogical(25)), accent,
+            TextFormatFlags.Left | TextFormatFlags.VerticalCenter |
+            TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
     }
 
     private void DrawStat(Graphics graphics, int x, int y, int width, string label, string value, Color color)
@@ -730,7 +719,8 @@ internal sealed class SpotHistoryCard : Control
     private void UpdateAccessibility()
     {
         AccessibleDescription = $"{_sessions.Count:N0} gespeicherte Stunden. Empfohlener Kristall: " +
-                                $"{_profile.RecommendedCrystalName}. Öffnet die maximierte Detailansicht.";
+                                $"{_profile.RecommendedCrystalName}. CC: {GetCcLabel(_profile)}. " +
+                                "Öffnet die maximierte Detailansicht.";
     }
 
     private void RecreateFonts()
@@ -792,6 +782,26 @@ internal sealed class SpotHistoryCard : Control
         "#DivineAuthority" => (Color.FromArgb(178, 154, 230), Color.FromArgb(214, 69, 52, 105)),
         "#FeverPowerfulMobs" => (Color.FromArgb(215, 144, 170), Color.FromArgb(214, 91, 48, 65)),
         _ => (BdoTheme.TextMuted, BdoTheme.SurfaceRaised)
+    };
+
+    internal static string GetCcLabel(LootSpotPresentation profile)
+    {
+        var resistance = profile.Traits.FirstOrDefault(LootSpotPresentationCatalog.IsResistanceTrait);
+        return resistance switch
+        {
+            "#Stun/Stiffness/Freezing" => "Stun/Stiff/Freeze",
+            "#Knockback/Floating" => "Knockback/Float",
+            { Length: > 1 } => resistance[1..],
+            _ => "–"
+        };
+    }
+
+    internal static Color ResolveCrystalAccent(string crystalName) => crystalName switch
+    {
+        "Adamantine" => Color.FromArgb(245, 157, 64),
+        "Fighting Spirit" => Color.FromArgb(151, 124, 255),
+        "Giant" => Color.FromArgb(75, 205, 239),
+        _ => BdoTheme.GoldBright
     };
 
     internal static string FormatDuration(TimeSpan duration) =>
