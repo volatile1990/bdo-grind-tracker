@@ -123,9 +123,8 @@ internal sealed class BdoHorizontalScrollBar : Control
         base.OnMouseDown(e);
         if (e.Button != MouseButtons.Left)
             return;
-        Focus();
         var thumb = CalculateThumbBounds();
-        if (thumb.Contains(e.Location))
+        if (ThumbHitBounds(thumb).Contains(e.Location))
         {
             _dragging = true;
             _dragStartX = e.X;
@@ -136,13 +135,14 @@ internal sealed class BdoHorizontalScrollBar : Control
         {
             Value += e.X < thumb.Left ? -LargeChange : LargeChange;
         }
+        Focus();
         Invalidate();
     }
 
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
-        var hovered = _dragging || CalculateThumbBounds().Contains(e.Location);
+        var hovered = _dragging || ThumbHitBounds(CalculateThumbBounds()).Contains(e.Location);
         if (!_dragging && _hovered != hovered)
         {
             _hovered = hovered;
@@ -182,6 +182,8 @@ internal sealed class BdoHorizontalScrollBar : Control
     {
         base.OnMouseWheel(e);
         Value += e.Delta > 0 ? -SmallChange : SmallChange;
+        if (e is HandledMouseEventArgs handled)
+            handled.Handled = true;
     }
 
     protected override void OnKeyDown(KeyEventArgs e)
@@ -224,6 +226,9 @@ internal sealed class BdoHorizontalScrollBar : Control
         var x = track.X + (int)Math.Round(travel * (_value / (double)_maximum));
         return new Rectangle(x, track.Y, width, track.Height);
     }
+
+    private Rectangle ThumbHitBounds(Rectangle thumb) =>
+        new(thumb.X, 0, thumb.Width, Math.Max(1, Height));
 
     private int ScaleLogical(int pixels) => Math.Max(1, (int)Math.Round(pixels * DeviceDpi / 96d));
 }

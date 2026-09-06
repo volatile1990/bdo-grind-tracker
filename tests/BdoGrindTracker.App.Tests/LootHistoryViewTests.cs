@@ -1,4 +1,5 @@
 using System.Runtime.ExceptionServices;
+using System.Drawing.Imaging;
 using BdoGrindTracker.App.Persistence;
 using BdoGrindTracker.App.Pricing;
 using BdoGrindTracker.App.UI;
@@ -80,8 +81,13 @@ public sealed class LootHistoryViewTests
             Assert.Single(FindDescendants<BdoHorizontalScrollBar>(details));
             Assert.True(details.LootScrollBounds.Left > 300);
             Assert.True(details.LootScrollBounds.Right <= details.ClientSize.Width);
+            Assert.True(details.ScrollLootAt(new Point(
+                details.LootViewportBounds.Left + 4,
+                details.LootViewportBounds.Top + 4), -120));
+            Assert.True(details.LootScrollValue > 0);
             details.LootScrollValue = details.LootScrollMaximum;
             Assert.Equal(details.LootScrollMaximum, details.LootScrollValue);
+            SavePreviewWhenRequested(details, "spot-table-pagination");
         });
     }
 
@@ -190,6 +196,33 @@ public sealed class LootHistoryViewTests
             compactItems.Select(static item => item.Key));
     }
 
+    [Fact]
+    public void ValuableDropsStayInTheSingleCompactChronologicalHeaderRow()
+    {
+        RunInSta(() =>
+        {
+            var profile = LootSpotPresentationCatalog.GetRequired(LootSpotCatalog.AphrodonId);
+            var entry = CreateEntry(profile.SpotId, profile.TrashItemName, 20_823,
+                new DateTimeOffset(2026, 9, 7, 12, 0, 0, TimeSpan.FromHours(2)),
+                totals: new Dictionary<string, long>
+                {
+                    [profile.TrashItemName] = 20_823,
+                    ["WON Wandering Origin Crystal"] = 2,
+                    ["Broken Vestige of Goldroot"] = 1
+                });
+            using var view = new LootHistoryView { Size = new Size(900, 700) };
+            view.SetPricing(LootPriceCatalog.FixedSnapshot("eu"), SilverTaxOptions.Default);
+            view.SetEntries([entry]);
+            view.ShowChronological();
+            LayoutRecursively(view);
+
+            var card = Assert.Single(FindDescendants<ChronologicalHistoryCard>(view));
+            Assert.Equal(3, card.CollapsedLootItemNames.Count);
+            Assert.InRange(card.Height, 60, 70);
+            SavePreviewWhenRequested(card, "chronological-compact-loot");
+        });
+    }
+
     [Theory]
     [InlineData(LootSpotCatalog.AphrodonId)]
     [InlineData(LootSpotCatalog.HermesiaId)]
@@ -285,6 +318,78 @@ public sealed class LootHistoryViewTests
                     .Select(y => bitmap.GetPixel(Math.Min(bitmap.Width - 1, x * 20),
                         Math.Min(bitmap.Height - 1, y * 20)).ToArgb()))
                 .Any(color => color != background), "The maximized spot detail was not rendered.");
+        });
+    }
+
+    [Fact]
+    public void ChronologicalHistoryUsesTwentyFiveEntriesByDefaultAndOffersFourPageSizes()
+    {
+        RunInSta(() =>
+        {
+            var profile = LootSpotPresentationCatalog.GetRequired(LootSpotCatalog.AphrodonId);
+            var now = new DateTimeOffset(2026, 9, 7, 12, 0, 0, TimeSpan.FromHours(2));
+            var entries = Enumerable.Range(0, 60)
+                .Select(index => CreateEntry(profile.SpotId, profile.TrashItemName, 18_000 + index,
+                    now.AddHours(-index)))
+                .ToArray();
+            using var view = new LootHistoryView { Size = new Size(900, 700) };
+            view.SetEntries(entries);
+            view.ShowChronological();
+            LayoutRecursively(view);
+
+            Assert.Equal(HistoryPaginationBar.DefaultPageSize, view.ChronologicalPageSize);
+            Assert.Equal(25, view.ChronologicalEntryCount);
+            var pager = Assert.Single(FindDescendants<HistoryPaginationBar>(view));
+            Assert.Equal([10, 25, 50, 100], HistoryPaginationBar.PageSizeOptions);
+            Assert.Equal(3, pager.PageCount);
+
+            pager.RequestPage(1);
+            LayoutRecursively(view);
+            Assert.Equal(1, view.ChronologicalPageIndex);
+            Assert.Equal(25, view.ChronologicalEntryCount);
+
+            pager = Assert.Single(FindDescendants<HistoryPaginationBar>(view));
+            pager.RequestPageSize(50);
+            LayoutRecursively(view);
+            Assert.Equal(0, view.ChronologicalPageIndex);
+            Assert.Equal(50, view.ChronologicalPageSize);
+            Assert.Equal(50, view.ChronologicalEntryCount);
+        });
+    }
+
+    [Fact]
+    public void SpotHistoryPaginatesTrackedSessionsWithoutChangingAggregateLootMetrics()
+    {
+        RunInSta(() =>
+        {
+            var profile = LootSpotPresentationCatalog.GetRequired(LootSpotCatalog.AphrodonId);
+            var now = new DateTimeOffset(2026, 9, 7, 12, 0, 0, TimeSpan.FromHours(2));
+            var entries = Enumerable.Range(0, 60)
+                .Select(index => CreateEntry(profile.SpotId, profile.TrashItemName, 1_000,
+                    now.AddHours(-index)))
+                .ToArray();
+            using var view = new LootHistoryView { Size = new Size(900, 700) };
+            view.SetEntries(entries);
+            view.ShowSpotDetails(profile.SpotId);
+            LayoutRecursively(view);
+
+            var details = Assert.Single(FindDescendants<SpotHistoryDetailView>(view));
+            Assert.Equal(60, details.Sessions.Count);
+            Assert.Equal(25, details.VisibleSessions.Count);
+            Assert.Equal(1_000m, details.Metrics.TrashPerHour);
+            var pager = Assert.Single(FindDescendants<HistoryPaginationBar>(details));
+
+            pager.RequestPage(2);
+            LayoutRecursively(view);
+            Assert.Equal(2, details.PageIndex);
+            Assert.Equal(10, details.VisibleSessions.Count);
+
+            pager.RequestPageSize(50);
+            LayoutRecursively(view);
+            Assert.Equal(0, details.PageIndex);
+            Assert.Equal(50, details.PageSize);
+            Assert.Equal(50, details.VisibleSessions.Count);
+            Assert.Equal(60, details.Sessions.Count);
         });
     }
 
@@ -412,6 +517,17 @@ public sealed class LootHistoryViewTests
         foreach (Control child in control.Controls)
             LayoutRecursively(child);
         control.PerformLayout();
+    }
+
+    private static void SavePreviewWhenRequested(Control control, string name)
+    {
+        var directory = Environment.GetEnvironmentVariable("BDO_UI_PREVIEW_DIR");
+        if (string.IsNullOrWhiteSpace(directory) || control.Width <= 0 || control.Height <= 0)
+            return;
+        Directory.CreateDirectory(directory);
+        using var bitmap = new Bitmap(control.Width, control.Height);
+        control.DrawToBitmap(bitmap, new Rectangle(Point.Empty, bitmap.Size));
+        bitmap.Save(Path.Combine(directory, $"loot-history-{name}.png"), ImageFormat.Png);
     }
 
     private static void RunInSta(Action action)

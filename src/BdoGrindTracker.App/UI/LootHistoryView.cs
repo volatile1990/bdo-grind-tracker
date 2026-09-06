@@ -31,6 +31,8 @@ internal sealed class LootHistoryView : UserControl
     private IReadOnlyList<LootHistoryEntry> _entries = [];
     private string? _selectedSpotId;
     private bool _showSpots = true;
+    private int _chronologicalPageIndex;
+    private int _chronologicalPageSize = HistoryPaginationBar.DefaultPageSize;
     private bool _disposed;
 
     public LootHistoryView()
@@ -83,6 +85,10 @@ internal sealed class LootHistoryView : UserControl
 
     internal int ChronologicalEntryCount =>
         _chronologicalList.Controls.OfType<ChronologicalHistoryCard>().Count();
+
+    internal int ChronologicalPageIndex => _chronologicalPageIndex;
+
+    internal int ChronologicalPageSize => _chronologicalPageSize;
 
     public void SetEntries(IEnumerable<LootHistoryEntry> entries)
     {
@@ -286,7 +292,12 @@ internal sealed class LootHistoryView : UserControl
         }
         else
         {
-            foreach (var entry in _entries)
+            var pageCount = Math.Max(1,
+                (_entries.Count + _chronologicalPageSize - 1) / _chronologicalPageSize);
+            _chronologicalPageIndex = Math.Clamp(_chronologicalPageIndex, 0, pageCount - 1);
+            foreach (var entry in _entries
+                         .Skip(_chronologicalPageIndex * _chronologicalPageSize)
+                         .Take(_chronologicalPageSize))
             {
                 var profile = LootSpotPresentationCatalog.GetRequired(entry.SpotId);
                 _chronologicalList.Controls.Add(new ChronologicalHistoryCard(
@@ -301,6 +312,23 @@ internal sealed class LootHistoryView : UserControl
                     Margin = new Padding(0, 0, 0, 9)
                 });
             }
+
+            var pager = new HistoryPaginationBar();
+            pager.Configure(_entries.Count, _chronologicalPageIndex, _chronologicalPageSize);
+            pager.PageRequested += pageIndex =>
+            {
+                _chronologicalPageIndex = pageIndex;
+                RebuildChronologicalList();
+                _chronologicalList.AutoScrollPosition = Point.Empty;
+            };
+            pager.PageSizeRequested += pageSize =>
+            {
+                _chronologicalPageSize = pageSize;
+                _chronologicalPageIndex = 0;
+                RebuildChronologicalList();
+                _chronologicalList.AutoScrollPosition = Point.Empty;
+            };
+            _chronologicalList.Controls.Add(pager);
         }
         FitChildren(_chronologicalList);
     }
@@ -793,8 +821,7 @@ internal sealed class SpotHistoryCard : Control
 internal sealed class ChronologicalHistoryCard : Control
 {
     private const int HeaderTopLogicalHeight = 64;
-    private const int LootStripCellLogicalWidth = 66;
-    private const int LootStripRowLogicalHeight = 42;
+    private const int HeaderLootCellLogicalWidth = 50;
     internal const decimal ValuableDropThreshold = 200_000_000m;
     private static readonly CultureInfo GermanCulture = CultureInfo.GetCultureInfo("de-DE");
     private readonly LootHistoryEntry _entry;
@@ -802,7 +829,6 @@ internal sealed class ChronologicalHistoryCard : Control
     private readonly Image? _background;
     private readonly Image? _spotIcon;
     private readonly IReadOnlyList<KeyValuePair<string, long>> _collapsedLootItems;
-    private readonly IReadOnlyList<KeyValuePair<string, long>> _valuableLootItems;
     private readonly IReadOnlyList<KeyValuePair<string, long>> _expandedLootItems;
     private readonly LootIconRepository _icons;
     private Font? _titleFont;
@@ -825,9 +851,6 @@ internal sealed class ChronologicalHistoryCard : Control
         _background = background;
         _spotIcon = spotIcon;
         _collapsedLootItems = BuildCollapsedLootItems(entry, profile, prices, tax);
-        _valuableLootItems = _collapsedLootItems
-            .Where(item => !string.Equals(item.Key, profile.TrashItemName, StringComparison.Ordinal))
-            .ToArray();
         _expandedLootItems = entry.Totals
             .OrderByDescending(pair => CalculateLineValue(pair, prices, tax))
             .ThenByDescending(static pair => pair.Value)
@@ -979,29 +1002,28 @@ internal sealed class ChronologicalHistoryCard : Control
         var spotTextX = spotIconBounds.Right + ScaleLogical(8);
         var spotTextWidth = Math.Max(50, spotWidth - spotIconSize - ScaleLogical(8));
         var spotName = LootSpotCatalog.GetRequired(_entry.SpotId).DisplayName;
-        var trash = _entry.Totals.GetValueOrDefault(_profile.TrashItemName);
-        var trashBadgeWidth = trash > 0 ? ScaleLogical(LootStripCellLogicalWidth) : 0;
-        var badgeGap = trash > 0 ? ScaleLogical(7) : 0;
-        var nameWidth = Math.Max(40, spotTextWidth - trashBadgeWidth - badgeGap);
-        var measuredName = TextRenderer.MeasureText(graphics, spotName, _titleFont, Size.Empty,
-            TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix).Width;
-        var renderedNameWidth = Math.Min(nameWidth, measuredName + ScaleLogical(3));
+        var lootCellWidth = _collapsedLootItems.Count == 0
+            ? 0
+            : Math.Min(ScaleLogical(HeaderLootCellLogicalWidth),
+                Math.Max(ScaleLogical(30),
+                    (spotTextWidth - ScaleLogical(105)) / _collapsedLootItems.Count));
+        var lootWidth = lootCellWidth * _collapsedLootItems.Count;
+        var nameWidth = Math.Max(40, spotTextWidth - lootWidth - ScaleLogical(5));
         TextRenderer.DrawText(graphics, spotName, _titleFont,
             new Rectangle(spotTextX, 0, nameWidth, topHeight),
             Color.FromArgb(255, 226, 172), TextFormatFlags.Left | TextFormatFlags.VerticalCenter |
             TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
-        if (trash > 0)
-        {
-            DrawCompactLootBadge(graphics,
-                new KeyValuePair<string, long>(_profile.TrashItemName, trash),
-                new Rectangle(spotTextX + renderedNameWidth + badgeGap, ScaleLogical(13),
-                    trashBadgeWidth, ScaleLogical(38)), trash: true);
-        }
+        DrawHeaderLoot(graphics, spotTextX + nameWidth + ScaleLogical(5), lootCellWidth);
 
         var durationX = spotX + spotWidth;
-        TextRenderer.DrawText(graphics, SpotHistoryCard.FormatDuration(_entry.Duration), _bodyFont,
-            new Rectangle(durationX, 0, durationWidth, topHeight),
-            BdoTheme.Text, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+        TextRenderer.DrawText(graphics, "GRINDZEIT", _captionFont,
+            new Rectangle(durationX, ScaleLogical(7), durationWidth, ScaleLogical(17)),
+            BdoTheme.TextMuted, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter |
+            TextFormatFlags.NoPrefix);
+        TextRenderer.DrawText(graphics, SpotHistoryCard.FormatDuration(_entry.Duration), _valueFont,
+            new Rectangle(durationX, ScaleLogical(22), durationWidth, ScaleLogical(31)),
+            BdoTheme.Text, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter |
+            TextFormatFlags.NoPrefix);
         var silverX = durationX + durationWidth;
         TextRenderer.DrawText(graphics, SpotHistoryCard.FormatSilver(_entry.SilverAfterTax), _valueFont,
             new Rectangle(silverX, 0, silverWidth, topHeight),
@@ -1010,8 +1032,6 @@ internal sealed class ChronologicalHistoryCard : Control
             new Rectangle(silverX + silverWidth, 0, chevronWidth, topHeight),
             BdoTheme.TextMuted, TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
 
-        DrawCompactLootStrip(graphics, padding, ScaleLogical(HeaderTopLogicalHeight),
-            Math.Max(1, Width - padding * 2));
     }
 
     private void DrawDetails(Graphics graphics, int headerHeight)
@@ -1060,45 +1080,49 @@ internal sealed class ChronologicalHistoryCard : Control
             BdoTheme.GoldBright, TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
     }
 
-    private void DrawCompactLootStrip(Graphics graphics, int startX, int startY, int availableWidth)
+    private void DrawHeaderLoot(Graphics graphics, int startX, int cellWidth)
     {
-        if (_valuableLootItems.Count == 0)
+        if (_collapsedLootItems.Count == 0 || cellWidth <= 0)
             return;
-        var cellWidth = ScaleLogical(LootStripCellLogicalWidth);
-        var rowHeight = ScaleLogical(LootStripRowLogicalHeight);
-        var perRow = Math.Max(1, availableWidth / cellWidth);
-        for (var index = 0; index < _valuableLootItems.Count; index++)
+        for (var index = 0; index < _collapsedLootItems.Count; index++)
         {
-            var column = index % perRow;
-            var row = index / perRow;
-            var bounds = new Rectangle(startX + column * cellWidth,
-                startY + row * rowHeight, cellWidth - ScaleLogical(5), rowHeight - ScaleLogical(5));
-            DrawCompactLootBadge(graphics, _valuableLootItems[index], bounds, trash: false);
+            var item = _collapsedLootItems[index];
+            DrawHeaderLootBadge(graphics, item,
+                new Rectangle(startX + index * cellWidth, 0, cellWidth, ScaleLogical(HeaderTopLogicalHeight)),
+                string.Equals(item.Key, _profile.TrashItemName, StringComparison.Ordinal));
         }
     }
 
-    private void DrawCompactLootBadge(Graphics graphics, KeyValuePair<string, long> item,
+    private void DrawHeaderLootBadge(Graphics graphics, KeyValuePair<string, long> item,
         Rectangle bounds, bool trash)
     {
-        using var path = BdoTheme.CreateRoundedRectangle(bounds, ScaleLogical(6));
-        using var fill = new SolidBrush(Color.FromArgb(212, 20, 24, 28));
-        using var border = new Pen(trash ? BdoTheme.Gold : Color.FromArgb(124, 105, 150, 194));
-        graphics.FillPath(fill, path);
-        graphics.DrawPath(border, path);
-        var iconSize = Math.Min(ScaleLogical(28), bounds.Height - ScaleLogical(5));
-        var iconBounds = new Rectangle(bounds.X + ScaleLogical(3),
-            bounds.Y + (bounds.Height - iconSize) / 2, iconSize, iconSize);
+        var iconSize = Math.Min(ScaleLogical(38), Math.Max(ScaleLogical(25), bounds.Width - ScaleLogical(5)));
+        var iconBounds = new Rectangle(bounds.X + (bounds.Width - iconSize) / 2,
+            ScaleLogical(19), iconSize, iconSize);
         var icon = _icons.GetIcon(item.Key);
         if (icon is not null)
             graphics.DrawImage(icon, iconBounds);
         else
             SpotHistoryCardDrawFallback(graphics, iconBounds);
-        TextRenderer.DrawText(graphics, SpotHistoryCard.FormatQuantity(item.Value), _captionFont,
-            new Rectangle(iconBounds.Right + ScaleLogical(2), bounds.Y,
-                Math.Max(1, bounds.Right - iconBounds.Right - ScaleLogical(4)), bounds.Height),
+
+        var quantity = SpotHistoryCard.FormatQuantity(item.Value);
+        var measured = TextRenderer.MeasureText(graphics, quantity, _valueFont, Size.Empty,
+            TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix).Width;
+        var badgeWidth = Math.Min(Math.Max(iconSize, measured + ScaleLogical(8)),
+            Math.Max(iconSize, bounds.Width + ScaleLogical(6)));
+        var badge = new Rectangle(bounds.X + (bounds.Width - badgeWidth) / 2,
+            ScaleLogical(3), badgeWidth, ScaleLogical(19));
+        using (var path = BdoTheme.CreateRoundedRectangle(badge, ScaleLogical(7)))
+        using (var fill = new SolidBrush(Color.FromArgb(238, 12, 15, 18)))
+        using (var border = new Pen(trash ? BdoTheme.Gold : Color.FromArgb(205, 105, 150, 194)))
+        {
+            graphics.FillPath(fill, path);
+            graphics.DrawPath(border, path);
+        }
+        TextRenderer.DrawText(graphics, quantity, _valueFont, badge,
             trash ? BdoTheme.GoldBright : BdoTheme.Text,
-            TextFormatFlags.Right | TextFormatFlags.VerticalCenter |
-            TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter |
+            TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
     }
 
     private void UpdateHeight()
@@ -1119,14 +1143,7 @@ internal sealed class ChronologicalHistoryCard : Control
     }
 
     private int GetHeaderHeight()
-    {
-        if (_valuableLootItems.Count == 0)
-            return ScaleLogical(HeaderTopLogicalHeight);
-        var availableWidth = Math.Max(1, Width - ScaleLogical(30));
-        var perRow = Math.Max(1, availableWidth / ScaleLogical(LootStripCellLogicalWidth));
-        var rows = (_valuableLootItems.Count + perRow - 1) / perRow;
-        return ScaleLogical(HeaderTopLogicalHeight + 5) + rows * ScaleLogical(LootStripRowLogicalHeight);
-    }
+        => ScaleLogical(HeaderTopLogicalHeight);
 
     private void UpdateAccessibility()
     {
@@ -1147,7 +1164,7 @@ internal sealed class ChronologicalHistoryCard : Control
         _titleFont = new Font("Segoe UI Semibold", 10f * scale, FontStyle.Bold, GraphicsUnit.Point);
         _bodyFont = new Font("Segoe UI", 9f * scale, FontStyle.Regular, GraphicsUnit.Point);
         _captionFont = new Font("Segoe UI Semibold", 7.5f * scale, FontStyle.Bold, GraphicsUnit.Point);
-        _valueFont = new Font("Segoe UI Semibold", 9f * scale, FontStyle.Bold, GraphicsUnit.Point);
+        _valueFont = new Font("Segoe UI Semibold", 10.5f * scale, FontStyle.Bold, GraphicsUnit.Point);
     }
 
     private int ScaleLogical(int pixels) => Math.Max(1, (int)Math.Round(pixels * DeviceDpi / 96d));

@@ -24,6 +24,7 @@ internal sealed class SpotHistoryDetailView : Control
     private const int RowLogicalHeight = 54;
     private const int LootColumnLogicalWidth = 72;
     private const int ScrollBarLogicalHeight = 22;
+    private const int PaginationLogicalHeight = 42;
     private static readonly CultureInfo GermanCulture = CultureInfo.GetCultureInfo("de-DE");
     private static readonly Color[] ClassColors =
     [
@@ -37,6 +38,7 @@ internal sealed class SpotHistoryDetailView : Control
 
     private readonly LootSpotPresentation _profile;
     private readonly IReadOnlyList<LootHistoryEntry> _sessions;
+    private IReadOnlyList<LootHistoryEntry> _visibleSessions = [];
     private readonly Image? _background;
     private readonly Image? _spotIcon;
     private readonly Image? _crystalIcon;
@@ -49,6 +51,9 @@ internal sealed class SpotHistoryDetailView : Control
         TabStop = true,
         AccessibleName = "Loot-Tabelle horizontal scrollen"
     };
+    private readonly HistoryPaginationBar _pagination = new();
+    private int _pageIndex;
+    private int _pageSize = HistoryPaginationBar.DefaultPageSize;
     private Font? _titleFont;
     private Font? _subtitleFont;
     private Font? _captionFont;
@@ -92,10 +97,21 @@ internal sealed class SpotHistoryDetailView : Control
         AccessibleName = $"Maximierte Grindspot-Details für {LootSpotCatalog.GetRequired(profile.SpotId).DisplayName}";
         AccessibleDescription = $"{sessions.Count:N0} Grindstunden, Kennzahlen und Loot-Tabelle. Escape führt zur Übersicht zurück.";
         _lootScroll.ValueChanged += (_, _) => InvalidateLootViewport();
+        _pagination.PageRequested += pageIndex =>
+        {
+            _pageIndex = pageIndex;
+            UpdateVisibleSessions();
+        };
+        _pagination.PageSizeRequested += pageSize =>
+        {
+            _pageSize = pageSize;
+            _pageIndex = 0;
+            UpdateVisibleSessions();
+        };
         Controls.Add(_lootScroll);
+        Controls.Add(_pagination);
         RecreateFonts();
-        UpdateHeight();
-        UpdateLootScrollBar();
+        UpdateVisibleSessions();
     }
 
     public event EventHandler? BackRequested;
@@ -103,6 +119,12 @@ internal sealed class SpotHistoryDetailView : Control
     internal LootSpotPresentation Profile => _profile;
 
     internal IReadOnlyList<LootHistoryEntry> Sessions => _sessions;
+
+    internal IReadOnlyList<LootHistoryEntry> VisibleSessions => _visibleSessions;
+
+    internal int PageIndex => _pageIndex;
+
+    internal int PageSize => _pageSize;
 
     internal SpotHistoryMetrics Metrics => _metrics;
 
@@ -130,6 +152,17 @@ internal sealed class SpotHistoryDetailView : Control
     }
 
     internal int LootScrollMaximum => _lootScroll.Maximum;
+
+    internal Rectangle LootViewportBounds => GetLootViewportBounds();
+
+    internal bool ScrollLootAt(Point location, int wheelDelta)
+    {
+        if (!_lootScroll.Visible || !GetLootViewportBounds().Contains(location) || wheelDelta == 0)
+            return false;
+        var notches = Math.Max(1, Math.Abs(wheelDelta) / SystemInformation.MouseWheelScrollDelta);
+        _lootScroll.Value += (wheelDelta > 0 ? -1 : 1) * _lootScroll.SmallChange * notches;
+        return true;
+    }
 
     protected override void OnPaint(PaintEventArgs e)
     {
@@ -183,6 +216,24 @@ internal sealed class SpotHistoryDetailView : Control
             e.Handled = true;
             e.SuppressKeyPress = true;
         }
+    }
+
+    protected override void OnMouseWheel(MouseEventArgs e)
+    {
+        if (ScrollLootAt(e.Location, e.Delta))
+        {
+            if (e is HandledMouseEventArgs handled)
+                handled.Handled = true;
+            return;
+        }
+        base.OnMouseWheel(e);
+    }
+
+    protected override void OnMouseMove(MouseEventArgs e)
+    {
+        base.OnMouseMove(e);
+        if (!Focused && CanFocus && GetLootViewportBounds().Contains(e.Location))
+            Focus();
     }
 
     protected override void OnGotFocus(EventArgs e)
@@ -398,7 +449,7 @@ internal sealed class SpotHistoryDetailView : Control
         DrawColumnHeader(graphics, "SILBER / H", new Rectangle(x, startY, silverWidth, headerHeight));
         DrawPinnedDivider(graphics, lootViewport.X, startY, headerHeight);
 
-        if (_sessions.Count == 0)
+        if (_visibleSessions.Count == 0)
         {
             TextRenderer.DrawText(graphics, "Noch keine Grindstunden an diesem Spot gespeichert.", _bodyFont,
                 new Rectangle(padding, headerBounds.Bottom, tableWidth, ScaleLogical(82)),
@@ -408,9 +459,9 @@ internal sealed class SpotHistoryDetailView : Control
         }
 
         var rowY = headerBounds.Bottom;
-        for (var row = 0; row < _sessions.Count; row++)
+        for (var row = 0; row < _visibleSessions.Count; row++)
         {
-            DrawSessionRow(graphics, _sessions[row], _lootColumns, itemWidth,
+            DrawSessionRow(graphics, _visibleSessions[row], _lootColumns, itemWidth,
                 new Rectangle(padding, rowY, tableWidth, ScaleLogical(RowLogicalHeight)),
                 classWidth, ageWidth, durationWidth, silverWidth, row % 2 == 1);
             rowY += ScaleLogical(RowLogicalHeight);
@@ -573,8 +624,11 @@ internal sealed class SpotHistoryDetailView : Control
 
     private void UpdateHeight()
     {
-        var rowsHeight = _sessions.Count == 0 ? ScaleLogical(82) : _sessions.Count * ScaleLogical(RowLogicalHeight);
-        var height = ScaleLogical(HeaderLogicalHeight + TableHeaderLogicalHeight + ScrollBarLogicalHeight + 12) + rowsHeight;
+        var rowsHeight = _visibleSessions.Count == 0
+            ? ScaleLogical(82)
+            : _visibleSessions.Count * ScaleLogical(RowLogicalHeight);
+        var height = ScaleLogical(HeaderLogicalHeight + TableHeaderLogicalHeight +
+                                  ScrollBarLogicalHeight + PaginationLogicalHeight + 19) + rowsHeight;
         MinimumSize = new Size(ScaleLogical(420), height);
         Height = height;
     }
@@ -587,11 +641,15 @@ internal sealed class SpotHistoryDetailView : Control
         var viewportWidth = Math.Max(1, Width - padding * 2 - fixedWidth);
         var contentWidth = _lootColumns.Count * ScaleLogical(LootColumnLogicalWidth);
         var overflow = Math.Max(0, contentWidth - viewportWidth);
-        var rowsHeight = _sessions.Count == 0 ? ScaleLogical(82) : _sessions.Count * ScaleLogical(RowLogicalHeight);
+        var rowsHeight = _visibleSessions.Count == 0
+            ? ScaleLogical(82)
+            : _visibleSessions.Count * ScaleLogical(RowLogicalHeight);
         var scrollY = ScaleLogical(HeaderLogicalHeight + TableHeaderLogicalHeight) + rowsHeight + ScaleLogical(2);
+        var scrollHeight = Math.Min(ScaleLogical(ScrollBarLogicalHeight),
+            SystemInformation.HorizontalScrollBarHeight);
 
         _lootScroll.Bounds = new Rectangle(padding + fixedWidth, scrollY, viewportWidth,
-            Math.Min(ScaleLogical(ScrollBarLogicalHeight), SystemInformation.HorizontalScrollBarHeight));
+            scrollHeight);
         _lootScroll.SmallChange = Math.Max(1, ScaleLogical(LootColumnLogicalWidth));
         _lootScroll.LargeChange = Math.Max(1, viewportWidth);
         _lootScroll.ViewportSize = viewportWidth;
@@ -599,6 +657,9 @@ internal sealed class SpotHistoryDetailView : Control
         if (_lootScroll.Value > overflow)
             _lootScroll.Value = overflow;
         _lootScroll.Visible = overflow > 0;
+        _pagination.Bounds = new Rectangle(padding,
+            scrollY + ScaleLogical(ScrollBarLogicalHeight + 4),
+            Math.Max(1, Width - padding * 2), ScaleLogical(PaginationLogicalHeight));
         Invalidate();
     }
 
@@ -607,13 +668,41 @@ internal sealed class SpotHistoryDetailView : Control
         var padding = ScaleLogical(15);
         var (classWidth, ageWidth, durationWidth, silverWidth) = GetFixedColumnWidths();
         var fixedWidth = classWidth + ageWidth + durationWidth + silverWidth;
-        var rowsHeight = _sessions.Count == 0
+        var rowsHeight = _visibleSessions.Count == 0
             ? ScaleLogical(82)
-            : _sessions.Count * ScaleLogical(RowLogicalHeight);
+            : _visibleSessions.Count * ScaleLogical(RowLogicalHeight);
         var bounds = new Rectangle(padding + fixedWidth, ScaleLogical(HeaderLogicalHeight),
             Math.Max(1, Width - padding * 2 - fixedWidth),
             ScaleLogical(TableHeaderLogicalHeight) + rowsHeight);
         Invalidate(Rectangle.Inflate(bounds, ScaleLogical(1), 0));
+    }
+
+    private Rectangle GetLootViewportBounds()
+    {
+        var padding = ScaleLogical(15);
+        var (classWidth, ageWidth, durationWidth, silverWidth) = GetFixedColumnWidths();
+        var fixedWidth = classWidth + ageWidth + durationWidth + silverWidth;
+        var rowsHeight = _visibleSessions.Count == 0
+            ? ScaleLogical(82)
+            : _visibleSessions.Count * ScaleLogical(RowLogicalHeight);
+        return new Rectangle(padding + fixedWidth, ScaleLogical(HeaderLogicalHeight),
+            Math.Max(1, Width - padding * 2 - fixedWidth),
+            ScaleLogical(TableHeaderLogicalHeight) + rowsHeight);
+    }
+
+    private void UpdateVisibleSessions()
+    {
+        var pageCount = Math.Max(1, (_sessions.Count + _pageSize - 1) / _pageSize);
+        _pageIndex = Math.Clamp(_pageIndex, 0, pageCount - 1);
+        _visibleSessions = _sessions
+            .Skip(_pageIndex * _pageSize)
+            .Take(_pageSize)
+            .ToArray();
+        _pagination.Configure(_sessions.Count, _pageIndex, _pageSize);
+        UpdateHeight();
+        UpdateLootScrollBar();
+        Invalidate();
+        Parent?.PerformLayout();
     }
 
     private (int Class, int Age, int Duration, int Silver) GetFixedColumnWidths()
