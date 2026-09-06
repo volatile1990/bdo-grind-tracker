@@ -112,6 +112,7 @@ public sealed class LootHistoryViewTests
             Assert.True(details.Width >= view.ClientSize.Width * 0.85);
             Assert.Single(details.Sessions);
             Assert.Equal(1_310_000_000m, details.Metrics.TotalSilver);
+            Assert.Contains("#Knockdown/Bound", details.DisplayedTraitLabels);
 
             view.ShowSpotOverview();
             LayoutRecursively(view);

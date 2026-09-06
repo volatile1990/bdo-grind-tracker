@@ -240,7 +240,6 @@ internal sealed class LootHistoryView : UserControl
             sessions,
             _backgrounds.Get(profile.BackgroundFileName),
             _spotIcons.Get(profile.IconFileName),
-            _crystalIcons.Get(profile.RecommendedCrystalFileName),
             _classIcons,
             _icons)
         {

@@ -35,7 +35,6 @@ internal sealed class SpotHistoryDetailView : Control
     private readonly IReadOnlyList<LootHistoryEntry> _sessions;
     private readonly Image? _background;
     private readonly Image? _spotIcon;
-    private readonly Image? _crystalIcon;
     private readonly ImageAssetRepository _classIcons;
     private readonly LootIconRepository _icons;
     private readonly SpotHistoryMetrics _metrics;
@@ -59,7 +58,6 @@ internal sealed class SpotHistoryDetailView : Control
         IReadOnlyList<LootHistoryEntry> sessions,
         Image? background,
         Image? spotIcon,
-        Image? crystalIcon,
         ImageAssetRepository classIcons,
         LootIconRepository icons)
     {
@@ -67,7 +65,6 @@ internal sealed class SpotHistoryDetailView : Control
         _sessions = sessions ?? throw new ArgumentNullException(nameof(sessions));
         _background = background;
         _spotIcon = spotIcon;
-        _crystalIcon = crystalIcon;
         _classIcons = classIcons ?? throw new ArgumentNullException(nameof(classIcons));
         _icons = icons ?? throw new ArgumentNullException(nameof(icons));
         _metrics = CalculateMetrics(profile, sessions);
@@ -104,6 +101,8 @@ internal sealed class SpotHistoryDetailView : Control
     internal IReadOnlyList<LootHistoryEntry> Sessions => _sessions;
 
     internal SpotHistoryMetrics Metrics => _metrics;
+
+    internal IReadOnlyList<string> DisplayedTraitLabels => _profile.Traits;
 
     internal IReadOnlyList<string> LootItemNames => _lootItems.Select(static item => item.Key).ToArray();
 
@@ -246,21 +245,8 @@ internal sealed class SpotHistoryDetailView : Control
     {
         var x = startX;
         var height = ScaleLogical(22);
-        foreach (var trait in _profile.Traits)
+        foreach (var trait in DisplayedTraitLabels)
         {
-            if (LootSpotPresentationCatalog.IsResistanceTrait(trait))
-            {
-                var crystalText = _profile.RecommendedCrystalName;
-                var textSize = TextRenderer.MeasureText(graphics, crystalText, _captionFont,
-                    Size.Empty, TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
-                var crystalWidth = textSize.Width + height + ScaleLogical(13);
-                if (x + crystalWidth > startX + availableWidth)
-                    break;
-                DrawCrystalTrait(graphics, new Rectangle(x, y, crystalWidth, height), crystalText);
-                x += crystalWidth + ScaleLogical(5);
-                continue;
-            }
-
             var size = TextRenderer.MeasureText(graphics, trait, _captionFont,
                 Size.Empty, TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
             var width = size.Width + ScaleLogical(13);
@@ -276,24 +262,6 @@ internal sealed class SpotHistoryDetailView : Control
                 TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
             x += width + ScaleLogical(5);
         }
-    }
-
-    private void DrawCrystalTrait(Graphics graphics, Rectangle bounds, string text)
-    {
-        using var path = BdoTheme.CreateRoundedRectangle(bounds, bounds.Height / 2);
-        using var fill = new SolidBrush(Color.FromArgb(222, 35, 61, 82));
-        using var border = new Pen(Color.FromArgb(165, 107, 184, 226));
-        graphics.FillPath(fill, path);
-        graphics.DrawPath(border, path);
-        var iconBounds = new Rectangle(bounds.X + ScaleLogical(2), bounds.Y + ScaleLogical(2),
-            bounds.Height - ScaleLogical(4), bounds.Height - ScaleLogical(4));
-        if (_crystalIcon is not null)
-            graphics.DrawImage(_crystalIcon, iconBounds);
-        TextRenderer.DrawText(graphics, text, _captionFont,
-            new Rectangle(iconBounds.Right + ScaleLogical(4), bounds.Y,
-                bounds.Right - iconBounds.Right - ScaleLogical(7), bounds.Height),
-            Color.FromArgb(206, 232, 247), TextFormatFlags.Left | TextFormatFlags.VerticalCenter |
-            TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
     }
 
     private void DrawMetrics(Graphics graphics, Rectangle bounds)
