@@ -131,6 +131,7 @@ internal sealed class MainForm : Form
         _detectCharacterClass = classDetector ?? new CompanionCharacterClassDetector().DetectDefault;
         _priceProvider = priceProvider ?? new ArshaLootPriceProvider();
         _prices = _priceProvider.GetCachedSnapshot(_settings.MarketRegion);
+        _historyView.SetPricing(_prices, _settings.GetSilverTaxOptions());
         _garmothClient = garmothClient ?? new GarmothUploadClient();
         _garmothKeyStore = garmothKeyStore ?? new GarmothApiKeyStore();
         try { _garmothApiKey = _garmothKeyStore.Load(); }
@@ -1403,6 +1404,7 @@ internal sealed class MainForm : Form
         SaveSettings();
         // Never apply a response from another region to this session's valuation.
         _prices = _priceProvider.GetCachedSnapshot(_settings.MarketRegion);
+        _historyView.SetPricing(_prices, tax);
         _nextPriceRefreshAt = DateTimeOffset.MinValue;
         UpdateSilverValuation();
     }
@@ -1436,6 +1438,7 @@ internal sealed class MainForm : Form
             if (_shutdownStarted || _uiResourcesDisposed || IsDisposed || region != _settings.MarketRegion)
                 return;
             _prices = snapshot;
+            _historyView.SetPricing(_prices, _settings.GetSilverTaxOptions());
             UpdateSilverValuation();
         }
         catch (OperationCanceledException) when (_priceLifetime.IsCancellationRequested) { }
@@ -1445,6 +1448,7 @@ internal sealed class MainForm : Form
             if (!_shutdownStarted && !_uiResourcesDisposed && !IsDisposed && region == _settings.MarketRegion)
             {
                 _prices = _priceProvider.GetCachedSnapshot(region);
+                _historyView.SetPricing(_prices, _settings.GetSilverTaxOptions());
                 UpdateSilverValuation();
                 _priceStatusLabel.Text = $"{region.ToUpperInvariant()} · Preise offline";
                 _priceStatusLabel.ForeColor = BdoTheme.Gold;

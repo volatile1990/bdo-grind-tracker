@@ -2,6 +2,7 @@ using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Globalization;
 using BdoGrindTracker.App.Persistence;
+using BdoGrindTracker.App.Pricing;
 using BdoGrindTracker.Core;
 
 namespace BdoGrindTracker.App.UI;
@@ -25,6 +26,8 @@ internal sealed class LootHistoryView : UserControl
         Path.Combine(AppContext.BaseDirectory, "data", "icons"));
     private readonly Font _headingFont = new(
         "Segoe UI Semibold", 16f, FontStyle.Bold, GraphicsUnit.Point);
+    private LootPriceSnapshot _prices = LootPriceCatalog.FixedSnapshot(LootPriceCatalog.DefaultRegion);
+    private SilverTaxOptions _tax = SilverTaxOptions.Default;
     private IReadOnlyList<LootHistoryEntry> _entries = [];
     private string? _selectedSpotId;
     private bool _showSpots = true;
@@ -88,6 +91,18 @@ internal sealed class LootHistoryView : UserControl
             .OrderByDescending(static entry => entry.UpdatedAt)
             .ToArray();
         RebuildSpotList();
+        RebuildSpotDetails();
+        RebuildChronologicalList();
+    }
+
+    internal void SetPricing(LootPriceSnapshot prices, SilverTaxOptions tax)
+    {
+        ArgumentNullException.ThrowIfNull(prices);
+        ArgumentNullException.ThrowIfNull(tax);
+        if (ReferenceEquals(_prices, prices) && _tax == tax)
+            return;
+        _prices = prices;
+        _tax = tax;
         RebuildSpotDetails();
         RebuildChronologicalList();
     }
@@ -241,6 +256,8 @@ internal sealed class LootHistoryView : UserControl
             _backgrounds.Get(profile.BackgroundFileName),
             _spotIcons.Get(profile.IconFileName),
             _crystalIcons.Get(profile.RecommendedCrystalFileName),
+            _prices,
+            _tax,
             _classIcons,
             _icons)
         {
@@ -275,7 +292,10 @@ internal sealed class LootHistoryView : UserControl
                 _chronologicalList.Controls.Add(new ChronologicalHistoryCard(
                     entry,
                     profile,
+                    _backgrounds.Get(profile.BackgroundFileName),
                     _spotIcons.Get(profile.IconFileName),
+                    _prices,
+                    _tax,
                     _icons)
                 {
                     Margin = new Padding(0, 0, 0, 9)
@@ -772,12 +792,17 @@ internal sealed class SpotHistoryCard : Control
 
 internal sealed class ChronologicalHistoryCard : Control
 {
-    private const int HeaderLogicalHeight = 72;
-    private const int MaximumVisibleItems = 12;
+    private const int HeaderTopLogicalHeight = 72;
+    private const int LootStripCellLogicalWidth = 66;
+    private const int LootStripRowLogicalHeight = 42;
+    internal const decimal ValuableDropThreshold = 200_000_000m;
     private static readonly CultureInfo GermanCulture = CultureInfo.GetCultureInfo("de-DE");
     private readonly LootHistoryEntry _entry;
     private readonly LootSpotPresentation _profile;
+    private readonly Image? _background;
     private readonly Image? _spotIcon;
+    private readonly IReadOnlyList<KeyValuePair<string, long>> _collapsedLootItems;
+    private readonly IReadOnlyList<KeyValuePair<string, long>> _expandedLootItems;
     private readonly LootIconRepository _icons;
     private Font? _titleFont;
     private Font? _bodyFont;
@@ -788,12 +813,22 @@ internal sealed class ChronologicalHistoryCard : Control
     public ChronologicalHistoryCard(
         LootHistoryEntry entry,
         LootSpotPresentation profile,
+        Image? background,
         Image? spotIcon,
+        LootPriceSnapshot prices,
+        SilverTaxOptions tax,
         LootIconRepository icons)
     {
         _entry = entry ?? throw new ArgumentNullException(nameof(entry));
         _profile = profile ?? throw new ArgumentNullException(nameof(profile));
+        _background = background;
         _spotIcon = spotIcon;
+        _collapsedLootItems = BuildCollapsedLootItems(entry, profile, prices, tax);
+        _expandedLootItems = entry.Totals
+            .OrderByDescending(pair => CalculateLineValue(pair, prices, tax))
+            .ThenByDescending(static pair => pair.Value)
+            .ThenBy(static pair => pair.Key, StringComparer.CurrentCultureIgnoreCase)
+            .ToArray();
         _icons = icons ?? throw new ArgumentNullException(nameof(icons));
         SetStyle(ControlStyles.AllPaintingInWmPaint |
                  ControlStyles.OptimizedDoubleBuffer |
@@ -815,6 +850,9 @@ internal sealed class ChronologicalHistoryCard : Control
 
     internal bool IsExpanded => _expanded;
 
+    internal IReadOnlyList<string> CollapsedLootItemNames =>
+        _collapsedLootItems.Select(static item => item.Key).ToArray();
+
     internal void SetExpanded(bool expanded)
     {
         if (_expanded == expanded)
@@ -835,10 +873,23 @@ internal sealed class ChronologicalHistoryCard : Control
         using var fill = new SolidBrush(BdoTheme.Surface);
         using var border = new Pen(Focused ? BdoTheme.Gold : BdoTheme.Border);
         e.Graphics.FillPath(fill, path);
+        var state = e.Graphics.Save();
+        e.Graphics.SetClip(path);
+        var headerHeight = GetHeaderHeight();
+        var headerBounds = new Rectangle(0, 0, bounds.Width, headerHeight);
+        if (_background is not null)
+            DrawCover(e.Graphics, _background, headerBounds);
+        using (var veil = new SolidBrush(Color.FromArgb(176, 6, 9, 12)))
+            e.Graphics.FillRectangle(veil, headerBounds);
+        using (var gradient = new LinearGradientBrush(headerBounds,
+                   Color.FromArgb(38, BdoTheme.Background), Color.FromArgb(242, BdoTheme.Background),
+                   LinearGradientMode.Vertical))
+            e.Graphics.FillRectangle(gradient, headerBounds);
+        e.Graphics.Restore(state);
         e.Graphics.DrawPath(border, path);
         DrawHeader(e.Graphics);
         if (_expanded)
-            DrawDetails(e.Graphics);
+            DrawDetails(e.Graphics, headerHeight);
     }
 
     protected override void OnMouseUp(MouseEventArgs e)
@@ -881,6 +932,12 @@ internal sealed class ChronologicalHistoryCard : Control
         UpdateHeight();
     }
 
+    protected override void OnSizeChanged(EventArgs e)
+    {
+        base.OnSizeChanged(e);
+        UpdateHeight();
+    }
+
     protected override void Dispose(bool disposing)
     {
         if (disposing)
@@ -896,11 +953,11 @@ internal sealed class ChronologicalHistoryCard : Control
     private void DrawHeader(Graphics graphics)
     {
         var padding = ScaleLogical(15);
+        var topHeight = ScaleLogical(HeaderTopLogicalHeight);
         var dateWidth = ScaleLogical(126);
         var durationWidth = ScaleLogical(100);
         var silverWidth = ScaleLogical(130);
         var chevronWidth = ScaleLogical(24);
-        var headerHeight = ScaleLogical(HeaderLogicalHeight);
         var date = _entry.UpdatedAt.ToLocalTime();
         TextRenderer.DrawText(graphics, date.ToString("dd.MM.yy", GermanCulture), _titleFont,
             new Rectangle(padding, ScaleLogical(12), dateWidth, ScaleLogical(25)),
@@ -929,20 +986,22 @@ internal sealed class ChronologicalHistoryCard : Control
 
         var durationX = spotX + spotWidth;
         TextRenderer.DrawText(graphics, SpotHistoryCard.FormatDuration(_entry.Duration), _bodyFont,
-            new Rectangle(durationX, 0, durationWidth, headerHeight),
+            new Rectangle(durationX, 0, durationWidth, topHeight),
             BdoTheme.Text, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
         var silverX = durationX + durationWidth;
         TextRenderer.DrawText(graphics, SpotHistoryCard.FormatSilver(_entry.SilverAfterTax), _valueFont,
-            new Rectangle(silverX, 0, silverWidth, headerHeight),
+            new Rectangle(silverX, 0, silverWidth, topHeight),
             BdoTheme.GoldBright, TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
         TextRenderer.DrawText(graphics, _expanded ? "⌃" : "⌄", _titleFont,
-            new Rectangle(silverX + silverWidth, 0, chevronWidth, headerHeight),
+            new Rectangle(silverX + silverWidth, 0, chevronWidth, topHeight),
             BdoTheme.TextMuted, TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+
+        DrawCompactLootStrip(graphics, padding, ScaleLogical(HeaderTopLogicalHeight),
+            Math.Max(1, Width - padding * 2));
     }
 
-    private void DrawDetails(Graphics graphics)
+    private void DrawDetails(Graphics graphics, int headerHeight)
     {
-        var headerHeight = ScaleLogical(HeaderLogicalHeight);
         using var separator = new Pen(BdoTheme.BorderSoft);
         graphics.DrawLine(separator, ScaleLogical(15), headerHeight,
             Width - ScaleLogical(15), headerHeight);
@@ -954,27 +1013,16 @@ internal sealed class ChronologicalHistoryCard : Control
                 Width - ScaleLogical(30), ScaleLogical(22)),
             BdoTheme.TextMuted, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
 
-        var items = _entry.Totals
-            .OrderByDescending(static pair => pair.Value)
-            .ThenBy(static pair => pair.Key, StringComparer.CurrentCultureIgnoreCase)
-            .Take(MaximumVisibleItems)
-            .ToArray();
+        var items = _expandedLootItems;
         var columnWidth = (Width - ScaleLogical(45)) / 2;
         var startY = headerHeight + ScaleLogical(34);
-        for (var index = 0; index < items.Length; index++)
+        for (var index = 0; index < items.Count; index++)
         {
             var column = index % 2;
             var row = index / 2;
             var x = ScaleLogical(15) + column * (columnWidth + ScaleLogical(15));
             var y = startY + row * ScaleLogical(36);
             DrawLootItem(graphics, items[index], new Rectangle(x, y, columnWidth, ScaleLogical(32)));
-        }
-        if (_entry.Totals.Count > items.Length)
-        {
-            TextRenderer.DrawText(graphics, $"+ {_entry.Totals.Count - items.Length:N0} weitere Items", _captionFont,
-                new Rectangle(ScaleLogical(15), Height - ScaleLogical(29),
-                    Width - ScaleLogical(30), ScaleLogical(20)),
-                BdoTheme.TextMuted, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
         }
     }
 
@@ -998,27 +1046,82 @@ internal sealed class ChronologicalHistoryCard : Control
             BdoTheme.GoldBright, TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
     }
 
+    private void DrawCompactLootStrip(Graphics graphics, int startX, int startY, int availableWidth)
+    {
+        if (_collapsedLootItems.Count == 0)
+            return;
+        var cellWidth = ScaleLogical(LootStripCellLogicalWidth);
+        var rowHeight = ScaleLogical(LootStripRowLogicalHeight);
+        var perRow = Math.Max(1, availableWidth / cellWidth);
+        for (var index = 0; index < _collapsedLootItems.Count; index++)
+        {
+            var column = index % perRow;
+            var row = index / perRow;
+            var bounds = new Rectangle(startX + column * cellWidth,
+                startY + row * rowHeight, cellWidth - ScaleLogical(5), rowHeight - ScaleLogical(5));
+            DrawCompactLootBadge(graphics, _collapsedLootItems[index], bounds,
+                string.Equals(_collapsedLootItems[index].Key, _profile.TrashItemName, StringComparison.Ordinal));
+        }
+    }
+
+    private void DrawCompactLootBadge(Graphics graphics, KeyValuePair<string, long> item,
+        Rectangle bounds, bool trash)
+    {
+        using var path = BdoTheme.CreateRoundedRectangle(bounds, ScaleLogical(6));
+        using var fill = new SolidBrush(Color.FromArgb(212, 20, 24, 28));
+        using var border = new Pen(trash ? BdoTheme.Gold : Color.FromArgb(124, 105, 150, 194));
+        graphics.FillPath(fill, path);
+        graphics.DrawPath(border, path);
+        var iconSize = Math.Min(ScaleLogical(28), bounds.Height - ScaleLogical(5));
+        var iconBounds = new Rectangle(bounds.X + ScaleLogical(3),
+            bounds.Y + (bounds.Height - iconSize) / 2, iconSize, iconSize);
+        var icon = _icons.GetIcon(item.Key);
+        if (icon is not null)
+            graphics.DrawImage(icon, iconBounds);
+        else
+            SpotHistoryCardDrawFallback(graphics, iconBounds);
+        TextRenderer.DrawText(graphics, SpotHistoryCard.FormatQuantity(item.Value), _captionFont,
+            new Rectangle(iconBounds.Right + ScaleLogical(2), bounds.Y,
+                Math.Max(1, bounds.Right - iconBounds.Right - ScaleLogical(4)), bounds.Height),
+            trash ? BdoTheme.GoldBright : BdoTheme.Text,
+            TextFormatFlags.Right | TextFormatFlags.VerticalCenter |
+            TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+    }
+
     private void UpdateHeight()
     {
-        var header = ScaleLogical(HeaderLogicalHeight);
+        var header = GetHeaderHeight();
         if (!_expanded)
         {
             MinimumSize = new Size(ScaleLogical(500), header);
-            Height = header;
+            if (Height != header)
+                Height = header;
             return;
         }
-        var displayed = Math.Min(_entry.Totals.Count, MaximumVisibleItems);
-        var rows = Math.Max(1, (displayed + 1) / 2);
-        var expanded = header + ScaleLogical(40 + rows * 36 + (_entry.Totals.Count > displayed ? 25 : 8));
+        var rows = Math.Max(1, (_expandedLootItems.Count + 1) / 2);
+        var expanded = header + ScaleLogical(48 + rows * 36);
         MinimumSize = new Size(ScaleLogical(500), expanded);
-        Height = expanded;
+        if (Height != expanded)
+            Height = expanded;
+    }
+
+    private int GetHeaderHeight()
+    {
+        if (_collapsedLootItems.Count == 0)
+            return ScaleLogical(HeaderTopLogicalHeight);
+        var availableWidth = Math.Max(1, Width - ScaleLogical(30));
+        var perRow = Math.Max(1, availableWidth / ScaleLogical(LootStripCellLogicalWidth));
+        var rows = (_collapsedLootItems.Count + perRow - 1) / perRow;
+        return ScaleLogical(HeaderTopLogicalHeight + 5) + rows * ScaleLogical(LootStripRowLogicalHeight);
     }
 
     private void UpdateAccessibility()
     {
+        var compactLoot = string.Join(", ", _collapsedLootItems.Select(static item =>
+            $"{item.Key} {item.Value:N0}"));
         AccessibleDescription = _expanded
             ? $"Ausgeklappt. {_entry.Totals.Count:N0} Loot-Arten."
-            : "Eingeklappt. Für Loot-Details aktivieren.";
+            : $"Eingeklappt. Trash und Drops über 200 Millionen Silber: {compactLoot}. Für Loot-Details aktivieren.";
     }
 
     private void RecreateFonts()
@@ -1035,6 +1138,60 @@ internal sealed class ChronologicalHistoryCard : Control
     }
 
     private int ScaleLogical(int pixels) => Math.Max(1, (int)Math.Round(pixels * DeviceDpi / 96d));
+
+    internal static IReadOnlyList<KeyValuePair<string, long>> BuildCollapsedLootItems(
+        LootHistoryEntry entry,
+        LootSpotPresentation profile,
+        LootPriceSnapshot prices,
+        SilverTaxOptions tax)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+        ArgumentNullException.ThrowIfNull(profile);
+        ArgumentNullException.ThrowIfNull(prices);
+        ArgumentNullException.ThrowIfNull(tax);
+        var trash = entry.Totals
+            .Where(pair => string.Equals(pair.Key, profile.TrashItemName, StringComparison.Ordinal) && pair.Value > 0);
+        var valuable = entry.Totals
+            .Where(pair => pair.Value > 0 &&
+                !string.Equals(pair.Key, profile.TrashItemName, StringComparison.Ordinal))
+            .Select(pair => new { Item = pair, UnitValue = CalculateUnitMarketValue(pair.Key, prices, tax) })
+            .Where(static pair => pair.UnitValue > ValuableDropThreshold)
+            .OrderByDescending(static pair => pair.UnitValue)
+            .ThenBy(static pair => pair.Item.Key, StringComparer.CurrentCultureIgnoreCase)
+            .Select(static pair => pair.Item);
+        return trash.Concat(valuable).ToArray();
+    }
+
+    private static decimal CalculateLineValue(KeyValuePair<string, long> item,
+        LootPriceSnapshot prices, SilverTaxOptions tax)
+    {
+        if (item.Value <= 0)
+            return 0m;
+        return SilverValuation.Calculate(
+            new Dictionary<string, long>(StringComparer.Ordinal) { [item.Key] = item.Value },
+            prices, tax).AfterTax;
+    }
+
+    private static decimal CalculateUnitMarketValue(string itemName,
+        LootPriceSnapshot prices, SilverTaxOptions tax) =>
+        SilverValuation.Calculate(
+            new Dictionary<string, long>(StringComparer.Ordinal) { [itemName] = 1 },
+            prices, tax).BeforeTax;
+
+    private static void DrawCover(Graphics graphics, Image image, Rectangle destination)
+    {
+        var scale = Math.Max((double)destination.Width / image.Width,
+            (double)destination.Height / image.Height);
+        var sourceWidth = destination.Width / scale;
+        var sourceHeight = destination.Height / scale;
+        var source = new RectangleF(
+            (float)((image.Width - sourceWidth) / 2d),
+            (float)((image.Height - sourceHeight) / 2d),
+            (float)sourceWidth,
+            (float)sourceHeight);
+        graphics.DrawImage(image, destination, source.X, source.Y, source.Width, source.Height,
+            GraphicsUnit.Pixel);
+    }
 
     private static void SpotHistoryCardDrawFallback(Graphics graphics, Rectangle bounds)
     {

@@ -1,5 +1,6 @@
 using System.Runtime.ExceptionServices;
 using BdoGrindTracker.App.Persistence;
+using BdoGrindTracker.App.Pricing;
 using BdoGrindTracker.App.UI;
 using BdoGrindTracker.Core;
 
@@ -76,7 +77,80 @@ public sealed class LootHistoryViewTests
             Assert.Empty(expectedNames.Except(details.LootItemNames, StringComparer.Ordinal));
             Assert.Equal(profile.TrashItemName, details.LootItemNames[0]);
             Assert.True(details.HasScrollableLootOverflow);
+            Assert.Single(FindDescendants<BdoHorizontalScrollBar>(details));
+            Assert.True(details.LootScrollBounds.Left > 300);
+            Assert.True(details.LootScrollBounds.Right <= details.ClientSize.Width);
+            details.LootScrollValue = details.LootScrollMaximum;
+            Assert.Equal(details.LootScrollMaximum, details.LootScrollValue);
         });
+    }
+
+    [Fact]
+    public void LootColumnsSortBySilverPerHourAcrossAllLocallyTrackedSessions()
+    {
+        var profile = LootSpotPresentationCatalog.GetRequired(LootSpotCatalog.AphrodonId);
+        var now = new DateTimeOffset(2026, 9, 6, 20, 0, 0, TimeSpan.FromHours(2));
+        var valuableItem = "Broken Vestige of Goldroot";
+        var sessions = new[]
+        {
+            CreateEntry(profile.SpotId, profile.TrashItemName, 1_000, now,
+                totals: new Dictionary<string, long>
+                {
+                    [profile.TrashItemName] = 1_000,
+                    [valuableItem] = 1
+                }),
+            CreateEntry(profile.SpotId, profile.TrashItemName, 1_000, now.AddHours(-2),
+                totals: new Dictionary<string, long> { [profile.TrashItemName] = 1_000 })
+        };
+        var prices = new LootPriceSnapshot("eu",
+        [
+            new LootPriceQuote(profile.TrashItemName, 0, 155_127,
+                LootPriceOrigin.FixedCatalog, null),
+            new LootPriceQuote(valuableItem, 0, 3_000_000_000,
+                LootPriceOrigin.FixedCatalog, null)
+        ]);
+
+        var items = SpotHistoryDetailView.BuildLootItems(profile, sessions, prices,
+            SilverTaxOptions.Default);
+
+        Assert.Equal(valuableItem, items[0].Key);
+        Assert.Equal(1, items[0].Value);
+        Assert.Equal(2_000, Assert.Single(items, item => item.Key == profile.TrashItemName).Value);
+        Assert.True(items.ToList().FindIndex(item => item.Key == valuableItem) <
+                    items.ToList().FindIndex(item => item.Key == profile.TrashItemName));
+    }
+
+    [Fact]
+    public void CollapsedChronologicalCardShowsTrashAndEveryDropWorthOverTwoHundredMillion()
+    {
+        var profile = LootSpotPresentationCatalog.GetRequired(LootSpotCatalog.AphrodonId);
+        var entry = CreateEntry(profile.SpotId, profile.TrashItemName, 18_432,
+            new DateTimeOffset(2026, 9, 6, 20, 0, 0, TimeSpan.FromHours(2)),
+            totals: new Dictionary<string, long>
+            {
+                [profile.TrashItemName] = 18_432,
+                ["Rare Relic"] = 2,
+                ["Exact Threshold Relic"] = 1,
+                ["Cheap Relic"] = 9
+            });
+        var prices = new LootPriceSnapshot("eu",
+        [
+            new LootPriceQuote(profile.TrashItemName, 0, 155_127,
+                LootPriceOrigin.FixedCatalog, null),
+            // Market value controls the threshold; selling tax must not hide a 250M drop.
+            new LootPriceQuote("Rare Relic", 250_000_000, 0,
+                LootPriceOrigin.LiveMarket, null),
+            new LootPriceQuote("Exact Threshold Relic", 0, 200_000_000,
+                LootPriceOrigin.FixedCatalog, null),
+            new LootPriceQuote("Cheap Relic", 0, 199_999_999,
+                LootPriceOrigin.FixedCatalog, null)
+        ]);
+
+        var compactItems = ChronologicalHistoryCard.BuildCollapsedLootItems(entry, profile,
+            prices, SilverTaxOptions.Default);
+
+        Assert.Equal([profile.TrashItemName, "Rare Relic"],
+            compactItems.Select(static item => item.Key));
     }
 
     [Theory]

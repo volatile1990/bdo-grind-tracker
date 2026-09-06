@@ -1,6 +1,8 @@
 using System.Drawing.Drawing2D;
 using System.Globalization;
+using System.ComponentModel;
 using BdoGrindTracker.App.Persistence;
+using BdoGrindTracker.App.Pricing;
 using BdoGrindTracker.Core;
 
 namespace BdoGrindTracker.App.UI;
@@ -40,7 +42,7 @@ internal sealed class SpotHistoryDetailView : Control
     private readonly LootIconRepository _icons;
     private readonly SpotHistoryMetrics _metrics;
     private readonly IReadOnlyList<KeyValuePair<string, long>> _lootItems;
-    private readonly HScrollBar _lootScroll = new()
+    private readonly BdoHorizontalScrollBar _lootScroll = new()
     {
         TabStop = true,
         AccessibleName = "Loot-Tabelle horizontal scrollen"
@@ -60,6 +62,8 @@ internal sealed class SpotHistoryDetailView : Control
         Image? background,
         Image? spotIcon,
         Image? crystalIcon,
+        LootPriceSnapshot prices,
+        SilverTaxOptions tax,
         ImageAssetRepository classIcons,
         LootIconRepository icons)
     {
@@ -68,21 +72,12 @@ internal sealed class SpotHistoryDetailView : Control
         _background = background;
         _spotIcon = spotIcon;
         _crystalIcon = crystalIcon;
+        ArgumentNullException.ThrowIfNull(prices);
+        ArgumentNullException.ThrowIfNull(tax);
         _classIcons = classIcons ?? throw new ArgumentNullException(nameof(classIcons));
         _icons = icons ?? throw new ArgumentNullException(nameof(icons));
         _metrics = CalculateMetrics(profile, sessions);
-        var trackedTotals = sessions
-            .SelectMany(static session => session.Totals)
-            .GroupBy(static pair => pair.Key, StringComparer.Ordinal)
-            .ToDictionary(static group => group.Key, static group => group.Sum(static pair => pair.Value),
-                StringComparer.Ordinal);
-        var spotItems = LootSpotCatalog.GetRequired(profile.SpotId).AllowedItems;
-        _lootItems = new[] { profile.TrashItemName }
-            .Concat(spotItems.Where(item => !string.Equals(item, profile.TrashItemName, StringComparison.Ordinal)))
-            .Concat(trackedTotals.Keys)
-            .Distinct(StringComparer.Ordinal)
-            .Select(name => new KeyValuePair<string, long>(name, trackedTotals.GetValueOrDefault(name)))
-            .ToArray();
+        _lootItems = BuildLootItems(profile, sessions, prices, tax);
         SetStyle(ControlStyles.AllPaintingInWmPaint |
                  ControlStyles.OptimizedDoubleBuffer |
                  ControlStyles.ResizeRedraw |
@@ -116,7 +111,18 @@ internal sealed class SpotHistoryDetailView : Control
     internal IReadOnlyList<string> LootItemNames => _lootItems.Select(static item => item.Key).ToArray();
 
     internal bool HasScrollableLootOverflow =>
-        _lootScroll.Maximum - _lootScroll.LargeChange + 1 > 0;
+        _lootScroll.Maximum > 0;
+
+    internal Rectangle LootScrollBounds => _lootScroll.Bounds;
+
+    [Browsable(false), DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    internal int LootScrollValue
+    {
+        get => _lootScroll.Value;
+        set => _lootScroll.Value = value;
+    }
+
+    internal int LootScrollMaximum => _lootScroll.Maximum;
 
     protected override void OnPaint(PaintEventArgs e)
     {
@@ -341,10 +347,7 @@ internal sealed class SpotHistoryDetailView : Control
     private void DrawTable(Graphics graphics, int startY)
     {
         var padding = ScaleLogical(15);
-        var classWidth = ScaleLogical(62);
-        var ageWidth = ScaleLogical(108);
-        var durationWidth = ScaleLogical(90);
-        var silverWidth = ScaleLogical(118);
+        var (classWidth, ageWidth, durationWidth, silverWidth) = GetFixedColumnWidths();
         var tableWidth = Math.Max(1, Width - padding * 2);
         var fixedWidth = classWidth + ageWidth + durationWidth + silverWidth;
         var lootWidth = Math.Max(1, tableWidth - fixedWidth);
@@ -536,14 +539,15 @@ internal sealed class SpotHistoryDetailView : Control
     {
         var rowsHeight = _sessions.Count == 0 ? ScaleLogical(82) : _sessions.Count * ScaleLogical(RowLogicalHeight);
         var height = ScaleLogical(HeaderLogicalHeight + TableHeaderLogicalHeight + ScrollBarLogicalHeight + 12) + rowsHeight;
-        MinimumSize = new Size(ScaleLogical(500), height);
+        MinimumSize = new Size(ScaleLogical(420), height);
         Height = height;
     }
 
     private void UpdateLootScrollBar()
     {
         var padding = ScaleLogical(15);
-        var fixedWidth = ScaleLogical(62 + 108 + 90 + 118);
+        var (classWidth, ageWidth, durationWidth, silverWidth) = GetFixedColumnWidths();
+        var fixedWidth = classWidth + ageWidth + durationWidth + silverWidth;
         var viewportWidth = Math.Max(1, Width - padding * 2 - fixedWidth);
         var contentWidth = _lootItems.Count * ScaleLogical(LootColumnLogicalWidth);
         var overflow = Math.Max(0, contentWidth - viewportWidth);
@@ -552,14 +556,22 @@ internal sealed class SpotHistoryDetailView : Control
 
         _lootScroll.Bounds = new Rectangle(padding + fixedWidth, scrollY, viewportWidth,
             Math.Min(ScaleLogical(ScrollBarLogicalHeight), SystemInformation.HorizontalScrollBarHeight));
-        _lootScroll.Minimum = 0;
         _lootScroll.SmallChange = Math.Max(1, ScaleLogical(LootColumnLogicalWidth));
         _lootScroll.LargeChange = Math.Max(1, viewportWidth);
-        _lootScroll.Maximum = overflow + _lootScroll.LargeChange - 1;
+        _lootScroll.ViewportSize = viewportWidth;
+        _lootScroll.Maximum = overflow;
         if (_lootScroll.Value > overflow)
             _lootScroll.Value = overflow;
         _lootScroll.Visible = overflow > 0;
         Invalidate();
+    }
+
+    private (int Class, int Age, int Duration, int Silver) GetFixedColumnWidths()
+    {
+        var compact = Width < ScaleLogical(680);
+        return compact
+            ? (ScaleLogical(52), ScaleLogical(88), ScaleLogical(76), ScaleLogical(102))
+            : (ScaleLogical(62), ScaleLogical(108), ScaleLogical(90), ScaleLogical(118));
     }
 
     private void RecreateFonts()
@@ -587,6 +599,51 @@ internal sealed class SpotHistoryDetailView : Control
     }
 
     private int ScaleLogical(int pixels) => Math.Max(1, (int)Math.Round(pixels * DeviceDpi / 96d));
+
+    internal static IReadOnlyList<KeyValuePair<string, long>> BuildLootItems(
+        LootSpotPresentation profile,
+        IEnumerable<LootHistoryEntry> sessions,
+        LootPriceSnapshot prices,
+        SilverTaxOptions tax)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        ArgumentNullException.ThrowIfNull(sessions);
+        ArgumentNullException.ThrowIfNull(prices);
+        ArgumentNullException.ThrowIfNull(tax);
+        var sessionArray = sessions.ToArray();
+        var trackedTotals = sessionArray
+            .SelectMany(static session => session.Totals)
+            .GroupBy(static pair => pair.Key, StringComparer.Ordinal)
+            .ToDictionary(static group => group.Key, static group => group.Sum(static pair => pair.Value),
+                StringComparer.Ordinal);
+        var totalHours = sessionArray
+            .Where(static session => session.Duration > TimeSpan.Zero)
+            .Sum(static session => (decimal)session.Duration.Ticks / TimeSpan.TicksPerHour);
+        var spotItems = LootSpotCatalog.GetRequired(profile.SpotId).AllowedItems;
+        return new[] { profile.TrashItemName }
+            .Concat(spotItems.Where(item => !string.Equals(item, profile.TrashItemName, StringComparison.Ordinal)))
+            .Concat(trackedTotals.Keys)
+            .Distinct(StringComparer.Ordinal)
+            .Select((name, stableIndex) =>
+            {
+                var quantity = trackedTotals.GetValueOrDefault(name);
+                var hourlySilver = totalHours <= 0 || quantity <= 0
+                    ? 0m
+                    : SilverValuation.Calculate(
+                        new Dictionary<string, long>(StringComparer.Ordinal) { [name] = quantity },
+                        prices, tax).AfterTax / totalHours;
+                return new
+                {
+                    Item = new KeyValuePair<string, long>(name, quantity),
+                    HourlySilver = hourlySilver,
+                    StableIndex = stableIndex
+                };
+            })
+            .OrderByDescending(static item => item.HourlySilver)
+            .ThenBy(static item => item.StableIndex)
+            .Select(static item => item.Item)
+            .ToArray();
+    }
 
     internal static SpotHistoryMetrics CalculateMetrics(
         LootSpotPresentation profile,
