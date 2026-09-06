@@ -792,7 +792,7 @@ internal sealed class SpotHistoryCard : Control
 
 internal sealed class ChronologicalHistoryCard : Control
 {
-    private const int HeaderTopLogicalHeight = 72;
+    private const int HeaderTopLogicalHeight = 64;
     private const int LootStripCellLogicalWidth = 66;
     private const int LootStripRowLogicalHeight = 42;
     internal const decimal ValuableDropThreshold = 200_000_000m;
@@ -802,6 +802,7 @@ internal sealed class ChronologicalHistoryCard : Control
     private readonly Image? _background;
     private readonly Image? _spotIcon;
     private readonly IReadOnlyList<KeyValuePair<string, long>> _collapsedLootItems;
+    private readonly IReadOnlyList<KeyValuePair<string, long>> _valuableLootItems;
     private readonly IReadOnlyList<KeyValuePair<string, long>> _expandedLootItems;
     private readonly LootIconRepository _icons;
     private Font? _titleFont;
@@ -824,6 +825,9 @@ internal sealed class ChronologicalHistoryCard : Control
         _background = background;
         _spotIcon = spotIcon;
         _collapsedLootItems = BuildCollapsedLootItems(entry, profile, prices, tax);
+        _valuableLootItems = _collapsedLootItems
+            .Where(item => !string.Equals(item.Key, profile.TrashItemName, StringComparison.Ordinal))
+            .ToArray();
         _expandedLootItems = entry.Totals
             .OrderByDescending(pair => CalculateLineValue(pair, prices, tax))
             .ThenByDescending(static pair => pair.Value)
@@ -954,35 +958,45 @@ internal sealed class ChronologicalHistoryCard : Control
     {
         var padding = ScaleLogical(15);
         var topHeight = ScaleLogical(HeaderTopLogicalHeight);
-        var dateWidth = ScaleLogical(126);
-        var durationWidth = ScaleLogical(100);
-        var silverWidth = ScaleLogical(130);
-        var chevronWidth = ScaleLogical(24);
+        var dateWidth = ScaleLogical(108);
+        var durationWidth = ScaleLogical(82);
+        var silverWidth = ScaleLogical(120);
+        var chevronWidth = ScaleLogical(22);
         var date = _entry.UpdatedAt.ToLocalTime();
         TextRenderer.DrawText(graphics, date.ToString("dd.MM.yy", GermanCulture), _titleFont,
-            new Rectangle(padding, ScaleLogical(12), dateWidth, ScaleLogical(25)),
+            new Rectangle(padding, ScaleLogical(8), dateWidth, ScaleLogical(25)),
             BdoTheme.Text, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
         TextRenderer.DrawText(graphics, date.ToString("HH:mm 'Uhr'", GermanCulture), _captionFont,
-            new Rectangle(padding, ScaleLogical(36), dateWidth, ScaleLogical(20)),
+            new Rectangle(padding, ScaleLogical(32), dateWidth, ScaleLogical(20)),
             BdoTheme.TextMuted, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
 
         var spotX = padding + dateWidth;
         var spotWidth = Math.Max(100, Width - spotX - durationWidth - silverWidth - chevronWidth - padding);
-        var spotIconSize = ScaleLogical(46);
-        var spotIconBounds = new Rectangle(spotX, ScaleLogical(13), spotIconSize, spotIconSize);
+        var spotIconSize = ScaleLogical(42);
+        var spotIconBounds = new Rectangle(spotX, ScaleLogical(10), spotIconSize, spotIconSize);
         if (_spotIcon is not null)
             graphics.DrawImage(_spotIcon, spotIconBounds);
         var spotTextX = spotIconBounds.Right + ScaleLogical(8);
         var spotTextWidth = Math.Max(50, spotWidth - spotIconSize - ScaleLogical(8));
         var spotName = LootSpotCatalog.GetRequired(_entry.SpotId).DisplayName;
+        var trash = _entry.Totals.GetValueOrDefault(_profile.TrashItemName);
+        var trashBadgeWidth = trash > 0 ? ScaleLogical(LootStripCellLogicalWidth) : 0;
+        var badgeGap = trash > 0 ? ScaleLogical(7) : 0;
+        var nameWidth = Math.Max(40, spotTextWidth - trashBadgeWidth - badgeGap);
+        var measuredName = TextRenderer.MeasureText(graphics, spotName, _titleFont, Size.Empty,
+            TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix).Width;
+        var renderedNameWidth = Math.Min(nameWidth, measuredName + ScaleLogical(3));
         TextRenderer.DrawText(graphics, spotName, _titleFont,
-            new Rectangle(spotTextX, ScaleLogical(10), spotTextWidth, ScaleLogical(28)),
+            new Rectangle(spotTextX, 0, nameWidth, topHeight),
             Color.FromArgb(255, 226, 172), TextFormatFlags.Left | TextFormatFlags.VerticalCenter |
             TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
-        var trash = _entry.Totals.GetValueOrDefault(_profile.TrashItemName);
-        TextRenderer.DrawText(graphics, $"{trash.ToString("N0", GermanCulture)} Trash", _captionFont,
-            new Rectangle(spotTextX, ScaleLogical(38), spotTextWidth, ScaleLogical(19)),
-            BdoTheme.TextMuted, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+        if (trash > 0)
+        {
+            DrawCompactLootBadge(graphics,
+                new KeyValuePair<string, long>(_profile.TrashItemName, trash),
+                new Rectangle(spotTextX + renderedNameWidth + badgeGap, ScaleLogical(13),
+                    trashBadgeWidth, ScaleLogical(38)), trash: true);
+        }
 
         var durationX = spotX + spotWidth;
         TextRenderer.DrawText(graphics, SpotHistoryCard.FormatDuration(_entry.Duration), _bodyFont,
@@ -1048,19 +1062,18 @@ internal sealed class ChronologicalHistoryCard : Control
 
     private void DrawCompactLootStrip(Graphics graphics, int startX, int startY, int availableWidth)
     {
-        if (_collapsedLootItems.Count == 0)
+        if (_valuableLootItems.Count == 0)
             return;
         var cellWidth = ScaleLogical(LootStripCellLogicalWidth);
         var rowHeight = ScaleLogical(LootStripRowLogicalHeight);
         var perRow = Math.Max(1, availableWidth / cellWidth);
-        for (var index = 0; index < _collapsedLootItems.Count; index++)
+        for (var index = 0; index < _valuableLootItems.Count; index++)
         {
             var column = index % perRow;
             var row = index / perRow;
             var bounds = new Rectangle(startX + column * cellWidth,
                 startY + row * rowHeight, cellWidth - ScaleLogical(5), rowHeight - ScaleLogical(5));
-            DrawCompactLootBadge(graphics, _collapsedLootItems[index], bounds,
-                string.Equals(_collapsedLootItems[index].Key, _profile.TrashItemName, StringComparison.Ordinal));
+            DrawCompactLootBadge(graphics, _valuableLootItems[index], bounds, trash: false);
         }
     }
 
@@ -1107,11 +1120,11 @@ internal sealed class ChronologicalHistoryCard : Control
 
     private int GetHeaderHeight()
     {
-        if (_collapsedLootItems.Count == 0)
+        if (_valuableLootItems.Count == 0)
             return ScaleLogical(HeaderTopLogicalHeight);
         var availableWidth = Math.Max(1, Width - ScaleLogical(30));
         var perRow = Math.Max(1, availableWidth / ScaleLogical(LootStripCellLogicalWidth));
-        var rows = (_collapsedLootItems.Count + perRow - 1) / perRow;
+        var rows = (_valuableLootItems.Count + perRow - 1) / perRow;
         return ScaleLogical(HeaderTopLogicalHeight + 5) + rows * ScaleLogical(LootStripRowLogicalHeight);
     }
 

@@ -15,12 +15,14 @@ internal sealed record SpotHistoryMetrics(
     decimal BestFiveHourTrashPerHour,
     decimal TotalHours);
 
+internal sealed record SpotLootColumn(string ItemName, long TotalQuantity, decimal SilverPerHour);
+
 internal sealed class SpotHistoryDetailView : Control
 {
     private const int HeaderLogicalHeight = 248;
     private const int TableHeaderLogicalHeight = 62;
     private const int RowLogicalHeight = 54;
-    private const int LootColumnLogicalWidth = 54;
+    private const int LootColumnLogicalWidth = 72;
     private const int ScrollBarLogicalHeight = 22;
     private static readonly CultureInfo GermanCulture = CultureInfo.GetCultureInfo("de-DE");
     private static readonly Color[] ClassColors =
@@ -41,7 +43,7 @@ internal sealed class SpotHistoryDetailView : Control
     private readonly ImageAssetRepository _classIcons;
     private readonly LootIconRepository _icons;
     private readonly SpotHistoryMetrics _metrics;
-    private readonly IReadOnlyList<KeyValuePair<string, long>> _lootItems;
+    private readonly IReadOnlyList<SpotLootColumn> _lootColumns;
     private readonly BdoHorizontalScrollBar _lootScroll = new()
     {
         TabStop = true,
@@ -77,7 +79,7 @@ internal sealed class SpotHistoryDetailView : Control
         _classIcons = classIcons ?? throw new ArgumentNullException(nameof(classIcons));
         _icons = icons ?? throw new ArgumentNullException(nameof(icons));
         _metrics = CalculateMetrics(profile, sessions);
-        _lootItems = BuildLootItems(profile, sessions, prices, tax);
+        _lootColumns = BuildLootColumns(profile, sessions, prices, tax);
         SetStyle(ControlStyles.AllPaintingInWmPaint |
                  ControlStyles.OptimizedDoubleBuffer |
                  ControlStyles.ResizeRedraw |
@@ -89,7 +91,7 @@ internal sealed class SpotHistoryDetailView : Control
         AccessibleRole = AccessibleRole.Pane;
         AccessibleName = $"Maximierte Grindspot-Details für {LootSpotCatalog.GetRequired(profile.SpotId).DisplayName}";
         AccessibleDescription = $"{sessions.Count:N0} Grindstunden, Kennzahlen und Loot-Tabelle. Escape führt zur Übersicht zurück.";
-        _lootScroll.ValueChanged += (_, _) => Invalidate();
+        _lootScroll.ValueChanged += (_, _) => InvalidateLootViewport();
         Controls.Add(_lootScroll);
         RecreateFonts();
         UpdateHeight();
@@ -108,7 +110,12 @@ internal sealed class SpotHistoryDetailView : Control
 
     internal IReadOnlyList<string> DisplayedTraitLabels => _profile.Traits;
 
-    internal IReadOnlyList<string> LootItemNames => _lootItems.Select(static item => item.Key).ToArray();
+    internal IReadOnlyList<string> LootItemNames =>
+        _lootColumns.Select(static item => item.ItemName).ToArray();
+
+    internal decimal GetLootSilverPerHour(string itemName) =>
+        _lootColumns.First(item => string.Equals(item.ItemName, itemName, StringComparison.Ordinal))
+            .SilverPerHour;
 
     internal bool HasScrollableLootOverflow =>
         _lootScroll.Maximum > 0;
@@ -360,17 +367,8 @@ internal sealed class SpotHistoryDetailView : Control
         graphics.DrawLine(gridPen, padding, startY, Width - padding, startY);
         graphics.DrawLine(gridPen, padding, headerBounds.Bottom, Width - padding, headerBounds.Bottom);
 
-        var x = padding;
-        DrawColumnHeader(graphics, "KLASSE", new Rectangle(x, startY, classWidth, headerHeight));
-        x += classWidth;
-        DrawColumnHeader(graphics, "WIE LANGE HER", new Rectangle(x, startY, ageWidth, headerHeight));
-        x += ageWidth;
-        DrawColumnHeader(graphics, "GRINDZEIT", new Rectangle(x, startY, durationWidth, headerHeight));
-        x += durationWidth;
-        DrawColumnHeader(graphics, "SILBER / H", new Rectangle(x, startY, silverWidth, headerHeight));
-        x += silverWidth;
-        var lootViewport = new Rectangle(x, startY, lootWidth, headerHeight);
-        if (_lootItems.Count == 0)
+        var lootViewport = new Rectangle(padding + fixedWidth, startY, lootWidth, headerHeight);
+        if (_lootColumns.Count == 0)
         {
             DrawColumnHeader(graphics, "LOOT TABLE", lootViewport);
         }
@@ -379,15 +377,26 @@ internal sealed class SpotHistoryDetailView : Control
             var clipState = graphics.Save();
             graphics.SetClip(lootViewport, CombineMode.Intersect);
             var lootX = lootViewport.X - _lootScroll.Value;
-            foreach (var item in _lootItems)
+            foreach (var column in _lootColumns)
             {
-                DrawLootHeader(graphics, item.Key, new Rectangle(lootX, startY, itemWidth, headerHeight));
+                DrawLootHeader(graphics, column, new Rectangle(lootX, startY, itemWidth, headerHeight));
                 lootX += itemWidth;
             }
             graphics.Restore(clipState);
         }
-        using (var divider = new Pen(Color.FromArgb(95, 104, 103)))
-            graphics.DrawLine(divider, lootViewport.X, startY, lootViewport.X, headerBounds.Bottom);
+
+        var pinnedHeader = new Rectangle(padding, startY, fixedWidth, headerHeight);
+        using (var pinnedFill = new SolidBrush(Color.FromArgb(255, 25, 28, 31)))
+            graphics.FillRectangle(pinnedFill, pinnedHeader);
+        var x = padding;
+        DrawColumnHeader(graphics, "KLASSE", new Rectangle(x, startY, classWidth, headerHeight));
+        x += classWidth;
+        DrawColumnHeader(graphics, "WIE LANGE HER", new Rectangle(x, startY, ageWidth, headerHeight));
+        x += ageWidth;
+        DrawColumnHeader(graphics, "GRINDZEIT", new Rectangle(x, startY, durationWidth, headerHeight));
+        x += durationWidth;
+        DrawColumnHeader(graphics, "SILBER / H", new Rectangle(x, startY, silverWidth, headerHeight));
+        DrawPinnedDivider(graphics, lootViewport.X, startY, headerHeight);
 
         if (_sessions.Count == 0)
         {
@@ -401,7 +410,7 @@ internal sealed class SpotHistoryDetailView : Control
         var rowY = headerBounds.Bottom;
         for (var row = 0; row < _sessions.Count; row++)
         {
-            DrawSessionRow(graphics, _sessions[row], _lootItems, itemWidth,
+            DrawSessionRow(graphics, _sessions[row], _lootColumns, itemWidth,
                 new Rectangle(padding, rowY, tableWidth, ScaleLogical(RowLogicalHeight)),
                 classWidth, ageWidth, durationWidth, silverWidth, row % 2 == 1);
             rowY += ScaleLogical(RowLogicalHeight);
@@ -411,7 +420,7 @@ internal sealed class SpotHistoryDetailView : Control
     private void DrawSessionRow(
         Graphics graphics,
         LootHistoryEntry session,
-        IReadOnlyList<KeyValuePair<string, long>> items,
+        IReadOnlyList<SpotLootColumn> columns,
         int itemWidth,
         Rectangle bounds,
         int classWidth,
@@ -427,6 +436,30 @@ internal sealed class SpotHistoryDetailView : Control
         using var line = new Pen(Color.FromArgb(58, 68, 70));
         graphics.DrawLine(line, bounds.X, bounds.Bottom, bounds.Right, bounds.Bottom);
 
+        var fixedWidth = classWidth + ageWidth + durationWidth + silverWidth;
+        var lootViewport = new Rectangle(bounds.X + fixedWidth, bounds.Y,
+            Math.Max(1, bounds.Width - fixedWidth), bounds.Height);
+        var clipState = graphics.Save();
+        graphics.SetClip(lootViewport, CombineMode.Intersect);
+        var lootX = lootViewport.X - _lootScroll.Value;
+        for (var index = 0; index < columns.Count; index++)
+        {
+            var quantity = session.Totals.GetValueOrDefault(columns[index].ItemName);
+            TextRenderer.DrawText(graphics,
+                quantity > 0 ? SpotHistoryCard.FormatQuantity(quantity) : "—", _smallFont,
+                new Rectangle(lootX, bounds.Y, itemWidth, bounds.Height),
+                quantity > 0 ? Color.FromArgb(224, 228, 220) : Color.FromArgb(111, 119, 119),
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter |
+                TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+            lootX += itemWidth;
+        }
+        graphics.Restore(clipState);
+
+        var pinnedBounds = new Rectangle(bounds.X, bounds.Y, fixedWidth, bounds.Height);
+        using (var pinnedFill = new SolidBrush(alternate
+                   ? Color.FromArgb(255, 29, 32, 35)
+                   : Color.FromArgb(255, 23, 26, 29)))
+            graphics.FillRectangle(pinnedFill, pinnedBounds);
         var x = bounds.X;
         DrawClassSymbol(graphics, session.CharacterClass,
             new Rectangle(x, bounds.Y, classWidth, bounds.Height));
@@ -447,24 +480,7 @@ internal sealed class SpotHistoryDetailView : Control
             new Rectangle(x + ScaleLogical(3), bounds.Y, silverWidth - ScaleLogical(6), bounds.Height),
             BdoTheme.GoldBright, TextFormatFlags.Right | TextFormatFlags.VerticalCenter |
             TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
-        x += silverWidth;
-
-        var lootViewport = new Rectangle(x, bounds.Y, Math.Max(1, bounds.Right - x), bounds.Height);
-        var clipState = graphics.Save();
-        graphics.SetClip(lootViewport, CombineMode.Intersect);
-        x -= _lootScroll.Value;
-        for (var index = 0; index < items.Count; index++)
-        {
-            var quantity = session.Totals.GetValueOrDefault(items[index].Key);
-            TextRenderer.DrawText(graphics,
-                quantity > 0 ? SpotHistoryCard.FormatQuantity(quantity) : "—", _smallFont,
-                new Rectangle(x, bounds.Y, itemWidth, bounds.Height),
-                quantity > 0 ? Color.FromArgb(224, 228, 220) : Color.FromArgb(111, 119, 119),
-                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter |
-                TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
-            x += itemWidth;
-        }
-        graphics.Restore(clipState);
+        DrawPinnedDivider(graphics, lootViewport.X, bounds.Y, bounds.Height);
     }
 
     private void DrawColumnHeader(Graphics graphics, string text, Rectangle bounds)
@@ -473,12 +489,12 @@ internal sealed class SpotHistoryDetailView : Control
             TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
     }
 
-    private void DrawLootHeader(Graphics graphics, string itemName, Rectangle bounds)
+    private void DrawLootHeader(Graphics graphics, SpotLootColumn column, Rectangle bounds)
     {
-        var iconSize = Math.Min(ScaleLogical(39), Math.Min(bounds.Width - ScaleLogical(6), bounds.Height - ScaleLogical(8)));
+        var iconSize = Math.Min(ScaleLogical(32), Math.Min(bounds.Width - ScaleLogical(6), bounds.Height - ScaleLogical(24)));
         var iconBounds = new Rectangle(bounds.X + (bounds.Width - iconSize) / 2,
-            bounds.Y + (bounds.Height - iconSize) / 2, iconSize, iconSize);
-        var icon = _icons.GetIcon(itemName);
+            bounds.Y + ScaleLogical(4), iconSize, iconSize);
+        var icon = _icons.GetIcon(column.ItemName);
         if (icon is not null)
             graphics.DrawImage(icon, iconBounds);
         else
@@ -486,6 +502,26 @@ internal sealed class SpotHistoryDetailView : Control
             using var fill = new SolidBrush(BdoTheme.SurfaceRaised);
             graphics.FillRectangle(fill, iconBounds);
         }
+        var hourlyText = column.SilverPerHour > 0
+            ? SpotHistoryCard.FormatSilver(column.SilverPerHour) + "/h"
+            : "—/h";
+        TextRenderer.DrawText(graphics, hourlyText, _captionFont,
+            new Rectangle(bounds.X + ScaleLogical(1), iconBounds.Bottom,
+                Math.Max(1, bounds.Width - ScaleLogical(2)), bounds.Bottom - iconBounds.Bottom),
+            column.SilverPerHour > 0 ? BdoTheme.GoldBright : BdoTheme.TextMuted,
+            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter |
+            TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+    }
+
+    private void DrawPinnedDivider(Graphics graphics, int x, int y, int height)
+    {
+        var shadowWidth = ScaleLogical(8);
+        using var shadow = new LinearGradientBrush(
+            new Rectangle(x, y, shadowWidth, Math.Max(1, height)),
+            Color.FromArgb(132, 4, 6, 8), Color.Transparent, LinearGradientMode.Horizontal);
+        graphics.FillRectangle(shadow, x, y, shadowWidth, height);
+        using var divider = new Pen(Color.FromArgb(165, 115, 110, 92));
+        graphics.DrawLine(divider, x, y, x, y + height);
     }
 
     private void DrawClassSymbol(Graphics graphics, string? characterClass, Rectangle bounds)
@@ -549,7 +585,7 @@ internal sealed class SpotHistoryDetailView : Control
         var (classWidth, ageWidth, durationWidth, silverWidth) = GetFixedColumnWidths();
         var fixedWidth = classWidth + ageWidth + durationWidth + silverWidth;
         var viewportWidth = Math.Max(1, Width - padding * 2 - fixedWidth);
-        var contentWidth = _lootItems.Count * ScaleLogical(LootColumnLogicalWidth);
+        var contentWidth = _lootColumns.Count * ScaleLogical(LootColumnLogicalWidth);
         var overflow = Math.Max(0, contentWidth - viewportWidth);
         var rowsHeight = _sessions.Count == 0 ? ScaleLogical(82) : _sessions.Count * ScaleLogical(RowLogicalHeight);
         var scrollY = ScaleLogical(HeaderLogicalHeight + TableHeaderLogicalHeight) + rowsHeight + ScaleLogical(2);
@@ -564,6 +600,20 @@ internal sealed class SpotHistoryDetailView : Control
             _lootScroll.Value = overflow;
         _lootScroll.Visible = overflow > 0;
         Invalidate();
+    }
+
+    private void InvalidateLootViewport()
+    {
+        var padding = ScaleLogical(15);
+        var (classWidth, ageWidth, durationWidth, silverWidth) = GetFixedColumnWidths();
+        var fixedWidth = classWidth + ageWidth + durationWidth + silverWidth;
+        var rowsHeight = _sessions.Count == 0
+            ? ScaleLogical(82)
+            : _sessions.Count * ScaleLogical(RowLogicalHeight);
+        var bounds = new Rectangle(padding + fixedWidth, ScaleLogical(HeaderLogicalHeight),
+            Math.Max(1, Width - padding * 2 - fixedWidth),
+            ScaleLogical(TableHeaderLogicalHeight) + rowsHeight);
+        Invalidate(Rectangle.Inflate(bounds, ScaleLogical(1), 0));
     }
 
     private (int Class, int Age, int Duration, int Silver) GetFixedColumnWidths()
@@ -604,6 +654,14 @@ internal sealed class SpotHistoryDetailView : Control
         LootSpotPresentation profile,
         IEnumerable<LootHistoryEntry> sessions,
         LootPriceSnapshot prices,
+        SilverTaxOptions tax) => BuildLootColumns(profile, sessions, prices, tax)
+        .Select(static column => new KeyValuePair<string, long>(column.ItemName, column.TotalQuantity))
+        .ToArray();
+
+    internal static IReadOnlyList<SpotLootColumn> BuildLootColumns(
+        LootSpotPresentation profile,
+        IEnumerable<LootHistoryEntry> sessions,
+        LootPriceSnapshot prices,
         SilverTaxOptions tax)
     {
         ArgumentNullException.ThrowIfNull(profile);
@@ -634,14 +692,14 @@ internal sealed class SpotHistoryDetailView : Control
                         prices, tax).AfterTax / totalHours;
                 return new
                 {
-                    Item = new KeyValuePair<string, long>(name, quantity),
+                    Column = new SpotLootColumn(name, quantity, hourlySilver),
                     HourlySilver = hourlySilver,
                     StableIndex = stableIndex
                 };
             })
             .OrderByDescending(static item => item.HourlySilver)
             .ThenBy(static item => item.StableIndex)
-            .Select(static item => item.Item)
+            .Select(static item => item.Column)
             .ToArray();
     }
 

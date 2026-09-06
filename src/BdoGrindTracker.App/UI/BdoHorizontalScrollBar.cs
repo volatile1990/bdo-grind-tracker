@@ -77,8 +77,13 @@ internal sealed class BdoHorizontalScrollBar : Control
                 return;
             _value = normalized;
             Invalidate();
-            AccessibilityNotifyClients(AccessibleEvents.ValueChange, -1);
+            if (!_dragging)
+                AccessibilityNotifyClients(AccessibleEvents.ValueChange, -1);
             ValueChanged?.Invoke(this, EventArgs.Empty);
+            // The table is comparatively expensive to repaint. Keep the thumb in lockstep
+            // with the pointer instead of waiting behind the parent's next paint pass.
+            if (_dragging && IsHandleCreated)
+                Update();
         }
     }
 
@@ -137,8 +142,8 @@ internal sealed class BdoHorizontalScrollBar : Control
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
-        var hovered = CalculateThumbBounds().Contains(e.Location);
-        if (_hovered != hovered)
+        var hovered = _dragging || CalculateThumbBounds().Contains(e.Location);
+        if (!_dragging && _hovered != hovered)
         {
             _hovered = hovered;
             Invalidate();
@@ -156,8 +161,11 @@ internal sealed class BdoHorizontalScrollBar : Control
         base.OnMouseUp(e);
         if (e.Button != MouseButtons.Left)
             return;
+        var wasDragging = _dragging;
         _dragging = false;
         Capture = false;
+        if (wasDragging)
+            AccessibilityNotifyClients(AccessibleEvents.ValueChange, -1);
         Invalidate();
     }
 

@@ -86,6 +86,31 @@ public sealed class LootHistoryViewTests
     }
 
     [Fact]
+    public void CustomLootScrollbarThumbTracksItsValueWithoutWaitingForTheTable()
+    {
+        RunInSta(() =>
+        {
+            using var scrollbar = new BdoHorizontalScrollBar
+            {
+                Size = new Size(420, 18),
+                Maximum = 1_000,
+                ViewportSize = 300
+            };
+            scrollbar.CreateControl();
+            var start = scrollbar.ThumbBounds;
+
+            scrollbar.Value = 500;
+            var middle = scrollbar.ThumbBounds;
+            scrollbar.Value = scrollbar.Maximum;
+            var end = scrollbar.ThumbBounds;
+
+            Assert.True(start.Left < middle.Left);
+            Assert.True(middle.Left < end.Left);
+            Assert.Equal(start.Width, end.Width);
+        });
+    }
+
+    [Fact]
     public void LootColumnsSortBySilverPerHourAcrossAllLocallyTrackedSessions()
     {
         var profile = LootSpotPresentationCatalog.GetRequired(LootSpotCatalog.AphrodonId);
@@ -118,6 +143,18 @@ public sealed class LootHistoryViewTests
         Assert.Equal(2_000, Assert.Single(items, item => item.Key == profile.TrashItemName).Value);
         Assert.True(items.ToList().FindIndex(item => item.Key == valuableItem) <
                     items.ToList().FindIndex(item => item.Key == profile.TrashItemName));
+
+        RunInSta(() =>
+        {
+            using var view = new LootHistoryView { Size = new Size(900, 700) };
+            view.SetPricing(prices, SilverTaxOptions.Default);
+            view.SetEntries(sessions);
+            view.ShowSpotDetails(profile.SpotId);
+            LayoutRecursively(view);
+            var details = Assert.Single(FindDescendants<SpotHistoryDetailView>(view));
+            Assert.Equal(1_500_000_000m, details.GetLootSilverPerHour(valuableItem));
+            Assert.Equal(155_127_000m, details.GetLootSilverPerHour(profile.TrashItemName));
+        });
     }
 
     [Fact]
@@ -228,6 +265,8 @@ public sealed class LootHistoryViewTests
             var chronological = FindDescendants<ChronologicalHistoryCard>(view);
             var first = chronological.OrderByDescending(card => card.Entry.UpdatedAt).First();
             var rowHeight = first.Height;
+            Assert.InRange(rowHeight, 60, 70);
+            Assert.Equal("Branch of Abundance", first.CollapsedLootItemNames[0]);
             first.SetExpanded(true);
             Assert.True(first.Height > rowHeight);
             Assert.True(first.IsExpanded);
