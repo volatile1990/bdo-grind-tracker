@@ -10,6 +10,11 @@ bisherigen Spots kommen Aresion Temple, Scales of Judgment und Event Horizon mit
 automatischer Erkennung am jeweiligen Trashloot, vollständigem Hauptloot-Pool,
 Silberbewertung, Originalicons und Garmoth-Zuordnung hinzu.
 
+Der neue Tab **Loot Verlauf** speichert Grind-Sitzungen ausschließlich lokal. Er
+zeigt sie wahlweise chronologisch mit aufklappbaren Lootdetails oder gesammelt in
+vollbreiten Spot-Kacheln. Die Kacheln verwenden die jeweiligen Gebietsbilder und
+zeigen empfohlenen AP/DP, AP-Limit, Traits sowie Trashloot-Icon und Silberwert.
+
 0.9.4 ergänzt ausschließlich für fehlgeschlagene normale Lootzeilen zwei zusätzliche
 Lesewege: isoliertes Mengen-Nachlesen sowie Graustufen-/adaptive Bildaufbereitung
 aus dem Originalausschnitt. Erfolgreiche bisherige Erkennungen bleiben unverändert;
@@ -77,6 +82,12 @@ Drop-Tabellen. Quellen, Einordnung und verbleibende Grenzen stehen in
 5. **Pausieren** erhält die Session und stoppt die Sitzungsuhr. **Fortsetzen** zählt
    aktive Grindzeit weiter; Pausen zählen nicht mit. **Neue Sitzung** setzt Uhr,
    Summen, Zählzustand und Spot zurück. Vor einem Spotwechsel eine neue Sitzung anlegen.
+
+Beim Pausieren, beim Anlegen einer neuen Sitzung und beim Beenden wird der aktuelle
+Stand im Tab **Loot Verlauf** aktualisiert. Dort lässt sich zwischen **Chronologisch**
+und **Nach Spots** wechseln; ein Klick auf eine Sitzung oder Spot-Kachel klappt die
+zugehörigen Stunden und Lootdetails aus. Gespeichert werden höchstens 500 Sitzungen
+im lokalen App-Konfigurationsordner, ohne Cloud-Synchronisierung.
 
 Vor dem ersten erkannten Trashloot wird kein zusätzlicher Spotfilter angewendet;
 es muss kein Spot manuell ausgewählt werden. Danach bleibt der erkannte Spot bis

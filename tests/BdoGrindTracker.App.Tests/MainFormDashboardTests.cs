@@ -74,6 +74,10 @@ public sealed class MainFormDashboardTests(ITestOutputHelper output)
             Assert.Equal(TimeSpan.Zero, clock.Elapsed);
             Assert.Equal(0, Find<LootTotalsView>(form).Single().EntryCount);
             Assert.True(FindByAccessibleName<ComboBox>(form, "Spielmonitor").Enabled);
+            var historyEntry = Assert.Single(settings.HistoryStore.Load());
+            Assert.Equal(LootSpotCatalog.HermesiaId, historyEntry.SpotId);
+            Assert.Equal(TimeSpan.FromMinutes(20), historyEntry.Duration);
+            Assert.Equal(1582, historyEntry.Totals["Black Crystal Fragment"]);
             Assert.False(form.Visible);
         });
     }
@@ -1141,19 +1145,17 @@ public sealed class MainFormDashboardTests(ITestOutputHelper output)
             Store = new SettingsStore();
             SetField(Store, "_settingsPath", _settingsPath);
             KeyStore = new GarmothApiKeyStore(Path.Combine(_directory, "test-key.dpapi"));
+            HistoryStore = new LootHistoryStore(Path.Combine(_directory, "loot-history-v1.json"));
         }
 
         public SettingsStore Store { get; }
         public GarmothApiKeyStore KeyStore { get; }
+        public LootHistoryStore HistoryStore { get; }
 
         public void Dispose()
         {
-            if (File.Exists(_settingsPath))
-            {
-                File.Delete(_settingsPath);
-            }
             KeyStore.Save("");
-            Directory.Delete(_directory);
+            Directory.Delete(_directory, recursive: true);
         }
     }
 }

@@ -51,6 +51,12 @@ public sealed class MainFormStartupTests
             Assert.Equal("0", FindByAccessibleName<Label>(form, "Silberwert nach Steuer").Text);
             Assert.Equal("00:00:00", FindByAccessibleName<Label>(
                 form, "Dauer der aktuellen Grindsession").Text);
+            var liveTab = FindByAccessibleName<Button>(form, "Live-Tracker anzeigen");
+            var historyTab = FindByAccessibleName<Button>(form, "Loot-Verlauf anzeigen");
+            Assert.Equal("Ausgewählt", liveTab.AccessibleDescription);
+            InvokePrivateMethod(form, "ShowMainArea", true);
+            Assert.Equal("Ausgewählt", historyTab.AccessibleDescription);
+            Assert.Equal("Nicht ausgewählt", liveTab.AccessibleDescription);
         });
     }
 
@@ -222,13 +228,13 @@ public sealed class MainFormStartupTests
         field.SetValue(target, value);
     }
 
-    private static void InvokePrivateMethod(object target, string methodName)
+    private static void InvokePrivateMethod(object target, string methodName, params object?[]? arguments)
     {
         var method = target.GetType().GetMethod(
             methodName,
             BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.NotNull(method);
-        method.Invoke(target, null);
+        method.Invoke(target, arguments);
     }
 
     private static IReadOnlyList<TControl> FindDescendants<TControl>(Control root)
@@ -298,14 +304,9 @@ public sealed class MainFormStartupTests
 
         public void Dispose()
         {
-            if (File.Exists(settingsPath))
-            {
-                File.Delete(settingsPath);
-            }
-
             if (Directory.Exists(directory))
             {
-                Directory.Delete(directory);
+                Directory.Delete(directory, recursive: true);
             }
         }
     }

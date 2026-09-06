@@ -16,6 +16,8 @@ internal sealed class MainForm : Form
     private readonly ILootFrameAnalyzer _analyzer;
     private readonly SettingsStore _settingsStore;
     private readonly AppSettings _settings;
+    private readonly LootHistoryStore _historyStore;
+    private readonly List<LootHistoryEntry> _historyEntries;
     private readonly PassiveCaptureSession _captureSession;
     private readonly PictureBox _brandLogo = new();
     private readonly Bitmap _brandLogoImage = AppBranding.CreateLogo();
@@ -77,6 +79,12 @@ internal sealed class MainForm : Form
     private static readonly CultureInfo SilverCulture = CultureInfo.GetCultureInfo("de-DE");
     private readonly Label _statusDot = new();
     private readonly Label _statusLabel = new();
+    private readonly Panel _mainContentHost = new();
+    private readonly FlowLayoutPanel _liveIdentity = new();
+    private readonly Button _liveTabButton = new();
+    private readonly Button _historyTabButton = new();
+    private Control _liveTrackerView = null!;
+    private readonly LootHistoryView _historyView;
 
     private readonly Font _baseFont = new("Segoe UI", 9.5f, FontStyle.Regular, GraphicsUnit.Point);
     private readonly Font _titleFont = new("Segoe UI Semibold", 21f, FontStyle.Bold, GraphicsUnit.Point);
@@ -104,12 +112,18 @@ internal sealed class MainForm : Form
         Func<CharacterClassDetection>? classDetector = null,
         ILootPriceProvider? priceProvider = null,
         GarmothUploadClient? garmothClient = null,
-        GarmothApiKeyStore? garmothKeyStore = null)
+        GarmothApiKeyStore? garmothKeyStore = null,
+        LootHistoryStore? historyStore = null)
     {
         ArgumentNullException.ThrowIfNull(screenCapture);
         _analyzer = analyzer ?? throw new ArgumentNullException(nameof(analyzer));
         _settingsStore = settingsStore ?? throw new ArgumentNullException(nameof(settingsStore));
         _settings = settingsStore.Load();
+        _historyStore = historyStore ?? new LootHistoryStore(
+            Path.Combine(_settingsStore.BaseDirectory, "loot-history-v1.json"));
+        _historyEntries = _historyStore.Load().ToList();
+        _historyView = new LootHistoryView();
+        _historyView.SetEntries(_historyEntries);
         _captureSession = new PassiveCaptureSession(screenCapture);
         _sessionClock = sessionClock ?? new GrindSessionClock();
         _inactivityTimer = inactivityTimer ?? new GrindInactivityTimer();
@@ -176,7 +190,7 @@ internal sealed class MainForm : Form
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
-            RowCount = 6,
+            RowCount = 4,
             Padding = new Padding(24, 18, 24, 12),
             BackColor = BdoTheme.Background,
             Margin = Padding.Empty
@@ -184,17 +198,79 @@ internal sealed class MainForm : Form
         root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
         root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
         root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         root.Controls.Add(BuildHeader(), 0, 0);
-        root.Controls.Add(BuildSpotStrip(), 0, 1);
-        root.Controls.Add(BuildTrackingOptions(), 0, 2);
-        root.Controls.Add(BuildSummary(), 0, 3);
-        root.Controls.Add(BuildLootArea(), 0, 4);
-        root.Controls.Add(BuildFooter(), 0, 5);
+        root.Controls.Add(BuildNavigationStrip(), 0, 1);
+        root.Controls.Add(BuildMainContent(), 0, 2);
+        root.Controls.Add(BuildFooter(), 0, 3);
         Controls.Add(root);
+    }
+
+    private Control BuildMainContent()
+    {
+        _mainContentHost.Dock = DockStyle.Fill;
+        _mainContentHost.Margin = Padding.Empty;
+        _mainContentHost.BackColor = BdoTheme.Background;
+        _mainContentHost.AccessibleName = "Hauptbereiche";
+
+        _liveTrackerView = BuildLiveTrackerView();
+        _liveTrackerView.Dock = DockStyle.Fill;
+        _historyView.Dock = DockStyle.Fill;
+        _historyView.Visible = false;
+        _mainContentHost.Controls.Add(_historyView);
+        _mainContentHost.Controls.Add(_liveTrackerView);
+        ShowMainArea(showHistory: false);
+        return _mainContentHost;
+    }
+
+    private Control BuildLiveTrackerView()
+    {
+        var live = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 3,
+            Margin = Padding.Empty,
+            BackColor = BdoTheme.Background
+        };
+        live.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+        live.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        live.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        live.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+        live.Controls.Add(BuildTrackingOptions(), 0, 0);
+        live.Controls.Add(BuildSummary(), 0, 1);
+        live.Controls.Add(BuildLootArea(), 0, 2);
+        return live;
+    }
+
+    private void ShowMainArea(bool showHistory)
+    {
+        _liveTrackerView.Visible = !showHistory;
+        _historyView.Visible = showHistory;
+        _liveIdentity.Visible = !showHistory;
+        _optionsButton.Visible = !showHistory;
+        StyleMainAreaButton(_liveTabButton, selected: !showHistory);
+        StyleMainAreaButton(_historyTabButton, selected: showHistory);
+
+        if (showHistory)
+        {
+            _historyView.SetEntries(_historyEntries);
+            _historyView.BringToFront();
+        }
+        else
+        {
+            _liveTrackerView.BringToFront();
+        }
+    }
+
+    private void StyleMainAreaButton(Button button, bool selected)
+    {
+        button.BackColor = selected ? BdoTheme.SurfaceRaised : BdoTheme.Background;
+        button.ForeColor = selected ? BdoTheme.GoldBright : BdoTheme.TextMuted;
+        button.FlatAppearance.BorderColor = selected ? BdoTheme.Gold : BdoTheme.Border;
+        button.FlatAppearance.BorderSize = selected ? 1 : 0;
+        button.AccessibleDescription = selected ? "Ausgewählt" : "Nicht ausgewählt";
     }
 
     private Control BuildHeader()
@@ -275,17 +351,18 @@ internal sealed class MainForm : Form
         return header;
     }
 
-    private Control BuildSpotStrip()
+    private Control BuildNavigationStrip()
     {
         var strip = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             AutoSize = true,
-            ColumnCount = 2,
+            ColumnCount = 3,
             RowCount = 1,
             Margin = new Padding(0, 0, 0, 10)
         };
         strip.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+        strip.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         strip.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         _activeSpotLabel.AutoSize = true;
         _activeSpotLabel.AccessibleName = "Automatisch erkannter Grindspot";
@@ -293,27 +370,56 @@ internal sealed class MainForm : Form
         _activeSpotLabel.Text = "Spot: wird aus Trashloot erkannt";
         _activeSpotLabel.Anchor = AnchorStyles.Left;
         _activeSpotLabel.Margin = new Padding(2, 0, 12, 0);
-        var identity = new FlowLayoutPanel
-        {
-            AutoSize = true, WrapContents = false, Dock = DockStyle.Fill,
-            Margin = Padding.Empty, Padding = new Padding(0, 5, 0, 0)
-        };
+        _liveIdentity.AutoSize = true;
+        _liveIdentity.WrapContents = false;
+        _liveIdentity.Dock = DockStyle.Fill;
+        _liveIdentity.Margin = Padding.Empty;
+        _liveIdentity.Padding = new Padding(0, 5, 0, 0);
         _characterClassLabel.AccessibleName = "Automatisch erkannte Klasse";
         _characterClassLabel.AutoSize = true;
         _characterClassLabel.ForeColor = BdoTheme.Gold;
         _characterClassLabel.Text = "Klasse: wird beim Start erkannt";
         _characterClassLabel.Margin = Padding.Empty;
-        identity.Controls.Add(_activeSpotLabel);
-        identity.Controls.Add(_characterClassLabel);
+        _liveIdentity.Controls.Add(_activeSpotLabel);
+        _liveIdentity.Controls.Add(_characterClassLabel);
+
+        var tabs = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            WrapContents = false,
+            Margin = new Padding(12, 0, 12, 0)
+        };
+        ConfigureMainAreaButton(_liveTabButton, "Live Tracker", "Live-Tracker anzeigen");
+        ConfigureMainAreaButton(_historyTabButton, "Loot Verlauf", "Loot-Verlauf anzeigen");
+        _liveTabButton.Click += (_, _) => ShowMainArea(showHistory: false);
+        _historyTabButton.Click += (_, _) => ShowMainArea(showHistory: true);
+        tabs.Controls.Add(_liveTabButton);
+        tabs.Controls.Add(_historyTabButton);
+
         _optionsButton.Text = "Optionen";
         _optionsButton.ButtonStyle = BdoButtonStyle.Secondary;
         _optionsButton.Width = 110;
         _optionsButton.Height = 34;
         _optionsButton.Margin = Padding.Empty;
         _optionsButton.AccessibleName = "Tracking-Optionen öffnen oder schließen";
-        strip.Controls.Add(identity, 0, 0);
-        strip.Controls.Add(_optionsButton, 1, 0);
+        strip.Controls.Add(_liveIdentity, 0, 0);
+        strip.Controls.Add(tabs, 1, 0);
+        strip.Controls.Add(_optionsButton, 2, 0);
         return strip;
+    }
+
+    private void ConfigureMainAreaButton(Button button, string text, string accessibleName)
+    {
+        button.Text = text;
+        button.AccessibleName = accessibleName;
+        button.Width = 116;
+        button.Height = 34;
+        button.Margin = Padding.Empty;
+        button.FlatStyle = FlatStyle.Flat;
+        button.UseVisualStyleBackColor = false;
+        button.Cursor = Cursors.Hand;
+        button.Font = _baseFont;
     }
 
     private Control BuildTrackingOptions()
@@ -864,6 +970,7 @@ internal sealed class MainForm : Form
         }
         CompleteCaptureSegment(DateTimeOffset.UtcNow);
         _uiRunning = false;
+        PersistCurrentSession(DateTimeOffset.UtcNow);
 
         var failure = Interlocked.CompareExchange(ref _lastCaptureStopError, null, null);
         if (failure is null)
@@ -905,6 +1012,7 @@ internal sealed class MainForm : Form
             return;
         }
 
+        PersistCurrentSession(DateTimeOffset.UtcNow);
         _analyzer.Reset();
         _recording?.Dispose();
         _recording = null;
@@ -1279,6 +1387,7 @@ internal sealed class MainForm : Form
                     UpdateSessionDuration();
                     CompleteCaptureSegment(DateTimeOffset.UtcNow);
                     _uiRunning = false;
+                    PersistCurrentSession(DateTimeOffset.UtcNow);
                     if (!_garmothUploadInProgress)
                         _operationInProgress = false;
                     UpdateControlState();
@@ -1337,6 +1446,7 @@ internal sealed class MainForm : Form
             SaveSettings();
             await _captureSession.DisposeAsync();
             CompleteCaptureSegment(DateTimeOffset.UtcNow);
+            PersistCurrentSession(DateTimeOffset.UtcNow);
             _analyzer.Dispose();
             _recording?.Dispose();
         }
@@ -1362,6 +1472,59 @@ internal sealed class MainForm : Form
         catch (UnauthorizedAccessException exception)
         {
             SetStatus(UiStatusKind.Error, "Einstellungen nicht gespeichert", exception.Message);
+        }
+    }
+
+    private void PersistCurrentSession(DateTimeOffset updatedAt)
+    {
+        if (!_hasSession || _sessionSpotId is null ||
+            _sessionClock.Elapsed <= TimeSpan.Zero || _sessionSummary.ItemTypeCount == 0)
+            return;
+
+        var totals = _sessionSummary.Totals
+            .Where(static pair => pair.Value > 0)
+            .ToDictionary(static pair => pair.Key, static pair => pair.Value,
+                StringComparer.OrdinalIgnoreCase);
+        if (totals.Count == 0)
+            return;
+
+        var valuation = SilverValuation.Calculate(totals, _prices, _settings.GetSilverTaxOptions());
+        var character = (_sessionClass ?? SelectedCharacterClass)?.DisplayName;
+        var entry = new LootHistoryEntry
+        {
+            SessionId = _sessionId,
+            StartedAt = _sessionStartedAt ?? updatedAt - _sessionClock.Elapsed,
+            UpdatedAt = updatedAt,
+            Duration = _sessionClock.Elapsed,
+            SpotId = _sessionSpotId,
+            CharacterClass = character,
+            Totals = totals,
+            SilverBeforeTax = valuation.BeforeTax,
+            SilverAfterTax = valuation.AfterTax,
+            SilverIsComplete = valuation.IsComplete
+        };
+
+        var existingIndex = _historyEntries.FindIndex(candidate =>
+            candidate.SessionId == entry.SessionId);
+        if (existingIndex >= 0)
+            _historyEntries[existingIndex] = entry;
+        else
+            _historyEntries.Add(entry);
+        _historyEntries.Sort(static (left, right) => right.UpdatedAt.CompareTo(left.UpdatedAt));
+        if (_historyEntries.Count > LootHistoryStore.MaximumEntries)
+            _historyEntries.RemoveRange(LootHistoryStore.MaximumEntries,
+                _historyEntries.Count - LootHistoryStore.MaximumEntries);
+
+        try
+        {
+            _historyStore.Save(_historyEntries);
+            if (!_historyView.IsDisposed)
+                _historyView.SetEntries(_historyEntries);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            if (!_shutdownStarted)
+                SetStatus(UiStatusKind.Error, "Verlauf nicht gespeichert", exception.Message);
         }
     }
 
