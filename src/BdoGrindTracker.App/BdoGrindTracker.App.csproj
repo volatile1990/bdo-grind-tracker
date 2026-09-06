@@ -63,6 +63,13 @@
     </Content>
   </ItemGroup>
 
+  <ItemGroup Condition="Exists('..\..\data\spot-icons')">
+    <Content Include="..\..\data\spot-icons\**\*.png" Link="data\spot-icons\%(RecursiveDir)%(Filename)%(Extension)">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
   <ItemGroup>
     <Content Include="..\..\README.md" Link="README.md">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

@@ -32,6 +32,9 @@ public sealed class LootHistoryViewTests
                 "data", "spot-backgrounds", profile.BackgroundFileName)),
                 $"Packaged background is missing: {profile.BackgroundFileName}");
             Assert.True(File.Exists(Path.Combine(AppContext.BaseDirectory,
+                "data", "spot-icons", profile.IconFileName)),
+                $"Packaged spot icon is missing: {profile.IconFileName}");
+            Assert.True(File.Exists(Path.Combine(AppContext.BaseDirectory,
                 "data", "icons", LootIconRepository.CreateSlug(profile.TrashItemName) + ".png")),
                 $"Packaged trash icon is missing: {profile.TrashItemName}");
         });
@@ -66,6 +69,9 @@ public sealed class LootHistoryViewTests
             aphrodon.SetExpanded(true);
             Assert.True(aphrodon.Height > collapsedHeight);
             Assert.True(aphrodon.IsExpanded);
+            aphrodon.SetExpanded(false);
+            Assert.Equal(collapsedHeight, aphrodon.Height);
+            Assert.False(aphrodon.IsExpanded);
 
             view.ShowChronological();
             Assert.False(view.ShowsSpots);
@@ -75,7 +81,11 @@ public sealed class LootHistoryViewTests
             first.SetExpanded(true);
             Assert.True(first.Height > rowHeight);
             Assert.True(first.IsExpanded);
+            first.SetExpanded(false);
+            Assert.Equal(rowHeight, first.Height);
+            Assert.False(first.IsExpanded);
 
+            view.ShowSpots();
             using var bitmap = new Bitmap(view.Width, view.Height);
             view.DrawToBitmap(bitmap, new Rectangle(Point.Empty, bitmap.Size));
             Assert.NotEqual(BdoTheme.Background.ToArgb(), bitmap.GetPixel(30, 150).ToArgb());
@@ -89,6 +99,15 @@ public sealed class LootHistoryViewTests
     public void SilverFormattingIsCompactAndGerman(decimal silver, string expected)
     {
         Assert.Equal(expected, SpotHistoryCard.FormatSilver(silver));
+    }
+
+    [Theory]
+    [InlineData(20_823, "20.823")]
+    [InlineData(153_000, "153K")]
+    [InlineData(1_250_000, "1,3M")]
+    public void LootQuantityFormattingRemainsReadable(long quantity, string expected)
+    {
+        Assert.Equal(expected, SpotHistoryCard.FormatQuantity(quantity));
     }
 
     private static void AssertProfile(LootSpotPresentation profile, string spotId,

@@ -12,8 +12,10 @@ internal sealed class LootHistoryView : UserControl
     private readonly FlowLayoutPanel _chronologicalList = CreateList("Chronologischer Loot-Verlauf");
     private readonly Button _chronologicalButton = CreateModeButton("Chronologisch");
     private readonly Button _spotsButton = CreateModeButton("Nach Spots");
-    private readonly SpotBackgroundRepository _backgrounds = new(
+    private readonly ImageAssetRepository _backgrounds = new(
         Path.Combine(AppContext.BaseDirectory, "data", "spot-backgrounds"));
+    private readonly ImageAssetRepository _spotIcons = new(
+        Path.Combine(AppContext.BaseDirectory, "data", "spot-icons"));
     private readonly LootIconRepository _icons = new(
         Path.Combine(AppContext.BaseDirectory, "data", "icons"));
     private readonly Font _headingFont = new(
@@ -88,6 +90,7 @@ internal sealed class LootHistoryView : UserControl
             _disposed = true;
             _headingFont.Dispose();
             _backgrounds.Dispose();
+            _spotIcons.Dispose();
             _icons.Dispose();
         }
         base.Dispose(disposing);
@@ -175,7 +178,8 @@ internal sealed class LootHistoryView : UserControl
                 profile,
                 sessions,
                 _backgrounds.Get(profile.BackgroundFileName),
-                _icons.GetIcon(profile.TrashItemName))
+                _spotIcons.Get(profile.IconFileName),
+                _icons)
             {
                 Margin = new Padding(0, 0, 0, 11)
             };
@@ -204,9 +208,11 @@ internal sealed class LootHistoryView : UserControl
         {
             foreach (var entry in _entries)
             {
+                var profile = LootSpotPresentationCatalog.GetRequired(entry.SpotId);
                 _chronologicalList.Controls.Add(new ChronologicalHistoryCard(
                     entry,
-                    LootSpotPresentationCatalog.GetRequired(entry.SpotId),
+                    profile,
+                    _spotIcons.Get(profile.IconFileName),
                     _icons)
                 {
                     Margin = new Padding(0, 0, 0, 9)
@@ -274,7 +280,8 @@ internal sealed class SpotHistoryCard : Control
     private readonly LootSpotPresentation _profile;
     private readonly IReadOnlyList<LootHistoryEntry> _sessions;
     private readonly Image? _background;
-    private readonly Image? _trashIcon;
+    private readonly Image? _spotIcon;
+    private readonly LootIconRepository _icons;
     private Font? _titleFont;
     private Font? _captionFont;
     private Font? _valueFont;
@@ -286,12 +293,14 @@ internal sealed class SpotHistoryCard : Control
         LootSpotPresentation profile,
         IReadOnlyList<LootHistoryEntry> sessions,
         Image? background,
-        Image? trashIcon)
+        Image? spotIcon,
+        LootIconRepository icons)
     {
         _profile = profile ?? throw new ArgumentNullException(nameof(profile));
         _sessions = sessions ?? throw new ArgumentNullException(nameof(sessions));
         _background = background;
-        _trashIcon = trashIcon;
+        _spotIcon = spotIcon;
+        _icons = icons ?? throw new ArgumentNullException(nameof(icons));
         SetStyle(ControlStyles.AllPaintingInWmPaint |
                  ControlStyles.OptimizedDoubleBuffer |
                  ControlStyles.ResizeRedraw |
@@ -414,10 +423,35 @@ internal sealed class SpotHistoryCard : Control
         var chevronWidth = ScaleLogical(24);
         var countWidth = ScaleLogical(74);
         var spot = LootSpotCatalog.GetRequired(_profile.SpotId);
+
+        var titleBand = new Rectangle(ScaleLogical(9), ScaleLogical(7),
+            Math.Max(1, bounds.Width - ScaleLogical(18)), ScaleLogical(51));
+        using (var titlePath = BdoTheme.CreateRoundedRectangle(titleBand, ScaleLogical(7)))
+        using (var titleFill = new SolidBrush(Color.FromArgb(178, 10, 12, 14)))
+        using (var titleBorder = new Pen(Color.FromArgb(86, 229, 194, 124)))
+        {
+            graphics.FillPath(titleFill, titlePath);
+            graphics.DrawPath(titleBorder, titlePath);
+        }
+
+        var spotIconSize = ScaleLogical(48);
+        var spotIconBounds = new Rectangle(padding, ScaleLogical(8), spotIconSize, spotIconSize);
+        if (_spotIcon is not null)
+            graphics.DrawImage(_spotIcon, spotIconBounds);
+        else
+            DrawIconFallback(graphics, spotIconBounds, "?");
+
+        var titleX = spotIconBounds.Right + ScaleLogical(9);
+        var titleBounds = new Rectangle(titleX, ScaleLogical(17),
+            Math.Max(80, bounds.Width - titleX - padding - countWidth - chevronWidth), titleHeight);
         TextRenderer.DrawText(graphics, spot.DisplayName, _titleFont,
-            new Rectangle(padding, ScaleLogical(17),
-                Math.Max(80, bounds.Width - padding * 2 - countWidth - chevronWidth), titleHeight),
-            Color.FromArgb(241, 210, 152),
+            new Rectangle(titleBounds.X + ScaleLogical(1), titleBounds.Y + ScaleLogical(2),
+                titleBounds.Width, titleBounds.Height),
+            Color.FromArgb(235, 3, 4, 5),
+            TextFormatFlags.Left | TextFormatFlags.VerticalCenter |
+            TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+        TextRenderer.DrawText(graphics, spot.DisplayName, _titleFont, titleBounds,
+            Color.FromArgb(255, 232, 185),
             TextFormatFlags.Left | TextFormatFlags.VerticalCenter |
             TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
 
@@ -460,8 +494,9 @@ internal sealed class SpotHistoryCard : Control
         graphics.DrawPath(border, path);
         var iconBounds = new Rectangle(box.X + ScaleLogical(8), box.Y + ScaleLogical(7),
             ScaleLogical(40), ScaleLogical(40));
-        if (_trashIcon is not null)
-            graphics.DrawImage(_trashIcon, iconBounds);
+        var trashIcon = _icons.GetIcon(_profile.TrashItemName);
+        if (trashIcon is not null)
+            graphics.DrawImage(trashIcon, iconBounds);
         else
             DrawIconFallback(graphics, iconBounds, "TL");
         TextRenderer.DrawText(graphics, _profile.TrashItemName, _captionFont,
@@ -562,20 +597,66 @@ internal sealed class SpotHistoryCard : Control
     private void DrawSessionRow(Graphics graphics, LootHistoryEntry session, int y)
     {
         var padding = ScaleLogical(18);
-        var trashQuantity = session.Totals.GetValueOrDefault(_profile.TrashItemName);
+        var dateWidth = ScaleLogical(126);
+        var durationWidth = ScaleLogical(86);
+        var silverWidth = ScaleLogical(150);
+        var silverX = Math.Max(padding + dateWidth + durationWidth + ScaleLogical(88),
+            Width - padding - silverWidth);
         TextRenderer.DrawText(graphics, session.UpdatedAt.ToLocalTime().ToString("dd.MM.yy · HH:mm", GermanCulture),
-            _bodyFont, new Rectangle(padding, y, ScaleLogical(130), ScaleLogical(42)),
+            _bodyFont, new Rectangle(padding, y, dateWidth, ScaleLogical(42)),
             Color.FromArgb(196, 201, 202), TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
         TextRenderer.DrawText(graphics, FormatDuration(session.Duration),
-            _bodyFont, new Rectangle(padding + ScaleLogical(145), y, ScaleLogical(105), ScaleLogical(42)),
+            _bodyFont, new Rectangle(padding + dateWidth + ScaleLogical(8), y, durationWidth, ScaleLogical(42)),
             BdoTheme.Text, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
-        TextRenderer.DrawText(graphics, $"{trashQuantity.ToString("N0", GermanCulture)} Trash",
-            _bodyFont, new Rectangle(padding + ScaleLogical(270), y, ScaleLogical(150), ScaleLogical(42)),
-            BdoTheme.TextMuted, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+
+        var lootX = padding + dateWidth + durationWidth + ScaleLogical(16);
+        DrawSessionLoot(graphics, session,
+            new Rectangle(lootX, y + ScaleLogical(4), Math.Max(1, silverX - lootX - ScaleLogical(8)), ScaleLogical(34)));
         TextRenderer.DrawText(graphics, FormatSilver(session.SilverAfterTax),
-            _valueFont, new Rectangle(Math.Max(padding + ScaleLogical(430), Width - ScaleLogical(190)), y,
-                ScaleLogical(150), ScaleLogical(42)),
+            _valueFont, new Rectangle(silverX, y, silverWidth, ScaleLogical(42)),
             BdoTheme.GoldBright, TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+    }
+
+    private void DrawSessionLoot(Graphics graphics, LootHistoryEntry session, Rectangle bounds)
+    {
+        var chipWidth = ScaleLogical(82);
+        var gap = ScaleLogical(5);
+        var maximum = Math.Clamp((bounds.Width + gap) / (chipWidth + gap), 1, 5);
+        var items = session.Totals
+            .Where(static pair => pair.Value > 0)
+            .OrderByDescending(static pair => pair.Value)
+            .ThenBy(static pair => pair.Key, StringComparer.CurrentCultureIgnoreCase)
+            .Take(maximum)
+            .ToArray();
+
+        var x = bounds.X;
+        foreach (var item in items)
+        {
+            var chip = new Rectangle(x, bounds.Y, Math.Min(chipWidth, bounds.Right - x), bounds.Height);
+            if (chip.Width < ScaleLogical(40))
+                break;
+            using var path = BdoTheme.CreateRoundedRectangle(chip, ScaleLogical(5));
+            using var fill = new SolidBrush(Color.FromArgb(174, 20, 23, 25));
+            using var border = new Pen(Color.FromArgb(64, 185, 171, 139));
+            graphics.FillPath(fill, path);
+            graphics.DrawPath(border, path);
+
+            var iconSize = ScaleLogical(28);
+            var iconBounds = new Rectangle(chip.X + ScaleLogical(3),
+                chip.Y + (chip.Height - iconSize) / 2, iconSize, iconSize);
+            var icon = _icons.GetIcon(item.Key);
+            if (icon is not null)
+                graphics.DrawImage(icon, iconBounds);
+            else
+                DrawIconFallback(graphics, iconBounds, "?");
+            TextRenderer.DrawText(graphics, "×" + FormatQuantity(item.Value), _traitFont,
+                new Rectangle(iconBounds.Right + ScaleLogical(3), chip.Y,
+                    Math.Max(1, chip.Right - iconBounds.Right - ScaleLogical(5)), chip.Height),
+                Color.FromArgb(244, 226, 184),
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter |
+                TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+            x += chipWidth + gap;
+        }
     }
 
     private void UpdateHeight()
@@ -583,8 +664,8 @@ internal sealed class SpotHistoryCard : Control
         var collapsed = ScaleLogical(CollapsedLogicalHeight);
         if (!_expanded)
         {
-            Height = collapsed;
             MinimumSize = new Size(ScaleLogical(500), collapsed);
+            Height = collapsed;
             return;
         }
 
@@ -592,8 +673,9 @@ internal sealed class SpotHistoryCard : Control
         var detailHeight = _sessions.Count == 0
             ? ScaleLogical(84)
             : ScaleLogical(38 + visibleCount * 48 + (_sessions.Count > visibleCount ? 28 : 8));
-        Height = collapsed + detailHeight;
-        MinimumSize = new Size(ScaleLogical(500), Height);
+        var expanded = collapsed + detailHeight;
+        MinimumSize = new Size(ScaleLogical(500), expanded);
+        Height = expanded;
     }
 
     private void UpdateAccessibility()
@@ -607,7 +689,7 @@ internal sealed class SpotHistoryCard : Control
     {
         DisposeFonts();
         var scale = DeviceDpi / 96f;
-        _titleFont = new Font("Georgia", 15f * scale, FontStyle.Regular, GraphicsUnit.Point);
+        _titleFont = new Font("Georgia", 15f * scale, FontStyle.Bold, GraphicsUnit.Point);
         _captionFont = new Font("Segoe UI Semibold", 7.5f * scale, FontStyle.Bold, GraphicsUnit.Point);
         _valueFont = new Font("Segoe UI Semibold", 10f * scale, FontStyle.Bold, GraphicsUnit.Point);
         _traitFont = new Font("Segoe UI Semibold", 8f * scale, FontStyle.Bold, GraphicsUnit.Point);
@@ -676,6 +758,16 @@ internal sealed class SpotHistoryCard : Control
             return (silver / 1_000_000m).ToString("0.#", GermanCulture) + " Mio.";
         return decimal.Truncate(silver).ToString("N0", GermanCulture);
     }
+
+    internal static string FormatQuantity(long quantity)
+    {
+        var absolute = Math.Abs((decimal)quantity);
+        if (absolute >= 1_000_000m)
+            return (quantity / 1_000_000m).ToString("0.#", GermanCulture) + "M";
+        if (absolute >= 100_000m)
+            return (quantity / 1_000m).ToString("0.#", GermanCulture) + "K";
+        return quantity.ToString("N0", GermanCulture);
+    }
 }
 
 internal sealed class ChronologicalHistoryCard : Control
@@ -685,6 +777,7 @@ internal sealed class ChronologicalHistoryCard : Control
     private static readonly CultureInfo GermanCulture = CultureInfo.GetCultureInfo("de-DE");
     private readonly LootHistoryEntry _entry;
     private readonly LootSpotPresentation _profile;
+    private readonly Image? _spotIcon;
     private readonly LootIconRepository _icons;
     private Font? _titleFont;
     private Font? _bodyFont;
@@ -695,10 +788,12 @@ internal sealed class ChronologicalHistoryCard : Control
     public ChronologicalHistoryCard(
         LootHistoryEntry entry,
         LootSpotPresentation profile,
+        Image? spotIcon,
         LootIconRepository icons)
     {
         _entry = entry ?? throw new ArgumentNullException(nameof(entry));
         _profile = profile ?? throw new ArgumentNullException(nameof(profile));
+        _spotIcon = spotIcon;
         _icons = icons ?? throw new ArgumentNullException(nameof(icons));
         SetStyle(ControlStyles.AllPaintingInWmPaint |
                  ControlStyles.OptimizedDoubleBuffer |
@@ -816,14 +911,20 @@ internal sealed class ChronologicalHistoryCard : Control
 
         var spotX = padding + dateWidth;
         var spotWidth = Math.Max(100, Width - spotX - durationWidth - silverWidth - chevronWidth - padding);
+        var spotIconSize = ScaleLogical(46);
+        var spotIconBounds = new Rectangle(spotX, ScaleLogical(13), spotIconSize, spotIconSize);
+        if (_spotIcon is not null)
+            graphics.DrawImage(_spotIcon, spotIconBounds);
+        var spotTextX = spotIconBounds.Right + ScaleLogical(8);
+        var spotTextWidth = Math.Max(50, spotWidth - spotIconSize - ScaleLogical(8));
         var spotName = LootSpotCatalog.GetRequired(_entry.SpotId).DisplayName;
         TextRenderer.DrawText(graphics, spotName, _titleFont,
-            new Rectangle(spotX, ScaleLogical(10), spotWidth, ScaleLogical(28)),
-            Color.FromArgb(237, 208, 151), TextFormatFlags.Left | TextFormatFlags.VerticalCenter |
+            new Rectangle(spotTextX, ScaleLogical(10), spotTextWidth, ScaleLogical(28)),
+            Color.FromArgb(255, 226, 172), TextFormatFlags.Left | TextFormatFlags.VerticalCenter |
             TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
         var trash = _entry.Totals.GetValueOrDefault(_profile.TrashItemName);
         TextRenderer.DrawText(graphics, $"{trash.ToString("N0", GermanCulture)} Trash", _captionFont,
-            new Rectangle(spotX, ScaleLogical(38), spotWidth, ScaleLogical(19)),
+            new Rectangle(spotTextX, ScaleLogical(38), spotTextWidth, ScaleLogical(19)),
             BdoTheme.TextMuted, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
 
         var durationX = spotX + spotWidth;
@@ -902,14 +1003,15 @@ internal sealed class ChronologicalHistoryCard : Control
         var header = ScaleLogical(HeaderLogicalHeight);
         if (!_expanded)
         {
-            Height = header;
             MinimumSize = new Size(ScaleLogical(500), header);
+            Height = header;
             return;
         }
         var displayed = Math.Min(_entry.Totals.Count, MaximumVisibleItems);
         var rows = Math.Max(1, (displayed + 1) / 2);
-        Height = header + ScaleLogical(40 + rows * 36 + (_entry.Totals.Count > displayed ? 25 : 8));
-        MinimumSize = new Size(ScaleLogical(500), Height);
+        var expanded = header + ScaleLogical(40 + rows * 36 + (_entry.Totals.Count > displayed ? 25 : 8));
+        MinimumSize = new Size(ScaleLogical(500), expanded);
+        Height = expanded;
     }
 
     private void UpdateAccessibility()
@@ -941,10 +1043,10 @@ internal sealed class ChronologicalHistoryCard : Control
     }
 }
 
-internal sealed class SpotBackgroundRepository(string backgroundDirectory) : IDisposable
+internal sealed class ImageAssetRepository(string assetDirectory) : IDisposable
 {
-    private readonly string _backgroundDirectory = backgroundDirectory ??
-        throw new ArgumentNullException(nameof(backgroundDirectory));
+    private readonly string _assetDirectory = assetDirectory ??
+        throw new ArgumentNullException(nameof(assetDirectory));
     private readonly Dictionary<string, Bitmap?> _cache = new(StringComparer.OrdinalIgnoreCase);
     private bool _disposed;
 
@@ -956,7 +1058,7 @@ internal sealed class SpotBackgroundRepository(string backgroundDirectory) : IDi
             return cached;
 
         Bitmap? bitmap = null;
-        var path = Path.Combine(_backgroundDirectory, fileName);
+        var path = Path.Combine(_assetDirectory, fileName);
         try
         {
             if (File.Exists(path))
