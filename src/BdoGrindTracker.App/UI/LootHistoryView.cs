@@ -8,7 +8,8 @@ namespace BdoGrindTracker.App.UI;
 
 internal sealed class LootHistoryView : UserControl
 {
-    private readonly FlowLayoutPanel _spotList = CreateList("Grindspots im Loot-Verlauf");
+    private readonly FlowLayoutPanel _spotList = CreateSpotList();
+    private readonly FlowLayoutPanel _spotDetailList = CreateList("Grindspot-Details im Loot-Verlauf");
     private readonly FlowLayoutPanel _chronologicalList = CreateList("Chronologischer Loot-Verlauf");
     private readonly Button _chronologicalButton = CreateModeButton("Chronologisch");
     private readonly Button _spotsButton = CreateModeButton("Nach Spots");
@@ -21,6 +22,7 @@ internal sealed class LootHistoryView : UserControl
     private readonly Font _headingFont = new(
         "Segoe UI Semibold", 16f, FontStyle.Bold, GraphicsUnit.Point);
     private IReadOnlyList<LootHistoryEntry> _entries = [];
+    private string? _selectedSpotId;
     private bool _showSpots = true;
     private bool _disposed;
 
@@ -50,19 +52,25 @@ internal sealed class LootHistoryView : UserControl
             BackColor = BdoTheme.Background
         };
         content.Controls.Add(_chronologicalList);
+        content.Controls.Add(_spotDetailList);
         content.Controls.Add(_spotList);
         root.Controls.Add(content, 0, 1);
         Controls.Add(root);
 
         _chronologicalButton.Click += (_, _) => SetMode(showSpots: false);
         _spotsButton.Click += (_, _) => SetMode(showSpots: true);
-        _spotList.Resize += (_, _) => FitChildren(_spotList);
+        _spotList.Resize += (_, _) => FitSpotCards();
+        _spotDetailList.Resize += (_, _) => FitChildren(_spotDetailList);
         _chronologicalList.Resize += (_, _) => FitChildren(_chronologicalList);
         SetMode(showSpots: true);
         SetEntries([]);
     }
 
     internal bool ShowsSpots => _showSpots;
+
+    internal bool ShowsSpotDetails => _showSpots && _selectedSpotId is not null;
+
+    internal string? SelectedSpotId => _selectedSpotId;
 
     internal int SpotCardCount => _spotList.Controls.OfType<SpotHistoryCard>().Count();
 
@@ -76,12 +84,28 @@ internal sealed class LootHistoryView : UserControl
             .OrderByDescending(static entry => entry.UpdatedAt)
             .ToArray();
         RebuildSpotList();
+        RebuildSpotDetails();
         RebuildChronologicalList();
     }
 
     internal void ShowChronological() => SetMode(showSpots: false);
 
     internal void ShowSpots() => SetMode(showSpots: true);
+
+    internal void ShowSpotDetails(string spotId)
+    {
+        var profile = LootSpotPresentationCatalog.GetRequired(spotId);
+        _selectedSpotId = profile.SpotId;
+        RebuildSpotDetails();
+        SetMode(showSpots: true);
+    }
+
+    internal void ShowSpotOverview()
+    {
+        _selectedSpotId = null;
+        DisposeChildren(_spotDetailList);
+        SetMode(showSpots: true);
+    }
 
     protected override void Dispose(bool disposing)
     {
@@ -156,12 +180,16 @@ internal sealed class LootHistoryView : UserControl
     private void SetMode(bool showSpots)
     {
         _showSpots = showSpots;
-        _spotList.Visible = showSpots;
+        var showDetails = showSpots && _selectedSpotId is not null;
+        _spotList.Visible = showSpots && !showDetails;
+        _spotDetailList.Visible = showDetails;
         _chronologicalList.Visible = !showSpots;
         StyleModeButton(_spotsButton, showSpots);
         StyleModeButton(_chronologicalButton, !showSpots);
-        if (showSpots)
-            FitChildren(_spotList);
+        if (showDetails)
+            FitChildren(_spotDetailList);
+        else if (showSpots)
+            FitSpotCards();
         else
             FitChildren(_chronologicalList);
     }
@@ -181,11 +209,37 @@ internal sealed class LootHistoryView : UserControl
                 _spotIcons.Get(profile.IconFileName),
                 _icons)
             {
-                Margin = new Padding(0, 0, 0, 11)
+                Margin = new Padding(0, 0, 11, 11)
             };
+            card.Selected += (_, _) => ShowSpotDetails(profile.SpotId);
             _spotList.Controls.Add(card);
         }
-        FitChildren(_spotList);
+        FitSpotCards();
+    }
+
+    private void RebuildSpotDetails()
+    {
+        DisposeChildren(_spotDetailList);
+        if (_selectedSpotId is null)
+            return;
+
+        var profile = LootSpotPresentationCatalog.GetRequired(_selectedSpotId);
+        var sessions = _entries
+            .Where(entry => string.Equals(entry.SpotId, profile.SpotId, StringComparison.Ordinal))
+            .OrderByDescending(static entry => entry.UpdatedAt)
+            .ToArray();
+        var details = new SpotHistoryDetailView(
+            profile,
+            sessions,
+            _backgrounds.Get(profile.BackgroundFileName),
+            _spotIcons.Get(profile.IconFileName),
+            _icons)
+        {
+            Margin = new Padding(0, 0, 0, 11)
+        };
+        details.BackRequested += (_, _) => BeginInvoke(new Action(ShowSpotOverview));
+        _spotDetailList.Controls.Add(details);
+        FitChildren(_spotDetailList);
     }
 
     private void RebuildChronologicalList()
@@ -234,6 +288,18 @@ internal sealed class LootHistoryView : UserControl
         AccessibleName = accessibleName
     };
 
+    private static FlowLayoutPanel CreateSpotList() => new()
+    {
+        Dock = DockStyle.Fill,
+        FlowDirection = FlowDirection.LeftToRight,
+        WrapContents = true,
+        AutoScroll = true,
+        BackColor = BdoTheme.Background,
+        Margin = Padding.Empty,
+        Padding = new Padding(0, 0, 7, 0),
+        AccessibleName = "Kompakte Grindspot-Auswahl im Loot-Verlauf"
+    };
+
     private static Button CreateModeButton(string text) => new()
     {
         Text = text,
@@ -263,6 +329,19 @@ internal sealed class LootHistoryView : UserControl
             control.Width = width;
     }
 
+    private void FitSpotCards()
+    {
+        if (_spotList.ClientSize.Width <= 0)
+            return;
+        var available = Math.Max(260, _spotList.ClientSize.Width - _spotList.Padding.Horizontal -
+            SystemInformation.VerticalScrollBarWidth - 2);
+        var columns = available >= 720 ? 2 : 1;
+        var gap = 11;
+        var width = Math.Max(260, (available - columns * gap) / columns);
+        foreach (Control control in _spotList.Controls)
+            control.Width = width;
+    }
+
     private static void DisposeChildren(Control parent)
     {
         var children = parent.Controls.Cast<Control>().ToArray();
@@ -274,8 +353,7 @@ internal sealed class LootHistoryView : UserControl
 
 internal sealed class SpotHistoryCard : Control
 {
-    private const int CollapsedLogicalHeight = 220;
-    private const int MaximumVisibleSessions = 8;
+    private const int CollapsedLogicalHeight = 154;
     private static readonly CultureInfo GermanCulture = CultureInfo.GetCultureInfo("de-DE");
     private readonly LootSpotPresentation _profile;
     private readonly IReadOnlyList<LootHistoryEntry> _sessions;
@@ -287,7 +365,6 @@ internal sealed class SpotHistoryCard : Control
     private Font? _valueFont;
     private Font? _traitFont;
     private Font? _bodyFont;
-    private bool _expanded;
 
     public SpotHistoryCard(
         LootSpotPresentation profile,
@@ -311,7 +388,7 @@ internal sealed class SpotHistoryCard : Control
         Cursor = Cursors.Hand;
         TabStop = true;
         AccessibleRole = AccessibleRole.PushButton;
-        AccessibleName = $"{LootSpotCatalog.GetRequired(profile.SpotId).DisplayName} aufklappen";
+        AccessibleName = $"{LootSpotCatalog.GetRequired(profile.SpotId).DisplayName}: Detailansicht öffnen";
         RecreateFonts();
         UpdateHeight();
         UpdateAccessibility();
@@ -319,20 +396,9 @@ internal sealed class SpotHistoryCard : Control
 
     internal LootSpotPresentation Profile => _profile;
 
-    internal bool IsExpanded => _expanded;
-
     internal int SessionCount => _sessions.Count;
 
-    internal void SetExpanded(bool expanded)
-    {
-        if (_expanded == expanded)
-            return;
-        _expanded = expanded;
-        UpdateHeight();
-        UpdateAccessibility();
-        Invalidate();
-        Parent?.PerformLayout();
-    }
+    public event EventHandler? Selected;
 
     protected override void OnPaint(PaintEventArgs e)
     {
@@ -362,8 +428,6 @@ internal sealed class SpotHistoryCard : Control
         e.Graphics.Restore(state);
 
         DrawHeader(e.Graphics, headerBounds);
-        if (_expanded)
-            DrawSessions(e.Graphics, collapsedHeight);
         using var border = new Pen(Focused ? BdoTheme.Gold : Color.FromArgb(101, 94, 78),
             Math.Max(1f, DeviceDpi / 96f));
         e.Graphics.DrawPath(border, cardPath);
@@ -375,7 +439,7 @@ internal sealed class SpotHistoryCard : Control
         if (e.Button == MouseButtons.Left && ClientRectangle.Contains(e.Location))
         {
             Focus();
-            SetExpanded(!_expanded);
+            Selected?.Invoke(this, EventArgs.Empty);
         }
     }
 
@@ -384,7 +448,7 @@ internal sealed class SpotHistoryCard : Control
         base.OnKeyDown(e);
         if (e.KeyCode is Keys.Enter or Keys.Space)
         {
-            SetExpanded(!_expanded);
+            Selected?.Invoke(this, EventArgs.Empty);
             e.Handled = true;
             e.SuppressKeyPress = true;
         }
@@ -418,14 +482,14 @@ internal sealed class SpotHistoryCard : Control
 
     private void DrawHeader(Graphics graphics, Rectangle bounds)
     {
-        var padding = ScaleLogical(18);
+        var padding = ScaleLogical(14);
         var titleHeight = ScaleLogical(28);
         var chevronWidth = ScaleLogical(24);
-        var countWidth = ScaleLogical(74);
+        var countWidth = ScaleLogical(70);
         var spot = LootSpotCatalog.GetRequired(_profile.SpotId);
 
-        var titleBand = new Rectangle(ScaleLogical(9), ScaleLogical(7),
-            Math.Max(1, bounds.Width - ScaleLogical(18)), ScaleLogical(51));
+        var titleBand = new Rectangle(ScaleLogical(7), ScaleLogical(6),
+            Math.Max(1, bounds.Width - ScaleLogical(14)), ScaleLogical(51));
         using (var titlePath = BdoTheme.CreateRoundedRectangle(titleBand, ScaleLogical(7)))
         using (var titleFill = new SolidBrush(Color.FromArgb(178, 10, 12, 14)))
         using (var titleBorder = new Pen(Color.FromArgb(86, 229, 194, 124)))
@@ -434,15 +498,15 @@ internal sealed class SpotHistoryCard : Control
             graphics.DrawPath(titleBorder, titlePath);
         }
 
-        var spotIconSize = ScaleLogical(48);
-        var spotIconBounds = new Rectangle(padding, ScaleLogical(8), spotIconSize, spotIconSize);
+        var spotIconSize = ScaleLogical(44);
+        var spotIconBounds = new Rectangle(padding, ScaleLogical(9), spotIconSize, spotIconSize);
         if (_spotIcon is not null)
             graphics.DrawImage(_spotIcon, spotIconBounds);
         else
             DrawIconFallback(graphics, spotIconBounds, "?");
 
-        var titleX = spotIconBounds.Right + ScaleLogical(9);
-        var titleBounds = new Rectangle(titleX, ScaleLogical(17),
+        var titleX = spotIconBounds.Right + ScaleLogical(8);
+        var titleBounds = new Rectangle(titleX, ScaleLogical(16),
             Math.Max(80, bounds.Width - titleX - padding - countWidth - chevronWidth), titleHeight);
         TextRenderer.DrawText(graphics, spot.DisplayName, _titleFont,
             new Rectangle(titleBounds.X + ScaleLogical(1), titleBounds.Y + ScaleLogical(2),
@@ -456,59 +520,59 @@ internal sealed class SpotHistoryCard : Control
             TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
 
         var totalHours = _sessions.Sum(static session => session.Duration.TotalHours);
-        var countText = totalHours > 0 ? $"{totalHours:0.#} Std." : "0 Std.";
+        var countText = $"{totalHours:0.#}h · {_sessions.Count:N0}×";
         TextRenderer.DrawText(graphics, countText, _bodyFont,
             new Rectangle(bounds.Right - padding - countWidth - chevronWidth,
-                ScaleLogical(19), countWidth, titleHeight),
+                ScaleLogical(18), countWidth, titleHeight),
             Color.FromArgb(202, 205, 205),
             TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
-        TextRenderer.DrawText(graphics, _expanded ? "⌃" : "⌄", _titleFont,
-            new Rectangle(bounds.Right - padding - chevronWidth, ScaleLogical(17),
+        TextRenderer.DrawText(graphics, "›", _titleFont,
+            new Rectangle(bounds.Right - padding - chevronWidth, ScaleLogical(16),
                 chevronWidth, titleHeight),
             BdoTheme.GoldBright,
             TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
 
         DrawTrash(graphics, bounds);
-        DrawStat(graphics, padding, ScaleLogical(86), ScaleLogical(132),
-            "RECOMMENDED AP", _profile.RecommendedAp.ToString(CultureInfo.InvariantCulture) + "+",
+        DrawStat(graphics, padding, ScaleLogical(68), ScaleLogical(68),
+            "REC. AP", _profile.RecommendedAp.ToString(CultureInfo.InvariantCulture) + "+",
             Color.FromArgb(231, 160, 95));
-        DrawStat(graphics, padding + ScaleLogical(142), ScaleLogical(86), ScaleLogical(132),
-            "MAX AP LIMIT", _profile.MaxApLimit.ToString(CultureInfo.InvariantCulture),
+        DrawStat(graphics, padding + ScaleLogical(72), ScaleLogical(68), ScaleLogical(68),
+            "MAX AP", _profile.MaxApLimit.ToString(CultureInfo.InvariantCulture),
             Color.FromArgb(240, 200, 111));
-        DrawStat(graphics, padding + ScaleLogical(284), ScaleLogical(86), ScaleLogical(132),
-            "RECOMMENDED DP", _profile.RecommendedDp.ToString(CultureInfo.InvariantCulture) + "+",
+        DrawStat(graphics, padding + ScaleLogical(144), ScaleLogical(68), ScaleLogical(68),
+            "REC. DP", _profile.RecommendedDp.ToString(CultureInfo.InvariantCulture) + "+",
             Color.FromArgb(131, 209, 153));
-        DrawTraits(graphics, padding, ScaleLogical(157), bounds.Width - padding * 2);
+        DrawCompactTraits(graphics, padding, ScaleLogical(126), bounds.Width - padding * 2);
     }
 
     private void DrawTrash(Graphics graphics, Rectangle bounds)
     {
-        var width = ScaleLogical(254);
-        var height = ScaleLogical(55);
-        var right = ScaleLogical(18);
-        var box = new Rectangle(bounds.Right - right - width, ScaleLogical(55), width, height);
+        var width = ScaleLogical(154);
+        var height = ScaleLogical(49);
+        var right = ScaleLogical(14);
+        var box = new Rectangle(bounds.Right - right - width, ScaleLogical(65), width, height);
         using var path = BdoTheme.CreateRoundedRectangle(box, ScaleLogical(6));
         using var fill = new SolidBrush(Color.FromArgb(224, 18, 21, 22));
         using var border = new Pen(Color.FromArgb(118, 217, 186, 121));
         graphics.FillPath(fill, path);
         graphics.DrawPath(border, path);
-        var iconBounds = new Rectangle(box.X + ScaleLogical(8), box.Y + ScaleLogical(7),
-            ScaleLogical(40), ScaleLogical(40));
+        var iconBounds = new Rectangle(box.X + ScaleLogical(7), box.Y + ScaleLogical(7),
+            ScaleLogical(35), ScaleLogical(35));
         var trashIcon = _icons.GetIcon(_profile.TrashItemName);
         if (trashIcon is not null)
             graphics.DrawImage(trashIcon, iconBounds);
         else
             DrawIconFallback(graphics, iconBounds, "TL");
         TextRenderer.DrawText(graphics, _profile.TrashItemName, _captionFont,
-            new Rectangle(iconBounds.Right + ScaleLogical(8), box.Y + ScaleLogical(6),
-                box.Right - iconBounds.Right - ScaleLogical(14), ScaleLogical(20)),
+            new Rectangle(iconBounds.Right + ScaleLogical(7), box.Y + ScaleLogical(4),
+                box.Right - iconBounds.Right - ScaleLogical(11), ScaleLogical(18)),
             Color.FromArgb(200, 203, 201),
             TextFormatFlags.Left | TextFormatFlags.VerticalCenter |
             TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
         TextRenderer.DrawText(graphics,
             $"{_profile.TrashSilver.ToString("N0", GermanCulture)} Silber", _valueFont,
-            new Rectangle(iconBounds.Right + ScaleLogical(8), box.Y + ScaleLogical(25),
-                box.Right - iconBounds.Right - ScaleLogical(14), ScaleLogical(24)),
+            new Rectangle(iconBounds.Right + ScaleLogical(7), box.Y + ScaleLogical(21),
+                box.Right - iconBounds.Right - ScaleLogical(11), ScaleLogical(23)),
             BdoTheme.GoldBright,
             TextFormatFlags.Left | TextFormatFlags.VerticalCenter |
             TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
@@ -526,170 +590,57 @@ internal sealed class SpotHistoryCard : Control
             TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
     }
 
-    private void DrawTraits(Graphics graphics, int startX, int startY, int availableWidth)
+    private void DrawCompactTraits(Graphics graphics, int startX, int startY, int availableWidth)
     {
         var x = startX;
-        var y = startY;
-        var height = ScaleLogical(23);
-        foreach (var trait in _profile.Traits)
+        var height = ScaleLogical(20);
+        var hidden = 0;
+        for (var index = 0; index < _profile.Traits.Count; index++)
         {
+            var trait = _profile.Traits[index];
             var textSize = TextRenderer.MeasureText(graphics, trait, _traitFont,
                 Size.Empty, TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
-            var width = textSize.Width + ScaleLogical(14);
-            if (x > startX && x + width > startX + availableWidth)
+            var width = textSize.Width + ScaleLogical(12);
+            if (x + width > startX + availableWidth - ScaleLogical(30))
             {
-                x = startX;
-                y += height + ScaleLogical(4);
+                hidden = _profile.Traits.Count - index;
+                break;
             }
-            var bounds = new Rectangle(x, y, width, height);
+            var chip = new Rectangle(x, startY, width, height);
             var (foreground, background) = ResolveTraitColors(trait);
-            using var path = BdoTheme.CreateRoundedRectangle(bounds, height / 2);
+            using var path = BdoTheme.CreateRoundedRectangle(chip, height / 2);
             using var fill = new SolidBrush(background);
             graphics.FillPath(fill, path);
-            TextRenderer.DrawText(graphics, trait, _traitFont, bounds, foreground,
+            TextRenderer.DrawText(graphics, trait, _traitFont, chip, foreground,
                 TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter |
                 TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
-            x += width + ScaleLogical(5);
+            x += width + ScaleLogical(4);
         }
-    }
-
-    private void DrawSessions(Graphics graphics, int startY)
-    {
-        using var separator = new Pen(Color.FromArgb(64, 71, 73));
-        graphics.DrawLine(separator, ScaleLogical(18), startY,
-            Width - ScaleLogical(18), startY);
-        TextRenderer.DrawText(graphics, "LETZTE GETRACKTE STUNDEN", _captionFont,
-            new Rectangle(ScaleLogical(18), startY + ScaleLogical(9),
-                Width - ScaleLogical(36), ScaleLogical(22)),
-            BdoTheme.TextMuted,
-            TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
-
-        var displayed = _sessions.Take(MaximumVisibleSessions).ToArray();
-        if (displayed.Length == 0)
+        if (hidden > 0)
         {
-            TextRenderer.DrawText(graphics, "Noch keine Stunde an diesem Spot gespeichert.", _bodyFont,
-                new Rectangle(ScaleLogical(18), startY + ScaleLogical(34),
-                    Width - ScaleLogical(36), ScaleLogical(44)),
-                BdoTheme.TextMuted,
-                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
-            return;
-        }
-
-        var y = startY + ScaleLogical(34);
-        foreach (var session in displayed)
-        {
-            graphics.DrawLine(separator, ScaleLogical(18), y,
-                Width - ScaleLogical(18), y);
-            DrawSessionRow(graphics, session, y + ScaleLogical(2));
-            y += ScaleLogical(48);
-        }
-        if (_sessions.Count > displayed.Length)
-        {
-            TextRenderer.DrawText(graphics,
-                $"+ {_sessions.Count - displayed.Length:N0} weitere in der chronologischen Ansicht",
-                _captionFont,
-                new Rectangle(ScaleLogical(18), y, Width - ScaleLogical(36), ScaleLogical(24)),
-                BdoTheme.TextMuted,
-                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
-        }
-    }
-
-    private void DrawSessionRow(Graphics graphics, LootHistoryEntry session, int y)
-    {
-        var padding = ScaleLogical(18);
-        var dateWidth = ScaleLogical(126);
-        var durationWidth = ScaleLogical(86);
-        var silverWidth = ScaleLogical(150);
-        var silverX = Math.Max(padding + dateWidth + durationWidth + ScaleLogical(88),
-            Width - padding - silverWidth);
-        TextRenderer.DrawText(graphics, session.UpdatedAt.ToLocalTime().ToString("dd.MM.yy · HH:mm", GermanCulture),
-            _bodyFont, new Rectangle(padding, y, dateWidth, ScaleLogical(42)),
-            Color.FromArgb(196, 201, 202), TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
-        TextRenderer.DrawText(graphics, FormatDuration(session.Duration),
-            _bodyFont, new Rectangle(padding + dateWidth + ScaleLogical(8), y, durationWidth, ScaleLogical(42)),
-            BdoTheme.Text, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
-
-        var lootX = padding + dateWidth + durationWidth + ScaleLogical(16);
-        DrawSessionLoot(graphics, session,
-            new Rectangle(lootX, y + ScaleLogical(4), Math.Max(1, silverX - lootX - ScaleLogical(8)), ScaleLogical(34)));
-        TextRenderer.DrawText(graphics, FormatSilver(session.SilverAfterTax),
-            _valueFont, new Rectangle(silverX, y, silverWidth, ScaleLogical(42)),
-            BdoTheme.GoldBright, TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
-    }
-
-    private void DrawSessionLoot(Graphics graphics, LootHistoryEntry session, Rectangle bounds)
-    {
-        var chipWidth = ScaleLogical(82);
-        var gap = ScaleLogical(5);
-        var maximum = Math.Clamp((bounds.Width + gap) / (chipWidth + gap), 1, 5);
-        var items = session.Totals
-            .Where(static pair => pair.Value > 0)
-            .OrderByDescending(static pair => pair.Value)
-            .ThenBy(static pair => pair.Key, StringComparer.CurrentCultureIgnoreCase)
-            .Take(maximum)
-            .ToArray();
-
-        var x = bounds.X;
-        foreach (var item in items)
-        {
-            var chip = new Rectangle(x, bounds.Y, Math.Min(chipWidth, bounds.Right - x), bounds.Height);
-            if (chip.Width < ScaleLogical(40))
-                break;
-            using var path = BdoTheme.CreateRoundedRectangle(chip, ScaleLogical(5));
-            using var fill = new SolidBrush(Color.FromArgb(174, 20, 23, 25));
-            using var border = new Pen(Color.FromArgb(64, 185, 171, 139));
-            graphics.FillPath(fill, path);
-            graphics.DrawPath(border, path);
-
-            var iconSize = ScaleLogical(28);
-            var iconBounds = new Rectangle(chip.X + ScaleLogical(3),
-                chip.Y + (chip.Height - iconSize) / 2, iconSize, iconSize);
-            var icon = _icons.GetIcon(item.Key);
-            if (icon is not null)
-                graphics.DrawImage(icon, iconBounds);
-            else
-                DrawIconFallback(graphics, iconBounds, "?");
-            TextRenderer.DrawText(graphics, "×" + FormatQuantity(item.Value), _traitFont,
-                new Rectangle(iconBounds.Right + ScaleLogical(3), chip.Y,
-                    Math.Max(1, chip.Right - iconBounds.Right - ScaleLogical(5)), chip.Height),
-                Color.FromArgb(244, 226, 184),
-                TextFormatFlags.Left | TextFormatFlags.VerticalCenter |
-                TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
-            x += chipWidth + gap;
+            TextRenderer.DrawText(graphics, $"+{hidden}", _traitFont,
+                new Rectangle(x, startY, ScaleLogical(28), height), BdoTheme.TextMuted,
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
         }
     }
 
     private void UpdateHeight()
     {
         var collapsed = ScaleLogical(CollapsedLogicalHeight);
-        if (!_expanded)
-        {
-            MinimumSize = new Size(ScaleLogical(500), collapsed);
-            Height = collapsed;
-            return;
-        }
-
-        var visibleCount = Math.Min(_sessions.Count, MaximumVisibleSessions);
-        var detailHeight = _sessions.Count == 0
-            ? ScaleLogical(84)
-            : ScaleLogical(38 + visibleCount * 48 + (_sessions.Count > visibleCount ? 28 : 8));
-        var expanded = collapsed + detailHeight;
-        MinimumSize = new Size(ScaleLogical(500), expanded);
-        Height = expanded;
+        MinimumSize = new Size(ScaleLogical(260), collapsed);
+        Height = collapsed;
     }
 
     private void UpdateAccessibility()
     {
-        AccessibleDescription = _expanded
-            ? $"Ausgeklappt. {_sessions.Count:N0} gespeicherte Stunden."
-            : $"Eingeklappt. {_sessions.Count:N0} gespeicherte Stunden.";
+        AccessibleDescription = $"{_sessions.Count:N0} gespeicherte Stunden. Öffnet die maximierte Detailansicht.";
     }
 
     private void RecreateFonts()
     {
         DisposeFonts();
         var scale = DeviceDpi / 96f;
-        _titleFont = new Font("Georgia", 15f * scale, FontStyle.Bold, GraphicsUnit.Point);
+        _titleFont = new Font("Georgia", 13.5f * scale, FontStyle.Bold, GraphicsUnit.Point);
         _captionFont = new Font("Segoe UI Semibold", 7.5f * scale, FontStyle.Bold, GraphicsUnit.Point);
         _valueFont = new Font("Segoe UI Semibold", 10f * scale, FontStyle.Bold, GraphicsUnit.Point);
         _traitFont = new Font("Segoe UI Semibold", 8f * scale, FontStyle.Bold, GraphicsUnit.Point);

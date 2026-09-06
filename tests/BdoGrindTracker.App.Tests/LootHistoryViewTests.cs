@@ -41,7 +41,7 @@ public sealed class LootHistoryViewTests
     }
 
     [Fact]
-    public void ViewUsesFullWidthExpandableSpotCardsAndChronologicalDetails()
+    public void ViewUsesCompactSpotCardsAndAMaximizedGarmothStyleDetailView()
     {
         RunInSta(() =>
         {
@@ -60,18 +60,29 @@ public sealed class LootHistoryViewTests
             Assert.Empty(FindDescendants<DataGridView>(view));
 
             var cards = FindDescendants<SpotHistoryCard>(view);
-            Assert.All(cards, card => Assert.True(card.Width >= view.ClientSize.Width * 0.85,
-                $"Spot card is not full width: {card.Width} within {view.ClientSize.Width}."));
+            Assert.All(cards, card =>
+            {
+                Assert.InRange(card.Width, (int)(view.ClientSize.Width * 0.35),
+                    (int)(view.ClientSize.Width * 0.55));
+                Assert.InRange(card.Height, 130, 180);
+            });
             var aphrodon = Assert.Single(cards,
                 card => card.Profile.SpotId == LootSpotCatalog.AphrodonId);
-            var collapsedHeight = aphrodon.Height;
             Assert.Equal(1, aphrodon.SessionCount);
-            aphrodon.SetExpanded(true);
-            Assert.True(aphrodon.Height > collapsedHeight);
-            Assert.True(aphrodon.IsExpanded);
-            aphrodon.SetExpanded(false);
-            Assert.Equal(collapsedHeight, aphrodon.Height);
-            Assert.False(aphrodon.IsExpanded);
+
+            view.ShowSpotDetails(LootSpotCatalog.AphrodonId);
+            LayoutRecursively(view);
+            Assert.True(view.ShowsSpotDetails);
+            Assert.Equal(LootSpotCatalog.AphrodonId, view.SelectedSpotId);
+            var details = Assert.Single(FindDescendants<SpotHistoryDetailView>(view));
+            Assert.True(details.Width >= view.ClientSize.Width * 0.85);
+            Assert.Single(details.Sessions);
+            Assert.Equal(1_310_000_000m, details.Metrics.TotalSilver);
+
+            view.ShowSpotOverview();
+            LayoutRecursively(view);
+            Assert.False(view.ShowsSpotDetails);
+            Assert.Null(view.SelectedSpotId);
 
             view.ShowChronological();
             Assert.False(view.ShowsSpots);
@@ -86,6 +97,8 @@ public sealed class LootHistoryViewTests
             Assert.False(first.IsExpanded);
 
             view.ShowSpots();
+            view.ShowSpotDetails(LootSpotCatalog.AphrodonId);
+            LayoutRecursively(view);
             using var bitmap = new Bitmap(view.Width, view.Height);
             view.DrawToBitmap(bitmap, new Rectangle(Point.Empty, bitmap.Size));
             Assert.NotEqual(BdoTheme.Background.ToArgb(), bitmap.GetPixel(30, 150).ToArgb());
@@ -110,6 +123,43 @@ public sealed class LootHistoryViewTests
         Assert.Equal(expected, SpotHistoryCard.FormatQuantity(quantity));
     }
 
+    [Fact]
+    public void SpotMetricsUseWeightedRecentAndBestFiveGrindingHours()
+    {
+        var profile = LootSpotPresentationCatalog.GetRequired(LootSpotCatalog.AphrodonId);
+        var now = new DateTimeOffset(2026, 9, 6, 20, 0, 0, TimeSpan.FromHours(2));
+        var sessions = new[]
+        {
+            CreateEntry(profile.SpotId, profile.TrashItemName, 40_000, now,
+                TimeSpan.FromHours(2), 4_000_000_000m),
+            CreateEntry(profile.SpotId, profile.TrashItemName, 40_000, now.AddDays(-1),
+                TimeSpan.FromHours(4), 4_000_000_000m),
+            CreateEntry(profile.SpotId, profile.TrashItemName, 60_000, now.AddDays(-2),
+                TimeSpan.FromHours(2), 6_000_000_000m)
+        };
+
+        var metrics = SpotHistoryDetailView.CalculateMetrics(profile, sessions);
+
+        Assert.Equal(8m, metrics.TotalHours);
+        Assert.Equal(14_000_000_000m, metrics.TotalSilver);
+        Assert.Equal(1_750_000_000m, metrics.AverageSilverPerHour);
+        Assert.Equal(17_500m, metrics.TrashPerHour);
+        Assert.Equal(14_000m, metrics.RecentFiveHourTrashPerHour);
+        Assert.Equal(22_000m, metrics.BestFiveHourTrashPerHour);
+    }
+
+    [Theory]
+    [InlineData(0, 0, 30, "gerade eben")]
+    [InlineData(0, 45, 0, "vor 45 Min.")]
+    [InlineData(5, 0, 0, "vor 5 Std.")]
+    [InlineData(336, 0, 0, "vor 14 Tagen")]
+    public void TimeAgoFormattingIsCompactAndGerman(int hours, int minutes, int seconds, string expected)
+    {
+        var now = new DateTimeOffset(2026, 9, 6, 20, 0, 0, TimeSpan.FromHours(2));
+        var timestamp = now - TimeSpan.FromHours(hours) - TimeSpan.FromMinutes(minutes) - TimeSpan.FromSeconds(seconds);
+        Assert.Equal(expected, SpotHistoryDetailView.FormatTimeAgo(timestamp, now));
+    }
+
     private static void AssertProfile(LootSpotPresentation profile, string spotId,
         int recommendedAp, int maxAp, int recommendedDp, string trashName, long trashSilver,
         string distinctiveTrait)
@@ -124,13 +174,13 @@ public sealed class LootHistoryViewTests
     }
 
     private static LootHistoryEntry CreateEntry(string spotId, string trashName, long trash,
-        DateTimeOffset updatedAt) =>
+        DateTimeOffset updatedAt, TimeSpan? duration = null, decimal silver = 1_310_000_000m) =>
         new()
         {
             SessionId = Guid.NewGuid(),
-            StartedAt = updatedAt.AddHours(-1),
+            StartedAt = updatedAt - (duration ?? TimeSpan.FromHours(1)),
             UpdatedAt = updatedAt,
-            Duration = TimeSpan.FromHours(1),
+            Duration = duration ?? TimeSpan.FromHours(1),
             SpotId = spotId,
             CharacterClass = "Maegu · Awakening",
             Totals = new Dictionary<string, long>
@@ -138,8 +188,8 @@ public sealed class LootHistoryViewTests
                 [trashName] = trash,
                 ["Caphras Stone"] = 124
             },
-            SilverBeforeTax = 1_310_000_000,
-            SilverAfterTax = 1_310_000_000,
+            SilverBeforeTax = silver,
+            SilverAfterTax = silver,
             SilverIsComplete = true
         };
 
