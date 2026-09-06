@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/BdoGrindTracker.App/BdoGrindTracker.App.csproj" />
+    <Project Path="src/BdoGrindTracker.Core/BdoGrindTracker.Core.csproj" />
+    <Project Path="src/BdoGrindTracker.Ocr/BdoGrindTracker.Ocr.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/BdoGrindTracker.App.Tests/BdoGrindTracker.App.Tests.csproj" />
+    <Project Path="tests/BdoGrindTracker.Core.Tests/BdoGrindTracker.Core.Tests.csproj" />
+    <Project Path="tests/BdoGrindTracker.Ocr.Tests/BdoGrindTracker.Ocr.Tests.csproj" />
+  </Folder>
+</Solution>

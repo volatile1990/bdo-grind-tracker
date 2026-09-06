@@ -1,0 +1,447 @@
+{
+  "schemaVersion": 1,
+  "generatedAtUtc": "2026-09-02T18:09:05.4827749+00:00",
+  "updatedAtUtc": "2026-09-05T13:21:47.8999024+00:00",
+  "items": [
+    {
+      "itemId": "12298",
+      "name": "Apeiron Belt",
+      "file": "apeiron-belt.png",
+      "page": "https://bdocodex.com/us/item/12298/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/06_pc_equipitem/00_common/18_belt/00012298_1.webp",
+      "sha256": "18654652afcd53498055ef84b2b5942702bf8dadaef446429cd829be0c166fe5",
+      "width": 44,
+      "height": 44,
+      "addedAtUtc": "2026-09-05T13:21:47.8999024+00:00"
+    },
+    {
+      "itemId": "980127",
+      "name": "Branch of Abundance",
+      "file": "branch-of-abundance.png",
+      "page": "https://bdocodex.com/us/item/980127/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/04_dropitem/00980127.webp",
+      "sha256": "1515fe8cfc96fdf177179c7eeb1c38278b785c5c8473f5ee68806e4cbb514ede",
+      "width": 44,
+      "height": 44,
+      "addedAtUtc": "2026-09-05T13:21:47.8999024+00:00"
+    },
+    {
+      "itemId": "980141",
+      "name": "Broken Vestige of Everlight",
+      "file": "broken-vestige-of-everlight.png",
+      "page": "https://bdocodex.com/us/item/980141/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/00980141.webp",
+      "sha256": "dd0c399d88b2c9b647e1edf3140079f6b90113bc5d437b03275f2b5c6fa1a104",
+      "width": 44,
+      "height": 44,
+      "addedAtUtc": "2026-09-05T13:21:47.8999024+00:00"
+    },
+    {
+      "itemId": "980139",
+      "name": "Broken Vestige of Goldroot",
+      "file": "broken-vestige-of-goldroot.png",
+      "page": "https://bdocodex.com/us/item/980139/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/00980139.webp",
+      "sha256": "012019b37c3d750e4621e7011cd6ebdc5dd8460af99b0dd85b878def953dd9b9",
+      "width": 44,
+      "height": 44,
+      "addedAtUtc": "2026-09-05T13:21:47.8999024+00:00"
+    },
+    {
+      "itemId": "821341",
+      "name": "Crimson Primordial Luster - Sovereign",
+      "file": "crimson-primordial-luster-sovereign.png",
+      "page": "https://bdocodex.com/us/item/821341/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/07_productmaterial/00821341.webp",
+      "sha256": "1ad784915dbb19e0dec084b1fde8292e9c41bcf28b30ebe68aea9ad61643d4e8",
+      "width": 44,
+      "height": 44,
+      "addedAtUtc": "2026-09-05T13:21:47.8999024+00:00"
+    },
+    {
+      "itemId": "767293",
+      "name": "Crimson Primordial Pigment - Sovereign",
+      "file": "crimson-primordial-pigment-sovereign.png",
+      "page": "https://bdocodex.com/us/item/767293/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/00767293.webp",
+      "sha256": "ef2fde23b3455ccdf4b290e406f77f4d0b2d5c45d936e68e4f1543809fb30faf",
+      "width": 44,
+      "height": 44,
+      "addedAtUtc": "2026-09-05T13:21:47.8999024+00:00"
+    },
+    {
+      "itemId": "980129",
+      "name": "Elion Follower's Helmet",
+      "file": "elion-followers-helmet.png",
+      "page": "https://bdocodex.com/us/item/980129/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/04_dropitem/00980129.webp",
+      "sha256": "e42689d01ba7beee21720435128313f54e61a92f66fbbf7218bce05132df5a3c",
+      "width": 44,
+      "height": 44,
+      "addedAtUtc": "2026-09-05T13:21:47.8999024+00:00"
+    },
+    {
+      "itemId": "821462",
+      "name": "Embers of Ynix - Armor",
+      "file": "embers-of-ynix-armor.png",
+      "page": "https://bdocodex.com/us/item/821462/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/07_productmaterial/00821462.webp",
+      "sha256": "ac6e0fcf875e14023bd7eae93d691be5173d3490085b96ab64d9187dcc1c5823",
+      "width": 44,
+      "height": 44,
+      "addedAtUtc": "2026-09-05T13:21:47.8999024+00:00"
+    },
+    {
+      "itemId": "821464",
+      "name": "Embers of Ynix - Shoes",
+      "file": "embers-of-ynix-shoes.png",
+      "page": "https://bdocodex.com/us/item/821464/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/07_productmaterial/00821464.webp",
+      "sha256": "58cfbfb9ed7f6dca6185c0b6f98f514718e7cb37ec6f594bb01cc0c212a1664f",
+      "width": 44,
+      "height": 44,
+      "addedAtUtc": "2026-09-05T13:21:47.8999024+00:00"
+    },
+    {
+      "itemId": "821432",
+      "name": "JIN Origin Shard",
+      "file": "jin-origin-shard.png",
+      "page": "https://bdocodex.com/us/item/821432/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/07_productmaterial/00821432.webp",
+      "sha256": "417ad877cf5d29591c843b257afa6a01d61a2f3fdcab771606d56a124a44056e",
+      "width": 44,
+      "height": 44,
+      "addedAtUtc": "2026-09-05T13:21:47.8999024+00:00"
+    },
+    {
+      "itemId": "15296",
+      "name": "JIN Wandering Origin Crystal",
+      "file": "jin-wandering-origin-crystal.png",
+      "page": "https://bdocodex.com/us/item/15296/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/11_enchant_material/00015296_1.webp",
+      "sha256": "1197c2071886bc4b8ac86cb7ce41a034d88f23b47d1dc0cd248d58527b8bedbc",
+      "width": 44,
+      "height": 44,
+      "addedAtUtc": "2026-09-05T13:21:47.8999024+00:00"
+    },
+    {
+      "itemId": "767338",
+      "name": "Refined Essence of Devouring",
+      "file": "refined-essence-of-devouring.png",
+      "page": "https://bdocodex.com/us/item/767338/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/00767338.webp",
+      "sha256": "d2aca420876e6555b052e5d3e70107a63b09a2e154cc0555c7803b15840dc014",
+      "width": 44,
+      "height": 44,
+      "addedAtUtc": "2026-09-05T13:21:47.8999024+00:00"
+    },
+    {
+      "itemId": "767337",
+      "name": "Refined Origin of Hunger",
+      "file": "refined-origin-of-hunger.png",
+      "page": "https://bdocodex.com/us/item/767337/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/00767337.webp",
+      "sha256": "d666f272d75d496af2a3c3f5cd4889a0c2921a2ee4efec9931acb67530f15c92",
+      "width": 44,
+      "height": 44,
+      "addedAtUtc": "2026-09-05T13:21:47.8999024+00:00"
+    },
+    {
+      "itemId": "821424",
+      "name": "Twilight of the End - Belt",
+      "file": "twilight-of-the-end-belt.png",
+      "page": "https://bdocodex.com/us/item/821424/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/07_productmaterial/00821424.webp",
+      "sha256": "d2b85875e5db0bc1d742cf849d4a9ae5e6950d5e3e9806be4325578d6308d184",
+      "width": 44,
+      "height": 44,
+      "addedAtUtc": "2026-09-05T13:21:47.8999024+00:00"
+    },
+    {
+      "itemId": "821343",
+      "name": "Violet Primordial Luster - Edana",
+      "file": "violet-primordial-luster-edana.png",
+      "page": "https://bdocodex.com/us/item/821343/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/07_productmaterial/00821343.webp",
+      "sha256": "81a29a04d7a0cd26f35935b6d60187407d0dfb790628876335cdd893d4673fe2",
+      "width": 44,
+      "height": 44,
+      "addedAtUtc": "2026-09-05T13:21:47.8999024+00:00"
+    },
+    {
+      "itemId": "821342",
+      "name": "Violet Primordial Luster - Sovereign",
+      "file": "violet-primordial-luster-sovereign.png",
+      "page": "https://bdocodex.com/us/item/821342/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/07_productmaterial/00821342.webp",
+      "sha256": "458ac52a48e9f6e5ea3b782b2c63ee4a91e176f47d8fd4753c6abafe4b585d9b",
+      "width": 44,
+      "height": 44,
+      "addedAtUtc": "2026-09-05T13:21:47.8999024+00:00"
+    },
+    {
+      "itemId": "767296",
+      "name": "Violet Primordial Pigment - Edana",
+      "file": "violet-primordial-pigment-edana.png",
+      "page": "https://bdocodex.com/us/item/767296/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/00767296.webp",
+      "sha256": "25afdc176e1ad850d2294d9b7cc1bd2869a475ce935ec937f98b11284195b751",
+      "width": 44,
+      "height": 44,
+      "addedAtUtc": "2026-09-05T13:21:47.8999024+00:00"
+    },
+    {
+      "itemId": "767294",
+      "name": "Violet Primordial Pigment - Sovereign",
+      "file": "violet-primordial-pigment-sovereign.png",
+      "page": "https://bdocodex.com/us/item/767294/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/00767294.webp",
+      "sha256": "ea4dba42fbe11cc9c77c78acff0dbb54b0d81bf5a65c62d39089ad86d736d836",
+      "width": 44,
+      "height": 44,
+      "addedAtUtc": "2026-09-05T13:21:47.8999024+00:00"
+    },
+    {
+      "itemId": "821430",
+      "name": "WON Origin Shard",
+      "file": "won-origin-shard.png",
+      "page": "https://bdocodex.com/us/item/821430/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/07_productmaterial/00821430.webp",
+      "sha256": "8cf61f80fb4f818083fa1a9910beaabd0eec85e66df8ce175fef39b88136d2dd",
+      "width": 44,
+      "height": 44,
+      "addedAtUtc": "2026-09-05T13:21:47.8999024+00:00"
+    },
+    {
+      "itemId": "15294",
+      "name": "WON Wandering Origin Crystal",
+      "file": "won-wandering-origin-crystal.png",
+      "page": "https://bdocodex.com/us/item/15294/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/11_enchant_material/00015294_1.webp",
+      "sha256": "493d43ad718aa92a51837bb345d7de8a6eea758a8627bab4346dee4b5ab4008f",
+      "width": 44,
+      "height": 44,
+      "addedAtUtc": "2026-09-05T13:21:47.8999024+00:00"
+    },
+    {
+      "itemId": "1000508",
+      "name": "[Event] Mysterious Ore",
+      "file": "event-mysterious-ore.png",
+      "page": "https://bdocodex.com/us/item/1000508/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/00044342.webp",
+      "sha256": "acab7bba8daa25e97d49392b5fa07fbc55abcafd31e6e042cfed058d52d0f1ca",
+      "width": 44,
+      "height": 44
+    },
+    {
+      "itemId": "721002",
+      "name": "Ancient Spirit Dust",
+      "file": "ancient-spirit-dust.png",
+      "page": "https://bdocodex.com/us/item/721002/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/00721002.webp",
+      "sha256": "d3f849e922d536197a70780361b501498a7dbcf17e817ea6ba87d12e5919d5d4",
+      "width": 44,
+      "height": 44
+    },
+    {
+      "itemId": "11898",
+      "name": "Apeiron Earring",
+      "file": "apeiron-earring.png",
+      "page": "https://bdocodex.com/us/item/11898/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/06_pc_equipitem/00_common/17_earring/00011898_1.webp",
+      "sha256": "2889e8158d7620a866772ea676f03fa66a86aa6e7f50c010456401ffce41b02c",
+      "width": 44,
+      "height": 44
+    },
+    {
+      "itemId": "12144",
+      "name": "Apeiron Ring",
+      "file": "apeiron-ring.png",
+      "page": "https://bdocodex.com/us/item/12144/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/06_pc_equipitem/00_common/16_ring/00012144_1.webp",
+      "sha256": "476b47f957db3ec6794d0594de0cc6303cd6e7ace6683d1ac6d7c28ba5717dec",
+      "width": 44,
+      "height": 44
+    },
+    {
+      "itemId": "980128",
+      "name": "Black Crystal Fragment",
+      "file": "black-crystal-fragment.png",
+      "page": "https://bdocodex.com/us/item/980128/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/04_dropitem/00980128.webp",
+      "sha256": "ef6746baef6253df9ab6a014b8b2d813e82d3ed9e2f9eb46c1253d466c1e5fd6",
+      "width": 44,
+      "height": 44
+    },
+    {
+      "itemId": "4999",
+      "name": "Black Gem Fragment",
+      "file": "black-gem-fragment.png",
+      "page": "https://bdocodex.com/us/item/4999/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/07_productmaterial/00004999.webp",
+      "sha256": "0c055e4e60c6521bdbf610882d8ea283788e50a1e940c5ad54b5743aa844e649",
+      "width": 44,
+      "height": 44
+    },
+    {
+      "itemId": "16001",
+      "name": "Black Stone",
+      "file": "black-stone.png",
+      "page": "https://bdocodex.com/us/item/16001/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/11_enchant_material/00000008.webp",
+      "sha256": "ae6b82e336eeb420a16ab9895fe9ee33ecfbf9970891bfdf0951cae295df44ba",
+      "width": 44,
+      "height": 44
+    },
+    {
+      "itemId": "821431",
+      "name": "BON Origin Shard",
+      "file": "bon-origin-shard.png",
+      "page": "https://bdocodex.com/us/item/821431/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/07_productmaterial/00821431.webp",
+      "sha256": "9a7efad42f5f655ae65f637f7535cd756a7214fc89c692b2f53178c7eeb57ccf",
+      "width": 44,
+      "height": 44
+    },
+    {
+      "itemId": "15295",
+      "name": "BON Wandering Origin Crystal",
+      "file": "bon-wandering-origin-crystal.png",
+      "page": "https://bdocodex.com/us/item/15295/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/11_enchant_material/00015295_1.webp",
+      "sha256": "603743ba9e624109eaf7df6c4968af8a30f06bb1d0e6d278d6dffd0a1484be66",
+      "width": 44,
+      "height": 44
+    },
+    {
+      "itemId": "980140",
+      "name": "Broken Vestige of Ebonmere",
+      "file": "broken-vestige-of-ebonmere.png",
+      "page": "https://bdocodex.com/us/item/980140/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/00980140.webp",
+      "sha256": "b59f2f41678947e8da35b07a5e742abe1cff31eeae40ff5300dc7fd50b7671d4",
+      "width": 44,
+      "height": 44
+    },
+    {
+      "itemId": "721003",
+      "name": "Caphras Stone",
+      "file": "caphras-stone.png",
+      "page": "https://bdocodex.com/us/item/721003/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/00721003.webp",
+      "sha256": "ac5cd547192e7f679448e666a944b61f84e800939d44b3d6813fdbbcf09cb9ae",
+      "width": 44,
+      "height": 44
+    },
+    {
+      "itemId": "1178",
+      "name": "Corrupt Oil of Immortality",
+      "file": "corrupt-oil-of-immortality.png",
+      "page": "https://bdocodex.com/us/item/1178/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/07_productmaterial/00001178.webp",
+      "sha256": "34e3cdcb4a35e79348d665ed681355d2c6ace43b1344d9478c1db786b07bd132",
+      "width": 44,
+      "height": 44
+    },
+    {
+      "itemId": "821461",
+      "name": "Embers of Ynix - Helmet",
+      "file": "embers-of-ynix-helmet.png",
+      "page": "https://bdocodex.com/us/item/821461/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/07_productmaterial/00821461.webp",
+      "sha256": "3e8f0dd676355ac65f69f6c48a1257ee2d067f3af82bba98bf8bf46fcbdc5e94",
+      "width": 44,
+      "height": 44
+    },
+    {
+      "itemId": "821471",
+      "name": "Fusion Shard",
+      "file": "fusion-shard.png",
+      "page": "https://bdocodex.com/us/item/821471/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/07_productmaterial/00821471.webp",
+      "sha256": "5cd1db5241a8e174adf3caafdaf1178c2ac22bc0c3c1e6dbf6fe830f8571f895",
+      "width": 44,
+      "height": 44
+    },
+    {
+      "itemId": "54031",
+      "name": "Laila's Petal",
+      "file": "lailas-petal.png",
+      "page": "https://bdocodex.com/us/item/54031/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/09_petitem/00054031.webp",
+      "sha256": "99d41eb3843b73d5480ce5e3d575204634e0d2984ed53ebc01695022fea70e57",
+      "width": 44,
+      "height": 44
+    },
+    {
+      "itemId": "821460",
+      "name": "Nev's Fragment",
+      "file": "nevs-fragment.png",
+      "page": "https://bdocodex.com/us/item/821460/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/07_productmaterial/00821460.webp",
+      "sha256": "66ce43fc84bc3b966df234782bb5e74fafc3f8de2a33bd5574a8f4e73fa7d3f4",
+      "width": 44,
+      "height": 44
+    },
+    {
+      "itemId": "761803",
+      "name": "Silent Crystal of Origin",
+      "file": "silent-crystal-of-origin.png",
+      "page": "https://bdocodex.com/us/item/761803/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/00761803.webp",
+      "sha256": "d9660f48a5b18e79a44fc4e63efc449110b489bef6d8e27a37e6eda08759f467",
+      "width": 44,
+      "height": 44
+    },
+    {
+      "itemId": "821318",
+      "name": "Silent Fragment of Origin",
+      "file": "silent-fragment-of-origin.png",
+      "page": "https://bdocodex.com/us/item/821318/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/07_productmaterial/00821318.webp",
+      "sha256": "5294e7633c825e5abae635fc987960f80d76a4628f3d2bff5b3c5fa02e5eedcb",
+      "width": 44,
+      "height": 44
+    },
+    {
+      "itemId": "821459",
+      "name": "Sunset Primordial Luster - Edana",
+      "file": "sunset-primordial-luster-edana.png",
+      "page": "https://bdocodex.com/us/item/821459/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/07_productmaterial/00821459.webp",
+      "sha256": "c7be544d082c5ca9df0281d89b15c31a91bf21c94289a298f378dadb1d0bda96",
+      "width": 44,
+      "height": 44
+    },
+    {
+      "itemId": "767353",
+      "name": "Sunset Primordial Pigment - Edana",
+      "file": "sunset-primordial-pigment-edana.png",
+      "page": "https://bdocodex.com/us/item/767353/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/00767353.webp",
+      "sha256": "0bcf4929abbb9cacc28c6e272148c8af2268d3813548db99c6e2bc5a6923c3f7",
+      "width": 44,
+      "height": 44
+    },
+    {
+      "itemId": "821422",
+      "name": "Twilight of the End - Earring",
+      "file": "twilight-of-the-end-earring.png",
+      "page": "https://bdocodex.com/us/item/821422/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/07_productmaterial/00821422.webp",
+      "sha256": "542db835d88d29aa8af85b46768e3a565f2a5288ebb3c358e25b34cab3c364ec",
+      "width": 44,
+      "height": 44
+    },
+    {
+      "itemId": "821423",
+      "name": "Twilight of the End - Ring",
+      "file": "twilight-of-the-end-ring.png",
+      "page": "https://bdocodex.com/us/item/821423/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/07_productmaterial/00821423.webp",
+      "sha256": "d2f48d18065f7f12898d23679f4370a38e2c80f7726b593ea66f1da45e010b1d",
+      "width": 44,
+      "height": 44
+    }
+  ]
+}

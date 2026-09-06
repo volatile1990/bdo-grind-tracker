@@ -1,0 +1,171 @@
+using System.Drawing.Imaging;
+using System.Reflection;
+using System.Runtime.ExceptionServices;
+using BdoGrindTracker.App.UI;
+
+namespace BdoGrindTracker.App.Tests;
+
+public sealed class GarmothOptionsDialogTests
+{
+    [Fact]
+    public void KeyIsMaskedAndEditingDoesNotPublishIt()
+    {
+        RunInSta(() =>
+        {
+            using var dialog = new GarmothOptionsDialog("original-test-key");
+            var input = Get<TextBox>(dialog, "_apiKeyTextBox");
+
+            Assert.True(input.UseSystemPasswordChar);
+            Assert.Equal(4096, input.MaxLength);
+            input.Text = "replacement-test-key";
+
+            Assert.Equal("original-test-key", dialog.ApiKey);
+            Assert.Equal(DialogResult.None, dialog.DialogResult);
+            Assert.DoesNotContain("replacement-test-key", Get<Label>(dialog, "_statusLabel").Text);
+            Assert.False(dialog.Visible);
+        });
+    }
+
+    [Fact]
+    public void SavePublishesNormalizedKeyOnlyOnOk()
+    {
+        RunInSta(() =>
+        {
+            using var dialog = new GarmothOptionsDialog("original-test-key");
+            Get<TextBox>(dialog, "_apiKeyTextBox").Text = "  replacement-test-key  ";
+
+            Invoke(dialog, "SaveChanges");
+
+            Assert.Equal(DialogResult.OK, dialog.DialogResult);
+            Assert.Equal("replacement-test-key", dialog.ApiKey);
+        });
+    }
+
+    [Fact]
+    public void CancelDoesNotReplaceThePreviousKey()
+    {
+        RunInSta(() =>
+        {
+            using var dialog = new GarmothOptionsDialog("original-test-key");
+            Get<TextBox>(dialog, "_apiKeyTextBox").Text = "replacement-test-key";
+
+            Invoke(dialog, "CancelChanges");
+
+            Assert.Equal(DialogResult.Cancel, dialog.DialogResult);
+            Assert.Equal("original-test-key", dialog.ApiKey);
+        });
+    }
+
+    [Fact]
+    public void ForgetOnlyStagesRemovalUntilExplicitSave()
+    {
+        RunInSta(() =>
+        {
+            using var dialog = new GarmothOptionsDialog("original-test-key");
+
+            Invoke(dialog, "StageRemoval");
+
+            Assert.Empty(Get<TextBox>(dialog, "_apiKeyTextBox").Text);
+            Assert.Equal("original-test-key", dialog.ApiKey);
+            Assert.Contains("entfernt", Get<Label>(dialog, "_statusLabel").Text);
+            Invoke(dialog, "SaveChanges");
+            Assert.Equal(DialogResult.OK, dialog.DialogResult);
+            Assert.Empty(dialog.ApiKey);
+        });
+    }
+
+    [Fact]
+    public void CancelAfterForgetKeepsThePreviousKey()
+    {
+        RunInSta(() =>
+        {
+            using var dialog = new GarmothOptionsDialog("original-test-key");
+            Invoke(dialog, "StageRemoval");
+
+            Invoke(dialog, "CancelChanges");
+
+            Assert.Equal(DialogResult.Cancel, dialog.DialogResult);
+            Assert.Equal("original-test-key", dialog.ApiKey);
+        });
+    }
+
+    [Theory]
+    [InlineData("bad key")]
+    [InlineData("schlüssel")]
+    public void InvalidKeyCannotBeAppliedOrEchoedIntoStatus(string value)
+    {
+        RunInSta(() =>
+        {
+            using var dialog = new GarmothOptionsDialog("original-test-key");
+            Get<TextBox>(dialog, "_apiKeyTextBox").Text = value;
+
+            Invoke(dialog, "SaveChanges");
+
+            Assert.False(Get<BdoButton>(dialog, "_saveButton").Enabled);
+            Assert.Equal(DialogResult.None, dialog.DialogResult);
+            Assert.Equal("original-test-key", dialog.ApiKey);
+            Assert.DoesNotContain(value, Get<Label>(dialog, "_statusLabel").Text);
+        });
+    }
+
+    [Fact]
+    public void KeyDialogRendersOffscreenAndKeepsActionsInsideClientBounds()
+    {
+        RunInSta(() =>
+        {
+            using var dialog = new GarmothOptionsDialog();
+            dialog.Size = dialog.MinimumSize;
+            LayoutHandles(dialog);
+            foreach (var name in new[] { "_apiKeyTextBox", "_saveButton", "_cancelButton", "_forgetButton" })
+            {
+                var control = (Control)dialog.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(dialog)!;
+                Assert.True(dialog.ClientRectangle.Contains(BoundsInForm(control, dialog)), name);
+            }
+            using var bitmap = new Bitmap(dialog.Width, dialog.Height);
+            dialog.DrawToBitmap(bitmap, new Rectangle(Point.Empty, bitmap.Size));
+            var directory = Environment.GetEnvironmentVariable("BDO_UI_PREVIEW_DIR");
+            if (!string.IsNullOrWhiteSpace(directory))
+            {
+                Directory.CreateDirectory(directory);
+                bitmap.Save(Path.Combine(directory, "garmoth-options-dialog.png"), ImageFormat.Png);
+            }
+            Assert.False(dialog.Visible);
+        });
+    }
+
+    private static T Get<T>(object target, string field) =>
+        Assert.IsType<T>(target.GetType().GetField(field, BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(target));
+
+    private static void Invoke(object target, string method) =>
+        target.GetType().GetMethod(method, BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(target, null);
+
+    private static void LayoutHandles(Control control)
+    {
+        _ = control.Handle;
+        control.PerformLayout();
+        foreach (Control child in control.Controls) LayoutHandles(child);
+        control.PerformLayout();
+    }
+
+    private static Rectangle BoundsInForm(Control control, Form form)
+    {
+        var location = Point.Empty;
+        for (Control? current = control; current is not null && current != form; current = current.Parent)
+            location.Offset(current.Location);
+        return new Rectangle(location, control.Size);
+    }
+
+    private static void RunInSta(Action action)
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try { action(); }
+            catch (Exception exception) { failure = exception; }
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        Assert.True(thread.Join(TimeSpan.FromSeconds(15)), "Garmoth options test did not finish.");
+        if (failure is not null) ExceptionDispatchInfo.Capture(failure).Throw();
+    }
+}

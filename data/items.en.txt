@@ -1,0 +1,48 @@
+# Required positive OCR vocabulary, one visible item name per line.
+# Extend this file with the drops relevant to the current grind spot.
+# Main/junk loot for Aphrodon, Hermesia, and Magaia (Edania Part 2),
+# shared #HighestTier loot, and supported additional world drops.
+# Pool sources and coverage limitations are documented in docs/LOOT_POOLS.md.
+Ancient Spirit Dust
+Apeiron Belt
+Apeiron Earring
+Apeiron Ring
+BON Origin Shard
+BON Wandering Origin Crystal
+Black Crystal Fragment
+Black Gem Fragment
+Black Stone
+Branch of Abundance
+Broken Vestige of Ebonmere
+Broken Vestige of Everlight
+Broken Vestige of Goldroot
+Caphras Stone
+Corrupt Oil of Immortality
+Crimson Primordial Luster - Sovereign
+Crimson Primordial Pigment - Sovereign
+Elion Follower's Helmet
+Embers of Ynix - Armor
+Embers of Ynix - Helmet
+Embers of Ynix - Shoes
+[Event] Mysterious Ore
+Fusion Shard
+JIN Origin Shard
+JIN Wandering Origin Crystal
+Laila's Petal
+Nev's Fragment
+Pure Black Stone
+Refined Essence of Devouring
+Refined Origin of Hunger
+Silent Crystal of Origin
+Silent Fragment of Origin
+Sunset Primordial Luster - Edana
+Sunset Primordial Pigment - Edana
+Twilight of the End - Belt
+Twilight of the End - Earring
+Twilight of the End - Ring
+Violet Primordial Luster - Edana
+Violet Primordial Luster - Sovereign
+Violet Primordial Pigment - Edana
+Violet Primordial Pigment - Sovereign
+WON Origin Shard
+WON Wandering Origin Crystal

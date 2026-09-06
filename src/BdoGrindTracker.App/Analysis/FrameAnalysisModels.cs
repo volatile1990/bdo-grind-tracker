@@ -1,0 +1,43 @@
+using BdoGrindTracker.Core;
+
+namespace BdoGrindTracker.App.Analysis;
+
+internal sealed record LootEventView(
+    Guid EventId,
+    DateTimeOffset DetectedAt,
+    string ItemName,
+    int Quantity);
+
+/// <summary>
+/// OCR observations, lifecycle decisions and confirmed loot from one pass through
+/// the fixed normal and optional rare panels.
+/// </summary>
+internal sealed record FrameAnalysisResult(
+    IReadOnlyList<LootEventView> NewEvents,
+    IReadOnlyList<string> RecognizedLines,
+    double MeanMatchConfidence,
+    string VariantName,
+    int PreparedRowCount,
+    int NonBlankRowCount,
+    int OcrRowCount,
+    int CatalogMatchCount,
+    Rectangle? PanelRegion)
+{
+    public Size FrameSize { get; init; }
+
+    public IReadOnlyList<Rectangle> SlotRegions { get; init; } = [];
+
+    public Rectangle? RarePanelRegion { get; init; }
+
+    public Rectangle? RareBandRegion { get; init; }
+
+    public string TextRecognitionBackend { get; init; } = "unknown";
+
+    public string? TextRecognitionLanguage { get; init; }
+
+    public string? SpotId { get; init; }
+
+    public IReadOnlyList<LootObservation> Observations { get; init; } = [];
+
+    public TrackerFrameResult TrackingResult { get; init; } = new([], []);
+}
