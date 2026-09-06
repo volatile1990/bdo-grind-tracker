@@ -68,9 +68,38 @@ public sealed class LootHistoryViewTests
             LayoutRecursively(view);
 
             var details = Assert.Single(FindDescendants<SpotHistoryDetailView>(view));
-            Assert.Equal(16, details.LootItemNames.Count);
+            var expectedNames = LootSpotCatalog.GetRequired(profile.SpotId).AllowedItems
+                .Concat(itemNames)
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+            Assert.Equal(expectedNames.Length, details.LootItemNames.Count);
+            Assert.Empty(expectedNames.Except(details.LootItemNames, StringComparer.Ordinal));
             Assert.Equal(profile.TrashItemName, details.LootItemNames[0]);
             Assert.True(details.HasScrollableLootOverflow);
+        });
+    }
+
+    [Theory]
+    [InlineData(LootSpotCatalog.AphrodonId)]
+    [InlineData(LootSpotCatalog.HermesiaId)]
+    [InlineData(LootSpotCatalog.MagaiaId)]
+    [InlineData(LootSpotCatalog.AresionId)]
+    [InlineData(LootSpotCatalog.ScalesOfJudgmentId)]
+    [InlineData(LootSpotCatalog.EventHorizonId)]
+    public void MaximizedLootTableIncludesTheCompleteSpotPoolEvenWithoutTrackedDrops(string spotId)
+    {
+        RunInSta(() =>
+        {
+            using var view = new LootHistoryView { Size = new Size(900, 700) };
+            view.SetEntries([]);
+            view.ShowSpotDetails(spotId);
+            LayoutRecursively(view);
+
+            var details = Assert.Single(FindDescendants<SpotHistoryDetailView>(view));
+            var spot = LootSpotCatalog.GetRequired(spotId);
+            Assert.Equal(spot.AllowedItems.Count, details.LootItemNames.Count);
+            Assert.Empty(spot.AllowedItems.Except(details.LootItemNames, StringComparer.Ordinal));
+            Assert.Equal(details.Profile.TrashItemName, details.LootItemNames[0]);
         });
     }
 
@@ -112,6 +141,7 @@ public sealed class LootHistoryViewTests
             Assert.True(details.Width >= view.ClientSize.Width * 0.85);
             Assert.Single(details.Sessions);
             Assert.Equal(1_310_000_000m, details.Metrics.TotalSilver);
+            Assert.Equal("Adamantine", details.DisplayedCrystalLabel);
             Assert.Contains("#Knockdown/Bound", details.DisplayedTraitLabels);
 
             view.ShowSpotOverview();
