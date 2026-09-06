@@ -135,7 +135,12 @@ public sealed class LootHistoryViewTests
             LayoutRecursively(view);
             using var bitmap = new Bitmap(view.Width, view.Height);
             view.DrawToBitmap(bitmap, new Rectangle(Point.Empty, bitmap.Size));
-            Assert.NotEqual(BdoTheme.Background.ToArgb(), bitmap.GetPixel(30, 150).ToArgb());
+            var background = BdoTheme.Background.ToArgb();
+            Assert.True(Enumerable.Range(0, Math.Max(1, bitmap.Width / 20))
+                .SelectMany(x => Enumerable.Range(4, Math.Max(1, bitmap.Height / 20 - 4))
+                    .Select(y => bitmap.GetPixel(Math.Min(bitmap.Width - 1, x * 20),
+                        Math.Min(bitmap.Height - 1, y * 20)).ToArgb()))
+                .Any(color => color != background), "The maximized spot detail was not rendered.");
         });
     }
 

@@ -20,7 +20,8 @@ internal sealed class FrameUiMailbox : IDisposable
     public bool Publish(
         FrameAnalysisResult analysis,
         LiveDetectionDebugSnapshot? debugSnapshot = null,
-        Bitmap? thumbnail = null)
+        Bitmap? thumbnail = null,
+        Action<IReadOnlyDictionary<string, long>, bool>? onPublished = null)
     {
         lock (_sync)
         {
@@ -36,6 +37,9 @@ internal sealed class FrameUiMailbox : IDisposable
                 _aggregate.Apply(lootEvent);
             _totalsChanged |= _aggregate.ConfirmedEventCount != previousEventCount ||
                 _aggregate.TotalQuantity != previousQuantity;
+            // Observe the same cumulative state before the UI can consume it.
+            // The callback must copy any values retained beyond this call.
+            onPublished?.Invoke(_aggregate.Totals, _aggregate.ConfirmedEventCount > previousEventCount);
             _latestAnalysis = analysis;
             if (debugSnapshot is not null && thumbnail is not null)
             {

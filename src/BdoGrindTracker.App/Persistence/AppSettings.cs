@@ -18,6 +18,8 @@ internal sealed class AppSettings
 
     public int AutoPauseMinutes { get; set; } = DefaultAutoPauseMinutes;
 
+    public bool GarmothAutoUploadEnabled { get; set; }
+
     public string MarketRegion { get; set; } = LootPriceCatalog.DefaultRegion;
 
     public bool SilverValuePack { get; set; }

@@ -15,7 +15,10 @@ internal sealed record GarmothSessionDraft(
     TimeSpan ActiveDuration,
     IReadOnlyDictionary<string, long> Totals,
     long TotalSilver,
-    DateTimeOffset StartedAt);
+    DateTimeOffset StartedAt)
+{
+    public Guid? SourceSessionId { get; init; }
+}
 
 /// <summary>
 /// External API contract reconstructed from Companion 0.7.4's request builder.
@@ -77,7 +80,8 @@ internal sealed record GarmothSessionPayload
             ClassId = classId,
             Spec = spec,
             Note = AppBranding.Name + " · " + draft.StartedAt.ToString("yyyy-MM-dd HH:mm:ss zzz",
-                CultureInfo.InvariantCulture) + " · " + draft.LocalSessionId.ToString("N"),
+                CultureInfo.InvariantCulture) + " · " + draft.LocalSessionId.ToString("N") +
+                (draft.SourceSessionId is { } sourceId ? " · Sitzung " + sourceId.ToString("N") : ""),
         };
     }
 

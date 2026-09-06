@@ -1,6 +1,6 @@
 # Grindcrest
 
-Lokaler, passiver Loot-Tracker für Black Desert, Version 0.9.4 (bisher BDO Grind Tracker). Der erste Erkennungspfad und
+Lokaler, passiver Loot-Tracker für Black Desert, Version 0.9.5 (bisher BDO Grind Tracker). Der erste Erkennungspfad und
 die Zählung verwenden den Companion-basierten Stand 0.5.1. Die zusätzlichen
 Bestätigungs- und Lebensdauerregeln aus 0.6.0/0.6.1 sind entfernt. Erhalten bleiben
 der automatisch erkannte Spotfilter und die Verbesserungen der UI-Geschwindigkeit.
@@ -12,8 +12,17 @@ Silberbewertung, Originalicons und Garmoth-Zuordnung hinzu.
 
 Der neue Tab **Loot Verlauf** speichert Grind-Sitzungen ausschließlich lokal. Er
 zeigt sie wahlweise chronologisch mit aufklappbaren Lootdetails oder gesammelt in
-vollbreiten Spot-Kacheln. Die Kacheln verwenden die jeweiligen Gebietsbilder und
-zeigen empfohlenen AP/DP, AP-Limit, Traits sowie Trashloot-Icon und Silberwert.
+kompakten Spot-Kacheln. Die Kacheln verwenden die jeweiligen Gebietsbilder und
+zeigen empfohlenen AP/DP, AP-Limit, farbige Traits, empfohlenen Widerstandskristall
+sowie Trashloot-Icon und Silberwert. Die maximierte Spotansicht ergänzt Kennzahlen,
+offizielle Klassensymbole und eine horizontal scrollbare, vollständige Loot-Tabelle.
+
+0.9.5 ergänzt den optionalen automatischen Garmoth-Upload. Unter **Optionen →
+Garmoth-Key** aktivieren: Jede volle Stunde aktiver Grindzeit wird als eigener
+Abschnitt übertragen, ausschließlich mit den noch nicht gesendeten Lootmengen
+und deren Silberwert. Tracking läuft weiter, Pausen zählen nicht mit. Auch ein
+manueller Rest-Upload lässt bereits übertragene Stunden aus. Die Option ist
+standardmäßig aus; unklare Upload-Ergebnisse werden nicht automatisch wiederholt.
 
 0.9.4 ergänzt ausschließlich für fehlgeschlagene normale Lootzeilen zwei zusätzliche
 Lesewege: isoliertes Mengen-Nachlesen sowie Graustufen-/adaptive Bildaufbereitung
@@ -121,13 +130,25 @@ Einstellungen speichern. Er wird mit Windows-DPAPI für den aktuellen Windows-Be
 verschlüsselt, nicht als Klartext in den Einstellungen gespeichert. Companion-/Browser-
 Anmeldedaten werden nicht übernommen. Dort lässt sich der Key auch wieder entfernen.
 
-Danach reicht **ein Klick auf Garmoth-Upload**: Eine laufende Sitzung wird pausiert,
-noch ausstehender Loot abgeschlossen und direkt übertragen. Kein weiterer Dialog,
-keine Silber- oder Klasseneingabe im Upload. Verwendet werden die bereits erkannte/
-gewählte Klasse, Spot, aktive Dauer, Lootmengen und der berechnete Netto-Silberwert.
+Im selben Dialog kann **Automatisch jede Grind-Stunde an Garmoth senden** aktiviert
+und gespeichert werden; standardmäßig ist die Option aus. Alle **60 aktiven
+Grind-Minuten** wird nur der nächste ungesendete Stundenabschnitt übertragen,
+während das Tracking weiterläuft. Pausen und eine noch durch Auto-Pause abziehbare
+Leerlaufphase lösen keinen Stunden-Upload aus. Die Stunden werden ab Sitzungsbeginn
+festgehalten: Wer die Option später aktiviert, lädt bereits vollständige, ungesendete
+Stunden nacheinander hoch. Eine angefangene Reststunde bleibt bis zur nächsten vollen
+Stunde oder zum manuellen Upload lokal. **Neue Sitzung** und Schließen senden sie
+nicht automatisch.
+
+**Ein Klick auf Garmoth-Upload** pausiert eine laufende Sitzung, schließt ausstehenden
+Loot ab und sendet die gesamte noch nicht hochgeladene Zeit und Beute. Kein weiterer
+Dialog, keine Silber- oder Klasseneingabe im Upload. Verwendet werden die bereits
+erkannte/gewählte Klasse, Spot und der Netto-Silberwert des übertragenen Abschnitts
+zu den aktuellen Preis-/Steuereinstellungen; keine Differenz alter Silber-Gesamtsummen.
 
 Garmoth erhält Spot, Klasse/Spec, volle aktive Minuten, zugeordnete Lootmengen,
-Silberwerte und eine Notiz mit Startzeit/Sitzungs-ID; keine Screenshots, OCR-Texte
+Silberwerte und eine Notiz mit Startzeit/Sitzungs-ID und eindeutiger Abschnitts-ID;
+keine Screenshots, OCR-Texte
 oder Spieldateien. Mindestens eine volle Minute, ein bekannter Spot und eine bekannte
 Klasse sind nötig. Unbekannte oder beim Zielspot nicht unterstützte Items (z. B.
 Laila's Petal/Pure Black Stone) werden beim Upload ausgelassen und danach genannt;
@@ -135,9 +156,19 @@ lokale Mengen bleiben erhalten. Bei fehlenden Preisen wird die gekennzeichnete
 bekannte Silber-Teilsumme verwendet, bei alten Preisen der gekennzeichnete Cachewert.
 Sind sämtliche Preise unbekannt, wird kein erfundener Silber-Nullwert hochgeladen.
 
-Nach erfolgreichem oder unklarem Ergebnis bleibt diese Sitzung gegen erneutes
-Hochladen/Fortsetzen gesperrt: zuerst auf Garmoth prüfen, dann **Neue Sitzung**
-wählen. Es gibt keinen automatischen Upload oder Wiederholungsversuch.
+Ein erfolgreicher automatischer Upload lässt die Sitzung weiterlaufen. Bei einem
+unklaren automatischen Ergebnis werden alle weiteren Uploads dieser Sitzung gesperrt,
+auch manuelle und nach erneutem Aktivieren der Option; lokales Tracking bleibt möglich.
+Zuerst auf Garmoth prüfen. Eine eindeutige Ablehnung oder fehlende Upload-Voraussetzung
+setzt die Automatik aus: Ursache beheben und die Garmoth-Optionen erneut speichern
+oder manuell hochladen. Unklare Ergebnisse werden nicht automatisch wiederholt.
+Nach einem erfolgreichen oder unklaren **manuellen** Upload bleibt die Sitzung wie
+bisher gegen erneutes Hochladen/Fortsetzen gesperrt; danach **Neue Sitzung** wählen.
+
+Spätere Mengenkorrekturen werden mit neuem Loot verrechnet, damit gesunkene und wieder
+steigende Zähler keinen Doppelupload verursachen. Bereits angelegte Garmoth-Einträge
+werden nicht nachträglich geändert. Stundenabschnitte und Doppelupload-Schutz gelten
+für die aktuelle lokale Sitzung; Sitzungen werden nach einem Neustart nicht wiederhergestellt.
 Der Vertrag ist statisch nachgewiesen und mit Mock-HTTP geprüft; ein echter Upload
 mit deinem Konto wurde nicht durchgeführt. [Details](docs/GARMOTH_INTEGRATION.md).
 

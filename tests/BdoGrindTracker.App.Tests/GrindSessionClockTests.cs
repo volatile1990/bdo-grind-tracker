@@ -189,6 +189,26 @@ public sealed class GrindSessionClockTests
     }
 
     [Fact]
+    public void UploadCutoffExcludesPendingIdleWithoutChangingDisplayedDuration()
+    {
+        var time = new ManualTimeProvider();
+        var clock = new GrindSessionClock(time);
+        clock.Start();
+        time.Advance(TimeSpan.FromMinutes(59));
+        time.Advance(TimeSpan.FromMinutes(2));
+
+        Assert.Equal(TimeSpan.FromMinutes(59), clock.GetElapsedExcludingTrailingIdle(TimeSpan.FromMinutes(2)));
+        Assert.Equal(TimeSpan.FromMinutes(61), clock.Elapsed);
+        Assert.True(clock.IsRunning);
+
+        clock.Pause(TimeSpan.FromMinutes(2));
+        Assert.Equal(TimeSpan.FromMinutes(59), clock.GetElapsedExcludingTrailingIdle(TimeSpan.FromMinutes(2)));
+        clock.Start();
+        time.Advance(TimeSpan.FromSeconds(10));
+        Assert.Equal(TimeSpan.FromMinutes(59), clock.GetElapsedExcludingTrailingIdle(TimeSpan.FromMinutes(3)));
+    }
+
+    [Fact]
     public void WallClockAdjustmentsDoNotAffectSessionTime()
     {
         var time = new ManualTimeProvider();

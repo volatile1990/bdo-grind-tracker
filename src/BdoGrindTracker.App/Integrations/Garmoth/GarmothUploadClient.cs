@@ -15,9 +15,10 @@ internal sealed record GarmothUploadResult(GarmothUploadStatus Status, string Me
 }
 
 /// <summary>
-/// Sends only on an explicit UploadAsync call. No login probing, automatic retries,
+/// Sends only on an UploadAsync call from the manual or opt-in hourly workflow.
+/// No login probing, automatic retries,
 /// cookies, redirects, telemetry, or credential persistence. A possibly committed
-/// session cannot be submitted again through this client.
+/// interval ID cannot be submitted again through this client.
 /// </summary>
 internal sealed class GarmothUploadClient : IDisposable
 {
