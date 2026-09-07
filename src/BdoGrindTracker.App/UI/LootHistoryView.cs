@@ -391,7 +391,7 @@ internal sealed class LootHistoryView : UserControl
             return;
         var available = Math.Max(260, _spotList.ClientSize.Width - _spotList.Padding.Horizontal -
             SystemInformation.VerticalScrollBarWidth - 2);
-        var columns = available >= 720 ? 2 : 1;
+        var columns = available >= 840 ? 2 : 1;
         var gap = 11;
         var width = Math.Max(260, (available - columns * gap) / columns);
         foreach (Control control in _spotList.Controls)
@@ -592,30 +592,39 @@ internal sealed class SpotHistoryCard : Control
             BdoTheme.GoldBright,
             TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
 
+        var statBand = new Rectangle(ScaleLogical(7), ScaleLogical(62),
+            Math.Max(1, bounds.Width - ScaleLogical(14)), ScaleLogical(55));
+        using (var statPath = BdoTheme.CreateRoundedRectangle(statBand, ScaleLogical(6)))
+        using (var statFill = new SolidBrush(Color.FromArgb(158, 8, 11, 14)))
+            graphics.FillPath(statFill, statPath);
+
         var trashBounds = GetTrashBounds(bounds);
         DrawTrash(graphics, trashBounds);
-        DrawStat(graphics, padding, ScaleLogical(67), ScaleLogical(52),
+        DrawStat(graphics, padding, ScaleLogical(67), ScaleLogical(48),
             "REC. AP", _profile.RecommendedAp.ToString(CultureInfo.InvariantCulture) + "+",
             Color.FromArgb(231, 160, 95));
-        DrawStat(graphics, padding + ScaleLogical(58), ScaleLogical(67), ScaleLogical(52),
+        DrawStat(graphics, padding + ScaleLogical(53), ScaleLogical(67), ScaleLogical(48),
             "MAX AP", _profile.MaxApLimit.ToString(CultureInfo.InvariantCulture),
             Color.FromArgb(240, 200, 111));
-        DrawStat(graphics, padding + ScaleLogical(116), ScaleLogical(67), ScaleLogical(52),
+        DrawStat(graphics, padding + ScaleLogical(106), ScaleLogical(67), ScaleLogical(48),
             "REC. DP", _profile.RecommendedDp.ToString(CultureInfo.InvariantCulture) + "+",
             Color.FromArgb(131, 209, 153));
-        var ccX = padding + ScaleLogical(174);
+        var ccX = padding + ScaleLogical(159);
+        var crystalSize = ScaleLogical(40);
+        var crystalBounds = new Rectangle(
+            trashBounds.Left - ScaleLogical(6) - crystalSize,
+            ScaleLogical(67), crystalSize, crystalSize);
         DrawCcStat(graphics, ccX, ScaleLogical(67),
-            Math.Min(ScaleLogical(158), Math.Max(ScaleLogical(126), bounds.Right - padding - ccX)));
-        DrawCompactTraits(graphics, padding, ScaleLogical(137),
-            Math.Max(ScaleLogical(90), trashBounds.Left - padding - ScaleLogical(8)));
+            Math.Max(ScaleLogical(82), crystalBounds.Left - ScaleLogical(7) - ccX), crystalBounds);
+        DrawCompactTraits(graphics, padding, ScaleLogical(137), bounds.Width - padding * 2);
     }
 
     private Rectangle GetTrashBounds(Rectangle bounds)
     {
-        var width = ScaleLogical(136);
+        var width = ScaleLogical(90);
         var height = ScaleLogical(49);
         var right = ScaleLogical(8);
-        return new Rectangle(bounds.Right - right - width, ScaleLogical(119), width, height);
+        return new Rectangle(bounds.Right - right - width, ScaleLogical(65), width, height);
     }
 
     private void DrawTrash(Graphics graphics, Rectangle box)
@@ -625,45 +634,44 @@ internal sealed class SpotHistoryCard : Control
         using var border = new Pen(Color.FromArgb(118, 217, 186, 121));
         graphics.FillPath(fill, path);
         graphics.DrawPath(border, path);
-        var iconBounds = new Rectangle(box.X + ScaleLogical(7), box.Y + ScaleLogical(7),
+        var iconBounds = new Rectangle(box.X + ScaleLogical(5), box.Y + ScaleLogical(7),
             ScaleLogical(35), ScaleLogical(35));
         var trashIcon = _icons.GetIcon(_profile.TrashItemName);
         if (trashIcon is not null)
             graphics.DrawImage(trashIcon, iconBounds);
         else
             DrawIconFallback(graphics, iconBounds, "TL");
-        TextRenderer.DrawText(graphics, _profile.TrashItemName, _captionFont,
-            new Rectangle(iconBounds.Right + ScaleLogical(7), box.Y + ScaleLogical(4),
-                box.Right - iconBounds.Right - ScaleLogical(11), ScaleLogical(18)),
-            Color.FromArgb(200, 203, 201),
-            TextFormatFlags.Left | TextFormatFlags.VerticalCenter |
-            TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
-        TextRenderer.DrawText(graphics,
-            $"{_profile.TrashSilver.ToString("N0", GermanCulture)} Silber", _valueFont,
-            new Rectangle(iconBounds.Right + ScaleLogical(7), box.Y + ScaleLogical(21),
-                box.Right - iconBounds.Right - ScaleLogical(11), ScaleLogical(23)),
+        var textBounds = new Rectangle(iconBounds.Right + ScaleLogical(3), box.Y + ScaleLogical(4),
+            box.Right - iconBounds.Right - ScaleLogical(6), ScaleLogical(25));
+        TextRenderer.DrawText(graphics, _profile.TrashSilver.ToString("N0", GermanCulture), _captionFont,
+            textBounds,
             BdoTheme.GoldBright,
-            TextFormatFlags.Left | TextFormatFlags.VerticalCenter |
-            TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+            TextFormatFlags.HorizontalCenter | TextFormatFlags.Bottom |
+            TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
+        TextRenderer.DrawText(graphics, "SILBER", _captionFont,
+            new Rectangle(textBounds.X, box.Y + ScaleLogical(27), textBounds.Width, ScaleLogical(16)),
+            Color.FromArgb(190, 195, 196),
+            TextFormatFlags.HorizontalCenter | TextFormatFlags.Top |
+            TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
     }
 
-    private void DrawCcStat(Graphics graphics, int x, int y, int width)
+    private void DrawCcStat(Graphics graphics, int x, int y, int textWidth, Rectangle iconBounds)
     {
         var accent = ResolveCrystalAccent(_profile.RecommendedCrystalName);
-        var iconSize = ScaleLogical(36);
-        var iconBounds = new Rectangle(x + width - iconSize, y + ScaleLogical(3), iconSize, iconSize);
         if (_crystalIcon is not null)
             graphics.DrawImage(_crystalIcon, iconBounds);
         var textX = x;
-        var textWidth = Math.Max(ScaleLogical(82), iconBounds.Left - ScaleLogical(7) - textX);
         TextRenderer.DrawText(graphics, "CC", _captionFont,
             new Rectangle(textX, y, textWidth, ScaleLogical(17)),
             Color.FromArgb(174, 179, 179),
             TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
-        TextRenderer.DrawText(graphics, GetCcLabel(_profile), _ccFont,
+        var ccText = GetCcLabel(_profile) == "Knockdown/Bound"
+            ? "Knockdown\nBound"
+            : GetCcLabel(_profile);
+        TextRenderer.DrawText(graphics, ccText, _ccFont,
             new Rectangle(textX, y + ScaleLogical(17), textWidth, ScaleLogical(25)), accent,
             TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter |
-            TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+            TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix);
     }
 
     private void DrawStat(Graphics graphics, int x, int y, int width, string label, string value, Color color)
@@ -734,11 +742,11 @@ internal sealed class SpotHistoryCard : Control
         DisposeFonts();
         var scale = DeviceDpi / 96f;
         _titleFont = new Font("Georgia", 14f * scale, FontStyle.Bold, GraphicsUnit.Point);
-        _captionFont = new Font("Segoe UI Semibold", 8.25f * scale, FontStyle.Bold, GraphicsUnit.Point);
-        _valueFont = new Font("Segoe UI Semibold", 11f * scale, FontStyle.Bold, GraphicsUnit.Point);
+        _captionFont = new Font("Segoe UI", 9f * scale, FontStyle.Bold, GraphicsUnit.Point);
+        _valueFont = new Font("Segoe UI Semibold", 12f * scale, FontStyle.Bold, GraphicsUnit.Point);
         _traitFont = new Font("Segoe UI Semibold", 8.25f * scale, FontStyle.Bold, GraphicsUnit.Point);
         _bodyFont = new Font("Segoe UI", 9.5f * scale, FontStyle.Regular, GraphicsUnit.Point);
-        _ccFont = new Font("Segoe UI Semibold", 8f * scale, FontStyle.Bold, GraphicsUnit.Point);
+        _ccFont = new Font("Segoe UI Semibold", 8.25f * scale, FontStyle.Bold, GraphicsUnit.Point);
     }
 
     private void DisposeFonts()

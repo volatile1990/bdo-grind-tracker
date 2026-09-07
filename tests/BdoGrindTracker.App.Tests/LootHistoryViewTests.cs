@@ -343,6 +343,23 @@ public sealed class LootHistoryViewTests
     }
 
     [Fact]
+    public void NarrowSpotOverviewUsesOneReadableColumnInsteadOfCompressingStats()
+    {
+        RunInSta(() =>
+        {
+            using var view = new LootHistoryView { Size = new Size(800, 700) };
+            view.SetEntries([]);
+            view.ShowSpots();
+            LayoutRecursively(view);
+
+            var cards = FindDescendants<SpotHistoryCard>(view);
+            Assert.Equal(LootSpotPresentationCatalog.Profiles.Count, cards.Count);
+            Assert.All(cards, card => Assert.True(card.Width >= view.ClientSize.Width * 0.85,
+                $"Narrow cards should stay readable: card={card.Width}, view={view.ClientSize.Width}."));
+        });
+    }
+
+    [Fact]
     public void ChronologicalHistoryUsesTwentyFiveEntriesByDefaultAndOffersFourPageSizes()
     {
         RunInSta(() =>
