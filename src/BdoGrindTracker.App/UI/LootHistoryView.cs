@@ -22,6 +22,8 @@ internal sealed class LootHistoryView : UserControl
         Path.Combine(AppContext.BaseDirectory, "data", "crystal-icons"));
     private readonly ImageAssetRepository _classIcons = new(
         Path.Combine(AppContext.BaseDirectory, "data", "class-icons"));
+    private readonly ImageAssetRepository _uiIcons = new(
+        Path.Combine(AppContext.BaseDirectory, "data", "ui-icons"));
     private readonly LootIconRepository _icons = new(
         Path.Combine(AppContext.BaseDirectory, "data", "icons"));
     private readonly Font _headingFont = new(
@@ -146,6 +148,7 @@ internal sealed class LootHistoryView : UserControl
             _spotIcons.Dispose();
             _crystalIcons.Dispose();
             _classIcons.Dispose();
+            _uiIcons.Dispose();
             _icons.Dispose();
         }
         base.Dispose(disposing);
@@ -240,6 +243,7 @@ internal sealed class LootHistoryView : UserControl
                 _backgrounds.Get(profile.BackgroundFileName),
                 _spotIcons.Get(profile.IconFileName),
                 _crystalIcons.Get(profile.RecommendedCrystalFileName),
+                _uiIcons.Get("silver.png"),
                 _icons)
             {
                 Margin = new Padding(0, 0, 11, 11)
@@ -425,6 +429,7 @@ internal sealed class SpotHistoryCard : Control
     private readonly Image? _background;
     private readonly Image? _spotIcon;
     private readonly Image? _crystalIcon;
+    private readonly Image? _silverIcon;
     private readonly LootIconRepository _icons;
     private Font? _titleFont;
     private Font? _captionFont;
@@ -439,6 +444,7 @@ internal sealed class SpotHistoryCard : Control
         Image? background,
         Image? spotIcon,
         Image? crystalIcon,
+        Image? silverIcon,
         LootIconRepository icons)
     {
         _profile = profile ?? throw new ArgumentNullException(nameof(profile));
@@ -446,6 +452,7 @@ internal sealed class SpotHistoryCard : Control
         _background = background;
         _spotIcon = spotIcon;
         _crystalIcon = crystalIcon;
+        _silverIcon = silverIcon;
         _icons = icons ?? throw new ArgumentNullException(nameof(icons));
         SetStyle(ControlStyles.AllPaintingInWmPaint |
                  ControlStyles.OptimizedDoubleBuffer |
@@ -487,13 +494,9 @@ internal sealed class SpotHistoryCard : Control
             e.Graphics.FillPath(surface, cardPath);
         if (_background is not null)
             DrawCover(e.Graphics, _background, headerBounds);
-        using (var veil = new SolidBrush(Color.FromArgb(44, BdoTheme.Background)))
-            e.Graphics.FillRectangle(veil, headerBounds);
-        using (var gradient = new LinearGradientBrush(headerBounds,
-                   Color.FromArgb(10, BdoTheme.Background),
-                   Color.FromArgb(245, BdoTheme.Background),
-                   LinearGradientMode.Vertical))
-            e.Graphics.FillRectangle(gradient, headerBounds);
+        using (var imageVeil = new SolidBrush(Color.FromArgb(46, BdoTheme.Background)))
+            e.Graphics.FillRectangle(imageVeil, headerBounds);
+        DrawBottomFade(e.Graphics, headerBounds);
         e.Graphics.Restore(state);
 
         DrawHeader(e.Graphics, headerBounds);
@@ -553,30 +556,19 @@ internal sealed class SpotHistoryCard : Control
     {
         var padding = ScaleLogical(14);
         var titleHeight = ScaleLogical(28);
-        var chevronWidth = ScaleLogical(24);
         var countWidth = ScaleLogical(70);
         var spot = LootSpotCatalog.GetRequired(_profile.SpotId);
 
-        var titleBand = new Rectangle(ScaleLogical(7), ScaleLogical(6),
-            Math.Max(1, bounds.Width - ScaleLogical(14)), ScaleLogical(51));
-        using (var titlePath = BdoTheme.CreateRoundedRectangle(titleBand, ScaleLogical(7)))
-        using (var titleFill = new SolidBrush(Color.FromArgb(178, 10, 12, 14)))
-        using (var titleBorder = new Pen(Color.FromArgb(86, 229, 194, 124)))
-        {
-            graphics.FillPath(titleFill, titlePath);
-            graphics.DrawPath(titleBorder, titlePath);
-        }
-
-        var spotIconSize = ScaleLogical(44);
-        var spotIconBounds = new Rectangle(padding, ScaleLogical(9), spotIconSize, spotIconSize);
+        var spotIconSize = ScaleLogical(48);
+        var spotIconBounds = new Rectangle(padding, ScaleLogical(7), spotIconSize, spotIconSize);
+        var titleX = spotIconBounds.Right + ScaleLogical(8);
+        var titleBounds = new Rectangle(titleX, ScaleLogical(16),
+            Math.Max(80, bounds.Width - titleX - padding - countWidth), titleHeight);
+        DrawSpotIconHalo(graphics, spotIconBounds);
         if (_spotIcon is not null)
             graphics.DrawImage(_spotIcon, spotIconBounds);
         else
             DrawIconFallback(graphics, spotIconBounds, "?");
-
-        var titleX = spotIconBounds.Right + ScaleLogical(8);
-        var titleBounds = new Rectangle(titleX, ScaleLogical(16),
-            Math.Max(80, bounds.Width - titleX - padding - countWidth - chevronWidth), titleHeight);
         TextRenderer.DrawText(graphics, spot.DisplayName, _titleFont,
             new Rectangle(titleBounds.X + ScaleLogical(1), titleBounds.Y + ScaleLogical(2),
                 titleBounds.Width, titleBounds.Height),
@@ -590,109 +582,163 @@ internal sealed class SpotHistoryCard : Control
 
         var totalHours = _sessions.Sum(static session => session.Duration.TotalHours);
         var countText = $"{totalHours:0.#}h · {_sessions.Count:N0}×";
+        var countTextBounds = new Rectangle(bounds.Right - padding - countWidth,
+            ScaleLogical(18), countWidth, titleHeight);
         TextRenderer.DrawText(graphics, countText, _bodyFont,
-            new Rectangle(bounds.Right - padding - countWidth - chevronWidth,
-                ScaleLogical(18), countWidth, titleHeight),
+            new Rectangle(countTextBounds.X + ScaleLogical(1), countTextBounds.Y + ScaleLogical(1),
+                countTextBounds.Width, countTextBounds.Height),
+            Color.FromArgb(230, 3, 4, 5),
+            TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+        TextRenderer.DrawText(graphics, countText, _bodyFont,
+            countTextBounds,
             Color.FromArgb(202, 205, 205),
             TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
-        TextRenderer.DrawText(graphics, "›", _titleFont,
-            new Rectangle(bounds.Right - padding - chevronWidth, ScaleLogical(16),
-                chevronWidth, titleHeight),
-            BdoTheme.GoldBright,
-            TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
-
-        var statBand = new Rectangle(ScaleLogical(7), ScaleLogical(62),
-            Math.Max(1, bounds.Width - ScaleLogical(14)), ScaleLogical(55));
-        using (var statPath = BdoTheme.CreateRoundedRectangle(statBand, ScaleLogical(6)))
-        using (var statFill = new SolidBrush(Color.FromArgb(158, 8, 11, 14)))
-            graphics.FillPath(statFill, statPath);
 
         var trashBounds = GetTrashBounds(bounds);
         DrawTrash(graphics, trashBounds);
-        DrawStat(graphics, padding, ScaleLogical(67), ScaleLogical(48),
+        const int statLogicalY = 94;
+        DrawStat(graphics, padding, ScaleLogical(statLogicalY), ScaleLogical(48),
             "REC. AP", _profile.RecommendedAp.ToString(CultureInfo.InvariantCulture) + "+",
             Color.FromArgb(231, 160, 95));
-        DrawStat(graphics, padding + ScaleLogical(53), ScaleLogical(67), ScaleLogical(48),
+        DrawStat(graphics, padding + ScaleLogical(53), ScaleLogical(statLogicalY), ScaleLogical(48),
             "MAX AP", _profile.MaxApLimit.ToString(CultureInfo.InvariantCulture),
             Color.FromArgb(240, 200, 111));
-        DrawStat(graphics, padding + ScaleLogical(106), ScaleLogical(67), ScaleLogical(48),
+        DrawStat(graphics, padding + ScaleLogical(106), ScaleLogical(statLogicalY), ScaleLogical(48),
             "REC. DP", _profile.RecommendedDp.ToString(CultureInfo.InvariantCulture) + "+",
             Color.FromArgb(131, 209, 153));
         var ccX = padding + ScaleLogical(159);
         var crystalSize = ScaleLogical(40);
-        var crystalBounds = new Rectangle(
-            trashBounds.Left - ScaleLogical(6) - crystalSize,
-            ScaleLogical(67), crystalSize, crystalSize);
-        DrawCcStat(graphics, ccX, ScaleLogical(67),
-            Math.Max(ScaleLogical(82), crystalBounds.Left - ScaleLogical(7) - ccX), crystalBounds);
-        DrawCompactTraits(graphics, padding, ScaleLogical(137), bounds.Width - padding * 2);
+        var crystalBounds = new Rectangle(ccX, ScaleLogical(statLogicalY), crystalSize, crystalSize);
+        var ccTextX = crystalBounds.Right + ScaleLogical(6);
+        DrawCcStat(graphics, ccTextX, ScaleLogical(statLogicalY),
+            Math.Max(ScaleLogical(64), trashBounds.Left - ScaleLogical(7) - ccTextX), crystalBounds);
+        DrawCompactTraits(graphics, padding, ScaleLogical(146), bounds.Width - padding * 2);
     }
 
     private Rectangle GetTrashBounds(Rectangle bounds)
     {
-        var width = ScaleLogical(90);
+        var width = ScaleLogical(108);
         var height = ScaleLogical(49);
         var right = ScaleLogical(8);
-        return new Rectangle(bounds.Right - right - width, ScaleLogical(65), width, height);
+        return new Rectangle(bounds.Right - right - width, ScaleLogical(92), width, height);
     }
 
     private void DrawTrash(Graphics graphics, Rectangle box)
     {
-        using var path = BdoTheme.CreateRoundedRectangle(box, ScaleLogical(6));
-        using var fill = new SolidBrush(Color.FromArgb(224, 18, 21, 22));
-        using var border = new Pen(Color.FromArgb(118, 217, 186, 121));
-        graphics.FillPath(fill, path);
-        graphics.DrawPath(border, path);
-        var iconBounds = new Rectangle(box.X + ScaleLogical(5), box.Y + ScaleLogical(7),
+        var iconBounds = new Rectangle(box.X, box.Y + ScaleLogical(7),
             ScaleLogical(35), ScaleLogical(35));
         var trashIcon = _icons.GetIcon(_profile.TrashItemName);
         if (trashIcon is not null)
             graphics.DrawImage(trashIcon, iconBounds);
         else
             DrawIconFallback(graphics, iconBounds, "TL");
-        var textBounds = new Rectangle(iconBounds.Right + ScaleLogical(3), box.Y + ScaleLogical(4),
-            box.Right - iconBounds.Right - ScaleLogical(6), ScaleLogical(25));
+        var silverText = _profile.TrashSilver.ToString("N0", GermanCulture);
+        var measuredText = TextRenderer.MeasureText(graphics, silverText, _captionFont,
+            Size.Empty, TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
+        var silverIconSize = ScaleLogical(16);
+        var contentWidth = Math.Min(box.Right - iconBounds.Right - ScaleLogical(3),
+            measuredText.Width + ScaleLogical(3) + silverIconSize);
+        var textWidth = Math.Max(1, contentWidth - ScaleLogical(3) - silverIconSize);
+        var textBounds = new Rectangle(iconBounds.Right + ScaleLogical(3), box.Y + ScaleLogical(16),
+            textWidth, ScaleLogical(18));
         TextRenderer.DrawText(graphics, _profile.TrashSilver.ToString("N0", GermanCulture), _captionFont,
             textBounds,
             BdoTheme.GoldBright,
-            TextFormatFlags.HorizontalCenter | TextFormatFlags.Bottom |
+            TextFormatFlags.Left | TextFormatFlags.VerticalCenter |
             TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
-        TextRenderer.DrawText(graphics, "SILBER", _captionFont,
-            new Rectangle(textBounds.X, box.Y + ScaleLogical(27), textBounds.Width, ScaleLogical(16)),
-            Color.FromArgb(190, 195, 196),
-            TextFormatFlags.HorizontalCenter | TextFormatFlags.Top |
-            TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
+        var silverIconBounds = new Rectangle(textBounds.Right + ScaleLogical(3),
+            textBounds.Y + (textBounds.Height - silverIconSize) / 2, silverIconSize, silverIconSize);
+        if (_silverIcon is not null)
+            graphics.DrawImage(_silverIcon, silverIconBounds);
+        else
+            DrawIconFallback(graphics, silverIconBounds, "$");
     }
 
     private void DrawCcStat(Graphics graphics, int x, int y, int textWidth, Rectangle iconBounds)
     {
         var accent = ResolveCrystalAccent(_profile.RecommendedCrystalName);
-        if (_crystalIcon is not null)
-            graphics.DrawImage(_crystalIcon, iconBounds);
         var textX = x;
-        TextRenderer.DrawText(graphics, "CC", _captionFont,
-            new Rectangle(textX, y, textWidth, ScaleLogical(17)),
-            Color.FromArgb(174, 179, 179),
-            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+        var labelBounds = new Rectangle(textX, y, textWidth, ScaleLogical(17));
         var ccText = GetCcLabel(_profile) == "Knockdown/Bound"
             ? "Knockdown\nBound"
             : GetCcLabel(_profile);
+        var ccTextBounds = new Rectangle(textX, y + ScaleLogical(17), textWidth, ScaleLogical(25));
+        if (_crystalIcon is not null)
+            graphics.DrawImage(_crystalIcon, iconBounds);
+        TextRenderer.DrawText(graphics, "CC", _captionFont, labelBounds,
+            Color.FromArgb(174, 179, 179),
+            TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
         TextRenderer.DrawText(graphics, ccText, _ccFont,
-            new Rectangle(textX, y + ScaleLogical(17), textWidth, ScaleLogical(25)), accent,
-            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter |
+            ccTextBounds, accent,
+            TextFormatFlags.Left | TextFormatFlags.VerticalCenter |
             TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix);
     }
 
     private void DrawStat(Graphics graphics, int x, int y, int width, string label, string value, Color color)
     {
+        var labelBounds = new Rectangle(x, y, width, ScaleLogical(17));
+        var valueBounds = new Rectangle(x, y + ScaleLogical(17), width, ScaleLogical(25));
         TextRenderer.DrawText(graphics, label, _captionFont,
-            new Rectangle(x, y, width, ScaleLogical(17)),
+            labelBounds,
             Color.FromArgb(174, 179, 179),
             TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
         TextRenderer.DrawText(graphics, value, _valueFont,
-            new Rectangle(x, y + ScaleLogical(17), width, ScaleLogical(25)),
+            valueBounds,
             color,
             TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+    }
+
+    private void DrawBottomFade(Graphics graphics, Rectangle bounds)
+    {
+        var fadeHeight = Math.Min(bounds.Height, ScaleLogical(128));
+        if (fadeHeight <= 0 || bounds.Width <= 0)
+            return;
+        var fadeBounds = new Rectangle(bounds.Left, bounds.Bottom - fadeHeight,
+            bounds.Width, fadeHeight);
+        using var fade = new LinearGradientBrush(fadeBounds,
+            Color.FromArgb(0, 5, 8, 10), Color.FromArgb(248, 5, 8, 10),
+            LinearGradientMode.Vertical)
+        {
+            InterpolationColors = new ColorBlend
+            {
+                Colors =
+                [
+                    Color.FromArgb(0, 5, 8, 10),
+                    Color.FromArgb(128, 5, 8, 10),
+                    Color.FromArgb(222, 5, 8, 10),
+                    Color.FromArgb(248, 5, 8, 10)
+                ],
+                Positions = [0f, 0.42f, 0.72f, 1f]
+            }
+        };
+        graphics.FillRectangle(fade, fadeBounds);
+    }
+
+    private void DrawSpotIconHalo(Graphics graphics, Rectangle iconBounds)
+    {
+        var outerBounds = Rectangle.Inflate(iconBounds, ScaleLogical(8), ScaleLogical(8));
+        using var haloPath = new GraphicsPath();
+        haloPath.AddEllipse(outerBounds);
+        using (var halo = new PathGradientBrush(haloPath)
+        {
+            CenterColor = Color.FromArgb(105, 235, 202, 132),
+            SurroundColors = [Color.FromArgb(0, 235, 202, 132)],
+            FocusScales = new PointF(0.62f, 0.62f)
+        })
+        {
+            graphics.FillPath(halo, haloPath);
+        }
+
+        var darkCore = Rectangle.Inflate(iconBounds, ScaleLogical(3), ScaleLogical(3));
+        using var corePath = new GraphicsPath();
+        corePath.AddEllipse(darkCore);
+        using var core = new PathGradientBrush(corePath)
+        {
+            CenterColor = Color.FromArgb(190, 5, 8, 10),
+            SurroundColors = [Color.FromArgb(38, 5, 8, 10)],
+            FocusScales = new PointF(0.7f, 0.7f)
+        };
+        graphics.FillPath(core, corePath);
     }
 
     private void DrawCompactTraits(Graphics graphics, int startX, int startY, int availableWidth)
@@ -750,7 +796,7 @@ internal sealed class SpotHistoryCard : Control
     {
         DisposeFonts();
         var scale = DeviceDpi / 96f;
-        _titleFont = new Font("Georgia", 14f * scale, FontStyle.Bold, GraphicsUnit.Point);
+        _titleFont = new Font("Georgia", 14.75f * scale, FontStyle.Bold, GraphicsUnit.Point);
         _captionFont = new Font("Segoe UI", 9f * scale, FontStyle.Bold, GraphicsUnit.Point);
         _valueFont = new Font("Segoe UI Semibold", 12f * scale, FontStyle.Bold, GraphicsUnit.Point);
         _traitFont = new Font("Segoe UI Semibold", 8.25f * scale, FontStyle.Bold, GraphicsUnit.Point);
@@ -870,6 +916,7 @@ internal sealed class ChronologicalHistoryCard : Control
     private Font? _bodyFont;
     private Font? _captionFont;
     private Font? _valueFont;
+    private int _headerLootStartX;
     private bool _expanded;
     private bool _deleteHovered;
     private Rectangle _deleteBounds;
@@ -918,6 +965,8 @@ internal sealed class ChronologicalHistoryCard : Control
 
     internal IReadOnlyList<string> CollapsedLootItemNames =>
         _collapsedLootItems.Select(static item => item.Key).ToArray();
+
+    internal int HeaderLootStartX => _headerLootStartX;
 
     internal Rectangle DeleteBounds => _deleteBounds;
 
@@ -1094,21 +1143,21 @@ internal sealed class ChronologicalHistoryCard : Control
         var spotTextX = spotIconBounds.Right + ScaleLogical(8);
         var spotTextWidth = Math.Max(50, spotWidth - spotIconSize - ScaleLogical(8));
         var spotName = LootSpotCatalog.GetRequired(_entry.SpotId).DisplayName;
+        var minimumLootWidth = _collapsedLootItems.Count * ScaleLogical(30);
+        var nameWidth = Math.Min(ScaleLogical(190),
+            Math.Max(ScaleLogical(40), spotTextWidth - minimumLootWidth - ScaleLogical(7)));
+        var lootStartX = spotTextX + nameWidth + ScaleLogical(7);
+        _headerLootStartX = lootStartX;
+        var availableLootWidth = Math.Max(0, spotTextX + spotTextWidth - lootStartX);
         var lootCellWidth = _collapsedLootItems.Count == 0
             ? 0
             : Math.Min(ScaleLogical(HeaderLootCellLogicalWidth),
-                Math.Max(ScaleLogical(30),
-                    (spotTextWidth - ScaleLogical(105)) / _collapsedLootItems.Count));
-        var lootWidth = lootCellWidth * _collapsedLootItems.Count;
-        var nameWidth = Math.Max(40, spotTextWidth - lootWidth - ScaleLogical(5));
+                Math.Max(ScaleLogical(30), availableLootWidth / _collapsedLootItems.Count));
         TextRenderer.DrawText(graphics, spotName, _titleFont,
             new Rectangle(spotTextX, 0, nameWidth, topHeight),
             Color.FromArgb(255, 226, 172), TextFormatFlags.Left | TextFormatFlags.VerticalCenter |
             TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
-        var renderedNameWidth = Math.Min(nameWidth,
-            TextRenderer.MeasureText(graphics, spotName, _titleFont, Size.Empty,
-                TextFormatFlags.SingleLine | TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix).Width);
-        DrawHeaderLoot(graphics, spotTextX + renderedNameWidth + ScaleLogical(7), lootCellWidth);
+        DrawHeaderLoot(graphics, lootStartX, lootCellWidth);
 
         var durationX = spotX + spotWidth;
         TextRenderer.DrawText(graphics, "GRINDZEIT", _captionFont,

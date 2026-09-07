@@ -13,7 +13,15 @@ internal sealed record SpotHistoryMetrics(
     decimal TrashPerHour,
     decimal RecentFiveHourTrashPerHour,
     decimal BestFiveHourTrashPerHour,
+    decimal BestFiveHourAverageSilverPerHour,
     decimal TotalHours);
+
+internal sealed record SpotHistoryChartData(
+    IReadOnlyList<decimal> CumulativeSilver,
+    IReadOnlyList<decimal> SilverPerHour,
+    IReadOnlyList<decimal> TrashPerHour,
+    IReadOnlyList<decimal> RecentFiveTrashPerHour,
+    IReadOnlyList<decimal> BestFiveTrashPerHour);
 
 internal sealed record SpotLootColumn(string ItemName, long TotalQuantity, decimal SilverPerHour);
 
@@ -46,6 +54,7 @@ internal sealed class SpotHistoryDetailView : Control
     private readonly ImageAssetRepository _classIcons;
     private readonly LootIconRepository _icons;
     private readonly SpotHistoryMetrics _metrics;
+    private readonly SpotHistoryChartData _chartData;
     private readonly IReadOnlyList<SpotLootColumn> _lootColumns;
     private readonly BdoHorizontalScrollBar _lootScroll = new()
     {
@@ -89,6 +98,7 @@ internal sealed class SpotHistoryDetailView : Control
         _classIcons = classIcons ?? throw new ArgumentNullException(nameof(classIcons));
         _icons = icons ?? throw new ArgumentNullException(nameof(icons));
         _metrics = CalculateMetrics(profile, sessions);
+        _chartData = BuildChartData(profile, sessions);
         _lootColumns = BuildLootColumns(profile, sessions, prices, tax);
         SetStyle(ControlStyles.AllPaintingInWmPaint |
                  ControlStyles.OptimizedDoubleBuffer |
@@ -425,13 +435,19 @@ internal sealed class SpotHistoryDetailView : Control
     {
         var gap = ScaleLogical(7);
         var width = Math.Max(60, (bounds.Width - gap * 4) / 5);
-        var metrics = new (string Label, string Value, Color Accent)[]
+        var metrics = new (string Label, string Value, Color Accent,
+            IReadOnlyList<decimal> Values, bool Bars)[]
         {
-            ("GESAMT SILBER", SpotHistoryCard.FormatSilver(_metrics.TotalSilver), Color.FromArgb(223, 103, 105)),
-            ("Ø SILBER / STUNDE", SpotHistoryCard.FormatSilver(_metrics.AverageSilverPerHour), Color.FromArgb(225, 166, 82)),
-            ("TRASH / STUNDE", FormatMetricQuantity(_metrics.TrashPerHour), Color.FromArgb(106, 184, 151)),
-            ("Ø TRASH · LETZTE 5H", FormatMetricQuantity(_metrics.RecentFiveHourTrashPerHour), Color.FromArgb(92, 154, 202)),
-            ("Ø TRASH · BESTE 5H", FormatMetricQuantity(_metrics.BestFiveHourTrashPerHour), Color.FromArgb(169, 116, 203))
+            ("GESAMT SILBER", SpotHistoryCard.FormatSilver(_metrics.TotalSilver), Color.FromArgb(238, 92, 99),
+                _chartData.CumulativeSilver, false),
+            ("Ø SILBER / STUNDE", SpotHistoryCard.FormatSilver(_metrics.AverageSilverPerHour), Color.FromArgb(238, 184, 80),
+                _chartData.SilverPerHour, false),
+            ("TRASH / STUNDE", FormatMetricQuantity(_metrics.TrashPerHour), Color.FromArgb(83, 196, 137),
+                _chartData.TrashPerHour, false),
+            ("Ø TRASH · LETZTE 5H", FormatMetricQuantity(_metrics.RecentFiveHourTrashPerHour), Color.FromArgb(78, 157, 219),
+                _chartData.RecentFiveTrashPerHour, false),
+            ("Ø SILBER/H · BESTE 5 TRASH", SpotHistoryCard.FormatSilver(_metrics.BestFiveHourAverageSilverPerHour), Color.FromArgb(169, 103, 220),
+                _chartData.BestFiveTrashPerHour, true)
         };
 
         for (var index = 0; index < metrics.Length; index++)
@@ -443,19 +459,86 @@ internal sealed class SpotHistoryDetailView : Control
             using var border = new Pen(Color.FromArgb(70, metrics[index].Accent));
             graphics.FillPath(fill, path);
             graphics.DrawPath(border, path);
-            using var accent = new SolidBrush(metrics[index].Accent);
-            graphics.FillRectangle(accent, metricBounds.X, metricBounds.Bottom - ScaleLogical(3),
-                metricBounds.Width, ScaleLogical(3));
+            var chartBounds = new Rectangle(metricBounds.X + ScaleLogical(2),
+                metricBounds.Y + ScaleLogical(68), metricBounds.Width - ScaleLogical(4),
+                metricBounds.Height - ScaleLogical(70));
+            if (metrics[index].Bars)
+                DrawBarChart(graphics, chartBounds, metrics[index].Values, metrics[index].Accent);
+            else
+                DrawSparkline(graphics, chartBounds, metrics[index].Values, metrics[index].Accent);
             TextRenderer.DrawText(graphics, metrics[index].Label, _metricFont,
-                new Rectangle(metricBounds.X + ScaleLogical(10), metricBounds.Y + ScaleLogical(11),
-                    metricBounds.Width - ScaleLogical(20), ScaleLogical(28)),
+                new Rectangle(metricBounds.X + ScaleLogical(10), metricBounds.Y + ScaleLogical(8),
+                    metricBounds.Width - ScaleLogical(20), ScaleLogical(24)),
                 Color.FromArgb(173, 182, 181), TextFormatFlags.Left | TextFormatFlags.Top |
                 TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix);
             TextRenderer.DrawText(graphics, metrics[index].Value, _valueFont,
-                new Rectangle(metricBounds.X + ScaleLogical(10), metricBounds.Y + ScaleLogical(48),
-                    metricBounds.Width - ScaleLogical(20), ScaleLogical(34)),
+                new Rectangle(metricBounds.X + ScaleLogical(10), metricBounds.Y + ScaleLogical(31),
+                    metricBounds.Width - ScaleLogical(20), ScaleLogical(31)),
                 BdoTheme.Text, TextFormatFlags.Left | TextFormatFlags.VerticalCenter |
                 TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+        }
+    }
+
+    private void DrawSparkline(Graphics graphics, Rectangle bounds,
+        IReadOnlyList<decimal> values, Color accent)
+    {
+        if (values.Count == 0 || bounds.Width <= 2 || bounds.Height <= 2)
+            return;
+        var minimum = values.Min();
+        var maximum = values.Max();
+        var range = maximum - minimum;
+        var points = values.Select((value, index) => new PointF(
+            bounds.Left + (values.Count == 1 ? bounds.Width / 2f : index * bounds.Width / (float)(values.Count - 1)),
+            range <= 0 ? bounds.Top + bounds.Height / 2f :
+                bounds.Bottom - (float)((value - minimum) / range) * (bounds.Height - ScaleLogical(5)) - ScaleLogical(2)))
+            .ToArray();
+        if (points.Length == 1)
+            points = [new PointF(bounds.Left, points[0].Y), new PointF(bounds.Right, points[0].Y)];
+
+        using var fillPath = new GraphicsPath();
+        fillPath.AddLine(bounds.Left, bounds.Bottom, points[0].X, points[0].Y);
+        if (points.Length > 2)
+            fillPath.AddCurve(points, 0.45f);
+        else
+            fillPath.AddLine(points[0], points[1]);
+        fillPath.AddLine(points[^1].X, points[^1].Y, bounds.Right, bounds.Bottom);
+        fillPath.CloseFigure();
+        using (var gradient = new LinearGradientBrush(bounds,
+                   Color.FromArgb(105, accent), Color.FromArgb(5, accent), LinearGradientMode.Vertical))
+            graphics.FillPath(gradient, fillPath);
+
+        using var linePath = new GraphicsPath();
+        if (points.Length > 2)
+            linePath.AddCurve(points, 0.45f);
+        else
+            linePath.AddLine(points[0], points[1]);
+        using var pen = new Pen(accent, Math.Max(1.5f, DeviceDpi / 64f))
+        {
+            StartCap = LineCap.Round,
+            EndCap = LineCap.Round,
+            LineJoin = LineJoin.Round
+        };
+        graphics.DrawPath(pen, linePath);
+    }
+
+    private void DrawBarChart(Graphics graphics, Rectangle bounds,
+        IReadOnlyList<decimal> values, Color accent)
+    {
+        if (values.Count == 0 || bounds.Width <= 2 || bounds.Height <= 2)
+            return;
+        var maximum = Math.Max(1m, values.Max());
+        var gap = ScaleLogical(4);
+        var width = Math.Max(3, (bounds.Width - gap * (values.Count + 1)) / values.Count);
+        using var fill = new LinearGradientBrush(bounds,
+            Color.FromArgb(185, accent), Color.FromArgb(65, accent), LinearGradientMode.Vertical);
+        for (var index = 0; index < values.Count; index++)
+        {
+            var height = Math.Max(ScaleLogical(4),
+                (int)Math.Round((double)(values[index] / maximum) * (bounds.Height - ScaleLogical(3))));
+            var bar = new Rectangle(bounds.X + gap + index * (width + gap),
+                bounds.Bottom - height, width, height);
+            using var path = BdoTheme.CreateRoundedRectangle(bar, Math.Min(ScaleLogical(3), width / 2));
+            graphics.FillPath(fill, path);
         }
     }
 
@@ -670,7 +753,7 @@ internal sealed class SpotHistoryDetailView : Control
     private void DrawClassSymbol(Graphics graphics, string? characterClass, Rectangle bounds)
     {
         var className = string.IsNullOrWhiteSpace(characterClass) ? "?" : characterClass.Trim();
-        var baseName = className.Split('·', StringSplitOptions.TrimEntries)[0];
+        var baseName = ExtractBaseClassName(className);
         var specialization = className.Contains("Awakening", StringComparison.OrdinalIgnoreCase)
             ? "A"
             : className.Contains("Succession", StringComparison.OrdinalIgnoreCase) ? "S" : string.Empty;
@@ -712,6 +795,15 @@ internal sealed class SpotHistoryDetailView : Control
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(className);
         return className.Trim().ToLowerInvariant().Replace(' ', '-') + ".png";
+    }
+
+    internal static string ExtractBaseClassName(string className)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(className);
+        var normalized = className.Replace("Â·", "·", StringComparison.Ordinal);
+        var separator = normalized.IndexOf('·');
+        var baseName = (separator >= 0 ? normalized[..separator] : normalized).Trim();
+        return baseName.TrimEnd('Â').TrimEnd();
     }
 
     private void UpdateHeight()
@@ -899,13 +991,56 @@ internal sealed class SpotHistoryDetailView : Control
         var best = CalculateTrashWindow(
             valid.OrderByDescending(session => TrashPerHour(session, profile.TrashItemName)),
             profile.TrashItemName, 5m);
+        var bestFive = valid
+            .OrderByDescending(session => TrashPerHour(session, profile.TrashItemName))
+            .Take(5)
+            .ToArray();
+        var bestFiveHours = bestFive.Sum(static session =>
+            (decimal)session.Duration.Ticks / TimeSpan.TicksPerHour);
+        var bestFiveSilver = bestFive.Sum(static session => session.SilverAfterTax);
         return new SpotHistoryMetrics(
             totalSilver,
             totalHours > 0 ? totalSilver / totalHours : 0m,
             totalHours > 0 ? totalTrash / totalHours : 0m,
             recent,
             best,
+            bestFiveHours > 0 ? bestFiveSilver / bestFiveHours : 0m,
             totalHours);
+    }
+
+    internal static SpotHistoryChartData BuildChartData(
+        LootSpotPresentation profile,
+        IEnumerable<LootHistoryEntry> sessions)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        ArgumentNullException.ThrowIfNull(sessions);
+        var chronological = sessions
+            .Where(static session => session.Duration > TimeSpan.Zero)
+            .OrderBy(static session => session.UpdatedAt)
+            .ToArray();
+        var cumulativeSilver = new decimal[chronological.Length];
+        var silverPerHour = new decimal[chronological.Length];
+        var trashPerHour = new decimal[chronological.Length];
+        var runningSilver = 0m;
+        for (var index = 0; index < chronological.Length; index++)
+        {
+            var session = chronological[index];
+            var hours = (decimal)session.Duration.Ticks / TimeSpan.TicksPerHour;
+            runningSilver += session.SilverAfterTax;
+            cumulativeSilver[index] = runningSilver;
+            silverPerHour[index] = hours > 0 ? session.SilverAfterTax / hours : 0m;
+            trashPerHour[index] = TrashPerHour(session, profile.TrashItemName);
+        }
+        return new SpotHistoryChartData(
+            cumulativeSilver,
+            silverPerHour,
+            trashPerHour,
+            trashPerHour.TakeLast(5).ToArray(),
+            chronological
+                .OrderByDescending(session => TrashPerHour(session, profile.TrashItemName))
+                .Take(5)
+                .Select(session => TrashPerHour(session, profile.TrashItemName))
+                .ToArray());
     }
 
     internal static string FormatTimeAgo(DateTimeOffset timestamp, DateTimeOffset now)

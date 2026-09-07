@@ -43,6 +43,8 @@ public sealed class LootHistoryViewTests
                 "data", "icons", LootIconRepository.CreateSlug(profile.TrashItemName) + ".png")),
                 $"Packaged trash icon is missing: {profile.TrashItemName}");
         });
+        Assert.True(File.Exists(Path.Combine(AppContext.BaseDirectory,
+            "data", "ui-icons", "silver.png")), "Packaged silver UI icon is missing.");
     }
 
     [Theory]
@@ -237,6 +239,30 @@ public sealed class LootHistoryViewTests
             Assert.Equal(3, card.CollapsedLootItemNames.Count);
             Assert.InRange(card.Height, 60, 70);
             SavePreviewWhenRequested(card, "chronological-compact-loot");
+        });
+    }
+
+    [Fact]
+    public void ChronologicalTrashColumnStaysAlignedAcrossDifferentSpotNames()
+    {
+        RunInSta(() =>
+        {
+            var now = new DateTimeOffset(2026, 9, 7, 12, 0, 0, TimeSpan.FromHours(2));
+            var entries = LootSpotPresentationCatalog.Profiles
+                .Select((profile, index) => CreateEntry(profile.SpotId, profile.TrashItemName,
+                    18_000 + index, now.AddHours(-index)))
+                .ToArray();
+            using var view = new LootHistoryView { Size = new Size(900, 700) };
+            view.SetPricing(LootPriceCatalog.FixedSnapshot("eu"), SilverTaxOptions.Default);
+            view.SetEntries(entries);
+            view.ShowChronological();
+            LayoutRecursively(view);
+            using var bitmap = new Bitmap(view.Width, view.Height);
+            view.DrawToBitmap(bitmap, new Rectangle(Point.Empty, bitmap.Size));
+
+            var cards = FindDescendants<ChronologicalHistoryCard>(view);
+            Assert.Equal(LootSpotPresentationCatalog.Profiles.Count, cards.Count);
+            Assert.Single(cards.Select(static card => card.HeaderLootStartX).Distinct());
         });
     }
 
@@ -456,6 +482,18 @@ public sealed class LootHistoryViewTests
     }
 
     [Theory]
+    [InlineData("Witch · Awakening · Demo", "Witch")]
+    [InlineData("Witch Â· Awakening Â· Demo", "Witch")]
+    [InlineData("Dark Knight Â· Awakening Â· Demo", "Dark Knight")]
+    public void ClassIconLookupToleratesPreviouslyCorruptedSeparators(string storedName, string expected)
+    {
+        Assert.Equal(expected, SpotHistoryDetailView.ExtractBaseClassName(storedName));
+        Assert.Equal(SpotHistoryDetailView.CreateClassIconFileName(expected),
+            SpotHistoryDetailView.CreateClassIconFileName(
+                SpotHistoryDetailView.ExtractBaseClassName(storedName)));
+    }
+
+    [Theory]
     [InlineData(1_310_000_000, "1,31 Mrd.")]
     [InlineData(994_000_000, "994 Mio.")]
     [InlineData(155_127, "155.127")]
@@ -496,6 +534,14 @@ public sealed class LootHistoryViewTests
         Assert.Equal(17_500m, metrics.TrashPerHour);
         Assert.Equal(14_000m, metrics.RecentFiveHourTrashPerHour);
         Assert.Equal(22_000m, metrics.BestFiveHourTrashPerHour);
+        Assert.Equal(1_750_000_000m, metrics.BestFiveHourAverageSilverPerHour);
+
+        var charts = SpotHistoryDetailView.BuildChartData(profile, sessions);
+        Assert.Equal([6_000_000_000m, 10_000_000_000m, 14_000_000_000m], charts.CumulativeSilver);
+        Assert.Equal([3_000_000_000m, 1_000_000_000m, 2_000_000_000m], charts.SilverPerHour);
+        Assert.Equal([30_000m, 10_000m, 20_000m], charts.TrashPerHour);
+        Assert.Equal([30_000m, 10_000m, 20_000m], charts.RecentFiveTrashPerHour);
+        Assert.Equal([30_000m, 20_000m, 10_000m], charts.BestFiveTrashPerHour);
     }
 
     [Fact]

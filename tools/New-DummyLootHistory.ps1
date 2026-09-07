@@ -16,13 +16,14 @@ if (Test-Path -LiteralPath $outputPathResolved) {
 }
 
 $multipliers = @(0.91, 0.96, 1.02, 1.08, 0.94, 1.12, 0.99, 1.05, 0.88, 1.15)
+$separator = [char]0x00B7
 $classes = @(
-    'Maegu · Awakening · Demo',
-    'Dark Knight · Awakening · Demo',
-    'Warrior · Succession · Demo',
-    'Witch · Awakening · Demo',
-    'Lahn · Succession · Demo',
-    'Guardian · Awakening · Demo'
+    "Maegu $separator Awakening $separator Demo",
+    "Dark Knight $separator Awakening $separator Demo",
+    "Warrior $separator Succession $separator Demo",
+    "Witch $separator Awakening $separator Demo",
+    "Lahn $separator Succession $separator Demo",
+    "Guardian $separator Awakening $separator Demo"
 )
 $dummyEntries = [Collections.Generic.List[object]]::new()
 $spotGroups = @($template.Entries | Group-Object SpotId | Sort-Object Name)
