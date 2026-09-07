@@ -59,23 +59,6 @@ public sealed class BdoWindowChromeTests
         });
     }
 
-    [Fact]
-    public void SettingsDialogsAlsoRemainCapturable()
-    {
-        RunInSta(() =>
-        {
-            using var silver = new SilverOptionsDialog();
-            using var garmoth = new GarmothOptionsDialog();
-            foreach (var form in new Form[] { silver, garmoth })
-            {
-                _ = form.Handle;
-                Assert.True(GetWindowDisplayAffinity(form.Handle, out var affinity));
-                Assert.Equal(0u, affinity);
-                Assert.False(form.Visible);
-            }
-        });
-    }
-
     private static void RunInSta(Action action)
     {
         Exception? error = null;

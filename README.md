@@ -1,7 +1,18 @@
 # Grindcrest
 
-Lokaler, passiver Loot-Tracker für Black Desert, Testversion 0.9.6-test.2 (bisher BDO
-Grind Tracker). Der erste Erkennungspfad und die normale Zählung basieren wieder
+Lokaler, passiver Loot-Tracker für Black Desert, Testversion **0.10.0-test.1** (bisher BDO
+Grind Tracker), mit vollständig neuem **Blazor-Hybrid-Frontend** für Windows.
+Live-Session, Verlauf, Lootkorrekturen, Bestätigungsdialoge und Einstellungen werden
+als lokale Razor-Komponenten in WebView2 dargestellt. Das Dashboard bietet eine
+responsive dunkle Oberfläche, Spotbilder, Silber- und Trash-Kennzahlen, durchsuchbare
+Loot-Tabellen, Stundenwerte und Tastaturbedienung. Die Sitzungssteuerung ist von der
+Darstellung getrennt; es wird kein Webserver gestartet und keine UI aus dem Netz geladen.
+
+Der bestätigte Zählerstand aus **0.9.6-test.2** bleibt erhalten. Bestehende Einstellungen,
+Verlaufseinträge und der verschlüsselte Garmoth-Key werden weiterverwendet.
+[Architektur, Voraussetzungen und UI-Prüfung](docs/BLAZOR_HYBRID.md).
+
+Der erste Erkennungspfad und die normale Zählung basieren wieder
 auf dem Companion-Stand wie in 0.9.5.
 Die zusätzlichen Bestätigungs- und Lebensdauerregeln aus 0.6.0/0.6.1 sind entfernt.
 Erhalten bleiben der automatische Spotfilter und die Verbesserungen der UI-Geschwindigkeit.
@@ -23,15 +34,15 @@ bisherigen Spots kommen Aresion Temple, Scales of Judgment und Event Horizon mit
 automatischer Erkennung am jeweiligen Trashloot, vollständigem Hauptloot-Pool,
 Silberbewertung, Originalicons und Garmoth-Zuordnung hinzu.
 
-Der neue Tab **Loot Verlauf** speichert Grind-Sitzungen ausschließlich lokal. Er
+Der Bereich **Verlauf** speichert Grind-Sitzungen ausschließlich lokal. Er
 zeigt sie wahlweise chronologisch mit aufklappbaren Lootdetails oder gesammelt in
 kompakten Spot-Kacheln. Die Kacheln verwenden die jeweiligen Gebietsbilder und
 zeigen empfohlenen AP/DP, AP-Limit, farbige Traits, empfohlenen Widerstandskristall
 sowie Trashloot-Icon und Silberwert. Die maximierte Spotansicht ergänzt Kennzahlen,
 offizielle Klassensymbole und eine horizontal scrollbare, vollständige Loot-Tabelle.
 
-0.9.5 ergänzt den optionalen automatischen Garmoth-Upload. Unter **Optionen →
-Garmoth-Key** aktivieren: Jede volle Stunde aktiver Grindzeit wird als eigener
+0.9.5 ergänzt den optionalen automatischen Garmoth-Upload. Unter **Einstellungen →
+Garmoth verbinden** aktivieren: Jede volle Stunde aktiver Grindzeit wird als eigener
 Abschnitt übertragen, ausschließlich mit den noch nicht gesendeten Lootmengen
 und deren Silberwert. Tracking läuft weiter, Pausen zählen nicht mit. Auch ein
 manueller Rest-Upload lässt bereits übertragene Stunden aus. Die Option ist
@@ -86,10 +97,11 @@ Drop-Tabellen. Quellen, Einordnung und verbleibende Grenzen stehen in
 
 ## Benutzung
 
-1. `Grindcrest.exe` starten und unter **Optionen** den Spielmonitor prüfen.
-2. Dort optional **Event-Loot zulassen** aktivieren. Das ergänzt ausschließlich die
+1. `Grindcrest.exe` starten und unter **Einstellungen** den Spielbildschirm prüfen.
+2. Dort optional **Event-Loot mitzählen** aktivieren. Das ergänzt ausschließlich die
    explizite Event-Liste, keine beliebigen fremden Items.
-3. Optional **Loot-Diagnose lokal aufzeichnen** aktivieren, dann **Tracking starten**.
+3. Optional unter **Loot-Diagnose → Diese Session aufzeichnen** die Diagnose aktivieren.
+   **Einstellungen speichern**, dann unter **Live-Session** auf **Tracking starten** klicken.
 4. Der Spot wird aus dem ersten passenden Trashloot automatisch erkannt und angezeigt:
 
    | Erkannter Trashloot | Spot |
@@ -102,12 +114,12 @@ Drop-Tabellen. Quellen, Einordnung und verbleibende Grenzen stehen in
    | Broken Gloves of the Void | Event Horizon |
 
 5. **Pausieren** erhält die Session und stoppt die Sitzungsuhr. **Fortsetzen** zählt
-   aktive Grindzeit weiter; Pausen zählen nicht mit. **Neue Sitzung** setzt Uhr,
+   aktive Grindzeit weiter; Pausen zählen nicht mit. **Neue Session** setzt Uhr,
    Summen, Zählzustand und Spot zurück. Vor einem Spotwechsel eine neue Sitzung anlegen.
 
 Beim Pausieren, beim Anlegen einer neuen Sitzung und beim Beenden wird der aktuelle
-Stand im Tab **Loot Verlauf** aktualisiert. Dort lässt sich zwischen **Chronologisch**
-und **Nach Spots** wechseln; ein Klick auf eine Sitzung oder Spot-Kachel klappt die
+Stand im Bereich **Verlauf** aktualisiert. Dort lässt sich zwischen **Alle Sessions**
+(chronologisch) und **Grindspots** wechseln; ein Klick auf eine Sitzung oder Spot-Kachel zeigt die
 zugehörigen Stunden und Lootdetails aus. Gespeichert werden höchstens 500 Sitzungen
 im lokalen App-Konfigurationsordner, ohne Cloud-Synchronisierung.
 
@@ -120,7 +132,7 @@ Die Diagnose-Aufzeichnung ist beim Programmstart und nach jeder neuen Sitzung au
 ### Auto-Pause und Klasse
 
 Nach **3 Minuten ohne neuen gezählten Drop** pausieren Aufnahme und Sitzungsuhr
-automatisch. Unter **Optionen → Automatische Pause** sind 1–60 Minuten einstellbar,
+automatisch. Unter **Einstellungen → Automatische Pause nach** sind 1–60 Minuten einstellbar,
 auch während der Sitzung; der Wert wird gespeichert. Wiederholt sichtbare Zeilen
 und negative Mengenkorrekturen setzen den Timer nicht zurück. **Fortsetzen** startet
 ein neues Wartefenster. Bei der automatischen Pause wird die gesamte Zeit seit dem
@@ -132,18 +144,18 @@ Der Garmoth-Upload verwendet ebenfalls die so korrigierte Sessiondauer.
 
 Die Klasse einschließlich Spezialisierung wird aus den gespeicherten Skill-Slots
 ermittelt und neben dem Spot angezeigt. Unbekannt/mehrdeutig bleibt ausdrücklich
-unbekannt. Vor dem Start oder während einer Pause lässt sie sich unter **Optionen**
+unbekannt. Vor dem Start oder während einer Pause lässt sie sich unter **Einstellungen**
 korrigieren. Für einen Charakterwechsel eine neue Sitzung anlegen. Details und
 Grenzen: [Klassenerkennung](docs/CLASS_DETECTION.md).
 
 ### Optionaler Upload nach Garmoth
 
-Einmal unter **Optionen → Garmoth-Key** den eigenen API-Key aus den Garmoth-
+Einmal unter **Einstellungen → Garmoth verbinden** den eigenen API-Key aus den Garmoth-
 Einstellungen speichern. Er wird mit Windows-DPAPI für den aktuellen Windows-Benutzer
 verschlüsselt, nicht als Klartext in den Einstellungen gespeichert. Companion-/Browser-
 Anmeldedaten werden nicht übernommen. Dort lässt sich der Key auch wieder entfernen.
 
-Im selben Dialog kann **Automatisch jede Grind-Stunde an Garmoth senden** aktiviert
+Im selben Bereich kann **Stündlich automatisch hochladen** aktiviert
 und gespeichert werden; standardmäßig ist die Option aus. Alle **60 aktiven
 Grind-Minuten** wird nur der nächste ungesendete Stundenabschnitt übertragen,
 während das Tracking weiterläuft. Pausen und eine noch durch Auto-Pause abziehbare
@@ -153,9 +165,9 @@ Stunden nacheinander hoch. Eine angefangene Reststunde bleibt bis zur nächsten 
 Stunde oder zum manuellen Upload lokal. **Neue Sitzung** und Schließen senden sie
 nicht automatisch.
 
-**Ein Klick auf Garmoth-Upload** pausiert eine laufende Sitzung, schließt ausstehenden
-Loot ab und sendet die gesamte noch nicht hochgeladene Zeit und Beute. Kein weiterer
-Dialog, keine Silber- oder Klasseneingabe im Upload. Verwendet werden die bereits
+**Session hochladen → Jetzt hochladen** pausiert eine laufende Sitzung, schließt ausstehenden
+Loot ab und sendet die gesamte noch nicht hochgeladene Zeit und Beute. Der Dialog
+bestätigt die Übertragung; Silber- und Klasseneingaben sind dort nicht nötig. Verwendet werden die bereits
 erkannte/gewählte Klasse, Spot und der Netto-Silberwert des übertragenen Abschnitts
 zu den aktuellen Preis-/Steuereinstellungen; keine Differenz alter Silber-Gesamtsummen.
 
@@ -237,15 +249,15 @@ Screenshot-Vorrat und keine Abhängigkeit von der UI-Antwortzeit. Alle ausgegebe
 Buchungen und Korrekturen werden in der Sitzungssumme übernommen; die UI erhält
 nur den neuesten Anzeigezustand.
 
-Das Dashboard zeigt Sitzungsdauer (HH:MM:SS) und Silber vor/nach Steuer.
-**Session-Loot** nutzt den Großteil des Fensters: Karten mit Icon,
-Itemname und Gesamtmenge, absteigend nach Menge sortiert. Bei Bedarf lässt sich
-die Liste scrollen; sie wächst nur mit verschiedenen Itemarten, nicht mit jedem Drop.
+Das Dashboard zeigt aktive Sitzungsdauer (HH:MM:SS), Trashloot, Netto-Silber und
+Silber pro Stunde. **Dein Loot** zeigt Itemicons, Mengen und Silberwerte als
+durchsuchbare Tabelle. Sortierung nach Silber, Menge oder Name und der Wechsel
+zwischen Gesamtmengen und Stundenwerten verändern nur die Darstellung.
 
 Die Sitzungsuhr läuft unabhängig von neuen Frames und benutzt monotone Zeitmessung,
 damit Änderungen der Systemuhr die Dauer nicht verfälschen. UI-Screenshot-Thumbnails,
 OCR-Debuganzeigen und das Entscheidungslog werden im laufenden Dashboard nicht mehr
-erzeugt. Die optionale lokale Diagnose bleibt unter **Optionen** verfügbar und ist
+erzeugt. Die optionale lokale Diagnose bleibt unter **Einstellungen** verfügbar und ist
 standardmäßig aus. Die Oberfläche verändert Aufnahmeintervall, Spotfilter und
 Zählung nicht. Die zusätzlichen OCR-Leseversuche aus 0.9.4 sind oben beschrieben.
 
@@ -298,8 +310,11 @@ Siehe [Sicherheitsgrenze](docs/SAFETY.md) und [Architektur](docs/ANALYSIS.md).
 
 ## Entwicklung
 
-Windows 10 Version 2004 oder neuer, .NET 9 SDK und eine installierte Windows-OCR-
-Sprache. Die Itemnamen sind englisch; bevorzugte OCR-Sprache ist en-US.
+Windows 10 Version 2004 oder neuer, .NET 9 SDK, die
+[Microsoft Edge WebView2 Evergreen Runtime](https://developer.microsoft.com/microsoft-edge/webview2/)
+und eine installierte Windows-OCR-Sprache. Die Itemnamen sind englisch;
+bevorzugte OCR-Sprache ist en-US. Das veröffentlichte Windows-x64-Paket enthält die
+.NET-Laufzeit; WebView2 wird vom Betriebssystem bereitgestellt bzw. separat installiert.
 
 Die interne Assembly heißt aus Kompatibilitätsgründen weiter `BdoGrindTracker`.
 Beim Publish wird zusätzlich der gleichwertige Starter `Grindcrest.exe` angelegt.
@@ -310,6 +325,7 @@ dieselben Dateien und Einstellungen. Nicht beide gleichzeitig für dieselbe Sitz
 dotnet restore BdoGrindTracker.slnx
 dotnet test BdoGrindTracker.slnx -c Release
 dotnet run --project src/BdoGrindTracker.App
+dotnet publish src/BdoGrindTracker.App -c Release -r win-x64 --self-contained true -o artifacts/v0.10.0-test.1
 ```
 
 Die Herkunft der eingebetteten 30 Ziffern-PNGs und die historische Untersuchung der

@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk.Razor">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net9.0-windows10.0.19041.0</TargetFramework>
@@ -13,12 +13,19 @@
     <Description>Passive Black Desert loot and grind-session tracker</Description>
     <ApplicationIcon>..\..\data\branding\grindcrest.ico</ApplicationIcon>
     <RootNamespace>BdoGrindTracker.App</RootNamespace>
-    <Version>0.9.6-test.2</Version>
-    <AssemblyVersion>0.9.6.0</AssemblyVersion>
-    <FileVersion>0.9.6.1</FileVersion>
-    <InformationalVersion>0.9.6-test.2</InformationalVersion>
+    <Version>0.10.0-test.1</Version>
+    <AssemblyVersion>0.10.0.0</AssemblyVersion>
+    <FileVersion>0.10.0.0</FileVersion>
+    <InformationalVersion>0.10.0-test.1</InformationalVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebView.WindowsForms" Version="9.0.120" />
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <Content Update="wwwroot\**\*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <WebUiAsset Include="..\..\data\**\*.png;..\..\data\**\*.jpg;..\..\data\**\*.json;..\..\data\**\*.ico" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\BdoGrindTracker.Core\BdoGrindTracker.Core.csproj" />
@@ -100,6 +107,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="..\..\docs\BLAZOR_HYBRID.md" Link="docs\BLAZOR_HYBRID.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\licenses\*" Link="licenses\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="..\..\README.md" Link="README.md">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
@@ -147,5 +156,11 @@
   <Target Name="PublishGrindcrestLauncher" AfterTargets="Publish"
           Condition="Exists('$(PublishDir)$(AssemblyName).exe')">
     <Copy SourceFiles="$(PublishDir)$(AssemblyName).exe" DestinationFiles="$(PublishDir)Grindcrest.exe" />
+  </Target>
+  <Target Name="CopyWebUiAssetsToBuild" AfterTargets="Build">
+    <Copy SourceFiles="@(WebUiAsset)" DestinationFiles="@(WebUiAsset->'$(TargetDir)wwwroot\assets\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
+  <Target Name="CopyWebUiAssetsToPublish" AfterTargets="Publish">
+    <Copy SourceFiles="@(WebUiAsset)" DestinationFiles="@(WebUiAsset->'$(PublishDir)wwwroot\assets\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
   </Target>
 </Project>

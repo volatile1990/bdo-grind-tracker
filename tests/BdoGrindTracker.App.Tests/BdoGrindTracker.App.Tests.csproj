@@ -16,6 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="..\..\src\BdoGrindTracker.App\BdoGrindTracker.App.csproj" />
   </ItemGroup>
 

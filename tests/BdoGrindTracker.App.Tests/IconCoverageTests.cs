@@ -2,7 +2,8 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using BdoGrindTracker.App.Integrations.Garmoth;
 using BdoGrindTracker.App.Pricing;
-using BdoGrindTracker.App.UI;
+using BdoGrindTracker.App.Components;
+using BdoGrindTracker.App.Services;
 using BdoGrindTracker.Core;
 
 namespace BdoGrindTracker.App.Tests;
@@ -27,7 +28,7 @@ public sealed class IconCoverageTests
         var catalog = ReadCatalog();
         Assert.True(catalog.TryGetValue(name, out var entry), $"Icon catalog entry missing: {name}");
         var fileName = entry.GetProperty("file").GetString()!;
-        Assert.Equal(LootIconRepository.CreateSlug(name) + ".png", fileName);
+        Assert.Equal(AssetNames.ItemSlug(name) + ".png", fileName);
         Assert.Equal(fileName, Path.GetFileName(fileName));
         var bytes = File.ReadAllBytes(Path.Combine(IconDirectory, fileName));
         Assert.Equal(entry.GetProperty("sha256").GetString(), Convert.ToHexStringLower(SHA256.HashData(bytes)));
@@ -55,10 +56,7 @@ public sealed class IconCoverageTests
         if (priceDefinition.MarketItemId is { } marketId)
             Assert.Equal(marketId.ToString(System.Globalization.CultureInfo.InvariantCulture), entry.GetProperty("itemId").GetString());
 
-        using var repository = new LootIconRepository(IconDirectory);
-        var uiIcon = repository.GetIcon(name);
-        Assert.NotNull(uiIcon);
-        Assert.Equal(new Size(image.Width, image.Height), uiIcon.Size);
+        Assert.Equal("assets/icons/" + fileName, Presentation.ItemIcon(name));
     }
 
     [Theory]
@@ -86,8 +84,7 @@ public sealed class IconCoverageTests
         Assert.Equal(56, catalog.Count);
         Assert.Equal(56, Directory.GetFiles(IconDirectory, "*.png").Length);
         Assert.False(catalog.ContainsKey("Pure Black Stone"));
-        using var repository = new LootIconRepository(IconDirectory);
-        Assert.Null(repository.GetIcon("Pure Black Stone"));
+        Assert.Null(Presentation.ItemIcon("Pure Black Stone"));
         Assert.Equal(34, catalog.Values.Count(static entry => entry.TryGetProperty("addedAtUtc", out _)));
     }
 

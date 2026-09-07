@@ -3,6 +3,8 @@ using BdoGrindTracker.App.Capture;
 using BdoGrindTracker.App.Persistence;
 using BdoGrindTracker.App.UI;
 using BdoGrindTracker.App.Diagnostics;
+using BdoGrindTracker.App.Services;
+using Microsoft.Web.WebView2.Core;
 
 namespace BdoGrindTracker.App;
 
@@ -38,76 +40,57 @@ internal static class Program
                 return 1;
             }
         }
-        var startupSmokeTest = args.Contains(
-            "--startup-smoke-test",
-            StringComparer.OrdinalIgnoreCase);
-
+        var startupSmokeTest = args.Contains("--startup-smoke-test", StringComparer.OrdinalIgnoreCase);
+        var uiSmokeTest = args.Contains("--ui-smoke-test", StringComparer.OrdinalIgnoreCase);
+        var emptyPreview = args.Contains("--ui-preview-empty", StringComparer.OrdinalIgnoreCase);
+        var preview = uiSmokeTest || emptyPreview || args.Contains("--ui-preview", StringComparer.OrdinalIgnoreCase);
+        var smokeTest = startupSmokeTest || uiSmokeTest;
         try
         {
-            var settingsStore = new SettingsStore();
-            var capture = new PassiveScreenCapture();
-            var analyzer = FrameAnalyzerFactory.Create();
-
-            if (startupSmokeTest)
+            _ = CoreWebView2Environment.GetAvailableBrowserVersionString();
+            int? debugPort = null;
+            var debugArgument = args.FirstOrDefault(arg => arg.StartsWith("--ui-debug-port=", StringComparison.Ordinal));
+            if (debugArgument is not null)
             {
-                using (analyzer)
-                {
-                    if (!analyzer.IsAvailable)
-                    {
-                        Console.Error.WriteLine(analyzer.Status);
-                        return 2;
-                    }
-
-                    using var form = new MainForm(capture, analyzer, settingsStore);
-                    // Construct and lay out the real form without showing, focusing or
-                    // capturing anything. This validates a published build safely.
-                    LayoutHiddenControlTree(form);
-                    ValidateMetricTextBounds(form);
-                }
-
-                return 0;
+                if (!int.TryParse(debugArgument["--ui-debug-port=".Length..], out var port) || port is < 1024 or > 65535)
+                    throw new ArgumentException("Ungültiger UI-Debug-Port.");
+                debugPort = port;
             }
-
-            Application.Run(new MainForm(capture, analyzer, settingsStore));
-            return 0;
+            ITrackerSession session;
+            if (preview)
+            {
+                session = new PreviewTrackerSession(emptyPreview);
+            }
+            else
+            {
+                var analyzer = FrameAnalyzerFactory.Create();
+                if (startupSmokeTest && !analyzer.IsAvailable)
+                {
+                    Console.Error.WriteLine(analyzer.Status);
+                    analyzer.Dispose();
+                    return 2;
+                }
+                var monitors = Screen.AllScreens.Select((screen, index) => new TrackerMonitor(
+                    screen.DeviceName,
+                    $"Bildschirm {index + 1} · {screen.Bounds.Width} × {screen.Bounds.Height}" + (screen.Primary ? " · Hauptbildschirm" : ""),
+                    screen.Bounds, screen.Primary)).OrderByDescending(screen => screen.IsPrimary).ToArray();
+                session = new TrackerSessionService(new PassiveCaptureSession(new PassiveScreenCapture()),
+                    analyzer, new SettingsStore(), monitors);
+            }
+            var hidden = preview && args.Contains("--ui-hidden", StringComparer.OrdinalIgnoreCase);
+            using var form = new HybridMainForm(session, smokeTest, debugPort, preview, hidden);
+            Application.Run(form);
+            return form.ExitCode;
         }
         catch (Exception exception)
         {
-            if (!startupSmokeTest)
-            {
-                MessageBox.Show(
-                    $"{AppBranding.Name} konnte nicht gestartet werden.\n\n{exception.Message}",
-                    "Startfehler",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error);
-            }
-
+            var message = exception is WebView2RuntimeNotFoundException
+                ? "Die Microsoft Edge WebView2-Laufzeit fehlt. Bitte die WebView2 Evergreen Runtime von Microsoft installieren und Grindcrest erneut starten.\nhttps://developer.microsoft.com/microsoft-edge/webview2/"
+                : exception.Message;
+            if (smokeTest) Console.Error.WriteLine(message);
+            else MessageBox.Show($"{AppBranding.Name} konnte nicht gestartet werden.\n\n{message}",
+                "Startfehler", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return 1;
         }
-    }
-
-    private static void LayoutHiddenControlTree(Control control)
-    {
-        // Create test-owned HWNDs without showing a window. This exercises the
-        // executable's real PerMonitorV2 initialization rather than a test host's DPI mode.
-        _ = control.Handle;
-        control.PerformLayout();
-        foreach (Control child in control.Controls)
-            LayoutHiddenControlTree(child);
-        control.PerformLayout();
-    }
-
-    private static void ValidateMetricTextBounds(Control control)
-    {
-        if (control is MetricValueLabel metric)
-        {
-            using var graphics = metric.CreateGraphics();
-            var measured = metric.MeasureRenderedText(graphics);
-            if (measured.Width + metric.Padding.Horizontal > metric.ClientSize.Width ||
-                measured.Height + metric.Padding.Vertical > metric.ClientSize.Height)
-                throw new InvalidOperationException($"Kennzahl abgeschnitten bei {metric.DeviceDpi} DPI: {metric.Text}");
-        }
-        foreach (Control child in control.Controls)
-            ValidateMetricTextBounds(child);
     }
 }

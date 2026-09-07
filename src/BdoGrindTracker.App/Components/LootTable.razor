@@ -1,0 +1,66 @@
+@inherits TrackerComponentBase
+
+<section class="panel loot-panel" aria-label="@Title">
+    <div class="panel-heading">
+        <div><h2>@Title <span class="count-pill">@Totals.Count</span></h2><p>@Subtitle</p></div>
+        <div class="segmented" aria-label="Mengenanzeige"><button class="@(!_hourly ? "selected" : "")" @onclick="() => _hourly = false" aria-pressed="@(!_hourly ? "true" : "false")">Gesamt</button><button class="@(_hourly ? "selected" : "")" @onclick="() => _hourly = true" aria-pressed="@(_hourly ? "true" : "false")" disabled="@(DurationTicks <= 0)">Pro Stunde</button></div>
+    </div>
+    @if (Totals.Count > 0)
+    {
+        <div class="table-toolbar">
+            <label class="search-field"><AppIcon Name="search" /><input aria-label="Loot durchsuchen" placeholder="Loot durchsuchen …" @bind="_query" @bind:event="oninput" /></label>
+            <label class="sort-field"><span class="sr-only">Loot sortieren</span><select @bind="_sort" aria-label="Loot sortieren"><option value="value">Nach Silberwert</option><option value="quantity">Nach Menge</option><option value="name">Nach Name</option></select></label>
+        </div>
+        <div class="table-scroll">
+            <table class="loot-table">
+                <thead><tr><th scope="col">Gegenstand</th><th scope="col" class="numeric">@(_hourly ? "Menge / h" : "Menge")</th><th scope="col" class="numeric">@(_hourly ? "Netto / h" : "Wert netto")</th></tr></thead>
+                <tbody>
+                    @foreach (var item in Rows)
+                    {
+                        var isTrash = item.Name == TrashName;
+                        <tr @key="item.Name">
+                            <td><div class="item-cell"><AssetImage Src="@ItemIcon(item.Name)" Alt="" Class="item-image" /><span><strong>@item.Name</strong><small>@(isTrash ? "Trashloot · NPC-Verkauf" : Kind(item.Name))@if (item.Stale) { <span class="inline-warning"> · Cachepreis</span> }</small></span>@if (isTrash) { <span class="item-tag">TRASH</span> }</div></td>
+                            <td class="numeric quantity">@Number(_hourly ? Hourly(item.Quantity, TimeSpan.FromTicks(DurationTicks)) : item.Quantity)</td>
+                            <td class="numeric silver-cell" title="@(item.Value.HasValue ? Number(item.Value.Value) + " Silber netto" : "Für diesen Gegenstand fehlt ein Preis.")">@(item.Value.HasValue ? Silver(_hourly ? Hourly(item.Value.Value, TimeSpan.FromTicks(DurationTicks)) : item.Value.Value) : "Preis fehlt")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        @if (!Rows.Any()) { <div class="inline-empty">Kein Gegenstand passt zu „@_query“.</div> }
+        <div class="table-footnote"><AppIcon Name="info" /><span>NPC-Werte ohne Steuer · Marktwerte mit deinen Silber-Einstellungen</span></div>
+    }
+    else
+    {
+        <div class="empty-state loot-empty"><div class="empty-symbol"><AppIcon Name="loot" /></div><h3>Hier landet dein nächster Drop.</h3><p>Starte die Erfassung und grinde wie gewohnt.<br />Erkannter Loot erscheint automatisch in dieser Übersicht.</p><span class="subtle-label">@LootSpotCatalog.Spots.Count unterstützte Grindspots in Edania</span></div>
+    }
+</section>
+
+@code {
+    [Parameter] public IReadOnlyDictionary<string, long> Totals { get; set; } = new Dictionary<string, long>();
+    [Parameter] public long DurationTicks { get; set; }
+    [Parameter] public string? TrashName { get; set; }
+    [Parameter] public string Title { get; set; } = "Dein Loot";
+    [Parameter] public string Subtitle { get; set; } = "Alle erfassten Drops dieser Session";
+    private string _query = "";
+    private string _sort = "value";
+    private bool _hourly;
+    private sealed record LootRow(string Name, long Quantity, decimal? Value, bool Stale);
+    private IEnumerable<LootRow> Rows
+    {
+        get
+        {
+            var items = Totals.Where(pair => pair.Key.Contains(_query, StringComparison.OrdinalIgnoreCase)).Select(pair =>
+            {
+                var valuation = SilverValuation.Calculate(new Dictionary<string, long> { [pair.Key] = pair.Value }, Tracker.Prices, Tracker.Preferences.Tax);
+                return new LootRow(pair.Key, pair.Value, valuation.IsComplete ? valuation.AfterTax : null, valuation.IsStale);
+            });
+            return _sort switch
+            {
+                "quantity" => items.OrderByDescending(item => item.Quantity).ThenBy(item => item.Name),
+                "name" => items.OrderBy(item => item.Name),
+                _ => items.OrderByDescending(item => item.Value).ThenBy(item => item.Name)
+            };
+        }
+    }
+}

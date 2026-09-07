@@ -6,6 +6,7 @@ using BdoGrindTracker.App.Integrations.Garmoth;
 using BdoGrindTracker.App.Persistence;
 using BdoGrindTracker.App.Pricing;
 using BdoGrindTracker.App.UI;
+using BdoGrindTracker.App.Services;
 using BdoGrindTracker.Core;
 
 namespace BdoGrindTracker.App.Tests;
@@ -25,7 +26,7 @@ public sealed class GarmothIntegrationTests
             SilverBeforeTax = 0, SilverAfterTax = 0, SilverIsComplete = false
         };
 
-        var draft = MainForm.CreateHistoricalGarmothDraft(entry,
+        var draft = TrackerSessionService.CreateHistoricalGarmothDraft(entry,
             LootPriceCatalog.FixedSnapshot("eu"), SilverTaxOptions.Default);
 
         Assert.Equal(entry.SessionId, draft.LocalSessionId);

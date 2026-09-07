@@ -1,0 +1,86 @@
+@inherits TrackerComponentBase
+
+<div class="page settings-page">
+    <div class="page-heading"><div><span class="eyebrow">PASSEND ZU DEINEM GRIND</span><h1>Einstellungen</h1><p>Erfassung, Silberwerte und Uploads an einem Ort.</p></div></div>
+    @if (ActionError is not null) { <div class="notice error-notice" role="alert"><AppIcon Name="info" />@ActionError</div> }
+    @if (_validation is not null) { <div class="notice error-notice" role="alert"><AppIcon Name="info" />@_validation</div> }
+    @if (_saved) { <div class="notice success-notice" role="status"><AppIcon Name="check" />Deine Einstellungen wurden gespeichert.</div> }
+    <form @onsubmit="Save" @onsubmit:preventDefault>
+        <div class="settings-layout">
+            <div class="settings-column">
+                <section class="panel settings-panel"><div class="settings-heading"><div class="settings-icon"><AppIcon Name="monitor" /></div><div><h2>Erfassung</h2><p>Dein Spiel. Dein Bildschirm.</p></div></div>
+                    <label class="field"><span>Spielbildschirm</span><select @bind="_monitor" disabled="@State.HasSession">@foreach (var monitor in Tracker.Monitors) { <option value="@monitor.DeviceName">@monitor.Label</option> }</select><small>Wähle den Bildschirm, auf dem Black Desert läuft.</small></label>
+                    <label class="field"><span>Charakterklasse</span><select @bind="_characterClass" disabled="@(State.IsRunning || State.IsSubmitted)"><option value="">Automatisch erkennen</option>@foreach (var characterClass in CompanionCharacterClassCatalog.Classes) { <option value="@characterClass.Id">@characterClass.DisplayName</option> }</select><small>Bei pausierter Session kannst du die erkannte Klasse vor dem Upload korrigieren.</small></label>
+                    <label class="field"><span>Automatische Pause nach</span><div class="input-with-unit"><input type="number" min="1" max="60" step="1" required @bind="_autoPause" /><span>Minuten ohne neuen Loot</span></div><small>Die Erfassung pausiert, wenn kein neuer Drop gezählt wird.</small></label>
+                    <label class="toggle-row"><span><strong>Event-Loot mitzählen</strong><small>Zusätzlich bekannte Event-Gegenstände erfassen.</small></span><input type="checkbox" class="switch" @bind="_eventLoot" disabled="@State.HasSession" /></label>
+                    @if (State.HasSession) { <p class="field-note"><AppIcon Name="info" />Bildschirm, Lootfilter und Aufzeichnung lassen sich vor dem Start einer neuen Session ändern.</p> }
+                </section>
+                <section class="panel settings-panel"><div class="settings-heading"><div class="settings-icon"><AppIcon Name="shield" /></div><div><h2>Loot-Diagnose</h2><p>Hilfreich, wenn ein Drop nicht richtig gezählt wird.</p></div></div>
+                    <label class="toggle-row"><span><strong>Diese Session aufzeichnen</strong><small>Loot-Ausschnitte und Erkennungsdaten lokal speichern.</small></span><input type="checkbox" class="switch" @bind="_recordLoot" disabled="@State.HasSession" /></label>
+                    <div class="subtle-box"><AppIcon Name="info" /><span>Gilt nur für die aktuelle Session und wird bei einer neuen Session ausgeschaltet. Die Dateien bleiben lokal, bis du sie selbst teilst.</span></div>
+                    <p class="field-note">Speicherort: <code>%LOCALAPPDATA%\BdoGrindTracker\diagnostics</code></p>
+                    @if (State.IsRecording && State.RecordingPath is { } path) { <div class="recording-path"><span class="record-dot"></span><span>@path</span></div> }
+                </section>
+            </div>
+            <div class="settings-column">
+                <section class="panel settings-panel"><div class="settings-heading"><div class="settings-icon gold-icon"><AppIcon Name="silver" /></div><div><h2>Silber &amp; Zentralmarkt</h2><p>Werte nach deinen persönlichen Verkaufsboni.</p></div></div>
+                    <label class="field"><span>Marktregion</span><select @bind="_region"><option value="eu">Europa (EU)</option><option value="na">Nordamerika (NA)</option></select></label>
+                    <label class="toggle-row"><span><strong>Vorteilspaket</strong><small>30 % Bonus auf den Basis-Markterlös.</small></span><input type="checkbox" class="switch" @bind="_valuePack" /></label>
+                    <label class="toggle-row"><span><strong>Ring eines reichen Händlers</strong><small>5 % Bonus auf den Basis-Markterlös.</small></span><input type="checkbox" class="switch" @bind="_merchantRing" /></label>
+                    <label class="field"><span>Familienruhm</span><input type="number" min="0" max="2147483647" step="1" required @bind="_familyFame" /><small>Zusätzlicher Verkaufsbonus ab 1.000, 4.000 und 7.000 Ruhm.</small></label>
+                    <div class="tax-preview"><span>Dein effektiver Markterlös</span><strong>@TaxPreview</strong><small>NPC-Verkäufe bleiben steuerfrei.</small></div>
+                </section>
+                <section class="panel settings-panel"><div class="settings-heading"><div class="settings-icon"><AppIcon Name="upload" /></div><div><h2>Garmoth verbinden</h2><p>Deine Grind-Sessions in deinem Garmoth-Konto.</p></div></div>
+                    <label class="field"><span>API-Schlüssel <span class="badge @(State.HasApiKey ? "teal-badge" : "muted-badge")">@(State.HasApiKey ? "Gespeichert" : "Nicht verbunden")</span></span><div class="key-input"><AppIcon Name="key" /><input type="password" autocomplete="new-password" spellcheck="false" placeholder="@(State.HasApiKey ? "Gespeicherten Schlüssel beibehalten" : "Garmoth-API-Schlüssel einfügen")" @bind="_apiKey" disabled="@_removeKey" /></div><small>Verschlüsselt auf diesem PC gespeichert. Leer lassen, um den vorhandenen Schlüssel zu behalten.</small></label>
+                    @if (State.HasApiKey) { <label class="checkbox-row"><input type="checkbox" @bind="_removeKey" /><span>Gespeicherten Schlüssel entfernen</span></label> }
+                    <label class="toggle-row"><span><strong>Stündlich automatisch hochladen</strong><small>Nach jeder aktiven Grindstunde nur den noch nicht übertragenen Stundenanteil hochladen.</small></span><input type="checkbox" class="switch" @bind="_autoUpload" /></label>
+                    <div class="subtle-box"><AppIcon Name="clock" /><span>Bereits hochgeladene Zeit und Lootmengen werden beim nächsten Upload nicht erneut übertragen.</span></div>
+                </section>
+            </div>
+        </div>
+        <div class="settings-savebar"><span><AppIcon Name="shield" />Deine Einstellungen werden lokal gespeichert.</span><div><button type="button" class="button secondary" @onclick="ResetForm" disabled="@Acting">Änderungen verwerfen</button><button type="submit" class="button primary" disabled="@(Acting || State.IsBusy)"><AppIcon Name="check" />@(Acting ? "Wird gespeichert …" : "Einstellungen speichern")</button></div></div>
+    </form>
+</div>
+
+@code {
+    private string? _monitor;
+    private string? _characterClass;
+    private int _autoPause;
+    private bool _eventLoot, _recordLoot, _autoUpload, _valuePack, _merchantRing, _removeKey, _saved;
+    private int _familyFame;
+    private string _region = "eu", _apiKey = "";
+    private string? _validation;
+    private string TaxPreview => new SilverTaxOptions(_valuePack, _merchantRing, Math.Max(0, _familyFame)).MarketReturnRate.ToString("P2", German);
+    protected override void OnInitialized() { base.OnInitialized(); ResetForm(); }
+    private void ResetForm()
+    {
+        var preferences = Tracker.Preferences;
+        _monitor = preferences.MonitorDeviceName ?? Tracker.Monitors.FirstOrDefault()?.DeviceName;
+        _characterClass = preferences.CharacterClassId;
+        _autoPause = preferences.AutoPauseMinutes;
+        _eventLoot = preferences.IncludeEventLoot;
+        _recordLoot = preferences.RecordLoot;
+        _autoUpload = preferences.AutoUpload;
+        _region = preferences.MarketRegion;
+        _valuePack = preferences.ValuePack;
+        _merchantRing = preferences.MerchantRing;
+        _familyFame = preferences.FamilyFame;
+        _apiKey = ""; _removeKey = false; _validation = null; _saved = false;
+    }
+    private async Task Save()
+    {
+        _saved = false;
+        _validation = _autoPause is < 1 or > 60 ? "Die automatische Pause muss zwischen 1 und 60 Minuten liegen." : _familyFame < 0 ? "Der Familienruhm darf nicht negativ sein." : null;
+        if (_validation is not null) return;
+        if (_autoUpload && (_removeKey || (!State.HasApiKey && string.IsNullOrWhiteSpace(_apiKey)))) { _validation = "Hinterlege einen API-Schlüssel, um automatisch nach Garmoth hochzuladen."; return; }
+        var preferences = new TrackerPreferences
+        {
+            MonitorDeviceName = _monitor, CharacterClassId = string.IsNullOrEmpty(_characterClass) ? null : _characterClass,
+            AutoPauseMinutes = _autoPause, IncludeEventLoot = _eventLoot, RecordLoot = _recordLoot,
+            AutoUpload = _autoUpload, MarketRegion = _region, ValuePack = _valuePack, MerchantRing = _merchantRing, FamilyFame = _familyFame
+        };
+        string? key = _removeKey ? "" : string.IsNullOrWhiteSpace(_apiKey) ? null : _apiKey.Trim();
+        if (await Act(() => Tracker.SavePreferencesAsync(preferences, key))) { ResetForm(); _saved = true; }
+        _apiKey = "";
+    }
+}
