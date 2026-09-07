@@ -409,7 +409,7 @@ internal sealed class LootHistoryView : UserControl
 
 internal sealed class SpotHistoryCard : Control
 {
-    private const int CollapsedLogicalHeight = 154;
+    private const int CollapsedLogicalHeight = 176;
     private static readonly CultureInfo GermanCulture = CultureInfo.GetCultureInfo("de-DE");
     private readonly LootSpotPresentation _profile;
     private readonly IReadOnlyList<LootHistoryEntry> _sessions;
@@ -594,19 +594,20 @@ internal sealed class SpotHistoryCard : Control
 
         var trashBounds = GetTrashBounds(bounds);
         DrawTrash(graphics, trashBounds);
-        DrawStat(graphics, padding, ScaleLogical(68), ScaleLogical(45),
+        DrawStat(graphics, padding, ScaleLogical(67), ScaleLogical(52),
             "REC. AP", _profile.RecommendedAp.ToString(CultureInfo.InvariantCulture) + "+",
             Color.FromArgb(231, 160, 95));
-        DrawStat(graphics, padding + ScaleLogical(49), ScaleLogical(68), ScaleLogical(45),
+        DrawStat(graphics, padding + ScaleLogical(58), ScaleLogical(67), ScaleLogical(52),
             "MAX AP", _profile.MaxApLimit.ToString(CultureInfo.InvariantCulture),
             Color.FromArgb(240, 200, 111));
-        DrawStat(graphics, padding + ScaleLogical(98), ScaleLogical(68), ScaleLogical(45),
+        DrawStat(graphics, padding + ScaleLogical(116), ScaleLogical(67), ScaleLogical(52),
             "REC. DP", _profile.RecommendedDp.ToString(CultureInfo.InvariantCulture) + "+",
             Color.FromArgb(131, 209, 153));
-        var ccX = padding + ScaleLogical(147);
-        DrawCcStat(graphics, ccX, ScaleLogical(68),
-            Math.Max(ScaleLogical(92), trashBounds.Left - ccX - ScaleLogical(4)));
-        DrawCompactTraits(graphics, padding, ScaleLogical(126), bounds.Width - padding * 2);
+        var ccX = padding + ScaleLogical(174);
+        DrawCcStat(graphics, ccX, ScaleLogical(67),
+            Math.Min(ScaleLogical(158), Math.Max(ScaleLogical(126), bounds.Right - padding - ccX)));
+        DrawCompactTraits(graphics, padding, ScaleLogical(137),
+            Math.Max(ScaleLogical(90), trashBounds.Left - padding - ScaleLogical(8)));
     }
 
     private Rectangle GetTrashBounds(Rectangle bounds)
@@ -614,7 +615,7 @@ internal sealed class SpotHistoryCard : Control
         var width = ScaleLogical(136);
         var height = ScaleLogical(49);
         var right = ScaleLogical(8);
-        return new Rectangle(bounds.Right - right - width, ScaleLogical(65), width, height);
+        return new Rectangle(bounds.Right - right - width, ScaleLogical(119), width, height);
     }
 
     private void DrawTrash(Graphics graphics, Rectangle box)
@@ -649,12 +650,12 @@ internal sealed class SpotHistoryCard : Control
     private void DrawCcStat(Graphics graphics, int x, int y, int width)
     {
         var accent = ResolveCrystalAccent(_profile.RecommendedCrystalName);
-        var iconSize = ScaleLogical(26);
-        var iconBounds = new Rectangle(x, y + ScaleLogical(8), iconSize, iconSize);
+        var iconSize = ScaleLogical(36);
+        var iconBounds = new Rectangle(x + width - iconSize, y + ScaleLogical(3), iconSize, iconSize);
         if (_crystalIcon is not null)
             graphics.DrawImage(_crystalIcon, iconBounds);
-        var textX = iconBounds.Right + ScaleLogical(4);
-        var textWidth = Math.Max(ScaleLogical(58), x + width - textX);
+        var textX = x;
+        var textWidth = Math.Max(ScaleLogical(82), iconBounds.Left - ScaleLogical(7) - textX);
         TextRenderer.DrawText(graphics, "CC", _captionFont,
             new Rectangle(textX, y, textWidth, ScaleLogical(17)),
             Color.FromArgb(174, 179, 179),
@@ -732,12 +733,12 @@ internal sealed class SpotHistoryCard : Control
     {
         DisposeFonts();
         var scale = DeviceDpi / 96f;
-        _titleFont = new Font("Georgia", 13.5f * scale, FontStyle.Bold, GraphicsUnit.Point);
-        _captionFont = new Font("Segoe UI Semibold", 7.5f * scale, FontStyle.Bold, GraphicsUnit.Point);
-        _valueFont = new Font("Segoe UI Semibold", 10f * scale, FontStyle.Bold, GraphicsUnit.Point);
-        _traitFont = new Font("Segoe UI Semibold", 8f * scale, FontStyle.Bold, GraphicsUnit.Point);
-        _bodyFont = new Font("Segoe UI", 9f * scale, FontStyle.Regular, GraphicsUnit.Point);
-        _ccFont = new Font("Segoe UI Semibold", 6.25f * scale, FontStyle.Bold, GraphicsUnit.Point);
+        _titleFont = new Font("Georgia", 14f * scale, FontStyle.Bold, GraphicsUnit.Point);
+        _captionFont = new Font("Segoe UI Semibold", 8.25f * scale, FontStyle.Bold, GraphicsUnit.Point);
+        _valueFont = new Font("Segoe UI Semibold", 11f * scale, FontStyle.Bold, GraphicsUnit.Point);
+        _traitFont = new Font("Segoe UI Semibold", 8.25f * scale, FontStyle.Bold, GraphicsUnit.Point);
+        _bodyFont = new Font("Segoe UI", 9.5f * scale, FontStyle.Regular, GraphicsUnit.Point);
+        _ccFont = new Font("Segoe UI Semibold", 8f * scale, FontStyle.Bold, GraphicsUnit.Point);
     }
 
     private void DisposeFonts()

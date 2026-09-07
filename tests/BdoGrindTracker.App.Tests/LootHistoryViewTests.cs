@@ -288,7 +288,7 @@ public sealed class LootHistoryViewTests
             {
                 Assert.InRange(card.Width, (int)(view.ClientSize.Width * 0.35),
                     (int)(view.ClientSize.Width * 0.55));
-                Assert.InRange(card.Height, 130, 180);
+                Assert.InRange(card.Height, 165, 190);
             });
             var aphrodon = Assert.Single(cards,
                 card => card.Profile.SpotId == LootSpotCatalog.AphrodonId);
