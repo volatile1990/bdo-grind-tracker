@@ -1,13 +1,18 @@
+@page "/history"
+@page "/history/spots/{SpotId}"
+@page "/history/spots/{SpotId}/{SessionId:guid}"
+@inject NavigationManager Navigation
 @inherits TrackerComponentBase
 @inject IJSRuntime JS
 
 <div class="page history-page">
     <div class="page-heading"><div><span class="eyebrow">JEDER GRIND ZÄHLT</span><h1>@(_spotId is null ? "Dein Verlauf" : SpotName(_spotId))</h1><p>@(_spotId is null ? "Deine Sessions, deine Fortschritte, deine nächsten Ziele." : "Deine Ergebnisse an diesem Grindspot im Detail.")</p></div>@if (_spotId is not null) { <button class="button secondary" @onclick="BackToSpots"><AppIcon Name="back" />Alle Grindspots</button> }</div>
     @if (ActionError is not null) { <div class="notice error-notice" role="alert"><AppIcon Name="info" />@ActionError</div> }
+    @if (_routeWarning is not null) { <div class="notice warning-notice" role="status"><AppIcon Name="info" />@_routeWarning</div> }
     <div class="history-filters">
-        @if (_spotId is null) { <label class="search-field"><AppIcon Name="search" /><input placeholder="Grindspot suchen …" aria-label="Grindspot suchen" @bind="_query" @bind:event="oninput" @bind:after="ResetPage" /></label> }
-        <label class="filter-field"><span>Zeitraum</span><select @bind="_days" @bind:after="ResetPage"><option value="0">Gesamter Verlauf</option><option value="7">Letzte 7 Tage</option><option value="30">Letzte 30 Tage</option><option value="90">Letzte 90 Tage</option></select></label>
-        <label class="filter-field"><span>Klasse</span><select @bind="_class" @bind:after="ResetPage"><option value="">Alle Klassen</option>@foreach (var characterClass in HistoryClasses) { <option value="@characterClass">@characterClass</option> }</select></label>
+        @if (_spotId is null) { <label class="search-field"><AppIcon Name="search" /><input placeholder="Grindspot suchen …" aria-label="Grindspot suchen" @bind="_query" @bind:event="oninput" @bind:after="FiltersChanged" /></label> }
+        <label class="filter-field"><span>Zeitraum</span><select @bind="_days" @bind:after="FiltersChanged"><option value="0">Gesamter Verlauf</option><option value="7">Letzte 7 Tage</option><option value="30">Letzte 30 Tage</option><option value="90">Letzte 90 Tage</option></select></label>
+        <label class="filter-field"><span>Klasse</span><select @bind="_class" @bind:after="FiltersChanged"><option value="">Alle Klassen</option>@foreach (var characterClass in HistoryClasses) { <option value="@characterClass">@characterClass</option> }</select></label>
         <span class="filter-count">@(_spotId is null ? Filtered.Count() : SpotSessions.Count()) Sessions</span>
     </div>
     @if (_spotId is null)
@@ -28,7 +33,7 @@
                     <button class="chronological-row" @onclick="() => OpenSession(session)"><AssetImage Src="@("assets/spot-icons/" + Profile(session.SpotId)?.IconFileName)" Alt="" Class="chronological-spot-icon" /><span class="chronological-identity"><strong>@SpotName(session.SpotId)</strong><small>@session.StartedAt.ToLocalTime().ToString("dd. MMM yyyy · HH:mm", German) · @(session.CharacterClass ?? "Klasse nicht erkannt")</small></span><span class="chronological-duration">@ShortDuration(session.Duration)</span><span class="chronological-silver"><strong>@Silver(session.SilverAfterTax)@(!session.SilverIsComplete ? " *" : "")</strong><small>@Number(Trash(session.Totals, session.SpotId)) Trash</small></span><AppIcon Name="chevron" /></button>
                 }
                 @if (chronological.Length == 0) { <div class="empty-state"><div class="empty-symbol"><AppIcon Name="history" /></div><h3>Keine passenden Sessions</h3><p>Wähle einen anderen Zeitraum oder starte deinen nächsten Grind.</p></div> }
-                else { <div class="pagination"><span>@(((_page - 1) * PageSize) + 1)–@Math.Min(_page * PageSize, chronological.Length) von @chronological.Length Sessions</span><div><button class="icon-button" aria-label="Vorherige Seite" @onclick="() => _page--" disabled="@(_page <= 1)"><AppIcon Name="back" /></button><span>Seite @_page von @AllPageCount</span><button class="icon-button" aria-label="Nächste Seite" @onclick="() => _page++" disabled="@(_page >= AllPageCount)"><AppIcon Name="arrow" /></button></div></div> }
+                else { <div class="pagination"><span>@(((_page - 1) * PageSize) + 1)–@Math.Min(_page * PageSize, chronological.Length) von @chronological.Length Sessions</span><div><button class="icon-button" aria-label="Vorherige Seite" @onclick="() => ChangePage(_page - 1)" disabled="@(_page <= 1)"><AppIcon Name="back" /></button><span>Seite @_page von @AllPageCount</span><button class="icon-button" aria-label="Nächste Seite" @onclick="() => ChangePage(_page + 1)" disabled="@(_page >= AllPageCount)"><AppIcon Name="arrow" /></button></div></div> }
             </section>
         }
         else
@@ -44,7 +49,7 @@
                 </button>
             }
         </div>
-        @if (!VisibleProfiles.Any()) { <div class="empty-state"><AppIcon Name="search" /><h3>Kein Grindspot gefunden</h3><p>Versuche einen anderen Suchbegriff.</p><button class="button secondary" @onclick="() => _query = string.Empty">Suche zurücksetzen</button></div> }
+        @if (!VisibleProfiles.Any()) { <div class="empty-state"><AppIcon Name="search" /><h3>Kein Grindspot gefunden</h3><p>Versuche einen anderen Suchbegriff.</p><button class="button secondary" @onclick="ClearSearch">Suche zurücksetzen</button></div> }
         }
     }
     else if (Profile(_spotId) is { } profile)
@@ -60,18 +65,18 @@
         </div>
         <div class="history-secondary-metrics"><div><span>Ø Trash · letzte 5 Grindstunden</span><strong>@(sessions.Length > 0 ? Number(metrics.RecentFiveHourTrashPerHour) : "—") / h</strong></div><div><span>Ø Trash · beste 5 Grindstunden</span><strong>@(sessions.Length > 0 ? Number(metrics.BestFiveHourTrashPerHour) : "—") / h</strong></div><div><span>Ø Silber / h · beste 5 Trash-Sessions</span><strong>@(sessions.Length > 0 ? Silver(metrics.BestFiveHourAverageSilverPerHour) : "—")@PartialMark(sessions)</strong></div></div>
         @if (sessions.Any(entry => !entry.SilverIsComplete)) { <p class="valuation-note">* Enthält Sessions mit unvollständigen Silberwerten. Die Kennzahlen verwenden die gespeicherten Session-Werte.</p> }
-        <section class="panel history-sessions"><div class="panel-heading"><div><h2>Sessions <span class="count-pill">@sessions.Length</span></h2><p>Gespeicherte Ergebnisse · @ShortDuration(TimeSpan.FromHours((double)metrics.TotalHours)) aktive Zeit</p></div><div class="segmented"><button class="@(!_hourly ? "selected" : "")" aria-pressed="@(!_hourly ? "true" : "false")" @onclick="() => _hourly = false">Gesamt</button><button class="@(_hourly ? "selected" : "")" aria-pressed="@(_hourly ? "true" : "false")" @onclick="() => _hourly = true">Pro Stunde</button></div></div>
+        <section class="panel history-sessions"><div class="panel-heading"><div><h2>Sessions <span class="count-pill">@sessions.Length</span></h2><p>Gespeicherte Ergebnisse · @ShortDuration(TimeSpan.FromHours((double)metrics.TotalHours)) aktive Zeit</p></div><div class="segmented"><button class="@(!_hourly ? "selected" : "")" aria-pressed="@(!_hourly ? "true" : "false")" @onclick="() => SetHourly(false)">Gesamt</button><button class="@(_hourly ? "selected" : "")" aria-pressed="@(_hourly ? "true" : "false")" @onclick="() => SetHourly(true)">Pro Stunde</button></div></div>
             @if (sessions.Length == 0) { <div class="empty-state"><div class="empty-symbol"><AppIcon Name="history" /></div><h3>Noch keine passenden Sessions</h3><p>@(Tracker.History.Any(session => session.SpotId == _spotId) ? "Für diesen Zeitraum oder diese Klasse gibt es keine Einträge." : "Deine erfassten Sessions an diesem Spot erscheinen hier automatisch.")</p><button class="button secondary" @onclick="OnLive">Zur Live-Session <AppIcon Name="arrow" /></button></div> }
             else
             {
                 <div class="session-column-labels"><span>SESSION / KLASSE</span><span>DAUER</span><span>@(_hourly ? "TRASH / H" : "TRASH")</span><span>@(_hourly ? "NETTO / H" : "SILBER NETTO")</span><span>AKTIONEN</span></div>
                 @foreach (var session in sessions.Skip((_page - 1) * PageSize).Take(PageSize))
                 {
-                    <article class="history-session" @key="session.SessionId"><div class="history-session-row"><button class="session-identity" @onclick="() => ToggleSession(session.SessionId)" aria-expanded="@(_expanded == session.SessionId ? "true" : "false")" aria-label="@("Lootdetails vom " + session.StartedAt.ToLocalTime().ToString("g", German))"><AppIcon Name="@(_expanded == session.SessionId ? "down" : "chevron")" /><AssetImage Src="@ClassIcon(session.CharacterClass)" Alt="" Class="class-image" Fallback="shield" /><span><strong>@session.StartedAt.ToLocalTime().ToString("dd. MMM yyyy · HH:mm", German)</strong><small>@(session.CharacterClass ?? "Klasse nicht erkannt")</small></span></button><span class="session-duration">@ShortDuration(session.Duration)</span><span class="numeric quantity">@Number(_hourly ? Hourly(session.Totals.GetValueOrDefault(profile.TrashItemName), session.Duration) : session.Totals.GetValueOrDefault(profile.TrashItemName))</span><span class="numeric gold">@Silver(_hourly ? Hourly(session.SilverAfterTax, session.Duration) : session.SilverAfterTax)@(!session.SilverIsComplete ? " *" : "")</span><div class="session-actions"><button class="icon-button" @onclick="() => Edit(session)" disabled="@(Acting || State.IsBusy || IsCurrent(session))" title="@(IsCurrent(session) ? "Vor dem Bearbeiten eine neue Session beginnen" : "Lootmengen bearbeiten")" aria-label="Lootmengen bearbeiten"><AppIcon Name="edit" /></button><button class="icon-button @(session.GarmothUploadedAt is not null ? "uploaded" : "")" @onclick="() => AskUpload(session)" disabled="@(!CanUploadHistory(session))" title="@UploadTitle(session)" aria-label="@UploadTitle(session)"><AppIcon Name="@(session.GarmothUploadedAt is not null && !CanUploadHistory(session) ? "check" : "upload")" /></button><button class="icon-button danger-hover" @onclick="() => AskDelete(session)" disabled="@(Acting || State.IsBusy || IsCurrent(session))" title="@(IsCurrent(session) ? "Vor dem Löschen eine neue Session beginnen" : "Session löschen")" aria-label="Session löschen"><AppIcon Name="delete" /></button></div></div>
-                        @if (_expanded == session.SessionId) { <div class="session-expanded"><LootTable Totals="session.Totals" DurationTicks="session.Duration.Ticks" TrashName="profile.TrashItemName" Title="Loot dieser Session" Subtitle="Einzelwerte mit den aktuellen Preiseinstellungen" />@if (session.GarmothUploadedAt is { } uploaded) { <p class="field-note"><AppIcon Name="check" />Nach Garmoth übertragen am @uploaded.ToLocalTime().ToString("g", German).</p> } else if (session.GarmothUploadBlocked) { <p class="field-note"><AppIcon Name="info" />Eine erneute Übertragung ist gesperrt, um doppelte Einträge zu vermeiden.</p> }</div> }
+                    <article class="history-session" @key="session.SessionId"><div class="history-session-row"><button class="session-identity" @onclick="() => ToggleSession(session.SessionId)" aria-expanded="@(_expanded == session.SessionId ? "true" : "false")" aria-label="@("Lootdetails vom " + session.StartedAt.ToLocalTime().ToString("g", German))"><AppIcon Name="@(_expanded == session.SessionId ? "down" : "chevron")" /><AssetImage Src="@ClassIcon(session.CharacterClass)" Alt="" Class="class-image" Fallback="shield" /><span><strong>@session.StartedAt.ToLocalTime().ToString("dd. MMM yyyy · HH:mm", German)</strong><small>@(session.CharacterClass ?? "Klasse nicht erkannt")</small></span></button><span class="session-duration">@ShortDuration(session.Duration)</span><span class="numeric quantity">@Number(_hourly ? Hourly(session.Totals.GetValueOrDefault(profile.TrashItemName), session.Duration) : session.Totals.GetValueOrDefault(profile.TrashItemName))</span><span class="numeric gold">@Silver(_hourly ? Hourly(session.SilverAfterTax, session.Duration) : session.SilverAfterTax)@(!session.SilverIsComplete ? " *" : "")</span><div class="session-actions"><button class="icon-button" @onclick="() => Edit(session)" disabled="@(Acting || State.IsBusy || IsCurrent(session))" title="@(IsCurrent(session) ? "Vor dem Bearbeiten eine neue Session beginnen" : "Lootmengen bearbeiten")" aria-label="Lootmengen bearbeiten"><AppIcon Name="edit" /></button><button class="icon-button danger-hover" @onclick="() => AskDelete(session)" disabled="@(Acting || State.IsBusy || IsCurrent(session))" title="@(IsCurrent(session) ? "Vor dem Löschen eine neue Session beginnen" : "Session löschen")" aria-label="Session löschen"><AppIcon Name="delete" /></button></div></div>
+                        @if (_expanded == session.SessionId) { <div class="session-expanded"><LootTable Totals="session.Totals" DurationTicks="session.Duration.Ticks" TrashName="profile.TrashItemName" Title="Loot dieser Session" Subtitle="Einzelwerte mit den aktuellen Preiseinstellungen" /></div> }
                     </article>
                 }
-                <div class="pagination"><span>@(((_page - 1) * PageSize) + 1)–@Math.Min(_page * PageSize, sessions.Length) von @sessions.Length Sessions</span><div><button class="icon-button" aria-label="Vorherige Seite" @onclick="() => _page--" disabled="@(_page <= 1)"><AppIcon Name="back" /></button><span>Seite @_page von @PageCount</span><button class="icon-button" aria-label="Nächste Seite" @onclick="() => _page++" disabled="@(_page >= PageCount)"><AppIcon Name="arrow" /></button></div></div>
+                <div class="pagination"><span>@(((_page - 1) * PageSize) + 1)–@Math.Min(_page * PageSize, sessions.Length) von @sessions.Length Sessions</span><div><button class="icon-button" aria-label="Vorherige Seite" @onclick="() => ChangePage(_page - 1)" disabled="@(_page <= 1)"><AppIcon Name="back" /></button><span>Seite @_page von @PageCount</span><button class="icon-button" aria-label="Nächste Seite" @onclick="() => ChangePage(_page + 1)" disabled="@(_page >= PageCount)"><AppIcon Name="arrow" /></button></div></div>
             }
         </section>
         @if (sessions.Length > 0) { <LootTable Totals="AggregateTotals(sessions)" DurationTicks="sessions.Sum(session => session.Duration.Ticks)" TrashName="profile.TrashItemName" Title="Gesamter Loot am Spot" Subtitle="Alle gefilterten Sessions · Einzelwerte mit den aktuellen Preiseinstellungen" /> }
@@ -83,10 +88,22 @@
     @if (_dialogError is not null) { <div class="notice error-notice" role="alert">@_dialogError</div> }
     <form @onsubmit="SaveEdit" @onsubmit:preventDefault><div class="edit-loot-list">@foreach (var row in _editRows) { <label class="edit-loot-row"><span><AssetImage Src="@ItemIcon(row.Name)" Alt="" Class="item-image" />@row.Name</span><input type="number" min="0" max="9223372036854775807" step="1" required @bind="row.Quantity" aria-label="@("Menge " + row.Name)" /></label> }</div><div class="modal-actions"><button type="button" class="button secondary" @onclick="CloseDialogs">Abbrechen</button><button type="submit" class="button primary" disabled="@Acting"><AppIcon Name="check" />Mengen speichern</button></div></form>
 </dialog>
-<dialog id="history-confirm" class="modal confirm-modal" @oncancel="CloseDialogs"><div class="modal-heading"><div><span class="eyebrow">@(_confirmation == "delete" ? "VERLAUF" : "GARMOTH")</span><h2>@(_confirmation == "delete" ? "Session löschen?" : "Session hochladen?")</h2></div><button class="icon-button" @onclick="CloseDialogs" aria-label="Dialog schließen"><AppIcon Name="close" /></button></div><p>@(_confirmation == "delete" ? "Diese Session wird dauerhaft aus deinem lokalen Verlauf entfernt. Bereits hochgeladene Garmoth-Einträge bleiben bestehen." : _target is not null && IsCurrent(_target) ? "Es wird ausschließlich der noch nicht übertragene Anteil dieser Session hochgeladen. Bereits übertragene Zeit und Lootmengen werden abgezogen; anschließend ist die Session abgeschlossen. Die Zusammenfassung zeigt die gesamte Session." : "Übertrage die gespeicherte Session in dein Garmoth-Konto. Sie wird anschließend gegen einen erneuten Upload gesperrt.")</p>@if (_target is { } selected) { <div class="confirm-summary"><strong>@SpotName(selected.SpotId)</strong><span>@selected.StartedAt.ToLocalTime().ToString("g", German) · @ShortDuration(selected.Duration)</span></div> }<div class="modal-actions"><button class="button secondary" @onclick="CloseDialogs">Abbrechen</button><button class="button @(_confirmation == "delete" ? "danger" : "primary")" @onclick="Confirm" disabled="@Acting">@(_confirmation == "delete" ? "Session löschen" : "Jetzt hochladen")</button></div></dialog>
+<dialog id="history-confirm" class="modal confirm-modal" @oncancel="CloseDialogs">
+    <div class="modal-heading"><div><span class="eyebrow">VERLAUF</span><h2>Session löschen?</h2></div><button class="icon-button" @onclick="CloseDialogs" aria-label="Dialog schließen"><AppIcon Name="close" /></button></div>
+    <p>Diese Session wird dauerhaft aus deinem lokalen Verlauf entfernt. Bereits hochgeladene Garmoth-Einträge bleiben bestehen.</p>
+    @if (_target is { } selected) { <div class="confirm-summary"><strong>@SpotName(selected.SpotId)</strong><span>@selected.StartedAt.ToLocalTime().ToString("g", German) · @ShortDuration(selected.Duration)</span></div> }
+    <div class="modal-actions"><button class="button secondary" @onclick="CloseDialogs">Abbrechen</button><button class="button danger" @onclick="ConfirmDelete" disabled="@Acting">Session löschen</button></div>
+</dialog>
 
 @code {
-    [Parameter] public EventCallback OnLive { get; set; }
+    [Parameter] public string? SpotId { get; set; }
+    [Parameter] public Guid? SessionId { get; set; }
+    [SupplyParameterFromQuery(Name = "view")] public string? QueryView { get; set; }
+    [SupplyParameterFromQuery(Name = "q")] public string? QuerySearch { get; set; }
+    [SupplyParameterFromQuery(Name = "days")] public string? QueryDays { get; set; }
+    [SupplyParameterFromQuery(Name = "class")] public string? QueryClass { get; set; }
+    [SupplyParameterFromQuery(Name = "page")] public string? QueryPage { get; set; }
+    [SupplyParameterFromQuery(Name = "hourly")] public string? QueryHourly { get; set; }
     private const int PageSize = 8;
     private string? _spotId;
     private string _query = "", _class = "";
@@ -94,8 +111,13 @@
     private bool _hourly, _allSessions;
     private Guid? _expanded;
     private LootHistoryEntry? _target;
-    private string? _confirmation, _dialogError;
+    private string? _dialogError;
     private List<EditRow> _editRows = [];
+    private string? _routeWarning;
+    private RouteParameters? _lastRouteParameters;
+    private sealed record RouteParameters(string? SpotId, Guid? SessionId, string? View, string? Search,
+        string? Days, string? CharacterClass, string? Page, string? Hourly);
+    private bool _closeDialogsAfterRender;
     private sealed class EditRow { public required string Name { get; init; } public string Quantity { get; set; } = "0"; }
     private IEnumerable<string> HistoryClasses => Tracker.History.Select(session => session.CharacterClass).Where(name => !string.IsNullOrWhiteSpace(name)).Cast<string>().Distinct().Order();
     private IEnumerable<LootHistoryEntry> Filtered => Tracker.History.Where(session => (_days == 0 || session.StartedAt >= DateTimeOffset.Now.AddDays(-_days)) && (_class.Length == 0 || session.CharacterClass == _class));
@@ -105,17 +127,79 @@
     private int PageCount => Math.Max(1, (SpotSessions.Count() + PageSize - 1) / PageSize);
     private int AllPageCount => Math.Max(1, (AllSessions.Count() + PageSize - 1) / PageSize);
     private static string PartialMark(IEnumerable<LootHistoryEntry> sessions) => sessions.Any(entry => !entry.SilverIsComplete) ? " *" : "";
-    private void ResetPage() { _page = 1; _expanded = null; }
-    private void SetOverview(bool allSessions) { _allSessions = allSessions; ResetPage(); }
-    private async Task OpenSession(LootHistoryEntry session) { _spotId = session.SpotId; _page = Array.FindIndex(SpotSessions.ToArray(), entry => entry.SessionId == session.SessionId) / PageSize + 1; _expanded = session.SessionId; await JS.InvokeVoidAsync("grindcrest.scrollTop"); }
-    private async Task OpenSpot(string id) { _spotId = id; ResetPage(); await JS.InvokeVoidAsync("grindcrest.scrollTop"); }
-    private async Task BackToSpots() { _spotId = null; ResetPage(); await JS.InvokeVoidAsync("grindcrest.scrollTop"); }
-    private void ToggleSession(Guid id) => _expanded = _expanded == id ? null : id;
+    protected override void OnParametersSet()
+    {
+        // URI notifications and tracker refreshes can render the parent before
+        // the router/query supplier has delivered new component parameters.
+        // Compare the received values so an early render cannot consume a URI
+        // change and then discard its actual parameters on the next render.
+        var parameters = new RouteParameters(SpotId, SessionId, QueryView, QuerySearch,
+            QueryDays, QueryClass, QueryPage, QueryHourly);
+        if (_lastRouteParameters == parameters) return;
+        _closeDialogsAfterRender = _lastRouteParameters is not null;
+        _lastRouteParameters = parameters;
+        _target = null; _dialogError = null; _editRows = [];
+        _routeWarning = null;
+        _spotId = Profile(SpotId) is not null ? SpotId : null;
+        if (SpotId is not null && _spotId is null) _routeWarning = "Dieser Grindspot ist nicht verfügbar. Hier findest du alle unterstützten Spots.";
+        _allSessions = string.Equals(QueryView, "all", StringComparison.Ordinal);
+        _query = QuerySearch ?? "";
+        _class = QueryClass ?? "";
+        _days = int.TryParse(QueryDays, NumberStyles.None, CultureInfo.InvariantCulture, out var days) && days is 7 or 30 or 90 ? days : 0;
+        _hourly = QueryHourly == "1";
+        _page = int.TryParse(QueryPage, NumberStyles.None, CultureInfo.InvariantCulture, out var page) ? Math.Max(1, page) : 1;
+        _page = Math.Min(_page, _spotId is null ? AllPageCount : PageCount);
+        _expanded = null;
+        if (_spotId is not null && SessionId is { } sessionId)
+        {
+            var index = Array.FindIndex(SpotSessions.ToArray(), session => session.SessionId == sessionId);
+            if (index >= 0) { _expanded = sessionId; _page = index / PageSize + 1; }
+            else _routeWarning = "Diese Session ist nicht mehr vorhanden oder passt nicht zu den gewählten Filtern.";
+        }
+    }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_closeDialogsAfterRender)
+        {
+            _closeDialogsAfterRender = false;
+            await CloseDialogs();
+        }
+    }
+    private void OnLive() => Navigation.NavigateTo("/");
+    private void FiltersChanged() { _page = 1; NavigateHistory(_spotId, null, replace: true); }
+    private void ClearSearch() { _query = ""; FiltersChanged(); }
+    private void SetOverview(bool allSessions)
+    {
+        if (_allSessions == allSessions) return;
+        _allSessions = allSessions; _page = 1; NavigateHistory(null);
+    }
+    private void OpenSession(LootHistoryEntry session) { _page = 1; NavigateHistory(session.SpotId, session.SessionId); }
+    private void OpenSpot(string id) { _page = 1; NavigateHistory(id); }
+    private void BackToSpots() { _page = 1; NavigateHistory(null); }
+    private void ToggleSession(Guid id) => NavigateHistory(_spotId, _expanded == id ? null : id);
+    private void ChangePage(int page)
+    {
+        _page = Math.Clamp(page, 1, _spotId is null ? AllPageCount : PageCount);
+        NavigateHistory(_spotId, null, replace: true);
+    }
+    private void SetHourly(bool hourly) { _hourly = hourly; NavigateHistory(_spotId, _expanded, replace: true); }
+    private void NavigateHistory(string? spotId, Guid? sessionId = null, bool replace = false)
+    {
+        var path = spotId is null ? "/history" : "/history/spots/" + Uri.EscapeDataString(spotId);
+        if (spotId is not null && sessionId is { } id) path += "/" + id.ToString("D");
+        var query = new List<KeyValuePair<string, string>>();
+        if (_allSessions) query.Add(new("view", "all"));
+        if (_query.Length > 0) query.Add(new("q", _query));
+        if (_days > 0) query.Add(new("days", _days.ToString(CultureInfo.InvariantCulture)));
+        if (_class.Length > 0) query.Add(new("class", _class));
+        if (_page > 1) query.Add(new("page", _page.ToString(CultureInfo.InvariantCulture)));
+        if (_hourly) query.Add(new("hourly", "1"));
+        if (query.Count > 0) path += "?" + string.Join("&", query.Select(pair => pair.Key + "=" + Uri.EscapeDataString(pair.Value)));
+        if (!string.Equals(Navigation.Uri, Navigation.ToAbsoluteUri(path).AbsoluteUri, StringComparison.Ordinal))
+            Navigation.NavigateTo(path, new NavigationOptions { ReplaceHistoryEntry = replace });
+    }
     private static IReadOnlyDictionary<string, long> AggregateTotals(IEnumerable<LootHistoryEntry> sessions) => sessions.SelectMany(session => session.Totals).GroupBy(pair => pair.Key, StringComparer.Ordinal).ToDictionary(group => group.Key, group => group.Sum(pair => pair.Value), StringComparer.Ordinal);
     private bool IsCurrent(LootHistoryEntry session) => State.HasSession && session.SessionId == State.SessionId;
-    private bool CanUploadHistory(LootHistoryEntry session) => !Acting && !State.IsBusy && State.HasApiKey && !State.IsDemo &&
-        (IsCurrent(session) ? !State.IsRunning && !State.IsSubmitted && !State.UploadBlocked : !session.GarmothUploadBlocked && session.GarmothUploadedAt is null);
-    private string UploadTitle(LootHistoryEntry session) => IsCurrent(session) && CanUploadHistory(session) ? "Noch nicht übertragenen Session-Anteil hochladen" : session.GarmothUploadedAt is not null ? "Bereits nach Garmoth übertragen" : session.GarmothUploadBlocked ? "Upload gesperrt: doppelte Übertragung vermeiden" : !State.HasApiKey ? "Zuerst einen Garmoth-API-Schlüssel in den Einstellungen hinterlegen" : "Session nach Garmoth hochladen";
     private async Task Edit(LootHistoryEntry session)
     {
         _target = session; _dialogError = null;
@@ -124,8 +208,7 @@
             .Select(name => new EditRow { Name = name, Quantity = session.Totals.GetValueOrDefault(name).ToString(CultureInfo.InvariantCulture) }).ToList();
         await JS.InvokeVoidAsync("grindcrest.showDialog", "history-edit");
     }
-    private async Task AskDelete(LootHistoryEntry session) { _target = session; _confirmation = "delete"; await JS.InvokeVoidAsync("grindcrest.showDialog", "history-confirm"); }
-    private async Task AskUpload(LootHistoryEntry session) { _target = session; _confirmation = "upload"; await JS.InvokeVoidAsync("grindcrest.showDialog", "history-confirm"); }
+    private async Task AskDelete(LootHistoryEntry session) { _target = session; await JS.InvokeVoidAsync("grindcrest.showDialog", "history-confirm"); }
     private async Task CloseDialogs() { await JS.InvokeVoidAsync("grindcrest.closeDialog", "history-edit"); await JS.InvokeVoidAsync("grindcrest.closeDialog", "history-confirm"); _dialogError = null; }
     private async Task SaveEdit()
     {
@@ -139,12 +222,11 @@
         if (!totals.Values.Any(value => value > 0)) { _dialogError = "Mindestens ein Gegenstand muss eine Menge größer als 0 haben. Zum Entfernen der gesamten Session nutze Löschen."; return; }
         if (await Act(() => Tracker.UpdateHistoryLootAsync(_target.SessionId, totals))) await CloseDialogs(); else _dialogError = ActionError ?? State.Status;
     }
-    private async Task Confirm()
+    private async Task ConfirmDelete()
     {
         if (_target is null) return;
-        var target = _target.SessionId; var action = _confirmation;
+        var target = _target.SessionId;
         await CloseDialogs();
-        if (action == "delete") { await Act(() => Tracker.DeleteHistoryAsync(target)); _page = Math.Min(_page, PageCount); }
-        else await Act(() => Tracker.UploadHistoryAsync(target));
+        if (await Act(() => Tracker.DeleteHistoryAsync(target))) { _page = Math.Min(_page, PageCount); NavigateHistory(_spotId, null, replace: true); }
     }
 }

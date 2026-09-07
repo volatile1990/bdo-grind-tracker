@@ -169,6 +169,35 @@ public sealed class TrackerSessionServiceTests
     }
 
     [Fact]
+    public async Task GeneralPreferencesKeepAutomaticUploadsSuspendedUntilGarmothIsExplicitlySaved()
+    {
+        await using var fixture = new Fixture();
+        fixture.Respond = () => Task.FromResult(new HttpResponseMessage(HttpStatusCode.BadRequest));
+        fixture.Begin();
+        await fixture.ProcessAfter(TimeSpan.FromHours(1), ("Black Crystal Fragment", 2));
+        await fixture.Service.TickAsync();
+        Assert.True(fixture.Service.State.AutomaticSuspended);
+
+        await fixture.Service.SavePreferencesAsync(fixture.Service.Preferences with { AutoPauseMinutes = 4 });
+        Assert.False(fixture.Service.State.IsError);
+        Assert.Contains("bleibt angehalten", fixture.Service.State.Status);
+        Assert.True(fixture.Service.Preferences.AutoUpload);
+        Assert.True(fixture.Service.State.HasApiKey);
+        await fixture.Service.TickAsync();
+        Assert.True(fixture.Service.State.AutomaticSuspended);
+        Assert.Single(fixture.Requests);
+
+        fixture.Respond = () => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+        await fixture.Service.SavePreferencesAsync(fixture.Service.Preferences, resumeAutomaticUpload: true);
+        Assert.False(fixture.Service.State.AutomaticSuspended);
+        await fixture.Service.TickAsync();
+        Assert.Equal(2, fixture.Requests.Count);
+        AssertPayload(fixture.Requests.ToArray()[1], 60, 2);
+        await fixture.Service.TickAsync();
+        Assert.Equal(2, fixture.Requests.Count);
+    }
+
+    [Fact]
     public async Task PausedCurrentHistoryUploadUsesRemainderAndClosesTheLiveUploadPath()
     {
         await using var fixture = new Fixture();
@@ -198,12 +227,29 @@ public sealed class TrackerSessionServiceTests
         await fixture.ProcessAfter(TimeSpan.FromHours(1), ("Black Crystal Fragment", 2));
         await fixture.Service.TickAsync();
         Assert.True(fixture.Service.State.UploadBlocked);
+        await fixture.Service.SavePreferencesAsync(fixture.Service.Preferences, resumeAutomaticUpload: true);
+        Assert.True(fixture.Service.State.UploadBlocked);
         await fixture.ProcessAfter(TimeSpan.FromHours(1), ("Black Crystal Fragment", 3));
         await fixture.Service.TickAsync();
         await fixture.Service.UploadAsync();
 
         Assert.Single(fixture.Requests);
         fixture.AssertTracking(TimeSpan.FromHours(2), 5);
+    }
+
+    [Fact]
+    public async Task PreviewKeepsItsKeyAcrossSessionsAndDemoAndDisablesAutomaticUploadWhenRemoved()
+    {
+        await using var preview = new PreviewTrackerSession(empty: true);
+        await preview.SavePreferencesAsync(preview.Preferences with { AutoUpload = true }, "preview-key");
+        await preview.NewSessionAsync();
+        Assert.True(preview.State.HasApiKey);
+        Assert.True(preview.Preferences.AutoUpload);
+        await preview.SetDemoAsync(true);
+        Assert.True(preview.State.HasApiKey);
+        await preview.SavePreferencesAsync(preview.Preferences, apiKey: "");
+        Assert.False(preview.State.HasApiKey);
+        Assert.False(preview.Preferences.AutoUpload);
     }
 
     [Fact]
@@ -493,7 +539,7 @@ public sealed class TrackerSessionServiceTests
         await fixture.ProcessAfter(TimeSpan.FromMinutes(2), ("Black Crystal Fragment", 3));
         await fixture.Service.UploadAsync();
         Assert.Empty(fixture.Requests);
-        Assert.Contains("Garmoth-Key", fixture.Service.State.Status);
+        Assert.Contains("API-Schlüssel", fixture.Service.State.Status);
         Assert.True(fixture.Service.State.IsError);
         fixture.AssertTracking(TimeSpan.FromMinutes(2), 3);
     }

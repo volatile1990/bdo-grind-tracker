@@ -42,7 +42,9 @@ Aufgenommene Frames werden im Arbeitsspeicher verarbeitet und nach der Analyse
 freigegeben. Ohne ausdrückliche Aktivierung der lokalen Diagnose werden keine
 Screenshots exportiert. Bei aktiviertem Opt-in werden ausschließlich kalibrierte
 Lootausschnitte (niemals ein Vollbild-Fallback) sowie Rohtext und Zählentscheidungen
-lokal gespeichert. Obergrenze je Aufnahme: 2.000 Frames oder 250 MiB.
+lokal gespeichert. Für die Aufnahme gibt es kein Gesamtlimit für Frames oder
+Dateigröße; sie läuft bis zum Sessionende oder einem Aufnahmefehler. Die Prüfung
+jedes Eintrags und der Schutz vor zu großen oder ungültigen Lootausschnitten bleiben erhalten.
 Die Dateien verlassen den Rechner nicht; Aufnahmepfad siehe README.
 Nach Neustart oder neuer Sitzung ist das Opt-in wieder aus. Alte Aufnahmen werden
 nicht automatisch gelöscht; der Benutzer kann sie im angezeigten Ordner entfernen.

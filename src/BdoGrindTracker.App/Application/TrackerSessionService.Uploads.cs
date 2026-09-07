@@ -14,7 +14,7 @@ internal sealed partial class TrackerSessionService
         if (_sessionSubmitted || _garmothIntervals.IsBlocked || !_hasSession || _demoMode) return;
         RefreshPendingState();
         if (_sessionSummary.ItemTypeCount == 0) return;
-        if (_garmothApiKey.Length == 0) throw new ArgumentException("Bitte zuerst unter Optionen einen Garmoth-Key hinterlegen.");
+        if (_garmothApiKey.Length == 0) throw new ArgumentException("Bitte zuerst im Bereich Garmoth einen API-Schlüssel hinterlegen.");
         _garmothUploadInProgress = true;
         PublishState();
         GarmothUploadInterval? interval = null;
@@ -65,7 +65,7 @@ internal sealed partial class TrackerSessionService
         PublishState();
         try
         {
-            if (_garmothApiKey.Length == 0) throw new ArgumentException("API-Key unter Optionen hinterlegen.");
+            if (_garmothApiKey.Length == 0) throw new ArgumentException("API-Schlüssel im Bereich Garmoth hinterlegen.");
             SetStatus("Garmoth automatisch: abgeschlossene Grindstunde wird übertragen …");
             var result = await SendGarmothIntervalAsync(interval);
             _garmothIntervals.Complete(interval, result);
@@ -75,7 +75,7 @@ internal sealed partial class TrackerSessionService
                 ? " Nur dieser Stundenabschnitt wurde übertragen."
                 : _garmothIntervals.IsBlocked
                     ? " Weitere Uploads dieser Sitzung sind gesperrt. Tracking läuft weiter; bitte in Garmoth prüfen."
-                    : " Auto-Upload angehalten. Nach der Korrektur Optionen speichern oder manuell hochladen.";
+                    : " Auto-Upload angehalten. Nach der Korrektur die Garmoth-Einstellungen speichern oder manuell hochladen.";
             SetStatus(result.Message + guidance, result.Status != GarmothUploadStatus.Succeeded);
         }
         catch (Exception exception)
@@ -101,7 +101,7 @@ internal sealed partial class TrackerSessionService
             await RefreshClassDetectionAsync();
             character = _sessionClass ?? SelectedCharacterClass;
         }
-        if (character is null) throw new ArgumentException("Klasse noch unbekannt. Unter Optionen auswählen.");
+        if (character is null) throw new ArgumentException("Klasse noch unbekannt. In den Einstellungen auswählen.");
         var valuation = SilverValuation.Calculate(interval.Totals, Prices, Preferences.Tax);
         if (!valuation.HasKnownValue) throw new ArgumentException("Noch kein Silberpreis verfügbar. Nach dem nächsten Preisabruf erneut versuchen.");
         if (valuation.AfterTax < 0 || valuation.AfterTax > long.MaxValue || valuation.OverflowItems.Count > 0)
@@ -136,7 +136,7 @@ internal sealed partial class TrackerSessionService
         {
             var entry = _historyEntries.FirstOrDefault(e => e.SessionId == sessionId);
             if (entry is null || entry.GarmothUploadBlocked) return;
-            if (_garmothApiKey.Length == 0) throw new ArgumentException("Bitte zuerst unter Optionen einen Garmoth-Key hinterlegen.");
+            if (_garmothApiKey.Length == 0) throw new ArgumentException("Bitte zuerst im Bereich Garmoth einen API-Schlüssel hinterlegen.");
             _garmothUploadInProgress = true;
             PublishState();
             try

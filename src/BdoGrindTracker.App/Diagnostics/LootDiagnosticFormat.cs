@@ -15,8 +15,6 @@ internal static class LootDiagnosticFormat
     public const int MaximumObservationsPerFrame = 32;
     public const int MaximumTextLength = 2048;
     public const int MaximumJsonLineBytes = 512 * 1024;
-    public const long MaximumReplayJsonBytes = 64L * 1024 * 1024;
-    public const int MaximumActions = DiagnosticRecordingSession.DefaultMaximumFrames * 3;
 
     public static JsonSerializerOptions JsonOptions { get; } = new()
     {
@@ -49,6 +47,10 @@ internal sealed record LootDiagnosticEntry(
     IReadOnlyList<LootDiagnosticCrop> Crops)
 {
     public bool RareEnabled { get; init; }
+
+    // Missing in older recordings: absence must not be interpreted as SDR.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? IsHdr { get; init; }
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public NormalLootRecoveryDiagnostics? Recovery { get; init; }

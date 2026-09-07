@@ -179,10 +179,15 @@ und den prozesslokalen Schutzgrenzen stehen in der
 ## Diagnose und Offline-Replay
 
 Nur bei ausdrücklichem Opt-in schreibt `DiagnosticRecordingSession` Loot-PNGs und
-JSONL. Grenzen: 2.000 Frames / 250 MiB; Fehler deaktivieren die Aufzeichnung, nicht
-die Erkennung. Eine Aufnahme beginnt mit einer neuen Session und umfasst auch
+JSONL. Es gibt keine Gesamtgrenze für Frames, Aktionen, Bilddaten oder JSONL-Größe;
+Fehler deaktivieren die Aufzeichnung, nicht die Erkennung. Eine Aufnahme beginnt mit einer neuen Session und umfasst auch
 Pause/Fortsetzen. Der Header kann noch keinen Spot enthalten, weil die automatische
 Erkennung erst während der Aufnahme erfolgt.
+
+Neue Frame-Einträge enthalten mit `isHdr` auch die HDR-Information der Aufnahme.
+Bei älteren Einträgen fehlt diese Angabe und gilt als unbekannt, nicht als SDR.
+Replay liest JSONL weiterhin zeilenweise und ohne Gesamtgrößenlimit; die Prüfungen
+pro Eintrag, für Sequenz und Zeitstempel sowie die Pixelgrenze pro Lootausschnitt bleiben erhalten.
 
 Formatversion 2 trägt die Enginekennung `companion-0.7.4-recovery-fix-v3`. Die vorherigen
 Kennungen `companion-0.7.4-restore-v1` und `companion-0.7.4-overcount-fix-v2` werden

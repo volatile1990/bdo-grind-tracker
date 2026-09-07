@@ -9,25 +9,23 @@ namespace BdoGrindTracker.App.Diagnostics;
 /// <summary>
 /// An explicitly enabled recording of calibrated loot crops and Companion counter inputs.
 /// Keep one instance for one tracker state, including pauses; never start midway through a session.
+/// Recordings have no total size or duration limit unless a caller explicitly supplies one.
 /// Recording failures are isolated from tracking and reported through <see cref="LastError"/>.
 /// </summary>
 internal sealed class DiagnosticRecordingSession : IDisposable
 {
-    internal const long DefaultMaximumBytes = 250L * 1024 * 1024;
-    internal const int DefaultMaximumFrames = 2000;
     internal const long MaximumCropPixels = 8L * 1024 * 1024;
 
-    private readonly long maximumBytes;
-    private readonly int maximumFrames;
+    private readonly long? maximumBytes;
+    private readonly int? maximumFrames;
     private readonly object sync = new();
     private FileStream? journal;
     private long writtenBytes;
-    private long journalBytes;
     private int entrySequence;
     private int frameCount;
     private bool disposed;
 
-    private DiagnosticRecordingSession(long maximumBytes, int maximumFrames)
+    private DiagnosticRecordingSession(long? maximumBytes, int? maximumFrames)
     {
         this.maximumBytes = maximumBytes;
         this.maximumFrames = maximumFrames;
@@ -42,20 +40,20 @@ internal sealed class DiagnosticRecordingSession : IDisposable
     public int RecordedFrameCount => frameCount;
 
     public static DiagnosticRecordingSession Start(string baseDirectory, string? spotId = null) =>
-        Start(baseDirectory, spotId, DefaultMaximumBytes, DefaultMaximumFrames);
+        Start(baseDirectory, spotId, maximumBytes: null, maximumFrames: null);
 
     internal static DiagnosticRecordingSession Start(
         string baseDirectory,
         string? spotId,
-        long maximumBytes,
-        int maximumFrames)
+        long? maximumBytes,
+        int? maximumFrames)
     {
         var session = new DiagnosticRecordingSession(maximumBytes, maximumFrames);
         try
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(baseDirectory);
-            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximumBytes);
-            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximumFrames);
+            if (maximumBytes is { } byteLimit) ArgumentOutOfRangeException.ThrowIfNegativeOrZero(byteLimit);
+            if (maximumFrames is { } frameLimit) ArgumentOutOfRangeException.ThrowIfNegativeOrZero(frameLimit);
             var directory = Path.Combine(
                 Path.GetFullPath(baseDirectory),
                 $"loot-{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}");
@@ -94,7 +92,8 @@ internal sealed class DiagnosticRecordingSession : IDisposable
         Bitmap sourceFrame,
         Rectangle? normalPanel,
         Rectangle? rareBand,
-        NormalLootRecoveryDiagnostics? recovery = null)
+        NormalLootRecoveryDiagnostics? recovery = null,
+        bool? isHdr = null)
     {
         lock (sync)
         {
@@ -105,8 +104,7 @@ internal sealed class DiagnosticRecordingSession : IDisposable
 
             try
             {
-                EnsureActionBudget();
-                if (frameCount >= maximumFrames)
+                if (maximumFrames is { } frameLimit && frameCount >= frameLimit)
                 {
                     StopWithError($"Diagnose-Limit von {maximumFrames} Frames erreicht; Tracking läuft weiter.");
                     return;
@@ -124,10 +122,10 @@ internal sealed class DiagnosticRecordingSession : IDisposable
                 {
                     RareEnabled = rareBand is not null,
                     Recovery = recovery,
+                    IsHdr = isHdr,
                 };
                 var jsonBytes = SerializeLine(entry);
                 EnsureBudget(jsonBytes.LongLength + encodedCrops.Sum(static crop => crop.Bytes.LongLength));
-                EnsureJournalBudget(jsonBytes.LongLength);
                 foreach (var crop in encodedCrops)
                 {
                     using var output = new FileStream(crop.Path, FileMode.CreateNew, FileAccess.Write);
@@ -157,7 +155,6 @@ internal sealed class DiagnosticRecordingSession : IDisposable
 
             try
             {
-                EnsureActionBudget();
                 ValidateResult(result);
                 WriteJson(new LootDiagnosticEntry(
                     "complete", entrySequence + 1, completedAt, [], result.NewEvents, result.Decisions, []));
@@ -242,32 +239,14 @@ internal sealed class DiagnosticRecordingSession : IDisposable
     private void WriteBytes(byte[] bytes)
     {
         EnsureBudget(bytes.LongLength);
-        EnsureJournalBudget(bytes.LongLength);
         journal!.Write(bytes);
         journal.Flush();
         writtenBytes += bytes.LongLength;
-        journalBytes += bytes.LongLength;
-    }
-
-    private void EnsureJournalBudget(long nextBytes)
-    {
-        if (nextBytes > LootDiagnosticFormat.MaximumReplayJsonBytes - journalBytes)
-        {
-            throw new InvalidDataException("Diagnose-Protokolllimit erreicht; Tracking läuft weiter.");
-        }
-    }
-
-    private void EnsureActionBudget()
-    {
-        if (entrySequence >= LootDiagnosticFormat.MaximumActions)
-        {
-            throw new InvalidDataException("Diagnose-Aktionslimit erreicht; Tracking läuft weiter.");
-        }
     }
 
     private void EnsureBudget(long nextBytes)
     {
-        if (nextBytes > maximumBytes - writtenBytes)
+        if (maximumBytes is { } byteLimit && nextBytes > byteLimit - writtenBytes)
         {
             throw new InvalidDataException(
                 "Diagnose-Speicherlimit erreicht; Aufnahme gestoppt, Tracking läuft weiter.");

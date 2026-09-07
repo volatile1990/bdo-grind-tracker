@@ -14,7 +14,7 @@ aus dem bestätigten Stand 0.9.6-test.2 bleibt unverändert.
 - `Application/TrackerSessionService*.cs`: Capture-Lebenszyklus, Mailbox, Sitzungsuhr,
   Auto-Pause, Verlauf, Preisbewertung und Garmoth. Der Dienst kennt keine Controls.
 - `Components/`: Live-Dashboard, Loot-Tabelle, Spot-/chronologischer Verlauf,
-  Einstellungen, Dialoge und gemeinsame Darstellung. Änderungen am Dienst werden
+  Garmoth-Bereich, Einstellungen, Dialoge und gemeinsame Darstellung. Änderungen am Dienst werden
   über `Changed` auf den Blazor-Dispatcher übernommen.
 - `wwwroot/`: lokale HTML-, CSS- und JavaScript-Dateien. JavaScript ist auf
   Dialog-Fokus und Scrollen beschränkt. Die vorhandenen Spiel- und Branding-Assets
@@ -28,18 +28,32 @@ C# läuft im Desktop-Prozess, die Darstellung in WebView2. Technische Grundlage 
 
 **Live-Session** zeigt Spot und Klasse, aktive Zeit, Trash, Netto-Silber und Stundenwert.
 Die Loot-Tabelle unterstützt Suche, Sortierung und Gesamt-/Stundenwerte. Fehlende Preise
-werden als fehlend oder Teilbetrag kenntlich gemacht. Start/Pause, neue Session und
-Upload greifen auf dieselbe Sitzungssteuerung zu wie die automatische Pause.
+werden als fehlend oder Teilbetrag kenntlich gemacht. Start/Pause und neue Session
+greifen auf dieselbe Sitzungssteuerung zu wie die automatische Pause.
+
+Die Zurück-/Vorwärts-Tasten einer Maus navigieren durch die besuchten Ansichten,
+einschließlich Spot- und Sessiondetails.
+Die Navigation verwendet den lokalen Browser-Verlauf; sie startet keine Aufnahme
+neu und führt keine Session-Aktionen erneut aus. Eine neue Navigation nach „Zurück“
+ersetzt den bisherigen Vorwärtsverlauf. Windows-Browserbefehle, die der WebView nicht
+selbst verarbeitet, werden vom nativen Fenster an denselben Verlauf weitergereicht.
 
 **Verlauf** bietet alle sechs Spotprofile sowie eine chronologische Gesamtliste,
 Filter nach Zeitraum und Klasse, Kennzahlen und vollständige Lootdetails. Gespeicherte
-Sessions lassen sich korrigieren, löschen und hochladen. Die aktuelle Session ist
-gegen Änderungen im Verlauf gesperrt. Bereits gesendete automatische Stunden sperren
-einen späteren Upload der ganzen historischen Session; der Rest einer noch aktuellen,
-pausierten Session wird weiter über den Abschnitts-Uploader übertragen.
+Sessions lassen sich korrigieren und löschen. Die aktuelle Session ist
+gegen Änderungen im Verlauf gesperrt.
+
+**Garmoth** bündelt API-Schlüssel, Stundenautomatik, den manuellen Upload der aktuellen
+Session und nachträgliche Uploads gespeicherter Sessions. Die Uploadliste lässt sich
+nach Grindspot und Status filtern. Die aktuelle Session erscheint separat mit ihren
+Gesamtwerten; gesendet wird nur ihr noch nicht übertragener Anteil. Bereits gesendete
+automatische Stunden sperren einen späteren Gesamt-Upload des historischen Eintrags.
+Der Schlüssel wird nie zurück in das Eingabefeld geladen. Entfernen und Speichern
+schaltet auch die Automatik aus. Nur das Speichern im Garmoth-Bereich gibt eindeutig
+fehlgeschlagene automatische Versuche wieder frei; unklare Ergebnisse bleiben gesperrt.
 
 **Einstellungen** bündelt Monitor, Klasse, Auto-Pause, Event-Loot, Diagnoseaufzeichnung,
-Marktregion, Steuern und Garmoth. Monitor, Lootfilter und Aufzeichnung werden vor einer
+Marktregion und Steuern. Monitor, Lootfilter und Aufzeichnung werden vor einer
 neuen Session festgelegt; die Klasse lässt sich vor dem Start oder während einer noch
 nicht abgeschlossenen Pause korrigieren. Änderungen werden explizit gespeichert.
 

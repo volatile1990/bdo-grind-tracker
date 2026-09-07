@@ -52,7 +52,8 @@ internal sealed class PreviewTrackerSession : ITrackerSession
             ["Broken Vestige of Goldroot"] = 1, ["Nev's Fragment"] = 9 };
         Change(new()
         {
-            SessionId = Guid.NewGuid(), AnalyzerAvailable = true, IsDemo = true, SpotId = LootSpotCatalog.AphrodonId,
+            SessionId = Guid.NewGuid(), AnalyzerAvailable = true, IsDemo = true, HasApiKey = State.HasApiKey,
+            SpotId = LootSpotCatalog.AphrodonId,
             CharacterLabel = "Warrior · Awakening", CharacterClassId = "warrior-awakening", Elapsed = TimeSpan.FromMinutes(60),
             Loot = new(totals, totals.Values.Sum(), 147), Silver = SilverValuation.Calculate(totals, Prices, Preferences.Tax),
             Status = "Vorschau · Beispieldaten werden weder aufgezeichnet noch hochgeladen.", PriceStatus = "EU · NPC- und Festwerte"
@@ -61,13 +62,15 @@ internal sealed class PreviewTrackerSession : ITrackerSession
     private void Change(TrackerState state) { State = state; Changed?.Invoke(); }
     public Task ToggleTrackingAsync() { Change(State with { IsRunning = !State.IsRunning, HasSession = true, Status = "Vorschau · Tracking wird nur simuliert." }); return Task.CompletedTask; }
     public Task PauseAsync() { Change(State with { IsRunning = false }); return Task.CompletedTask; }
-    public Task NewSessionAsync() { Change(new() { SessionId = Guid.NewGuid(), AnalyzerAvailable = true, IsDemo = true, Status = "Vorschau · Neue Session bereit." }); return Task.CompletedTask; }
+    public Task NewSessionAsync() { Change(new() { SessionId = Guid.NewGuid(), AnalyzerAvailable = true, IsDemo = true, HasApiKey = State.HasApiKey, Status = "Vorschau · Neue Session bereit." }); return Task.CompletedTask; }
     public Task SetDemoAsync(bool enabled) { if (enabled) ShowSample(); else return NewSessionAsync(); return Task.CompletedTask; }
-    public Task SavePreferencesAsync(TrackerPreferences preferences, string? apiKey = null)
+    public Task SavePreferencesAsync(TrackerPreferences preferences, string? apiKey = null,
+        bool resumeAutomaticUpload = false)
     {
-        Preferences = preferences;
+        var hasApiKey = apiKey is null ? State.HasApiKey : !string.IsNullOrWhiteSpace(apiKey);
+        Preferences = preferences with { AutoUpload = preferences.AutoUpload && hasApiKey };
         Prices = LootPriceCatalog.FixedSnapshot(preferences.MarketRegion);
-        Change(State with { HasApiKey = apiKey is null ? State.HasApiKey : !string.IsNullOrWhiteSpace(apiKey),
+        Change(State with { HasApiKey = hasApiKey,
             Silver = SilverValuation.Calculate(State.Loot.Totals, Prices, Preferences.Tax), Status = "Vorschau · Einstellungen nur im Arbeitsspeicher gespeichert." });
         return Task.CompletedTask;
     }

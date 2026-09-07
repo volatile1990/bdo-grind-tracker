@@ -2,19 +2,19 @@
 
 ## Umfang und Datensicherheit
 
-Die Integration sendet nach Klick auf **Garmoth-Upload** oder mit ausdrücklich
-aktivierter Stundenautomatik. Beim manuellen Upload wird die laufende Aufnahme
-pausiert und ausstehender Loot abgeschlossen; kein weiterer Dialog oder
-Bestätigungsschritt ist nötig. Automatische Uploads lassen das Tracking weiterlaufen.
+Der eigene Menüpunkt **Garmoth** bündelt Verbindung, Stundenautomatik und sämtliche
+Upload-Aktionen. Die Integration sendet nach Bestätigung mit **Jetzt hochladen** oder
+mit ausdrücklich aktivierter Stundenautomatik. Beim manuellen Upload wird die laufende
+Aufnahme pausiert und ausstehender Loot abgeschlossen. Automatische Uploads lassen das Tracking weiterlaufen.
 Die App meldet sich nicht selbstständig an und
 liest weder Browser-Cookies noch gespeicherte Companion-API-Keys. Der eigene Key
-wird einmal unter **Optionen → Garmoth-Key** hinterlegt und mit Windows-DPAPI für
+wird einmal unter **Garmoth → Zugang & Automatik** hinterlegt und mit Windows-DPAPI für
 CurrentUser plus App-spezifischer Entropie in `garmoth-api-key.dpapi` gespeichert.
 Beim Upload steht er nur im HTTPS-Request-Header `apiKey`, niemals in URL, Payload,
-Klartext-Einstellungen oder Diagnoseausgaben. Entfernen im Einstellungsdialog löscht
+Klartext-Einstellungen oder Diagnoseausgaben. Entfernen im Garmoth-Bereich löscht
 die verschlüsselte Datei erst nach Speichern und deaktiviert automatische Uploads;
-Abbrechen verändert nichts. Die Option **Automatisch jede Grind-Stunde an Garmoth
-senden** ist standardmäßig aus und wird getrennt vom Key in den normalen Einstellungen
+Verwerfen verändert nichts. Die Option **Stündlich automatisch hochladen**
+ist standardmäßig aus und wird getrennt vom Key in den normalen Einstellungen
 gespeichert. Sie benötigt einen gültigen, nicht leeren Key.
 
 Die HTTP-Komponente hat keine automatischen Wiederholungsversuche, Cookies oder
@@ -44,9 +44,10 @@ Der Verlauf speichert die vollständigen lokalen Sitzungssummen. Sobald mindeste
 ein Abschnitt erfolgreich übertragen wurde oder sein Ergebnis unklar ist, wird
 deshalb der Gesamt-Upload dieses Verlaufseintrags gesperrt. Diese Sperre bleibt
 auch nach einer neuen Sitzung oder einem Programmneustart erhalten. Einen noch
-nicht übertragenen Rest vor **Neue Sitzung** über den Garmoth-Upload der aktuellen
-Sitzung senden; dieser berücksichtigt weiterhin ausschließlich das Delta.
-Ein Verlaufsupload der aktuellen Sitzung verwendet ebenfalls diesen Uploadweg.
+nicht übertragenen Rest vor **Neue Sitzung** über **Garmoth → Session-Anteil hochladen**
+senden; dieser berücksichtigt weiterhin ausschließlich das Delta. Die vollständigen
+Sessionwerte dienen dort zur Orientierung. Die Liste **Gespeicherte Sessions** enthält
+nur frühere Sessions; deren Uploads und Übertragungsvermerke werden ebenfalls dort verwaltet.
 
 Ein erfolgreicher automatischer Upload sperrt die lokale Sitzung nicht. Nach einem
 unklaren automatischen Ergebnis sind dagegen sämtliche weiteren Uploads dieser
@@ -57,7 +58,8 @@ Garmoth prüfen: Der Server könnte den Abschnitt bereits gespeichert haben.
 
 Eine eindeutig abgelehnte Anfrage oder fehlende lokale Voraussetzung setzt die
 automatischen Versuche aus. Nach Beheben der Ursache kann der Nutzer die
-Garmoth-Optionen erneut speichern oder manuell hochladen. Erneutes Speichern gibt
+Garmoth-Einstellungen erneut speichern oder manuell hochladen. Allgemeines Speichern
+unter **Einstellungen** reaktiviert diese Versuche nicht. Erneutes Speichern im Garmoth-Bereich gibt
 nur eindeutig fehlgeschlagene Versuche frei, niemals ein unklares Ergebnis.
 Ein erfolgreicher oder unklarer manueller Upload sperrt wie bisher weitere Uploads
 und das Fortsetzen dieser Sitzung; eine ausdrücklich abgelehnte Anfrage erlaubt

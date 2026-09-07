@@ -60,7 +60,9 @@ internal interface ITrackerSession : IAsyncDisposable
     Task NewSessionAsync();
     Task SetDemoAsync(bool enabled);
     // null keeps the encrypted key; empty string removes it. Never expose a saved key to markup.
-    Task SavePreferencesAsync(TrackerPreferences preferences, string? apiKey = null);
+    // Only an explicit save on the Garmoth page resumes a rejected automatic upload.
+    Task SavePreferencesAsync(TrackerPreferences preferences, string? apiKey = null,
+        bool resumeAutomaticUpload = false);
     Task UploadAsync();
     Task UploadHistoryAsync(Guid sessionId);
     Task UpdateHistoryLootAsync(Guid sessionId, IReadOnlyDictionary<string, long> totals);

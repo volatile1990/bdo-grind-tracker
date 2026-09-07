@@ -102,6 +102,29 @@ internal sealed class HybridMainForm : Form
         BdoWindowChrome.Apply(this);
     }
 
+    protected override void WndProc(ref Message message)
+    {
+        const int wmAppCommand = 0x0319;
+        if (message.Msg == wmAppCommand)
+        {
+            var command = ((long)message.LParam >> 16) & 0x0fff;
+            if (command is 1 or 2)
+            {
+                // WebView2 handles mouse X1/X2 itself. Only handle browser commands
+                // that reach the parent unhandled (e.g. a mouse driver/keyboard).
+                if (_webReady && !_closing)
+                {
+                    var browser = _web.WebView.CoreWebView2;
+                    if (command == 1 && browser.CanGoBack) browser.GoBack();
+                    if (command == 2 && browser.CanGoForward) browser.GoForward();
+                }
+                message.Result = (IntPtr)1;
+                return;
+            }
+        }
+        base.WndProc(ref message);
+    }
+
     private async void Tick(object? sender, EventArgs args)
     {
         if (_ticking || _closing) return;

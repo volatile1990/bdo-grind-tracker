@@ -1,18 +1,20 @@
 @namespace BdoGrindTracker.App.Components
 @inherits TrackerComponentBase
 @inject IJSRuntime JS
+@inject NavigationManager Navigation
 
 <div class="app-shell" data-app-ready="true">
     <aside class="sidebar" aria-label="Hauptnavigation">
-        <a class="brand" href="#" aria-label="Grindcrest · Live-Session" @onclick="() => NavigateAsync(Page.Live)" @onclick:preventDefault>
+        <a class="brand" href="#" aria-label="Grindcrest · Live-Session" @onclick="() => Navigate(Page.Live)" @onclick:preventDefault>
             <AssetImage Src="assets/branding/grindcrest-header.png" Alt="" Class="brand-mark" Fallback="spark" />
             <span><strong>GRINDCREST</strong><small>BLACK DESERT TRACKER</small></span>
         </a>
         <div class="nav-caption">DEIN ABENTEUER</div>
         <nav>
-            <button class="nav-item @(_page == Page.Live ? "active" : "")" aria-label="Live-Session" title="Live-Session" aria-current="@(_page == Page.Live ? "page" : null)" @onclick="() => NavigateAsync(Page.Live)"><AppIcon Name="live" /><span>Live-Session</span>@if (State.IsRunning) { <span class="nav-live-dot"></span> }</button>
-            <button class="nav-item @(_page == Page.History ? "active" : "")" aria-label="Verlauf" title="Verlauf" aria-current="@(_page == Page.History ? "page" : null)" @onclick="() => NavigateAsync(Page.History)"><AppIcon Name="history" /><span>Verlauf</span><span class="nav-count">@Tracker.History.Count</span></button>
-            <button class="nav-item @(_page == Page.Settings ? "active" : "")" aria-label="Einstellungen" title="Einstellungen" aria-current="@(_page == Page.Settings ? "page" : null)" @onclick="() => NavigateAsync(Page.Settings)"><AppIcon Name="settings" /><span>Einstellungen</span></button>
+            <button class="nav-item @(_page == Page.Live ? "active" : "")" aria-label="Live-Session" title="Live-Session" aria-current="@(_page == Page.Live ? "page" : null)" @onclick="() => Navigate(Page.Live)"><AppIcon Name="live" /><span>Live-Session</span>@if (State.IsRunning) { <span class="nav-live-dot"></span> }</button>
+            <button class="nav-item @(_page == Page.History ? "active" : "")" aria-label="Verlauf" title="Verlauf" aria-current="@(_page == Page.History ? "page" : null)" @onclick="() => Navigate(Page.History)"><AppIcon Name="history" /><span>Verlauf</span><span class="nav-count">@Tracker.History.Count</span></button>
+            <button class="nav-item @(_page == Page.Garmoth ? "active" : "")" aria-label="Garmoth" title="Garmoth" aria-current="@(_page == Page.Garmoth ? "page" : null)" @onclick="() => Navigate(Page.Garmoth)"><AppIcon Name="upload" /><span>Garmoth</span></button>
+            <button class="nav-item @(_page == Page.Settings ? "active" : "")" aria-label="Einstellungen" title="Einstellungen" aria-current="@(_page == Page.Settings ? "page" : null)" @onclick="() => Navigate(Page.Settings)"><AppIcon Name="settings" /><span>Einstellungen</span></button>
         </nav>
         <div class="sidebar-bottom">
             <div class="local-note"><AppIcon Name="shield" /><div><strong>Dein Loot. Deine Daten.</strong><span>Verlauf lokal auf deinem PC</span></div></div>
@@ -25,9 +27,15 @@
             <div class="topbar-right"><span class="region-badge">@Tracker.Preferences.MarketRegion.ToUpperInvariant()</span><span class="connection"><span class="status-dot @(State.IsRunning ? "running" : State.IsError ? "error" : "")"></span>@(State.IsDemo ? "Demo-Modus" : State.IsRunning ? "Tracking aktiv" : State.HasSession ? "Pausiert" : "Bereit")</span></div>
         </header>
         <main id="main-content">
-            @if (_page == Page.Live) { <LiveDashboard OnSettings="() => NavigateAsync(Page.Settings)" /> }
-            else if (_page == Page.History) { <HistoryDashboard OnLive="() => NavigateAsync(Page.Live)" /> }
-            else { <TrackerSettings /> }
+            <Router AppAssembly="@typeof(TrackerApp).Assembly">
+                <Found Context="routeData">
+                    <RouteView RouteData="routeData" />
+                    <FocusOnNavigate RouteData="routeData" Selector="h1" />
+                </Found>
+                <NotFound>
+                    <div class="page"><h1>Seite nicht gefunden</h1><p>Diese Ansicht ist nicht mehr verfügbar.</p><button class="button secondary" @onclick="() => Navigate(Page.Live)">Zur Live-Session</button></div>
+                </NotFound>
+            </Router>
         </main>
         <footer class="statusbar @(State.IsError ? "has-error" : "")" role="status" aria-live="polite">
             <span class="status-message"><span class="status-dot @(State.IsError ? "error" : State.IsRunning ? "running" : "")"></span>@State.Status</span>
@@ -37,14 +45,60 @@
 </div>
 
 @code {
-    private enum Page { Live, History, Settings }
-    private Page _page;
-    private async Task NavigateAsync(Page page)
+    private enum Page { Live, History, Garmoth, Settings }
+    private bool _scrollPending;
+    private string _scrollKey = "";
+    private Page _page
     {
-        _page = page;
+        get
+        {
+            var path = Navigation.ToBaseRelativePath(Navigation.Uri).Split('?', '#')[0].TrimEnd('/');
+            return path == "settings" ? Page.Settings : path == "garmoth" ? Page.Garmoth : path == "history" || path.StartsWith("history/", StringComparison.Ordinal) ? Page.History : Page.Live;
+        }
+    }
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        _scrollKey = ScrollKey(Navigation.Uri);
+        Navigation.LocationChanged += LocationChanged;
+    }
+    private void Navigate(Page page)
+    {
+        var path = page switch { Page.History => "/history", Page.Garmoth => "/garmoth", Page.Settings => "/settings", _ => "/" };
+        if (Navigation.Uri != Navigation.ToAbsoluteUri(path).AbsoluteUri)
+            Navigation.NavigateTo(path);
+    }
+    private void LocationChanged(object? sender, LocationChangedEventArgs args)
+    {
+        _ = InvokeAsync(() =>
+        {
+            var key = ScrollKey(args.Location);
+            _scrollPending |= _scrollKey != key;
+            _scrollKey = key;
+            StateHasChanged();
+        });
+    }
+    private string ScrollKey(string uri)
+    {
+        // Filters, pagination and an expanded session stay at their current
+        // position; switching pages or grindspots starts at the heading.
+        var path = Navigation.ToBaseRelativePath(uri).Split('?', '#')[0].Trim('/');
+        var segments = path.Split('/');
+        return segments.Length >= 3 && segments[0] == "history" && segments[1] == "spots"
+            ? string.Join('/', segments.Take(3)) : path;
+    }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_scrollPending) return;
+        _scrollPending = false;
         await JS.InvokeVoidAsync("grindcrest.scrollTop", false);
     }
-    private string PageLabel => _page switch { Page.History => "Verlauf", Page.Settings => "Einstellungen", _ => "Live-Session" };
+    public override void Dispose()
+    {
+        Navigation.LocationChanged -= LocationChanged;
+        base.Dispose();
+    }
+    private string PageLabel => _page switch { Page.History => "Verlauf", Page.Garmoth => "Garmoth", Page.Settings => "Einstellungen", _ => "Live-Session" };
     private static string Version => typeof(TrackerApp).Assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
         .OfType<System.Reflection.AssemblyInformationalVersionAttribute>().FirstOrDefault()?.InformationalVersion.Split('+')[0] ?? "";
 }

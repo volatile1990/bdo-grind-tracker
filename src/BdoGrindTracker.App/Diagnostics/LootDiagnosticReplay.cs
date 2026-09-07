@@ -71,9 +71,9 @@ internal static class LootDiagnosticReplay
         ArgumentException.ThrowIfNullOrWhiteSpace(recordingPath);
         var path = Path.GetFullPath(recordingPath);
         var file = new FileInfo(path);
-        if (!file.Exists || file.Length is <= 0 or > LootDiagnosticFormat.MaximumReplayJsonBytes)
+        if (!file.Exists || file.Length <= 0)
         {
-            throw new InvalidDataException("Diagnose-Datei fehlt, ist leer oder überschreitet das Replay-Limit.");
+            throw new InvalidDataException("Diagnose-Datei fehlt oder ist leer.");
         }
 
         using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
@@ -104,11 +104,6 @@ internal static class LootDiagnosticReplay
         while (ReadBoundedLine(reader) is { } line)
         {
             sequence++;
-            if (sequence > LootDiagnosticFormat.MaximumActions)
-            {
-                throw new InvalidDataException("Zu viele Diagnose-Aktionen für einen Replay-Durchlauf.");
-            }
-
             var entry = Deserialize<LootDiagnosticEntry>(line, sequence + 1);
             if (entry.Sequence != sequence || entry.Timestamp < lastTimestamp ||
                 entry.Events is null || entry.Events.Count > 256 ||
@@ -123,11 +118,7 @@ internal static class LootDiagnosticReplay
             TrackerFrameResult actual;
             if (entry.Kind == "frame")
             {
-                if (++frameCount > DiagnosticRecordingSession.DefaultMaximumFrames)
-                {
-                    throw new InvalidDataException("Zu viele Frames für einen Replay-Durchlauf.");
-                }
-
+                frameCount++;
                 actual = tracker.ProcessFrame(entry.Timestamp, entry.Observations, entry.RareEnabled);
                 finalCompletion = false;
             }

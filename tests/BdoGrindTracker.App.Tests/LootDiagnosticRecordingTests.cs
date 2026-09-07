@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text.Json;
 using BdoGrindTracker.App.Analysis;
 using BdoGrindTracker.App.Diagnostics;
@@ -54,7 +55,7 @@ public sealed class LootDiagnosticRecordingTests : IDisposable
             [new TrackedLootEvent(eventId, StartTime, "BON Origin Shard", 1)],
             [new LootTrackingDecision(observation, eventId, LootTrackingDecisionStatus.Counted, "confirmed once")]);
         recording.RecordFrame(StartTime, [observation], result, source,
-            new Rectangle(80, 40, 20, 10), new Rectangle(50, 20, 12, 8));
+            new Rectangle(80, 40, 20, 10), new Rectangle(50, 20, 12, 8), isHdr: true);
         recording.Dispose();
 
         Assert.Null(recording.LastError);
@@ -73,6 +74,7 @@ public sealed class LootDiagnosticRecordingTests : IDisposable
         Assert.Equal(LootDiagnosticFormat.EngineVersion, header.EngineVersion);
         Assert.NotEmpty(header.Catalog);
         Assert.True(entry.RareEnabled);
+        Assert.True(entry.IsHdr);
         Assert.Equal(observation, Assert.Single(entry.Observations));
         Assert.Equal(eventId, Assert.Single(entry.Events).EventId);
         Assert.Equal("confirmed once", Assert.Single(entry.Decisions).Reason);
@@ -138,7 +140,7 @@ public sealed class LootDiagnosticRecordingTests : IDisposable
     }
 
     [Fact]
-    public void FrameLimitStopsOnlyRecordingAndKeepsPrefixReplayable()
+    public void ExplicitFrameLimitStopsOnlyRecordingAndKeepsPrefixReplayable()
     {
         using var source = new Bitmap(4, 4);
         using var recording = DiagnosticRecordingSession.Start(temporaryDirectory, null, 100_000, 1);
@@ -153,7 +155,55 @@ public sealed class LootDiagnosticRecordingTests : IDisposable
     }
 
     [Fact]
-    public void StorageLimitStopsRecordingWithoutWritingAnOversizedEntry()
+    public void DefaultRecordingAndReplayContinuePastTheFormerFrameAndActionLimits()
+    {
+        using var source = new Bitmap(4, 4);
+        using var recording = DiagnosticRecordingSession.Start(temporaryDirectory);
+        var emptyResult = new TrackerFrameResult([], []);
+        const int frames = 6_001;
+        for (var index = 0; index < frames; index++)
+            recording.RecordFrame(StartTime.AddMilliseconds(index * 450), [], emptyResult, source, null, null);
+        recording.RecordCompletion(StartTime.AddHours(1), emptyResult);
+
+        Assert.True(recording.IsRecording);
+        Assert.Null(recording.LastError);
+        Assert.Equal(frames, recording.RecordedFrameCount);
+        var replay = LootDiagnosticReplay.Run(recording.RecordingPath!);
+        Assert.Equal(frames, replay.FrameCount);
+        Assert.Equal(1, replay.CompletionCount);
+        Assert.True(replay.HasFinalCompletion);
+        Assert.True(replay.TotalsMatch);
+        Assert.True(replay.EventTimelineMatches);
+    }
+
+    [Fact]
+    public void DefaultRecordingContinuesAfterTheFormerCombinedStorageLimit()
+    {
+        using var source = new Bitmap(4, 4);
+        using var recording = DiagnosticRecordingSession.Start(temporaryDirectory);
+        // Simulate crops already saved in a long session without creating a
+        // 250-MiB fixture; the following frame and crop are genuinely written.
+        typeof(DiagnosticRecordingSession).GetField("writtenBytes", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .SetValue(recording, 250L * 1024 * 1024 + 1);
+        recording.RecordFrame(StartTime, [], new TrackerFrameResult([], []), source,
+            new Rectangle(0, 0, 1, 1), null);
+        recording.RecordCompletion(StartTime.AddSeconds(1), new TrackerFrameResult([], []));
+
+        Assert.True(recording.IsRecording);
+        Assert.Null(recording.LastError);
+        Assert.Single(Directory.GetFiles(Path.GetDirectoryName(recording.RecordingPath!)!, "*.png"));
+        Assert.True(new FileInfo(recording.RecordingPath!).Length < 100_000);
+        var replay = LootDiagnosticReplay.Run(recording.RecordingPath!);
+        Assert.Equal(1, replay.FrameCount);
+        Assert.True(replay.HasFinalCompletion);
+        recording.Dispose();
+        var frame = JsonSerializer.Deserialize<LootDiagnosticEntry>(File.ReadLines(recording.RecordingPath!).Skip(1).First(),
+            LootDiagnosticFormat.JsonOptions)!;
+        Assert.Null(frame.IsHdr);
+    }
+
+    [Fact]
+    public void ExplicitStorageLimitStopsRecordingWithoutWritingAnOversizedEntry()
     {
         using var source = new Bitmap(4, 4);
         using var recording = DiagnosticRecordingSession.Start(temporaryDirectory, null, 16_000, 10);

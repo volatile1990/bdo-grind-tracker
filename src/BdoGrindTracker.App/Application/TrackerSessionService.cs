@@ -286,7 +286,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         var analysis = await _analyzer.AnalyzeAsync(frame, metadata.CapturedAtUtc,
             metadata.IsHdr, cancellationToken).ConfigureAwait(false);
         _recording?.RecordFrame(metadata.CapturedAtUtc, analysis.Observations,
-            analysis.TrackingResult, frame, analysis.PanelRegion, analysis.RareBandRegion, analysis.Recovery);
+            analysis.TrackingResult, frame, analysis.PanelRegion, analysis.RareBandRegion, analysis.Recovery,
+            isHdr: metadata.IsHdr);
         _uiMailbox.Publish(analysis, onPublished: ObserveGarmothTotals);
     }
 

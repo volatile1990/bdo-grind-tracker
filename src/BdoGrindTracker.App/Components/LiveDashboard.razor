@@ -1,4 +1,7 @@
+@page "/"
+@page "/live"
 @inherits TrackerComponentBase
+@inject NavigationManager Navigation
 @inject IJSRuntime JS
 
 <div class="page live-page">
@@ -16,7 +19,7 @@
     }
     @if (ActionError is not null) { <div class="notice error-notice" role="alert"><AppIcon Name="info" />@ActionError</div> }
     @if (State.IsSubmitted) { <div class="notice"><AppIcon Name="info" /><div><strong>Session abgeschlossen</strong><span>Diese Session lässt sich nicht weiterführen oder erneut übertragen. Beginne für deinen nächsten Grind eine neue Session.</span></div></div> }
-    @if (!State.AnalyzerAvailable && !State.IsDemo) { <div class="notice warning-notice"><AppIcon Name="info" /><div><strong>Erfassung noch nicht verfügbar</strong><span>@State.Status</span></div><button class="text-button" @onclick="OnSettings">Einstellungen <AppIcon Name="arrow" /></button></div> }
+    @if (!State.AnalyzerAvailable && !State.IsDemo) { <div class="notice warning-notice"><AppIcon Name="info" /><div><strong>Erfassung noch nicht verfügbar</strong><span>@State.Status</span></div><button class="text-button" @onclick="OpenSettings">Einstellungen <AppIcon Name="arrow" /></button></div> }
 
     <section class="spot-hero" style="@HeroStyle" aria-label="Aktueller Grindspot">
         <div class="hero-shade"></div>
@@ -46,7 +49,6 @@
         <LootTable Totals="State.Loot.Totals" DurationTicks="State.Elapsed.Ticks" TrashName="CurrentProfile?.TrashItemName" />
         <div class="session-aside">
             <section class="panel session-summary"><div class="panel-heading"><h2>Session-Details</h2><AppIcon Name="live" /></div><dl class="detail-list"><div><dt>Bestätigte Drops</dt><dd>@Number(State.Loot.ConfirmedEventCount)</dd></div><div><dt>Verschiedene Items</dt><dd>@State.Loot.ItemTypeCount</dd></div><div><dt>Bruttowert</dt><dd>@(CanShowSilver ? Silver(State.Silver.BeforeTax) : "—")@(!State.Silver.IsComplete ? " *" : "")</dd></div><div><dt>Markterlös</dt><dd>@Tracker.Preferences.Tax.MarketReturnRate.ToString("P2", German)</dd></div><div><dt>Automatische Pause</dt><dd>@Tracker.Preferences.AutoPauseMinutes Min.</dd></div></dl><div class="subtle-box"><AppIcon Name="shield" /><span>Die automatische Pause greift, wenn kein neuer Loot erkannt wird.</span></div></section>
-            <section class="panel garmoth-panel"><div class="panel-heading"><h2>Garmoth</h2><span class="badge @(Tracker.Preferences.AutoUpload ? "teal-badge" : "muted-badge")">@(Tracker.Preferences.AutoUpload ? "Auto-Upload an" : "Manuell")</span></div><p>@UploadDescription</p><button class="button secondary full-width" @onclick="RequestUpload" disabled="@(!CanUpload)"><AppIcon Name="upload" />@(State.IsSubmitted ? "Session abgeschlossen" : "Session hochladen")</button>@if (!State.HasApiKey) { <button class="text-button centered" @onclick="OnSettings">API-Schlüssel hinterlegen <AppIcon Name="arrow" /></button> }</section>
             <div class="price-status"><span class="status-dot @(State.Silver.IsStale ? "" : "running")"></span><span>@State.PriceStatus</span><button class="icon-button" title="Marktpreise aktualisieren" aria-label="Marktpreise aktualisieren" @onclick="() => Act(Tracker.RefreshPricesAsync)" disabled="@(State.IsBusy || Acting)"><AppIcon Name="refresh" /></button></div>
         </div>
     </div>
@@ -57,33 +59,27 @@
 </div>
 
 <dialog id="live-confirm" class="modal confirm-modal" @oncancel="CloseConfirmation">
-    <div class="modal-heading"><div><span class="eyebrow">@(_confirm == "upload" ? "GARMOTH" : "SESSION")</span><h2>@(_confirm == "upload" ? "Session hochladen?" : "Neue Session beginnen?")</h2></div><button class="icon-button" @onclick="CloseConfirmation" aria-label="Dialog schließen"><AppIcon Name="close" /></button></div>
-    <p>@(_confirm == "upload" ? "Die aktuelle Session wird pausiert. An Garmoth geht ausschließlich der noch nicht übertragene Anteil – bereits hochgeladene Zeit und Lootmengen werden abgezogen. Die Zusammenfassung zeigt die gesamte Session." : "Die aktuelle Session wird beendet und im Verlauf gesichert. Für die neue Session beginnen Zeit und Loot wieder bei null.")</p>
-    @if (_confirm == "upload") { <div class="confirm-summary"><span class="eyebrow">GESAMTE SESSION</span><strong>@SpotName(State.SpotId)</strong><span>@Duration(State.Elapsed) · @Number(Trash(State.Loot.Totals, State.SpotId)) Trashloot</span></div> }
-    <div class="modal-actions"><button class="button secondary" @onclick="CloseConfirmation">Abbrechen</button><button class="button primary" @onclick="ConfirmAction" disabled="@Acting">@(_confirm == "upload" ? "Jetzt hochladen" : "Neue Session")</button></div>
+    <div class="modal-heading"><div><span class="eyebrow">SESSION</span><h2>Neue Session beginnen?</h2></div><button class="icon-button" @onclick="CloseConfirmation" aria-label="Dialog schließen"><AppIcon Name="close" /></button></div>
+    <p>Die aktuelle Session wird beendet und im Verlauf gesichert. Für die neue Session beginnen Zeit und Loot wieder bei null.</p>
+    <div class="modal-actions"><button class="button secondary" @onclick="CloseConfirmation">Abbrechen</button><button class="button primary" @onclick="ConfirmAction" disabled="@Acting">Neue Session</button></div>
 </dialog>
 
 @code {
-    [Parameter] public EventCallback OnSettings { get; set; }
-    private string? _confirm;
+    private void OpenSettings() => Navigation.NavigateTo("/settings");
     private LootSpotPresentation? CurrentProfile => Profile(State.SpotId);
     private bool CanShowSilver => State.Loot.Totals.Count == 0 || State.Silver.HasKnownValue;
     private string HeroStyle => $"background-image:url('assets/spot-backgrounds/{CurrentProfile?.BackgroundFileName ?? "aphrodon.jpg"}')";
     private string MonitorLabel => Tracker.Monitors.FirstOrDefault(monitor => monitor.DeviceName == Tracker.Preferences.MonitorDeviceName)?.Label ?? Tracker.Monitors.FirstOrDefault()?.Label ?? "Kein Bildschirm";
     private string ValuationLabel => !State.Silver.IsComplete ? "Bekannter Teilbetrag · Preise fehlen" : State.Silver.IsStale ? "Mit gespeicherten Marktpreisen" : "Nach deinen Marktsteuern";
-    private bool CanUpload => !Acting && !State.IsBusy && State.HasApiKey && State.HasSession && !State.IsDemo && !State.IsSubmitted && !State.UploadBlocked && State.SpotId is not null && State.Elapsed > TimeSpan.Zero && State.Loot.Totals.Count > 0;
-    private string UploadDescription => State.UploadBlocked ? "Diese Session ist gegen eine erneute Übertragung gesperrt. So entstehen keine doppelten Einträge." : State.AutomaticSuspended ? "Der automatische Upload ist für diese Session ausgesetzt. Beachte die Statusmeldung unten." : Tracker.Preferences.AutoUpload ? "Nach jeder aktiven Grindstunde wird nur der neue Stundenanteil übertragen." : "Übertrage deine Session mit einem Klick in deinen Garmoth-Verlauf.";
     private async Task RequestNew()
     {
         if (!State.HasSession && !State.IsDemo) { await Act(Tracker.NewSessionAsync); return; }
-        _confirm = "new"; await JS.InvokeVoidAsync("grindcrest.showDialog", "live-confirm");
+        await JS.InvokeVoidAsync("grindcrest.showDialog", "live-confirm");
     }
-    private async Task RequestUpload() { _confirm = "upload"; await JS.InvokeVoidAsync("grindcrest.showDialog", "live-confirm"); }
-    private async Task CloseConfirmation() { _confirm = null; await JS.InvokeVoidAsync("grindcrest.closeDialog", "live-confirm"); }
+    private async Task CloseConfirmation() => await JS.InvokeVoidAsync("grindcrest.closeDialog", "live-confirm");
     private async Task ConfirmAction()
     {
-        var action = _confirm; await CloseConfirmation();
-        if (action == "upload") await Act(Tracker.UploadAsync);
-        else await Act(async () => { if (State.IsRunning) await Tracker.PauseAsync(); if (!State.IsError) await Tracker.NewSessionAsync(); });
+        await CloseConfirmation();
+        await Act(async () => { if (State.IsRunning) await Tracker.PauseAsync(); if (!State.IsError) await Tracker.NewSessionAsync(); });
     }
 }

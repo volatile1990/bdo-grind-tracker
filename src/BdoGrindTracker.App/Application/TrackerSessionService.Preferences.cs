@@ -8,7 +8,8 @@ namespace BdoGrindTracker.App.Services;
 
 internal sealed partial class TrackerSessionService
 {
-    public Task SavePreferencesAsync(TrackerPreferences preferences, string? apiKey = null) =>
+    public Task SavePreferencesAsync(TrackerPreferences preferences, string? apiKey = null,
+        bool resumeAutomaticUpload = false) =>
         RunOperationAsync(() =>
         {
             ArgumentNullException.ThrowIfNull(preferences);
@@ -55,12 +56,14 @@ internal sealed partial class TrackerSessionService
                 _nextPriceRefreshAt = DateTimeOffset.MinValue;
             }
             if (!TrySaveSettings()) return Task.CompletedTask;
-            _garmothIntervals.ResumeAutomatic();
+            if (resumeAutomaticUpload) _garmothIntervals.ResumeAutomatic();
             SetStatus(_garmothIntervals.IsBlocked
-                ? "Optionen gespeichert. Das unklare Upload-Ergebnis muss in Garmoth geprüft werden; diese Sitzung bleibt für Uploads gesperrt."
-                : Preferences.AutoUpload
-                    ? "Optionen gespeichert. Jede volle Grindstunde wird einmal automatisch übertragen."
-                    : "Optionen gespeichert.");
+                ? "Einstellungen gespeichert. Das unklare Upload-Ergebnis muss in Garmoth geprüft werden; diese Sitzung bleibt für Uploads gesperrt."
+                : Preferences.AutoUpload && _garmothIntervals.AutomaticSuspended
+                    ? "Einstellungen gespeichert. Der automatische Upload bleibt angehalten. Nach der Korrektur die Garmoth-Einstellungen erneut speichern."
+                    : Preferences.AutoUpload
+                        ? "Einstellungen gespeichert. Jede volle Grindstunde wird einmal automatisch übertragen."
+                        : "Einstellungen gespeichert.");
             // Valuation refresh must not keep the command gate occupied while
             // waiting for HTTP and delay the normal inactivity pause.
             if (regionChanged) _ = RefreshPricesAsync();

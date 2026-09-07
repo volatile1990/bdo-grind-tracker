@@ -2,7 +2,7 @@
 
 Lokaler, passiver Loot-Tracker für Black Desert, Testversion **0.10.0-test.1** (bisher BDO
 Grind Tracker), mit vollständig neuem **Blazor-Hybrid-Frontend** für Windows.
-Live-Session, Verlauf, Lootkorrekturen, Bestätigungsdialoge und Einstellungen werden
+Live-Session, Verlauf, Garmoth, Lootkorrekturen, Bestätigungsdialoge und Einstellungen werden
 als lokale Razor-Komponenten in WebView2 dargestellt. Das Dashboard bietet eine
 responsive dunkle Oberfläche, Spotbilder, Silber- und Trash-Kennzahlen, durchsuchbare
 Loot-Tabellen, Stundenwerte und Tastaturbedienung. Die Sitzungssteuerung ist von der
@@ -41,8 +41,8 @@ zeigen empfohlenen AP/DP, AP-Limit, farbige Traits, empfohlenen Widerstandskrist
 sowie Trashloot-Icon und Silberwert. Die maximierte Spotansicht ergänzt Kennzahlen,
 offizielle Klassensymbole und eine horizontal scrollbare, vollständige Loot-Tabelle.
 
-0.9.5 ergänzt den optionalen automatischen Garmoth-Upload. Unter **Einstellungen →
-Garmoth verbinden** aktivieren: Jede volle Stunde aktiver Grindzeit wird als eigener
+0.9.5 ergänzt den optionalen automatischen Garmoth-Upload. Unter **Garmoth →
+Zugang & Automatik** aktivieren: Jede volle Stunde aktiver Grindzeit wird als eigener
 Abschnitt übertragen, ausschließlich mit den noch nicht gesendeten Lootmengen
 und deren Silberwert. Tracking läuft weiter, Pausen zählen nicht mit. Auch ein
 manueller Rest-Upload lässt bereits übertragene Stunden aus. Die Option ist
@@ -150,7 +150,7 @@ Grenzen: [Klassenerkennung](docs/CLASS_DETECTION.md).
 
 ### Optionaler Upload nach Garmoth
 
-Einmal unter **Einstellungen → Garmoth verbinden** den eigenen API-Key aus den Garmoth-
+Einmal unter **Garmoth → Zugang & Automatik** den eigenen API-Key aus den Garmoth-
 Einstellungen speichern. Er wird mit Windows-DPAPI für den aktuellen Windows-Benutzer
 verschlüsselt, nicht als Klartext in den Einstellungen gespeichert. Companion-/Browser-
 Anmeldedaten werden nicht übernommen. Dort lässt sich der Key auch wieder entfernen.
@@ -165,11 +165,17 @@ Stunden nacheinander hoch. Eine angefangene Reststunde bleibt bis zur nächsten 
 Stunde oder zum manuellen Upload lokal. **Neue Sitzung** und Schließen senden sie
 nicht automatisch.
 
-**Session hochladen → Jetzt hochladen** pausiert eine laufende Sitzung, schließt ausstehenden
+Der Menüpunkt **Garmoth** bündelt alle Uploads. **Session-Anteil hochladen → Jetzt
+hochladen** pausiert eine laufende Sitzung, schließt ausstehenden
 Loot ab und sendet die gesamte noch nicht hochgeladene Zeit und Beute. Der Dialog
 bestätigt die Übertragung; Silber- und Klasseneingaben sind dort nicht nötig. Verwendet werden die bereits
 erkannte/gewählte Klasse, Spot und der Netto-Silberwert des übertragenen Abschnitts
 zu den aktuellen Preis-/Steuereinstellungen; keine Differenz alter Silber-Gesamtsummen.
+
+Unter **Gespeicherte Sessions** lassen sich frühere Grinds nach Spot und Upload-Status
+filtern und nachträglich hochladen. Die aktuelle Session erscheint ausschließlich
+oben. Übertragungsvermerke können auch einzelne automatische Stunden betreffen;
+ein erneuter Gesamt-Upload bleibt dann gesperrt.
 
 Garmoth erhält Spot, Klasse/Spec, volle aktive Minuten, zugeordnete Lootmengen,
 Silberwerte und eine Notiz mit Startzeit/Sitzungs-ID und eindeutiger Abschnitts-ID;
@@ -185,8 +191,9 @@ Ein erfolgreicher automatischer Upload lässt die Sitzung weiterlaufen. Bei eine
 unklaren automatischen Ergebnis werden alle weiteren Uploads dieser Sitzung gesperrt,
 auch manuelle und nach erneutem Aktivieren der Option; lokales Tracking bleibt möglich.
 Zuerst auf Garmoth prüfen. Eine eindeutige Ablehnung oder fehlende Upload-Voraussetzung
-setzt die Automatik aus: Ursache beheben und die Garmoth-Optionen erneut speichern
-oder manuell hochladen. Unklare Ergebnisse werden nicht automatisch wiederholt.
+setzt die Automatik aus: Ursache beheben und die Garmoth-Einstellungen erneut speichern
+oder manuell hochladen. Allgemeine Einstellungen reaktivieren die Automatik nicht.
+Unklare Ergebnisse werden nicht automatisch wiederholt.
 Nach einem erfolgreichen oder unklaren **manuellen** Upload bleibt die Sitzung wie
 bisher gegen erneutes Hochladen/Fortsetzen gesperrt; danach **Neue Sitzung** wählen.
 
@@ -273,8 +280,10 @@ Spielpixel. Es wurden keine zusätzlichen Erkennungsfilter oder Verwerfungsregel
 Bei aktivierter Aufzeichnung werden ausschließlich die kalibrierten Lootausschnitte
 als PNG sowie OCR-Beobachtungen und Entscheidungen als JSONL gespeichert:
 `%LOCALAPPDATA%\BdoGrindTracker\diagnostics\loot-...\observations.jsonl`.
-Maximal 2.000 Frames bzw. 250 MiB pro Aufzeichnung. Ein Aufnahmefehler stoppt nur
-die Diagnose, nicht das Tracking. Es gibt keine automatische Übertragung.
+Die Aufzeichnung läuft ohne Gesamtlimit für Frames oder Dateigröße bis zum Ende
+der Session; Pause und Fortsetzen gehören zur selben Aufnahme. Ein Aufnahmefehler,
+etwa ein voller Datenträger, stoppt nur die Diagnose, nicht das Tracking.
+Es gibt keine automatische Übertragung.
 
 Nach dem Pausieren lässt sich die Aufzeichnung offline wiederholen:
 
