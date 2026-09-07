@@ -31,7 +31,7 @@ internal sealed class SpotHistoryDetailView : Control
     private const int TableHeaderLogicalHeight = 62;
     private const int RowLogicalHeight = 54;
     private const int LootColumnLogicalWidth = 72;
-    private const int ActionsColumnLogicalWidth = 76;
+    private const int ActionsColumnLogicalWidth = 112;
     private const int ScrollBarLogicalHeight = 22;
     private const int PaginationLogicalHeight = 42;
     private static readonly CultureInfo GermanCulture = CultureInfo.GetCultureInfo("de-DE");
@@ -74,8 +74,10 @@ internal sealed class SpotHistoryDetailView : Control
     private Rectangle _backBounds;
     private readonly Dictionary<Guid, Rectangle> _editBounds = [];
     private readonly Dictionary<Guid, Rectangle> _deleteBounds = [];
+    private readonly Dictionary<Guid, Rectangle> _uploadBounds = [];
     private Guid? _hoveredEditSessionId;
     private Guid? _hoveredDeleteSessionId;
+    private Guid? _hoveredUploadSessionId;
 
     public SpotHistoryDetailView(
         LootSpotPresentation profile,
@@ -110,7 +112,7 @@ internal sealed class SpotHistoryDetailView : Control
         TabStop = true;
         AccessibleRole = AccessibleRole.Pane;
         AccessibleName = $"Maximierte Grindspot-Details für {LootSpotCatalog.GetRequired(profile.SpotId).DisplayName}";
-        AccessibleDescription = $"{sessions.Count:N0} Grindstunden, Kennzahlen und Loot-Tabelle mit Bearbeiten- und Löschen-Aktionen. Escape führt zur Übersicht zurück.";
+        AccessibleDescription = $"{sessions.Count:N0} Grindstunden, Kennzahlen und Loot-Tabelle mit Garmoth-, Bearbeiten- und Löschen-Aktionen. Escape führt zur Übersicht zurück.";
         _lootScroll.ValueChanged += (_, _) => InvalidateLootViewport();
         _pagination.PageRequested += pageIndex =>
         {
@@ -134,6 +136,8 @@ internal sealed class SpotHistoryDetailView : Control
     internal event Action<Guid>? EditRequested;
 
     internal event Action<Guid>? DeleteRequested;
+
+    internal event Action<Guid>? UploadRequested;
 
     internal LootSpotPresentation Profile => _profile;
 
@@ -186,6 +190,13 @@ internal sealed class SpotHistoryDetailView : Control
             DeleteRequested?.Invoke(sessionId);
     }
 
+    internal void RequestUpload(Guid sessionId)
+    {
+        var session = _sessions.FirstOrDefault(candidate => candidate.SessionId == sessionId);
+        if (session is not null && !session.GarmothUploadBlocked)
+            UploadRequested?.Invoke(sessionId);
+    }
+
     internal bool ScrollLootAt(Point location, int wheelDelta)
     {
         if (!_lootScroll.Visible || !GetLootViewportBounds().Contains(location) || wheelDelta == 0)
@@ -233,6 +244,12 @@ internal sealed class SpotHistoryDetailView : Control
         base.OnMouseUp(e);
         if (e.Button == MouseButtons.Left)
         {
+            var uploadSession = FindActionSession(_uploadBounds, e.Location);
+            if (uploadSession is { } uploadId)
+            {
+                RequestUpload(uploadId);
+                return;
+            }
             var editSession = FindActionSession(_editBounds, e.Location);
             if (editSession is { } editId)
             {
@@ -280,13 +297,17 @@ internal sealed class SpotHistoryDetailView : Control
         base.OnMouseMove(e);
         var hoveredEdit = FindActionSession(_editBounds, e.Location);
         var hoveredDelete = FindActionSession(_deleteBounds, e.Location);
-        if (_hoveredEditSessionId != hoveredEdit || _hoveredDeleteSessionId != hoveredDelete)
+        var hoveredUpload = FindActionSession(_uploadBounds, e.Location);
+        if (_hoveredEditSessionId != hoveredEdit || _hoveredDeleteSessionId != hoveredDelete ||
+            _hoveredUploadSessionId != hoveredUpload)
         {
             _hoveredEditSessionId = hoveredEdit;
             _hoveredDeleteSessionId = hoveredDelete;
+            _hoveredUploadSessionId = hoveredUpload;
             Invalidate();
         }
-        Cursor = hoveredEdit is not null || hoveredDelete is not null || _backBounds.Contains(e.Location)
+        Cursor = hoveredEdit is not null || hoveredDelete is not null || hoveredUpload is not null ||
+                 _backBounds.Contains(e.Location)
             ? Cursors.Hand
             : Cursors.Default;
         if (!Focused && CanFocus && GetLootViewportBounds().Contains(e.Location))
@@ -296,10 +317,12 @@ internal sealed class SpotHistoryDetailView : Control
     protected override void OnMouseLeave(EventArgs e)
     {
         base.OnMouseLeave(e);
-        if (_hoveredEditSessionId is null && _hoveredDeleteSessionId is null)
+        if (_hoveredEditSessionId is null && _hoveredDeleteSessionId is null &&
+            _hoveredUploadSessionId is null)
             return;
         _hoveredEditSessionId = null;
         _hoveredDeleteSessionId = null;
+        _hoveredUploadSessionId = null;
         Invalidate();
     }
 
@@ -546,6 +569,7 @@ internal sealed class SpotHistoryDetailView : Control
     {
         _editBounds.Clear();
         _deleteBounds.Clear();
+        _uploadBounds.Clear();
         var padding = ScaleLogical(15);
         var (classWidth, ageWidth, durationWidth, silverWidth) = GetFixedColumnWidths();
         var tableWidth = Math.Max(1, Width - padding * 2);
@@ -595,7 +619,7 @@ internal sealed class SpotHistoryDetailView : Control
         using (var actionFill = new SolidBrush(Color.FromArgb(255, 25, 28, 31)))
             graphics.FillRectangle(actionFill, actionsHeader);
         DrawColumnHeader(graphics, "AKTIONEN", actionsHeader);
-        DrawPinnedDivider(graphics, actionsHeader.X, startY, headerHeight);
+        DrawRightPinnedDivider(graphics, actionsHeader.X, startY, headerHeight);
 
         if (_visibleSessions.Count == 0)
         {
@@ -689,14 +713,19 @@ internal sealed class SpotHistoryDetailView : Control
             graphics.FillRectangle(actionsFill, actionsBounds);
         var buttonSize = ScaleLogical(28);
         var gap = ScaleLogical(5);
-        var editBounds = new Rectangle(actionsBounds.X + Math.Max(2, (actionsWidth - buttonSize * 2 - gap) / 2),
+        var uploadBounds = new Rectangle(actionsBounds.X + Math.Max(2, (actionsWidth - buttonSize * 3 - gap * 2) / 2),
             actionsBounds.Y + (actionsBounds.Height - buttonSize) / 2, buttonSize, buttonSize);
+        var editBounds = new Rectangle(uploadBounds.Right + gap, uploadBounds.Y, buttonSize, buttonSize);
         var deleteBounds = new Rectangle(editBounds.Right + gap, editBounds.Y, buttonSize, buttonSize);
+        _uploadBounds[session.SessionId] = uploadBounds;
         _editBounds[session.SessionId] = editBounds;
         _deleteBounds[session.SessionId] = deleteBounds;
+        BdoTheme.DrawUploadAction(graphics, uploadBounds,
+            _hoveredUploadSessionId == session.SessionId && !session.GarmothUploadBlocked,
+            session.GarmothUploadBlocked);
         BdoTheme.DrawEditAction(graphics, editBounds, _hoveredEditSessionId == session.SessionId);
         BdoTheme.DrawDeleteAction(graphics, deleteBounds, _hoveredDeleteSessionId == session.SessionId);
-        DrawPinnedDivider(graphics, actionsBounds.X, bounds.Y, bounds.Height);
+        DrawRightPinnedDivider(graphics, actionsBounds.X, bounds.Y, bounds.Height);
     }
 
     private static Guid? FindActionSession(IReadOnlyDictionary<Guid, Rectangle> actions, Point location)
@@ -747,6 +776,17 @@ internal sealed class SpotHistoryDetailView : Control
             Color.FromArgb(132, 4, 6, 8), Color.Transparent, LinearGradientMode.Horizontal);
         graphics.FillRectangle(shadow, x, y, shadowWidth, height);
         using var divider = new Pen(Color.FromArgb(165, 115, 110, 92));
+        graphics.DrawLine(divider, x, y, x, y + height);
+    }
+
+    private void DrawRightPinnedDivider(Graphics graphics, int x, int y, int height)
+    {
+        var shadowWidth = ScaleLogical(10);
+        var shadowBounds = new Rectangle(x - shadowWidth, y, shadowWidth, Math.Max(1, height));
+        using var shadow = new LinearGradientBrush(shadowBounds,
+            Color.Transparent, Color.FromArgb(185, 4, 6, 8), LinearGradientMode.Horizontal);
+        graphics.FillRectangle(shadow, shadowBounds);
+        using var divider = new Pen(Color.FromArgb(190, 115, 110, 92));
         graphics.DrawLine(divider, x, y, x, y + height);
     }
 

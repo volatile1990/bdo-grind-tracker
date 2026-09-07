@@ -1,6 +1,7 @@
 using System.Drawing.Imaging;
 using System.Runtime.ExceptionServices;
 using BdoGrindTracker.App.UI;
+using BdoGrindTracker.App.Pricing;
 
 namespace BdoGrindTracker.App.Tests;
 
@@ -146,6 +147,38 @@ public sealed class LootTotalsViewTests
             Assert.Equal(0, view.EntryCount);
             Assert.Equal(0, view.TotalQuantity);
             Assert.True(view.AutoScrollMinSize.Height <= view.ClientSize.Height);
+        });
+    }
+
+    [Fact]
+    public void LootCardShowsUnitAndCombinedNetValue()
+    {
+        RunInSta(() =>
+        {
+            using var view = new LootTotalsView();
+            view.SetPricing(LootPriceCatalog.FixedSnapshot("eu"), SilverTaxOptions.Default);
+            view.SetTotals([new("Branch of Abundance", 10)]);
+
+            var values = view.GetDisplayedValues("Branch of Abundance");
+
+            Assert.Equal("155,1 Tsd.", values.UnitValue);
+            Assert.Equal("1,55 Mio.", values.TotalValue);
+        });
+    }
+
+    [Fact]
+    public void RecognizedSpotBackgroundCanBeAppliedWithoutTakingOwnership()
+    {
+        RunInSta(() =>
+        {
+            using var view = new LootTotalsView { Size = new Size(500, 220) };
+            using var background = new Bitmap(32, 32);
+            view.SetSpotBackground(background);
+            Assert.True(view.HasSpotBackground);
+            using var rendered = new Bitmap(view.Width, view.Height);
+            view.DrawToBitmap(rendered, new Rectangle(Point.Empty, rendered.Size));
+            view.Dispose();
+            Assert.Equal(32, background.Width);
         });
     }
 

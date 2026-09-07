@@ -45,7 +45,7 @@ public sealed class MainFormStartupTests
             Assert.Empty(FindDescendants<LiveDetectionDebugView>(form));
             Assert.Empty(FindDescendants<DetectionRegionPreview>(form));
             Assert.All(FindDescendants<TextBox>(form), textBox => Assert.IsAssignableFrom<UpDownBase>(textBox.Parent));
-            Assert.Equal(10, FindDescendants<BdoButton>(form).Count);
+            Assert.Equal(11, FindDescendants<BdoButton>(form).Count);
             Assert.DoesNotContain(FindDescendants<Button>(form), button => button is not BdoButton);
             Assert.All(FindDescendants<BdoButton>(form), button => Assert.True(button.CornerRadius >= 8));
             Assert.DoesNotContain(FindDescendants<Label>(form), label => label.Text is "DROPS" or "ITEMARTEN");
@@ -75,8 +75,9 @@ public sealed class MainFormStartupTests
 
             Assert.DoesNotContain(FindDescendants<ComboBox>(form),
                 comboBox => comboBox.AccessibleName == "Grindspot");
-            Assert.Equal("Spot: wird aus Trashloot erkannt",
-                FindByAccessibleName<Label>(form, "Automatisch erkannter Grindspot").Text);
+            Assert.Equal("SESSIONDAUER",
+                GetField<Label>(form, "_sessionSpotNameLabel").Text);
+            Assert.False(GetField<PictureBox>(form, "_sessionSpotIcon").Visible);
             Assert.NotEmpty(FindByAccessibleName<ComboBox>(form, "Spielmonitor").Items);
             Assert.True(trackingButton.Enabled);
         });
@@ -91,8 +92,8 @@ public sealed class MainFormStartupTests
         {
             using var form = CreateForm(settings.Store);
 
-            Assert.Equal("Spot: wird aus Trashloot erkannt",
-                FindByAccessibleName<Label>(form, "Automatisch erkannter Grindspot").Text);
+            Assert.Equal("SESSIONDAUER",
+                GetField<Label>(form, "_sessionSpotNameLabel").Text);
             Assert.True(FindByAccessibleName<BdoButton>(
                 form, "Tracking starten oder pausieren").Enabled);
         });
@@ -151,8 +152,9 @@ public sealed class MainFormStartupTests
 
             InvokePrivateMethod(form, "RefreshPendingUi");
 
-            Assert.Equal("Spot: Hermesia Inner Castle",
-                FindByAccessibleName<Label>(form, "Automatisch erkannter Grindspot").Text);
+            Assert.Equal("Hermesia Inner Castle",
+                GetField<Label>(form, "_sessionSpotNameLabel").Text);
+            Assert.NotNull(GetField<PictureBox>(form, "_sessionSpotIcon").Image);
             Assert.All(FindDescendants<TextBox>(form), textBox => Assert.IsAssignableFrom<UpDownBase>(textBox.Parent));
         });
     }
@@ -217,6 +219,15 @@ public sealed class MainFormStartupTests
         Assert.Single(
             FindDescendants<TControl>(root),
             control => control.AccessibleName == accessibleName);
+
+    private static TValue GetField<TValue>(object target, string fieldName)
+    {
+        var field = target.GetType().GetField(
+            fieldName,
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(field);
+        return Assert.IsType<TValue>(field.GetValue(target));
+    }
 
     private static void SetPrivateField<TValue>(
         object target,

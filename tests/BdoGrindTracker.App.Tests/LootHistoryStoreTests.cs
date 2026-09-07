@@ -62,6 +62,25 @@ public sealed class LootHistoryStoreTests
         Assert.Equal(origin.AddHours(12), loaded[^1].UpdatedAt);
     }
 
+    [Fact]
+    public void GarmothUploadGuardSurvivesRestart()
+    {
+        using var directory = new TemporaryDirectory();
+        var store = new LootHistoryStore(Path.Combine(directory.Path, "loot-history-v1.json"));
+        var uploadedAt = DateTimeOffset.Parse("2026-09-07T18:30:00+02:00");
+        var entry = CreateEntry(Guid.NewGuid(), uploadedAt, 18_400) with
+        {
+            GarmothUploadBlocked = true,
+            GarmothUploadedAt = uploadedAt
+        };
+
+        store.Save([entry]);
+        var loaded = Assert.Single(store.Load());
+
+        Assert.True(loaded.GarmothUploadBlocked);
+        Assert.Equal(uploadedAt, loaded.GarmothUploadedAt);
+    }
+
     private static LootHistoryEntry CreateEntry(Guid id, DateTimeOffset updatedAt, long trash) => new()
     {
         SessionId = id,

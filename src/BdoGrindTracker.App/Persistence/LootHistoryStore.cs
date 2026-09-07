@@ -15,6 +15,8 @@ internal sealed record LootHistoryEntry
     public required decimal SilverBeforeTax { get; init; }
     public required decimal SilverAfterTax { get; init; }
     public required bool SilverIsComplete { get; init; }
+    public DateTimeOffset? GarmothUploadedAt { get; init; }
+    public bool GarmothUploadBlocked { get; init; }
 }
 
 internal sealed class LootHistoryStore

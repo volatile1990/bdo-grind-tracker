@@ -48,8 +48,16 @@ internal sealed class MetricValueLabel : Label
             return;
         }
 
+        var alignment = TextAlign switch
+        {
+            ContentAlignment.TopCenter or ContentAlignment.MiddleCenter or ContentAlignment.BottomCenter =>
+                TextFormatFlags.HorizontalCenter,
+            ContentAlignment.TopRight or ContentAlignment.MiddleRight or ContentAlignment.BottomRight =>
+                TextFormatFlags.Right,
+            _ => TextFormatFlags.Left
+        };
         TextRenderer.DrawText(e.Graphics, Text, GetRenderedFont(e.Graphics), bounds,
-            ForeColor, MeasurementFlags | TextFormatFlags.VerticalCenter);
+            ForeColor, MeasurementFlags | TextFormatFlags.VerticalCenter | alignment);
     }
 
     protected override void OnTextChanged(EventArgs e)

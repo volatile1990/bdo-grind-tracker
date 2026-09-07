@@ -129,6 +129,54 @@ internal static class BdoTheme
             TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
     }
 
+    internal static void DrawUploadAction(Graphics graphics, Rectangle bounds, bool hovered,
+        bool completed = false, string? label = null)
+    {
+        var accent = completed ? Positive : Gold;
+        using (var path = CreateRoundedRectangle(bounds, Math.Max(5, bounds.Height / 4)))
+        using (var fill = new SolidBrush(hovered && !completed
+                   ? Color.FromArgb(68, accent)
+                   : Color.FromArgb(218, SurfaceRaised)))
+        using (var border = new Pen(completed ? Color.FromArgb(160, Positive) :
+                   hovered ? accent : BorderSoft))
+        {
+            graphics.FillPath(fill, path);
+            graphics.DrawPath(border, path);
+        }
+
+        var iconSize = Math.Min(16, Math.Max(10, bounds.Height - 10));
+        var iconX = label is null ? bounds.X + (bounds.Width - iconSize) / 2 : bounds.X + 8;
+        var iconY = bounds.Y + (bounds.Height - iconSize) / 2;
+        using var pen = new Pen(completed ? Positive : hovered ? GoldBright :
+            Color.FromArgb(205, 183, 151), 1.8f)
+        {
+            StartCap = LineCap.Round,
+            EndCap = LineCap.Round
+        };
+        if (completed)
+        {
+            graphics.DrawLine(pen, iconX + 2, iconY + 8, iconX + 6, iconY + 12);
+            graphics.DrawLine(pen, iconX + 6, iconY + 12, iconX + 14, iconY + 3);
+        }
+        else
+        {
+            graphics.DrawLine(pen, iconX + iconSize / 2, iconY + 2,
+                iconX + iconSize / 2, iconY + iconSize - 4);
+            graphics.DrawLine(pen, iconX + iconSize / 2, iconY + 2, iconX + 3, iconY + 7);
+            graphics.DrawLine(pen, iconX + iconSize / 2, iconY + 2, iconX + iconSize - 3, iconY + 7);
+            graphics.DrawLine(pen, iconX + 2, iconY + iconSize - 2,
+                iconX + iconSize - 2, iconY + iconSize - 2);
+        }
+        if (label is null)
+            return;
+        TextRenderer.DrawText(graphics, label, SystemFonts.MessageBoxFont,
+            new Rectangle(iconX + iconSize + 3, bounds.Y,
+                Math.Max(1, bounds.Right - iconX - iconSize - 7), bounds.Height),
+            completed ? Positive : hovered ? GoldBright : TextMuted,
+            TextFormatFlags.Left | TextFormatFlags.VerticalCenter |
+            TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
+    }
+
     private static void DrawComboBoxItem(object? sender, DrawItemEventArgs e)
     {
         if (sender is not ComboBox comboBox || e.Index < 0)

@@ -96,6 +96,8 @@ internal sealed class LootHistoryView : UserControl
 
     internal event Action<Guid>? EditRequested;
 
+    internal event Action<Guid>? UploadRequested;
+
     public void SetEntries(IEnumerable<LootHistoryEntry> entries)
     {
         ArgumentNullException.ThrowIfNull(entries);
@@ -281,6 +283,7 @@ internal sealed class LootHistoryView : UserControl
         details.BackRequested += (_, _) => BeginInvoke(new Action(ShowSpotOverview));
         details.DeleteRequested += sessionId => DeleteRequested?.Invoke(sessionId);
         details.EditRequested += sessionId => EditRequested?.Invoke(sessionId);
+        details.UploadRequested += sessionId => UploadRequested?.Invoke(sessionId);
         _spotDetailList.Controls.Add(details);
         FitChildren(_spotDetailList);
     }
@@ -324,6 +327,7 @@ internal sealed class LootHistoryView : UserControl
                 };
                 card.DeleteRequested += sessionId => DeleteRequested?.Invoke(sessionId);
                 card.EditRequested += sessionId => EditRequested?.Invoke(sessionId);
+                card.UploadRequested += sessionId => UploadRequested?.Invoke(sessionId);
                 _chronologicalList.Controls.Add(card);
             }
 
@@ -922,6 +926,8 @@ internal sealed class ChronologicalHistoryCard : Control
     private Rectangle _deleteBounds;
     private bool _editHovered;
     private Rectangle _editBounds;
+    private bool _uploadHovered;
+    private Rectangle _uploadBounds;
 
     public ChronologicalHistoryCard(
         LootHistoryEntry entry,
@@ -970,13 +976,23 @@ internal sealed class ChronologicalHistoryCard : Control
 
     internal Rectangle DeleteBounds => _deleteBounds;
 
+    internal Rectangle UploadBounds => _uploadBounds;
+
     internal event Action<Guid>? DeleteRequested;
 
     internal event Action<Guid>? EditRequested;
 
+    internal event Action<Guid>? UploadRequested;
+
     internal void RequestEdit() => EditRequested?.Invoke(_entry.SessionId);
 
     internal void RequestDelete() => DeleteRequested?.Invoke(_entry.SessionId);
+
+    internal void RequestUpload()
+    {
+        if (!_entry.GarmothUploadBlocked)
+            UploadRequested?.Invoke(_entry.SessionId);
+    }
 
     internal void SetExpanded(bool expanded)
     {
@@ -1025,6 +1041,11 @@ internal sealed class ChronologicalHistoryCard : Control
             RequestDelete();
             return;
         }
+        if (_expanded && e.Button == MouseButtons.Left && _uploadBounds.Contains(e.Location))
+        {
+            RequestUpload();
+            return;
+        }
         if (_expanded && e.Button == MouseButtons.Left && _editBounds.Contains(e.Location))
         {
             RequestEdit();
@@ -1060,12 +1081,15 @@ internal sealed class ChronologicalHistoryCard : Control
         base.OnMouseMove(e);
         var hovered = _expanded && _deleteBounds.Contains(e.Location);
         var editHovered = _expanded && _editBounds.Contains(e.Location);
-        if (_deleteHovered != hovered || _editHovered != editHovered)
+        var uploadHovered = _expanded && !_entry.GarmothUploadBlocked && _uploadBounds.Contains(e.Location);
+        if (_deleteHovered != hovered || _editHovered != editHovered || _uploadHovered != uploadHovered)
         {
             _deleteHovered = hovered;
             _editHovered = editHovered;
+            _uploadHovered = uploadHovered;
             Invalidate(_deleteBounds);
             Invalidate(_editBounds);
+            Invalidate(_uploadBounds);
         }
         Cursor = Cursors.Hand;
     }
@@ -1073,10 +1097,11 @@ internal sealed class ChronologicalHistoryCard : Control
     protected override void OnMouseLeave(EventArgs e)
     {
         base.OnMouseLeave(e);
-        if (!_deleteHovered && !_editHovered)
+        if (!_deleteHovered && !_editHovered && !_uploadHovered)
             return;
         _deleteHovered = false;
         _editHovered = false;
+        _uploadHovered = false;
         Invalidate(_deleteBounds);
         Invalidate(_editBounds);
     }
@@ -1190,11 +1215,15 @@ internal sealed class ChronologicalHistoryCard : Control
             headerHeight + ScaleLogical(6), ScaleLogical(86), ScaleLogical(28));
         _editBounds = new Rectangle(_deleteBounds.Left - ScaleLogical(96),
             _deleteBounds.Y, ScaleLogical(90), _deleteBounds.Height);
+        _uploadBounds = new Rectangle(_editBounds.Left - ScaleLogical(108),
+            _deleteBounds.Y, ScaleLogical(102), _deleteBounds.Height);
+        BdoTheme.DrawUploadAction(graphics, _uploadBounds, _uploadHovered,
+            _entry.GarmothUploadBlocked, _entry.GarmothUploadBlocked ? "Gesendet" : "Garmoth");
         BdoTheme.DrawEditAction(graphics, _editBounds, _editHovered, "Bearbeiten");
         BdoTheme.DrawDeleteAction(graphics, _deleteBounds, _deleteHovered, "Löschen");
         TextRenderer.DrawText(graphics, classText, _captionFont,
             new Rectangle(ScaleLogical(15), headerHeight + ScaleLogical(8),
-                Math.Max(80, _editBounds.Left - ScaleLogical(25)), ScaleLogical(22)),
+                Math.Max(80, _uploadBounds.Left - ScaleLogical(25)), ScaleLogical(22)),
             BdoTheme.TextMuted, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
 
         var items = _expandedLootItems;

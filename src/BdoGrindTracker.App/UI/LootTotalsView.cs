@@ -2,6 +2,7 @@ using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Globalization;
 using System.Text;
+using BdoGrindTracker.App.Pricing;
 
 namespace BdoGrindTracker.App.UI;
 
@@ -11,6 +12,7 @@ namespace BdoGrindTracker.App.UI;
 /// </summary>
 internal sealed class LootTotalsView : ScrollableControl
 {
+    private static readonly CultureInfo GermanCulture = CultureInfo.GetCultureInfo("de-DE");
     private readonly LootIconRepository _icons;
     private readonly List<LootTotalEntry> _entries = [];
     private readonly ToolTip _itemToolTip;
@@ -19,7 +21,12 @@ internal sealed class LootTotalsView : ScrollableControl
     private Font? _fallbackFont;
     private Font? _itemNameFont;
     private Font? _quantityFont;
+    private Font? _priceFont;
     private int _hotIndex = -1;
+    private LootPriceSnapshot _prices = LootPriceCatalog.FixedSnapshot(LootPriceCatalog.DefaultRegion);
+    private SilverTaxOptions _tax = SilverTaxOptions.Default;
+    private Image? _spotBackground;
+    private IReadOnlyDictionary<string, long> _totals = new Dictionary<string, long>();
 
     public LootTotalsView()
         : this(new LootIconRepository(Path.Combine(AppContext.BaseDirectory, "data", "icons")))
@@ -57,25 +64,63 @@ internal sealed class LootTotalsView : ScrollableControl
 
     internal long TotalQuantity => _entries.Sum(static entry => entry.Quantity);
 
+    internal bool HasSpotBackground => _spotBackground is not null;
+
+    internal (string UnitValue, string TotalValue) GetDisplayedValues(string itemName)
+    {
+        var entry = _entries.First(candidate =>
+            string.Equals(candidate.ItemName, itemName, StringComparison.Ordinal));
+        return (entry.UnitValue, entry.TotalValue);
+    }
+
     public void SetTotals(IEnumerable<KeyValuePair<string, long>> totals)
     {
         ArgumentNullException.ThrowIfNull(totals);
 
-        _entries.Clear();
-        foreach (var pair in totals
+        _totals = totals
                      .Where(static pair => !string.IsNullOrWhiteSpace(pair.Key))
                      .GroupBy(static pair => pair.Key, StringComparer.Ordinal)
                      .Select(static group => new KeyValuePair<string, long>(
                          group.Key,
                          group.Sum(static pair => pair.Value)))
                      .Where(static pair => pair.Value > 0)
+                     .ToDictionary(static pair => pair.Key, static pair => pair.Value,
+                         StringComparer.OrdinalIgnoreCase);
+        RebuildEntries();
+    }
+
+    internal void SetPricing(LootPriceSnapshot prices, SilverTaxOptions tax)
+    {
+        _prices = prices ?? throw new ArgumentNullException(nameof(prices));
+        _tax = tax ?? throw new ArgumentNullException(nameof(tax));
+        RebuildEntries();
+    }
+
+    internal void SetSpotBackground(Image? background)
+    {
+        if (ReferenceEquals(_spotBackground, background))
+            return;
+        _spotBackground = background;
+        Invalidate();
+    }
+
+    private void RebuildEntries()
+    {
+        _entries.Clear();
+        foreach (var pair in _totals
                      .OrderByDescending(static pair => pair.Value)
                      .ThenBy(static pair => pair.Key, StringComparer.CurrentCultureIgnoreCase))
         {
+            var unit = SilverValuation.Calculate(
+                new Dictionary<string, long>(StringComparer.Ordinal) { [pair.Key] = 1 }, _prices, _tax);
+            var total = SilverValuation.Calculate(
+                new Dictionary<string, long>(StringComparer.Ordinal) { [pair.Key] = pair.Value }, _prices, _tax);
             _entries.Add(new LootTotalEntry(
                 pair.Key,
                 pair.Value,
-                _icons.GetIcon(pair.Key)));
+                _icons.GetIcon(pair.Key),
+                FormatSilver(unit),
+                FormatSilver(total)));
         }
 
         ClearHotItem();
@@ -152,6 +197,7 @@ internal sealed class LootTotalsView : ScrollableControl
         base.OnPaint(e);
         e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
         e.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+        DrawSpotBackground(e.Graphics);
 
         if (_entries.Count == 0)
         {
@@ -199,25 +245,34 @@ internal sealed class LootTotalsView : ScrollableControl
     {
         var scale = DeviceDpi / 96f;
         using var tilePath = CreateRoundedRectangle(bounds, ScaleLogical(10));
-        using var background = new SolidBrush(isHot ? BdoTheme.SurfaceHover : BdoTheme.SurfaceRaised);
+        using var background = new SolidBrush(Color.FromArgb(isHot ? 242 : 230,
+            isHot ? BdoTheme.SurfaceHover : BdoTheme.SurfaceRaised));
         using var border = new Pen(isHot ? BdoTheme.Gold : BdoTheme.Border, Math.Max(1f, scale));
         graphics.FillPath(background, tilePath);
         graphics.DrawPath(border, tilePath);
 
         var quantityText = $"\u00d7 {entry.Quantity.ToString("N0", CultureInfo.CurrentCulture)}";
-        var content = CalculateCardContent(graphics, bounds, DeviceDpi,
+        var contentBounds = new Rectangle(bounds.X, bounds.Y, bounds.Width,
+            Math.Max(1, bounds.Height - ScaleLogical(20)));
+        var content = CalculateCardContent(graphics, contentBounds, DeviceDpi,
             entry.ItemName, quantityText, _itemNameFont!, _quantityFont!);
         DrawIcon(graphics, content.Icon, entry);
+        var textLeft = content.ItemName.Left;
+        var textWidth = content.ItemName.Width;
+        var nameBounds = new Rectangle(textLeft, bounds.Top + ScaleLogical(9),
+            textWidth, ScaleLogical(19));
+        var quantityBounds = new Rectangle(textLeft, nameBounds.Bottom + ScaleLogical(2),
+            textWidth, ScaleLogical(24));
 
         TextRenderer.DrawText(
             graphics,
             entry.ItemName,
             _itemNameFont,
-            content.ItemName,
+            nameBounds,
             BdoTheme.Text,
             TextFormatFlags.Left |
-            TextFormatFlags.Top |
-            TextFormatFlags.WordBreak |
+            TextFormatFlags.VerticalCenter |
+            TextFormatFlags.SingleLine |
             TextFormatFlags.EndEllipsis |
             TextFormatFlags.NoPadding |
             TextFormatFlags.NoPrefix);
@@ -226,7 +281,7 @@ internal sealed class LootTotalsView : ScrollableControl
             graphics,
             quantityText,
             _quantityFont,
-            content.Quantity,
+            quantityBounds,
             BdoTheme.GoldBright,
             TextFormatFlags.Left |
             TextFormatFlags.Top |
@@ -234,6 +289,39 @@ internal sealed class LootTotalsView : ScrollableControl
             TextFormatFlags.NoPadding |
             TextFormatFlags.SingleLine |
             TextFormatFlags.NoPrefix);
+
+        var priceTop = bounds.Bottom - ScaleLogical(21);
+        var priceBounds = new Rectangle(content.Quantity.X, priceTop,
+            content.Quantity.Width, Math.Max(1, bounds.Bottom - ScaleLogical(6) - priceTop));
+        TextRenderer.DrawText(graphics,
+            $"Stück {entry.UnitValue}   ·   Gesamt {entry.TotalValue}", _priceFont,
+            priceBounds, BdoTheme.TextMuted,
+            TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis |
+            TextFormatFlags.NoPadding | TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix);
+    }
+
+    private void DrawSpotBackground(Graphics graphics)
+    {
+        if (_spotBackground is null || ClientSize.Width <= 0 || ClientSize.Height <= 0)
+            return;
+        var destination = ClientRectangle;
+        var scale = Math.Max((double)destination.Width / _spotBackground.Width,
+            (double)destination.Height / _spotBackground.Height);
+        var sourceWidth = destination.Width / scale;
+        var sourceHeight = destination.Height / scale;
+        var source = new RectangleF(
+            (float)((_spotBackground.Width - sourceWidth) / 2d),
+            (float)((_spotBackground.Height - sourceHeight) / 2d),
+            (float)sourceWidth, (float)sourceHeight);
+        graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+        graphics.DrawImage(_spotBackground, destination, source.X, source.Y,
+            source.Width, source.Height, GraphicsUnit.Pixel);
+        using (var dark = new SolidBrush(Color.FromArgb(154, 4, 7, 9)))
+            graphics.FillRectangle(dark, destination);
+        using var fade = new LinearGradientBrush(destination,
+            Color.FromArgb(38, BdoTheme.Background), Color.FromArgb(246, BdoTheme.Background),
+            LinearGradientMode.Vertical);
+        graphics.FillRectangle(fade, destination);
     }
 
     private void DrawIcon(Graphics graphics, Rectangle bounds, LootTotalEntry entry)
@@ -497,6 +585,7 @@ internal sealed class LootTotalsView : ScrollableControl
         // per-monitor DPI rather than reusing a system-DPI point conversion.
         _itemNameFont = new Font(Font.FontFamily, 9f * DeviceDpi / 72f, FontStyle.Regular, GraphicsUnit.Pixel);
         _quantityFont = new Font(Font.FontFamily, 12.5f * DeviceDpi / 72f, FontStyle.Bold, GraphicsUnit.Pixel);
+        _priceFont = new Font(Font.FontFamily, 8.5f * DeviceDpi / 72f, FontStyle.Regular, GraphicsUnit.Pixel);
     }
 
     private void EnsureFonts()
@@ -505,7 +594,8 @@ internal sealed class LootTotalsView : ScrollableControl
             _emptyDescriptionFont is null ||
             _fallbackFont is null ||
             _itemNameFont is null ||
-            _quantityFont is null)
+            _quantityFont is null ||
+            _priceFont is null)
         {
             RecreateFonts();
         }
@@ -518,11 +608,13 @@ internal sealed class LootTotalsView : ScrollableControl
         _fallbackFont?.Dispose();
         _itemNameFont?.Dispose();
         _quantityFont?.Dispose();
+        _priceFont?.Dispose();
         _emptyTitleFont = null;
         _emptyDescriptionFont = null;
         _fallbackFont = null;
         _itemNameFont = null;
         _quantityFont = null;
+        _priceFont = null;
     }
 
     private int ScaleLogical(int logicalPixels) =>
@@ -581,7 +673,22 @@ internal sealed class LootTotalsView : ScrollableControl
 
     internal readonly record struct CardContentLayout(Rectangle Icon, Rectangle ItemName, Rectangle Quantity);
 
-    private sealed record LootTotalEntry(string ItemName, long Quantity, Bitmap? Icon);
+    private static string FormatSilver(SilverValuationResult value)
+    {
+        if (!value.HasKnownValue)
+            return "—";
+        var amount = decimal.Truncate(value.AfterTax);
+        return amount switch
+        {
+            >= 1_000_000_000m => (amount / 1_000_000_000m).ToString("0.##", GermanCulture) + " Mrd.",
+            >= 1_000_000m => (amount / 1_000_000m).ToString("0.##", GermanCulture) + " Mio.",
+            >= 1_000m => (amount / 1_000m).ToString("0.#", GermanCulture) + " Tsd.",
+            _ => amount.ToString("N0", GermanCulture)
+        };
+    }
+
+    private sealed record LootTotalEntry(
+        string ItemName, long Quantity, Bitmap? Icon, string UnitValue, string TotalValue);
 }
 
 /// <summary>

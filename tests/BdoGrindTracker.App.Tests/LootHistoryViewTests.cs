@@ -545,7 +545,7 @@ public sealed class LootHistoryViewTests
     }
 
     [Fact]
-    public void PastHoursOfferEditAndDeleteActionsInBothHistoryModes()
+    public void PastHoursOfferUploadEditAndDeleteActionsInBothHistoryModes()
     {
         RunInSta(() =>
         {
@@ -555,22 +555,47 @@ public sealed class LootHistoryViewTests
             using var view = new LootHistoryView { Size = new Size(900, 700) };
             var edits = new List<Guid>();
             var deletes = new List<Guid>();
+            var uploads = new List<Guid>();
             view.EditRequested += edits.Add;
             view.DeleteRequested += deletes.Add;
+            view.UploadRequested += uploads.Add;
             view.SetEntries([entry]);
 
             view.ShowSpotDetails(profile.SpotId);
             var details = Assert.Single(FindDescendants<SpotHistoryDetailView>(view));
             details.RequestEdit(entry.SessionId);
             details.RequestDelete(entry.SessionId);
+            details.RequestUpload(entry.SessionId);
 
             view.ShowChronological();
             var card = Assert.Single(FindDescendants<ChronologicalHistoryCard>(view));
             card.RequestEdit();
             card.RequestDelete();
+            card.RequestUpload();
 
             Assert.Equal([entry.SessionId, entry.SessionId], edits);
             Assert.Equal([entry.SessionId, entry.SessionId], deletes);
+            Assert.Equal([entry.SessionId, entry.SessionId], uploads);
+        });
+    }
+
+    [Fact]
+    public void CompletedGarmothUploadCannotBeRequestedAgain()
+    {
+        RunInSta(() =>
+        {
+            var profile = LootSpotPresentationCatalog.GetRequired(LootSpotCatalog.AphrodonId);
+            var entry = CreateEntry(profile.SpotId, profile.TrashItemName, 18_432,
+                DateTimeOffset.Now) with { GarmothUploadBlocked = true };
+            using var view = new LootHistoryView { Size = new Size(900, 700) };
+            var uploads = new List<Guid>();
+            view.UploadRequested += uploads.Add;
+            view.SetEntries([entry]);
+            view.ShowSpotDetails(profile.SpotId);
+            Assert.Single(FindDescendants<SpotHistoryDetailView>(view)).RequestUpload(entry.SessionId);
+            view.ShowChronological();
+            Assert.Single(FindDescendants<ChronologicalHistoryCard>(view)).RequestUpload();
+            Assert.Empty(uploads);
         });
     }
 
