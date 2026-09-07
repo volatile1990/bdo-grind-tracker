@@ -68,12 +68,16 @@ public sealed class MainFormDashboardTests(ITestOutputHelper output)
 
             Assert.Equal("00:00:00", FindByAccessibleName<Label>(
                 form, "Dauer der aktuellen Grindsession").Text);
-            Assert.Equal("Spot: wird aus Trashloot erkannt", FindByAccessibleName<Label>(
-                form, "Automatisch erkannter Grindspot").Text);
+            Assert.Equal("SESSIONDAUER", GetField<Label>(form, "_sessionSpotNameLabel").Text);
+            Assert.False(GetField<PictureBox>(form, "_sessionSpotIcon").Visible);
             Assert.False(clock.IsRunning);
             Assert.Equal(TimeSpan.Zero, clock.Elapsed);
             Assert.Equal(0, Find<LootTotalsView>(form).Single().EntryCount);
             Assert.True(FindByAccessibleName<ComboBox>(form, "Spielmonitor").Enabled);
+            var historyEntry = Assert.Single(settings.HistoryStore.Load());
+            Assert.Equal(LootSpotCatalog.HermesiaId, historyEntry.SpotId);
+            Assert.Equal(TimeSpan.FromMinutes(20), historyEntry.Duration);
+            Assert.Equal(1582, historyEntry.Totals["Black Crystal Fragment"]);
             Assert.False(form.Visible);
         });
     }
@@ -145,7 +149,10 @@ public sealed class MainFormDashboardTests(ITestOutputHelper output)
             Assert.Empty(Find<LiveDetectionDebugView>(form));
             Assert.All(Find<TextBox>(form), textBox => Assert.IsAssignableFrom<UpDownBase>(textBox.Parent));
             var duration = FindByAccessibleName<Label>(form, "Dauer der aktuellen Grindsession");
-            var metricCard = Assert.IsType<BdoSurfacePanel>(duration.Parent!.Parent);
+            Control? metricAncestor = duration.Parent;
+            while (metricAncestor is not null && metricAncestor is not BdoSurfacePanel)
+                metricAncestor = metricAncestor.Parent;
+            var metricCard = Assert.IsType<BdoSurfacePanel>(metricAncestor);
             Assert.True(metricCard.Parent!.ClientRectangle.Contains(metricCard.Bounds),
                 "Session card is clipped by the summary row.");
 
@@ -477,13 +484,17 @@ public sealed class MainFormDashboardTests(ITestOutputHelper output)
                 new CharacterClassDetection(detected, CharacterClassDetectionStatus.Detected, 4));
             InvokeTask(form, "RefreshClassDetectionAsync");
             var label = GetField<Label>(form, "_characterClassLabel");
-            Assert.Equal($"Klasse: {detected.DisplayName}", label.Text);
+            Assert.Equal(detected.DisplayName.Replace(" · ", " – ", StringComparison.Ordinal), label.Text);
+            Assert.NotNull(GetField<PictureBox>(form, "_characterClassIcon").Image);
             var selection = GetField<ComboBox>(form, "_classOverrideComboBox");
+            var ascension = CompanionCharacterClassCatalog.FindById("scholar")!;
+            selection.SelectedItem = ascension;
+            Assert.Equal("Scholar – Ascension", label.Text);
             var correction = CompanionCharacterClassCatalog.FindById("ranger-succession")!;
             selection.SelectedItem = correction;
-            Assert.Equal($"Klasse: {correction.DisplayName}", label.Text);
+            Assert.Equal(correction.DisplayName.Replace(" · ", " – ", StringComparison.Ordinal), label.Text);
             InvokeTask(form, "RefreshClassDetectionAsync");
-            Assert.Equal($"Klasse: {correction.DisplayName}", label.Text);
+            Assert.Equal(correction.DisplayName.Replace(" · ", " – ", StringComparison.Ordinal), label.Text);
             SetField(form, "_hasSession", true);
             SetField(form, "_uiRunning", true);
             Invoke(form, "UpdateControlState");
@@ -518,6 +529,75 @@ public sealed class MainFormDashboardTests(ITestOutputHelper output)
             prices ?? new SyntheticPriceProvider(), uploadClient,
             keyStore ?? new GarmothApiKeyStore(Path.Combine(Path.GetTempPath(),
                 "BdoGrindTracker.Tests", "absent-" + Guid.NewGuid().ToString("N"))));
+
+    [Fact]
+    public void PastLootCanBeEditedAndDeletedDurably()
+    {
+        RunInSta(() =>
+        {
+            using var settings = new IsolatedSettingsStore();
+            var sessionId = Guid.NewGuid();
+            settings.HistoryStore.Save([
+                new LootHistoryEntry
+                {
+                    SessionId = sessionId,
+                    StartedAt = DateTimeOffset.Now.AddHours(-2),
+                    UpdatedAt = DateTimeOffset.Now.AddHours(-1),
+                    Duration = TimeSpan.FromHours(1),
+                    SpotId = LootSpotCatalog.AphrodonId,
+                    CharacterClass = "Maegu · Awakening",
+                    Totals = new Dictionary<string, long> { ["Branch of Abundance"] = 10_000 },
+                    SilverBeforeTax = 1,
+                    SilverAfterTax = 1,
+                    SilverIsComplete = true
+                }
+            ]);
+            using var form = CreateForm(settings.Store);
+
+            Invoke(form, "UpdateHistorySessionLoot", sessionId,
+                new Dictionary<string, long>
+                {
+                    ["Branch of Abundance"] = 20_000,
+                    ["Caphras Stone"] = 25
+                });
+            var edited = Assert.Single(settings.HistoryStore.Load());
+            Assert.Equal(20_000, edited.Totals["Branch of Abundance"]);
+            Assert.Equal(25, edited.Totals["Caphras Stone"]);
+            Assert.True(edited.SilverAfterTax > 1);
+
+            Invoke(form, "DeleteHistorySession", sessionId, false);
+            Assert.Empty(settings.HistoryStore.Load());
+        });
+    }
+
+    [Fact]
+    public void DemoHourShowsSpotClassBackgroundAndLootValuesWithoutSavingHistory()
+    {
+        RunInSta(() =>
+        {
+            using var settings = new IsolatedSettingsStore();
+            using var form = CreateForm(settings.Store);
+            form.Size = new Size(1160, 840);
+
+            Invoke(form, "ShowDemoHour");
+            LayoutRecursively(form);
+
+            var totals = Assert.Single(Find<LootTotalsView>(form));
+            Assert.Equal(7, totals.EntryCount);
+            Assert.True(totals.HasSpotBackground);
+            Assert.Equal("Aphrodon Temple", GetField<Label>(form, "_sessionSpotNameLabel").Text);
+            Assert.NotNull(GetField<PictureBox>(form, "_sessionSpotIcon").Image);
+            Assert.NotNull(GetField<PictureBox>(form, "_characterClassIcon").Image);
+            Assert.Equal("Warrior – Awakening", GetField<Label>(form, "_characterClassLabel").Text);
+            Assert.Equal("01:00:00", FindByAccessibleName<Label>(
+                form, "Dauer der aktuellen Grindsession").Text);
+            Assert.Empty(settings.HistoryStore.Load());
+
+            using var bitmap = new Bitmap(form.Width, form.Height);
+            form.DrawToBitmap(bitmap, new Rectangle(Point.Empty, bitmap.Size));
+            SavePreviewWhenRequested(bitmap, "demo-hour");
+        });
+    }
 
     [Fact]
     public void SilverCardsValueExistingTotalsAndTaxChangesDoNotChangeLoot()
@@ -953,8 +1033,9 @@ public sealed class MainFormDashboardTests(ITestOutputHelper output)
                 new FrameAnalysisResult(events, [], 1, "synthetic-spot-ui", 0, 0, 0, 0, null)
                     { SpotId = spotId });
             Invoke(form, "RefreshPendingUi");
-            Assert.Equal($"Spot: {LootSpotCatalog.GetRequired(spotId).DisplayName}",
-                GetField<Label>(form, "_activeSpotLabel").Text);
+            Assert.Equal(LootSpotCatalog.GetRequired(spotId).DisplayName,
+                GetField<Label>(form, "_sessionSpotNameLabel").Text);
+            Assert.NotNull(GetField<PictureBox>(form, "_sessionSpotIcon").Image);
             using var icons = new LootIconRepository(Path.Combine(AppContext.BaseDirectory, "data", "icons"));
             foreach (var (name, _) in items)
                 Assert.NotNull(icons.GetIcon(name));
@@ -1141,19 +1222,17 @@ public sealed class MainFormDashboardTests(ITestOutputHelper output)
             Store = new SettingsStore();
             SetField(Store, "_settingsPath", _settingsPath);
             KeyStore = new GarmothApiKeyStore(Path.Combine(_directory, "test-key.dpapi"));
+            HistoryStore = new LootHistoryStore(Path.Combine(_directory, "loot-history-v1.json"));
         }
 
         public SettingsStore Store { get; }
         public GarmothApiKeyStore KeyStore { get; }
+        public LootHistoryStore HistoryStore { get; }
 
         public void Dispose()
         {
-            if (File.Exists(_settingsPath))
-            {
-                File.Delete(_settingsPath);
-            }
             KeyStore.Save("");
-            Directory.Delete(_directory);
+            Directory.Delete(_directory, recursive: true);
         }
     }
 }

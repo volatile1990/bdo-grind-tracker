@@ -59,6 +59,124 @@ internal static class BdoTheme
         return path;
     }
 
+    internal static void DrawDeleteAction(Graphics graphics, Rectangle bounds, bool hovered,
+        string? label = null)
+    {
+        graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        using (var path = CreateRoundedRectangle(bounds, Math.Max(5, bounds.Height / 4)))
+        using (var fill = new SolidBrush(hovered
+                   ? Color.FromArgb(68, Error)
+                   : Color.FromArgb(218, SurfaceRaised)))
+        using (var border = new Pen(hovered ? Color.FromArgb(220, Error) : BorderSoft))
+        {
+            graphics.FillPath(fill, path);
+            graphics.DrawPath(border, path);
+        }
+
+        var iconSize = Math.Min(16, Math.Max(10, bounds.Height - 10));
+        var iconX = label is null
+            ? bounds.X + (bounds.Width - iconSize) / 2
+            : bounds.X + 8;
+        var iconY = bounds.Y + (bounds.Height - iconSize) / 2 + 1;
+        using var pen = new Pen(hovered ? Error : Color.FromArgb(205, 183, 151), 1.5f)
+        {
+            StartCap = LineCap.Round,
+            EndCap = LineCap.Round
+        };
+        graphics.DrawRectangle(pen, iconX + 3, iconY + 4, iconSize - 6, iconSize - 5);
+        graphics.DrawLine(pen, iconX + 2, iconY + 3, iconX + iconSize - 2, iconY + 3);
+        graphics.DrawLine(pen, iconX + 6, iconY + 1, iconX + iconSize - 6, iconY + 1);
+        if (label is null)
+            return;
+        TextRenderer.DrawText(graphics, label, SystemFonts.MessageBoxFont,
+            new Rectangle(iconX + iconSize + 3, bounds.Y,
+                Math.Max(1, bounds.Right - iconX - iconSize - 7), bounds.Height),
+            hovered ? Error : TextMuted,
+            TextFormatFlags.Left | TextFormatFlags.VerticalCenter |
+            TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
+    }
+
+    internal static void DrawEditAction(Graphics graphics, Rectangle bounds, bool hovered,
+        string? label = null)
+    {
+        using (var path = CreateRoundedRectangle(bounds, Math.Max(5, bounds.Height / 4)))
+        using (var fill = new SolidBrush(hovered
+                   ? Color.FromArgb(68, Gold)
+                   : Color.FromArgb(218, SurfaceRaised)))
+        using (var border = new Pen(hovered ? Gold : BorderSoft))
+        {
+            graphics.FillPath(fill, path);
+            graphics.DrawPath(border, path);
+        }
+
+        var iconSize = Math.Min(16, Math.Max(10, bounds.Height - 10));
+        var iconX = label is null ? bounds.X + (bounds.Width - iconSize) / 2 : bounds.X + 8;
+        var iconY = bounds.Y + (bounds.Height - iconSize) / 2;
+        using var pen = new Pen(hovered ? GoldBright : Color.FromArgb(205, 183, 151), 2f)
+        {
+            StartCap = LineCap.Round,
+            EndCap = LineCap.Round
+        };
+        graphics.DrawLine(pen, iconX + 2, iconY + iconSize - 3, iconX + iconSize - 3, iconY + 2);
+        graphics.DrawLine(pen, iconX + 1, iconY + iconSize - 1, iconX + 5, iconY + iconSize - 2);
+        if (label is null)
+            return;
+        TextRenderer.DrawText(graphics, label, SystemFonts.MessageBoxFont,
+            new Rectangle(iconX + iconSize + 3, bounds.Y,
+                Math.Max(1, bounds.Right - iconX - iconSize - 7), bounds.Height),
+            hovered ? GoldBright : TextMuted,
+            TextFormatFlags.Left | TextFormatFlags.VerticalCenter |
+            TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
+    }
+
+    internal static void DrawUploadAction(Graphics graphics, Rectangle bounds, bool hovered,
+        bool completed = false, string? label = null)
+    {
+        var accent = completed ? Positive : Gold;
+        using (var path = CreateRoundedRectangle(bounds, Math.Max(5, bounds.Height / 4)))
+        using (var fill = new SolidBrush(hovered && !completed
+                   ? Color.FromArgb(68, accent)
+                   : Color.FromArgb(218, SurfaceRaised)))
+        using (var border = new Pen(completed ? Color.FromArgb(160, Positive) :
+                   hovered ? accent : BorderSoft))
+        {
+            graphics.FillPath(fill, path);
+            graphics.DrawPath(border, path);
+        }
+
+        var iconSize = Math.Min(16, Math.Max(10, bounds.Height - 10));
+        var iconX = label is null ? bounds.X + (bounds.Width - iconSize) / 2 : bounds.X + 8;
+        var iconY = bounds.Y + (bounds.Height - iconSize) / 2;
+        using var pen = new Pen(completed ? Positive : hovered ? GoldBright :
+            Color.FromArgb(205, 183, 151), 1.8f)
+        {
+            StartCap = LineCap.Round,
+            EndCap = LineCap.Round
+        };
+        if (completed)
+        {
+            graphics.DrawLine(pen, iconX + 2, iconY + 8, iconX + 6, iconY + 12);
+            graphics.DrawLine(pen, iconX + 6, iconY + 12, iconX + 14, iconY + 3);
+        }
+        else
+        {
+            graphics.DrawLine(pen, iconX + iconSize / 2, iconY + 2,
+                iconX + iconSize / 2, iconY + iconSize - 4);
+            graphics.DrawLine(pen, iconX + iconSize / 2, iconY + 2, iconX + 3, iconY + 7);
+            graphics.DrawLine(pen, iconX + iconSize / 2, iconY + 2, iconX + iconSize - 3, iconY + 7);
+            graphics.DrawLine(pen, iconX + 2, iconY + iconSize - 2,
+                iconX + iconSize - 2, iconY + iconSize - 2);
+        }
+        if (label is null)
+            return;
+        TextRenderer.DrawText(graphics, label, SystemFonts.MessageBoxFont,
+            new Rectangle(iconX + iconSize + 3, bounds.Y,
+                Math.Max(1, bounds.Right - iconX - iconSize - 7), bounds.Height),
+            completed ? Positive : hovered ? GoldBright : TextMuted,
+            TextFormatFlags.Left | TextFormatFlags.VerticalCenter |
+            TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
+    }
+
     private static void DrawComboBoxItem(object? sender, DrawItemEventArgs e)
     {
         if (sender is not ComboBox comboBox || e.Index < 0)
@@ -86,17 +204,20 @@ internal static class BdoTheme
 internal enum BdoButtonStyle
 {
     Primary,
-    Secondary
+    Secondary,
+    Navigation
 }
 
 /// <summary>
-/// Small owner-drawn button used for the two session actions.
+/// Shared owner-drawn button for primary actions, secondary actions and navigation.
 /// </summary>
 internal sealed class BdoButton : Button
 {
     private bool _hovered;
     private bool _pressed;
     private BdoButtonStyle _buttonStyle;
+    private int _cornerRadius = 10;
+    private bool _selected;
 
     public BdoButton()
     {
@@ -104,8 +225,10 @@ internal sealed class BdoButton : Button
             ControlStyles.AllPaintingInWmPaint |
             ControlStyles.OptimizedDoubleBuffer |
             ControlStyles.ResizeRedraw |
+            ControlStyles.SupportsTransparentBackColor |
             ControlStyles.UserPaint,
             true);
+        BackColor = Color.Transparent;
         FlatStyle = FlatStyle.Flat;
         FlatAppearance.BorderSize = 0;
         UseVisualStyleBackColor = false;
@@ -127,6 +250,39 @@ internal sealed class BdoButton : Button
             }
 
             _buttonStyle = value;
+            Invalidate();
+        }
+    }
+
+    [DefaultValue(10)]
+    public int CornerRadius
+    {
+        get => _cornerRadius;
+        set
+        {
+            var normalized = Math.Max(0, value);
+            if (_cornerRadius == normalized)
+            {
+                return;
+            }
+
+            _cornerRadius = normalized;
+            Invalidate();
+        }
+    }
+
+    [DefaultValue(false)]
+    public bool Selected
+    {
+        get => _selected;
+        set
+        {
+            if (_selected == value)
+            {
+                return;
+            }
+
+            _selected = value;
             Invalidate();
         }
     }
@@ -172,17 +328,14 @@ internal sealed class BdoButton : Button
 
     protected override void OnPaint(PaintEventArgs pevent)
     {
+        base.OnPaintBackground(pevent);
         pevent.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
         var bounds = new Rectangle(0, 0, Math.Max(1, Width - 1), Math.Max(1, Height - 1));
-        var radius = Math.Max(8, (int)Math.Round(10 * DeviceDpi / 96d));
+        var radius = Math.Max(1, (int)Math.Round(CornerRadius * DeviceDpi / 96d));
 
         var background = ResolveBackground();
-        var foreground = Enabled
-            ? ButtonStyle == BdoButtonStyle.Primary ? BdoTheme.Background : BdoTheme.Text
-            : BdoTheme.TextMuted;
-        var borderColor = ButtonStyle == BdoButtonStyle.Primary
-            ? background
-            : _hovered && Enabled ? BdoTheme.Gold : BdoTheme.Border;
+        var foreground = ResolveForeground();
+        var borderColor = ResolveBorder(background);
 
         using var path = BdoTheme.CreateRoundedRectangle(bounds, radius);
         using var fill = new SolidBrush(background);
@@ -203,8 +356,15 @@ internal sealed class BdoButton : Button
 
         if (Focused && ShowFocusCues)
         {
-            var focusBounds = Rectangle.Inflate(bounds, -4, -4);
-            ControlPaint.DrawFocusRectangle(pevent.Graphics, focusBounds, foreground, background);
+            var focusBounds = Rectangle.Inflate(bounds, -3, -3);
+            using var focusPath = BdoTheme.CreateRoundedRectangle(
+                focusBounds, Math.Max(1, radius - 3));
+            using var focusPen = new Pen(Color.FromArgb(225, BdoTheme.GoldBright),
+                Math.Max(1f, DeviceDpi / 96f))
+            {
+                DashStyle = DashStyle.Dot
+            };
+            pevent.Graphics.DrawPath(focusPen, focusPath);
         }
     }
 
@@ -232,9 +392,41 @@ internal sealed class BdoButton : Button
                 : _hovered ? BdoTheme.GoldBright : BdoTheme.Gold;
         }
 
+        if (ButtonStyle == BdoButtonStyle.Navigation)
+        {
+            if (Selected)
+                return _pressed ? Color.FromArgb(117, 88, 46) :
+                    _hovered ? Color.FromArgb(105, 82, 48) : Color.FromArgb(84, 67, 44);
+            return _pressed ? BdoTheme.SurfacePressed :
+                _hovered ? BdoTheme.SurfaceHover : BdoTheme.Surface;
+        }
+
         return _pressed
             ? BdoTheme.SurfacePressed
             : _hovered ? BdoTheme.SurfaceHover : BdoTheme.SurfaceRaised;
+    }
+
+    private Color ResolveForeground()
+    {
+        if (!Enabled)
+            return BdoTheme.TextMuted;
+        if (ButtonStyle == BdoButtonStyle.Primary)
+            return BdoTheme.Background;
+        if (ButtonStyle == BdoButtonStyle.Navigation)
+            return Selected ? BdoTheme.GoldBright : BdoTheme.TextMuted;
+        return BdoTheme.Text;
+    }
+
+    private Color ResolveBorder(Color background)
+    {
+        if (!Enabled)
+            return Color.FromArgb(110, BdoTheme.BorderSoft);
+        if (ButtonStyle == BdoButtonStyle.Primary)
+            return background;
+        if (ButtonStyle == BdoButtonStyle.Navigation)
+            return Selected ? Color.FromArgb(195, BdoTheme.Gold) :
+                _hovered && Enabled ? BdoTheme.Border : BdoTheme.BorderSoft;
+        return _hovered && Enabled ? BdoTheme.Gold : BdoTheme.Border;
     }
 }
 

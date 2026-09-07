@@ -12,6 +12,9 @@ internal sealed class SettingsStore
 
     private readonly string _settingsPath;
 
+    internal string BaseDirectory => Path.GetDirectoryName(_settingsPath)
+        ?? throw new InvalidOperationException("Der Konfigurationsordner ist ungültig.");
+
     public SettingsStore()
     {
         var directory = Path.Combine(
@@ -53,8 +56,7 @@ internal sealed class SettingsStore
     {
         ArgumentNullException.ThrowIfNull(settings);
 
-        var directory = Path.GetDirectoryName(_settingsPath)
-            ?? throw new InvalidOperationException("Der Konfigurationsordner ist ungültig.");
+        var directory = BaseDirectory;
 
         Directory.CreateDirectory(directory);
         var json = JsonSerializer.Serialize(settings, JsonOptions);

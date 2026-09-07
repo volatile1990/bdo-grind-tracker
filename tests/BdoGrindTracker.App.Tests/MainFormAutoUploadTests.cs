@@ -158,6 +158,107 @@ public sealed class MainFormAutoUploadTests
         });
     }
 
+    [Theory]
+    [InlineData(HttpStatusCode.OK)]
+    [InlineData(HttpStatusCode.InternalServerError)]
+    public void AutomaticUploadThatMayHaveBeenSavedBlocksFullHistoryUploadsAfterMoreLootAndReset(
+        HttpStatusCode status)
+    {
+        RunInSta(() =>
+        {
+            using var fixture = new Fixture();
+            fixture.Respond = () => Task.FromResult(new HttpResponseMessage(status));
+            fixture.Begin();
+            var sessionId = GetField<Guid>(fixture.Form, "_sessionId");
+            fixture.ObserveAfter(TimeSpan.FromHours(1),
+                ("Black Crystal Fragment", 2), ("Black Stone", 3));
+            fixture.UploadHour();
+
+            AssertPayload(Assert.Single(fixture.Requests), 60, trash: 2, blackStones: 3);
+            Assert.True(Assert.Single(fixture.Settings.HistoryStore.Load()).GarmothUploadBlocked);
+            fixture.AssertTrackingContinues(TimeSpan.FromHours(1), 5);
+
+            fixture.ObserveAfter(TimeSpan.FromMinutes(30),
+                ("Black Crystal Fragment", 5), ("Black Stone", 1));
+            fixture.Stop();
+            fixture.ResetSession();
+
+            var saved = Assert.Single(fixture.Settings.HistoryStore.Load());
+            Assert.Equal(sessionId, saved.SessionId);
+            Assert.Equal(TimeSpan.FromMinutes(90), saved.Duration);
+            Assert.Equal(7, saved.Totals["Black Crystal Fragment"]);
+            Assert.Equal(4, saved.Totals["Black Stone"]);
+            Assert.True(saved.GarmothUploadBlocked);
+            Assert.Equal(status == HttpStatusCode.OK, saved.GarmothUploadedAt.HasValue);
+
+            fixture.UploadHistory(sessionId);
+
+            Assert.Single(fixture.Requests);
+        });
+    }
+
+    [Fact]
+    public void DefinitelyRejectedAutomaticUploadLeavesTheFullHistoricalSessionAvailable()
+    {
+        RunInSta(() =>
+        {
+            using var fixture = new Fixture();
+            fixture.Respond = () => Task.FromResult(new HttpResponseMessage(HttpStatusCode.BadRequest));
+            fixture.Begin();
+            var sessionId = GetField<Guid>(fixture.Form, "_sessionId");
+            fixture.ObserveAfter(TimeSpan.FromHours(1), ("Black Crystal Fragment", 2));
+            fixture.UploadHour();
+            fixture.ObserveAfter(TimeSpan.FromMinutes(30), ("Black Crystal Fragment", 5));
+            fixture.Stop();
+            fixture.ResetSession();
+
+            var saved = Assert.Single(fixture.Settings.HistoryStore.Load());
+            Assert.False(saved.GarmothUploadBlocked);
+            Assert.Null(saved.GarmothUploadedAt);
+            fixture.Respond = () => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+
+            fixture.UploadHistory(sessionId);
+
+            var uploads = fixture.Requests.ToArray();
+            Assert.Equal(2, uploads.Length);
+            AssertPayload(uploads[0], 60, trash: 2);
+            AssertPayload(uploads[1], 90, trash: 7);
+            Assert.True(Assert.Single(fixture.Settings.HistoryStore.Load()).GarmothUploadBlocked);
+        });
+    }
+
+    [Fact]
+    public void UploadingTheCurrentPausedRemainderFromHistoryAlsoClosesItsLiveUploadPath()
+    {
+        RunInSta(() =>
+        {
+            using var fixture = new Fixture();
+            fixture.Begin();
+            var sessionId = GetField<Guid>(fixture.Form, "_sessionId");
+            fixture.ObserveAfter(TimeSpan.FromHours(1), ("Black Crystal Fragment", 3));
+            fixture.UploadHour();
+            fixture.ObserveAfter(TimeSpan.FromMinutes(30), ("Black Crystal Fragment", 2));
+            fixture.Stop();
+            Assert.True(Assert.Single(fixture.Settings.HistoryStore.Load()).GarmothUploadBlocked);
+
+            fixture.UploadHistory(sessionId);
+
+            var uploads = fixture.Requests.ToArray();
+            Assert.Equal(2, uploads.Length);
+            AssertPayload(uploads[0], 60, trash: 3);
+            AssertPayload(uploads[1], 30, trash: 2);
+            Assert.True(GetField<bool>(fixture.Form, "_sessionSubmitted"));
+            Assert.False(fixture.Clock.IsRunning);
+            Assert.True(Assert.Single(fixture.Settings.HistoryStore.Load()).GarmothUploadBlocked);
+
+            Complete(InvokeAsync(fixture.Form, "UploadToGarmothAsync"));
+            fixture.UploadHour();
+            fixture.UploadHistory(sessionId);
+
+            Assert.Equal(2, fixture.Requests.Count);
+        });
+    }
+
     [Fact]
     public void UncertainAutomaticUploadBlocksFurtherUploadsButTrackingKeepsItsLootAndClock()
     {
@@ -357,7 +458,8 @@ public sealed class MainFormAutoUploadTests
                 return await Respond();
             }));
             Form = new MainForm(new PassiveScreenCapture(), Analyzer, Settings.Store,
-                Clock, Activity, () => CharacterClassDetection.Unknown, Prices, client, Settings.KeyStore);
+                Clock, Activity, () => CharacterClassDetection.Unknown, Prices, client,
+                Settings.KeyStore, Settings.HistoryStore);
             // All ticks are driven explicitly; neither a shown window nor real capture is required.
             GetField<System.Windows.Forms.Timer>(Form, "_uiRefreshTimer").Stop();
         }
@@ -419,6 +521,16 @@ public sealed class MainFormAutoUploadTests
         }
 
         public void UploadHour() => Complete(InvokeAsync(Form, "UploadHourlyToGarmothAsync"));
+
+        public void Stop() => Complete(Assert.IsAssignableFrom<Task>(Invoke(Form, "StopTrackingAsync", false)));
+
+        public void ResetSession() => Invoke(Form, "ResetButton_Click", null, EventArgs.Empty);
+
+        public void UploadHistory(Guid sessionId)
+        {
+            Invoke(Form, "UploadHistorySession", sessionId);
+            PumpUntil(() => !GetField<bool>(Form, "_garmothUploadInProgress"));
+        }
 
         public void TickRefreshTimer()
         {
@@ -495,22 +607,27 @@ public sealed class MainFormAutoUploadTests
     {
         private readonly string _directory = Path.Combine(Path.GetTempPath(), "BdoGrindTracker.Tests", Guid.NewGuid().ToString("N"));
         private readonly string _settingsPath;
+        private readonly string _historyPath;
 
         public IsolatedSettingsStore()
         {
             Directory.CreateDirectory(_directory);
             _settingsPath = Path.Combine(_directory, "settings.json");
+            _historyPath = Path.Combine(_directory, "loot-history-v1.json");
             Store = new SettingsStore();
             SetField(Store, "_settingsPath", _settingsPath);
             KeyStore = new GarmothApiKeyStore(Path.Combine(_directory, "test-key.dpapi"));
+            HistoryStore = new LootHistoryStore(_historyPath);
         }
 
         public SettingsStore Store { get; }
         public GarmothApiKeyStore KeyStore { get; }
+        public LootHistoryStore HistoryStore { get; }
 
         public void Dispose()
         {
             if (File.Exists(_settingsPath)) File.Delete(_settingsPath);
+            if (File.Exists(_historyPath)) File.Delete(_historyPath);
             KeyStore.Save("");
             Directory.Delete(_directory);
         }

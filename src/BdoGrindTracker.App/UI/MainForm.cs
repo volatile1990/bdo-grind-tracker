@@ -16,12 +16,13 @@ internal sealed class MainForm : Form
     private readonly ILootFrameAnalyzer _analyzer;
     private readonly SettingsStore _settingsStore;
     private readonly AppSettings _settings;
+    private readonly LootHistoryStore _historyStore;
+    private readonly List<LootHistoryEntry> _historyEntries;
     private readonly PassiveCaptureSession _captureSession;
     private readonly PictureBox _brandLogo = new();
     private readonly Bitmap _brandLogoImage = AppBranding.CreateLogo();
     private readonly Icon _brandIcon = AppBranding.CreateWindowIcon();
 
-    private readonly Label _activeSpotLabel = new();
     private readonly CheckBox _eventLootCheckBox = new();
     private readonly CheckBox _recordingCheckBox = new();
     private readonly Label _recordingStatus = new();
@@ -32,6 +33,10 @@ internal sealed class MainForm : Form
     private readonly NumericUpDown _autoPauseMinutes = new();
     private readonly ComboBox _classOverrideComboBox = new();
     private readonly Label _characterClassLabel = new();
+    private readonly PictureBox _characterClassIcon = new();
+    private readonly PictureBox _sessionSpotIcon = new();
+    private readonly Label _sessionSpotNameLabel = new();
+    private TableLayoutPanel _sessionMetricLayout = null!;
     private readonly Func<CharacterClassDetection> _detectCharacterClass;
     private CharacterClassDetection _classDetection = CharacterClassDetection.Unknown;
     private CharacterClass? _sessionClass;
@@ -61,7 +66,14 @@ internal sealed class MainForm : Form
     private readonly TableLayoutPanel _monitorPicker = new();
     private readonly BdoButton _trackingButton = new();
     private readonly BdoButton _resetButton = new();
+    private readonly BdoButton _demoButton = new();
     private readonly LootTotalsView _totalsView = new();
+    private readonly ImageAssetRepository _liveSpotBackgrounds = new(
+        Path.Combine(AppContext.BaseDirectory, "data", "spot-backgrounds"));
+    private readonly ImageAssetRepository _liveSpotIcons = new(
+        Path.Combine(AppContext.BaseDirectory, "data", "spot-icons"));
+    private readonly ImageAssetRepository _liveClassIcons = new(
+        Path.Combine(AppContext.BaseDirectory, "data", "class-icons"));
     private readonly MetricValueLabel _silverBeforeTaxValue = new();
     private readonly MetricValueLabel _silverAfterTaxValue = new();
     private readonly Label _priceStatusLabel = new();
@@ -78,6 +90,12 @@ internal sealed class MainForm : Form
     private static readonly CultureInfo SilverCulture = CultureInfo.GetCultureInfo("de-DE");
     private readonly Label _statusDot = new();
     private readonly Label _statusLabel = new();
+    private readonly Panel _mainContentHost = new();
+    private readonly FlowLayoutPanel _liveIdentity = new();
+    private readonly BdoButton _liveTabButton = new();
+    private readonly BdoButton _historyTabButton = new();
+    private Control _liveTrackerView = null!;
+    private readonly LootHistoryView _historyView;
 
     private readonly Font _baseFont = new("Segoe UI", 9.5f, FontStyle.Regular, GraphicsUnit.Point);
     private readonly Font _titleFont = new("Segoe UI Semibold", 21f, FontStyle.Bold, GraphicsUnit.Point);
@@ -91,6 +109,8 @@ internal sealed class MainForm : Form
     private bool _initializing = true;
     private bool _uiRunning;
     private bool _operationInProgress;
+    private bool _demoMode;
+    private TimeSpan _demoDuration;
     private bool _shutdownStarted;
     private bool _shutdownCompleted;
     private bool _uiResourcesDisposed;
@@ -105,18 +125,29 @@ internal sealed class MainForm : Form
         Func<CharacterClassDetection>? classDetector = null,
         ILootPriceProvider? priceProvider = null,
         GarmothUploadClient? garmothClient = null,
-        GarmothApiKeyStore? garmothKeyStore = null)
+        GarmothApiKeyStore? garmothKeyStore = null,
+        LootHistoryStore? historyStore = null)
     {
         ArgumentNullException.ThrowIfNull(screenCapture);
         _analyzer = analyzer ?? throw new ArgumentNullException(nameof(analyzer));
         _settingsStore = settingsStore ?? throw new ArgumentNullException(nameof(settingsStore));
         _settings = settingsStore.Load();
+        _historyStore = historyStore ?? new LootHistoryStore(
+            Path.Combine(_settingsStore.BaseDirectory, "loot-history-v1.json"));
+        _historyEntries = _historyStore.Load().ToList();
+        _historyView = new LootHistoryView();
+        _historyView.SetEntries(_historyEntries);
+        _historyView.DeleteRequested += sessionId => DeleteHistorySession(sessionId, requireConfirmation: true);
+        _historyView.EditRequested += EditHistorySession;
+        _historyView.UploadRequested += UploadHistorySession;
         _captureSession = new PassiveCaptureSession(screenCapture);
         _sessionClock = sessionClock ?? new GrindSessionClock();
         _inactivityTimer = inactivityTimer ?? new GrindInactivityTimer();
         _detectCharacterClass = classDetector ?? new CompanionCharacterClassDetector().DetectDefault;
         _priceProvider = priceProvider ?? new ArshaLootPriceProvider();
         _prices = _priceProvider.GetCachedSnapshot(_settings.MarketRegion);
+        _historyView.SetPricing(_prices, _settings.GetSilverTaxOptions());
+        _totalsView.SetPricing(_prices, _settings.GetSilverTaxOptions());
         _garmothClient = garmothClient ?? new GarmothUploadClient();
         _garmothKeyStore = garmothKeyStore ?? new GarmothApiKeyStore();
         try { _garmothApiKey = _garmothKeyStore.Load(); }
@@ -177,7 +208,7 @@ internal sealed class MainForm : Form
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
-            RowCount = 6,
+            RowCount = 4,
             Padding = new Padding(24, 18, 24, 12),
             BackColor = BdoTheme.Background,
             Margin = Padding.Empty
@@ -185,17 +216,76 @@ internal sealed class MainForm : Form
         root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
         root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
         root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         root.Controls.Add(BuildHeader(), 0, 0);
-        root.Controls.Add(BuildSpotStrip(), 0, 1);
-        root.Controls.Add(BuildTrackingOptions(), 0, 2);
-        root.Controls.Add(BuildSummary(), 0, 3);
-        root.Controls.Add(BuildLootArea(), 0, 4);
-        root.Controls.Add(BuildFooter(), 0, 5);
+        root.Controls.Add(BuildNavigationStrip(), 0, 1);
+        root.Controls.Add(BuildMainContent(), 0, 2);
+        root.Controls.Add(BuildFooter(), 0, 3);
         Controls.Add(root);
+    }
+
+    private Control BuildMainContent()
+    {
+        _mainContentHost.Dock = DockStyle.Fill;
+        _mainContentHost.Margin = Padding.Empty;
+        _mainContentHost.BackColor = BdoTheme.Background;
+        _mainContentHost.AccessibleName = "Hauptbereiche";
+
+        _liveTrackerView = BuildLiveTrackerView();
+        _liveTrackerView.Dock = DockStyle.Fill;
+        _historyView.Dock = DockStyle.Fill;
+        _historyView.Visible = false;
+        _mainContentHost.Controls.Add(_historyView);
+        _mainContentHost.Controls.Add(_liveTrackerView);
+        ShowMainArea(showHistory: false);
+        return _mainContentHost;
+    }
+
+    private Control BuildLiveTrackerView()
+    {
+        var live = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 3,
+            Margin = Padding.Empty,
+            BackColor = BdoTheme.Background
+        };
+        live.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+        live.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        live.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        live.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+        live.Controls.Add(BuildTrackingOptions(), 0, 0);
+        live.Controls.Add(BuildSummary(), 0, 1);
+        live.Controls.Add(BuildLootArea(), 0, 2);
+        return live;
+    }
+
+    private void ShowMainArea(bool showHistory)
+    {
+        _liveTrackerView.Visible = !showHistory;
+        _historyView.Visible = showHistory;
+        _liveIdentity.Visible = !showHistory;
+        _optionsButton.Visible = true;
+        StyleMainAreaButton(_liveTabButton, selected: !showHistory);
+        StyleMainAreaButton(_historyTabButton, selected: showHistory);
+
+        if (showHistory)
+        {
+            _historyView.SetEntries(_historyEntries);
+            _historyView.BringToFront();
+        }
+        else
+        {
+            _liveTrackerView.BringToFront();
+        }
+    }
+
+    private void StyleMainAreaButton(BdoButton button, bool selected)
+    {
+        button.Selected = selected;
+        button.AccessibleDescription = selected ? "Ausgewählt" : "Nicht ausgewählt";
     }
 
     private Control BuildHeader()
@@ -257,6 +347,11 @@ internal sealed class MainForm : Form
         _resetButton.ButtonStyle = BdoButtonStyle.Secondary;
         _resetButton.Width = 124;
         _resetButton.Margin = new Padding(0, 0, 10, 0);
+        _demoButton.Text = "Demostunde";
+        _demoButton.ButtonStyle = BdoButtonStyle.Secondary;
+        _demoButton.Width = 116;
+        _demoButton.Margin = new Padding(0, 0, 10, 0);
+        _demoButton.AccessibleName = "Eine nicht gespeicherte Demostunde im Live-Tracker anzeigen";
         _trackingButton.Text = "Tracking starten";
         _trackingButton.ButtonStyle = BdoButtonStyle.Primary;
         _trackingButton.Width = 150;
@@ -269,6 +364,7 @@ internal sealed class MainForm : Form
         _garmothButton.AccessibleName = "Sitzung mit einem Klick nach Garmoth hochladen";
         _garmothButton.AccessibleDescription = "Pausiert bei Bedarf und überträgt den noch nicht gesendeten Grind sofort.";
         actions.Controls.Add(_resetButton);
+        actions.Controls.Add(_demoButton);
         actions.Controls.Add(_garmothButton);
         actions.Controls.Add(_trackingButton);
         header.Controls.Add(brand, 0, 0);
@@ -276,45 +372,83 @@ internal sealed class MainForm : Form
         return header;
     }
 
-    private Control BuildSpotStrip()
+    private Control BuildNavigationStrip()
     {
         var strip = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             AutoSize = true,
-            ColumnCount = 2,
+            ColumnCount = 3,
             RowCount = 1,
             Margin = new Padding(0, 0, 0, 10)
         };
         strip.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
         strip.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        _activeSpotLabel.AutoSize = true;
-        _activeSpotLabel.AccessibleName = "Automatisch erkannter Grindspot";
-        _activeSpotLabel.ForeColor = BdoTheme.TextMuted;
-        _activeSpotLabel.Text = "Spot: wird aus Trashloot erkannt";
-        _activeSpotLabel.Anchor = AnchorStyles.Left;
-        _activeSpotLabel.Margin = new Padding(2, 0, 12, 0);
-        var identity = new FlowLayoutPanel
+        strip.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        _liveIdentity.AutoSize = true;
+        _liveIdentity.WrapContents = false;
+        _liveIdentity.Dock = DockStyle.Fill;
+        _liveIdentity.Margin = Padding.Empty;
+        _liveIdentity.Padding = new Padding(0, 5, 0, 0);
+        _liveIdentity.Controls.Add(new Label
         {
-            AutoSize = true, WrapContents = false, Dock = DockStyle.Fill,
-            Margin = Padding.Empty, Padding = new Padding(0, 5, 0, 0)
-        };
+            Text = "Klasse:",
+            AutoSize = true,
+            Font = _sectionFont,
+            ForeColor = BdoTheme.TextMuted,
+            Margin = new Padding(2, 4, 7, 0)
+        });
+        _characterClassIcon.Size = new Size(28, 28);
+        _characterClassIcon.SizeMode = PictureBoxSizeMode.Zoom;
+        _characterClassIcon.Margin = new Padding(0, 0, 7, 0);
+        _characterClassIcon.Visible = false;
+        _characterClassIcon.TabStop = false;
+        _characterClassIcon.AccessibleName = "Symbol der erkannten Klasse";
+        _liveIdentity.Controls.Add(_characterClassIcon);
         _characterClassLabel.AccessibleName = "Automatisch erkannte Klasse";
         _characterClassLabel.AutoSize = true;
         _characterClassLabel.ForeColor = BdoTheme.Gold;
-        _characterClassLabel.Text = "Klasse: wird beim Start erkannt";
-        _characterClassLabel.Margin = Padding.Empty;
-        identity.Controls.Add(_activeSpotLabel);
-        identity.Controls.Add(_characterClassLabel);
+        _characterClassLabel.Font = _sectionFont;
+        _characterClassLabel.Text = "wird beim Start erkannt";
+        _characterClassLabel.Margin = new Padding(0, 4, 0, 0);
+        _liveIdentity.Controls.Add(_characterClassLabel);
+
+        var tabs = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            WrapContents = false,
+            Margin = new Padding(12, 0, 12, 0)
+        };
+        ConfigureMainAreaButton(_liveTabButton, "Live Tracker", "Live-Tracker anzeigen");
+        ConfigureMainAreaButton(_historyTabButton, "Loot Verlauf", "Loot-Verlauf anzeigen");
+        _liveTabButton.Click += (_, _) => ShowMainArea(showHistory: false);
+        _historyTabButton.Click += (_, _) => ShowMainArea(showHistory: true);
+        tabs.Controls.Add(_liveTabButton);
+        tabs.Controls.Add(_historyTabButton);
+
         _optionsButton.Text = "Optionen";
         _optionsButton.ButtonStyle = BdoButtonStyle.Secondary;
         _optionsButton.Width = 110;
         _optionsButton.Height = 34;
         _optionsButton.Margin = Padding.Empty;
         _optionsButton.AccessibleName = "Tracking-Optionen öffnen oder schließen";
-        strip.Controls.Add(identity, 0, 0);
-        strip.Controls.Add(_optionsButton, 1, 0);
+        strip.Controls.Add(_liveIdentity, 0, 0);
+        strip.Controls.Add(tabs, 1, 0);
+        strip.Controls.Add(_optionsButton, 2, 0);
         return strip;
+    }
+
+    private void ConfigureMainAreaButton(BdoButton button, string text, string accessibleName)
+    {
+        button.Text = text;
+        button.AccessibleName = accessibleName;
+        button.Width = 116;
+        button.Height = 34;
+        button.Margin = Padding.Empty;
+        button.Padding = Padding.Empty;
+        button.CornerRadius = 9;
+        button.ButtonStyle = BdoButtonStyle.Navigation;
     }
 
     private Control BuildTrackingOptions()
@@ -452,6 +586,13 @@ internal sealed class MainForm : Form
         _optionsButton.AccessibleDescription = _optionsExpanded ? "Ausgeklappt" : "Eingeklappt";
     }
 
+    private void OptionsButton_Click(object? sender, EventArgs e)
+    {
+        if (_historyView.Visible)
+            ShowMainArea(showHistory: false);
+        ToggleOptions();
+    }
+
     private Control BuildSummary()
     {
         var summary = new TableLayoutPanel
@@ -461,7 +602,7 @@ internal sealed class MainForm : Form
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
             ColumnCount = 3,
             RowCount = 1,
-            Margin = new Padding(0, 0, 0, 16),
+            Margin = new Padding(0, 0, 0, 8),
             Padding = Padding.Empty
         };
         summary.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30f));
@@ -469,8 +610,7 @@ internal sealed class MainForm : Form
         summary.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
         summary.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         _sessionDurationValue.AccessibleName = "Dauer der aktuellen Grindsession";
-        summary.Controls.Add(CreateMetricCard("SESSIONDAUER", _sessionDurationValue,
-            new Padding(0, 0, 6, 0), _sessionStateLabel), 0, 0);
+        summary.Controls.Add(CreateSessionMetricCard(new Padding(0, 0, 6, 0)), 0, 0);
         _silverBeforeTaxValue.AccessibleName = "Silberwert vor Steuer";
         _silverAfterTaxValue.AccessibleName = "Silberwert nach Steuer";
         summary.Controls.Add(CreateMetricCard("SILBER VOR STEUER", _silverBeforeTaxValue,
@@ -482,7 +622,118 @@ internal sealed class MainForm : Form
         return summary;
     }
 
-    private Control CreateMetricCard(string caption, MetricValueLabel valueLabel, Padding margin, Label? state = null)
+    private Control CreateSessionMetricCard(Padding margin)
+    {
+        var card = new BdoSurfacePanel
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            CornerRadius = 14,
+            Padding = new Padding(14, 4, 14, 4),
+            Margin = margin
+        };
+        _sessionMetricLayout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            ColumnCount = 1,
+            RowCount = 2,
+            Margin = Padding.Empty,
+            BackColor = Color.Transparent
+        };
+        _sessionMetricLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+        _sessionMetricLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, _sectionFont.Height + 2));
+        _sessionMetricLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+        var captionRow = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            ColumnCount = 2,
+            RowCount = 1,
+            Margin = Padding.Empty,
+            BackColor = Color.Transparent
+        };
+        captionRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+        captionRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        _sessionSpotIcon.Size = new Size(64, 64);
+        _sessionSpotIcon.SizeMode = PictureBoxSizeMode.Zoom;
+        _sessionSpotIcon.BackColor = Color.Transparent;
+        _sessionSpotIcon.Margin = Padding.Empty;
+        _sessionSpotIcon.Visible = false;
+        _sessionSpotIcon.TabStop = false;
+        _sessionSpotIcon.AccessibleName = "Symbol des erkannten Grindspots";
+        _sessionSpotNameLabel.Text = "SESSIONDAUER";
+        _sessionSpotNameLabel.AutoSize = true;
+        _sessionSpotNameLabel.Dock = DockStyle.Fill;
+        _sessionSpotNameLabel.TextAlign = ContentAlignment.MiddleCenter;
+        _sessionSpotNameLabel.Font = _captionFont;
+        _sessionSpotNameLabel.ForeColor = BdoTheme.TextMuted;
+        _sessionSpotNameLabel.BackColor = Color.Transparent;
+        _sessionSpotNameLabel.Margin = Padding.Empty;
+        _sessionSpotNameLabel.AccessibleName = "Erkannter Grindspot in der Sessionkarte";
+        captionRow.Controls.Add(_sessionSpotNameLabel, 0, 0);
+        _sessionStateLabel.AutoSize = true;
+        _sessionStateLabel.Font = _captionFont;
+        _sessionStateLabel.ForeColor = BdoTheme.TextMuted;
+        _sessionStateLabel.Margin = Padding.Empty;
+        captionRow.Controls.Add(_sessionStateLabel, 1, 0);
+        _sessionMetricLayout.Controls.Add(captionRow, 0, 0);
+
+        _sessionDurationValue.Text = "0";
+        _sessionDurationValue.AutoSize = true;
+        _sessionDurationValue.Dock = DockStyle.Fill;
+        _sessionDurationValue.TextAlign = ContentAlignment.MiddleCenter;
+        _sessionDurationValue.Font = _metricFont;
+        _sessionDurationValue.ForeColor = BdoTheme.GoldBright;
+        _sessionDurationValue.BackColor = Color.Transparent;
+        _sessionDurationValue.Margin = Padding.Empty;
+        _sessionMetricLayout.Controls.Add(_sessionDurationValue, 0, 1);
+        _sessionMetricLayout.Paint += (_, e) =>
+        {
+            if (_sessionSpotIcon.Image is null)
+                return;
+            e.Graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+            e.Graphics.DrawImage(
+                _sessionSpotIcon.Image,
+                new Rectangle(0, Math.Max(0, (_sessionMetricLayout.ClientSize.Height - 64) / 2), 64, 64));
+        };
+        card.Controls.Add(_sessionMetricLayout);
+        void ArrangeSessionIdentity()
+        {
+            if (_sessionSpotIcon.Image is null)
+            {
+                _sessionSpotNameLabel.Padding = Padding.Empty;
+                _sessionDurationValue.Padding = Padding.Empty;
+                _sessionSpotNameLabel.TextAlign = ContentAlignment.MiddleCenter;
+                _sessionDurationValue.TextAlign = ContentAlignment.MiddleCenter;
+                return;
+            }
+
+            const int symbolReserve = 66;
+            var timeWidth = TextRenderer.MeasureText(
+                _sessionDurationValue.Text,
+                _sessionDurationValue.Font,
+                new Size(int.MaxValue, int.MaxValue),
+                TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding).Width;
+            var availableTextWidth = Math.Max(0,
+                _sessionMetricLayout.ClientSize.Width - symbolReserve);
+            var groupLeft = symbolReserve + Math.Max(0, (availableTextWidth - timeWidth) / 2);
+            var alignedPadding = new Padding(groupLeft, 0, 0, 0);
+            _sessionSpotNameLabel.Padding = alignedPadding;
+            _sessionDurationValue.Padding = alignedPadding;
+            _sessionSpotNameLabel.TextAlign = ContentAlignment.MiddleLeft;
+            _sessionDurationValue.TextAlign = ContentAlignment.MiddleLeft;
+        }
+        card.Layout += (_, _) => ArrangeSessionIdentity();
+        _sessionDurationValue.TextChanged += (_, _) => card.PerformLayout();
+        return card;
+    }
+
+    private Control CreateMetricCard(string caption, MetricValueLabel valueLabel, Padding margin,
+        Label? state = null)
     {
         var card = new BdoSurfacePanel
         {
@@ -637,9 +888,10 @@ internal sealed class MainForm : Form
         _monitorComboBox.SelectedIndexChanged += MonitorComboBox_SelectedIndexChanged;
         _trackingButton.Click += TrackingButton_Click;
         _resetButton.Click += ResetButton_Click;
+        _demoButton.Click += (_, _) => ShowDemoHour();
         _garmothButton.Click += GarmothButton_Click;
         _garmothOptionsButton.Click += GarmothOptionsButton_Click;
-        _optionsButton.Click += (_, _) => ToggleOptions();
+        _optionsButton.Click += OptionsButton_Click;
         _silverOptionsButton.Click += SilverOptionsButton_Click;
         Shown += async (_, _) =>
         {
@@ -738,6 +990,8 @@ internal sealed class MainForm : Form
             return;
         }
 
+        if (_demoMode)
+            ClearDemoHour();
         _operationInProgress = true;
         UpdateControlState();
         try
@@ -792,7 +1046,8 @@ internal sealed class MainForm : Form
             if (!continuesExistingSession || captureGeometryChanged)
             {
                 _analyzer.Reset();
-                _activeSpotLabel.Text = "Spot: wird aus Trashloot erkannt";
+                _sessionSpotId = null;
+                UpdateLiveIdentity();
 
                 _recording?.Dispose();
                 _recording = null;
@@ -866,6 +1121,7 @@ internal sealed class MainForm : Form
         }
         CompleteCaptureSegment(DateTimeOffset.UtcNow);
         _uiRunning = false;
+        PersistCurrentSession(DateTimeOffset.UtcNow);
 
         var failure = Interlocked.CompareExchange(ref _lastCaptureStopError, null, null);
         if (failure is null)
@@ -909,6 +1165,7 @@ internal sealed class MainForm : Form
             return;
         }
 
+        PersistCurrentSession(DateTimeOffset.UtcNow);
         _analyzer.Reset();
         _recording?.Dispose();
         _recording = null;
@@ -916,13 +1173,14 @@ internal sealed class MainForm : Form
         _sessionId = Guid.NewGuid();
         _sessionStartedAt = null;
         _sessionSpotId = null;
+        _demoMode = false;
+        _demoDuration = TimeSpan.Zero;
         _sessionSubmitted = false;
         _garmothIntervals.Reset();
         _garmothButton.Text = "Garmoth-Upload";
         _sessionClass = null;
         _classOverrideComboBox.SelectedIndex = 0;
         UpdateCharacterClassLabel();
-        _activeSpotLabel.Text = "Spot: wird aus Trashloot erkannt";
         _recordingCheckBox.Checked = false;
         _recordingStatus.Text = "Aufzeichnung aus · für die nächste Session erneut aktivieren.";
         _sessionClock.Reset();
@@ -931,6 +1189,7 @@ internal sealed class MainForm : Form
         _uiMailbox.Reset();
         _sessionSummary = LootSessionSnapshot.Empty;
         _totalsView.SetTotals(_sessionSummary.Totals);
+        UpdateLiveIdentity();
         _lastCaptureDesktopRegion = null;
 
         UpdateSessionSummary();
@@ -979,9 +1238,7 @@ internal sealed class MainForm : Form
         if (_recording?.LastError is { } recordingError)
             _recordingStatus.Text = $"Aufzeichnung beendet: {recordingError}";
         _sessionSpotId = update.Analysis.SpotId;
-        _activeSpotLabel.Text = update.Analysis.SpotId is { } spotId
-            ? $"Spot: {LootSpotCatalog.GetRequired(spotId).DisplayName}"
-            : "Spot: wird aus Trashloot erkannt";
+        UpdateLiveIdentity();
 
         if (update.Totals is { } totals)
         {
@@ -1003,10 +1260,10 @@ internal sealed class MainForm : Form
 
     private void UpdateSessionDuration()
     {
-        var elapsedText = GrindSessionClock.FormatElapsed(_sessionClock.Elapsed);
+        var elapsedText = GrindSessionClock.FormatElapsed(_demoMode ? _demoDuration : _sessionClock.Elapsed);
         if (_sessionDurationValue.Text != elapsedText)
             _sessionDurationValue.Text = elapsedText;
-        _sessionStateLabel.Text = _sessionClock.IsRunning ? "LIVE" : _hasSession ? "PAUSE" : "BEREIT";
+        _sessionStateLabel.Text = _demoMode ? "DEMO" : _sessionClock.IsRunning ? "LIVE" : _hasSession ? "PAUSE" : "BEREIT";
         _sessionStateLabel.ForeColor = _sessionClock.IsRunning ? BdoTheme.Positive : BdoTheme.TextMuted;
     }
 
@@ -1077,6 +1334,8 @@ internal sealed class MainForm : Form
                 "Abgeschlossene Grindstunde wird übertragen …");
             var result = await SendGarmothIntervalAsync(interval);
             _garmothIntervals.Complete(interval, result);
+            if (result.BlocksAnotherUpload)
+                MarkHistoryUploadBlocked(_sessionId, result.Status == GarmothUploadStatus.Succeeded);
             _garmothButton.Text = _garmothIntervals.IsBlocked ? "Upload prüfen" : "Garmoth-Upload";
             var guidance = result.Status == GarmothUploadStatus.Succeeded
                 ? " Nur dieser Stundenabschnitt wurde übertragen."
@@ -1188,12 +1447,43 @@ internal sealed class MainForm : Form
     private void ApplyGarmothResult(GarmothUploadResult result)
     {
         _sessionSubmitted |= result.BlocksAnotherUpload;
+        if (result.BlocksAnotherUpload)
+            MarkHistoryUploadBlocked(_sessionId, result.Status == GarmothUploadStatus.Succeeded);
         _garmothButton.Text = result.Status == GarmothUploadStatus.Succeeded
             ? "Übertragen"
             : result.BlocksAnotherUpload ? "Upload prüfen" : "Garmoth-Upload";
         SetStatus(result.Status == GarmothUploadStatus.Rejected ? UiStatusKind.Error : UiStatusKind.Paused,
             "Garmoth", result.Message + (_sessionSubmitted ? " Zum Weitergrinden eine neue Sitzung starten." : ""));
         UpdateControlState();
+    }
+
+    private void MarkHistoryUploadBlocked(Guid sessionId, bool succeeded)
+    {
+        // An hourly upload can finish before the first pause creates a history
+        // entry. Persist its guard now so the full session cannot be sent again.
+        if (_hasSession && sessionId == _sessionId)
+            PersistCurrentSession(DateTimeOffset.UtcNow);
+        var index = _historyEntries.FindIndex(candidate => candidate.SessionId == sessionId);
+        if (index < 0)
+            return;
+        var previous = _historyEntries[index];
+        _historyEntries[index] = previous with
+        {
+            GarmothUploadBlocked = true,
+            GarmothUploadedAt = succeeded ? DateTimeOffset.UtcNow : null
+        };
+        try
+        {
+            _historyStore.Save(_historyEntries);
+            _historyView.SetEntries(_historyEntries);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            // Keep the in-memory guard: the remote write may already be committed.
+            SetStatus(UiStatusKind.Error, "Garmoth-Verlauf",
+                "Upload abgeschlossen, der lokale Upload-Status konnte aber nicht gespeichert werden: " +
+                exception.Message);
+        }
     }
 
     private async Task RefreshClassDetectionAsync()
@@ -1219,12 +1509,89 @@ internal sealed class MainForm : Form
 
     private void UpdateCharacterClassLabel()
     {
-        var character = _hasSession ? _sessionClass : SelectedCharacterClass;
+        var character = _hasSession || _demoMode ? _sessionClass : SelectedCharacterClass;
         _characterClassLabel.Text = character is not null
-            ? $"Klasse: {character.DisplayName}"
+            ? FormatLiveClassName(character)
             : _classDetection.Status == CharacterClassDetectionStatus.Ambiguous
-                ? "Klasse: mehrdeutig · unter Optionen wählen"
-                : "Klasse: unbekannt · unter Optionen wählen";
+                ? "mehrdeutig – unter Optionen wählen"
+                : "unbekannt – unter Optionen wählen";
+        _characterClassIcon.Image = character is null
+            ? null
+            : _liveClassIcons.Get(SpotHistoryDetailView.CreateClassIconFileName(character.Name));
+        _characterClassIcon.Visible = _characterClassIcon.Image is not null;
+        UpdateLiveIdentity();
+    }
+
+    private static string FormatLiveClassName(CharacterClass character)
+    {
+        var specialization = character.Specialization switch
+        {
+            CharacterSpecialization.Awakening => "Awakening",
+            CharacterSpecialization.Succession => "Succession",
+            _ => "Ascension"
+        };
+        return $"{character.Name} – {specialization}";
+    }
+
+    private void UpdateLiveIdentity()
+    {
+        LootSpotPresentation? profile = null;
+        if (_sessionSpotId is { } spotId)
+            profile = LootSpotPresentationCatalog.GetRequired(spotId);
+        var spotIcon = profile is null ? null : _liveSpotIcons.Get(profile.IconFileName);
+        var background = profile is null ? null : _liveSpotBackgrounds.Get(profile.BackgroundFileName);
+        _sessionSpotIcon.Image = spotIcon;
+        _sessionSpotIcon.Visible = false;
+        _sessionSpotNameLabel.Text = profile is null
+            ? "SESSIONDAUER"
+            : LootSpotCatalog.GetRequired(profile.SpotId).DisplayName;
+        _sessionSpotNameLabel.Font = profile is null ? _captionFont : _baseFont;
+        _sessionSpotNameLabel.ForeColor = profile is null
+            ? BdoTheme.TextMuted : Color.FromArgb(255, 232, 185);
+        _sessionMetricLayout.Parent?.PerformLayout();
+        _sessionMetricLayout.Invalidate(true);
+        _totalsView.SetSpotBackground(background);
+    }
+
+    private void ShowDemoHour()
+    {
+        if (_uiRunning || IsBusy || _hasSession)
+            return;
+        _demoMode = true;
+        _demoDuration = TimeSpan.FromHours(1);
+        _sessionSpotId = LootSpotCatalog.AphrodonId;
+        _sessionClass = CompanionCharacterClassCatalog.FindById("warrior-awakening");
+        var totals = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Branch of Abundance"] = 18_420,
+            ["Ancient Spirit Dust"] = 76,
+            ["Black Stone"] = 51,
+            ["WON Origin Shard"] = 4,
+            ["WON Wandering Origin Crystal"] = 1,
+            ["Broken Vestige of Goldroot"] = 1,
+            ["Nev's Fragment"] = 9
+        };
+        _sessionSummary = new LootSessionSnapshot(totals, totals.Values.Sum(), 147);
+        _totalsView.SetTotals(totals);
+        UpdateCharacterClassLabel();
+        UpdateSessionSummary();
+        UpdateControlState();
+        SetStatus(UiStatusKind.Ready, "Demostunde",
+            "Nicht gespeicherte Beispielstunde. Mit Tracking starten oder „Neue Sitzung“ beenden.");
+    }
+
+    private void ClearDemoHour()
+    {
+        if (!_demoMode)
+            return;
+        _demoMode = false;
+        _demoDuration = TimeSpan.Zero;
+        _sessionSpotId = null;
+        _sessionClass = null;
+        _sessionSummary = LootSessionSnapshot.Empty;
+        _totalsView.SetTotals(_sessionSummary.Totals);
+        UpdateCharacterClassLabel();
+        UpdateSessionSummary();
     }
 
     private void UpdateSessionSummary()
@@ -1288,6 +1655,8 @@ internal sealed class MainForm : Form
         SaveSettings();
         // Never apply a response from another region to this session's valuation.
         _prices = _priceProvider.GetCachedSnapshot(_settings.MarketRegion);
+        _historyView.SetPricing(_prices, tax);
+        _totalsView.SetPricing(_prices, tax);
         _nextPriceRefreshAt = DateTimeOffset.MinValue;
         UpdateSilverValuation();
     }
@@ -1321,6 +1690,8 @@ internal sealed class MainForm : Form
             if (_shutdownStarted || _uiResourcesDisposed || IsDisposed || region != _settings.MarketRegion)
                 return;
             _prices = snapshot;
+            _historyView.SetPricing(_prices, _settings.GetSilverTaxOptions());
+            _totalsView.SetPricing(_prices, _settings.GetSilverTaxOptions());
             UpdateSilverValuation();
         }
         catch (OperationCanceledException) when (_priceLifetime.IsCancellationRequested) { }
@@ -1330,6 +1701,8 @@ internal sealed class MainForm : Form
             if (!_shutdownStarted && !_uiResourcesDisposed && !IsDisposed && region == _settings.MarketRegion)
             {
                 _prices = _priceProvider.GetCachedSnapshot(region);
+                _historyView.SetPricing(_prices, _settings.GetSilverTaxOptions());
+                _totalsView.SetPricing(_prices, _settings.GetSilverTaxOptions());
                 UpdateSilverValuation();
                 _priceStatusLabel.Text = $"{region.ToUpperInvariant()} · Preise offline";
                 _priceStatusLabel.ForeColor = BdoTheme.Gold;
@@ -1371,6 +1744,7 @@ internal sealed class MainForm : Form
                     UpdateSessionDuration();
                     CompleteCaptureSegment(DateTimeOffset.UtcNow);
                     _uiRunning = false;
+                    PersistCurrentSession(DateTimeOffset.UtcNow);
                     if (!_garmothUploadInProgress)
                         _operationInProgress = false;
                     UpdateControlState();
@@ -1429,6 +1803,7 @@ internal sealed class MainForm : Form
             SaveSettings();
             await _captureSession.DisposeAsync();
             CompleteCaptureSegment(DateTimeOffset.UtcNow);
+            PersistCurrentSession(DateTimeOffset.UtcNow);
             _analyzer.Dispose();
             _recording?.Dispose();
         }
@@ -1457,6 +1832,267 @@ internal sealed class MainForm : Form
         }
     }
 
+    private void PersistCurrentSession(DateTimeOffset updatedAt)
+    {
+        if (!_hasSession || _sessionSpotId is null ||
+            _sessionClock.Elapsed <= TimeSpan.Zero || _sessionSummary.ItemTypeCount == 0)
+            return;
+
+        var totals = _sessionSummary.Totals
+            .Where(static pair => pair.Value > 0)
+            .ToDictionary(static pair => pair.Key, static pair => pair.Value,
+                StringComparer.OrdinalIgnoreCase);
+        if (totals.Count == 0)
+            return;
+
+        var valuation = SilverValuation.Calculate(totals, _prices, _settings.GetSilverTaxOptions());
+        var character = (_sessionClass ?? SelectedCharacterClass)?.DisplayName;
+        var entry = new LootHistoryEntry
+        {
+            SessionId = _sessionId,
+            StartedAt = _sessionStartedAt ?? updatedAt - _sessionClock.Elapsed,
+            UpdatedAt = updatedAt,
+            Duration = _sessionClock.Elapsed,
+            SpotId = _sessionSpotId,
+            CharacterClass = character,
+            Totals = totals,
+            SilverBeforeTax = valuation.BeforeTax,
+            SilverAfterTax = valuation.AfterTax,
+            SilverIsComplete = valuation.IsComplete
+        };
+
+        var existingIndex = _historyEntries.FindIndex(candidate =>
+            candidate.SessionId == entry.SessionId);
+        if (existingIndex >= 0)
+            _historyEntries[existingIndex] = entry with
+            {
+                GarmothUploadedAt = _historyEntries[existingIndex].GarmothUploadedAt,
+                GarmothUploadBlocked = _historyEntries[existingIndex].GarmothUploadBlocked
+            };
+        else
+            _historyEntries.Add(entry);
+        _historyEntries.Sort(static (left, right) => right.UpdatedAt.CompareTo(left.UpdatedAt));
+        if (_historyEntries.Count > LootHistoryStore.MaximumEntries)
+            _historyEntries.RemoveRange(LootHistoryStore.MaximumEntries,
+                _historyEntries.Count - LootHistoryStore.MaximumEntries);
+
+        try
+        {
+            _historyStore.Save(_historyEntries);
+            if (!_historyView.IsDisposed)
+                _historyView.SetEntries(_historyEntries);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            if (!_shutdownStarted)
+                SetStatus(UiStatusKind.Error, "Verlauf nicht gespeichert", exception.Message);
+        }
+    }
+
+    private void DeleteHistorySession(Guid sessionId, bool requireConfirmation)
+    {
+        var entry = _historyEntries.FirstOrDefault(candidate => candidate.SessionId == sessionId);
+        if (entry is null)
+            return;
+        if (_hasSession && sessionId == _sessionId)
+        {
+            if (requireConfirmation)
+                MessageBox.Show(this,
+                    "Die aktuell laufende Sitzung kann erst nach einer neuen Sitzung gelöscht werden.",
+                    "Grind-Stunde löschen", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        var spotName = LootSpotCatalog.GetRequired(entry.SpotId).DisplayName;
+        if (requireConfirmation && MessageBox.Show(this,
+                $"Soll die Grind-Stunde in {spotName} vom {entry.UpdatedAt.ToLocalTime():dd.MM.yyyy HH:mm} " +
+                $"({SpotHistoryCard.FormatDuration(entry.Duration)}) dauerhaft gelöscht werden?",
+                "Grind-Stunde löschen", MessageBoxButtons.YesNo, MessageBoxIcon.Warning,
+                MessageBoxDefaultButton.Button2) != DialogResult.Yes)
+            return;
+
+        _historyEntries.Remove(entry);
+        try
+        {
+            _historyStore.Save(_historyEntries);
+            _historyView.SetEntries(_historyEntries);
+            SetStatus(UiStatusKind.Ready, "Stunde gelöscht", $"{spotName} wurde aus dem Loot-Verlauf entfernt.");
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            _historyEntries.Add(entry);
+            _historyEntries.Sort(static (left, right) => right.UpdatedAt.CompareTo(left.UpdatedAt));
+            _historyView.SetEntries(_historyEntries);
+            SetStatus(UiStatusKind.Error, "Löschen fehlgeschlagen", exception.Message);
+        }
+    }
+
+    private void EditHistorySession(Guid sessionId)
+    {
+        var entry = _historyEntries.FirstOrDefault(candidate => candidate.SessionId == sessionId);
+        if (entry is null)
+            return;
+        if (_hasSession && sessionId == _sessionId)
+        {
+            MessageBox.Show(this,
+                "Die aktuell laufende Sitzung kann erst nach einer neuen Sitzung bearbeitet werden.",
+                "Lootmengen bearbeiten", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        using var dialog = new LootAmountsDialog(entry);
+        if (dialog.ShowDialog(this) != DialogResult.OK)
+            return;
+        if (dialog.Totals.Count == 0)
+        {
+            MessageBox.Show(this, "Mindestens eine Lootmenge muss größer als 0 sein.",
+                "Lootmengen bearbeiten", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+        UpdateHistorySessionLoot(sessionId, dialog.Totals);
+    }
+
+    private async void UploadHistorySession(Guid sessionId)
+    {
+        if (IsBusy || _shutdownStarted)
+            return;
+        if (_hasSession && sessionId == _sessionId)
+        {
+            // Share the live upload ledger even when invoked from the history.
+            await UploadToGarmothAsync();
+            return;
+        }
+        var index = _historyEntries.FindIndex(candidate => candidate.SessionId == sessionId);
+        if (index < 0 || _historyEntries[index].GarmothUploadBlocked)
+            return;
+        if (string.IsNullOrEmpty(_garmothApiKey))
+        {
+            ShowMainArea(showHistory: false);
+            if (!_optionsExpanded)
+                ToggleOptions();
+            SetStatus(UiStatusKind.Error, "Garmoth",
+                "API-Key einmal unter Optionen → Garmoth-Key hinterlegen.");
+            return;
+        }
+
+        _operationInProgress = true;
+        _garmothUploadInProgress = true;
+        UpdateControlState();
+        try
+        {
+            await RefreshPricesAsync();
+            var entry = _historyEntries[index];
+            var draft = CreateHistoricalGarmothDraft(entry, _prices,
+                _settings.GetSilverTaxOptions());
+            var payload = GarmothSessionPayload.Create(draft);
+            SetStatus(UiStatusKind.Paused, "Garmoth",
+                $"{LootSpotCatalog.GetRequired(entry.SpotId).DisplayName} wird übertragen …");
+            var result = await _garmothClient.UploadAsync(draft, _garmothApiKey);
+            if (payload.OmittedItems.Count > 0)
+                result = result with
+                {
+                    Message = result.Message + " Ohne Garmoth-Zuordnung ausgelassen: " +
+                              string.Join(", ", payload.OmittedItems) + "."
+                };
+            if (result.BlocksAnotherUpload)
+            {
+                _historyEntries[index] = entry with
+                {
+                    GarmothUploadBlocked = true,
+                    GarmothUploadedAt = result.Status == GarmothUploadStatus.Succeeded
+                        ? DateTimeOffset.UtcNow
+                        : null
+                };
+                _historyStore.Save(_historyEntries);
+                _historyView.SetEntries(_historyEntries);
+            }
+            SetStatus(result.Status == GarmothUploadStatus.Rejected
+                    ? UiStatusKind.Error : UiStatusKind.Paused,
+                "Garmoth", result.Message);
+        }
+        catch (ArgumentException exception)
+        {
+            SetStatus(UiStatusKind.Error, "Garmoth nicht gesendet", exception.Message);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            SetStatus(UiStatusKind.Error, "Garmoth-Verlauf", exception.Message);
+        }
+        finally
+        {
+            _garmothUploadInProgress = false;
+            _operationInProgress = false;
+            UpdateControlState();
+        }
+    }
+
+    internal static GarmothSessionDraft CreateHistoricalGarmothDraft(
+        LootHistoryEntry entry, LootPriceSnapshot prices, SilverTaxOptions tax)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+        ArgumentNullException.ThrowIfNull(prices);
+        ArgumentNullException.ThrowIfNull(tax);
+        if (string.IsNullOrWhiteSpace(entry.CharacterClass))
+            throw new ArgumentException("Für diesen Grind fehlt die Klasse. Bitte die Klasse zuerst in den Optionen festlegen.");
+        var className = SpotHistoryDetailView.ExtractBaseClassName(entry.CharacterClass);
+        var specialization = entry.CharacterClass.Contains("Awakening", StringComparison.OrdinalIgnoreCase)
+            ? GarmothSpecialization.Awakening
+            : entry.CharacterClass.Contains("Succession", StringComparison.OrdinalIgnoreCase)
+                ? GarmothSpecialization.Succession
+                : GarmothSpecialization.Unique;
+        var valuation = SilverValuation.Calculate(entry.Totals, prices, tax);
+        if (!valuation.HasKnownValue)
+            throw new ArgumentException("Für den Grind ist noch kein Silberpreis verfügbar.");
+        if (valuation.AfterTax < 0 || valuation.AfterTax > long.MaxValue || valuation.OverflowItems.Count > 0)
+            throw new ArgumentException("Der berechnete Silberwert ist nicht für Garmoth darstellbar.");
+        return new GarmothSessionDraft(entry.SessionId, entry.SpotId, className,
+            specialization, entry.Duration, entry.Totals,
+            (long)decimal.Truncate(valuation.AfterTax), entry.StartedAt)
+        {
+            SourceSessionId = entry.SessionId
+        };
+    }
+
+    private bool UpdateHistorySessionLoot(Guid sessionId, IReadOnlyDictionary<string, long> totals)
+    {
+        ArgumentNullException.ThrowIfNull(totals);
+        var index = _historyEntries.FindIndex(candidate => candidate.SessionId == sessionId);
+        if (index < 0)
+            return false;
+        var cleaned = totals
+            .Where(static pair => !string.IsNullOrWhiteSpace(pair.Key) && pair.Value > 0)
+            .ToDictionary(static pair => pair.Key.Trim(), static pair => pair.Value,
+                StringComparer.OrdinalIgnoreCase);
+        if (cleaned.Count == 0)
+            return false;
+
+        var previous = _historyEntries[index];
+        var valuation = SilverValuation.Calculate(cleaned, _prices, _settings.GetSilverTaxOptions());
+        var edited = previous with
+        {
+            Totals = cleaned,
+            SilverBeforeTax = valuation.BeforeTax,
+            SilverAfterTax = valuation.AfterTax,
+            SilverIsComplete = valuation.IsComplete
+        };
+        _historyEntries[index] = edited;
+        try
+        {
+            _historyStore.Save(_historyEntries);
+            _historyView.SetEntries(_historyEntries);
+            SetStatus(UiStatusKind.Ready, "Loot aktualisiert",
+                $"Die Dropmengen für {LootSpotCatalog.GetRequired(edited.SpotId).DisplayName} wurden gespeichert.");
+            return true;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            _historyEntries[index] = previous;
+            _historyView.SetEntries(_historyEntries);
+            SetStatus(UiStatusKind.Error, "Änderung nicht gespeichert", exception.Message);
+            return false;
+        }
+    }
+
     private MonitorOption? GetSelectedMonitor() => _monitorComboBox.SelectedItem as MonitorOption;
 
     private void UpdateControlState()
@@ -1470,7 +2106,8 @@ internal sealed class MainForm : Form
         _recordingCheckBox.Enabled = !_uiRunning && !IsBusy && !_hasSession;
         _classOverrideComboBox.Enabled = !_uiRunning && !IsBusy && !_sessionSubmitted;
         _garmothButton.Enabled = !IsBusy && !_sessionSubmitted &&
-            !_garmothIntervals.IsBlocked && _sessionSummary.ItemTypeCount > 0;
+            !_garmothIntervals.IsBlocked && !_demoMode && _sessionSummary.ItemTypeCount > 0;
+        _demoButton.Enabled = !IsBusy && !_uiRunning && !_hasSession;
         _garmothOptionsButton.Enabled = !IsBusy;
         _garmothOptionsButton.Text = string.IsNullOrEmpty(_garmothApiKey) ? "Garmoth-Key"
             : _settings.GarmothAutoUploadEnabled
@@ -1515,6 +2152,8 @@ internal sealed class MainForm : Form
             _priceLifetime.Dispose();
             _priceDetails.Dispose();
             _brandLogo.Image = null;
+            _characterClassIcon.Image = null;
+            _sessionSpotIcon.Image = null;
             _brandLogoImage.Dispose();
             Icon = null;
             _brandIcon.Dispose();
@@ -1522,6 +2161,9 @@ internal sealed class MainForm : Form
             _uiMailbox.Dispose();
             _recording?.Dispose();
             _garmothClient.Dispose();
+            _liveSpotBackgrounds.Dispose();
+            _liveSpotIcons.Dispose();
+            _liveClassIcons.Dispose();
             _garmothApiKey = string.Empty;
             _baseFont.Dispose();
             _titleFont.Dispose();

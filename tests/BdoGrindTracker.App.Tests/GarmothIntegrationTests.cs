@@ -3,12 +3,38 @@ using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using BdoGrindTracker.App.Integrations.Garmoth;
+using BdoGrindTracker.App.Persistence;
+using BdoGrindTracker.App.Pricing;
+using BdoGrindTracker.App.UI;
 using BdoGrindTracker.Core;
 
 namespace BdoGrindTracker.App.Tests;
 
 public sealed class GarmothIntegrationTests
 {
+    [Fact]
+    public void HistoricalDraftUsesStoredClassDurationLootAndCurrentValuation()
+    {
+        var started = new DateTimeOffset(2026, 9, 6, 18, 0, 0, TimeSpan.FromHours(2));
+        var entry = new LootHistoryEntry
+        {
+            SessionId = Guid.NewGuid(), StartedAt = started, UpdatedAt = started.AddHours(1),
+            Duration = TimeSpan.FromHours(1), SpotId = LootSpotCatalog.AphrodonId,
+            CharacterClass = "Warrior · Awakening",
+            Totals = new Dictionary<string, long> { ["Branch of Abundance"] = 10 },
+            SilverBeforeTax = 0, SilverAfterTax = 0, SilverIsComplete = false
+        };
+
+        var draft = MainForm.CreateHistoricalGarmothDraft(entry,
+            LootPriceCatalog.FixedSnapshot("eu"), SilverTaxOptions.Default);
+
+        Assert.Equal(entry.SessionId, draft.LocalSessionId);
+        Assert.Equal("Warrior", draft.ClassName);
+        Assert.Equal(GarmothSpecialization.Awakening, draft.Specialization);
+        Assert.Equal(1_551_270, draft.TotalSilver);
+        Assert.Equal(started, draft.StartedAt);
+    }
+
     [Fact]
     public void PayloadUsesVerifiedIdsAndSilverNotItemQuantity()
     {

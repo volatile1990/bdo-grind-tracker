@@ -40,6 +40,14 @@ gegen zukünftige Mengen erhalten: Ein Zähler, der unter den bereits gesendeten
 Stand fällt und sich erholt, erzeugt dadurch keine erneute Buchung derselben Beute.
 Bereits gespeicherte Garmoth-Einträge werden nicht nachträglich korrigiert.
 
+Der Verlauf speichert die vollständigen lokalen Sitzungssummen. Sobald mindestens
+ein Abschnitt erfolgreich übertragen wurde oder sein Ergebnis unklar ist, wird
+deshalb der Gesamt-Upload dieses Verlaufseintrags gesperrt. Diese Sperre bleibt
+auch nach einer neuen Sitzung oder einem Programmneustart erhalten. Einen noch
+nicht übertragenen Rest vor **Neue Sitzung** über den Garmoth-Upload der aktuellen
+Sitzung senden; dieser berücksichtigt weiterhin ausschließlich das Delta.
+Ein Verlaufsupload der aktuellen Sitzung verwendet ebenfalls diesen Uploadweg.
+
 Ein erfolgreicher automatischer Upload sperrt die lokale Sitzung nicht. Nach einem
 unklaren automatischen Ergebnis sind dagegen sämtliche weiteren Uploads dieser
 Sitzung gesperrt, einschließlich manuellem Upload und erneutem Aktivieren der Option;

@@ -19,7 +19,7 @@ public sealed class LiveDetectionDiagnosticsTests
             Assert.IsType<DetectionRegionPreview>(
                 FindByAccessibleName(view, "Diagnose Erkennungsbereich"));
 
-            var copyButton = Assert.IsType<Button>(
+            var copyButton = Assert.IsType<BdoButton>(
                 FindByAccessibleName(view, "Diagnose kopieren"));
             Assert.False(copyButton.Enabled);
         });
@@ -79,7 +79,7 @@ public sealed class LiveDetectionDiagnosticsTests
             Assert.Contains("windows-media-ocr / en-US", diagnosticText);
             Assert.Contains("- Black Crystal Fragment x370", diagnosticText);
 
-            var copyButton = Assert.IsType<Button>(
+            var copyButton = Assert.IsType<BdoButton>(
                 FindByAccessibleName(view, "Diagnose kopieren"));
             Assert.True(copyButton.Enabled);
         });
