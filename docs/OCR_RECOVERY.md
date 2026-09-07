@@ -59,10 +59,12 @@ am unveränderten Spotfilter scheitern; Rettungszähler sind keine echten Invent
 
 Die neue Erkennungsvariante heißt `companion-0.7.4+normal-recovery-v1`. Das
 Diagnose-Replay bleibt ein Zählungs-Replay bereits gespeicherter Beobachtungen,
-kein erneuter OCR-Lauf. Seit der Korrektur des normalen Zählers in 0.9.6-test.1 tragen
-neue Aufnahmen die Enginekennung `companion-0.7.4-overcount-fix-v2`. Alte Aufnahmen
-mit `companion-0.7.4-restore-v1` werden als Versionsvergleich ausgewiesen; gespeicherte
-OCR-Mengen werden dabei nicht neu erkannt oder repariert. Die Tests prüfen Auswahl,
+kein erneuter OCR-Lauf. In 0.9.6-test.2 ist der normale Zähler auf den Stand von 0.9.5
+zurückgesetzt; nur die Mengenübernahme aus test.1 bleibt erhalten. Neue Aufnahmen
+tragen die Enginekennung `companion-0.7.4-recovery-fix-v3`. Aufnahmen mit
+`companion-0.7.4-restore-v1` oder `companion-0.7.4-overcount-fix-v2` werden als
+Versionsvergleich ausgewiesen; gespeicherte OCR-Mengen werden dabei nicht neu
+erkannt oder repariert. Die Tests prüfen Auswahl,
 negative Fälle, Bildaufbereitung, Mengenwidersprüche und erhaltene Baseline-Verträge.
 Sie belegen keine bestimmte Genauigkeitssteigerung
 im Spiel. Dafür sind nach Pausieren abgeglichene reale Lootfolgen erforderlich;

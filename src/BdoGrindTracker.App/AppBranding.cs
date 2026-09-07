@@ -7,8 +7,8 @@ namespace BdoGrindTracker.App;
 internal static class AppBranding
 {
     public const string Name = "Grindcrest";
-    public const string WindowTitle = "Grindcrest · Black Desert Loot Tracker · 0.9.6-test.1";
-    public const string UserAgent = "Grindcrest/0.9.6-test.1";
+    public const string WindowTitle = "Grindcrest · Black Desert Loot Tracker · 0.9.6-test.2";
+    public const string UserAgent = "Grindcrest/0.9.6-test.2";
 
     public static Bitmap CreateLogo()
     {

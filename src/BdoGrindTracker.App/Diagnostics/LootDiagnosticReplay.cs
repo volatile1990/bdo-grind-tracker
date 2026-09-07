@@ -31,7 +31,7 @@ internal sealed record LootDiagnosticReplayResult(
         text.AppendLine($"Aufnahme-Engine: {RecordingEngineVersion}; Replay-Engine: {LootDiagnosticFormat.EngineVersion}");
         text.AppendLine("Umfang: aktuelle Companion-basierte Zähllogik; gespeicherte OCR-/Matching-Ergebnisse werden wiederverwendet.");
         if (!UsesCurrentEngine)
-            text.AppendLine("Versionsvergleich: Die Aufnahme verwendet den früheren Zähler. Abweichungen können durch die Zählerkorrektur entstehen; gespeicherte OCR-Mengen bleiben unverändert.");
+            text.AppendLine("Versionsvergleich: Die Aufnahme stammt aus einer anderen Engine-Version und wird mit dem aktuellen Zähler verglichen. Unterschiede können versionsbedingt sein; gespeicherte OCR-Mengen bleiben unverändert.");
         text.AppendLine("Bildausschnitte werden nicht geöffnet. OCR-Erkennung wird nicht erneut ausgeführt.");
         text.AppendLine($"Summen identisch: {(TotalsMatch ? "ja" : "nein")}");
         text.AppendLine($"Ereignisse je Frame identisch: {(EventTimelineMatches ? "ja" : "nein")}");
@@ -81,7 +81,8 @@ internal static class LootDiagnosticReplay
         var header = Deserialize<LootDiagnosticHeader>(ReadBoundedLine(reader), 1);
         if (header.Kind != "header" || header.FormatVersion != LootDiagnosticFormat.Version ||
             (header.EngineVersion != LootDiagnosticFormat.EngineVersion &&
-             header.EngineVersion != LootDiagnosticFormat.PreviousEngineVersion) ||
+             header.EngineVersion != LootDiagnosticFormat.PreviousEngineVersion &&
+             header.EngineVersion != LootDiagnosticFormat.ExperimentalEngineVersion) ||
             header.SpotId?.Length > LootDiagnosticFormat.MaximumTextLength ||
             header.Catalog is null || header.Catalog.Count is 0 or > 1024 ||
             header.Catalog.Any(static item => item is null || string.IsNullOrWhiteSpace(item.Name) ||

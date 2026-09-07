@@ -1,11 +1,11 @@
-# Erkennungsarchitektur 0.9.6-test.1
+# Erkennungsarchitektur 0.9.6-test.2
 
-Die Testversion korrigiert zwei Mehrzählungsursachen: Im normalen Abgleich laufen
-die Tags für weiter erkannte Zeilen fortlaufend weiter, statt nach 1→2→3 wieder auf
-1 zu springen. Eine stehende Anzeige wird damit nicht periodisch erneut gebucht.
-Die bisherige Überlappungsrichtung bleibt bestehen, sodass neu davor eingefügte
-gleiche Drops separat zählen. Vollständig identische volle Panels mit und ohne
-tatsächliche neue Drops können anhand der vorhandenen Beobachtungen mehrdeutig sein.
+Die Zähleränderung aus test.1 ist zurückgenommen. Fortlaufende Tags führten im
+gemeldeten Live-Test zu etwa 1.500 gezählten bei 5.000 tatsächlichen Trashloot.
+Identische Beobachtungen können unterschiedliche neue Drops darstellen. Sie
+dauerhaft zusammenzufassen war deshalb zu aggressiv. Der normale Abgleich
+verwendet wieder den ursprünglichen Zyklus 1→2→3→1 aus 0.9.5; dieser ist eine
+historische Heuristik und kein Nachweis der tatsächlichen Drop-Identität.
 Beim Nachlesen eines zuvor fehlgeschlagenen Namens überstimmt eine vollständig
 gelesene OCR-Endmenge eine widersprüchliche Template-Menge. Vollständige akzeptierte
 Baseline-Zeilen bleiben geschützt. Capture-Takt und Rare-Zähler bleiben unverändert.
@@ -14,8 +14,8 @@ Seit 0.9.4 wird der folgende Companion-Basispfad durch ausschließlich additive
 [Normal-Loot-Leseversuche](OCR_RECOVERY.md) ergänzt: fehlende Mengen nachlesen und
 gescheiterte Zeilen aus Originalpixeln mit Graustufen/adaptiver Binarisierung lesen.
 Erfolgreiche Baseline-Beobachtungen brauchen keine zusätzliche Bestätigung. Der
-Capture-Takt und Rare-Pfad bleiben unverändert; der normale Zähler enthält die oben
-beschriebene Korrektur. Die vollständige
+Capture-Takt und Rare-Pfad bleiben unverändert; der normale Zähler entspricht
+wieder 0.9.5. Die vollständige
 Erkennung ist damit ausdrücklich nicht mehr identisch zum wiederhergestellten Stand.
 
 ## Rückkehr zum Erkennungsstand 0.5.1
@@ -23,7 +23,8 @@ Erkennung ist damit ausdrücklich nicht mehr identisch zum wiederhergestellten S
 Die eigenständige Matching-/Lebensdauerlogik aus 0.6.0 und 0.6.1 hat im berichteten
 Live-Einsatz zu viele Trashloot-Drops verworfen. Deshalb werden Namensauflösung,
 Text-/Mengenverarbeitung und zeitliche Zählung auf dem Companion-basierten
-Stand 0.5.1 aufgebaut, mit den oben beschriebenen Korrekturen ab 0.9.6-test.1.
+Stand 0.5.1 aufgebaut. Aus 0.9.6-test.1 bleibt die oben beschriebene Änderung der
+Mengenübernahme beim Nachlesen erhalten; die Zähleränderung ist zurückgenommen.
 Grundlage sind die erhaltenen, hashgeprüften 0.5.1-Assemblies,
 deren eigener C#-Code mit ILSpy wiederhergestellt wurde. Die historische statische
 Analyse des Originals ist in [COMPANION_0_7_4_PARITY.md](COMPANION_0_7_4_PARITY.md)
@@ -183,9 +184,10 @@ die Erkennung. Eine Aufnahme beginnt mit einer neuen Session und umfasst auch
 Pause/Fortsetzen. Der Header kann noch keinen Spot enthalten, weil die automatische
 Erkennung erst während der Aufnahme erfolgt.
 
-Formatversion 2 trägt die Enginekennung `companion-0.7.4-overcount-fix-v2`. Die vorherige
-Kennung `companion-0.7.4-restore-v1` wird als expliziter Vergleich mit dem aktuellen
-Zähler akzeptiert; Ergebnisunterschiede können versionsbedingt sein. Alte Aufnahmen
+Formatversion 2 trägt die Enginekennung `companion-0.7.4-recovery-fix-v3`. Die vorherigen
+Kennungen `companion-0.7.4-restore-v1` und `companion-0.7.4-overcount-fix-v2` werden
+als expliziter Vergleich mit dem aktuellen Zähler akzeptiert. Der Zähler entspricht
+wieder restore-v1; die OCR-Aufbereitung wird im Replay nicht wiederholt. Alte Aufnahmen
 des Lebensdauer-Trackers werden wegen der anderen Logik nicht akzeptiert.
 Die Rare-Katalogmetadaten werden eingebettet, damit eine spätere Installation die
 Klassifikation nicht unbemerkt ändert. Iconpfade sind dabei nur Klassifikationstext.
@@ -200,10 +202,11 @@ Umfang dieses Replays.
 
 ## Verifikation und Grenzen
 
-Regressionstests prüfen fortlaufend sichtbare Zeilen, neue gleiche Drops, Batch-
-und Pausengrenzen sowie widersprüchliche Mengen beim Nachlesen. Historische Vergleiche
-mit erhaltenen Assemblies beschreiben den ursprünglichen Algorithmus und sind seit
-der Korrektur kein vollständiger Gleichheitsvertrag. UI-Tests prüfen insbesondere signed Korrekturen,
+Regressionstests prüfen den historischen Zyklus bei mehrdeutigen gleichen Zeilen,
+sichtbar neu eingefügte gleiche Drops, Batch-/Pausengrenzen und widersprüchliche
+Mengen beim Nachlesen. Die Zyklustests sichern Kompatibilität mit dem früheren
+Zähler; ihre erwarteten Buchungen sind keine unabhängig gemessenen Inventarmengen.
+UI-Tests prüfen insbesondere signed Korrekturen,
 automatische Spotanzeige, ignorierte manuelle Alt-Einstellungen und begrenzte
 Anzeigepuffer. Sie liefern keine reale Grind-Trefferquote.
 

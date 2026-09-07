@@ -384,9 +384,11 @@ public sealed class LootDiagnosticRecordingTests : IDisposable
     }
 
     [Theory]
-    [InlineData(LootDiagnosticFormat.EngineVersion, 1)]
-    [InlineData(LootDiagnosticFormat.PreviousEngineVersion, 4)]
-    public void ReplayDistinguishesCurrentRecordingsFromPreviousCounterComparisons(string engine, int recordedBookings)
+    [InlineData(LootDiagnosticFormat.EngineVersion, 4, true)]
+    [InlineData(LootDiagnosticFormat.PreviousEngineVersion, 4, false)]
+    [InlineData(LootDiagnosticFormat.ExperimentalEngineVersion, 1, false)]
+    public void ReplayDistinguishesCurrentRecordingsFromPreviousCounterComparisons(
+        string engine, int recordedBookings, bool usesCurrentEngine)
     {
         Directory.CreateDirectory(temporaryDirectory);
         var path = Path.Combine(temporaryDirectory, "counter-version.jsonl");
@@ -405,11 +407,11 @@ public sealed class LootDiagnosticRecordingTests : IDisposable
 
         var replay = LootDiagnosticReplay.Run(path);
         Assert.Equal(engine, replay.RecordingEngineVersion);
-        Assert.Equal(8, replay.Totals["BON Origin Shard"]);
+        Assert.Equal(32, replay.Totals["BON Origin Shard"]);
         Assert.Equal(8 * recordedBookings, replay.RecordedTotals["BON Origin Shard"]);
-        Assert.Equal(recordedBookings == 1, replay.UsesCurrentEngine);
-        Assert.Equal(recordedBookings == 1, replay.TotalsMatch);
-        Assert.Equal(recordedBookings == 1, replay.EventTimelineMatches);
+        Assert.Equal(usesCurrentEngine, replay.UsesCurrentEngine);
+        Assert.Equal(recordedBookings == 4, replay.TotalsMatch);
+        Assert.Equal(recordedBookings == 4, replay.EventTimelineMatches);
         if (!replay.UsesCurrentEngine)
             Assert.Contains("Versionsvergleich", replay.ToDisplayText());
     }

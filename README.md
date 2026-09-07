@@ -1,19 +1,22 @@
 # Grindcrest
 
-Lokaler, passiver Loot-Tracker für Black Desert, Testversion 0.9.6-test.1 (bisher BDO
-Grind Tracker). Der erste Erkennungspfad basiert auf dem Companion-Stand 0.5.1;
-die normale Zählung korrigiert das erneute Buchen weiter sichtbarer Lootzeilen.
+Lokaler, passiver Loot-Tracker für Black Desert, Testversion 0.9.6-test.2 (bisher BDO
+Grind Tracker). Der erste Erkennungspfad und die normale Zählung basieren wieder
+auf dem Companion-Stand wie in 0.9.5.
 Die zusätzlichen Bestätigungs- und Lebensdauerregeln aus 0.6.0/0.6.1 sind entfernt.
 Erhalten bleiben der automatische Spotfilter und die Verbesserungen der UI-Geschwindigkeit.
 
-0.9.6-test.1 behebt zwei Ursachen für zu hohe Lootmengen: Weiterhin sichtbare normale
-Zeilen werden nicht nach jeweils drei Erkennungen erneut gezählt. Beim Nachlesen
-eines zuvor nicht erkannten Itemnamens hat eine vollständig gelesene OCR-Endmenge
-Vorrang vor einer widersprüchlichen Template-Menge (etwa Text `x8`, Template `1`).
-Bereits erfolgreich erkannte Zeilen bleiben erhalten. Echte zusätzliche Zeilen und
-erneute Drops nach leerer Anzeige werden weiterhin gezählt. Bitte den Testbuild
-mit einer neuen Sitzung und Inventarmengen vor/nach einem kurzen Grind vergleichen;
-die Korrekturen garantieren noch keine fehlerfreie Erkennung jeder Bildfolge.
+0.9.6-test.2 nimmt die Zähleränderung aus test.1 zurück. Im Live-Test wurden dort nur
+etwa 1.500 von 5.000 Trashloot gezählt: Gleiche OCR-Zeilen können neue gleiche Drops
+darstellen und dürfen nicht dauerhaft zu einem einzigen Drop zusammengefasst werden.
+Der ursprüngliche Drei-Bilder-Zyklus ist deshalb wieder aktiv. Test.1 wird ersetzt.
+
+Erhalten bleibt ausschließlich die getrennte Mengenübernahme beim Nachlesen eines
+zuvor nicht erkannten Itemnamens: Eine vollständig gelesene OCR-Endmenge hat Vorrang
+vor einer widersprüchlichen Template-Menge (etwa Text `x8`, Template `1`). Bereits
+erfolgreich erkannte Zeilen bleiben erhalten. Bitte mit einer neuen Sitzung und
+Inventarmengen vor/nach einem kurzen Grind vergleichen. Der ursprüngliche Zähler
+bleibt eine Heuristik; eine vollständige Beseitigung aller Zählfehler ist nicht belegt.
 
 Der aktuelle Entwicklungsstand unterstützt alle sechs Inner-Edania-Zonen. Zu den
 bisherigen Spots kommen Aresion Temple, Scales of Judgment und Event Horizon mit
@@ -195,8 +198,8 @@ eine Teilsumme, **—** einen noch nicht bewertbaren Lootstand. Details per Maus
   verwendet weiterhin ausschließlich seinen bisherigen Erkennungsweg.
 - Normal- und Rare-Loot verwenden wieder den 10-Frame-Abgleich und das gemeinsame
   Korrektur-Ledger aus 0.5.1, einschließlich dessen Mengen- und Lückenreparaturen.
-  Seit 0.9.6-test.1 bleibt die interne Zuordnung einer fortlaufend erkannten normalen
-  Zeile bestehen; der frühere Rücksprung nach drei Erkennungen entfällt.
+  Die versuchsweise dauerhafte Zuordnung aus 0.9.6-test.1 ist wegen starker
+  Unterzählung zurückgenommen; der ursprüngliche Drei-Bilder-Zyklus ist wieder aktiv.
 - Es gibt keine zusätzliche verpflichtende zweite Lesung, eigene Mengenbestätigung,
   Lebensdauer-ID-Zuordnung, BON/JIN/WON-Sperre oder neue Runner-up-Regel mehr.
   Die bereits im Companion-Matcher enthaltenen Regeln bleiben unverändert.
@@ -262,11 +265,12 @@ zur visuellen Prüfung. Eine Übereinstimmung mit der Aufnahme ist kein Abgleich
 mit dem tatsächlichen Inventarloot; dafür werden manuell überprüfte Sollwerte benötigt.
 
 Neue Aufnahmen verwenden Formatversion 2 und die Enginekennung
-`companion-0.7.4-overcount-fix-v2`. Aufnahmen mit `companion-0.7.4-restore-v1` lassen
-sich zum ausdrücklich gekennzeichneten Vergleich mit dem aktuellen Zähler öffnen.
-Abweichende Summen können dabei durch die Korrektur entstehen; alte OCR-Mengen
-werden im Replay nicht repariert. Für die ursprüngliche Zählung bleibt die ältere
-EXE erforderlich. Frühere Lebensdauer-Tracker-Aufnahmen bleiben inkompatibel.
+`companion-0.7.4-recovery-fix-v3`. Aufnahmen mit `companion-0.7.4-restore-v1` (0.9.5)
+oder `companion-0.7.4-overcount-fix-v2` (test.1) lassen sich zum ausdrücklich
+gekennzeichneten Vergleich mit dem aktuellen Zähler öffnen. Dessen Verhalten
+entspricht wieder 0.9.5; gespeicherte OCR-Mengen werden im Replay nicht repariert.
+Für die ursprüngliche test.1-Zählung wäre die damalige EXE erforderlich.
+Frühere Lebensdauer-Tracker-Aufnahmen bleiben inkompatibel.
 
 ## Grenzen und Sicherheit
 

@@ -1,4 +1,4 @@
-// Companion normal-loot reconciliation with persistent tags for continuing rows.
+// Companion normal-loot reconciliation with its original cyclic frame tags.
 using System;
 using System.Collections.Generic;
 
@@ -170,10 +170,10 @@ public sealed class CompanionFrameReconciler
         {
             Entry entry = left.Entries[i];
             Entry entry2 = right.Entries[num + i];
-            // A still-visible row must not become new merely because it survived
-            // three observations. Newly inserted rows retain their initial tag;
-            // only rows matched by the existing overlap advance their tag.
-            entry2.Frame = checked(entry.Frame + 1);
+            // Equal OCR rows can represent successive identical drops. Preserve
+            // Companion's renewal heuristic: unbounded tags caused severe live
+            // undercounting by treating these ambiguous rows as one lasting drop.
+            entry2.Frame = ((entry.Frame > 2) ? 1 : (entry.Frame + 1));
             for (int j = 0; j < num + i; j++)
             {
                 Entry entry3 = right.Entries[j];

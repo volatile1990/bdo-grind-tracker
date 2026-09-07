@@ -2,8 +2,9 @@ using BdoGrindTracker.Core;
 
 namespace BdoGrindTracker.Core.Tests;
 
-// Explicit row histories distinguish a continuing display from newly inserted
-// drops. They cover the normal-counter contract, not real-world OCR accuracy.
+// Preserve the Companion counting contract. Identical OCR rows alone do not
+// reveal whether the game has produced new identical drops; these expectations
+// guard compatibility and are not independently measured inventory totals.
 public sealed class CompanionFrameReconcilerTests
 {
     [Fact]
@@ -15,25 +16,30 @@ public sealed class CompanionFrameReconcilerTests
             Assert.Empty(reconciler.ProcessFrame([new("Trash", 10, 250)]));
         }
         IReadOnlyList<CompanionRecognizedEntry> result = reconciler.ProcessFrame([new("Trash", 10, 250)]);
-        Assert.Equal(new CompanionRecognizedEntry("Trash", 10, 250), Assert.Single(result));
+        Assert.Equal(4, result.Count);
+        Assert.All(result, item => Assert.Equal(10u, item.Count));
     }
 
     [Fact]
-    public void ContinuingRowsAreCountedOnceAcrossBatchesAndCompletion()
+    public void DenseIdenticalInputsRetainCompanionRenewalAcrossBatchesAndCompletion()
     {
         var reconciler = new CompanionFrameReconciler();
-        CompanionRecognizedEntry[] rows = [new("Trash", 8, 220), new("Black Stone", 1, 175)];
+        CompanionRecognizedEntry[] rows = [new("Trash", 8, 220)];
         var events = new List<CompanionRecognizedEntry>();
         for (var frame = 0; frame < 37; frame++)
             events.AddRange(reconciler.ProcessFrame(rows));
         events.AddRange(reconciler.Complete());
-        Assert.Equal(rows, events);
+        Assert.Equal(13, events.Count);
+        Assert.Equal(104L, events.Sum(entry => (long)entry.Count));
         Assert.Empty(reconciler.Complete());
 
-        // Flushing during a pause does not turn the last visible loot into a
-        // fresh drop on resume, even across another batch boundary.
+        // A flush does not reset the historical renewal cadence. In particular,
+        // repeated inputs must not collapse to a single lifetime-long booking.
         for (var frame = 0; frame < 13; frame++)
-            Assert.Empty(reconciler.ProcessFrame(rows));
+            events.AddRange(reconciler.ProcessFrame(rows));
+        events.AddRange(reconciler.Complete());
+        Assert.Equal(17, events.Count);
+        Assert.Equal(136L, events.Sum(entry => (long)entry.Count));
         Assert.Empty(reconciler.Complete());
     }
 
@@ -42,8 +48,7 @@ public sealed class CompanionFrameReconcilerTests
     {
         var reconciler = new CompanionFrameReconciler();
         var events = new List<CompanionRecognizedEntry>();
-        for (var frame = 0; frame < 12; frame++)
-            events.AddRange(reconciler.ProcessFrame([new("Trash", 8, 250), new("Black Stone", 1, 200)]));
+        events.AddRange(reconciler.ProcessFrame([new("Trash", 8, 250), new("Black Stone", 1, 200)]));
 
         events.AddRange(reconciler.ProcessFrame([
             new("Trash", 8, 250), new("Trash", 8, 200), new("Black Stone", 1, 150)]));
@@ -61,9 +66,8 @@ public sealed class CompanionFrameReconcilerTests
     {
         var reconciler = new CompanionFrameReconciler();
         var events = new List<CompanionRecognizedEntry>();
-        for (var frame = 0; frame < 9; frame++)
-            events.AddRange(reconciler.ProcessFrame([
-                new("Trash", 8, 250), new("Black Stone", 1, 200), new("Trash", 4, 150)]));
+        events.AddRange(reconciler.ProcessFrame([
+            new("Trash", 8, 250), new("Black Stone", 1, 200), new("Trash", 4, 150)]));
         events.AddRange(reconciler.ProcessFrame([
             new("Trash", 8, 250), new("Trash", 8, 200), new("Black Stone", 1, 150)]));
         events.AddRange(reconciler.Complete());
