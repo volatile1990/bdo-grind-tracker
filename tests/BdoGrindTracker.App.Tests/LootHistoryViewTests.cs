@@ -498,6 +498,57 @@ public sealed class LootHistoryViewTests
         Assert.Equal(22_000m, metrics.BestFiveHourTrashPerHour);
     }
 
+    [Fact]
+    public void PastHoursOfferEditAndDeleteActionsInBothHistoryModes()
+    {
+        RunInSta(() =>
+        {
+            var profile = LootSpotPresentationCatalog.GetRequired(LootSpotCatalog.AphrodonId);
+            var entry = CreateEntry(profile.SpotId, profile.TrashItemName, 18_432,
+                new DateTimeOffset(2026, 9, 7, 12, 0, 0, TimeSpan.FromHours(2)));
+            using var view = new LootHistoryView { Size = new Size(900, 700) };
+            var edits = new List<Guid>();
+            var deletes = new List<Guid>();
+            view.EditRequested += edits.Add;
+            view.DeleteRequested += deletes.Add;
+            view.SetEntries([entry]);
+
+            view.ShowSpotDetails(profile.SpotId);
+            var details = Assert.Single(FindDescendants<SpotHistoryDetailView>(view));
+            details.RequestEdit(entry.SessionId);
+            details.RequestDelete(entry.SessionId);
+
+            view.ShowChronological();
+            var card = Assert.Single(FindDescendants<ChronologicalHistoryCard>(view));
+            card.RequestEdit();
+            card.RequestDelete();
+
+            Assert.Equal([entry.SessionId, entry.SessionId], edits);
+            Assert.Equal([entry.SessionId, entry.SessionId], deletes);
+        });
+    }
+
+    [Fact]
+    public void LootAmountEditorIncludesAllSpotItemsAndReturnsOnlyPositiveAmounts()
+    {
+        RunInSta(() =>
+        {
+            var profile = LootSpotPresentationCatalog.GetRequired(LootSpotCatalog.AphrodonId);
+            var entry = CreateEntry(profile.SpotId, profile.TrashItemName, 18_432,
+                new DateTimeOffset(2026, 9, 7, 12, 0, 0, TimeSpan.FromHours(2)));
+            using var dialog = new LootAmountsDialog(entry);
+            var inputs = FindDescendants<NumericUpDown>(dialog);
+            Assert.Equal(LootSpotCatalog.GetRequired(profile.SpotId).AllowedItems.Count, inputs.Count);
+            var trash = Assert.Single(inputs, input => input.AccessibleName == $"Menge für {profile.TrashItemName}");
+            var caphras = Assert.Single(inputs, input => input.AccessibleName == "Menge für Caphras Stone");
+            trash.Value = 20_000;
+            caphras.Value = 0;
+
+            Assert.Equal(20_000, dialog.Totals[profile.TrashItemName]);
+            Assert.DoesNotContain("Caphras Stone", dialog.Totals);
+        });
+    }
+
     [Theory]
     [InlineData(0, 0, 30, "gerade eben")]
     [InlineData(0, 45, 0, "vor 45 Min.")]

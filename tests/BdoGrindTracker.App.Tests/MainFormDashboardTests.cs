@@ -524,6 +524,46 @@ public sealed class MainFormDashboardTests(ITestOutputHelper output)
                 "BdoGrindTracker.Tests", "absent-" + Guid.NewGuid().ToString("N"))));
 
     [Fact]
+    public void PastLootCanBeEditedAndDeletedDurably()
+    {
+        RunInSta(() =>
+        {
+            using var settings = new IsolatedSettingsStore();
+            var sessionId = Guid.NewGuid();
+            settings.HistoryStore.Save([
+                new LootHistoryEntry
+                {
+                    SessionId = sessionId,
+                    StartedAt = DateTimeOffset.Now.AddHours(-2),
+                    UpdatedAt = DateTimeOffset.Now.AddHours(-1),
+                    Duration = TimeSpan.FromHours(1),
+                    SpotId = LootSpotCatalog.AphrodonId,
+                    CharacterClass = "Maegu · Awakening",
+                    Totals = new Dictionary<string, long> { ["Branch of Abundance"] = 10_000 },
+                    SilverBeforeTax = 1,
+                    SilverAfterTax = 1,
+                    SilverIsComplete = true
+                }
+            ]);
+            using var form = CreateForm(settings.Store);
+
+            Invoke(form, "UpdateHistorySessionLoot", sessionId,
+                new Dictionary<string, long>
+                {
+                    ["Branch of Abundance"] = 20_000,
+                    ["Caphras Stone"] = 25
+                });
+            var edited = Assert.Single(settings.HistoryStore.Load());
+            Assert.Equal(20_000, edited.Totals["Branch of Abundance"]);
+            Assert.Equal(25, edited.Totals["Caphras Stone"]);
+            Assert.True(edited.SilverAfterTax > 1);
+
+            Invoke(form, "DeleteHistorySession", sessionId, false);
+            Assert.Empty(settings.HistoryStore.Load());
+        });
+    }
+
+    [Fact]
     public void SilverCardsValueExistingTotalsAndTaxChangesDoNotChangeLoot()
     {
         RunInSta(() =>

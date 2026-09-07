@@ -23,6 +23,7 @@ internal sealed class SpotHistoryDetailView : Control
     private const int TableHeaderLogicalHeight = 62;
     private const int RowLogicalHeight = 54;
     private const int LootColumnLogicalWidth = 72;
+    private const int ActionsColumnLogicalWidth = 76;
     private const int ScrollBarLogicalHeight = 22;
     private const int PaginationLogicalHeight = 42;
     private static readonly CultureInfo GermanCulture = CultureInfo.GetCultureInfo("de-DE");
@@ -62,6 +63,10 @@ internal sealed class SpotHistoryDetailView : Control
     private Font? _bodyFont;
     private Font? _smallFont;
     private Rectangle _backBounds;
+    private readonly Dictionary<Guid, Rectangle> _editBounds = [];
+    private readonly Dictionary<Guid, Rectangle> _deleteBounds = [];
+    private Guid? _hoveredEditSessionId;
+    private Guid? _hoveredDeleteSessionId;
 
     public SpotHistoryDetailView(
         LootSpotPresentation profile,
@@ -95,7 +100,7 @@ internal sealed class SpotHistoryDetailView : Control
         TabStop = true;
         AccessibleRole = AccessibleRole.Pane;
         AccessibleName = $"Maximierte Grindspot-Details für {LootSpotCatalog.GetRequired(profile.SpotId).DisplayName}";
-        AccessibleDescription = $"{sessions.Count:N0} Grindstunden, Kennzahlen und Loot-Tabelle. Escape führt zur Übersicht zurück.";
+        AccessibleDescription = $"{sessions.Count:N0} Grindstunden, Kennzahlen und Loot-Tabelle mit Bearbeiten- und Löschen-Aktionen. Escape führt zur Übersicht zurück.";
         _lootScroll.ValueChanged += (_, _) => InvalidateLootViewport();
         _pagination.PageRequested += pageIndex =>
         {
@@ -115,6 +120,10 @@ internal sealed class SpotHistoryDetailView : Control
     }
 
     public event EventHandler? BackRequested;
+
+    internal event Action<Guid>? EditRequested;
+
+    internal event Action<Guid>? DeleteRequested;
 
     internal LootSpotPresentation Profile => _profile;
 
@@ -154,6 +163,18 @@ internal sealed class SpotHistoryDetailView : Control
     internal int LootScrollMaximum => _lootScroll.Maximum;
 
     internal Rectangle LootViewportBounds => GetLootViewportBounds();
+
+    internal void RequestEdit(Guid sessionId)
+    {
+        if (_sessions.Any(session => session.SessionId == sessionId))
+            EditRequested?.Invoke(sessionId);
+    }
+
+    internal void RequestDelete(Guid sessionId)
+    {
+        if (_sessions.Any(session => session.SessionId == sessionId))
+            DeleteRequested?.Invoke(sessionId);
+    }
 
     internal bool ScrollLootAt(Point location, int wheelDelta)
     {
@@ -200,6 +221,21 @@ internal sealed class SpotHistoryDetailView : Control
     protected override void OnMouseUp(MouseEventArgs e)
     {
         base.OnMouseUp(e);
+        if (e.Button == MouseButtons.Left)
+        {
+            var editSession = FindActionSession(_editBounds, e.Location);
+            if (editSession is { } editId)
+            {
+                RequestEdit(editId);
+                return;
+            }
+            var deleteSession = FindActionSession(_deleteBounds, e.Location);
+            if (deleteSession is { } deleteId)
+            {
+                RequestDelete(deleteId);
+                return;
+            }
+        }
         if (e.Button == MouseButtons.Left && _backBounds.Contains(e.Location))
         {
             Focus();
@@ -232,8 +268,29 @@ internal sealed class SpotHistoryDetailView : Control
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
+        var hoveredEdit = FindActionSession(_editBounds, e.Location);
+        var hoveredDelete = FindActionSession(_deleteBounds, e.Location);
+        if (_hoveredEditSessionId != hoveredEdit || _hoveredDeleteSessionId != hoveredDelete)
+        {
+            _hoveredEditSessionId = hoveredEdit;
+            _hoveredDeleteSessionId = hoveredDelete;
+            Invalidate();
+        }
+        Cursor = hoveredEdit is not null || hoveredDelete is not null || _backBounds.Contains(e.Location)
+            ? Cursors.Hand
+            : Cursors.Default;
         if (!Focused && CanFocus && GetLootViewportBounds().Contains(e.Location))
             Focus();
+    }
+
+    protected override void OnMouseLeave(EventArgs e)
+    {
+        base.OnMouseLeave(e);
+        if (_hoveredEditSessionId is null && _hoveredDeleteSessionId is null)
+            return;
+        _hoveredEditSessionId = null;
+        _hoveredDeleteSessionId = null;
+        Invalidate();
     }
 
     protected override void OnGotFocus(EventArgs e)
@@ -404,11 +461,14 @@ internal sealed class SpotHistoryDetailView : Control
 
     private void DrawTable(Graphics graphics, int startY)
     {
+        _editBounds.Clear();
+        _deleteBounds.Clear();
         var padding = ScaleLogical(15);
         var (classWidth, ageWidth, durationWidth, silverWidth) = GetFixedColumnWidths();
         var tableWidth = Math.Max(1, Width - padding * 2);
         var fixedWidth = classWidth + ageWidth + durationWidth + silverWidth;
-        var lootWidth = Math.Max(1, tableWidth - fixedWidth);
+        var actionsWidth = ScaleLogical(ActionsColumnLogicalWidth);
+        var lootWidth = Math.Max(1, tableWidth - fixedWidth - actionsWidth);
         var itemWidth = ScaleLogical(LootColumnLogicalWidth);
         var headerHeight = ScaleLogical(TableHeaderLogicalHeight);
         var headerBounds = new Rectangle(padding, startY, tableWidth, headerHeight);
@@ -448,6 +508,11 @@ internal sealed class SpotHistoryDetailView : Control
         x += durationWidth;
         DrawColumnHeader(graphics, "SILBER / H", new Rectangle(x, startY, silverWidth, headerHeight));
         DrawPinnedDivider(graphics, lootViewport.X, startY, headerHeight);
+        var actionsHeader = new Rectangle(headerBounds.Right - actionsWidth, startY, actionsWidth, headerHeight);
+        using (var actionFill = new SolidBrush(Color.FromArgb(255, 25, 28, 31)))
+            graphics.FillRectangle(actionFill, actionsHeader);
+        DrawColumnHeader(graphics, "AKTIONEN", actionsHeader);
+        DrawPinnedDivider(graphics, actionsHeader.X, startY, headerHeight);
 
         if (_visibleSessions.Count == 0)
         {
@@ -463,7 +528,7 @@ internal sealed class SpotHistoryDetailView : Control
         {
             DrawSessionRow(graphics, _visibleSessions[row], _lootColumns, itemWidth,
                 new Rectangle(padding, rowY, tableWidth, ScaleLogical(RowLogicalHeight)),
-                classWidth, ageWidth, durationWidth, silverWidth, row % 2 == 1);
+                classWidth, ageWidth, durationWidth, silverWidth, actionsWidth, row % 2 == 1);
             rowY += ScaleLogical(RowLogicalHeight);
         }
     }
@@ -478,6 +543,7 @@ internal sealed class SpotHistoryDetailView : Control
         int ageWidth,
         int durationWidth,
         int silverWidth,
+        int actionsWidth,
         bool alternate)
     {
         using (var fill = new SolidBrush(alternate
@@ -489,7 +555,7 @@ internal sealed class SpotHistoryDetailView : Control
 
         var fixedWidth = classWidth + ageWidth + durationWidth + silverWidth;
         var lootViewport = new Rectangle(bounds.X + fixedWidth, bounds.Y,
-            Math.Max(1, bounds.Width - fixedWidth), bounds.Height);
+            Math.Max(1, bounds.Width - fixedWidth - actionsWidth), bounds.Height);
         var clipState = graphics.Save();
         graphics.SetClip(lootViewport, CombineMode.Intersect);
         var lootX = lootViewport.X - _lootScroll.Value;
@@ -532,6 +598,32 @@ internal sealed class SpotHistoryDetailView : Control
             BdoTheme.GoldBright, TextFormatFlags.Right | TextFormatFlags.VerticalCenter |
             TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
         DrawPinnedDivider(graphics, lootViewport.X, bounds.Y, bounds.Height);
+
+        var actionsBounds = new Rectangle(bounds.Right - actionsWidth, bounds.Y, actionsWidth, bounds.Height);
+        using (var actionsFill = new SolidBrush(alternate
+                   ? Color.FromArgb(255, 29, 32, 35)
+                   : Color.FromArgb(255, 23, 26, 29)))
+            graphics.FillRectangle(actionsFill, actionsBounds);
+        var buttonSize = ScaleLogical(28);
+        var gap = ScaleLogical(5);
+        var editBounds = new Rectangle(actionsBounds.X + Math.Max(2, (actionsWidth - buttonSize * 2 - gap) / 2),
+            actionsBounds.Y + (actionsBounds.Height - buttonSize) / 2, buttonSize, buttonSize);
+        var deleteBounds = new Rectangle(editBounds.Right + gap, editBounds.Y, buttonSize, buttonSize);
+        _editBounds[session.SessionId] = editBounds;
+        _deleteBounds[session.SessionId] = deleteBounds;
+        BdoTheme.DrawEditAction(graphics, editBounds, _hoveredEditSessionId == session.SessionId);
+        BdoTheme.DrawDeleteAction(graphics, deleteBounds, _hoveredDeleteSessionId == session.SessionId);
+        DrawPinnedDivider(graphics, actionsBounds.X, bounds.Y, bounds.Height);
+    }
+
+    private static Guid? FindActionSession(IReadOnlyDictionary<Guid, Rectangle> actions, Point location)
+    {
+        foreach (var action in actions)
+        {
+            if (action.Value.Contains(location))
+                return action.Key;
+        }
+        return null;
     }
 
     private void DrawColumnHeader(Graphics graphics, string text, Rectangle bounds)
@@ -638,7 +730,7 @@ internal sealed class SpotHistoryDetailView : Control
         var padding = ScaleLogical(15);
         var (classWidth, ageWidth, durationWidth, silverWidth) = GetFixedColumnWidths();
         var fixedWidth = classWidth + ageWidth + durationWidth + silverWidth;
-        var viewportWidth = Math.Max(1, Width - padding * 2 - fixedWidth);
+        var viewportWidth = Math.Max(1, Width - padding * 2 - fixedWidth - ScaleLogical(ActionsColumnLogicalWidth));
         var contentWidth = _lootColumns.Count * ScaleLogical(LootColumnLogicalWidth);
         var overflow = Math.Max(0, contentWidth - viewportWidth);
         var rowsHeight = _visibleSessions.Count == 0
@@ -672,7 +764,7 @@ internal sealed class SpotHistoryDetailView : Control
             ? ScaleLogical(82)
             : _visibleSessions.Count * ScaleLogical(RowLogicalHeight);
         var bounds = new Rectangle(padding + fixedWidth, ScaleLogical(HeaderLogicalHeight),
-            Math.Max(1, Width - padding * 2 - fixedWidth),
+            Math.Max(1, Width - padding * 2 - fixedWidth - ScaleLogical(ActionsColumnLogicalWidth)),
             ScaleLogical(TableHeaderLogicalHeight) + rowsHeight);
         Invalidate(Rectangle.Inflate(bounds, ScaleLogical(1), 0));
     }
@@ -686,7 +778,7 @@ internal sealed class SpotHistoryDetailView : Control
             ? ScaleLogical(82)
             : _visibleSessions.Count * ScaleLogical(RowLogicalHeight);
         return new Rectangle(padding + fixedWidth, ScaleLogical(HeaderLogicalHeight),
-            Math.Max(1, Width - padding * 2 - fixedWidth),
+            Math.Max(1, Width - padding * 2 - fixedWidth - ScaleLogical(ActionsColumnLogicalWidth)),
             ScaleLogical(TableHeaderLogicalHeight) + rowsHeight);
     }
 

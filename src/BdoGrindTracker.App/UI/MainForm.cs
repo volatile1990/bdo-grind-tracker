@@ -125,6 +125,8 @@ internal sealed class MainForm : Form
         _historyEntries = _historyStore.Load().ToList();
         _historyView = new LootHistoryView();
         _historyView.SetEntries(_historyEntries);
+        _historyView.DeleteRequested += sessionId => DeleteHistorySession(sessionId, requireConfirmation: true);
+        _historyView.EditRequested += EditHistorySession;
         _captureSession = new PassiveCaptureSession(screenCapture);
         _sessionClock = sessionClock ?? new GrindSessionClock();
         _inactivityTimer = inactivityTimer ?? new GrindInactivityTimer();
@@ -1624,6 +1626,109 @@ internal sealed class MainForm : Form
         {
             if (!_shutdownStarted)
                 SetStatus(UiStatusKind.Error, "Verlauf nicht gespeichert", exception.Message);
+        }
+    }
+
+    private void DeleteHistorySession(Guid sessionId, bool requireConfirmation)
+    {
+        var entry = _historyEntries.FirstOrDefault(candidate => candidate.SessionId == sessionId);
+        if (entry is null)
+            return;
+        if (_hasSession && sessionId == _sessionId)
+        {
+            if (requireConfirmation)
+                MessageBox.Show(this,
+                    "Die aktuell laufende Sitzung kann erst nach einer neuen Sitzung gelöscht werden.",
+                    "Grind-Stunde löschen", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        var spotName = LootSpotCatalog.GetRequired(entry.SpotId).DisplayName;
+        if (requireConfirmation && MessageBox.Show(this,
+                $"Soll die Grind-Stunde in {spotName} vom {entry.UpdatedAt.ToLocalTime():dd.MM.yyyy HH:mm} " +
+                $"({SpotHistoryCard.FormatDuration(entry.Duration)}) dauerhaft gelöscht werden?",
+                "Grind-Stunde löschen", MessageBoxButtons.YesNo, MessageBoxIcon.Warning,
+                MessageBoxDefaultButton.Button2) != DialogResult.Yes)
+            return;
+
+        _historyEntries.Remove(entry);
+        try
+        {
+            _historyStore.Save(_historyEntries);
+            _historyView.SetEntries(_historyEntries);
+            SetStatus(UiStatusKind.Ready, "Stunde gelöscht", $"{spotName} wurde aus dem Loot-Verlauf entfernt.");
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            _historyEntries.Add(entry);
+            _historyEntries.Sort(static (left, right) => right.UpdatedAt.CompareTo(left.UpdatedAt));
+            _historyView.SetEntries(_historyEntries);
+            SetStatus(UiStatusKind.Error, "Löschen fehlgeschlagen", exception.Message);
+        }
+    }
+
+    private void EditHistorySession(Guid sessionId)
+    {
+        var entry = _historyEntries.FirstOrDefault(candidate => candidate.SessionId == sessionId);
+        if (entry is null)
+            return;
+        if (_hasSession && sessionId == _sessionId)
+        {
+            MessageBox.Show(this,
+                "Die aktuell laufende Sitzung kann erst nach einer neuen Sitzung bearbeitet werden.",
+                "Lootmengen bearbeiten", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        using var dialog = new LootAmountsDialog(entry);
+        if (dialog.ShowDialog(this) != DialogResult.OK)
+            return;
+        if (dialog.Totals.Count == 0)
+        {
+            MessageBox.Show(this, "Mindestens eine Lootmenge muss größer als 0 sein.",
+                "Lootmengen bearbeiten", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+        UpdateHistorySessionLoot(sessionId, dialog.Totals);
+    }
+
+    private bool UpdateHistorySessionLoot(Guid sessionId, IReadOnlyDictionary<string, long> totals)
+    {
+        ArgumentNullException.ThrowIfNull(totals);
+        var index = _historyEntries.FindIndex(candidate => candidate.SessionId == sessionId);
+        if (index < 0)
+            return false;
+        var cleaned = totals
+            .Where(static pair => !string.IsNullOrWhiteSpace(pair.Key) && pair.Value > 0)
+            .ToDictionary(static pair => pair.Key.Trim(), static pair => pair.Value,
+                StringComparer.OrdinalIgnoreCase);
+        if (cleaned.Count == 0)
+            return false;
+
+        var previous = _historyEntries[index];
+        var valuation = SilverValuation.Calculate(cleaned, _prices, _settings.GetSilverTaxOptions());
+        var edited = previous with
+        {
+            Totals = cleaned,
+            SilverBeforeTax = valuation.BeforeTax,
+            SilverAfterTax = valuation.AfterTax,
+            SilverIsComplete = valuation.IsComplete
+        };
+        _historyEntries[index] = edited;
+        try
+        {
+            _historyStore.Save(_historyEntries);
+            _historyView.SetEntries(_historyEntries);
+            SetStatus(UiStatusKind.Ready, "Loot aktualisiert",
+                $"Die Dropmengen für {LootSpotCatalog.GetRequired(edited.SpotId).DisplayName} wurden gespeichert.");
+            return true;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            _historyEntries[index] = previous;
+            _historyView.SetEntries(_historyEntries);
+            SetStatus(UiStatusKind.Error, "Änderung nicht gespeichert", exception.Message);
+            return false;
         }
     }
 

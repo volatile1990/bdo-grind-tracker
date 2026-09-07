@@ -59,6 +59,76 @@ internal static class BdoTheme
         return path;
     }
 
+    internal static void DrawDeleteAction(Graphics graphics, Rectangle bounds, bool hovered,
+        string? label = null)
+    {
+        graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        using (var path = CreateRoundedRectangle(bounds, Math.Max(5, bounds.Height / 4)))
+        using (var fill = new SolidBrush(hovered
+                   ? Color.FromArgb(68, Error)
+                   : Color.FromArgb(218, SurfaceRaised)))
+        using (var border = new Pen(hovered ? Color.FromArgb(220, Error) : BorderSoft))
+        {
+            graphics.FillPath(fill, path);
+            graphics.DrawPath(border, path);
+        }
+
+        var iconSize = Math.Min(16, Math.Max(10, bounds.Height - 10));
+        var iconX = label is null
+            ? bounds.X + (bounds.Width - iconSize) / 2
+            : bounds.X + 8;
+        var iconY = bounds.Y + (bounds.Height - iconSize) / 2 + 1;
+        using var pen = new Pen(hovered ? Error : Color.FromArgb(205, 183, 151), 1.5f)
+        {
+            StartCap = LineCap.Round,
+            EndCap = LineCap.Round
+        };
+        graphics.DrawRectangle(pen, iconX + 3, iconY + 4, iconSize - 6, iconSize - 5);
+        graphics.DrawLine(pen, iconX + 2, iconY + 3, iconX + iconSize - 2, iconY + 3);
+        graphics.DrawLine(pen, iconX + 6, iconY + 1, iconX + iconSize - 6, iconY + 1);
+        if (label is null)
+            return;
+        TextRenderer.DrawText(graphics, label, SystemFonts.MessageBoxFont,
+            new Rectangle(iconX + iconSize + 3, bounds.Y,
+                Math.Max(1, bounds.Right - iconX - iconSize - 7), bounds.Height),
+            hovered ? Error : TextMuted,
+            TextFormatFlags.Left | TextFormatFlags.VerticalCenter |
+            TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
+    }
+
+    internal static void DrawEditAction(Graphics graphics, Rectangle bounds, bool hovered,
+        string? label = null)
+    {
+        using (var path = CreateRoundedRectangle(bounds, Math.Max(5, bounds.Height / 4)))
+        using (var fill = new SolidBrush(hovered
+                   ? Color.FromArgb(68, Gold)
+                   : Color.FromArgb(218, SurfaceRaised)))
+        using (var border = new Pen(hovered ? Gold : BorderSoft))
+        {
+            graphics.FillPath(fill, path);
+            graphics.DrawPath(border, path);
+        }
+
+        var iconSize = Math.Min(16, Math.Max(10, bounds.Height - 10));
+        var iconX = label is null ? bounds.X + (bounds.Width - iconSize) / 2 : bounds.X + 8;
+        var iconY = bounds.Y + (bounds.Height - iconSize) / 2;
+        using var pen = new Pen(hovered ? GoldBright : Color.FromArgb(205, 183, 151), 2f)
+        {
+            StartCap = LineCap.Round,
+            EndCap = LineCap.Round
+        };
+        graphics.DrawLine(pen, iconX + 2, iconY + iconSize - 3, iconX + iconSize - 3, iconY + 2);
+        graphics.DrawLine(pen, iconX + 1, iconY + iconSize - 1, iconX + 5, iconY + iconSize - 2);
+        if (label is null)
+            return;
+        TextRenderer.DrawText(graphics, label, SystemFonts.MessageBoxFont,
+            new Rectangle(iconX + iconSize + 3, bounds.Y,
+                Math.Max(1, bounds.Right - iconX - iconSize - 7), bounds.Height),
+            hovered ? GoldBright : TextMuted,
+            TextFormatFlags.Left | TextFormatFlags.VerticalCenter |
+            TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
+    }
+
     private static void DrawComboBoxItem(object? sender, DrawItemEventArgs e)
     {
         if (sender is not ComboBox comboBox || e.Index < 0)

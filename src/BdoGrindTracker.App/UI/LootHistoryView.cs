@@ -90,6 +90,10 @@ internal sealed class LootHistoryView : UserControl
 
     internal int ChronologicalPageSize => _chronologicalPageSize;
 
+    internal event Action<Guid>? DeleteRequested;
+
+    internal event Action<Guid>? EditRequested;
+
     public void SetEntries(IEnumerable<LootHistoryEntry> entries)
     {
         ArgumentNullException.ThrowIfNull(entries);
@@ -271,6 +275,8 @@ internal sealed class LootHistoryView : UserControl
             Margin = new Padding(0, 0, 0, 11)
         };
         details.BackRequested += (_, _) => BeginInvoke(new Action(ShowSpotOverview));
+        details.DeleteRequested += sessionId => DeleteRequested?.Invoke(sessionId);
+        details.EditRequested += sessionId => EditRequested?.Invoke(sessionId);
         _spotDetailList.Controls.Add(details);
         FitChildren(_spotDetailList);
     }
@@ -301,7 +307,7 @@ internal sealed class LootHistoryView : UserControl
                          .Take(_chronologicalPageSize))
             {
                 var profile = LootSpotPresentationCatalog.GetRequired(entry.SpotId);
-                _chronologicalList.Controls.Add(new ChronologicalHistoryCard(
+                var card = new ChronologicalHistoryCard(
                     entry,
                     profile,
                     _backgrounds.Get(profile.BackgroundFileName),
@@ -311,7 +317,10 @@ internal sealed class LootHistoryView : UserControl
                     _icons)
                 {
                     Margin = new Padding(0, 0, 0, 9)
-                });
+                };
+                card.DeleteRequested += sessionId => DeleteRequested?.Invoke(sessionId);
+                card.EditRequested += sessionId => EditRequested?.Invoke(sessionId);
+                _chronologicalList.Controls.Add(card);
             }
 
             var pager = new HistoryPaginationBar();
@@ -862,6 +871,10 @@ internal sealed class ChronologicalHistoryCard : Control
     private Font? _captionFont;
     private Font? _valueFont;
     private bool _expanded;
+    private bool _deleteHovered;
+    private Rectangle _deleteBounds;
+    private bool _editHovered;
+    private Rectangle _editBounds;
 
     public ChronologicalHistoryCard(
         LootHistoryEntry entry,
@@ -906,6 +919,16 @@ internal sealed class ChronologicalHistoryCard : Control
     internal IReadOnlyList<string> CollapsedLootItemNames =>
         _collapsedLootItems.Select(static item => item.Key).ToArray();
 
+    internal Rectangle DeleteBounds => _deleteBounds;
+
+    internal event Action<Guid>? DeleteRequested;
+
+    internal event Action<Guid>? EditRequested;
+
+    internal void RequestEdit() => EditRequested?.Invoke(_entry.SessionId);
+
+    internal void RequestDelete() => DeleteRequested?.Invoke(_entry.SessionId);
+
     internal void SetExpanded(bool expanded)
     {
         if (_expanded == expanded)
@@ -948,6 +971,16 @@ internal sealed class ChronologicalHistoryCard : Control
     protected override void OnMouseUp(MouseEventArgs e)
     {
         base.OnMouseUp(e);
+        if (_expanded && e.Button == MouseButtons.Left && _deleteBounds.Contains(e.Location))
+        {
+            RequestDelete();
+            return;
+        }
+        if (_expanded && e.Button == MouseButtons.Left && _editBounds.Contains(e.Location))
+        {
+            RequestEdit();
+            return;
+        }
         if (e.Button == MouseButtons.Left && ClientRectangle.Contains(e.Location))
         {
             Focus();
@@ -958,12 +991,45 @@ internal sealed class ChronologicalHistoryCard : Control
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
+        if (_expanded && e.KeyCode == Keys.Delete)
+        {
+            RequestDelete();
+            e.Handled = true;
+            e.SuppressKeyPress = true;
+            return;
+        }
         if (e.KeyCode is Keys.Enter or Keys.Space)
         {
             SetExpanded(!_expanded);
             e.Handled = true;
             e.SuppressKeyPress = true;
         }
+    }
+
+    protected override void OnMouseMove(MouseEventArgs e)
+    {
+        base.OnMouseMove(e);
+        var hovered = _expanded && _deleteBounds.Contains(e.Location);
+        var editHovered = _expanded && _editBounds.Contains(e.Location);
+        if (_deleteHovered != hovered || _editHovered != editHovered)
+        {
+            _deleteHovered = hovered;
+            _editHovered = editHovered;
+            Invalidate(_deleteBounds);
+            Invalidate(_editBounds);
+        }
+        Cursor = Cursors.Hand;
+    }
+
+    protected override void OnMouseLeave(EventArgs e)
+    {
+        base.OnMouseLeave(e);
+        if (!_deleteHovered && !_editHovered)
+            return;
+        _deleteHovered = false;
+        _editHovered = false;
+        Invalidate(_deleteBounds);
+        Invalidate(_editBounds);
     }
 
     protected override void OnGotFocus(EventArgs e)
@@ -1071,9 +1137,15 @@ internal sealed class ChronologicalHistoryCard : Control
         var classText = string.IsNullOrWhiteSpace(_entry.CharacterClass)
             ? "LOOT DER STUNDE"
             : $"LOOT DER STUNDE  ·  {_entry.CharacterClass}";
+        _deleteBounds = new Rectangle(Width - ScaleLogical(101),
+            headerHeight + ScaleLogical(6), ScaleLogical(86), ScaleLogical(28));
+        _editBounds = new Rectangle(_deleteBounds.Left - ScaleLogical(96),
+            _deleteBounds.Y, ScaleLogical(90), _deleteBounds.Height);
+        BdoTheme.DrawEditAction(graphics, _editBounds, _editHovered, "Bearbeiten");
+        BdoTheme.DrawDeleteAction(graphics, _deleteBounds, _deleteHovered, "Löschen");
         TextRenderer.DrawText(graphics, classText, _captionFont,
             new Rectangle(ScaleLogical(15), headerHeight + ScaleLogical(8),
-                Width - ScaleLogical(30), ScaleLogical(22)),
+                Math.Max(80, _editBounds.Left - ScaleLogical(25)), ScaleLogical(22)),
             BdoTheme.TextMuted, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
 
         var items = _expandedLootItems;
@@ -1179,7 +1251,7 @@ internal sealed class ChronologicalHistoryCard : Control
         var compactLoot = string.Join(", ", _collapsedLootItems.Select(static item =>
             $"{item.Key} {item.Value:N0}"));
         AccessibleDescription = _expanded
-            ? $"Ausgeklappt. {_entry.Totals.Count:N0} Loot-Arten."
+            ? $"Ausgeklappt. {_entry.Totals.Count:N0} Loot-Arten. Bearbeiten ändert Dropmengen; Entf löscht diese Stunde nach Bestätigung."
             : $"Eingeklappt. Trash und Drops über 200 Millionen Silber: {compactLoot}. Für Loot-Details aktivieren.";
     }
 
