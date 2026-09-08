@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http;
 using System.Reflection;
@@ -411,11 +411,12 @@ public sealed class TrackerSessionServiceTests
         {
             ["Black Crystal Fragment"] = 8,
             ["Black Stone"] = 2
-        });
+        }, "Maegu · Awakening");
 
         var saved = Assert.Single(fixture.HistoryStore.Load());
         Assert.Equal(8, saved.Totals["Black Crystal Fragment"]);
         Assert.Equal(2, saved.Totals["Black Stone"]);
+        Assert.Equal("Maegu · Awakening", saved.CharacterClass);
         Assert.Equal(8 * 160_539m + 2 * 1_300m, saved.SilverAfterTax);
         Assert.True(saved.GarmothUploadBlocked);
         await fixture.Service.UploadHistoryAsync(id);
@@ -827,16 +828,33 @@ public sealed class TrackerSessionServiceTests
         public override void Post(SendOrPostCallback callback, object? state) => callbacks.Add((callback, state));
     }
 
+    [Fact]
+    public async Task RestoresSavedPreferencesWithoutStartingCaptureOrDemo()
+    {
+        var settings = new AppSettings
+        {
+            CharacterClassId = "maegu-awakening", IncludeEventLoot = true,
+        };
+        await using var fixture = new Fixture(initialSettings: settings);
+        Assert.Equal("maegu-awakening", fixture.Service.Preferences.CharacterClassId);
+        Assert.True(fixture.Service.Preferences.IncludeEventLoot);
+        Assert.False(fixture.Service.State.IsDemo);
+        Assert.Empty(fixture.Service.State.Loot.Totals);
+        Assert.False(fixture.Service.State.IsRunning);
+        Assert.Equal(0, fixture.Captures);
+    }
+
     private sealed class Fixture : IAsyncDisposable
     {
         private long _sequence;
-        public Fixture(bool autoUpload = true, bool saveKey = true)
+        public Fixture(bool autoUpload = true, bool saveKey = true, AppSettings? initialSettings = null)
         {
             Directory.CreateDirectory(DirectoryPath);
             SetField(Settings, "_settingsPath", SettingsPath);
             KeyStore = new GarmothApiKeyStore(Path.Combine(DirectoryPath, "test-key.dpapi"));
             HistoryStore = new LootHistoryStore(Path.Combine(DirectoryPath, "loot-history-v1.json"));
             if (autoUpload) Settings.Save(new AppSettings { GarmothAutoUploadEnabled = true });
+            if (initialSettings is not null) Settings.Save(initialSettings);
             if (saveKey) KeyStore.Save("synthetic-auto-upload-key");
             Clock = new GrindSessionClock(Time);
             Activity = new GrindInactivityTimer(Time);

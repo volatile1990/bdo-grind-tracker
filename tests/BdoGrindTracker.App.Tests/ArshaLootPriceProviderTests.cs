@@ -9,6 +9,27 @@ namespace BdoGrindTracker.App.Tests;
 public sealed class ArshaLootPriceProviderTests
 {
     [Fact]
+    public async Task BatchServerErrorFallsBackToIndividualPricesAndKeepsMissingCacheStale()
+    {
+        var time = new ManualTime();
+        var handler = new Handler(_ => Json("""[{"id":16001,"sid":0,"basePrice":100},{"id":721003,"sid":0,"basePrice":1000}]"""));
+        using var provider = new ArshaLootPriceProvider(handler, timeProvider: time);
+        var before = await provider.GetSnapshotAsync("eu");
+        time.Advance(TimeSpan.FromMinutes(11));
+        handler.Respond = request => request.RequestUri!.Query == "?id=16001&lang=en"
+            ? Json(Price(200)) : new(HttpStatusCode.InternalServerError);
+        var after = await provider.GetSnapshotAsync("eu");
+        Assert.Equal(200, after.Quotes["Black Stone"].UnitPrice);
+        Assert.False(after.Quotes["Black Stone"].IsStale);
+        Assert.Equal(before.Quotes["Caphras Stone"].FetchedAt, after.Quotes["Caphras Stone"].FetchedAt);
+        Assert.True(after.Quotes["Caphras Stone"].IsStale);
+        Assert.Contains("teilweise", after.StatusMessage);
+        var count = handler.Count;
+        await provider.GetSnapshotAsync("eu");
+        Assert.Equal(count, handler.Count);
+    }
+
+    [Fact]
     public void ConstructionAndCachedSnapshotNeverSendRequests()
     {
         var handler = new Handler(_ => Json("[]"));

@@ -1,4 +1,4 @@
-using BdoGrindTracker.App.Pricing;
+﻿using BdoGrindTracker.App.Pricing;
 
 namespace BdoGrindTracker.App.Persistence;
 
@@ -15,6 +15,12 @@ internal sealed class AppSettings
     public string? MonitorDeviceName { get; set; }
 
     public string? SpotId { get; set; }
+
+    public string? CharacterClassId { get; set; }
+    public bool IncludeEventLoot { get; set; }
+
+    public string[] FavoriteItems { get; set; } = [];
+    public Dictionary<string, string[]> LootColumnOrders { get; set; } = new();
 
     public int AutoPauseMinutes { get; set; } = DefaultAutoPauseMinutes;
 

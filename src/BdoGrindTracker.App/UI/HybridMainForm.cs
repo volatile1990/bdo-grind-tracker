@@ -12,6 +12,8 @@ namespace BdoGrindTracker.App.UI;
 internal sealed class HybridMainForm : Form
 {
     private readonly ITrackerSession _session;
+    private readonly BdoGrindTracker.App.Persistence.WindowPlacementStore _placementStore = new();
+    private readonly bool _persistPlacement;
     private readonly BlazorWebView _web = new() { Dock = DockStyle.Fill };
     private readonly ServiceProvider _services;
     private readonly IAppUpdates _updates;
@@ -31,6 +33,7 @@ internal sealed class HybridMainForm : Form
     public HybridMainForm(ITrackerSession session, bool smokeTest = false, int? debugPort = null, bool preview = false, bool hidden = false)
     {
         _session = session;
+        _persistPlacement = !preview && !smokeTest && !hidden;
         _smokeTest = smokeTest;
         _hidden = smokeTest || hidden;
         Text = AppBranding.WindowTitle + (preview ? " · Vorschau" : "");
@@ -99,6 +102,11 @@ internal sealed class HybridMainForm : Form
         MinimumSize = new Size(Math.Min((int)(860 * scale), work.Width), Math.Min((int)(640 * scale), work.Height));
         Size = new Size(Math.Min((int)(1320 * scale), work.Width), Math.Min((int)(900 * scale), work.Height));
         Location = new Point(work.Left + (work.Width - Width) / 2, work.Top + (work.Height - Height) / 2);
+        if (_persistPlacement && _placementStore.Load() is { } saved)
+        {
+            Bounds = saved.Fit(Screen.AllScreens.OrderByDescending(screen => screen.Primary).Select(screen => screen.WorkingArea).ToArray());
+            if (saved.Maximized) WindowState = FormWindowState.Maximized;
+        }
     }
 
     protected override void OnHandleCreated(EventArgs e)
@@ -181,6 +189,7 @@ internal sealed class HybridMainForm : Form
         e.Cancel = true;
         if (_closing) return;
         _closing = true;
+        SaveWindowPlacement();
         _timer.Stop();
         Enabled = false;
         try { await _session.ShutdownAsync(); await _session.DisposeAsync(); }
@@ -212,6 +221,7 @@ internal sealed class HybridMainForm : Form
             // Keep the live service available for retry until the paused session
             // has a durable snapshot. Shutdown itself disposes the service.
             await _session.PrepareUpdateRestartAsync();
+            SaveWindowPlacement();
         }
         catch (Exception)
         {
@@ -248,6 +258,14 @@ internal sealed class HybridMainForm : Form
             _closed = true;
             Close();
         }
+    }
+
+    private void SaveWindowPlacement()
+    {
+        if (!_persistPlacement) return;
+        var bounds = WindowState == FormWindowState.Normal ? Bounds : RestoreBounds;
+        if (bounds.Width > 0 && bounds.Height > 0)
+            _placementStore.Save(new(bounds.X, bounds.Y, bounds.Width, bounds.Height, WindowState == FormWindowState.Maximized));
     }
 
     protected override void Dispose(bool disposing)

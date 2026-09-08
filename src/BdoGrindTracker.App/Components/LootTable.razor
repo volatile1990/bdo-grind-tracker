@@ -1,4 +1,4 @@
-@inherits TrackerComponentBase
+﻿@inherits TrackerComponentBase
 
 <section class="panel loot-panel" aria-label="@Title">
     <div class="panel-heading">
@@ -18,8 +18,8 @@
                     @foreach (var item in Rows)
                     {
                         var isTrash = item.Name == TrashName;
-                        <tr @key="item.Name">
-                            <td><div class="item-cell"><AssetImage Src="@ItemIcon(item.Name)" Alt="" Class="item-image" /><span><strong>@item.Name</strong><small>@(isTrash ? "Trashloot · NPC-Verkauf" : Kind(item.Name))@if (item.Stale) { <span class="inline-warning"> · Cachepreis</span> }</small></span>@if (isTrash) { <span class="item-tag">TRASH</span> }</div></td>
+                        <tr @key="item.Name" class="@(Tracker.Preferences.FavoriteItems.Contains(item.Name) ? "favorite-loot-row" : "")">
+                            <td><div class="item-cell"><AssetImage Src="@ItemIcon(item.Name)" Alt="" Class="item-image" /><span><strong>@item.Name</strong><small>@(isTrash ? "Trashloot · NPC-Verkauf" : Kind(item.Name))@if (item.Stale) { <span class="inline-warning"> · Cachepreis</span> }</small></span>@if (isTrash) { <span class="item-tag">TRASH</span> }@if (Tracker.Preferences.FavoriteItems.Contains(item.Name)) { <span class="item-tag favorite-tag">★ FAVORIT</span> }</div></td>
                             <td class="numeric quantity">@Number(_hourly ? Hourly(item.Quantity, TimeSpan.FromTicks(DurationTicks)) : item.Quantity)</td>
                             <td class="numeric silver-cell" title="@(item.Value.HasValue ? Number(item.Value.Value) + " Silber netto" : "Für diesen Gegenstand fehlt ein Preis.")">@(item.Value.HasValue ? Silver(_hourly ? Hourly(item.Value.Value, TimeSpan.FromTicks(DurationTicks)) : item.Value.Value) : "Preis fehlt")</td>
                         </tr>

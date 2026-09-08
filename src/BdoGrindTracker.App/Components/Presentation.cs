@@ -24,6 +24,9 @@ internal static class Presentation
     internal static string ShortDuration(TimeSpan duration) => duration.TotalHours >= 1
         ? $"{(int)duration.TotalHours} Std. {duration.Minutes:00} Min."
         : $"{Math.Max(0, (int)duration.TotalMinutes)} Min.";
+    internal static string CompactDuration(TimeSpan duration) => duration.TotalHours >= 1
+        ? $"{(int)duration.TotalHours}:{duration.Minutes:00} h"
+        : $"{Math.Max(0, (int)duration.TotalMinutes)} min";
     internal static decimal Hours(TimeSpan duration) => (decimal)duration.Ticks / TimeSpan.TicksPerHour;
     internal static decimal Hourly(decimal amount, TimeSpan duration) => duration > TimeSpan.Zero ? amount / Hours(duration) : 0;
     internal static string SpotName(string? id) => LootSpotCatalog.Spots.FirstOrDefault(spot => spot.Id == id)?.DisplayName ?? "Grindspot wird erkannt";

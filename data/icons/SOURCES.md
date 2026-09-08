@@ -123,3 +123,5 @@ by BDO Codex. It rejects names with multiple distinct icons, including
 `Pure Black Stone`, and replaces the target catalog. For selected additions,
 use a filtered `-ItemsFile` and separate output/catalog paths, then merge only
 the verified new metadata; do not replace this catalog with a partial refresh.
+
+2026-09-08: Pure Black Stone uses the AP variant icon from https://bdocodex.com/us/item/13/ as representative for the shared item name.

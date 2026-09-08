@@ -46,5 +46,7 @@ public sealed class PresentationTests
         Assert.Equal(120m, Presentation.Hourly(90m, TimeSpan.FromMinutes(45)));
         Assert.Equal(0m, Presentation.Hourly(90m, TimeSpan.Zero));
         Assert.Equal("100:05:09", Presentation.Duration(TimeSpan.FromHours(100) + TimeSpan.FromMinutes(5) + TimeSpan.FromSeconds(9)));
+        Assert.Equal("1:05 h", Presentation.CompactDuration(TimeSpan.FromMinutes(65)));
+        Assert.Equal("45 min", Presentation.CompactDuration(TimeSpan.FromMinutes(45)));
     }
 }
