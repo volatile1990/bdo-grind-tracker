@@ -78,6 +78,20 @@ internal sealed class FrameUiMailbox : IDisposable
         }
     }
 
+    public void AdjustQuantity(string itemName, long quantity, long originalQuantity,
+        Action<LootSessionSnapshot> beforeCommit,
+        Action<IReadOnlyDictionary<string, long>, bool>? onPublished = null)
+    {
+        lock (_sync)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            _aggregate.AdjustQuantity(itemName, quantity, originalQuantity, beforeCommit);
+            _totalsChanged = true;
+            // Corrections change future upload deltas, never the drop/idle clock.
+            onPublished?.Invoke(_aggregate.Totals, false);
+        }
+    }
+
     public void Reset()
     {
         lock (_sync)
@@ -109,7 +123,7 @@ internal sealed record LootSessionSnapshot(
     public static LootSessionSnapshot Empty { get; } = new(
         new Dictionary<string, long>(), 0, 0);
 
-    public int ItemTypeCount => Totals.Count;
+    public int ItemTypeCount => Totals.Count(pair => pair.Value != 0);
 }
 
 internal sealed record FrameUiUpdate(

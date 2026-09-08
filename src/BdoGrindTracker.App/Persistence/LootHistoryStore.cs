@@ -110,7 +110,7 @@ internal sealed class LootHistoryStore
                     ? null
                     : entry.CharacterClass.Trim(),
                 Totals = entry.Totals
-                    .Where(static pair => !string.IsNullOrWhiteSpace(pair.Key) && pair.Value > 0)
+                    .Where(static pair => !string.IsNullOrWhiteSpace(pair.Key) && pair.Value >= 0)
                     .ToDictionary(static pair => pair.Key, static pair => pair.Value,
                         StringComparer.OrdinalIgnoreCase)
             })

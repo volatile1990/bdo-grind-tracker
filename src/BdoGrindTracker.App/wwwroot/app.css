@@ -76,3 +76,74 @@ small,.item-cell small,.panel-heading p,.page-heading p,.field small,.toggle-row
 .chronological-history{background:transparent;border:0;overflow:visible}.chronological-session-card{margin-bottom:12px;border:1px solid #384351;border-radius:9px;background:#151d26;overflow:hidden}.chronological-session-header{display:grid;grid-template-columns:85px 220px minmax(0,1fr) 100px 125px 20px;align-items:center;gap:16px;padding:16px;list-style:none;cursor:pointer;background-size:cover;background-position:center}.chronological-session-header::-webkit-details-marker{display:none}.chronological-session-header:focus-visible{outline:2px solid #f5bf55;outline-offset:-3px}.chronological-date,.chronological-session-duration,.chronological-session-silver{display:flex;flex-direction:column;gap:6px}.chronological-session-header strong{font-size:15px;line-height:1.4}.chronological-session-header small{font-size:13px;line-height:1.4;color:#a6b6c8}.chronological-spot{display:flex;align-items:center;gap:12px;min-width:0}.chronological-spot>span{display:flex;flex-direction:column;gap:5px;min-width:0}.chronological-spot strong{color:#ffe2ac}.chronological-spot-icon{width:42px;height:42px;flex-shrink:0}.chronological-loot-preview{display:flex;flex-wrap:wrap;gap:12px;justify-content:flex-start;align-items:flex-start;min-width:0}.chronological-loot-badge{display:flex;align-items:center;flex-direction:column;gap:4px;flex:0 0 52px;width:52px}.chronological-loot-badge .item-image{width:30px;height:30px}.chronological-session-silver{text-align:right;color:#f5bf55}.chronological-session-duration{text-align:center}.chronological-expand{transition:transform .15s}.chronological-session-card[open] .chronological-expand{transform:rotate(90deg)}.chronological-session-details{padding:16px;border-top:1px solid #384351}.chronological-session-actions{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;font-size:14px;color:#a6b6c8}.chronological-session-actions>div{display:flex;gap:8px;flex-wrap:wrap}.chronological-session-details .panel{margin-bottom:0}
 @media(max-width:1100px){.chronological-session-header{grid-template-columns:80px minmax(160px,1fr) 90px 115px 20px;gap:12px}.chronological-loot-preview{grid-row:2;grid-column:2/5;justify-content:flex-start}.chronological-session-duration{grid-column:3;grid-row:1}.chronological-session-silver{grid-column:4;grid-row:1}.chronological-expand{grid-column:5;grid-row:1}}
 @media(max-width:650px){.chronological-session-header{grid-template-columns:70px minmax(0,1fr) 20px}.chronological-session-duration{grid-column:1;grid-row:2}.chronological-session-silver{grid-column:2;grid-row:2;text-align:left}.chronological-loot-preview{grid-row:3;grid-column:1/3}.chronological-expand{grid-column:3}.chronological-session-actions .button{font-size:13px}}
+
+/* The live header keeps spot artwork and session controls in one compact band. */
+.live-page{padding-top:20px}
+.live-session-header{position:relative;isolation:isolate;margin-bottom:16px;border:1px solid #66736355;border-radius:var(--radius);background-color:#263329;background-size:cover;background-position:center 48%;overflow:hidden}
+.live-session-header::before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,#101a1bec 0%,#14201bd1 37%,#14201b50 65%,#11191bc9 100%),linear-gradient(0deg,#11191c66,transparent)}
+.live-header-main{display:flex;align-items:center;justify-content:space-between;gap:24px;min-height:124px;padding:16px 22px}
+.live-session-context{min-width:0}
+.live-session-title-row{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:12px}
+.live-page .live-session-title-row h1{font-size:14px;line-height:1.4;font-weight:550;letter-spacing:.01em;color:#c4d1cb}
+.live-session-title-row h1:focus{outline:none}
+.live-session-status{display:inline-flex;align-items:center;gap:6px;padding:3px 8px;border:1px solid #d3e6da26;border-radius:5px;background:#12201a80;color:#c7d7cf;font-size:12px;line-height:1.4}
+.live-spot-identity{display:flex;align-items:center;gap:12px;min-width:0}
+.live-spot-identity .spot-emblem{width:43px;height:43px;flex-shrink:0}
+.live-spot-copy{min-width:0}
+.live-spot-copy h2{font-size:24px;line-height:1.25;font-weight:600;letter-spacing:-.025em;color:#f0f0e9;overflow-wrap:anywhere}
+.live-session-meta{display:flex;align-items:center;flex-wrap:wrap;gap:6px 16px;margin-top:8px;color:#bbc9c2;font-size:13px;line-height:1.5}
+.live-session-meta>span{display:inline-flex;align-items:center;gap:6px;min-width:0;overflow-wrap:anywhere}
+.live-session-meta .class-image{width:18px;height:18px}
+.live-session-meta .icon{width:14px;height:14px;flex-shrink:0;color:#9cafaa}
+.live-session-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.live-session-actions .button{min-height:40px}
+.live-session-actions .button.primary{min-width:143px}
+.live-session-actions .button.secondary{background:#14201bbd;border-color:#a6b8ac44;color:#d5dfd8}
+.live-session-actions .button.secondary:hover:not(:disabled){background:#26372e;border-color:#a6b8ac88}
+.live-page .live-session-metrics{grid-template-columns:repeat(4,minmax(0,1fr));gap:0;margin:0;border-top:1px solid #adbdac2b;background:#10191ee0}
+.live-session-metrics .metric-card{padding:13px 22px;border:0;border-right:1px solid #adbdac20;border-radius:0;background:transparent}
+.live-session-metrics .metric-card:last-child{border-right:0}
+.live-page .metric-label{min-height:0;font-size:12px;letter-spacing:.035em;align-items:center}
+.live-page .metric-label .icon{width:15px;height:15px}
+.live-page .metric-value{font-size:27px;margin:9px 0 4px}
+.live-page .time-value{font-size:25px}
+.live-page .metric-note{display:block;font-size:13px;line-height:1.5}
+.live-page .valuation-note{margin:0;padding:0 4px;align-items:flex-start}
+.live-page .valuation-note .icon{margin-top:3px;flex-shrink:0}
+.live-page .loot-panel>.panel-heading{padding:13px 18px}
+.live-page .loot-panel>.table-toolbar{padding:0 18px 12px}
+.live-page .live-demo-notice{padding:7px 13px;margin-bottom:14px}
+.live-demo-notice>div{display:flex;align-items:baseline;flex-wrap:wrap;gap:2px 10px}
+.live-demo-notice strong{margin:0}
+@media(max-width:1150px){.live-header-main{gap:16px;padding:16px 18px}.live-session-actions{flex-direction:column;align-items:stretch}.live-session-actions .button{min-height:36px;padding:8px 12px}.live-session-metrics .metric-card{padding:12px 16px}}
+@media(min-width:761px) and (max-width:880px){.live-session-metrics .metric-card{padding:12px 14px}.live-page .metric-value{font-size:24px}.live-page .time-value{font-size:23px}}
+@media(max-width:880px){.live-page .session-aside{grid-template-columns:1fr}.live-page .price-status{grid-column:auto}.live-spot-copy h2{font-size:22px}}
+@media(max-width:760px){.live-page .live-session-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.live-session-metrics .metric-card:nth-child(2){border-right:0}.live-session-metrics .metric-card:nth-child(n+3){border-top:1px solid #adbdac20}}
+@media(max-width:700px){.live-header-main{align-items:stretch;flex-direction:column;gap:16px}.live-session-actions{flex-direction:row;flex-wrap:wrap}.live-session-actions .button{flex:1}.live-page .live-demo-notice{flex-wrap:wrap}.live-demo-notice .text-button{margin-left:auto}}
+
+/* Quantity corrections remain inline, with a quiet but always discoverable pen. */
+.loot-quantity-control{display:inline-flex;align-items:center;justify-content:flex-end;gap:4px;max-width:100%;vertical-align:middle}
+.quantity-edit-button.icon-button{padding:4px;color:#82909e;flex:none}.quantity-edit-button .icon{width:13px;height:13px}.quantity-edit-button:hover:not(:disabled),.quantity-edit-button:focus-visible{color:var(--gold-bright);background:#ffffff0b}
+.loot-quantity-editor{display:flex;flex-direction:column;align-items:stretch;width:112px;max-width:100%;margin:0;white-space:normal;text-align:left;gap:4px}.loot-quantity-editor label{display:flex;flex-direction:column;gap:4px}.loot-quantity-editor label>span{font-size:12px;font-weight:400;color:var(--muted)}.loot-quantity-editor input{min-width:0;width:100%;padding:5px 7px;border:1px solid #657b8e;border-radius:5px;background:#10171f;color:var(--text);font:inherit;font-variant-numeric:tabular-nums;text-align:right}.quantity-edit-actions{display:flex;justify-content:flex-end;gap:3px}.quantity-edit-actions .icon-button{padding:4px}.quantity-edit-actions .icon{width:15px;height:15px}.quantity-edit-error,.quantity-edit-note{font-size:12px;line-height:1.45;overflow-wrap:anywhere}.quantity-edit-error{color:#f0a7ae}.quantity-edit-note{color:var(--muted)}.spot-session-table .loot-quantity-editor{width:76px}.spot-session-table .quantity-edit-button.icon-button{padding:2px}
+/* Capture prerequisites stay separate from the optional chat help. */
+.tracking-blocked{flex-wrap:wrap;align-items:flex-start}
+.tracking-blocked>div{flex:1;min-width:200px}
+.tracking-blocked .text-button{flex-shrink:0}
+.item-chat-help{padding:16px 17px;border:1px solid #3b4650;border-radius:10px;background:#1b242bcc;font-size:13px;line-height:1.65;color:#9fadb9}
+.item-chat-help-title{display:flex;align-items:center;gap:7px;margin-bottom:8px;flex-wrap:wrap}
+.item-chat-help-title>.icon{width:15px;height:15px;flex-shrink:0;color:#8fafbd}
+.item-chat-help-title>strong{font-size:13px;font-weight:550;color:#c4d0db}
+.item-chat-help-title>span{margin-left:auto;font-size:11px;color:#8c9da9}
+.item-chat-help p{font-size:13px;color:inherit;line-height:1.65;margin:0}
+.item-chat-help details{margin-top:9px}
+.item-chat-help summary{cursor:pointer;color:#b4c6d2;font-size:12px}
+.item-chat-help details p{margin-top:8px}
+.item-chat-help summary:focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:2px}
+.autosave-fields{border:0;padding:0;margin:0;min-width:0}
+.settings-autosave{display:flex;align-items:flex-start;gap:9px;color:#91a69f;font-size:13px;line-height:1.6;margin-top:18px;padding:0 2px}
+.settings-autosave>.icon{width:16px;height:16px;margin-top:3px}
+.settings-autosave small{display:block;color:var(--muted);font-size:12px}
+.compact-autosave{margin:15px 0 0;font-size:12px;color:var(--muted)}
+.field .field-error{color:var(--red)}
+.garmoth-remove-key{font-size:12px;margin:0 0 15px}
+.garmoth-connection .compact-autosave+.button{margin-top:12px}

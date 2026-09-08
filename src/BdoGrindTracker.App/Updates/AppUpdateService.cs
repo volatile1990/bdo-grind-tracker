@@ -26,10 +26,13 @@ internal sealed class AppUpdateService : IAppUpdates
         ?? typeof(AppUpdateService).Assembly.GetName().Version?.ToString() ?? "unbekannt";
 
     public static IAppUpdates Create(bool enabled, Func<bool> isSessionRunning, Func<bool> isSessionBusy,
+        Func<Action, Task<bool>> requestRestart, Func<IAppUpdates>? createStoreUpdates = null)
+        => AppUpdateRuntime.Current.CreateUpdates(enabled,
+            () => CreateUnpackaged(isSessionRunning, isSessionBusy, requestRestart), createStoreUpdates);
+
+    private static IAppUpdates CreateUnpackaged(Func<bool> isSessionRunning, Func<bool> isSessionBusy,
         Func<Action, Task<bool>> requestRestart)
     {
-        if (!enabled)
-            return new DisabledAppUpdates(ApplicationVersion, "Updates sind in der Vorschau und bei Prüfungen deaktiviert.");
         try
         {
             var repository = GetRepositoryUrl();

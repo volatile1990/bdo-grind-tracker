@@ -10,7 +10,8 @@ internal sealed class PreviewTrackerSession : ITrackerSession
 {
     private readonly List<LootHistoryEntry> _history = [];
     public event Action? Changed;
-    public TrackerState State { get; private set; } = new() { AnalyzerAvailable = true, IsDemo = true };
+    public TrackerState State { get; private set; } = new() { AnalyzerAvailable = true, IsDemo = true,
+        DetectedGameLanguage = "en", GameLanguageStatus = "Vorschau: Englisch · keine BDO-Konfiguration gelesen" };
     public TrackerPreferences Preferences { get; private set; } = new() { MonitorDeviceName = "preview", ValuePack = true };
     public IReadOnlyList<TrackerMonitor> Monitors { get; } =
         [new("preview", "Bildschirm 1 · 3840 × 2160 · Hauptbildschirm", new(0, 0, 3840, 2160), true),
@@ -59,12 +60,13 @@ internal sealed class PreviewTrackerSession : ITrackerSession
             Status = "Vorschau · Beispieldaten werden weder aufgezeichnet noch hochgeladen.", PriceStatus = "EU · NPC- und Festwerte"
         });
     }
-    private void Change(TrackerState state) { State = state; Changed?.Invoke(); }
+    private void Change(TrackerState state) { State = state with { DetectedGameLanguage = "en",
+        GameLanguageStatus = "Vorschau: Englisch · keine BDO-Konfiguration gelesen" }; Changed?.Invoke(); }
     public Task ToggleTrackingAsync() { Change(State with { IsRunning = !State.IsRunning, HasSession = true, Status = "Vorschau · Tracking wird nur simuliert." }); return Task.CompletedTask; }
     public Task PauseAsync() { Change(State with { IsRunning = false }); return Task.CompletedTask; }
     public Task NewSessionAsync() { Change(new() { SessionId = Guid.NewGuid(), AnalyzerAvailable = true, IsDemo = true, HasApiKey = State.HasApiKey, Status = "Vorschau · Neue Session bereit." }); return Task.CompletedTask; }
     public Task SetDemoAsync(bool enabled) { if (enabled) ShowSample(); else return NewSessionAsync(); return Task.CompletedTask; }
-    public Task SavePreferencesAsync(TrackerPreferences preferences, string? apiKey = null,
+    public Task<PreferenceSaveResult> SavePreferencesAsync(TrackerPreferences preferences, string? apiKey = null,
         bool resumeAutomaticUpload = false)
     {
         var hasApiKey = apiKey is null ? State.HasApiKey : !string.IsNullOrWhiteSpace(apiKey);
@@ -72,7 +74,7 @@ internal sealed class PreviewTrackerSession : ITrackerSession
         Prices = LootPriceCatalog.FixedSnapshot(preferences.MarketRegion);
         Change(State with { HasApiKey = hasApiKey,
             Silver = SilverValuation.Calculate(State.Loot.Totals, Prices, Preferences.Tax), Status = "Vorschau · Einstellungen nur im Arbeitsspeicher gespeichert." });
-        return Task.CompletedTask;
+        return Task.FromResult(new PreferenceSaveResult());
     }
     public Task UploadAsync() { Change(State with { Status = "Vorschau · Es wird nichts an Garmoth gesendet." }); return Task.CompletedTask; }
     public Task UploadHistoryAsync(Guid sessionId) => UploadAsync();
@@ -81,16 +83,41 @@ internal sealed class PreviewTrackerSession : ITrackerSession
         var index = _history.FindIndex(entry => entry.SessionId == sessionId);
         if (index >= 0)
         {
-            var values = totals.Where(p => p.Value > 0).ToDictionary(p => p.Key, p => p.Value);
+            var values = totals.Where(p => p.Value > 0 || p.Value == 0 && _history[index].Totals.ContainsKey(p.Key))
+                .ToDictionary(p => p.Key, p => p.Value);
             var silver = SilverValuation.Calculate(values, Prices, Preferences.Tax);
             _history[index] = _history[index] with { CharacterClass = characterClass is null ? _history[index].CharacterClass : string.IsNullOrWhiteSpace(characterClass) ? null : characterClass.Trim(), Totals = values, SilverBeforeTax = silver.BeforeTax, SilverAfterTax = silver.AfterTax, SilverIsComplete = silver.IsComplete };
         }
         Changed?.Invoke(); return Task.CompletedTask;
     }
+    public Task UpdateLootQuantityAsync(Guid sessionId, string itemName, long quantity, long originalQuantity)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(itemName);
+        ArgumentOutOfRangeException.ThrowIfNegative(quantity);
+        var current = sessionId == State.SessionId;
+        var entry = _history.FirstOrDefault(entry => entry.SessionId == sessionId);
+        var source = current ? State.Loot.Totals : entry?.Totals
+            ?? throw new InvalidOperationException("Diese Session ist nicht mehr verfügbar.");
+        var correction = checked(quantity - originalQuantity);
+        var totals = new Dictionary<string, long>(source, StringComparer.OrdinalIgnoreCase)
+        {
+            [itemName] = Math.Max(0, checked(source.GetValueOrDefault(itemName) + correction)),
+        };
+        var totalQuantity = totals.Values.Sum();
+        if (!current) return UpdateHistoryLootAsync(sessionId, totals);
+        Change(State with
+        {
+            Loot = new(totals, totalQuantity, State.Loot.ConfirmedEventCount),
+            Silver = SilverValuation.Calculate(totals, Prices, Preferences.Tax),
+            Status = "Vorschau · Lootmenge nur im Arbeitsspeicher korrigiert.",
+        });
+        return Task.CompletedTask;
+    }
     public Task DeleteHistoryAsync(Guid sessionId) { _history.RemoveAll(entry => entry.SessionId == sessionId); Changed?.Invoke(); return Task.CompletedTask; }
     public Task RefreshPricesAsync() { Change(State with { Status = "Vorschau · Kein Netzwerkabruf." }); return Task.CompletedTask; }
     public Task TickAsync() => Task.CompletedTask;
     public Task PrepareUpdateRestartAsync() => Task.CompletedTask;
+    public Task RunPreparedUpdateAsync(Func<Task> install) => Task.CompletedTask;
     public Task ShutdownAsync() => Task.CompletedTask;
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }

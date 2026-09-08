@@ -10,6 +10,8 @@ public sealed record TrashLootMinimum(string SpotId, string ItemName, uint? Mini
 
 public static class TrashLootMinimumCatalog
 {
+    // Historical v4 compatibility table. Current live quantities are supplied
+    // per observation by DropQuantityCatalog, including the user's trash values.
     // Research on 2026-09-07 found item/spot associations, but no verified
     // spot-wide minima. Elite-only ranges and observed buffed drops are not
     // safe replacements. Leave entries null until that evidence is available.

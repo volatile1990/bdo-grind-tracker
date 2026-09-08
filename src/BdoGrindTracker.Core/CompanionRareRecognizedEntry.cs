@@ -13,6 +13,8 @@ public sealed record CompanionRareRecognizedEntry
 
     public bool SuppressCounting { get; }
 
+    public DropQuantityBounds? QuantityBounds { get; init; }
+
     public CompanionRareRecognizedEntry(string name, int count, int y = 0, bool suppressCounting = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name, "name");
@@ -22,4 +24,3 @@ public sealed record CompanionRareRecognizedEntry
         SuppressCounting = suppressCounting;
     }
 }
-

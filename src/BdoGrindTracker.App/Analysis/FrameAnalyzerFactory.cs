@@ -22,7 +22,8 @@ internal static class FrameAnalyzerFactory
             var blackDesertPath = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
                 "Black Desert");
-            var calibration = new CompanionCalibrationReader().Read(blackDesertPath);
+            CompanionCalibration ReadCalibration() => new CompanionCalibrationReader().Read(blackDesertPath);
+            var calibration = LootPanelCaptureGuard.ReadCalibration(ReadCalibration);
             var fontType = (CompanionUiFontType)(byte)calibration.FontType;
             var digitSources = CompanionDigitCatalog.CreateSources();
             using var templateSet = new CompanionDigitTemplateLoader().LoadNormalQuantity(
@@ -44,6 +45,23 @@ internal static class FrameAnalyzerFactory
             var matcher = new CompanionItemMatcher(catalog);
             var nameRecognizer = new CompanionNameRecognizer(windowsOcr);
             var chatReader = PrivateItemChatOcrReader.TryCreate();
+            string? configuredLanguage = null;
+            void ConfigureLanguage(string language)
+            {
+                if (language == configuredLanguage) return;
+                var tag = language switch
+                {
+                    "de" => "de-DE",
+                    "en" => "en-US",
+                    _ => throw new ArgumentException("Unterstützte Spielsprachen sind Deutsch und Englisch.")
+                };
+                var recognizer = CompanionWindowsOcrRecognizer.TryCreate(tag, throwIfUnavailable: true,
+                    requirePreferredLanguage: true)!;
+                var nextChatReader = PrivateItemChatOcrReader.TryCreate(tag);
+                nameRecognizer.SetRecognizer(recognizer);
+                chatReader = nextChatReader;
+                configuredLanguage = language;
+            }
             var chatCalibrationReader = new PrivateItemChatCalibrationReader();
             var analyzer = new CompanionLootFrameAnalyzer(
                 calibration,
@@ -52,8 +70,12 @@ internal static class FrameAnalyzerFactory
                 nameRecognizer,
                 reconciliation: new CompanionReconciliationAdapter(TrashLootMinimumCatalog.MinimumQuantities),
                 normalRecovery: new NormalLootRecovery(matcher, nameRecognizer),
-                chatFallback: chatReader is null ? null : new PrivateItemChatFallback(matcher,
-                    () => chatCalibrationReader.TryRead(calibration), chatReader.Read));
+                chatFallback: new PrivateItemChatFallback(matcher,
+                    () => chatReader is null ? null : chatCalibrationReader.TryRead(calibration),
+                    (image, token) => chatReader?.Read(image, token) ?? []),
+                captureGuard: new LootPanelCaptureGuard(calibration, ReadCalibration),
+                privateItemChatAvailable: chatReader is not null && chatCalibrationReader.TryRead(calibration) is not null,
+                configureGameLanguage: ConfigureLanguage);
             rowPipeline = null;
             return analyzer;
         }
@@ -61,7 +83,8 @@ internal static class FrameAnalyzerFactory
         {
             rowPipeline?.Dispose();
             return new UnavailableFrameAnalyzer(
-                $"BDO-Companion-Pipeline konnte nicht initialisiert werden: " +
+                ex is LootPanelUnavailableException ? ex.Message :
+                "Die Loot-Erkennung konnte nicht gestartet werden: " +
                 DescribeException(ex));
         }
     }

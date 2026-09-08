@@ -9,6 +9,7 @@ using BdoGrindTracker.App.Persistence;
 using BdoGrindTracker.App.Pricing;
 using BdoGrindTracker.App.UI;
 using BdoGrindTracker.Core;
+using BdoGrindTracker.Ocr;
 
 namespace BdoGrindTracker.App.Services;
 
@@ -26,6 +27,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
     private readonly GrindSessionClock _sessionClock;
     private readonly GrindInactivityTimer _inactivityTimer;
     private readonly Func<CharacterClassDetection> _detectCharacterClass;
+    private readonly Func<GameLanguageDetection> _detectGameLanguage;
+    private GameLanguageDetection _gameLanguageDetection;
     private readonly ILootPriceProvider _priceProvider;
     private readonly GarmothUploadClient _garmothClient;
     private readonly GarmothApiKeyStore _garmothKeyStore;
@@ -59,6 +62,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
     private string? _settingsSaveError;
     private string _status;
     private bool _isError;
+    private bool? _privateItemChatAvailable;
     private string _priceStatus = "NPC- und Festwerte";
     private Task _operationTask = Task.CompletedTask;
     private Task _tickTask = Task.CompletedTask;
@@ -80,7 +84,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         ILootPriceProvider? priceProvider = null,
         GarmothUploadClient? garmothClient = null,
         GarmothApiKeyStore? keyStore = null,
-        LootHistoryStore? historyStore = null)
+        LootHistoryStore? historyStore = null,
+        Func<GameLanguageDetection>? languageDetector = null)
     {
         _captureSession = capture ?? throw new ArgumentNullException(nameof(capture));
         _analyzer = analyzer ?? throw new ArgumentNullException(nameof(analyzer));
@@ -91,6 +96,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         _sessionClock = sessionClock ?? new GrindSessionClock();
         _inactivityTimer = inactivityTimer ?? new GrindInactivityTimer();
         _detectCharacterClass = classDetector ?? new CompanionCharacterClassDetector().DetectDefault;
+        _detectGameLanguage = languageDetector ?? BlackDesertLanguageDetector.Detect;
+        _gameLanguageDetection = _detectGameLanguage();
         _priceProvider = priceProvider ?? new ArshaLootPriceProvider();
         _garmothClient = garmothClient ?? new GarmothUploadClient();
         _garmothKeyStore = keyStore ?? new GarmothApiKeyStore();
@@ -111,6 +118,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             MonitorDeviceName = Monitors.FirstOrDefault(m => m.DeviceName == _settings.MonitorDeviceName)?.DeviceName
                 ?? Monitors.FirstOrDefault(m => m.IsPrimary)?.DeviceName ?? Monitors.FirstOrDefault()?.DeviceName,
             AutoPauseMinutes = _settings.AutoPauseMinutes,
+            GameLanguage = _settings.GameLanguage,
             FavoriteItems = _settings.FavoriteItems ?? [],
             LootColumnOrders = _settings.LootColumnOrders ?? new(),
             CharacterClassId = CompanionCharacterClassCatalog.FindById(_settings.CharacterClassId ?? "")?.Id,
@@ -123,6 +131,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         };
         _status = analyzer.IsAvailable ? "Bereit für deine nächste Session." : analyzer.Status;
         _isError = !analyzer.IsAvailable;
+        _privateItemChatAvailable = analyzer.PrivateItemChatAvailable;
         _captureSession.Stopped += CaptureSessionStopped;
         PublishState();
     }
@@ -219,6 +228,13 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         var monitor = Monitors.FirstOrDefault(m => m.DeviceName == Preferences.MonitorDeviceName);
         if (monitor is null) throw new InvalidOperationException("Kein Spielmonitor verfügbar.");
         if (!_analyzer.IsAvailable) throw new InvalidOperationException(_analyzer.Status);
+        if (Interlocked.CompareExchange(ref _lastCaptureStopError, null, null) is LootPanelUnavailableException panelError)
+            throw panelError;
+        _analyzer.ValidateCaptureSetup(monitor.Bounds.Size);
+        if (Preferences.GameLanguage == "auto") _gameLanguageDetection = _detectGameLanguage();
+        var gameLanguage = Preferences.GameLanguage == "auto" ? _gameLanguageDetection.Language : Preferences.GameLanguage;
+        if (gameLanguage is null) throw new InvalidOperationException(_gameLanguageDetection.Message);
+        _analyzer.ConfigureGameLanguage(gameLanguage);
         var continuesExistingSession = _hasSession;
         var geometryChanged = _lastCaptureDesktopRegion is { } previous && previous != monitor.Bounds;
         try
@@ -289,10 +305,14 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         CancellationToken cancellationToken)
     {
         var analysis = await _analyzer.AnalyzeAsync(frame, metadata.CapturedAtUtc,
-            metadata.IsHdr, cancellationToken).ConfigureAwait(false);
+            metadata.UseHdrOcr, cancellationToken).ConfigureAwait(false);
+        if (_analyzer.RequiresLootPanel && (analysis.PanelRegion is not { Width: > 0, Height: > 0 } panel ||
+            !new Rectangle(Point.Empty, frame.Size).Contains(panel)))
+            throw new LootPanelUnavailableException(LootPanelCaptureGuard.MissingPanelMessage);
         _recording?.RecordFrame(metadata.CapturedAtUtc, analysis.Observations,
             analysis.TrackingResult, frame, analysis.PanelRegion, analysis.RareBandRegion, analysis.Recovery,
-            isHdr: metadata.IsHdr, chatPanel: analysis.ChatPanelRegion, chatRecovery: analysis.ChatRecovery);
+            isHdr: metadata.IsHdr, chatPanel: analysis.ChatPanelRegion, chatRecovery: analysis.ChatRecovery,
+            isToneMapped: metadata.IsToneMapped);
         _uiMailbox.Publish(analysis, onPublished: ObserveGarmothTotals);
     }
 
@@ -310,6 +330,14 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         if (update is not null)
         {
             _sessionSpotId = update.Analysis.SpotId;
+            if (update.Analysis.ChatRecovery is { } chat)
+            {
+                if (chat.State is "no-private-item-window" or "invalid-chat-region")
+                    _privateItemChatAvailable = false;
+                else if (chat.State is "no-readable-item-lines" or "reading-private-items")
+                    _privateItemChatAvailable = true;
+                // A transient OCR failure does not mean the configured chat vanished.
+            }
             if (update.Totals is { } totals) _sessionSummary = totals;
             if (_uiRunning && !_operationInProgress && !_garmothUploadInProgress &&
                 !_garmothIntervals.IsBlocked && !_garmothIntervals.AutomaticSuspended &&
@@ -419,20 +447,28 @@ internal sealed partial class TrackerSessionService : ITrackerSession
     {
         if (_disposed) return;
         var character = _hasSession || _demoMode ? _sessionClass : SelectedCharacterClass;
+        var trackingBlockedReason = _demoMode ? null : !_analyzer.IsAvailable ? _analyzer.Status :
+            (Interlocked.CompareExchange(ref _lastCaptureStopError, null, null) as LootPanelUnavailableException)?.Message;
         var totals = new ReadOnlyDictionary<string, long>(
             new Dictionary<string, long>(_sessionSummary.Totals, StringComparer.OrdinalIgnoreCase));
         State = new TrackerState
         {
             SessionId = _sessionId, HasSession = _hasSession, IsRunning = _uiRunning,
             IsBusy = IsBusy, IsDemo = _demoMode, IsSubmitted = _sessionSubmitted,
+            CanEditLoot = !_operationInProgress && !_shutdownStarted && !_disposed,
             AnalyzerAvailable = _analyzer.IsAvailable, SpotId = _sessionSpotId,
+            TrackingBlockedReason = trackingBlockedReason,
+            PrivateItemChatAvailable = _privateItemChatAvailable,
+            DetectedGameLanguage = _gameLanguageDetection.Language,
+            GameLanguageStatus = _gameLanguageDetection.Message,
             CharacterClassId = character?.Id,
             CharacterLabel = character?.DisplayName ?? (_classDetection.Status == CharacterClassDetectionStatus.Ambiguous
                 ? "Klasse mehrdeutig – bitte auswählen" : "Klasse unbekannt – automatische Erkennung"),
             Elapsed = _demoMode ? TimeSpan.FromHours(1) : _sessionClock.Elapsed,
             Loot = new(totals, _sessionSummary.TotalQuantity, _sessionSummary.ConfirmedEventCount),
             Silver = SilverValuation.Calculate(totals, Prices, Preferences.Tax),
-            PriceStatus = _priceStatus, Status = _status, IsError = _isError,
+            PriceStatus = _priceStatus, Status = trackingBlockedReason ?? _status,
+            IsError = _isError || trackingBlockedReason is not null,
             RecordingPath = _recording?.RecordingPath, IsRecording = _recording?.IsRecording ?? false,
             HasApiKey = _garmothApiKey.Length > 0, UploadBlocked = _sessionSubmitted || _garmothIntervals.IsBlocked,
             AutomaticSuspended = _garmothIntervals.AutomaticSuspended,
@@ -451,7 +487,9 @@ internal sealed partial class TrackerSessionService : ITrackerSession
 
     private bool _shutdownFailed;
 
-    public Task PrepareUpdateRestartAsync()
+    public Task PrepareUpdateRestartAsync() => RunPreparedUpdateAsync(() => Task.CompletedTask);
+
+    public async Task RunPreparedUpdateAsync(Func<Task> install)
     {
         if (_disposed || _shutdownStarted || _uiRunning || IsBusy)
             throw new InvalidOperationException("Bitte die Session pausieren und laufende Vorgänge abwarten.");
@@ -464,7 +502,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             PersistCurrentSession(DateTimeOffset.UtcNow, throwOnError: true);
             if (!TrySaveSettings())
                 throw new IOException("Die Einstellungen konnten nicht gespeichert werden.");
-            return Task.CompletedTask;
+            PublishState();
+            await install();
         }
         finally
         {

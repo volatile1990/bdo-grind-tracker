@@ -39,6 +39,7 @@ public sealed class CompanionItemMatcher
     private readonly Dictionary<string, Entry> exactEntries;
 
     private readonly CompanionRareCatalogEntry[] catalogEntries;
+    private readonly GermanItemMatcher germanMatcher;
 
     private bool MetadataTablePresent { get; }
 
@@ -68,6 +69,7 @@ public sealed class CompanionItemMatcher
         MetadataTablePresent = metadataTablePresent;
         catalogEntries = entries.Select((Entry entry) => new CompanionRareCatalogEntry(entry.Name, entry.IconPath)).ToArray();
         exactEntries = entries.ToDictionary<Entry, string>((Entry entry) => entry.Name, StringComparer.Ordinal);
+        germanMatcher = new GermanItemMatcher(entries.Select(entry => entry.Name));
     }
 
     public bool TryMatch(string observedText, int quantity, bool rareDropMode, out CompanionItemMatch? match)
@@ -83,12 +85,23 @@ public sealed class CompanionItemMatcher
             match = new CompanionItemMatch(observedText, value.Name, 0.0, IsExact: true);
             return true;
         }
+        var germanMatch = germanMatcher.Match(observedText);
+        if (germanMatch is { IsExact: true })
+        {
+            match = germanMatch;
+            return true;
+        }
         byte[] observedBytes = Encoding.UTF8.GetBytes(observedText);
         ScoredEntry[] array = (from entry in entries
                                select new ScoredEntry(entry, CalculateScore(observedBytes, entry.Bytes, rareDropMode)) into candidate
                                orderby candidate.Score
                                select candidate).ToArray();
         ScoredEntry scoredEntry = array[0];
+        if (germanMatch is not null && germanMatch.NormalizedDistance < scoredEntry.Score)
+        {
+            match = germanMatch;
+            return true;
+        }
         if (rareDropMode)
         {
             if (!PassesRareAccessoryPrefixRule(observedBytes, scoredEntry.Entry))
@@ -347,4 +360,3 @@ public sealed class CompanionItemMatcher
         return false;
     }
 }
-

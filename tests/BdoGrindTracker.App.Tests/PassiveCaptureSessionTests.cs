@@ -148,13 +148,18 @@ public sealed class PassiveCaptureSessionTests
         Assert.Equal(frozenNow, observed[0].CapturedAtUtc);
     }
 
-    [Fact]
-    public async Task CompanionHdrStateTravelsWithTheCapturedFrame()
+    [Theory]
+    [InlineData(false, false, false)]
+    [InlineData(true, false, true)]
+    [InlineData(true, true, false)]
+    [InlineData(false, true, false)]
+    public async Task CaptureRepresentationSelectsOcrThresholdsWithoutLosingPhysicalHdrState(
+        bool hdr, bool toneMapped, bool hdrOcr)
     {
         var observed = new TaskCompletionSource<CapturedFrameMetadata>(
             TaskCreationOptions.RunContinuationsAsynchronously);
         await using var session = new PassiveCaptureSession(
-            _ => new CapturedDesktopBitmap(new Bitmap(2, 2), IsHdr: true),
+            _ => new CapturedDesktopBitmap(new Bitmap(2, 2), IsHdr: hdr, IsToneMapped: toneMapped),
             frameInterval: TimeSpan.FromMilliseconds(5));
 
         session.StartCompanion(
@@ -168,7 +173,9 @@ public sealed class PassiveCaptureSessionTests
         var metadata = await observed.Task.WaitAsync(TimeSpan.FromSeconds(2));
         await session.StopAsync();
 
-        Assert.True(metadata.IsHdr);
+        Assert.Equal(hdr, metadata.IsHdr);
+        Assert.Equal(toneMapped, metadata.IsToneMapped);
+        Assert.Equal(hdrOcr, metadata.UseHdrOcr);
     }
 
     [Fact]

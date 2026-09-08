@@ -5,7 +5,7 @@ using OpenCvSharp;
 
 namespace BdoGrindTracker.App.Analysis;
 
-/// <summary>Companion baseline with optional additive normal-row recovery and unchanged reconciliation.</summary>
+/// <summary>Companion baseline with optional recovery and per-spot single-drop quantity bounds.</summary>
 internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilterConfigurableAnalyzer
 {
     internal const string ExactVariantName = "bdo-companion-0.7.4";
@@ -18,6 +18,9 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
     private readonly ICompanionNameRecognizer _nameRecognizer;
     private readonly INormalLootRecovery? _normalRecovery;
     private readonly IPrivateItemChatFallback? _chatFallback;
+    private readonly LootPanelCaptureGuard? _captureGuard;
+    private readonly Action<string>? _configureGameLanguage;
+    private readonly Func<string?, string, DropQuantityBounds?> _quantityBoundsResolver;
     private readonly ICompanionReconciliation _reconciliation;
     private readonly ICompanionRareReconciliation? _rareReconciliation;
     private readonly CompanionLootLedger _ledger = new();
@@ -40,7 +43,11 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
         ICompanionRareRowPipeline? rareRowPipeline = null,
         ICompanionRareReconciliation? rareReconciliation = null,
         INormalLootRecovery? normalRecovery = null,
-        IPrivateItemChatFallback? chatFallback = null)
+        IPrivateItemChatFallback? chatFallback = null,
+        Func<string?, string, DropQuantityBounds?>? quantityBoundsResolver = null,
+        LootPanelCaptureGuard? captureGuard = null,
+        bool? privateItemChatAvailable = null,
+        Action<string>? configureGameLanguage = null)
     {
         _calibration = calibration ?? throw new ArgumentNullException(nameof(calibration));
         _itemMatcher = itemMatcher ?? throw new ArgumentNullException(nameof(itemMatcher));
@@ -48,6 +55,11 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
         _nameRecognizer = nameRecognizer ?? throw new ArgumentNullException(nameof(nameRecognizer));
         _normalRecovery = normalRecovery;
         _chatFallback = chatFallback;
+        _captureGuard = captureGuard;
+        _configureGameLanguage = configureGameLanguage;
+        PrivateItemChatAvailable = privateItemChatAvailable;
+        _quantityBoundsResolver = quantityBoundsResolver ?? DropQuantityCatalog.GetBounds;
+        _normalRecovery?.ConfigureQuantityBounds(name => _quantityBoundsResolver(_spotLock.Spot?.Id, name));
         _reconciliation = reconciliation ?? new CompanionReconciliationAdapter();
         _frameDecoder = frameDecoder ?? CompanionBitmapDecoder.Instance;
         _panelBounds = CompanionNormalLootGeometry.CalculatePanelBounds(calibration);
@@ -66,10 +78,21 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
         }
     }
 
-    public bool IsAvailable => !_disposed;
+    public bool IsAvailable => !_disposed && _captureGuard?.Error is null;
+    public bool? PrivateItemChatAvailable { get; }
+    public bool RequiresLootPanel => true;
     public string Status => _disposed ? "BDO-Companion-Erkennung wurde beendet."
-        : _spotLock.Spot is { } spot ? $"Bereit: Companion · {spot.DisplayName} (Lootfilter)."
-        : "Bereit: Companion · Spot wird aus Trashloot erkannt.";
+        : _captureGuard?.Error ?? (_spotLock.Spot is { } spot ? $"Bereit: Companion · {spot.DisplayName} (Lootfilter)."
+        : "Bereit: Companion · Spot wird aus Trashloot erkannt.");
+
+    public void ValidateCaptureSetup(System.Drawing.Size frameSize) =>
+        _captureGuard?.Validate(frameSize, DateTimeOffset.UtcNow, force: true);
+
+    public void ConfigureGameLanguage(string language)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        _configureGameLanguage?.Invoke(language);
+    }
 
     public void ConfigureLootFilter(bool includeEventLoot)
     {
@@ -86,6 +109,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(frame);
         cancellationToken.ThrowIfCancellationRequested();
+        _captureGuard?.Validate(frame.Size, capturedAt);
         var preparedRows = new List<ICompanionPreparedRow>(_slotBounds.Length);
         ICompanionPreparedRow? rareRow = null;
         try
@@ -122,6 +146,12 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
                 Observe(preparedRows[index], LootSource.Normal, preparedRows.Count - 1 - index, normal);
             if (rareRow is not null) Observe(rareRow, LootSource.Rare, 0, rare);
 
+            // Resolve this frame's spot before scheduling any quantity retries.
+            // Some shared drops are fixed at only a subset of the spots.
+            _spotLock.Observe(normal.AsEnumerable().Reverse().Where(IsAccepted).Select(row => row.ItemName!));
+            normal = normal.Select(ApplyQuantityPolicy).ToList();
+            rare = rare.Select(ApplyQuantityPolicy).ToList();
+
             var recoveryDiagnostics = NormalLootRecoveryDiagnostics.Empty;
             if (_normalRecovery is not null)
             {
@@ -154,6 +184,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
                     var recovered = _normalRecovery.Recover(originalBand, candidate.Row, candidate.Baseline,
                         preparedRows.Count - 1 - candidate.Index, _calibration.UiScale, budget, cancellationToken);
                     if (recovered is null || !IsAccepted(recovered)) continue;
+                    recovered = ApplyQuantityPolicy(recovered);
                     if (candidate.Baseline is { } baseline && IsAccepted(baseline))
                     {
                         // Recovery is allowed to fill only the missing quantity of
@@ -188,13 +219,17 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
             var observations = normal.Concat(rare).Select(row =>
                 IsAccepted(row) && !_spotLock.Allows(row.ItemName!, _includeEventLoot)
                     ? row with { RejectionReason = AutomaticLootSpotLock.OutsideSpotPoolReason }
-                    : row).ToArray();
+                    : IsAccepted(row)
+                        ? ApplyQuantityPolicy(row)
+                        : row).ToArray();
             var entries = observations.Where(row => row.Source == LootSource.Normal && IsAccepted(row))
                 .Select(row => new CompanionRecognizedEntry(row.ItemName!,
-                    unchecked((uint)(row.Quantity ?? -1)), row.NativeY!.Value)).ToArray();
+                    unchecked((uint)(row.Quantity ?? -1)), row.NativeY!.Value)
+                    { QuantityBounds = row.QuantityBounds }).ToArray();
             var rareEntries = observations.Where(row => row.Source == LootSource.Rare && IsAccepted(row))
                 .Select(row => new CompanionRareRecognizedEntry(row.ItemName!,
-                    row.Quantity ?? -1, row.NativeY!.Value)).ToArray();
+                    row.UsesImplicitUnitQuantity && row.QuantityBounds is not null ? -1 : row.Quantity ?? -1,
+                    row.NativeY!.Value) { QuantityBounds = row.QuantityBounds }).ToArray();
 
             // Ordering and shared ledger are important for signed rare-loot corrections.
             var reconciled = _reconciliation.ProcessFrame(entries);
@@ -226,11 +261,18 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
                 else
                 {
                     text = CompanionTextPipeline.Process(ocr.Text, row.TemplateQuantity,
-                        isRare, row.RecognizedTextWidth);
+                        isRare, row.RecognizedTextWidth, name =>
+                        {
+                            if (!_itemMatcher.TryMatch(name, 1, isRare, out var candidate) || candidate is null ||
+                                _quantityBoundsResolver(_spotLock.Spot?.Id, candidate.CanonicalName)?.IsFixedUnit != true)
+                                return false;
+                            match = candidate;
+                            return true;
+                        });
                     if (!CompanionTextPipeline.PassesExpectedWidth(text.Value,
                         row.RecognizedTextWidth, row.LeftmostQuantityX, row.NameScale))
                         rejection = "ocr-width-or-empty";
-                    else if (!_itemMatcher.TryMatch(text.Value.Name, text.Value.Quantity, isRare, out match) || match is null)
+                    else if (match is null && (!_itemMatcher.TryMatch(text.Value.Name, text.Value.Quantity, isRare, out match) || match is null))
                         rejection = "native-catalog-miss";
                 }
                 target.Add(new LootObservation(source, slot, ocr.Text, match?.CanonicalName,
@@ -239,6 +281,9 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
                     0, null, rejection)
                 {
                     NativeY = row.Y,
+                    QuantityBounds = match is null ? null : _quantityBoundsResolver(_spotLock.Spot?.Id, match.CanonicalName),
+                    UsesImplicitUnitQuantity = isRare && text is { HasParsedOcrQuantity: false, UsesFixedUnitQuantity: false },
+                    UsesFixedUnitQuantity = text is { UsesFixedUnitQuantity: true },
                 });
             }
         }
@@ -293,6 +338,17 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
 
     private static bool IsAccepted(LootObservation row) => row.ItemName is not null && row.RejectionReason is null;
 
+    private LootObservation ApplyQuantityPolicy(LootObservation row)
+    {
+        if (!IsAccepted(row)) return row;
+        var bounds = _quantityBoundsResolver(_spotLock.Spot?.Id, row.ItemName!);
+        return bounds?.IsFixedUnit == true
+            ? row with { Quantity = 1, QuantityBounds = bounds, UsesFixedUnitQuantity = true, UsesImplicitUnitQuantity = false }
+            // Preserve the provenance of a unit inferred before this frame's
+            // spot lock, even if the item is subsequently rejected by its pool.
+            : row with { QuantityBounds = bounds ?? (row.UsesFixedUnitQuantity ? row.QuantityBounds : null) };
+    }
+
     private FrameAnalysisResult CreateResult(IReadOnlyList<CompanionRecognizedEntry> reconciled,
         IReadOnlyList<CompanionRareCountDelta> rareChanges, DateTimeOffset timestamp,
         System.Drawing.Size frameSize, IReadOnlyList<string> rawLines,
@@ -305,7 +361,9 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
         var accepted = observations.Where(IsAccepted).ToArray();
         var decisions = observations.Select(row => new LootTrackingDecision(row, null,
             IsAccepted(row) ? LootTrackingDecisionStatus.Pending : LootTrackingDecisionStatus.Rejected,
-            row.RejectionReason ?? "companion-input")).ToList();
+            row.RejectionReason ?? (row.UsesFixedUnitQuantity ? LootDiagnosticFormat.FixedUnitQuantityReason
+                : row.QuantityBounds?.Maximum is { } maximum && row.Quantity > maximum
+                ? LootDiagnosticFormat.MaximumQuantityClampReason : "companion-input"))).ToList();
         for (var index = 0; index < events.Length; index++)
         {
             var change = events[index];
@@ -548,12 +606,15 @@ internal interface ICompanionNameRecognizer
 internal sealed class CompanionNameRecognizer(CompanionWindowsOcrRecognizer recognizer) :
     ICompanionNameRecognizer
 {
-    private readonly CompanionWindowsOcrRecognizer _recognizer = recognizer ??
+    private CompanionWindowsOcrRecognizer _recognizer = recognizer ??
         throw new ArgumentNullException(nameof(recognizer));
 
     public string BackendName => _recognizer.BackendName;
 
     public string LanguageTag => _recognizer.LanguageTag;
+
+    public void SetRecognizer(CompanionWindowsOcrRecognizer recognizer) =>
+        _recognizer = recognizer ?? throw new ArgumentNullException(nameof(recognizer));
 
     public CompanionOcrResult Recognize(Mat image, CancellationToken cancellationToken) =>
         _recognizer.Recognize(image, cancellationToken);

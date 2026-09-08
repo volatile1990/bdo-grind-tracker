@@ -81,6 +81,7 @@ internal static class LootDiagnosticReplay
         var header = Deserialize<LootDiagnosticHeader>(ReadBoundedLine(reader), 1);
         if (header.Kind != "header" || header.FormatVersion != LootDiagnosticFormat.Version ||
             (header.EngineVersion != LootDiagnosticFormat.EngineVersion &&
+             header.EngineVersion != LootDiagnosticFormat.MinimumQuantityEngineVersion &&
              header.EngineVersion != LootDiagnosticFormat.RecoveryEngineVersion &&
              header.EngineVersion != LootDiagnosticFormat.PreviousEngineVersion &&
              header.EngineVersion != LootDiagnosticFormat.ExperimentalEngineVersion) ||
@@ -93,7 +94,8 @@ internal static class LootDiagnosticReplay
             throw new InvalidDataException("Nicht unterstütztes Diagnose-Format oder Ereignislogik-Version.");
         }
 
-        if (header.EngineVersion != LootDiagnosticFormat.EngineVersion && header.MinimumTrashQuantities.Count != 0)
+        if (header.EngineVersion != LootDiagnosticFormat.EngineVersion &&
+            header.EngineVersion != LootDiagnosticFormat.MinimumQuantityEngineVersion && header.MinimumTrashQuantities.Count != 0)
             throw new InvalidDataException("Diese ältere Ereignislogik-Version unterstützt keine Mindestmengen-Tabelle.");
 
         var tracker = new CompanionDiagnosticCounter(header.Catalog, header.MinimumTrashQuantities);
@@ -118,6 +120,9 @@ internal static class LootDiagnosticReplay
             }
 
             DiagnosticRecordingSession.ValidateObservations(entry.Observations);
+            if (header.EngineVersion != LootDiagnosticFormat.EngineVersion &&
+                entry.Observations.Any(row => row.QuantityBounds is not null || row.UsesImplicitUnitQuantity || row.UsesFixedUnitQuantity))
+                throw new InvalidDataException("Diese ältere Ereignislogik-Version unterstützt keine Dropmengen-Grenzen.");
             ValidateEvents(entry.Events, sequence);
             TrackerFrameResult actual;
             if (entry.Kind == "frame")
@@ -173,7 +178,7 @@ internal static class LootDiagnosticReplay
 
             return value;
         }
-        catch (JsonException exception)
+        catch (Exception exception) when (exception is JsonException or ArgumentException)
         {
             throw new InvalidDataException($"Beschädigter Diagnose-Eintrag in Zeile {lineNumber}.", exception);
         }

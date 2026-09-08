@@ -1,0 +1,1455 @@
+{
+  "source": "Nutzervorgabe vom 08.09.2026, Dropmengen-Eingabe.xlsx",
+  "sourceSha256": "a5ba8409909fd7be454d1bbf085e1a9ecf2dcd5cc3781980d405ca461adf02ae",
+  "entries": [
+    {
+      "spotId": "aphrodon",
+      "itemName": "[Event] Mysterious Ore",
+      "minimumQuantity": 1,
+      "maximumQuantity": 5,
+      "source": "Eingabe!C10:D10"
+    },
+    {
+      "spotId": "aphrodon",
+      "itemName": "Ancient Spirit Dust",
+      "minimumQuantity": 1,
+      "maximumQuantity": 50,
+      "source": "Eingabe!C11:D11"
+    },
+    {
+      "spotId": "aphrodon",
+      "itemName": "Apeiron Earring",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C12:D12"
+    },
+    {
+      "spotId": "aphrodon",
+      "itemName": "Black Stone",
+      "minimumQuantity": 1,
+      "maximumQuantity": 15,
+      "source": "Eingabe!C13:D13"
+    },
+    {
+      "spotId": "aphrodon",
+      "itemName": "Branch of Abundance",
+      "minimumQuantity": 4,
+      "maximumQuantity": 1000,
+      "source": "Eingabe!C14:D14"
+    },
+    {
+      "spotId": "aphrodon",
+      "itemName": "Broken Vestige of Goldroot",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C15:D15"
+    },
+    {
+      "spotId": "aphrodon",
+      "itemName": "Caphras Stone",
+      "minimumQuantity": 1,
+      "maximumQuantity": 50,
+      "source": "Eingabe!C16:D16"
+    },
+    {
+      "spotId": "aphrodon",
+      "itemName": "Corrupt Oil of Immortality",
+      "minimumQuantity": 1,
+      "maximumQuantity": 5,
+      "source": "Eingabe!C17:D17"
+    },
+    {
+      "spotId": "aphrodon",
+      "itemName": "Crimson Primordial Luster - Sovereign",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C18:D18"
+    },
+    {
+      "spotId": "aphrodon",
+      "itemName": "Crimson Primordial Pigment - Sovereign",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C19:D19"
+    },
+    {
+      "spotId": "aphrodon",
+      "itemName": "Embers of Ynix - Armor",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C20:D20"
+    },
+    {
+      "spotId": "aphrodon",
+      "itemName": "Fusion Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C21:D21"
+    },
+    {
+      "spotId": "aphrodon",
+      "itemName": "Laila's Petal",
+      "minimumQuantity": 1,
+      "maximumQuantity": 5,
+      "source": "Eingabe!C22:D22"
+    },
+    {
+      "spotId": "aphrodon",
+      "itemName": "Nev's Fragment",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C23:D23"
+    },
+    {
+      "spotId": "aphrodon",
+      "itemName": "Pure Black Stone",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C24:D24"
+    },
+    {
+      "spotId": "aphrodon",
+      "itemName": "Refined Essence of Devouring",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C25:D25"
+    },
+    {
+      "spotId": "aphrodon",
+      "itemName": "Refined Origin of Hunger",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C26:D26"
+    },
+    {
+      "spotId": "aphrodon",
+      "itemName": "Silent Crystal of Origin",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C27:D27"
+    },
+    {
+      "spotId": "aphrodon",
+      "itemName": "Silent Fragment of Origin",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C28:D28"
+    },
+    {
+      "spotId": "aphrodon",
+      "itemName": "Sunset Primordial Luster - Edana",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C29:D29"
+    },
+    {
+      "spotId": "aphrodon",
+      "itemName": "Sunset Primordial Pigment - Edana",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C30:D30"
+    },
+    {
+      "spotId": "aphrodon",
+      "itemName": "Twilight of the End - Earring",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C31:D31"
+    },
+    {
+      "spotId": "aphrodon",
+      "itemName": "Violet Primordial Luster - Edana",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C32:D32"
+    },
+    {
+      "spotId": "aphrodon",
+      "itemName": "Violet Primordial Luster - Sovereign",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C33:D33"
+    },
+    {
+      "spotId": "aphrodon",
+      "itemName": "Violet Primordial Pigment - Edana",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C34:D34"
+    },
+    {
+      "spotId": "aphrodon",
+      "itemName": "Violet Primordial Pigment - Sovereign",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C35:D35"
+    },
+    {
+      "spotId": "aphrodon",
+      "itemName": "WON Origin Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C36:D36"
+    },
+    {
+      "spotId": "aphrodon",
+      "itemName": "WON Wandering Origin Crystal",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C37:D37"
+    },
+    {
+      "spotId": "hermesia",
+      "itemName": "[Event] Mysterious Ore",
+      "minimumQuantity": 1,
+      "maximumQuantity": 5,
+      "source": "Eingabe!C38:D38"
+    },
+    {
+      "spotId": "hermesia",
+      "itemName": "Ancient Spirit Dust",
+      "minimumQuantity": 1,
+      "maximumQuantity": 50,
+      "source": "Eingabe!C39:D39"
+    },
+    {
+      "spotId": "hermesia",
+      "itemName": "Apeiron Earring",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C40:D40"
+    },
+    {
+      "spotId": "hermesia",
+      "itemName": "Apeiron Ring",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C41:D41"
+    },
+    {
+      "spotId": "hermesia",
+      "itemName": "Black Crystal Fragment",
+      "minimumQuantity": 4,
+      "maximumQuantity": 1000,
+      "source": "Eingabe!C42:D42"
+    },
+    {
+      "spotId": "hermesia",
+      "itemName": "Black Stone",
+      "minimumQuantity": 1,
+      "maximumQuantity": 20,
+      "source": "Eingabe!C43:D43"
+    },
+    {
+      "spotId": "hermesia",
+      "itemName": "BON Origin Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C44:D44"
+    },
+    {
+      "spotId": "hermesia",
+      "itemName": "BON Wandering Origin Crystal",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C45:D45"
+    },
+    {
+      "spotId": "hermesia",
+      "itemName": "Broken Vestige of Ebonmere",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C46:D46"
+    },
+    {
+      "spotId": "hermesia",
+      "itemName": "Caphras Stone",
+      "minimumQuantity": 1,
+      "maximumQuantity": 20,
+      "source": "Eingabe!C47:D47"
+    },
+    {
+      "spotId": "hermesia",
+      "itemName": "Corrupt Oil of Immortality",
+      "minimumQuantity": 1,
+      "maximumQuantity": 5,
+      "source": "Eingabe!C48:D48"
+    },
+    {
+      "spotId": "hermesia",
+      "itemName": "Crimson Primordial Luster - Sovereign",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C49:D49"
+    },
+    {
+      "spotId": "hermesia",
+      "itemName": "Crimson Primordial Pigment - Sovereign",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C50:D50"
+    },
+    {
+      "spotId": "hermesia",
+      "itemName": "Embers of Ynix - Helmet",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C51:D51"
+    },
+    {
+      "spotId": "hermesia",
+      "itemName": "Fusion Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C52:D52"
+    },
+    {
+      "spotId": "hermesia",
+      "itemName": "Laila's Petal",
+      "minimumQuantity": 1,
+      "maximumQuantity": 5,
+      "source": "Eingabe!C53:D53"
+    },
+    {
+      "spotId": "hermesia",
+      "itemName": "Nev's Fragment",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C54:D54"
+    },
+    {
+      "spotId": "hermesia",
+      "itemName": "Pure Black Stone",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C55:D55"
+    },
+    {
+      "spotId": "hermesia",
+      "itemName": "Refined Essence of Devouring",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C56:D56"
+    },
+    {
+      "spotId": "hermesia",
+      "itemName": "Refined Origin of Hunger",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C57:D57"
+    },
+    {
+      "spotId": "hermesia",
+      "itemName": "Silent Crystal of Origin",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C58:D58"
+    },
+    {
+      "spotId": "hermesia",
+      "itemName": "Silent Fragment of Origin",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C59:D59"
+    },
+    {
+      "spotId": "hermesia",
+      "itemName": "Sunset Primordial Luster - Edana",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C60:D60"
+    },
+    {
+      "spotId": "hermesia",
+      "itemName": "Sunset Primordial Pigment - Edana",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C61:D61"
+    },
+    {
+      "spotId": "hermesia",
+      "itemName": "Twilight of the End - Earring",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C62:D62"
+    },
+    {
+      "spotId": "hermesia",
+      "itemName": "Twilight of the End - Ring",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C63:D63"
+    },
+    {
+      "spotId": "hermesia",
+      "itemName": "Violet Primordial Luster - Edana",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C64:D64"
+    },
+    {
+      "spotId": "hermesia",
+      "itemName": "Violet Primordial Luster - Sovereign",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C65:D65"
+    },
+    {
+      "spotId": "hermesia",
+      "itemName": "Violet Primordial Pigment - Edana",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C66:D66"
+    },
+    {
+      "spotId": "hermesia",
+      "itemName": "Violet Primordial Pigment - Sovereign",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C67:D67"
+    },
+    {
+      "spotId": "magaia",
+      "itemName": "[Event] Mysterious Ore",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C68:D68"
+    },
+    {
+      "spotId": "magaia",
+      "itemName": "Ancient Spirit Dust",
+      "minimumQuantity": 1,
+      "maximumQuantity": 50,
+      "source": "Eingabe!C69:D69"
+    },
+    {
+      "spotId": "magaia",
+      "itemName": "Apeiron Belt",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C70:D70"
+    },
+    {
+      "spotId": "magaia",
+      "itemName": "Apeiron Earring",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C71:D71"
+    },
+    {
+      "spotId": "magaia",
+      "itemName": "Apeiron Ring",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C72:D72"
+    },
+    {
+      "spotId": "magaia",
+      "itemName": "Black Stone",
+      "minimumQuantity": 1,
+      "maximumQuantity": 50,
+      "source": "Eingabe!C73:D73"
+    },
+    {
+      "spotId": "magaia",
+      "itemName": "Broken Vestige of Everlight",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C74:D74"
+    },
+    {
+      "spotId": "magaia",
+      "itemName": "Caphras Stone",
+      "minimumQuantity": 1,
+      "maximumQuantity": 50,
+      "source": "Eingabe!C75:D75"
+    },
+    {
+      "spotId": "magaia",
+      "itemName": "Corrupt Oil of Immortality",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C76:D76"
+    },
+    {
+      "spotId": "magaia",
+      "itemName": "Crimson Primordial Luster - Sovereign",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C77:D77"
+    },
+    {
+      "spotId": "magaia",
+      "itemName": "Crimson Primordial Pigment - Sovereign",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C78:D78"
+    },
+    {
+      "spotId": "magaia",
+      "itemName": "Elion Follower's Helmet",
+      "minimumQuantity": 7,
+      "maximumQuantity": 1000,
+      "source": "Eingabe!C79:D79"
+    },
+    {
+      "spotId": "magaia",
+      "itemName": "Embers of Ynix - Shoes",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C80:D80"
+    },
+    {
+      "spotId": "magaia",
+      "itemName": "Fusion Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C81:D81"
+    },
+    {
+      "spotId": "magaia",
+      "itemName": "JIN Origin Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C82:D82"
+    },
+    {
+      "spotId": "magaia",
+      "itemName": "JIN Wandering Origin Crystal",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C83:D83"
+    },
+    {
+      "spotId": "magaia",
+      "itemName": "Laila's Petal",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C84:D84"
+    },
+    {
+      "spotId": "magaia",
+      "itemName": "Nev's Fragment",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C85:D85"
+    },
+    {
+      "spotId": "magaia",
+      "itemName": "Pure Black Stone",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C86:D86"
+    },
+    {
+      "spotId": "magaia",
+      "itemName": "Refined Essence of Devouring",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C87:D87"
+    },
+    {
+      "spotId": "magaia",
+      "itemName": "Refined Origin of Hunger",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C88:D88"
+    },
+    {
+      "spotId": "magaia",
+      "itemName": "Silent Crystal of Origin",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C89:D89"
+    },
+    {
+      "spotId": "magaia",
+      "itemName": "Silent Fragment of Origin",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C90:D90"
+    },
+    {
+      "spotId": "magaia",
+      "itemName": "Sunset Primordial Luster - Edana",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C91:D91"
+    },
+    {
+      "spotId": "magaia",
+      "itemName": "Sunset Primordial Pigment - Edana",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C92:D92"
+    },
+    {
+      "spotId": "magaia",
+      "itemName": "Twilight of the End - Belt",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C93:D93"
+    },
+    {
+      "spotId": "magaia",
+      "itemName": "Twilight of the End - Earring",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C94:D94"
+    },
+    {
+      "spotId": "magaia",
+      "itemName": "Twilight of the End - Ring",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C95:D95"
+    },
+    {
+      "spotId": "magaia",
+      "itemName": "Violet Primordial Luster - Edana",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C96:D96"
+    },
+    {
+      "spotId": "magaia",
+      "itemName": "Violet Primordial Luster - Sovereign",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C97:D97"
+    },
+    {
+      "spotId": "magaia",
+      "itemName": "Violet Primordial Pigment - Edana",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C98:D98"
+    },
+    {
+      "spotId": "magaia",
+      "itemName": "Violet Primordial Pigment - Sovereign",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C99:D99"
+    },
+    {
+      "spotId": "aresion",
+      "itemName": "[Event] Mysterious Ore",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C100:D100"
+    },
+    {
+      "spotId": "aresion",
+      "itemName": "Ancient Spirit Dust",
+      "minimumQuantity": 1,
+      "maximumQuantity": 50,
+      "source": "Eingabe!C101:D101"
+    },
+    {
+      "spotId": "aresion",
+      "itemName": "Apeiron Belt",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C102:D102"
+    },
+    {
+      "spotId": "aresion",
+      "itemName": "Apeiron Earring",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C103:D103"
+    },
+    {
+      "spotId": "aresion",
+      "itemName": "Apeiron Necklace",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C104:D104"
+    },
+    {
+      "spotId": "aresion",
+      "itemName": "Apeiron Ring",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C105:D105"
+    },
+    {
+      "spotId": "aresion",
+      "itemName": "Black Stone",
+      "minimumQuantity": 1,
+      "maximumQuantity": 50,
+      "source": "Eingabe!C106:D106"
+    },
+    {
+      "spotId": "aresion",
+      "itemName": "Broken Vestige of Crimsonflare",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C107:D107"
+    },
+    {
+      "spotId": "aresion",
+      "itemName": "Caphras Stone",
+      "minimumQuantity": 1,
+      "maximumQuantity": 50,
+      "source": "Eingabe!C108:D108"
+    },
+    {
+      "spotId": "aresion",
+      "itemName": "Corrupt Oil of Immortality",
+      "minimumQuantity": 1,
+      "maximumQuantity": 5,
+      "source": "Eingabe!C109:D109"
+    },
+    {
+      "spotId": "aresion",
+      "itemName": "Crimson Primordial Luster - Sovereign",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C110:D110"
+    },
+    {
+      "spotId": "aresion",
+      "itemName": "Crimson Primordial Pigment - Sovereign",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C111:D111"
+    },
+    {
+      "spotId": "aresion",
+      "itemName": "Embers of Ynix - Gloves",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C112:D112"
+    },
+    {
+      "spotId": "aresion",
+      "itemName": "Fusion Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C113:D113"
+    },
+    {
+      "spotId": "aresion",
+      "itemName": "HAN Origin Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C114:D114"
+    },
+    {
+      "spotId": "aresion",
+      "itemName": "HAN Wandering Origin Crystal",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C115:D115"
+    },
+    {
+      "spotId": "aresion",
+      "itemName": "Laila's Petal",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C116:D116"
+    },
+    {
+      "spotId": "aresion",
+      "itemName": "Nev's Fragment",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C117:D117"
+    },
+    {
+      "spotId": "aresion",
+      "itemName": "Pure Black Stone",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C118:D118"
+    },
+    {
+      "spotId": "aresion",
+      "itemName": "Refined Essence of Devouring",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C119:D119"
+    },
+    {
+      "spotId": "aresion",
+      "itemName": "Refined Origin of Hunger",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C120:D120"
+    },
+    {
+      "spotId": "aresion",
+      "itemName": "Scorched Belt Ornament",
+      "minimumQuantity": 2,
+      "maximumQuantity": 1000,
+      "source": "Eingabe!C121:D121"
+    },
+    {
+      "spotId": "aresion",
+      "itemName": "Silent Crystal of Origin",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C122:D122"
+    },
+    {
+      "spotId": "aresion",
+      "itemName": "Silent Fragment of Origin",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C123:D123"
+    },
+    {
+      "spotId": "aresion",
+      "itemName": "Sunset Primordial Luster - Edana",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C124:D124"
+    },
+    {
+      "spotId": "aresion",
+      "itemName": "Sunset Primordial Pigment - Edana",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C125:D125"
+    },
+    {
+      "spotId": "aresion",
+      "itemName": "Twilight of the End - Belt",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C126:D126"
+    },
+    {
+      "spotId": "aresion",
+      "itemName": "Twilight of the End - Earring",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C127:D127"
+    },
+    {
+      "spotId": "aresion",
+      "itemName": "Twilight of the End - Necklace",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C128:D128"
+    },
+    {
+      "spotId": "aresion",
+      "itemName": "Twilight of the End - Ring",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C129:D129"
+    },
+    {
+      "spotId": "aresion",
+      "itemName": "Violet Primordial Luster - Edana",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C130:D130"
+    },
+    {
+      "spotId": "aresion",
+      "itemName": "Violet Primordial Luster - Sovereign",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C131:D131"
+    },
+    {
+      "spotId": "aresion",
+      "itemName": "Violet Primordial Pigment - Edana",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C132:D132"
+    },
+    {
+      "spotId": "aresion",
+      "itemName": "Violet Primordial Pigment - Sovereign",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C133:D133"
+    },
+    {
+      "spotId": "aresion",
+      "itemName": "White Primordial Luster - Edana",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C134:D134"
+    },
+    {
+      "spotId": "aresion",
+      "itemName": "White Primordial Luster - Sovereign",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C135:D135"
+    },
+    {
+      "spotId": "aresion",
+      "itemName": "White Primordial Pigment - Edana",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C136:D136"
+    },
+    {
+      "spotId": "aresion",
+      "itemName": "White Primordial Pigment - Sovereign",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C137:D137"
+    },
+    {
+      "spotId": "scales-of-judgment",
+      "itemName": "[Event] Mysterious Ore",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C138:D138"
+    },
+    {
+      "spotId": "scales-of-judgment",
+      "itemName": "Ancient Spirit Dust",
+      "minimumQuantity": 1,
+      "maximumQuantity": 50,
+      "source": "Eingabe!C139:D139"
+    },
+    {
+      "spotId": "scales-of-judgment",
+      "itemName": "Apeiron Belt",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C140:D140"
+    },
+    {
+      "spotId": "scales-of-judgment",
+      "itemName": "Apeiron Earring",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C141:D141"
+    },
+    {
+      "spotId": "scales-of-judgment",
+      "itemName": "Apeiron Necklace",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C142:D142"
+    },
+    {
+      "spotId": "scales-of-judgment",
+      "itemName": "Apeiron Ring",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C143:D143"
+    },
+    {
+      "spotId": "scales-of-judgment",
+      "itemName": "Black Stone",
+      "minimumQuantity": 1,
+      "maximumQuantity": 50,
+      "source": "Eingabe!C144:D144"
+    },
+    {
+      "spotId": "scales-of-judgment",
+      "itemName": "Broken Vestige of Everlight",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C145:D145"
+    },
+    {
+      "spotId": "scales-of-judgment",
+      "itemName": "Caphras Stone",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C146:D146"
+    },
+    {
+      "spotId": "scales-of-judgment",
+      "itemName": "Corrupt Oil of Immortality",
+      "minimumQuantity": 1,
+      "maximumQuantity": 5,
+      "source": "Eingabe!C147:D147"
+    },
+    {
+      "spotId": "scales-of-judgment",
+      "itemName": "Crimson Primordial Luster - Sovereign",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C148:D148"
+    },
+    {
+      "spotId": "scales-of-judgment",
+      "itemName": "Crimson Primordial Pigment - Sovereign",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C149:D149"
+    },
+    {
+      "spotId": "scales-of-judgment",
+      "itemName": "Elion Follower's Mark",
+      "minimumQuantity": 2,
+      "maximumQuantity": 2000,
+      "source": "Eingabe!C150:D150"
+    },
+    {
+      "spotId": "scales-of-judgment",
+      "itemName": "Embers of Ynix - Shoes",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C151:D151"
+    },
+    {
+      "spotId": "scales-of-judgment",
+      "itemName": "Fusion Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C152:D152"
+    },
+    {
+      "spotId": "scales-of-judgment",
+      "itemName": "HAN Origin Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C153:D153"
+    },
+    {
+      "spotId": "scales-of-judgment",
+      "itemName": "HAN Wandering Origin Crystal",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C154:D154"
+    },
+    {
+      "spotId": "scales-of-judgment",
+      "itemName": "Laila's Petal",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C155:D155"
+    },
+    {
+      "spotId": "scales-of-judgment",
+      "itemName": "Nev's Fragment",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C156:D156"
+    },
+    {
+      "spotId": "scales-of-judgment",
+      "itemName": "Pure Black Stone",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C157:D157"
+    },
+    {
+      "spotId": "scales-of-judgment",
+      "itemName": "Refined Essence of Devouring",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C158:D158"
+    },
+    {
+      "spotId": "scales-of-judgment",
+      "itemName": "Refined Origin of Hunger",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C159:D159"
+    },
+    {
+      "spotId": "scales-of-judgment",
+      "itemName": "Silent Crystal of Origin",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C160:D160"
+    },
+    {
+      "spotId": "scales-of-judgment",
+      "itemName": "Silent Fragment of Origin",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C161:D161"
+    },
+    {
+      "spotId": "scales-of-judgment",
+      "itemName": "Sunset Primordial Luster - Edana",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C162:D162"
+    },
+    {
+      "spotId": "scales-of-judgment",
+      "itemName": "Sunset Primordial Pigment - Edana",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C163:D163"
+    },
+    {
+      "spotId": "scales-of-judgment",
+      "itemName": "Twilight of the End - Belt",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C164:D164"
+    },
+    {
+      "spotId": "scales-of-judgment",
+      "itemName": "Twilight of the End - Earring",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C165:D165"
+    },
+    {
+      "spotId": "scales-of-judgment",
+      "itemName": "Twilight of the End - Necklace",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C166:D166"
+    },
+    {
+      "spotId": "scales-of-judgment",
+      "itemName": "Twilight of the End - Ring",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C167:D167"
+    },
+    {
+      "spotId": "scales-of-judgment",
+      "itemName": "Violet Primordial Luster - Edana",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C168:D168"
+    },
+    {
+      "spotId": "scales-of-judgment",
+      "itemName": "Violet Primordial Luster - Sovereign",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C169:D169"
+    },
+    {
+      "spotId": "scales-of-judgment",
+      "itemName": "Violet Primordial Pigment - Edana",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C170:D170"
+    },
+    {
+      "spotId": "scales-of-judgment",
+      "itemName": "Violet Primordial Pigment - Sovereign",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C171:D171"
+    },
+    {
+      "spotId": "scales-of-judgment",
+      "itemName": "White Primordial Luster - Edana",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C172:D172"
+    },
+    {
+      "spotId": "scales-of-judgment",
+      "itemName": "White Primordial Luster - Sovereign",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C173:D173"
+    },
+    {
+      "spotId": "scales-of-judgment",
+      "itemName": "White Primordial Pigment - Edana",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C174:D174"
+    },
+    {
+      "spotId": "scales-of-judgment",
+      "itemName": "White Primordial Pigment - Sovereign",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C175:D175"
+    },
+    {
+      "spotId": "event-horizon",
+      "itemName": "[Event] Mysterious Ore",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C176:D176"
+    },
+    {
+      "spotId": "event-horizon",
+      "itemName": "Ancient Spirit Dust",
+      "minimumQuantity": 1,
+      "maximumQuantity": 50,
+      "source": "Eingabe!C177:D177"
+    },
+    {
+      "spotId": "event-horizon",
+      "itemName": "Apeiron Belt",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C178:D178"
+    },
+    {
+      "spotId": "event-horizon",
+      "itemName": "Apeiron Earring",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C179:D179"
+    },
+    {
+      "spotId": "event-horizon",
+      "itemName": "Apeiron Necklace",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C180:D180"
+    },
+    {
+      "spotId": "event-horizon",
+      "itemName": "Apeiron Ring",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C181:D181"
+    },
+    {
+      "spotId": "event-horizon",
+      "itemName": "Black Stone",
+      "minimumQuantity": 1,
+      "maximumQuantity": 50,
+      "source": "Eingabe!C182:D182"
+    },
+    {
+      "spotId": "event-horizon",
+      "itemName": "Broken Gloves of the Void",
+      "minimumQuantity": 2,
+      "maximumQuantity": 1000,
+      "source": "Eingabe!C183:D183"
+    },
+    {
+      "spotId": "event-horizon",
+      "itemName": "Broken Vestige of Voidreach",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C184:D184"
+    },
+    {
+      "spotId": "event-horizon",
+      "itemName": "Caphras Stone",
+      "minimumQuantity": 1,
+      "maximumQuantity": 50,
+      "source": "Eingabe!C185:D185"
+    },
+    {
+      "spotId": "event-horizon",
+      "itemName": "Corrupt Oil of Immortality",
+      "minimumQuantity": 1,
+      "maximumQuantity": 5,
+      "source": "Eingabe!C186:D186"
+    },
+    {
+      "spotId": "event-horizon",
+      "itemName": "Crimson Primordial Luster - Sovereign",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C187:D187"
+    },
+    {
+      "spotId": "event-horizon",
+      "itemName": "Crimson Primordial Pigment - Sovereign",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C188:D188"
+    },
+    {
+      "spotId": "event-horizon",
+      "itemName": "Embers of Ynix - Armor",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C189:D189"
+    },
+    {
+      "spotId": "event-horizon",
+      "itemName": "Embers of Ynix - Gloves",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C190:D190"
+    },
+    {
+      "spotId": "event-horizon",
+      "itemName": "Embers of Ynix - Helmet",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C191:D191"
+    },
+    {
+      "spotId": "event-horizon",
+      "itemName": "Embers of Ynix - Shoes",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C192:D192"
+    },
+    {
+      "spotId": "event-horizon",
+      "itemName": "Fusion Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C193:D193"
+    },
+    {
+      "spotId": "event-horizon",
+      "itemName": "HAN Origin Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C194:D194"
+    },
+    {
+      "spotId": "event-horizon",
+      "itemName": "HAN Wandering Origin Crystal",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C195:D195"
+    },
+    {
+      "spotId": "event-horizon",
+      "itemName": "Laila's Petal",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C196:D196"
+    },
+    {
+      "spotId": "event-horizon",
+      "itemName": "Nev's Fragment",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C197:D197"
+    },
+    {
+      "spotId": "event-horizon",
+      "itemName": "Pure Black Stone",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C198:D198"
+    },
+    {
+      "spotId": "event-horizon",
+      "itemName": "Refined Essence of Devouring",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C199:D199"
+    },
+    {
+      "spotId": "event-horizon",
+      "itemName": "Refined Origin of Hunger",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C200:D200"
+    },
+    {
+      "spotId": "event-horizon",
+      "itemName": "Silent Crystal of Origin",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C201:D201"
+    },
+    {
+      "spotId": "event-horizon",
+      "itemName": "Silent Fragment of Origin",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C202:D202"
+    },
+    {
+      "spotId": "event-horizon",
+      "itemName": "Sunset Primordial Luster - Edana",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C203:D203"
+    },
+    {
+      "spotId": "event-horizon",
+      "itemName": "Sunset Primordial Pigment - Edana",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C204:D204"
+    },
+    {
+      "spotId": "event-horizon",
+      "itemName": "Twilight of the End - Belt",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C205:D205"
+    },
+    {
+      "spotId": "event-horizon",
+      "itemName": "Twilight of the End - Earring",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C206:D206"
+    },
+    {
+      "spotId": "event-horizon",
+      "itemName": "Twilight of the End - Necklace",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C207:D207"
+    },
+    {
+      "spotId": "event-horizon",
+      "itemName": "Twilight of the End - Ring",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C208:D208"
+    },
+    {
+      "spotId": "event-horizon",
+      "itemName": "Violet Primordial Luster - Edana",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C209:D209"
+    },
+    {
+      "spotId": "event-horizon",
+      "itemName": "Violet Primordial Luster - Sovereign",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C210:D210"
+    },
+    {
+      "spotId": "event-horizon",
+      "itemName": "Violet Primordial Pigment - Edana",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C211:D211"
+    },
+    {
+      "spotId": "event-horizon",
+      "itemName": "Violet Primordial Pigment - Sovereign",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C212:D212"
+    },
+    {
+      "spotId": "event-horizon",
+      "itemName": "White Primordial Luster - Edana",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C213:D213"
+    },
+    {
+      "spotId": "event-horizon",
+      "itemName": "White Primordial Luster - Sovereign",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C214:D214"
+    },
+    {
+      "spotId": "event-horizon",
+      "itemName": "White Primordial Pigment - Edana",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C215:D215"
+    },
+    {
+      "spotId": "event-horizon",
+      "itemName": "White Primordial Pigment - Sovereign",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Eingabe!C216:D216"
+    }
+  ]
+}

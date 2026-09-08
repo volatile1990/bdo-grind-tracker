@@ -6,8 +6,33 @@ using OpenCvSharp;
 
 namespace BdoGrindTracker.App.Tests;
 
-public sealed class CompanionLootFrameAnalyzerTests
+public sealed partial class CompanionLootFrameAnalyzerTests
 {
+    [Fact]
+    public async Task LostPanelPositionStopsTheRealAnalyzerBeforeReadingAnyMoreRows()
+    {
+        var readable = true;
+        var rows = new Rows();
+        var calibration = Calibration();
+        var guard = new LootPanelCaptureGuard(calibration, () =>
+            readable ? calibration : throw new InvalidDataException("main panel hidden"));
+        using var analyzer = new CompanionLootFrameAnalyzer(calibration, Matcher(), rows, new Names(rows),
+            captureGuard: guard);
+        using var frame = new Bitmap(800, 600);
+        var first = await analyzer.AnalyzeAsync(frame, DateTimeOffset.UnixEpoch, CancellationToken.None);
+        Assert.Empty(first.NewEvents);
+        Assert.True(analyzer.IsAvailable);
+        var rowCount = rows.ProcessedY.Count;
+        readable = false;
+        await Assert.ThrowsAsync<LootPanelUnavailableException>(() =>
+            analyzer.AnalyzeAsync(frame, DateTimeOffset.UnixEpoch.AddSeconds(2), CancellationToken.None));
+        Assert.Equal(rowCount, rows.ProcessedY.Count);
+        Assert.False(analyzer.IsAvailable);
+        Assert.Equal(LootPanelCaptureGuard.MissingPanelMessage, analyzer.Status);
+        analyzer.Reset();
+        Assert.False(analyzer.IsAvailable);
+    }
+
     [Theory]
     [InlineData("Black Crystal Fragment x0", 0)]
     [InlineData("Black Crystal Fragment x00", -1)]
@@ -110,7 +135,8 @@ public sealed class CompanionLootFrameAnalyzerTests
         Assert.Null(observation.RejectionReason);
         var completed = analyzer.CompleteSession(DateTimeOffset.UnixEpoch.AddSeconds(1));
         var counted = Assert.Single(completed.NewEvents, result => result.ItemName == item);
-        Assert.Equal(3, counted.Quantity);
+        var expected = item == "Pure Black Stone" || item == "Laila's Petal" && trash == "Elion Follower's Helmet" ? 1 : 3;
+        Assert.Equal(expected, counted.Quantity);
     }
 
     [Theory]

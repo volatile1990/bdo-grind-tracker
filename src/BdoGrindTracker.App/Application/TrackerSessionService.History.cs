@@ -9,9 +9,9 @@ internal sealed partial class TrackerSessionService
     private void PersistCurrentSession(DateTimeOffset updatedAt, bool throwOnError = false)
     {
         if (!_hasSession || _demoMode || _sessionSpotId is null ||
-            _sessionClock.Elapsed <= TimeSpan.Zero || _sessionSummary.ItemTypeCount == 0)
+            _sessionClock.Elapsed <= TimeSpan.Zero || _sessionSummary.Totals.Count == 0)
             return;
-        var totals = _sessionSummary.Totals.Where(static pair => pair.Value > 0)
+        var totals = _sessionSummary.Totals.Where(static pair => pair.Value >= 0)
             .ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.OrdinalIgnoreCase);
         if (totals.Count == 0) return;
         var valuation = SilverValuation.Calculate(totals, Prices, Preferences.Tax);
@@ -104,9 +104,10 @@ internal sealed partial class TrackerSessionService
             throw new InvalidOperationException("Die aktuelle Session kann erst nach einer neuen Session bearbeitet werden.");
         var index = _historyEntries.FindIndex(candidate => candidate.SessionId == sessionId);
         if (index < 0) return Task.CompletedTask;
-        var cleaned = totals.Where(static pair => !string.IsNullOrWhiteSpace(pair.Key) && pair.Value > 0)
+        var cleaned = totals.Where(pair => !string.IsNullOrWhiteSpace(pair.Key) &&
+                (pair.Value > 0 || pair.Value == 0 && _historyEntries[index].Totals.ContainsKey(pair.Key)))
             .ToDictionary(static pair => pair.Key.Trim(), static pair => pair.Value, StringComparer.OrdinalIgnoreCase);
-        if (cleaned.Count == 0) throw new ArgumentException("Mindestens eine Lootmenge muss größer als 0 sein.");
+        if (cleaned.Count == 0) throw new ArgumentException("Mindestens ein Gegenstand muss erhalten bleiben.");
         var previous = _historyEntries[index];
         // Historical manual corrections only change this saved entry. They must
         // never become live observations or alter the current upload watermark.
@@ -135,6 +136,90 @@ internal sealed partial class TrackerSessionService
         }
         return Task.CompletedTask;
     });
+
+    public Task UpdateLootQuantityAsync(Guid sessionId, string itemName, long quantity, long originalQuantity)
+    {
+        // Frozen HTTP requests can finish while quantities are corrected. Only
+        // another local command or shutdown blocks this short transaction.
+        if (_shutdownStarted || _disposed || _operationInProgress)
+            throw new InvalidOperationException("Bitte warte, bis der laufende Vorgang abgeschlossen ist.");
+        _operationInProgress = true;
+        PublishState();
+        return _operationTask = RunOperationCoreAsync(() =>
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(itemName);
+            ArgumentOutOfRangeException.ThrowIfNegative(quantity);
+            if (sessionId == _sessionId && (_hasSession || _demoMode))
+            {
+                RefreshPendingState(publish: false);
+                var canonicalName = EditableItemName(_sessionSpotId, _sessionSummary.Totals, itemName);
+                if (_demoMode)
+                {
+                    var totals = CorrectedTotals(_sessionSummary.Totals, canonicalName, quantity, originalQuantity);
+                    _sessionSummary = new(totals, totals.Values.Sum(), _sessionSummary.ConfirmedEventCount);
+                }
+                else
+                {
+                    _uiMailbox.AdjustQuantity(canonicalName, quantity, originalQuantity, snapshot =>
+                    {
+                        var previousSummary = _sessionSummary;
+                        var previousHistory = _historyEntries.ToArray();
+                        _sessionSummary = snapshot;
+                        try { PersistCurrentSession(DateTimeOffset.UtcNow, throwOnError: true); }
+                        catch
+                        {
+                            _sessionSummary = previousSummary;
+                            _historyEntries.Clear();
+                            _historyEntries.AddRange(previousHistory);
+                            _historyChanged = true;
+                            throw;
+                        }
+                    }, ObserveGarmothTotals);
+                }
+            }
+            else
+            {
+                var index = _historyEntries.FindIndex(entry => entry.SessionId == sessionId);
+                if (index < 0) throw new InvalidOperationException("Diese Session ist nicht mehr verfügbar.");
+                var previous = _historyEntries[index];
+                var canonicalName = EditableItemName(previous.SpotId, previous.Totals, itemName);
+                var totals = CorrectedTotals(previous.Totals, canonicalName, quantity, originalQuantity);
+                var valuation = SilverValuation.Calculate(totals, Prices, Preferences.Tax);
+                _historyEntries[index] = previous with
+                {
+                    Totals = totals,
+                    SilverBeforeTax = valuation.BeforeTax,
+                    SilverAfterTax = valuation.AfterTax,
+                    SilverIsComplete = valuation.IsComplete,
+                };
+                _historyChanged = true;
+                try { _historyStore.Save(_historyEntries); }
+                catch { _historyEntries[index] = previous; throw; }
+            }
+            SetStatus(_demoMode && sessionId == _sessionId
+                ? "Menge in der Demo korrigiert." : "Lootmenge gespeichert.");
+            return Task.CompletedTask;
+        });
+    }
+
+    private static string EditableItemName(string? spotId, IReadOnlyDictionary<string, long> totals, string itemName) =>
+        totals.Keys.FirstOrDefault(name => string.Equals(name, itemName, StringComparison.OrdinalIgnoreCase))
+        ?? (spotId is null ? null : LootSpotCatalog.GetRequired(spotId).AllowedItems.FirstOrDefault(
+            name => string.Equals(name, itemName, StringComparison.OrdinalIgnoreCase)))
+        ?? throw new ArgumentException("Dieser Gegenstand gehört nicht zur Session.");
+
+    private static Dictionary<string, long> CorrectedTotals(IReadOnlyDictionary<string, long> totals,
+        string itemName, long quantity, long originalQuantity)
+    {
+        var correction = checked(quantity - originalQuantity);
+        var corrected = new Dictionary<string, long>(totals, StringComparer.OrdinalIgnoreCase)
+        {
+            [itemName] = Math.Max(0, checked(totals.GetValueOrDefault(itemName) + correction)),
+        };
+        // Keep session-wide counters representable before changing persistence.
+        _ = corrected.Values.Sum();
+        return corrected;
+    }
 
     private void SortHistory()
     {

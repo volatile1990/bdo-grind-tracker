@@ -4,6 +4,29 @@ namespace BdoGrindTracker.Ocr.Tests;
 
 public sealed class CompanionTextPipelineTests
 {
+    [Theory]
+    [InlineData("BON Wandering Origin Crystal")]
+    [InlineData("BON Wandering Origin Crystal x7")]
+    [InlineData("BON Wandering Origin Crystal x0")]
+    public void FixedUnitItemSkipsParsingTheQuantitySuffix(string input)
+    {
+        var result = CompanionTextPipeline.Process(input, 999, false, 100,
+            name => name == "BON Wandering Origin Crystal");
+        Assert.Equal("BON Wandering Origin Crystal", result.Name);
+        Assert.Equal(1, result.Quantity);
+        Assert.False(result.HasParsedOcrQuantity);
+        Assert.True(result.UsesFixedUnitQuantity);
+    }
+
+    [Fact]
+    public void VariableDropsKeepTheOriginalQuantityParsing()
+    {
+        var result = CompanionTextPipeline.Process("Black Stone x7", 99, false, 100, _ => false);
+        Assert.Equal(7, result.Quantity);
+        Assert.True(result.HasParsedOcrQuantity);
+        Assert.False(result.UsesFixedUnitQuantity);
+    }
+
     [Fact]
     public void NormalizeRawText_RemovesOnlyTheVerifiedCharacterSet()
     {

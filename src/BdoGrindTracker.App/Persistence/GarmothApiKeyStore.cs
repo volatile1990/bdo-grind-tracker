@@ -24,8 +24,7 @@ internal sealed class GarmothApiKeyStore
         Func<byte[], byte[]>? unprotect = null)
     {
         _keyPath = Path.GetFullPath(keyPath ?? Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "BdoGrindTracker", "garmoth-api-key.dpapi"));
+            AppDataPaths.Current.BaseDirectory, "garmoth-api-key.dpapi"));
         _protect = protect ?? (bytes => ProtectedData.Protect(bytes, Entropy, DataProtectionScope.CurrentUser));
         _unprotect = unprotect ?? (bytes => ProtectedData.Unprotect(bytes, Entropy, DataProtectionScope.CurrentUser));
     }

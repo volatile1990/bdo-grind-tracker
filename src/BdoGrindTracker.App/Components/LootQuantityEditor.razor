@@ -1,0 +1,70 @@
+@inherits TrackerComponentBase
+
+<div class="loot-quantity-control" @onclick:stopPropagation>
+    @if (_editing)
+    {
+        <form class="loot-quantity-editor" @onsubmit="Save" @onsubmit:preventDefault @onkeydown="OnKeyDown">
+            <label><span>Gesamtmenge</span><input @ref="_input" type="text" inputmode="numeric" autocomplete="off"
+                aria-label="@("Gesamtmenge für " + ItemLabel(ItemName))" aria-invalid="@(_error is not null ? "true" : "false")"
+                @bind="_value" @bind:event="oninput" /></label>
+            <div class="quantity-edit-actions"><button type="submit" class="icon-button" aria-label="Menge speichern" title="Speichern (Enter)" disabled="@(Acting || !State.CanEditLoot)"><AppIcon Name="check" /></button><button type="button" class="icon-button" aria-label="Bearbeitung abbrechen" title="Abbrechen (Esc)" @onclick="Cancel" disabled="@Acting"><AppIcon Name="close" /></button></div>
+            @if (Quantity != _originalQuantity) { <small class="quantity-edit-note">Zwischenzeitliche Drops bleiben erhalten.</small> }
+            @if (_error is not null) { <small class="quantity-edit-error" role="alert">@_error</small> }
+        </form>
+    }
+    else
+    {
+        <span>@DisplayQuantity</span><button type="button" class="icon-button quantity-edit-button" aria-label="@("Gesamtmenge für " + ItemLabel(ItemName) + " bearbeiten")" title="Gesamtmenge bearbeiten" @onclick="Begin" disabled="@(!State.CanEditLoot)"><AppIcon Name="edit" /></button>
+    }
+</div>
+
+@code {
+    [Parameter] public Guid SessionId { get; set; }
+    [Parameter] public string ItemName { get; set; } = "";
+    [Parameter] public long Quantity { get; set; }
+    [Parameter] public string DisplayQuantity { get; set; } = "";
+    private bool _editing;
+    private bool _focusInput;
+    private long _originalQuantity;
+    private Guid _editingSessionId;
+    private string _editingItemName = "";
+    private string _value = "";
+    private string? _error;
+    private ElementReference _input;
+
+    protected override void OnParametersSet()
+    {
+        if (_editing && (SessionId != _editingSessionId || ItemName != _editingItemName)) Cancel();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focusInput) { _focusInput = false; await _input.FocusAsync(); }
+    }
+
+    private void Begin()
+    {
+        if (!State.CanEditLoot) return;
+        _editingSessionId = SessionId;
+        _editingItemName = ItemName;
+        _originalQuantity = Quantity;
+        _value = Quantity.ToString(CultureInfo.InvariantCulture);
+        _error = null;
+        _editing = true;
+        _focusInput = true;
+    }
+
+    private void Cancel() { _editing = false; _error = null; }
+    private void OnKeyDown(KeyboardEventArgs args) { if (args.Key == "Escape" && !Acting) Cancel(); }
+    private async Task Save()
+    {
+        if (Acting || !State.CanEditLoot) return;
+        if (!long.TryParse(_value, NumberStyles.None, CultureInfo.InvariantCulture, out var quantity))
+        {
+            _error = "Bitte eine ganze Menge ab 0 eingeben.";
+            return;
+        }
+        if (await Act(() => Tracker.UpdateLootQuantityAsync(_editingSessionId, _editingItemName, quantity, _originalQuantity))) Cancel();
+        else _error = ActionError ?? State.Status;
+    }
+}

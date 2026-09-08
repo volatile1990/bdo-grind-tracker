@@ -40,6 +40,15 @@ gegen zukünftige Mengen erhalten: Ein Zähler, der unter den bereits gesendeten
 Stand fällt und sich erholt, erzeugt dadurch keine erneute Buchung derselben Beute.
 Bereits gespeicherte Garmoth-Einträge werden nicht nachträglich korrigiert.
 
+Manuelle Inline-Korrekturen verwenden denselben lokalen Mengenzähler und wirken
+auf zukünftige Deltas. Bereits eingefrorene Stundenstände und laufende HTTP-Anfragen
+bleiben unverändert; bereits gesendete Mengen werden nie herabgesetzt. Auch während
+eines Uploads kann lokal korrigiert werden. Die lokale Speicherung erfolgt vor dem
+Commit der Korrektur, ohne künstliche Drop- oder Aktivitätsereignisse. Eine explizite
+Nullmenge bleibt im Verlauf erhalten, einschließlich der bisherigen Uploadsperre
+und des Übertragungszeitpunkts. Historische Korrekturen ändern ausschließlich den
+jeweiligen gespeicherten Eintrag und niemals den Zähler der aktuellen Sitzung.
+
 Der Verlauf speichert die vollständigen lokalen Sitzungssummen. Sobald mindestens
 ein Abschnitt erfolgreich übertragen wurde oder sein Ergebnis unklar ist, wird
 deshalb der Gesamt-Upload dieses Verlaufseintrags gesperrt. Diese Sperre bleibt
@@ -58,9 +67,11 @@ Garmoth prüfen: Der Server könnte den Abschnitt bereits gespeichert haben.
 
 Eine eindeutig abgelehnte Anfrage oder fehlende lokale Voraussetzung setzt die
 automatischen Versuche aus. Nach Beheben der Ursache kann der Nutzer die
-Garmoth-Einstellungen erneut speichern oder manuell hochladen. Allgemeines Speichern
-unter **Einstellungen** reaktiviert diese Versuche nicht. Erneutes Speichern im Garmoth-Bereich gibt
-nur eindeutig fehlgeschlagene Versuche frei, niemals ein unklares Ergebnis.
+Garmoth-Verbindung durch einen korrigierten Schlüssel aktualisieren, die Automatik
+erneut einschalten oder **Automatik fortsetzen** wählen. Diese Einstellungen werden
+automatisch gespeichert. Änderungen unter **Einstellungen** reaktivieren die
+Versuche nicht. Die Freigabe betrifft nur eindeutig fehlgeschlagene Versuche,
+niemals ein unklares Ergebnis.
 Ein erfolgreicher oder unklarer manueller Upload sperrt wie bisher weitere Uploads
 und das Fortsetzen dieser Sitzung; eine ausdrücklich abgelehnte Anfrage erlaubt
 einen neuen manuellen Versuch.

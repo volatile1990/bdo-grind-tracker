@@ -8,15 +8,23 @@ namespace BdoGrindTracker.App.Services;
 
 internal sealed partial class TrackerSessionService
 {
-    public Task SavePreferencesAsync(TrackerPreferences preferences, string? apiKey = null,
-        bool resumeAutomaticUpload = false) =>
-        RunOperationAsync(() =>
+    public async Task<PreferenceSaveResult> SavePreferencesAsync(TrackerPreferences preferences, string? apiKey = null,
+        bool resumeAutomaticUpload = false)
+    {
+        if (_shutdownStarted || _disposed)
+            return new("Die Einstellungen konnten nicht gespeichert werden, weil Grindcrest beendet wird.");
+        if (IsBusy)
+            return new("Die Einstellungen konnten noch nicht gespeichert werden. Bitte warte, bis der laufende Vorgang abgeschlossen ist.");
+        await RunOperationAsync(() =>
         {
             ArgumentNullException.ThrowIfNull(preferences);
             if (_hasSession && (preferences.MonitorDeviceName != Preferences.MonitorDeviceName ||
+                preferences.GameLanguage != Preferences.GameLanguage ||
                 preferences.IncludeEventLoot != Preferences.IncludeEventLoot ||
                 preferences.RecordLoot != Preferences.RecordLoot))
-                throw new ArgumentException("Monitor, Lootfilter und Aufzeichnung können erst für eine neue Session geändert werden.");
+                throw new ArgumentException("Monitor, Spielsprache, Lootfilter und Aufzeichnung können erst für eine neue Session geändert werden.");
+            if (preferences.GameLanguage is not ("auto" or "en" or "de"))
+                throw new ArgumentException("Unterstützte Spielsprachen sind Deutsch und Englisch.");
             var classChanged = preferences.CharacterClassId != Preferences.CharacterClassId;
             if (classChanged && (_uiRunning || _sessionSubmitted))
                 throw new InvalidOperationException(_sessionSubmitted
@@ -47,6 +55,7 @@ internal sealed partial class TrackerSessionService
             _garmothApiKey = nextKey;
             var regionChanged = region != Preferences.MarketRegion;
             Preferences = preferences with { MarketRegion = region, AutoUpload = preferences.AutoUpload && nextKey.Length > 0 };
+            if (!_hasSession && Preferences.GameLanguage == "auto") _gameLanguageDetection = _detectGameLanguage();
             if (classChanged || (!_hasSession && !_demoMode)) _sessionClass = SelectedCharacterClass;
             _settings.UpdateSilverPreferences(region, tax);
             if (regionChanged)
@@ -60,7 +69,7 @@ internal sealed partial class TrackerSessionService
             SetStatus(_garmothIntervals.IsBlocked
                 ? "Einstellungen gespeichert. Das unklare Upload-Ergebnis muss in Garmoth geprüft werden; diese Sitzung bleibt für Uploads gesperrt."
                 : Preferences.AutoUpload && _garmothIntervals.AutomaticSuspended
-                    ? "Einstellungen gespeichert. Der automatische Upload bleibt angehalten. Nach der Korrektur die Garmoth-Einstellungen erneut speichern."
+                    ? "Einstellungen gespeichert. Der automatische Upload bleibt angehalten. Korrigiere den Schlüssel oder setze die Automatik auf der Garmoth-Seite fort."
                     : Preferences.AutoUpload
                         ? "Einstellungen gespeichert. Jede volle Grindstunde wird einmal automatisch übertragen."
                         : "Einstellungen gespeichert.");
@@ -69,11 +78,16 @@ internal sealed partial class TrackerSessionService
             if (regionChanged) _ = RefreshPricesAsync();
             return Task.CompletedTask;
         });
+        // A blocked capture has its own persistent error. It does not turn a
+        // successfully persisted setting into a failed save.
+        return new(_isError ? _status : null);
+    }
 
     private bool TrySaveSettings()
     {
         _settings.UpdateCapturePreferences(Preferences.MonitorDeviceName);
         _settings.AutoPauseMinutes = Preferences.AutoPauseMinutes;
+        _settings.GameLanguage = Preferences.GameLanguage;
         _settings.FavoriteItems = Preferences.FavoriteItems.ToArray();
         _settings.LootColumnOrders = Preferences.LootColumnOrders.ToDictionary(pair => pair.Key, pair => pair.Value.ToArray());
         _settings.CharacterClassId = Preferences.CharacterClassId;

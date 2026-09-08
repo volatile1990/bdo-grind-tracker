@@ -6,11 +6,17 @@ namespace BdoGrindTracker.App.Services;
 
 internal sealed record TrackerMonitor(string DeviceName, string Label, Rectangle Bounds, bool IsPrimary);
 
+internal sealed record PreferenceSaveResult(string? Error = null)
+{
+    public bool Succeeded => Error is null;
+}
+
 internal sealed record TrackerPreferences
 {
     public IReadOnlyList<string> FavoriteItems { get; init; } = [];
     public IReadOnlyDictionary<string, string[]> LootColumnOrders { get; init; } = new Dictionary<string, string[]>();
     public string? MonitorDeviceName { get; init; }
+    public string GameLanguage { get; init; } = "auto";
     public string? CharacterClassId { get; init; }
     public int AutoPauseMinutes { get; init; } = 3;
     public bool IncludeEventLoot { get; init; }
@@ -29,9 +35,14 @@ internal sealed record TrackerState
     public bool HasSession { get; init; }
     public bool IsRunning { get; init; }
     public bool IsBusy { get; init; }
+    public bool CanEditLoot { get; init; } = true;
     public bool IsDemo { get; init; }
     public bool IsSubmitted { get; init; }
     public bool AnalyzerAvailable { get; init; }
+    public string? TrackingBlockedReason { get; init; }
+    public bool? PrivateItemChatAvailable { get; init; }
+    public string? DetectedGameLanguage { get; init; }
+    public string GameLanguageStatus { get; init; } = "Die Spielsprache wird beim Tracking-Start geprüft.";
     public string? SpotId { get; init; }
     public string? CharacterClassId { get; init; }
     public string CharacterLabel { get; init; } = "Automatische Erkennung";
@@ -63,17 +74,21 @@ internal interface ITrackerSession : IAsyncDisposable
     Task NewSessionAsync();
     Task SetDemoAsync(bool enabled);
     // null keeps the encrypted key; empty string removes it. Never expose a saved key to markup.
-    // Only an explicit save on the Garmoth page resumes a rejected automatic upload.
-    Task SavePreferencesAsync(TrackerPreferences preferences, string? apiKey = null,
+    // Only a deliberate key/toggle change or resume action on the Garmoth page resumes a rejected upload.
+    Task<PreferenceSaveResult> SavePreferencesAsync(TrackerPreferences preferences, string? apiKey = null,
         bool resumeAutomaticUpload = false);
     Task UploadAsync();
     Task UploadHistoryAsync(Guid sessionId);
     Task UpdateHistoryLootAsync(Guid sessionId, IReadOnlyDictionary<string, long> totals,
         string? characterClass = null);
+    // Apply an editor's change against its starting value without losing later drops.
+    Task UpdateLootQuantityAsync(Guid sessionId, string itemName, long quantity, long originalQuantity);
     Task DeleteHistoryAsync(Guid sessionId);
     Task RefreshPricesAsync();
     Task TickAsync();
     // Persist before irreversible shutdown; failure leaves the paused tracker usable.
     Task PrepareUpdateRestartAsync();
+    // Keep session commands blocked until the installer completes or is canceled.
+    Task RunPreparedUpdateAsync(Func<Task> install);
     Task ShutdownAsync();
 }

@@ -11,6 +11,8 @@ public sealed record CompanionRecognizedEntry
 
     public int Y { get; }
 
+    public DropQuantityBounds? QuantityBounds { get; init; }
+
     /// <summary>
     /// True when the counter emitted a configured minimum instead of its native
     /// unresolved-quantity estimate. The value is an estimate, not an OCR read.

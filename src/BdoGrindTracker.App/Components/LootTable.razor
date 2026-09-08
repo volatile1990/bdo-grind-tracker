@@ -1,8 +1,8 @@
-﻿@inherits TrackerComponentBase
+@inherits TrackerComponentBase
 
 <section class="panel loot-panel" aria-label="@Title">
     <div class="panel-heading">
-        <div><h2>@Title <span class="count-pill">@Totals.Count</span></h2><p>@Subtitle</p></div>
+        <div><h2>@Title <span class="count-pill">@Totals.Count</span></h2>@if (!string.IsNullOrWhiteSpace(Subtitle)) { <p>@Subtitle</p> }</div>
         <div class="segmented" aria-label="Mengenanzeige"><button class="@(!_hourly ? "selected" : "")" @onclick="() => _hourly = false" aria-pressed="@(!_hourly ? "true" : "false")">Gesamt</button><button class="@(_hourly ? "selected" : "")" @onclick="() => _hourly = true" aria-pressed="@(_hourly ? "true" : "false")" disabled="@(DurationTicks <= 0)">Pro Stunde</button></div>
     </div>
     @if (Totals.Count > 0)
@@ -19,8 +19,8 @@
                     {
                         var isTrash = item.Name == TrashName;
                         <tr @key="item.Name" class="@(Tracker.Preferences.FavoriteItems.Contains(item.Name) ? "favorite-loot-row" : "")">
-                            <td><div class="item-cell"><AssetImage Src="@ItemIcon(item.Name)" Alt="" Class="item-image" /><span><strong>@item.Name</strong><small>@(isTrash ? "Trashloot · NPC-Verkauf" : Kind(item.Name))@if (item.Stale) { <span class="inline-warning"> · Cachepreis</span> }</small></span>@if (isTrash) { <span class="item-tag">TRASH</span> }@if (Tracker.Preferences.FavoriteItems.Contains(item.Name)) { <span class="item-tag favorite-tag">★ FAVORIT</span> }</div></td>
-                            <td class="numeric quantity">@Number(_hourly ? Hourly(item.Quantity, TimeSpan.FromTicks(DurationTicks)) : item.Quantity)</td>
+                            <td><div class="item-cell"><AssetImage Src="@ItemIcon(item.Name)" Alt="" Class="item-image" /><span><strong>@ItemLabel(item.Name)</strong><small>@(isTrash ? "Trashloot · NPC-Verkauf" : Kind(item.Name))@if (item.Stale) { <span class="inline-warning"> · Cachepreis</span> }</small></span>@if (isTrash) { <span class="item-tag">TRASH</span> }@if (Tracker.Preferences.FavoriteItems.Contains(item.Name)) { <span class="item-tag favorite-tag">★ FAVORIT</span> }</div></td>
+                            <td class="numeric quantity">@if (EditableSessionId is { } sessionId) { <LootQuantityEditor SessionId="sessionId" ItemName="@item.Name" Quantity="item.Quantity" DisplayQuantity="@Number(_hourly ? Hourly(item.Quantity, TimeSpan.FromTicks(DurationTicks)) : item.Quantity)" /> } else { @Number(_hourly ? Hourly(item.Quantity, TimeSpan.FromTicks(DurationTicks)) : item.Quantity) }</td>
                             <td class="numeric silver-cell" title="@(item.Value.HasValue ? Number(item.Value.Value) + " Silber netto" : "Für diesen Gegenstand fehlt ein Preis.")">@(item.Value.HasValue ? Silver(_hourly ? Hourly(item.Value.Value, TimeSpan.FromTicks(DurationTicks)) : item.Value.Value) : "Preis fehlt")</td>
                         </tr>
                     }
@@ -39,6 +39,7 @@
 @code {
     [Parameter] public IReadOnlyDictionary<string, long> Totals { get; set; } = new Dictionary<string, long>();
     [Parameter] public long DurationTicks { get; set; }
+    [Parameter] public Guid? EditableSessionId { get; set; }
     [Parameter] public string? TrashName { get; set; }
     [Parameter] public string Title { get; set; } = "Dein Loot";
     [Parameter] public string Subtitle { get; set; } = "Alle erfassten Drops dieser Session";
@@ -50,7 +51,8 @@
     {
         get
         {
-            var items = Totals.Where(pair => pair.Key.Contains(_query, StringComparison.OrdinalIgnoreCase)).Select(pair =>
+            var items = Totals.Where(pair => pair.Key.Contains(_query, StringComparison.OrdinalIgnoreCase) ||
+                ItemLocalizationCatalog.GermanNames.GetValueOrDefault(pair.Key, pair.Key).Contains(_query, StringComparison.OrdinalIgnoreCase)).Select(pair =>
             {
                 var valuation = SilverValuation.Calculate(new Dictionary<string, long> { [pair.Key] = pair.Value }, Tracker.Prices, Tracker.Preferences.Tax);
                 return new LootRow(pair.Key, pair.Value, valuation.IsComplete ? valuation.AfterTax : null, valuation.IsStale);
@@ -58,7 +60,7 @@
             return _sort switch
             {
                 "quantity" => items.OrderByDescending(item => item.Quantity).ThenBy(item => item.Name),
-                "name" => items.OrderBy(item => item.Name),
+                "name" => items.OrderBy(item => ItemLabel(item.Name)),
                 _ => items.OrderByDescending(item => item.Value).ThenBy(item => item.Name)
             };
         }

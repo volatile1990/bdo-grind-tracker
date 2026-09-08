@@ -25,6 +25,15 @@ public sealed record LootObservation(
     /// <summary>Original calibrated row Y, preserved for native Companion replay.</summary>
     public int? NativeY { get; init; }
 
+    /// <summary>Spot-specific policy; Quantity retains the original OCR reading.</summary>
+    public DropQuantityBounds? QuantityBounds { get; init; }
+
+    /// <summary>The OCR pipeline supplied its implicit rare quantity 1 without reading a number.</summary>
+    public bool UsesImplicitUnitQuantity { get; init; }
+
+    /// <summary>The confirmed item/spot range supplies one without reading a quantity.</summary>
+    public bool UsesFixedUnitQuantity { get; init; }
+
 }
 
 /// <summary>A native loot delta, including signed rare corrections.</summary>

@@ -122,13 +122,21 @@ weiterverwendet. Vorschau und Prüfmodi rufen keine Updates ab.
 
 [Neue Version über GitHub veröffentlichen und lokal bauen](docs/RELEASING.md).
 
+Für die Microsoft-Store-Ausgabe ist ab **1.0.1** ein eigener Updateablauf vorbereitet:
+Grindcrest sucht beim Start und alle sechs Stunden nach freigegebenen Updates und
+zeigt einen Hinweis in der App. **Einstellungen → App-Updates** bietet Download
+und **Update installieren**, ohne die Store-App öffnen zu müssen. Vor der Installation
+muss das Tracking pausiert sein; die Session wird gespeichert. Windows kann eine
+Bestätigung anzeigen und Grindcrest schließen. Die Freigabe neuer Pakete erfolgt
+weiterhin über Microsoft. [Store-Paket erstellen und einreichen](docs/MICROSOFT_STORE.md).
+
 ### Tracking starten
 
 1. `Grindcrest.exe` starten und unter **Einstellungen** den Spielbildschirm prüfen.
 2. Dort optional **Event-Loot mitzählen** aktivieren. Das ergänzt ausschließlich die
    explizite Event-Liste, keine beliebigen fremden Items.
 3. Optional unter **Loot-Diagnose → Diese Session aufzeichnen** die Diagnose aktivieren.
-   **Einstellungen speichern**, dann unter **Live-Session** auf **Tracking starten** klicken.
+   Änderungen werden automatisch übernommen. Unter **Live-Session** auf **Tracking starten** klicken.
 4. Der Spot wird aus dem ersten passenden Trashloot automatisch erkannt und angezeigt:
 
    | Erkannter Trashloot | Spot |
@@ -158,26 +166,38 @@ Die Diagnose-Aufzeichnung ist beim Programmstart und nach jeder neuen Sitzung au
 
 ### Automatischer Mengen-Fallback aus dem Item-Chat
 
+Der Haupt-Droplog ist Voraussetzung für die Erfassung. Fehlt seine sichtbare,
+eindeutige Position in der aktiven BDO-UI-Konfiguration, bleibt der Start gesperrt
+und die Live-Ansicht zeigt **Tracking nicht möglich** mit einer Anleitung.
+Beim Start und während der Aufnahme wird die Position erneut geprüft. Verschwindet
+sie oder ändern sich die zugehörigen Anzeigeeinstellungen, hält die Erfassung an.
+Nach dem Speichern der korrigierten BDO-UI-Einstellungen Grindcrest neu starten.
+Ein leeres Droplog ohne neue Drops ist kein Fehler.
+
 Ein separates, sichtbares BDO-Chatfenster kann fehlende Mengen im normalen Lootpanel
-ergänzen. Im Spiel unter **System** ausschließlich **Private Item** aktivieren und
+ergänzen. Im Spiel unter **System** ausschließlich **Beute** (englisch: **Private Item**) aktivieren und
 die normalen Chatkanäle ausschalten. Die gespeicherte UI muss dieses Fenster als
 eingeblendet und vom Hauptchat getrennt enthalten. Der Tracker liest Position,
 Größe und Filter automatisch aus der aktiven `gamevariable.xml`; Änderungen werden
 während der Aufnahme alle zwei Sekunden geprüft. Das Fenster muss auf dem gewählten
 Spielbildschirm sichtbar bleiben und am Ende des Chatverlaufs stehen.
 
-Unterstützt werden vollständige englische Meldungen wie
+Unterstützt werden vollständige deutsche Meldungen wie
+`Ihr habt 6 x [Helm eines Anhängers Elions] erhalten.` sowie englische Meldungen wie
 `You have obtained [Elion Follower's Helmet] x6.`. Der Chat erzeugt keine eigenen
 Buchungen, sondern ergänzt ausschließlich eine noch fehlende Menge einer bereits
 erkannten normalen Lootzeile. Vorhandene Mengen, einschließlich einer möglicherweise
 falsch erkannten `1`, werden nicht überschrieben. Alte Chatzeilen beim Start oder
 Fortsetzen, mehrdeutige Folgen und unklare Zuordnungen liefern keine Ersatzmenge.
 Ohne geeignetes Chatfenster läuft die bisherige Erkennung weiter.
+Die Live-Ansicht zeigt dann seitlich den optionalen Hinweis **Erkennung ergänzen**
+mit einer aufklappbaren Anleitung. Er verschwindet, sobald ein passendes Fenster
+erkannt wird; ein konfiguriertes, momentan leeres Item-Chatfenster gilt als vorhanden.
 [Zuordnung, Diagnose und Grenzen](docs/OCR_RECOVERY.md#item-chat-als-mengen-fallback).
 
-Ein letzter Ersatz durch eine Mindestmenge pro Trash-Item ist technisch vorbereitet.
-Für die sechs unterstützten Spots sind noch keine verlässlichen Grundmengen belegt;
-deshalb sind keine erhöhten Mindestwerte aktiv. [Recherche und Fallback-Regeln](docs/TRASH_MINIMUMS.md).
+Fehlende Mengen erhalten den hinterlegten Mindestwert für Item und Spot. Die
+Grenzen stammen aus der ausgefüllten Dropmengentabelle; bei festen 1/1-Drops entfällt
+die Mengen-OCR. [Dropmengen und Korrekturen](docs/DROP_QUANTITIES.md).
 
 ### Auto-Pause und Klasse
 
@@ -201,12 +221,13 @@ Grenzen: [Klassenerkennung](docs/CLASS_DETECTION.md).
 ### Optionaler Upload nach Garmoth
 
 Einmal unter **Garmoth → Zugang & Automatik** den eigenen API-Key aus den Garmoth-
-Einstellungen speichern. Er wird mit Windows-DPAPI für den aktuellen Windows-Benutzer
+Einstellungen einfügen. Beim Verlassen des Feldes oder mit Enter wird er automatisch
+gespeichert und mit Windows-DPAPI für den aktuellen Windows-Benutzer
 verschlüsselt, nicht als Klartext in den Einstellungen gespeichert. Companion-/Browser-
 Anmeldedaten werden nicht übernommen. Dort lässt sich der Key auch wieder entfernen.
 
-Im selben Bereich kann **Stündlich automatisch hochladen** aktiviert
-und gespeichert werden; standardmäßig ist die Option aus. Alle **60 aktiven
+Im selben Bereich wird **Stündlich automatisch hochladen** beim Umschalten sofort
+gespeichert; standardmäßig ist die Option aus. Alle **60 aktiven
 Grind-Minuten** wird nur der nächste ungesendete Stundenabschnitt übertragen,
 während das Tracking weiterläuft. Pausen und eine noch durch Auto-Pause abziehbare
 Leerlaufphase lösen keinen Stunden-Upload aus. Die Stunden werden ab Sitzungsbeginn
@@ -241,8 +262,8 @@ Ein erfolgreicher automatischer Upload lässt die Sitzung weiterlaufen. Bei eine
 unklaren automatischen Ergebnis werden alle weiteren Uploads dieser Sitzung gesperrt,
 auch manuelle und nach erneutem Aktivieren der Option; lokales Tracking bleibt möglich.
 Zuerst auf Garmoth prüfen. Eine eindeutige Ablehnung oder fehlende Upload-Voraussetzung
-setzt die Automatik aus: Ursache beheben und die Garmoth-Einstellungen erneut speichern
-oder manuell hochladen. Allgemeine Einstellungen reaktivieren die Automatik nicht.
+setzt die Automatik aus: Ursache beheben und den Schlüssel korrigieren oder
+**Automatik fortsetzen** wählen. Allgemeine Einstellungen reaktivieren die Automatik nicht.
 Unklare Ergebnisse werden nicht automatisch wiederholt.
 Nach einem erfolgreichen oder unklaren **manuellen** Upload bleibt die Sitzung wie
 bisher gegen erneutes Hochladen/Fortsetzen gesperrt; danach **Neue Sitzung** wählen.
@@ -327,6 +348,12 @@ Spielpixel. Es wurden keine zusätzlichen Erkennungsfilter oder Verwerfungsregel
 
 ## Lokale Diagnose und Replay
 
+HDR-Aufnahmen können FP16-Pixel erhalten, bevor sie für die OCR umgewandelt werden.
+Damit bleiben helle Abstufungen erhalten, die im bisherigen Aufnahmeweg verloren
+gehen konnten. Die Aufzeichnung kennzeichnet dies mit `isHdr: true` und
+`isToneMapped: true`. Technische Details, Fallback und Stand der Prüfung stehen in
+[HDR_CAPTURE.md](docs/HDR_CAPTURE.md).
+
 Bei aktivierter Aufzeichnung werden ausschließlich die kalibrierten Lootausschnitte
 und gegebenenfalls das verwendete Item-Chatfenster
 als PNG sowie OCR-Beobachtungen und Entscheidungen als JSONL gespeichert:
@@ -381,8 +408,11 @@ Siehe [Sicherheitsgrenze](docs/SAFETY.md) und [Architektur](docs/ANALYSIS.md).
 
 Windows 10 Version 2004 oder neuer, .NET 9 SDK, die
 [Microsoft Edge WebView2 Evergreen Runtime](https://developer.microsoft.com/microsoft-edge/webview2/)
-und eine installierte Windows-OCR-Sprache. Die Itemnamen sind englisch;
-bevorzugte OCR-Sprache ist en-US. Das veröffentlichte Windows-x64-Paket enthält die
+und die Windows-OCR-Sprache des Spiels: Deutsch (`de-DE`) oder Englisch (`en-US`).
+Die Textsprache wird standardmäßig aus der BDO-Konfiguration erkannt; unter
+**Einstellungen → Spielsprache in Black Desert** ist eine manuelle Auswahl möglich.
+Alle unterstützten Drops besitzen geprüfte deutsche Erkennungsnamen, siehe
+[Spielsprachen und Quellen](docs/GAME_LANGUAGES.md). Das veröffentlichte Windows-x64-Paket enthält die
 .NET-Laufzeit; WebView2 wird vom Betriebssystem bereitgestellt bzw. separat installiert.
 
 Die interne Assembly heißt aus Kompatibilitätsgründen weiter `BdoGrindTracker`.

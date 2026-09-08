@@ -8,6 +8,12 @@ namespace BrandAssets;
 internal static class Program
 {
     private static readonly int[] IconSizes = [16, 24, 32, 48, 64, 128, 256];
+    private static readonly (string Name, int Size)[] MsixAssets =
+    [
+        ("StoreLogo.png", 50),
+        ("Square44x44Logo.png", 44),
+        ("Square150x150Logo.png", 150)
+    ];
     private static readonly byte[] PngSignature = [137, 80, 78, 71, 13, 10, 26, 10];
 
     public static int Main(string[] args)
@@ -22,9 +28,17 @@ internal static class Program
             if (args.Length == 0 || args.Any(static value => value is "--help" or "-h"))
             {
                 Console.WriteLine("BrandAssets input.png output.ico [header.png] [--force]");
+                Console.WriteLine("BrandAssets --msix input.png outputDirectory (directory must be empty)");
                 Console.WriteLine("BrandAssets --self-test");
                 Console.WriteLine("Requires a square PNG containing visible and transparent pixels. No UI is opened.");
                 return args.Length == 0 ? 2 : 0;
+            }
+            if (args[0] == "--msix")
+            {
+                if (args.Length != 3 || args.Skip(1).Any(static arg => arg.StartsWith("--", StringComparison.Ordinal)))
+                    throw new ArgumentException("Expected --msix input.png outputDirectory.");
+                PackageMsix(args[1], args[2]);
+                return 0;
             }
 
             var force = args.Contains("--force", StringComparer.Ordinal);
@@ -57,12 +71,7 @@ internal static class Program
         foreach (var output in new[] { iconPath, headerPath }.Where(static path => path is not null))
             if (!force && File.Exists(output))
                 throw new IOException($"Output already exists: {output}. Use --force only to replace generated outputs.");
-        var info = new FileInfo(inputPath);
-        if (!info.Exists || info.Length is < 24 or > 64 * 1024 * 1024)
-            throw new InvalidDataException("Input PNG is missing, empty or exceeds 64 MiB.");
-        var sourceBytes = File.ReadAllBytes(inputPath);
-        if (!sourceBytes.AsSpan(0, PngSignature.Length).SequenceEqual(PngSignature))
-            throw new InvalidDataException("Input does not have a PNG signature.");
+        var sourceBytes = ReadSourceBytes(inputPath);
 
         using var stream = new MemoryStream(sourceBytes, writable: false);
         using var source = new Bitmap(stream);
@@ -76,6 +85,41 @@ internal static class Program
         Console.WriteLine($"ICO: {iconPath} ({string.Join(", ", IconSizes)} px; {icon.Length:N0} bytes)");
         if (headerPath is not null) Console.WriteLine($"Header: {headerPath} (128 x 128 PNG)");
         Console.WriteLine("Source PNG untouched; alpha retained. Only resampling/container packaging was performed.");
+    }
+
+    private static void PackageMsix(string inputPath, string outputDirectory)
+    {
+        inputPath = Path.GetFullPath(inputPath);
+        outputDirectory = Path.GetFullPath(outputDirectory);
+        if (File.Exists(outputDirectory) ||
+            Directory.Exists(outputDirectory) && Directory.EnumerateFileSystemEntries(outputDirectory).Any())
+            throw new IOException("MSIX output directory must be empty or not yet exist.");
+
+        var sourceBytes = ReadSourceBytes(inputPath);
+        using var stream = new MemoryStream(sourceBytes, writable: false);
+        using var source = new Bitmap(stream);
+        ValidateSource(source);
+        var assets = MsixAssets.Select(asset => (asset.Name, asset.Size, Bytes: ResizePng(source, asset.Size))).ToArray();
+        foreach (var asset in assets)
+        {
+            var outputPath = Path.Combine(outputDirectory, asset.Name);
+            WriteOutput(outputPath, asset.Bytes, force: false);
+            Console.WriteLine($"MSIX: {outputPath} ({asset.Size} x {asset.Size} PNG)");
+        }
+        Console.WriteLine("Source PNG untouched; alpha retained. Only resampling was performed.");
+    }
+
+    private static byte[] ReadSourceBytes(string inputPath)
+    {
+        if (!string.Equals(Path.GetExtension(inputPath), ".png", StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException("Input must be .png.");
+        var info = new FileInfo(inputPath);
+        if (!info.Exists || info.Length is < 24 or > 64 * 1024 * 1024)
+            throw new InvalidDataException("Input PNG is missing, empty or exceeds 64 MiB.");
+        var sourceBytes = File.ReadAllBytes(inputPath);
+        if (!sourceBytes.AsSpan(0, PngSignature.Length).SequenceEqual(PngSignature))
+            throw new InvalidDataException("Input does not have a PNG signature.");
+        return sourceBytes;
     }
 
     private static void ValidateSource(Bitmap source)
@@ -222,6 +266,20 @@ internal static class Program
             ExpectFailure(() => Package(source, output, header, force: false), "Existing output was not protected.");
             ExpectFailure(() => Package(source, output, source, force: true), "Source overwrite was not rejected.");
             Package(source, output, header, force: true);
+            var msixDirectory = Path.Combine(directory, "msix");
+            PackageMsix(source, msixDirectory);
+            Require(Directory.GetFiles(msixDirectory).Length == MsixAssets.Length, "Wrong MSIX asset count.");
+            foreach (var (name, size) in MsixAssets)
+            {
+                using var result = new Bitmap(Path.Combine(msixDirectory, name));
+                Require(result.Width == size && result.Height == size, $"Wrong MSIX dimensions: {name}.");
+                Require(Image.IsAlphaPixelFormat(result.PixelFormat), $"MSIX PNG lost its alpha channel: {name}.");
+                Require(result.GetPixel(0, 0).A == 0 && result.GetPixel(size / 4, size / 2).A == 128 &&
+                    result.GetPixel(size * 3 / 4, size / 2).A == 255, $"MSIX PNG alpha changed: {name}.");
+            }
+            ExpectFailure(() => PackageMsix(source, msixDirectory), "Existing MSIX assets were not protected.");
+            ExpectFailure(() => PackageMsix(source, directory), "Nonempty MSIX directory was accepted.");
+            ExpectFailure(() => PackageMsix(source, source), "MSIX source overwrite was not rejected.");
             Require(originalBytes.SequenceEqual(File.ReadAllBytes(source)), "Original PNG was modified.");
             using (var opaque = new Bitmap(256, 256))
             using (var graphics = Graphics.FromImage(opaque))
@@ -233,7 +291,7 @@ internal static class Program
                 ExpectFailure(() => ValidateSource(nonsquare), "Nonsquare input was accepted.");
             using (var invisible = new Bitmap(256, 256, PixelFormat.Format32bppArgb))
                 ExpectFailure(() => ValidateSource(invisible), "Fully transparent input was accepted.");
-            Console.WriteLine("SELF-TEST PASS: 7 ICO PNG frames, offsets, Windows ICO decode, 128px header, alpha 0/128/255, unchanged source, overwrite/dimension/alpha guards.");
+            Console.WriteLine("SELF-TEST PASS: 7 ICO PNG frames, offsets, Windows ICO decode, 128px header, 3 MSIX PNG logos, alpha 0/128/255, unchanged source, overwrite/dimension/alpha guards.");
         }
         finally { Directory.Delete(directory, recursive: true); }
     }

@@ -9,7 +9,8 @@ namespace BdoGrindTracker.App.Diagnostics;
 internal static class LootDiagnosticFormat
 {
     public const int Version = 2;
-    public const string EngineVersion = "companion-0.7.4-minimum-quantity-v4";
+    public const string EngineVersion = "companion-0.7.4-drop-quantity-v5";
+    public const string MinimumQuantityEngineVersion = "companion-0.7.4-minimum-quantity-v4";
     public const string RecoveryEngineVersion = "companion-0.7.4-recovery-fix-v3";
     public const string PreviousEngineVersion = "companion-0.7.4-restore-v1";
     public const string ExperimentalEngineVersion = "companion-0.7.4-overcount-fix-v2";
@@ -18,6 +19,8 @@ internal static class LootDiagnosticFormat
     public const int MaximumTextLength = 2048;
     public const int MaximumJsonLineBytes = 512 * 1024;
     public const string MinimumQuantityEstimateReason = "companion-minimum-quantity-estimate";
+    public const string MaximumQuantityClampReason = "companion-maximum-quantity-clamp";
+    public const string FixedUnitQuantityReason = "companion-fixed-unit-quantity";
 
     public static IReadOnlyDictionary<string, uint> SnapshotMinimumTrashQuantities(
         IReadOnlyDictionary<string, uint>? minimumQuantities)
@@ -82,6 +85,10 @@ internal sealed record LootDiagnosticEntry(
     // Missing in older recordings: absence must not be interpreted as SDR.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public bool? IsHdr { get; init; }
+
+    // Physical HDR and the OCR bitmap representation are separate facts.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? IsToneMapped { get; init; }
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public NormalLootRecoveryDiagnostics? Recovery { get; init; }

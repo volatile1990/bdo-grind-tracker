@@ -27,6 +27,10 @@ public sealed class CompanionRareFrameReconciler
 
         public int Count { get; set; } = count;
 
+        public bool EstimatedCount { get; set; }
+
+        public DropQuantityBounds? QuantityBounds { get; init; }
+
         public int Y { get; } = y;
 
         public bool SuppressCounting { get; } = suppressCounting;
@@ -37,7 +41,11 @@ public sealed class CompanionRareFrameReconciler
 
         public Entry Copy()
         {
-            return new Entry(Name, Count, Y, SuppressCounting, Frame, Duplicate);
+            return new Entry(Name, Count, Y, SuppressCounting, Frame, Duplicate)
+            {
+                EstimatedCount = this.EstimatedCount,
+                QuantityBounds = this.QuantityBounds,
+            };
         }
     }
 
@@ -89,7 +97,16 @@ public sealed class CompanionRareFrameReconciler
         {
             throw new ArgumentException("A frame cannot contain a null entry.", "entries");
         }
-        frames.Add(new Frame(entries.Select((CompanionRareRecognizedEntry entry) => new Entry(entry.Name, entry.Count, entry.Y, entry.SuppressCounting, 1L, duplicate: false)).ToList()));
+        frames.Add(new Frame(entries.Select(entry =>
+        {
+            var count = LimitQuantity(entry.Count, entry.QuantityBounds);
+            var isCertainUnit = count == MissingCount && entry.QuantityBounds?.Maximum == 1;
+            return new Entry(entry.Name, isCertainUnit ? 1 : count, entry.Y, entry.SuppressCounting, 1L, duplicate: false)
+            {
+                QuantityBounds = entry.QuantityBounds,
+                EstimatedCount = isCertainUnit,
+            };
+        }).ToList()));
         if (frames.Count - processedFrameCount >= 10)
         {
             return Flush();
@@ -180,7 +197,10 @@ public sealed class CompanionRareFrameReconciler
             {
                 RemoveOne(item2, changes);
             }
-            Add(entry.Name, entry.Count, changes);
+            var count = entry.EstimatedCount && entry.QuantityBounds is not null
+                ? checked((int)entry.QuantityBounds.Minimum)
+                : entry.Count;
+            Add(entry.Name, count, changes);
         }
     }
 
@@ -282,6 +302,7 @@ public sealed class CompanionRareFrameReconciler
 
     private void RepairInvalidCounts(int repairStart)
     {
+        RepairConfiguredReadQuantities(Math.Max(repairStart, processedFrameCount));
         for (int i = repairStart; i < frames.Count - 1; i++)
         {
             List<Entry> entries = frames[i].Entries;
@@ -290,14 +311,16 @@ public sealed class CompanionRareFrameReconciler
                 Entry entry = entries[j];
                 if (entry.Count == -1)
                 {
-                    if (UnitCountItems.Contains(entry.Name))
+                    if (entry.QuantityBounds is null && UnitCountItems.Contains(entry.Name))
                     {
                         entry.Count = 1;
                         continue;
                     }
-                    if (TryCopyNeighborCount(i - 1, entries.Count, j, entry.Name, out var count) || TryCopyNeighborCount(i + 1, entries.Count, j, entry.Name, out count))
+                    if (TryCopyNeighborCount(i - 1, entries.Count, j, entry.Name, out var count, out var estimated) ||
+                        TryCopyNeighborCount(i + 1, entries.Count, j, entry.Name, out count, out estimated))
                     {
-                        entry.Count = ((count == -1) ? 1 : count);
+                        entry.Count = ((count == -1) ? 1 : LimitQuantity(count, entry.QuantityBounds));
+                        entry.EstimatedCount = count == MissingCount || estimated;
                         continue;
                     }
                     entries.RemoveAt(j);
@@ -307,9 +330,55 @@ public sealed class CompanionRareFrameReconciler
         }
     }
 
-    private bool TryCopyNeighborCount(int frameIndex, int expectedEntryCount, int entryIndex, string name, out int count)
+    private void RepairConfiguredReadQuantities(int repairStart)
+    {
+        // Let real neighboring reads propagate through a pending missing run
+        // before assigning estimates. Previously emitted rows remain anchors.
+        for (var frameIndex = repairStart; frameIndex < frames.Count; frameIndex++)
+            RepairFrame(frameIndex);
+        for (var frameIndex = frames.Count - 1; frameIndex >= repairStart; frameIndex--)
+            RepairFrame(frameIndex);
+
+        for (var frameIndex = repairStart; frameIndex < frames.Count; frameIndex++)
+        {
+            foreach (var entry in frames[frameIndex].Entries)
+            {
+                if (entry.Count != MissingCount || entry.QuantityBounds is null) continue;
+                entry.Count = 1;
+                entry.EstimatedCount = true;
+            }
+        }
+
+        void RepairFrame(int frameIndex)
+        {
+            var entries = frames[frameIndex].Entries;
+            for (var entryIndex = 0; entryIndex < entries.Count; entryIndex++)
+            {
+                var entry = entries[entryIndex];
+                if (entry.Count != MissingCount || entry.QuantityBounds is null) continue;
+                if (TryCopyReadNeighbor(frameIndex - 1, entries.Count, entryIndex, entry.Name, out var count) ||
+                    TryCopyReadNeighbor(frameIndex + 1, entries.Count, entryIndex, entry.Name, out count))
+                {
+                    entry.Count = LimitQuantity(count, entry.QuantityBounds);
+                    entry.EstimatedCount = false;
+                }
+            }
+        }
+    }
+
+    private bool TryCopyReadNeighbor(int frameIndex, int expectedEntryCount, int entryIndex,
+        string name, out int count) =>
+        TryCopyNeighborCount(frameIndex, expectedEntryCount, entryIndex, name, out count, out var estimated) &&
+        count > 0 && !estimated;
+
+    private static int LimitQuantity(int count, DropQuantityBounds? bounds) =>
+        count > 0 && bounds?.Maximum is uint maximum && count > maximum ? checked((int)maximum) : count;
+
+    private bool TryCopyNeighborCount(int frameIndex, int expectedEntryCount, int entryIndex, string name,
+        out int count, out bool estimated)
     {
         count = -1;
+        estimated = false;
         if (frameIndex < 0 || frameIndex >= frames.Count)
         {
             return false;
@@ -320,6 +389,7 @@ public sealed class CompanionRareFrameReconciler
             return false;
         }
         count = entries[entryIndex].Count;
+        estimated = entries[entryIndex].EstimatedCount;
         return true;
     }
 
@@ -513,4 +583,3 @@ public sealed class CompanionRareFrameReconciler
         return value;
     }
 }
-

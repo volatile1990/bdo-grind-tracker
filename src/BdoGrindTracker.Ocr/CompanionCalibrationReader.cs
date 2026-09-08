@@ -285,12 +285,25 @@ public sealed partial class CompanionCalibrationReader
         IReadOnlyList<XElement> elements,
         uint index)
     {
-        var position = ReadOptionalVisibleUiPosition(elements, index);
+        // A saved preset must not make a hidden/missing active main log usable.
+        var activeSections = elements.Where(element => element.Name == "UIData").ToArray();
+        if (activeSections.Length != 1)
+            throw new InvalidDataException("The active UI configuration is missing or ambiguous.");
+        var activePanels = activeSections[0].Elements("UIData")
+            .Where(element => TryParseUnsigned(element.Attribute("Index")?.Value, out var id) && id == index)
+            .ToArray();
+        if (activePanels.Length != 1)
+            throw new InvalidDataException("The active main loot panel is missing or ambiguous.");
+        var position = ReadOptionalVisibleUiPosition(activePanels, index);
         if (position is null)
         {
             throw new InvalidDataException(
                 $"UIData Index {index} with visible position was not found.");
         }
+
+        if (!float.IsFinite(position.Value.X) || !float.IsFinite(position.Value.Y) ||
+            position.Value.X is < 0f or > 1f || position.Value.Y is < 0f or > 1f)
+            throw new InvalidDataException("The required loot-panel position is outside the screen.");
 
         return position.Value;
     }

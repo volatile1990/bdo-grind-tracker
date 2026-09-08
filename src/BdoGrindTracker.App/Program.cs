@@ -4,6 +4,7 @@ using BdoGrindTracker.App.Persistence;
 using BdoGrindTracker.App.UI;
 using BdoGrindTracker.App.Diagnostics;
 using BdoGrindTracker.App.Services;
+using BdoGrindTracker.App.Updates;
 using Microsoft.Web.WebView2.Core;
 using Velopack;
 
@@ -16,7 +17,7 @@ internal static class Program
     {
         // Hooks must exit before Windows, WebView2, OCR or user data are touched.
         // Downloading an update never authorizes an implicit restart of another session.
-        VelopackApp.Build().SetAutoApplyOnStartup(false).Run();
+        AppUpdateRuntime.Current.Bootstrap(() => VelopackApp.Build().SetAutoApplyOnStartup(false).Run());
         ApplicationConfiguration.Initialize();
 #if DEBUG
         if (args.Any(a => a.StartsWith("--demo-sessions=", StringComparison.Ordinal)))
@@ -69,6 +70,7 @@ internal static class Program
         }
         try
         {
+            AppDataPaths.PrepareForStartup(useUserData: !preview && !smokeTest);
             _ = CoreWebView2Environment.GetAvailableBrowserVersionString();
             int? debugPort = null;
             var debugArgument = args.FirstOrDefault(arg => arg.StartsWith("--ui-debug-port=", StringComparison.Ordinal));
@@ -86,18 +88,27 @@ internal static class Program
             else
             {
                 var analyzer = FrameAnalyzerFactory.Create();
-                if (startupSmokeTest && !analyzer.IsAvailable)
+                if (startupSmokeTest)
                 {
-                    Console.Error.WriteLine(analyzer.Status);
+                    var available = analyzer.IsAvailable;
+                    var status = analyzer.Status;
                     analyzer.Dispose();
-                    return 2;
+                    if (!available)
+                    {
+                        Console.Error.WriteLine(status);
+                        return 2;
+                    }
+                    session = new PreviewTrackerSession(empty: true);
                 }
-                var monitors = Screen.AllScreens.Select((screen, index) => new TrackerMonitor(
-                    screen.DeviceName,
-                    $"Bildschirm {index + 1} · {screen.Bounds.Width} × {screen.Bounds.Height}" + (screen.Primary ? " · Hauptbildschirm" : ""),
-                    screen.Bounds, screen.Primary)).OrderByDescending(screen => screen.IsPrimary).ToArray();
-                session = new TrackerSessionService(new PassiveCaptureSession(new PassiveScreenCapture()),
-                    analyzer, new SettingsStore(), monitors);
+                else
+                {
+                    var monitors = Screen.AllScreens.Select((screen, index) => new TrackerMonitor(
+                        screen.DeviceName,
+                        $"Bildschirm {index + 1} · {screen.Bounds.Width} × {screen.Bounds.Height}" + (screen.Primary ? " · Hauptbildschirm" : ""),
+                        screen.Bounds, screen.Primary)).OrderByDescending(screen => screen.IsPrimary).ToArray();
+                    session = new TrackerSessionService(new PassiveCaptureSession(new PassiveScreenCapture()),
+                        analyzer, new SettingsStore(), monitors);
+                }
             }
             var hidden = preview && args.Contains("--ui-hidden", StringComparer.OrdinalIgnoreCase);
             using var form = new HybridMainForm(session, smokeTest, debugPort, preview, hidden);

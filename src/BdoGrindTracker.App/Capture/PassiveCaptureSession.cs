@@ -156,7 +156,7 @@ internal sealed class PassiveCaptureSession : IAsyncDisposable
                 var metadata = new CapturedFrameMetadata(
                     sequence,
                     capturedAt,
-                    capturedFrame.IsHdr);
+                    capturedFrame.IsHdr, capturedFrame.IsToneMapped);
                 using (var bitmap = capturedFrame.Bitmap)
                 {
                     await onFrame(bitmap, metadata, cancellationToken)
@@ -246,7 +246,13 @@ internal sealed class PassiveCaptureSession : IAsyncDisposable
 internal readonly record struct CapturedFrameMetadata(
     long Sequence,
     DateTimeOffset CapturedAtUtc,
-    bool IsHdr = false);
+    bool IsHdr = false,
+    bool IsToneMapped = false)
+{
+    // The legacy HDR threshold expects clipped BGRA highlights near 255.
+    // Tone-mapped scRGB instead uses the existing SDR recognition thresholds.
+    public bool UseHdrOcr => IsHdr && !IsToneMapped;
+}
 
 internal sealed class CaptureSessionStoppedEventArgs(Exception? error) : EventArgs
 {

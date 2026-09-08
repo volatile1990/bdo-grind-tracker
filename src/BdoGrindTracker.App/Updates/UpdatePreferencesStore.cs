@@ -1,4 +1,5 @@
 using System.Text.Json;
+using BdoGrindTracker.App.Persistence;
 
 namespace BdoGrindTracker.App.Updates;
 
@@ -8,8 +9,7 @@ internal sealed record UpdatePreferences(bool IsBeta, string? PendingVersion = n
 internal sealed class UpdatePreferencesStore(string path)
 {
     public static UpdatePreferencesStore CreateDefault() => new(Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "BdoGrindTracker", "update-settings.json"));
+        AppDataPaths.Current.BaseDirectory, "update-settings.json"));
 
     public UpdatePreferences Load(bool defaultBeta = false)
     {

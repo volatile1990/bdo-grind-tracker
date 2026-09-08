@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http;
 using System.Text.Json;
+using BdoGrindTracker.App.Persistence;
 
 namespace BdoGrindTracker.App.Pricing;
 
@@ -26,8 +27,7 @@ internal sealed class ArshaLootPriceProvider : ILootPriceProvider
     public ArshaLootPriceProvider() : this(new HttpClientHandler
     {
         AllowAutoRedirect = false, UseCookies = false,
-    }, Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "BdoGrindTracker", "market-prices-v1.json")) { }
+    }, Path.Combine(AppDataPaths.Current.BaseDirectory, "market-prices-v1.json")) { }
 
     internal ArshaLootPriceProvider(HttpMessageHandler handler, string? cachePath = null,
         TimeProvider? timeProvider = null, TimeSpan? requestTimeout = null)

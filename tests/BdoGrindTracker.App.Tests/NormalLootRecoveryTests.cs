@@ -8,6 +8,42 @@ namespace BdoGrindTracker.App.Tests;
 public sealed class NormalLootRecoveryTests(Xunit.Abstractions.ITestOutputHelper output)
 {
     [Fact]
+    public void FixedUnitBaselineNeedsNeitherPreparationNorQuantityOcr()
+    {
+        using var source = SyntheticBand();
+        using var original = new Row();
+        var baseline = Observation(null) with { ItemName = "BON Wandering Origin Crystal" };
+        var names = new Recognizer((_, _) => throw new InvalidOperationException("No quantity OCR for a 1/1 drop."));
+        var recovery = new NormalLootRecovery(new CompanionItemMatcher([baseline.ItemName]), names,
+            (_, _) => throw new InvalidOperationException("No recovery preparation needed."));
+        var budget = Budget();
+        var result = recovery.Recover(source, original, baseline, 0, 1f, budget, default);
+        Assert.Equal(1, result!.Quantity);
+        Assert.True(result.UsesFixedUnitQuantity);
+        Assert.Equal(0, names.Calls);
+        Assert.Equal(0, budget.OcrCalls);
+    }
+
+    [Fact]
+    public void RescuedFixedUnitNameNeedsNoSeparateQuantityRead()
+    {
+        using var source = SyntheticBand();
+        using var original = new Row();
+        var images = new Images();
+        var names = new Recognizer((image, _) =>
+        {
+            Assert.True(image.Width >= 150, "Do not OCR the isolated quantity for a 1/1 item.");
+            return Ocr("BON Wandering Origin Crystal");
+        });
+        var recovery = new NormalLootRecovery(new CompanionItemMatcher(["BON Wandering Origin Crystal"]), names, images.Prepare);
+        var result = recovery.Recover(source, original, null, 0, 1f, Budget(), default);
+        Assert.Equal(1, result!.Quantity);
+        Assert.True(result.UsesFixedUnitQuantity);
+        Assert.Equal(1, names.Calls);
+        images.AssertDisposed();
+    }
+
+    [Fact]
     public void ZeroBaselineIsMissingAndCanBeRecoveredFromPositiveDigits()
     {
         using var source = SyntheticBand();

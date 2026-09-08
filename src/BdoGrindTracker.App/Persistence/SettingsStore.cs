@@ -15,13 +15,9 @@ internal sealed class SettingsStore
     internal string BaseDirectory => Path.GetDirectoryName(_settingsPath)
         ?? throw new InvalidOperationException("Der Konfigurationsordner ist ungültig.");
 
-    public SettingsStore()
+    public SettingsStore(string? baseDirectory = null)
     {
-        var directory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "BdoGrindTracker");
-
-        _settingsPath = Path.Combine(directory, "settings.json");
+        _settingsPath = Path.Combine(baseDirectory ?? AppDataPaths.Current.BaseDirectory, "settings.json");
     }
 
     public AppSettings Load()

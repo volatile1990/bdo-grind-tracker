@@ -17,7 +17,7 @@ internal sealed record WindowPlacement(int X, int Y, int Width, int Height, bool
 
 internal sealed class WindowPlacementStore(string? path = null)
 {
-    private readonly string _path = path ?? Path.Combine(new SettingsStore().BaseDirectory, "window-placement.json");
+    private readonly string _path = path ?? Path.Combine(AppDataPaths.Current.BaseDirectory, "window-placement.json");
     public WindowPlacement? Load()
     {
         try

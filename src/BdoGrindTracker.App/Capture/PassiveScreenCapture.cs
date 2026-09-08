@@ -1,10 +1,9 @@
-using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 
 namespace BdoGrindTracker.App.Capture;
 
 /// <summary>
-/// Passive DXGI desktop duplication matching BDO Companion 0.7.4's capture path.
+/// Passive DXGI desktop duplication, preserving floating-point pixels on HDR outputs.
 /// It reads a selected output without addressing, focusing, or controlling a game.
 /// </summary>
 internal sealed unsafe class PassiveScreenCapture : IDisposable
@@ -89,6 +88,7 @@ internal sealed unsafe class PassiveScreenCapture : IDisposable
         private const int DxgiErrorNotFound = unchecked((int)0x887A0002);
         private const int DxgiErrorAccessLost = unchecked((int)0x887A0026);
         private const int DxgiErrorWaitTimeout = unchecked((int)0x887A0027);
+        private const int ENoInterface = unchecked((int)0x80004002);
         private const uint D3d11CreateDeviceBgraSupport = 0x20;
         private const uint D3d11SdkVersion = 7;
         private const uint D3d11CpuAccessRead = 0x20000;
@@ -99,6 +99,8 @@ internal sealed unsafe class PassiveScreenCapture : IDisposable
             new("770aae78-f26f-4dba-a829-253c83d1b387");
         private static readonly Guid IdxgiOutput1 =
             new("00cddea8-939b-4b83-a340-a685226666cc");
+        private static readonly Guid IdxgiOutput5 =
+            new("80a07424-ab52-42eb-833c-0c42fd282d98");
         private static readonly Guid IdxgiOutput6 =
             new("068346e8-aaec-4b84-add7-137f513f77a1");
         private static readonly Guid Id3d11Texture2D =
@@ -159,8 +161,29 @@ internal sealed unsafe class PassiveScreenCapture : IDisposable
                     selectedFeatureLevel: null,
                     immediateContext: &context));
 
-                ThrowIfFailed(QueryInterface(output, IdxgiOutput1, out output1));
-                ThrowIfFailed(DuplicateOutput(output1, device, out duplication));
+                var output5Result = isHdr
+                    ? QueryInterface(output, IdxgiOutput5, out output1)
+                    : ENoInterface;
+                if (output5Result != ENoInterface) ThrowIfFailed(output5Result);
+                if (output5Result >= 0)
+                {
+                    var modernResult = DuplicateOutputWithHdr(output1, device, out duplication);
+                    // Older drivers may expose Output5 but not this capture mode.
+                    // BGRA fallback retains the existing behavior and is visible
+                    // as isHdr=true/isToneMapped=false in diagnostic recordings.
+                    if (modernResult is unchecked((int)0x887A0004) or unchecked((int)0x80070057))
+                    {
+                        Release(ref duplication);
+                        ThrowIfFailed(DuplicateOutput(output1, device, out duplication));
+                    }
+                    else ThrowIfFailed(modernResult);
+                }
+                else
+                {
+                    Release(ref output1);
+                    ThrowIfFailed(QueryInterface(output, IdxgiOutput1, out output1));
+                    ThrowIfFailed(DuplicateOutput(output1, device, out duplication));
+                }
 
                 var result = new CompanionDesktopDuplication(
                     desktopRegion,
@@ -325,12 +348,13 @@ internal sealed unsafe class PassiveScreenCapture : IDisposable
                     &mapped));
                 isMapped = true;
 
-                var bitmap = CopyMappedBitmap(
+                var bitmap = DesktopPixelConverter.CopyBitmap(
                     mapped.Data,
                     mapped.RowPitch,
                     DesktopRegion.Width,
-                    DesktopRegion.Height);
-                return new CapturedDesktopBitmap(bitmap, IsHdr);
+                    DesktopRegion.Height, description.Format);
+                return new CapturedDesktopBitmap(bitmap, IsHdr,
+                    IsToneMapped: description.Format == DesktopPixelConverter.Rgba16Float);
             }
             finally
             {
@@ -341,55 +365,6 @@ internal sealed unsafe class PassiveScreenCapture : IDisposable
 
                 Release(ref stagingTexture);
                 Release(ref texture);
-            }
-        }
-
-        private static Bitmap CopyMappedBitmap(
-            nint source,
-            uint sourceRowPitch,
-            int width,
-            int height)
-        {
-            var bitmap = new Bitmap(width, height, PixelFormat.Format32bppRgb);
-            BitmapData? bitmapData = null;
-            try
-            {
-                bitmapData = bitmap.LockBits(
-                    new Rectangle(0, 0, width, height),
-                    ImageLockMode.WriteOnly,
-                    PixelFormat.Format32bppRgb);
-                var rowBytes = checked(width * 4);
-                if (sourceRowPitch < rowBytes)
-                {
-                    throw new InvalidOperationException(
-                        "Die DXGI-Zeilenbreite ist kleiner als die Bildzeile.");
-                }
-
-                for (var y = 0; y < height; y++)
-                {
-                    var sourceRow = (byte*)source + checked((nuint)y * sourceRowPitch);
-                    var destinationRow = (byte*)bitmapData.Scan0 +
-                        checked((nint)y * bitmapData.Stride);
-                    Buffer.MemoryCopy(
-                        sourceRow,
-                        destinationRow,
-                        Math.Abs(bitmapData.Stride),
-                        rowBytes);
-                }
-
-                return bitmap;
-            }
-            catch
-            {
-                bitmap.Dispose();
-                throw;
-            }
-            finally
-            {
-                if (bitmapData is not null)
-                {
-                    bitmap.UnlockBits(bitmapData);
-                }
             }
         }
 
@@ -598,6 +573,19 @@ internal sealed unsafe class PassiveScreenCapture : IDisposable
                 var method = (delegate* unmanaged[Stdcall]<nint, nint, nint*, int>)
                     GetMethod(output, 22);
                 return method(output, device, duplicationPointer);
+            }
+        }
+
+        private static int DuplicateOutputWithHdr(nint output, nint device, out nint duplication)
+        {
+            duplication = 0;
+            uint* formats = stackalloc uint[] { DesktopPixelConverter.Rgba16Float, DesktopPixelConverter.Bgra8 };
+            fixed (nint* duplicationPointer = &duplication)
+            {
+                // IDXGIOutput5::DuplicateOutput1, following Output4's methods.
+                var method = (delegate* unmanaged[Stdcall]<nint, nint, uint, uint, uint*, nint*, int>)
+                    GetMethod(output, 26);
+                return method(output, device, 0, 2, formats, duplicationPointer);
             }
         }
 
@@ -843,4 +831,4 @@ internal sealed unsafe class PassiveScreenCapture : IDisposable
     private sealed class DesktopDuplicationAccessLostException : Exception;
 }
 
-internal readonly record struct CapturedDesktopBitmap(Bitmap Bitmap, bool IsHdr);
+internal readonly record struct CapturedDesktopBitmap(Bitmap Bitmap, bool IsHdr, bool IsToneMapped = false);

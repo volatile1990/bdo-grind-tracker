@@ -20,18 +20,10 @@ internal static partial class CompanionTextPipeline
         string? ocrText,
         int templateQuantity,
         bool rareDropMode,
-        float recognizedTextWidth)
+        float recognizedTextWidth,
+        Func<string, bool>? fixedUnitQuantity = null)
     {
         var text = NormalizeRawText(ocrText);
-        var quantityMatch = QuantityRegex().Match(text);
-        var hasParsedOcrQuantity = TryParseQuantity(quantityMatch, out var parsedQuantity);
-        var quantity = hasParsedOcrQuantity
-            ? parsedQuantity
-            : rareDropMode
-                ? 1
-                : templateQuantity > 0
-                    ? templateQuantity
-                    : -1;
 
         // Companion removes the first quantity-shaped match from the name even when the
         // captured digits cannot subsequently be parsed as an ASCII decimal value.
@@ -87,7 +79,14 @@ internal static partial class CompanionTextPipeline
             name = "Black Stone";
         }
 
-        return new CompanionTextResult(name, quantity, hasParsedOcrQuantity);
+        // Resolve the item first. A confirmed 1/1 drop never needs its OCR
+        // suffix parsed as a quantity; suffix removal above only cleans its name.
+        var usesFixedUnit = name.Length > 0 && fixedUnitQuantity?.Invoke(name) == true;
+        var parsedQuantity = 0;
+        var hasParsedOcrQuantity = !usesFixedUnit && TryParseQuantity(QuantityRegex().Match(text), out parsedQuantity);
+        var quantity = usesFixedUnit ? 1 : hasParsedOcrQuantity ? parsedQuantity
+            : rareDropMode ? 1 : templateQuantity > 0 ? templateQuantity : -1;
+        return new CompanionTextResult(name, quantity, hasParsedOcrQuantity) { UsesFixedUnitQuantity = usesFixedUnit };
     }
 
     /// <summary>
@@ -145,7 +144,7 @@ internal static partial class CompanionTextPipeline
             return false;
         }
 
-        if (result.HasParsedOcrQuantity)
+        if (result.HasParsedOcrQuantity || result.UsesFixedUnitQuantity)
         {
             return true;
         }
@@ -282,4 +281,7 @@ internal static partial class CompanionTextPipeline
 internal readonly record struct CompanionTextResult(
     string Name,
     int Quantity,
-    bool HasParsedOcrQuantity);
+    bool HasParsedOcrQuantity)
+{
+    public bool UsesFixedUnitQuantity { get; init; }
+}

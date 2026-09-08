@@ -88,11 +88,14 @@ Bildes werden übersprungen. Spielauflösung und UI-Skalierung stammen weiterhin
 der beim Anlegen des Analyzers gelesenen Kalibrierung.
 
 `PrivateItemChatOcrReader` liest nur diesen Ausschnitt desselben aufgenommenen
-Frames: Graustufen, höchstens 1,5-fache Vergrößerung, Windows OCR (bevorzugt en-US).
+Frames: Graustufen, höchstens 1,5-fache Vergrößerung, Windows OCR in der gewählten
+oder automatisch erkannten Textsprache (`de-DE` / `en-US`).
 Falls keine vollständige Itemmeldung gelesen wird, folgt höchstens ein zweiter
 Versuch mit invertierter Helligkeit. Jeder Treffer braucht den vollständigen
-englischen Systemtext `You have obtained`, einen geklammerten Itemnamen und eine
-vollständige positive Menge hinter `x`/`×`. Mehrzeilige, abgeschnittene oder
+englischen Systemtext `You have obtained` oder das deutsche Format
+`Ihr habt {count} x {item} erhalten.`, einen geklammerten Itemnamen und eine
+vollständige positive Menge. Deutsch steht die Menge vor dem Item, Englisch danach.
+Der deutsche Chatfilter heißt **Beute**. Mehrzeilige, abgeschnittene oder
 anderweitig unklare Meldungen werden ausgelassen. Die Namen werden mit dem
 vorhandenen Katalogmatcher aufgelöst.
 

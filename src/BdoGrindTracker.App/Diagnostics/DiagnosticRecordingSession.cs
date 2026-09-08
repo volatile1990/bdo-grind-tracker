@@ -98,7 +98,8 @@ internal sealed class DiagnosticRecordingSession : IDisposable
         NormalLootRecoveryDiagnostics? recovery = null,
         bool? isHdr = null,
         Rectangle? chatPanel = null,
-        ChatQuantityRecoveryDiagnostics? chatRecovery = null)
+        ChatQuantityRecoveryDiagnostics? chatRecovery = null,
+        bool? isToneMapped = null)
     {
         lock (sync)
         {
@@ -129,6 +130,7 @@ internal sealed class DiagnosticRecordingSession : IDisposable
                     RareEnabled = rareBand is not null,
                     Recovery = recovery,
                     IsHdr = isHdr,
+                    IsToneMapped = isToneMapped,
                     ChatRecovery = chatRecovery,
                 };
                 var jsonBytes = SerializeLine(entry);
@@ -294,6 +296,9 @@ internal sealed class DiagnosticRecordingSession : IDisposable
                 observation.ItemName?.Length > LootDiagnosticFormat.MaximumTextLength ||
                 observation.RejectionReason?.Length > LootDiagnosticFormat.MaximumTextLength ||
                 observation.Quantity is < 0 ||
+                (observation.UsesImplicitUnitQuantity && (observation.Source != LootSource.Rare || observation.Quantity != 1)) ||
+                (observation.UsesFixedUnitQuantity && (observation.Quantity != 1 || observation.QuantityBounds?.IsFixedUnit != true ||
+                    observation.UsesImplicitUnitQuantity)) ||
                 !double.IsFinite(observation.NameConfidence) ||
                 !double.IsFinite(observation.QuantityConfidence) ||
                 observation.NameConfidence is < 0 or > 1 ||

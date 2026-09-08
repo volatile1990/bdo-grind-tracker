@@ -150,7 +150,7 @@ public sealed class PrivateItemChatOcrReader
 }
 
 /// <summary>
-/// Accepts only complete English personal-loot payloads. It deliberately does not repair
+/// Accepts only complete English or German personal-loot payloads. It deliberately does not repair
 /// ambiguous digits, infer a missing quantity, or interpret arbitrary player chat.
 /// </summary>
 public static partial class PrivateItemChatParser
@@ -165,8 +165,10 @@ public static partial class PrivateItemChatParser
         }
 
         var match = MessagePattern().Match(text);
+        if (!match.Success) match = GermanMessagePattern().Match(text);
+        var quantityText = match.Groups["quantity"].Value.Replace(".", "", StringComparison.Ordinal);
         if (!match.Success ||
-            !int.TryParse(match.Groups["quantity"].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var parsedQuantity) ||
+            !int.TryParse(quantityText, NumberStyles.None, CultureInfo.InvariantCulture, out var parsedQuantity) ||
             parsedQuantity <= 0)
         {
             return false;
@@ -190,6 +192,14 @@ public static partial class PrivateItemChatParser
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
         matchTimeoutMilliseconds: 50)]
     private static partial Regex MessagePattern();
+
+    // Verified in the installed NAEU localization: "Ihr habt {count} x {item} erhalten."
+    // Item links can contain a nested [Event] prefix. Thousands separators must
+    // form complete groups; decimal values and arbitrary chat prefixes are rejected.
+    [GeneratedRegex(
+        @"\A\s*(?:(?:\[System\]|System)\s+)?Ihr\s+habt\s+(?<quantity>(?:[0-9]{1,3}(?:\.[0-9]{3}){1,3}|[0-9]{1,10}))\s*[xX×]\s*(?:[^\[\]\s]{1,3}\s*)?\[(?<item>(?:\[Event\]\s*)?[^\[\]\r\n]{1,160})\]\s+erhalten\s*\.?\s*(?:\((?:[01][0-9]|2[0-3]):[0-5][0-9](?::[0-5][0-9])?\))?\s*\z",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 50)]
+    private static partial Regex GermanMessagePattern();
 
     [GeneratedRegex(@"\s+", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 50)]
     private static partial Regex WhitespacePattern();

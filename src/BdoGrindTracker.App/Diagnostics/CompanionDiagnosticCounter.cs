@@ -42,12 +42,15 @@ internal sealed class CompanionDiagnosticCounter(IReadOnlyList<CompanionRareCata
         var normalRows = accepted.Where(static observation => observation.Source == LootSource.Normal)
             .OrderByDescending(static observation => observation.NativeY)
             .Select(static observation => new CompanionRecognizedEntry(
-                observation.ItemName!, unchecked((uint)(observation.Quantity ?? -1)), observation.NativeY!.Value))
+                observation.ItemName!, unchecked((uint)(observation.Quantity ?? -1)), observation.NativeY!.Value)
+                { QuantityBounds = observation.QuantityBounds })
             .ToArray();
         var rareRows = accepted.Where(static observation => observation.Source == LootSource.Rare)
             .OrderBy(static observation => observation.NativeY)
             .Select(static observation => new CompanionRareRecognizedEntry(
-                observation.ItemName!, observation.Quantity ?? -1, observation.NativeY!.Value))
+                observation.ItemName!, observation.UsesImplicitUnitQuantity && observation.QuantityBounds is not null
+                    ? -1 : observation.Quantity ?? -1,
+                observation.NativeY!.Value) { QuantityBounds = observation.QuantityBounds })
             .ToArray();
 
         var (events, decisions) = AddNormal(timestamp, normal.ProcessFrame(normalRows));

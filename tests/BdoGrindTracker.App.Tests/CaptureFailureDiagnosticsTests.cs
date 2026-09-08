@@ -135,7 +135,8 @@ public sealed class CaptureFailureDiagnosticsTests : IDisposable
             new EmptyAnalyzer(), settings, [], classDetector: () => CharacterClassDetection.Unknown,
             priceProvider: new FixedPrices(), garmothClient: new GarmothUploadClient(new NoHttp()),
             keyStore: new GarmothApiKeyStore(Path.Combine(_directory, "test-key.dpapi")),
-            historyStore: new LootHistoryStore(Path.Combine(_directory, "history.json")));
+            historyStore: new LootHistoryStore(Path.Combine(_directory, "history.json")),
+            languageDetector: () => new("en", "Synthetic configuration"));
     }
 
     private static void NotifyStopped(TrackerSessionService service, Exception? error) =>

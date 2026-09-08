@@ -1,5 +1,14 @@
 # Mindestmengen für Trashloot
 
+**Weiterentwicklung:** Der [allgemeine Dropmengenkatalog](DROP_QUANTITIES.md)
+erfasst jetzt alle Items je Spot. Die [neue vollständige Recherche](DROP_QUANTITIES_RESEARCH.md)
+ergänzt unter anderem die Event-Horizon-Teilwerte vom 3. September. Alle aktuellen
+Min-/Max-Grenzen sind inzwischen aus der ausgefüllten Nutzerdatei übernommen:
+Aphrodon 4/1000, Hermesia 4/1000, Magaia 7/1000, Aresion 2/1000,
+Scales of Judgment 2/2000 und Event Horizon 2/1000. Diese Werte werden über
+`DropQuantityCatalog` pro Beobachtung verwendet. Der folgende historische Abschnitt
+dokumentiert den bisherigen Trash-Fallback und das weiterhin unterstützte v4-Replay.
+
 Recherche am **7. September 2026**, PC-Version, sechs hinterlegte Inner-Edania-Spots.
 Für keinen dieser Spots ließ sich eine Mindestmenge aller normalen Gegner belegen.
 Deshalb enthält `TrashLootMinimumCatalog` sechs Einträge mit `null`; die aktive

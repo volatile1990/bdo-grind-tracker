@@ -2,6 +2,8 @@
 
 GitHub übernimmt Builds und Downloads. Velopack erstellt den Windows-Installer und liefert Updates an installierte Tracker aus. Ein eigener Server ist nicht nötig.
 
+Für die zusätzlich vorbereitete Microsoft-Store-Ausgabe als MSIX siehe [MICROSOFT_STORE.md](MICROSOFT_STORE.md). Store-Pakete werden mit `scripts/Build-StoreRelease.ps1` erstellt und separat im Partner Center eingereicht.
+
 Download-Seite: <https://github.com/volatile1990/bdo-grind-tracker/releases>
 
 ## Eine neue Version veröffentlichen

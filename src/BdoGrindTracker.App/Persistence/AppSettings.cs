@@ -13,6 +13,7 @@ internal sealed class AppSettings
     public int SettingsVersion { get; set; }
 
     public string? MonitorDeviceName { get; set; }
+    public string GameLanguage { get; set; } = "auto";
 
     public string? SpotId { get; set; }
 
@@ -36,6 +37,7 @@ internal sealed class AppSettings
 
     public void UpgradeDefaults()
     {
+        if (GameLanguage is not ("auto" or "en" or "de")) GameLanguage = "auto";
         if (AutoPauseMinutes is < MinimumAutoPauseMinutes or > MaximumAutoPauseMinutes)
         {
             AutoPauseMinutes = DefaultAutoPauseMinutes;

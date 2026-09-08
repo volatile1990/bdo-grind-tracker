@@ -1,6 +1,6 @@
 namespace BdoGrindTracker.App.Updates;
 
-internal enum UpdatePhase { Disabled, Idle, Checking, Available, Downloading, ReadyToRestart, Restarting, Error }
+internal enum UpdatePhase { Disabled, StoreManaged, Idle, Checking, Available, Downloading, ReadyToRestart, Restarting, Installed, Error }
 
 internal sealed record UpdateState(
     bool Enabled,
@@ -11,8 +11,9 @@ internal sealed record UpdateState(
     int DownloadPercent,
     string Message)
 {
+    public bool UsesStore { get; init; }
     public bool IsBusy => Phase is UpdatePhase.Checking or UpdatePhase.Downloading or UpdatePhase.Restarting;
-    public bool CanDownload => Enabled && AvailableVersion is not null && Phase is UpdatePhase.Available or UpdatePhase.Error;
+    public bool CanDownload => Enabled && (Phase == UpdatePhase.Available || AvailableVersion is not null && Phase == UpdatePhase.Error);
     public bool IsReady => Phase == UpdatePhase.ReadyToRestart;
 }
 
@@ -26,9 +27,9 @@ internal interface IAppUpdates
     Task RequestRestartAsync();
 }
 
-internal sealed class DisabledAppUpdates(string version, string message) : IAppUpdates
+internal sealed class DisabledAppUpdates(string version, string message, UpdatePhase phase = UpdatePhase.Disabled) : IAppUpdates
 {
-    public UpdateState State { get; } = new(false, false, version, null, UpdatePhase.Disabled, 0, message);
+    public UpdateState State { get; } = new(false, false, version, null, phase, 0, message);
     public event Action? Changed { add { } remove { } }
     public Task CheckAsync() => Task.CompletedTask;
     public Task DownloadAsync() => Task.CompletedTask;

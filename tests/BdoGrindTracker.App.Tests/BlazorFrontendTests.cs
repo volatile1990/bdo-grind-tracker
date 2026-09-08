@@ -17,6 +17,131 @@ namespace BdoGrindTracker.App.Tests;
 
 public sealed class BlazorFrontendTests
 {
+    [Theory]
+    [InlineData("auto")]
+    [InlineData("de")]
+    public async Task GermanGameLanguageLocalizesLootAndEditorsWithoutChangingStoredKeys(string preference)
+    {
+        var session = new SnapshotSession { Preferences = new() { GameLanguage = preference }, State = ActiveState() with
+        {
+            DetectedGameLanguage = "de", GameLanguageStatus = "Automatisch erkannt: Deutsch · BDO-Konfiguration",
+        } };
+        var markup = WebUtility.HtmlDecode(await RenderAsync<LootTable>(session, new Dictionary<string, object?>
+        {
+            [nameof(LootTable.Totals)] = new Dictionary<string, long> { ["Black Crystal Fragment"] = 2387 },
+            [nameof(LootTable.EditableSessionId)] = session.State.SessionId,
+        }));
+        Assert.Contains("Schwarzkristallfragment", markup);
+        Assert.Contains("Gesamtmenge für Schwarzkristallfragment bearbeiten", markup);
+        Assert.Contains("assets/icons/black-crystal-fragment.png", markup);
+        Assert.DoesNotContain("Preis fehlt", markup);
+        var settings = WebUtility.HtmlDecode(await RenderAsync<TrackerSettings>(session));
+        Assert.Contains("Automatisch aus BDO-Einstellungen", settings);
+        Assert.Contains("Deutsch", settings);
+        Assert.Equal(0, session.CommandCalls);
+    }
+
+    [Fact]
+    public async Task SettingsPagesExplainAutosaveAndHaveNoSaveOrDiscardButtons()
+    {
+        var session = new SnapshotSession { State = ActiveState() };
+        foreach (var markup in new[] { await RenderAsync<TrackerSettings>(session), await RenderAsync<GarmothDashboard>(session) })
+        {
+            var text = WebUtility.HtmlDecode(markup);
+            Assert.Contains("automatisch lokal gespeichert", text);
+            Assert.DoesNotContain("Einstellungen speichern", text);
+            Assert.DoesNotContain("Verwerfen", text);
+            Assert.DoesNotContain("Änderungen verwerfen", text);
+        }
+        Assert.Equal(0, session.CommandCalls);
+    }
+
+    [Fact]
+    public async Task MissingMainLogShowsAnAlertAndDisablesStart()
+    {
+        var session = new SnapshotSession { State = new()
+        {
+            AnalyzerAvailable = false, IsError = true,
+            TrackingBlockedReason = "Die Position des Haupt-Droplogs konnte nicht erkannt werden.",
+            Status = "Unrelated saved-settings status",
+        } };
+        var markup = WebUtility.HtmlDecode(await RenderAsync<LiveDashboard>(session));
+        Assert.Contains("error-notice tracking-blocked", markup);
+        Assert.Contains("role=\"alert\"", markup);
+        Assert.Contains("Tracking nicht möglich", markup);
+        Assert.Contains("Die Position des Haupt-Droplogs", markup);
+        Assert.DoesNotContain("Unrelated saved-settings status", markup);
+        Assert.True(IsDisabled(ButtonAttributes(markup, "Tracking starten")));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task MissingOptionalChatShowsHelpBesideDropsAndDoesNotDisableTracking(bool running)
+    {
+        var session = new SnapshotSession { State = ActiveState() with
+        {
+            IsRunning = running, PrivateItemChatAvailable = false,
+        } };
+        var markup = WebUtility.HtmlDecode(await RenderAsync<LiveDashboard>(session));
+        Assert.Contains("item-chat-help", markup);
+        Assert.Contains("Erkennung ergänzen", markup);
+        Assert.Contains("<details>", markup);
+        Assert.Contains("Private Item", markup);
+        Assert.Contains("Beute", markup);
+        Assert.DoesNotContain("role=\"alert\"", markup);
+        Assert.False(IsDisabled(ButtonAttributes(markup, running ? "Pausieren" : "Fortsetzen")));
+        Assert.True(markup.IndexOf("session-aside", StringComparison.Ordinal) < markup.IndexOf("item-chat-help", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData(null, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task ChatHelpIsHiddenWhenNotApplicable(bool? chatAvailable, bool demo)
+    {
+        var session = new SnapshotSession { State = ActiveState() with
+        {
+            IsDemo = demo, PrivateItemChatAvailable = chatAvailable,
+        } };
+        Assert.DoesNotContain("item-chat-help", await RenderAsync<LiveDashboard>(session));
+    }
+
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    public async Task ItemQuantitiesStayEditableWhileRunningPausedOrSubmitted(bool running, bool submitted)
+    {
+        var session = new SnapshotSession { State = ActiveState() with { IsRunning = running, IsSubmitted = submitted } };
+        var markup = await RenderAsync<LiveDashboard>(session);
+        Assert.False(IsDisabled(AriaButtonAttributes(markup, "Gesamtmenge für Black Crystal Fragment bearbeiten")));
+        Assert.Equal(0, session.CommandCalls);
+    }
+
+    [Fact]
+    public async Task SpotHistoryOffersAnEditorForBothExistingAndMissingLoot()
+    {
+        var entry = HistoryEntry(Guid.NewGuid());
+        var session = new SnapshotSession { History = [entry] };
+        var markup = await RenderAsync<HistoryDashboard>(session,
+            new Dictionary<string, object?> { [nameof(HistoryDashboard.SpotId)] = entry.SpotId });
+        Assert.False(IsDisabled(AriaButtonAttributes(markup, "Gesamtmenge für Black Crystal Fragment bearbeiten")));
+        Assert.False(IsDisabled(AriaButtonAttributes(markup, "Gesamtmenge für BON Wandering Origin Crystal bearbeiten")));
+        Assert.Equal(0, session.CommandCalls);
+    }
+
+    [Fact]
+    public async Task AggregatedLootAcrossSessionsCannotBeEditedAsOneSession()
+    {
+        var session = new SnapshotSession();
+        var markup = await RenderAsync<LootTable>(session, new Dictionary<string, object?>
+        {
+            [nameof(LootTable.Totals)] = ActiveState().Loot.Totals,
+        });
+        Assert.DoesNotContain("quantity-edit-button", markup);
+    }
+
     [Fact]
     public async Task SessionSilverUsesCurrentPricesInsteadOfSavedPartialDemoTotal()
     {
@@ -231,6 +356,68 @@ public sealed class BlazorFrontendTests
         Assert.Equal(0, session.CommandCalls);
     }
 
+    [Fact]
+    public async Task StoreUpdatesExplainStoreManagementWithoutGitHubUpdateControls()
+    {
+        var session = new SnapshotSession { State = ActiveState() };
+        var updates = new AppUpdateRuntime(AppPackageIdentity.Packaged).CreateUpdates(true,
+            () => throw new InvalidOperationException("Store builds must not create GitHub updates."));
+
+        var markup = WebUtility.HtmlDecode(await RenderAsync<AppUpdates>(session, updates: updates));
+
+        Assert.Contains("Diese Version wird über den Microsoft Store aktualisiert.", markup);
+        Assert.Contains("Automatische Updates kannst du dort in den Einstellungen verwalten.", markup);
+        Assert.DoesNotContain("<button", markup);
+        Assert.DoesNotContain("Beta-Updates", markup);
+        Assert.DoesNotContain("Grindcrest-Setup", markup);
+        Assert.Equal(0, session.CommandCalls);
+    }
+
+    [Fact]
+    public async Task StoreUpdatesDoNotDisplayAGitHubUpdateBanner()
+    {
+        var session = new SnapshotSession { State = ActiveState() };
+        var updates = new AppUpdateRuntime(AppPackageIdentity.Packaged).CreateUpdates(true,
+            () => throw new InvalidOperationException());
+
+        var markup = await RenderAsync<AppUpdates>(session,
+            new Dictionary<string, object?> { [nameof(AppUpdates.Compact)] = true }, updates);
+
+        Assert.DoesNotContain("update-banner", markup);
+        Assert.Equal(0, session.CommandCalls);
+    }
+
+    [Fact]
+    public async Task ActiveStoreUpdatesOfferDownloadWithoutBetaOrExternalStoreNavigation()
+    {
+        var updates = new StaticUpdates(new(true, false, "1.0.1", null,
+            UpdatePhase.Available, 0, "Eine neue Version von Grindcrest ist verfügbar.") { UsesStore = true });
+        var session = new SnapshotSession { State = ActiveState() };
+        var markup = WebUtility.HtmlDecode(await RenderAsync<AppUpdates>(session, updates: updates));
+        Assert.Contains("Update herunterladen", markup);
+        Assert.Contains("Nach Updates suchen", markup);
+        Assert.DoesNotContain("Beta-Updates", markup);
+        Assert.DoesNotContain("Öffne den Microsoft Store", markup);
+        var banner = await RenderAsync<AppUpdates>(session,
+            new Dictionary<string, object?> { [nameof(AppUpdates.Compact)] = true }, updates);
+        Assert.Contains("update-banner", banner);
+        Assert.Contains("Update ansehen", banner);
+    }
+
+    [Theory]
+    [InlineData(true, false, true)]
+    [InlineData(false, true, true)]
+    [InlineData(false, false, false)]
+    public async Task StoreInstallButtonRequiresPausedIdleSession(bool running, bool busy, bool disabled)
+    {
+        var session = new SnapshotSession { State = ActiveState() with { IsRunning = running, IsBusy = busy } };
+        var updates = new StaticUpdates(new(true, false, "1.0.1", null,
+            UpdatePhase.ReadyToRestart, 100, "Update bereit.") { UsesStore = true });
+        var markup = await RenderAsync<AppUpdates>(session, updates: updates);
+        Assert.Equal(disabled, IsDisabled(ButtonAttributes(markup, "Update installieren")));
+        Assert.DoesNotContain("Beta-Updates", markup);
+    }
+
     private static TrackerState ActiveState()
     {
         var totals = new Dictionary<string, long> { ["Black Crystal Fragment"] = 1_582 };
@@ -353,15 +540,17 @@ public sealed class BlazorFrontendTests
         public Task PauseAsync() => Command();
         public Task NewSessionAsync() => Command();
         public Task SetDemoAsync(bool enabled) => Command();
-        public Task SavePreferencesAsync(TrackerPreferences preferences, string? apiKey = null, bool resumeAutomaticUpload = false) => Command();
+        public Task<PreferenceSaveResult> SavePreferencesAsync(TrackerPreferences preferences, string? apiKey = null, bool resumeAutomaticUpload = false) { CommandCalls++; return Task.FromResult(new PreferenceSaveResult()); }
         public Task UploadAsync() => Command();
         public Task UploadHistoryAsync(Guid sessionId) => Command();
         public Task UpdateHistoryLootAsync(Guid sessionId, IReadOnlyDictionary<string, long> totals,
             string? characterClass = null) => Command();
+        public Task UpdateLootQuantityAsync(Guid sessionId, string itemName, long quantity, long originalQuantity) => Command();
         public Task DeleteHistoryAsync(Guid sessionId) => Command();
         public Task RefreshPricesAsync() => Command();
         public Task TickAsync() => Command();
         public Task PrepareUpdateRestartAsync() => Task.CompletedTask;
+        public Task RunPreparedUpdateAsync(Func<Task> install) => Task.CompletedTask;
         public Task ShutdownAsync() => Task.CompletedTask;
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }

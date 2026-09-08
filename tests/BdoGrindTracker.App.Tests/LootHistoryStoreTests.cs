@@ -39,9 +39,22 @@ public sealed class LootHistoryStoreTests
 
         store.Save([
             CreateEntry(Guid.NewGuid(), DateTimeOffset.UtcNow, 10) with { SpotId = "unknown" },
-            CreateEntry(Guid.NewGuid(), DateTimeOffset.UtcNow, 0)
+            CreateEntry(Guid.NewGuid(), DateTimeOffset.UtcNow, -1)
         ]);
         Assert.Empty(store.Load());
+    }
+
+    [Fact]
+    public void AnExplicitZeroCorrectionRemainsEditableAfterRestart()
+    {
+        using var directory = new TemporaryDirectory();
+        var store = new LootHistoryStore(Path.Combine(directory.Path, "loot-history-v1.json"));
+        var entry = CreateEntry(Guid.NewGuid(), DateTimeOffset.UtcNow, 0) with { GarmothUploadBlocked = true };
+        store.Save([entry]);
+        var saved = Assert.Single(store.Load());
+        Assert.Equal(0, saved.Totals["Branch of Abundance"]);
+        Assert.Equal(entry.SessionId, saved.SessionId);
+        Assert.True(saved.GarmothUploadBlocked);
     }
 
     [Fact]

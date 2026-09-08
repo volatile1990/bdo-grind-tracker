@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Components.WebView.WindowsForms;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Web.WebView2.Core;
 using BdoGrindTracker.App.Updates;
+using BdoGrindTracker.App.Persistence;
 
 namespace BdoGrindTracker.App.UI;
 
@@ -27,6 +28,9 @@ internal sealed class HybridMainForm : Form
     private bool _webReady;
     private bool _renderReady;
     private bool _resourcesDisposed;
+    private bool _storePreparing;
+    private bool _storeInstalling;
+    private DateTimeOffset _nextStoreCheck;
 
     public int ExitCode { get; private set; }
 
@@ -57,7 +61,10 @@ internal sealed class HybridMainForm : Form
         services.AddWindowsFormsBlazorWebView();
         services.AddSingleton<ITrackerSession>(session);
         _updates = AppUpdateService.Create(!preview && !smokeTest,
-            () => session.State.IsRunning, () => session.State.IsBusy, PrepareUpdateRestartAsync);
+            () => session.State.IsRunning, () => session.State.IsBusy, PrepareUpdateRestartAsync,
+            () => new StoreAppUpdateService(new StoreUpdateBackend(() => IsDisposed ? 0 : Handle, RunOnUiThreadAsync),
+                () => _closing || session.State.IsRunning || session.State.IsBusy,
+                PrepareStoreInstallAsync, AppUpdateService.ApplicationVersion));
         services.AddSingleton<IAppUpdates>(_updates);
         _services = services.BuildServiceProvider();
         _web.Services = _services;
@@ -67,8 +74,7 @@ internal sealed class HybridMainForm : Form
         {
             args.UserDataFolder = preview || smokeTest
                 ? Path.Combine(Path.GetTempPath(), "Grindcrest.UiValidation", Environment.ProcessId.ToString())
-                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "BdoGrindTracker", "webview2");
+                : Path.Combine(AppDataPaths.Current.BaseDirectory, "webview2");
             if (debugPort is not null)
                 args.EnvironmentOptions = new CoreWebView2EnvironmentOptions(
                     $"--remote-debugging-port={debugPort} --remote-debugging-address=127.0.0.1");
@@ -160,12 +166,18 @@ internal sealed class HybridMainForm : Form
                         _renderReady = true;
                         Console.WriteLine("Blazor Hybrid ready");
                         if (_smokeTest) { Close(); return; }
+                        _nextStoreCheck = DateTimeOffset.UtcNow.AddHours(6);
                         _ = _updates.CheckAsync();
                     }
                 }
                 if (!_renderReady) return;
             }
             await _session.TickAsync();
+            if (_updates.State.UsesStore && DateTimeOffset.UtcNow >= _nextStoreCheck && !_updates.State.IsBusy)
+            {
+                _nextStoreCheck = DateTimeOffset.UtcNow.AddHours(6);
+                _ = _updates.CheckAsync();
+            }
         }
         catch (Exception error)
         {
@@ -186,7 +198,10 @@ internal sealed class HybridMainForm : Form
     private async void CloseAsync(object? sender, FormClosingEventArgs e)
     {
         if (_closed) return;
+        // A Store installation may close us. Its durable save has already finished.
+        if (_storeInstalling) { _closed = true; return; }
         e.Cancel = true;
+        if (_storePreparing) return;
         if (_closing) return;
         _closing = true;
         SaveWindowPlacement();
@@ -267,6 +282,55 @@ internal sealed class HybridMainForm : Form
         if (bounds.Width > 0 && bounds.Height > 0)
             _placementStore.Save(new(bounds.X, bounds.Y, bounds.Width, bounds.Height, WindowState == FormWindowState.Maximized));
     }
+
+    private Task RunOnUiThreadAsync(Func<Task> action)
+    {
+        if (IsDisposed || !IsHandleCreated) return Task.FromException(new ObjectDisposedException(nameof(HybridMainForm)));
+        if (!InvokeRequired) return action();
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        BeginInvoke(async () =>
+        {
+            try { await action(); completion.TrySetResult(); }
+            catch (Exception error) { completion.TrySetException(error); }
+        });
+        return completion.Task;
+    }
+
+    private async Task<bool> PrepareStoreInstallAsync(Func<Task> install)
+    {
+        var accepted = false;
+        await RunOnUiThreadAsync(async () =>
+        {
+            if (_closing || _storePreparing || _storeInstalling || _session.State.IsRunning || _session.State.IsBusy) return;
+            _storePreparing = true;
+            _timer.Stop();
+            // Keep the native owner window and its message pump alive for Store dialogs.
+            _web.Enabled = false;
+            try
+            {
+                await _session.RunPreparedUpdateAsync(async () =>
+                {
+                    SaveWindowPlacement();
+                    _storeInstalling = true;
+                    _storePreparing = false;
+                    await install();
+                    accepted = true;
+                });
+            }
+            finally
+            {
+                _storeInstalling = false;
+                _storePreparing = false;
+                if (!IsDisposed && !_closed && !_closing)
+                {
+                    _web.Enabled = true;
+                    _timer.Start();
+                }
+            }
+        });
+        return accepted;
+    }
+
 
     protected override void Dispose(bool disposing)
     {

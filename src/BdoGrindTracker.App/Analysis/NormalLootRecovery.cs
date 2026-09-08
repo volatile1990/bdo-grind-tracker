@@ -9,6 +9,7 @@ namespace BdoGrindTracker.App.Analysis;
 
 internal interface INormalLootRecovery
 {
+    void ConfigureQuantityBounds(Func<string, DropQuantityBounds?> resolve) { }
     LootObservation? Recover(Mat sourceBand, ICompanionPreparedRow original,
         LootObservation? baseline, int slot, float uiScale,
         NormalLootRecoveryBudget budget, CancellationToken cancellationToken);
@@ -54,11 +55,17 @@ internal sealed partial class NormalLootRecovery(
 {
     private readonly Func<Mat, NormalLootRecoveryVariant, NormalLootRecoveryImages> _prepare =
         prepare ?? NormalLootRecoveryPreprocessor.Prepare;
+    private Func<string, DropQuantityBounds?> _quantityBounds = name => DropQuantityCatalog.GetBounds(null, name);
+
+    public void ConfigureQuantityBounds(Func<string, DropQuantityBounds?> resolve) =>
+        _quantityBounds = resolve ?? throw new ArgumentNullException(nameof(resolve));
 
     public LootObservation? Recover(Mat sourceBand, ICompanionPreparedRow original,
         LootObservation? baseline, int slot, float uiScale,
         NormalLootRecoveryBudget budget, CancellationToken cancellationToken)
     {
+        if (Accepted(baseline) && _quantityBounds(baseline!.ItemName!)?.IsFixedUnit == true)
+            return FixedUnit(baseline);
         // Zero cannot be a drop quantity. Keep its identified row eligible for
         // recovery instead of allowing it to reach the positive-only ledger.
         if (baseline is { Quantity: <= 0 }) baseline = baseline with { Quantity = null };
@@ -125,6 +132,7 @@ internal sealed partial class NormalLootRecovery(
                 {
                     NativeY = original.Y,
                 };
+                if (_quantityBounds(best.ItemName!)?.IsFixedUnit == true) return FixedUnit(best);
                 if (best.Quantity.HasValue) return best;
                 if (!quantityAttempted && ReadQuantity(images.QuantityImage) is { } recoveredQuantity)
                     return best with { Quantity = recoveredQuantity };
@@ -168,6 +176,12 @@ internal sealed partial class NormalLootRecovery(
 
     private static bool Accepted(LootObservation? row) =>
         row?.ItemName is not null && row.RejectionReason is null;
+
+    private LootObservation FixedUnit(LootObservation row) => row with
+    {
+        Quantity = 1, QuantityBounds = _quantityBounds(row.ItemName!), UsesFixedUnitQuantity = true,
+        UsesImplicitUnitQuantity = false,
+    };
 
     // Parse the whole isolated token, never remove arbitrary letters or concatenate
     // numbers from separate words. Windows OCR itself has no digit whitelist here.

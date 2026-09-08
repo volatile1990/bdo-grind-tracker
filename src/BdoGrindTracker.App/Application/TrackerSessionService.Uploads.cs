@@ -75,7 +75,7 @@ internal sealed partial class TrackerSessionService
                 ? " Nur dieser Stundenabschnitt wurde übertragen."
                 : _garmothIntervals.IsBlocked
                     ? " Weitere Uploads dieser Sitzung sind gesperrt. Tracking läuft weiter; bitte in Garmoth prüfen."
-                    : " Auto-Upload angehalten. Nach der Korrektur die Garmoth-Einstellungen speichern oder manuell hochladen.";
+                    : " Auto-Upload angehalten. Korrigiere den Schlüssel oder wähle auf der Garmoth-Seite Automatik fortsetzen.";
             SetStatus(result.Message + guidance, result.Status != GarmothUploadStatus.Succeeded);
         }
         catch (Exception exception)

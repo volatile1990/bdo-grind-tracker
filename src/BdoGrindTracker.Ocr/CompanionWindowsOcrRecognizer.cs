@@ -48,7 +48,8 @@ public sealed class CompanionWindowsOcrRecognizer
 
     public static CompanionWindowsOcrRecognizer? TryCreate(
         string preferredLanguageTag = "en-US",
-        bool throwIfUnavailable = false)
+        bool throwIfUnavailable = false,
+        bool requirePreferredLanguage = false)
     {
         Exception? initializationError = null;
         OcrEngine? engine = null;
@@ -71,7 +72,7 @@ public sealed class CompanionWindowsOcrRecognizer
             initializationError = exception;
         }
 
-        if (engine is null)
+        if (engine is null && !requirePreferredLanguage)
         {
             try
             {
@@ -92,6 +93,12 @@ public sealed class CompanionWindowsOcrRecognizer
         {
             return null;
         }
+
+        if (requirePreferredLanguage)
+            throw new InvalidOperationException(
+                $"Die Windows-Texterkennung für {(preferredLanguageTag.StartsWith("de", StringComparison.OrdinalIgnoreCase) ? "Deutsch" : "Englisch")} ({preferredLanguageTag}) ist nicht verfügbar. " +
+                "Installiere in den Windows-Einstellungen unter Zeit und Sprache → Sprache und Region " +
+                "die Texterkennung der Spielsprache. Versuche danach erneut, das Tracking zu starten.", initializationError);
 
         string languages;
         try

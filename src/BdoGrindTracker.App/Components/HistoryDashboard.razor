@@ -1,4 +1,4 @@
-﻿@page "/history"
+@page "/history"
 @page "/history/spots/{SpotId}"
 @page "/history/spots/{SpotId}/{SessionId:guid}"
 @inject NavigationManager Navigation
@@ -38,7 +38,7 @@
                             <span class="chronological-loot-preview">
                                 @foreach (var item in ChronologicalLoot(session))
                                 {
-                                    <span class="chronological-loot-badge" title="@item.Key"><AssetImage Src="@ItemIcon(item.Key)" Alt="@item.Key" Class="item-image" /><small>@Number(item.Value)</small></span>
+                                    <span class="chronological-loot-badge" title="@ItemLabel(item.Key)"><AssetImage Src="@ItemIcon(item.Key)" Alt="@ItemLabel(item.Key)" Class="item-image" /><small>@Number(item.Value)</small></span>
                                 }
                             </span>
                             <span class="chronological-session-duration"><small>GRINDZEIT</small><strong>@ShortDuration(session.Duration)</strong></span>
@@ -51,7 +51,7 @@
                                 <button class="button secondary" @onclick="() => Edit(session)" disabled="@(Acting || State.IsBusy || IsCurrent(session))"><AppIcon Name="edit" />Bearbeiten</button>
                                 <button class="button secondary danger" @onclick="() => AskDelete(session)" disabled="@(Acting || State.IsBusy || IsCurrent(session))"><AppIcon Name="delete" />Löschen</button>
                             </div></div>
-                            <LootTable Totals="session.Totals" DurationTicks="session.Duration.Ticks" TrashName="@(Profile(session.SpotId)?.TrashItemName)" Title="Loot der Session" Subtitle="Mengen und Bewertung im Detail" />
+                            <LootTable Totals="SessionTotals(session)" DurationTicks="session.Duration.Ticks" TrashName="@(Profile(session.SpotId)?.TrashItemName)" Title="Loot der Session" Subtitle="Mengen und Bewertung im Detail" EditableSessionId="session.SessionId" />
                         </div>
                     </details>
                 }
@@ -80,7 +80,7 @@
         var sessions = SpotSessions.ToArray();
         var metrics = HistoryPresentation.CalculateMetrics(profile, sessions);
         var chart = HistoryPresentation.BuildChartData(profile, sessions);
-        <section class="spot-detail-hero" style="@("background-image:url('assets/spot-backgrounds/" + profile.BackgroundFileName + "')")"><div class="hero-shade"></div><div class="spot-detail-content"><div class="spot-detail-identity"><AssetImage Src="@("assets/spot-icons/" + profile.IconFileName)" Alt="" Class="spot-emblem" /><div><span class="eyebrow">SPOT-GUIDE</span><h2>@SpotName(_spotId)</h2><p>@profile.TrashItemName · @Number(profile.TrashSilver) Silber / Stück</p></div></div><div class="spot-guidance"><div><span>EMPFOHLENE AP</span><strong>@Number(profile.RecommendedAp)</strong><small>AP-Limit @Number(profile.MaxApLimit)</small></div><div><span>EMPFOHLENE DP</span><strong>@Number(profile.RecommendedDp)</strong><small>Verteidigung</small></div><div class="crystal-guidance"><AssetImage Src="@("assets/crystal-icons/" + profile.RecommendedCrystalFileName)" Alt="" Class="crystal-image" Fallback="spark" /><div><span>KRISTALL-EMPFEHLUNG</span><strong>@profile.RecommendedCrystalName</strong><small>@string.Join(" · ", profile.Traits.Where(LootSpotPresentationCatalog.IsResistanceTrait).Select(Trait))</small></div></div></div><div class="trait-list">@foreach (var trait in profile.Traits.Where(trait => !LootSpotPresentationCatalog.IsResistanceTrait(trait))) { <span>@Trait(trait)</span> }</div></div></section>
+        <section class="spot-detail-hero" style="@("background-image:url('assets/spot-backgrounds/" + profile.BackgroundFileName + "')")"><div class="hero-shade"></div><div class="spot-detail-content"><div class="spot-detail-identity"><AssetImage Src="@("assets/spot-icons/" + profile.IconFileName)" Alt="" Class="spot-emblem" /><div><span class="eyebrow">SPOT-GUIDE</span><h2>@SpotName(_spotId)</h2><p>@ItemLabel(profile.TrashItemName) · @Number(profile.TrashSilver) Silber / Stück</p></div></div><div class="spot-guidance"><div><span>EMPFOHLENE AP</span><strong>@Number(profile.RecommendedAp)</strong><small>AP-Limit @Number(profile.MaxApLimit)</small></div><div><span>EMPFOHLENE DP</span><strong>@Number(profile.RecommendedDp)</strong><small>Verteidigung</small></div><div class="crystal-guidance"><AssetImage Src="@("assets/crystal-icons/" + profile.RecommendedCrystalFileName)" Alt="" Class="crystal-image" Fallback="spark" /><div><span>KRISTALL-EMPFEHLUNG</span><strong>@profile.RecommendedCrystalName</strong><small>@string.Join(" · ", profile.Traits.Where(LootSpotPresentationCatalog.IsResistanceTrait).Select(Trait))</small></div></div></div><div class="trait-list">@foreach (var trait in profile.Traits.Where(trait => !LootSpotPresentationCatalog.IsResistanceTrait(trait))) { <span>@Trait(trait)</span> }</div></div></section>
 
         <p class="valuation-note">Bewertung mit aktuellen Preisen und Steuereinstellungen · Silber pro Stunde berücksichtigt Lootmenge und Grindzeit.</p>
         <div class="history-metrics-grid">
@@ -104,7 +104,7 @@
                             <th class="session-fixed session-silver-column numeric" scope="col">SILBER / H</th>
                             @foreach (var column in lootColumns)
                             {
-                                <th class="session-loot-column" scope="col" title="@ColumnPriceTooltip(column.Name)" data-loot-name="@column.Name" @key="column.Name"><button type="button" class="session-favorite-button @(IsFavorite(column.Name) ? "is-favorite" : "")" aria-label="@(column.Name + (IsFavorite(column.Name) ? " – Favorit entfernen" : " – als Favorit markieren"))" aria-pressed="@(IsFavorite(column.Name) ? "true" : "false")" disabled="@(Acting || State.IsBusy)" @onclick="e => KeyboardFavorite(e, column.Name)"><AssetImage Src="@ItemIcon(column.Name)" Alt="" Class="session-loot-icon" Fallback="loot" />@if (IsFavorite(column.Name)) { <span class="session-favorite-star" aria-hidden="true">★</span> }</button><small>@Silver(column.SilverPerHour) / h</small></th>
+                                <th class="session-loot-column" scope="col" title="@ColumnPriceTooltip(column.Name)" data-loot-name="@column.Name" @key="column.Name"><button type="button" class="session-favorite-button @(IsFavorite(column.Name) ? "is-favorite" : "")" aria-label="@(ItemLabel(column.Name) + (IsFavorite(column.Name) ? " – Favorit entfernen" : " – als Favorit markieren"))" aria-pressed="@(IsFavorite(column.Name) ? "true" : "false")" disabled="@(Acting || State.IsBusy)" @onclick="e => KeyboardFavorite(e, column.Name)"><AssetImage Src="@ItemIcon(column.Name)" Alt="" Class="session-loot-icon" Fallback="loot" />@if (IsFavorite(column.Name)) { <span class="session-favorite-star" aria-hidden="true">★</span> }</button><small>@Silver(column.SilverPerHour) / h</small></th>
                             }
                             <th class="session-actions-column" scope="col">AKTIONEN</th>
                         </tr></thead>
@@ -118,8 +118,8 @@
                                 <td class="session-fixed session-silver-column numeric gold">@Silver(Hourly(session.SilverAfterTax, session.Duration))@(!session.SilverIsComplete ? " *" : "")</td>
                                 @foreach (var column in lootColumns)
                                 {
-                                    var quantity = session.Totals.GetValueOrDefault(column.Name);
-                                    <td class="session-loot-quantity numeric" @key="column.Name">@(quantity > 0 ? Number(quantity) : "—")</td>
+                                    var quantity = SessionTotals(session).GetValueOrDefault(column.Name);
+                                    <td class="session-loot-quantity numeric" @key="column.Name"><LootQuantityEditor SessionId="session.SessionId" ItemName="@column.Name" Quantity="quantity" DisplayQuantity="@(quantity > 0 ? Number(quantity) : "—")" /></td>
                                 }
                                 <td class="session-actions-column"><details class="session-action-menu"><summary aria-label="Aktionen für diese Session" title="Aktionen"><AppIcon Name="more" /></summary><div><button @onclick="() => Edit(session)" disabled="@(Acting || State.IsBusy || IsCurrent(session))"><AppIcon Name="edit" />Bearbeiten</button><button class="danger" @onclick="() => AskDelete(session)" disabled="@(Acting || State.IsBusy || IsCurrent(session))"><AppIcon Name="delete" />Löschen</button></div></details></td>
                             </tr>
@@ -134,10 +134,10 @@
     }
 </div>
 
-<dialog id="history-edit" class="modal edit-modal" @oncancel="CloseDialogs"><div class="modal-heading"><div><span class="eyebrow">SESSION BEARBEITEN</span><h2>Lootmengen korrigieren</h2></div><button class="icon-button" @onclick="CloseDialogs" aria-label="Dialog schließen"><AppIcon Name="close" /></button></div><p>Trage die tatsächlichen Gesamtmengen ein. Mit 0 entfernst du einen Gegenstand aus dieser Session.</p>
+<dialog id="history-edit" class="modal edit-modal" @oncancel="CloseDialogs"><div class="modal-heading"><div><span class="eyebrow">SESSION BEARBEITEN</span><h2>Lootmengen korrigieren</h2></div><button class="icon-button" @onclick="CloseDialogs" aria-label="Dialog schließen"><AppIcon Name="close" /></button></div><p>Trage die tatsächlichen Gesamtmengen ein. Mit 0 setzt du die Menge eines Gegenstands zurück.</p>
     @if (_target?.GarmothUploadedAt is not null || _target?.GarmothUploadBlocked == true) { <div class="notice warning-notice"><AppIcon Name="info" />Bereits übertragene Garmoth-Einträge werden dadurch nicht geändert.</div> }
     @if (_dialogError is not null) { <div class="notice error-notice" role="alert">@_dialogError</div> }
-    <form @onsubmit="SaveEdit" @onsubmit:preventDefault><label class="field history-class-edit"><span>Klasse dieser Session</span><select @bind="_editClass"><option value="">Klasse nicht erkannt</option>@foreach (var characterClass in CompanionCharacterClassCatalog.Classes) { <option value="@characterClass.DisplayName">@characterClass.DisplayName</option> }</select></label><div class="edit-loot-list">@foreach (var row in _editRows) { <label class="edit-loot-row"><span><AssetImage Src="@ItemIcon(row.Name)" Alt="" Class="item-image" />@row.Name</span><input type="number" min="0" max="9223372036854775807" step="1" required @bind="row.Quantity" aria-label="@("Menge " + row.Name)" /></label> }</div><div class="modal-actions"><button type="button" class="button secondary" @onclick="CloseDialogs">Abbrechen</button><button type="submit" class="button primary" disabled="@Acting"><AppIcon Name="check" />Session speichern</button></div></form>
+    <form @onsubmit="SaveEdit" @onsubmit:preventDefault><label class="field history-class-edit"><span>Klasse dieser Session</span><select @bind="_editClass"><option value="">Klasse nicht erkannt</option>@foreach (var characterClass in CompanionCharacterClassCatalog.Classes) { <option value="@characterClass.DisplayName">@characterClass.DisplayName</option> }</select></label><div class="edit-loot-list">@foreach (var row in _editRows) { <label class="edit-loot-row"><span><AssetImage Src="@ItemIcon(row.Name)" Alt="" Class="item-image" />@ItemLabel(row.Name)</span><input type="number" min="0" max="9223372036854775807" step="1" required @bind="row.Quantity" aria-label="@("Menge " + ItemLabel(row.Name))" /></label> }</div><div class="modal-actions"><button type="button" class="button secondary" @onclick="CloseDialogs">Abbrechen</button><button type="submit" class="button primary" disabled="@Acting"><AppIcon Name="check" />Session speichern</button></div></form>
 </dialog>
 <dialog id="history-confirm" class="modal confirm-modal" @oncancel="CloseDialogs">
     <div class="modal-heading"><div><span class="eyebrow">VERLAUF</span><h2>Session löschen?</h2></div><button class="icon-button" @onclick="CloseDialogs" aria-label="Dialog schließen"><AppIcon Name="close" /></button></div>
@@ -264,6 +264,8 @@
     }
     private static IReadOnlyDictionary<string, long> AggregateTotals(IEnumerable<LootHistoryEntry> sessions) => sessions.SelectMany(session => session.Totals).GroupBy(pair => pair.Key, StringComparer.Ordinal).ToDictionary(group => group.Key, group => group.Sum(pair => pair.Value), StringComparer.Ordinal);
     private bool IsCurrent(LootHistoryEntry session) => State.HasSession && session.SessionId == State.SessionId;
+    private IReadOnlyDictionary<string, long> SessionTotals(LootHistoryEntry session) =>
+        IsCurrent(session) ? State.Loot.Totals : session.Totals;
     private async Task Edit(LootHistoryEntry session)
     {
         _target = session; _dialogError = null;
@@ -284,7 +286,6 @@
             if (!long.TryParse(row.Quantity, NumberStyles.None, CultureInfo.InvariantCulture, out var quantity) || quantity < 0) { _dialogError = "Bitte gib für „" + row.Name + "“ eine gültige ganze Menge ab 0 ein."; return; }
             totals[row.Name] = quantity;
         }
-        if (!totals.Values.Any(value => value > 0)) { _dialogError = "Mindestens ein Gegenstand muss eine Menge größer als 0 haben. Zum Entfernen der gesamten Session nutze Löschen."; return; }
         if (await Act(() => Tracker.UpdateHistoryLootAsync(_target.SessionId, totals, _editClass))) await CloseDialogs(); else _dialogError = ActionError ?? State.Status;
     }
     private async Task ConfirmDelete()
@@ -336,7 +337,7 @@
         if (order.Length != current.Length || order.Distinct(StringComparer.Ordinal).Count() != current.Length || current.Except(order, StringComparer.Ordinal).Any()) return;
         var orders = Tracker.Preferences.LootColumnOrders.ToDictionary(pair => pair.Key, pair => pair.Value);
         orders[spotId] = order;
-        await Act(() => Tracker.SavePreferencesAsync(Tracker.Preferences with { LootColumnOrders = orders }));
+        await SavePreferenceChange(p => p with { LootColumnOrders = orders });
         StateHasChanged();
     }
     private IEnumerable<KeyValuePair<string, long>> ChronologicalLoot(LootHistoryEntry session)
@@ -353,7 +354,7 @@
         var price = Tracker.Prices.TryGetQuote(name, out var quote)
             ? Number(quote.UnitPrice) + " Silber / Stück vor Steuer" + (quote.IsStale ? " (Cache, veraltet)" : "")
             : "Stückpreis fehlt";
-        return name + " · " + price + " · Unter dem Icon: Netto-Ertrag / h aus den gefilterten Sessions. Klicken für Favorit, ziehen zum Verschieben.";
+        return ItemLabel(name) + " · " + price + " · Unter dem Icon: Netto-Ertrag / h aus den gefilterten Sessions. Klicken für Favorit, ziehen zum Verschieben.";
     }
     private bool IsFavorite(string name) => Tracker.Preferences.FavoriteItems.Contains(name, StringComparer.Ordinal);
     private Task KeyboardFavorite(MouseEventArgs e, string name) => e.Detail == 0
@@ -363,11 +364,11 @@
     {
         if (spotId != _spotId || Acting || State.IsBusy || Profile(spotId) is not { } profile ||
             !BuildLootColumns(profile, SpotSessions.ToArray()).Any(column => column.Name == name)) return;
-        await Act(() => Tracker.SavePreferencesAsync(Tracker.Preferences with
+        await SavePreferenceChange(p => p with
         {
-            FavoriteItems = IsFavorite(name) ? Tracker.Preferences.FavoriteItems.Where(item => item != name).ToArray()
-                : Tracker.Preferences.FavoriteItems.Append(name).ToArray()
-        }));
+            FavoriteItems = p.FavoriteItems.Contains(name, StringComparer.Ordinal) ? p.FavoriteItems.Where(item => item != name).ToArray()
+                : p.FavoriteItems.Append(name).ToArray()
+        });
         StateHasChanged();
     }
     private static string SessionTableWidth(int lootColumnCount) =>

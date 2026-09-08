@@ -284,7 +284,8 @@ public sealed class NormalLootRecoveryIntegrationTests
 
     private static CompanionLootFrameAnalyzer Create(Rows rows, Recovery recovery,
         ICompanionReconciliation? reconciliation = null) =>
-        new(Calibration(), Matcher(), rows, new Names(rows), reconciliation, normalRecovery: recovery);
+        new(Calibration(), Matcher(), rows, new Names(rows), reconciliation, normalRecovery: recovery,
+            quantityBoundsResolver: (_, _) => null); // Synthetic recovery quantities, not the live drop catalog.
 
     private static CompanionCalibration Calibration() => new("profile", "gamevariable.xml",
         "GameOption.txt", 400, 300, 800, 600, 1f, CompanionFontType.StrongSword, 0, false);

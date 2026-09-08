@@ -6,6 +6,14 @@ internal interface ILootFrameAnalyzer : IDisposable
 
     string Status { get; }
 
+    // Unknown for synthetic/alternative analyzers that do not inspect BDO's chat configuration.
+    bool? PrivateItemChatAvailable => null;
+    bool RequiresLootPanel => false;
+
+    void ValidateCaptureSetup(Size frameSize) { }
+    // Called before capture starts, while no frame analysis can be running.
+    void ConfigureGameLanguage(string language) { }
+
     Task<FrameAnalysisResult> AnalyzeAsync(
         Bitmap frame,
         DateTimeOffset capturedAt,

@@ -27,9 +27,35 @@ C# läuft im Desktop-Prozess, die Darstellung in WebView2. Technische Grundlage 
 ## Bedienung
 
 **Live-Session** zeigt Spot und Klasse, aktive Zeit, Trash, Netto-Silber und Stundenwert.
+Spotbild, Session-Status und Start/Pause bzw. neue Session bilden einen kompakten
+Header mit integrierter Kennzahlenleiste. Direkt darunter stehen die Drops;
+detaillierte Preishinweise sind bei den Session-Details zusammengefasst.
 Die Loot-Tabelle unterstützt Suche, Sortierung und Gesamt-/Stundenwerte. Fehlende Preise
 werden als fehlend oder Teilbetrag kenntlich gemacht. Start/Pause und neue Session
 greifen auf dieselbe Sitzungssteuerung zu wie die automatische Pause.
+
+Ein fehlender oder ungültiger Haupt-Droplog blockiert die Erfassung und erscheint
+als roter Fehler in der Live-Ansicht. Ein nicht eingerichteter Private-Items-Chat
+erzeugt dagegen nur eine seitliche Hilfe mit ausklappbarer Anleitung.
+
+Einstellungen werden automatisch gespeichert: Auswahllisten und Schalter sofort,
+Zahlen und Garmoth-API-Schlüssel beim Verlassen des Feldes oder mit Enter. Die
+früheren Speichern-/Verwerfen-Buttons entfallen. Jede Änderung übernimmt nur das
+betroffene Feld ausgehend von den aktuellen Einstellungen. Ungültige Zahlen werden
+nicht übernommen; fehlgeschlagene Speicherungen werden angezeigt. Die API-Schlüssel-
+Eingabe wird nach erfolgreichem Speichern geleert, ein leeres Feld behält den
+bisherigen Schlüssel. **Schlüssel entfernen** löscht ihn direkt und schaltet die
+Stundenautomatik aus. Das separate **Automatik fortsetzen** ist eine bewusste
+Freigabe nach einer eindeutig fehlgeschlagenen Übertragung.
+
+Der Stift neben einer Lootmenge öffnet die Inline-Korrektur: ganze Gesamtmenge ab 0,
+Enter oder Haken zum Speichern, Escape oder Kreuz zum Abbrechen. Auch in der
+Stundenansicht wird ausdrücklich die Gesamtmenge bearbeitet. Das funktioniert
+während der Erfassung, in der Pause und nach dem Abschluss. Drops, die während
+der Eingabe dazukommen, bleiben erhalten: gespeichert wird die Differenz zum Wert
+beim Öffnen. Korrekturen ändern Silberwerte, aber weder Dropzahl noch Inaktivitätsuhr.
+Explizite Nullmengen bleiben zum erneuten Bearbeiten sichtbar und werden gespeichert.
+Bei einem Speicherfehler bleibt die bisherige Menge erhalten und die Eingabe offen.
 
 Die Zurück-/Vorwärts-Tasten einer Maus navigieren durch die besuchten Ansichten,
 einschließlich Spot- und Sessiondetails.
@@ -40,8 +66,11 @@ selbst verarbeitet, werden vom nativen Fenster an denselben Verlauf weitergereic
 
 **Verlauf** bietet alle sechs Spotprofile sowie eine chronologische Gesamtliste,
 Filter nach Zeitraum und Klasse, Kennzahlen und vollständige Lootdetails. Gespeicherte
-Sessions lassen sich korrigieren und löschen. Die aktuelle Session ist
-gegen Änderungen im Verlauf gesperrt.
+Sessions lassen sich korrigieren und löschen. Einzelmengen sind direkt in der
+Spotmatrix und in den Sessiondetails editierbar; in der Matrix lassen sich auch
+bislang fehlende Items ergänzen. Die aktuelle Session verwendet dabei ihre
+Live-Mengen. Nur das Löschen und der vollständige Bearbeitungsdialog bleiben für
+die aktuelle Session gesperrt. Summen über mehrere Sessions sind reine Anzeigen.
 
 **Garmoth** bündelt API-Schlüssel, Stundenautomatik, den manuellen Upload der aktuellen
 Session und nachträgliche Uploads gespeicherter Sessions. Die Uploadliste lässt sich

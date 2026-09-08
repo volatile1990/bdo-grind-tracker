@@ -168,7 +168,8 @@ public sealed class MinimumTrashQuantityIntegrationTests : IDisposable
         new(new CompanionCalibration("profile", "gamevariable.xml", "GameOption.txt", 400, 300,
                 800, 600, 1f, CompanionFontType.StrongSword, 0, false),
             new CompanionItemMatcher([Trash]), rows, new Names(),
-            reconciliation: new CompanionReconciliationAdapter(Policy()), chatFallback: chat);
+            reconciliation: new CompanionReconciliationAdapter(Policy()), chatFallback: chat,
+            quantityBoundsResolver: (_, _) => null); // Exercise the historical dictionary policy independently of live data.
 
     private sealed class ChatQuantity(int quantity) : IPrivateItemChatFallback
     {

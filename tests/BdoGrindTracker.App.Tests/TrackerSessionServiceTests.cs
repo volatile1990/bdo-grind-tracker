@@ -23,6 +23,357 @@ namespace BdoGrindTracker.App.Tests;
 public sealed class TrackerSessionServiceTests
 {
     [Fact]
+    public async Task AutomaticGameLanguageIsReadAgainBeforeCaptureStarts()
+    {
+        var language = "en";
+        var configured = new List<string>();
+        await using var fixture = new Fixture(languageDetector: () => new(language, "Synthetic language config"),
+            analyzer: new SyntheticAnalyzer { ConfigureLanguage = configured.Add });
+        Assert.Equal("auto", fixture.Service.Preferences.GameLanguage);
+        Assert.Equal("en", fixture.Service.State.DetectedGameLanguage);
+        language = "de";
+        await fixture.Service.ToggleTrackingAsync();
+        Assert.True(fixture.Service.State.IsRunning);
+        Assert.Equal("de", fixture.Service.State.DetectedGameLanguage);
+        Assert.Equal(new[] { "de" }, configured);
+    }
+
+    [Fact]
+    public async Task UnknownAutomaticLanguageBlocksStartAndManualOverridePersists()
+    {
+        var configured = new List<string>();
+        await using var fixture = new Fixture(languageDetector: () => new(null, "BDO-Textsprache nicht erkannt."),
+            analyzer: new SyntheticAnalyzer { ConfigureLanguage = configured.Add });
+        await fixture.Service.ToggleTrackingAsync();
+        Assert.False(fixture.Service.State.IsRunning);
+        Assert.False(fixture.Service.State.HasSession);
+        Assert.Equal(0, fixture.Captures);
+        Assert.Contains("Textsprache", fixture.Service.State.Status);
+        Assert.True((await fixture.Service.SavePreferencesAsync(fixture.Service.Preferences with { GameLanguage = "de" })).Succeeded);
+        Assert.Equal("de", fixture.Settings.Load().GameLanguage);
+        await fixture.Service.ToggleTrackingAsync();
+        Assert.True(fixture.Service.State.IsRunning);
+        Assert.Equal(new[] { "de" }, configured);
+        Assert.False((await fixture.Service.SavePreferencesAsync(fixture.Service.Preferences with { GameLanguage = "en" })).Succeeded);
+        Assert.Equal("de", fixture.Settings.Load().GameLanguage);
+    }
+
+    [Fact]
+    public async Task MissingSelectedOcrLanguageBlocksCaptureWithoutStartingASession()
+    {
+        await using var fixture = new Fixture(analyzer: new SyntheticAnalyzer
+        {
+            ConfigureLanguage = _ => throw new InvalidOperationException("Windows-Texterkennung für Deutsch fehlt."),
+        });
+        await fixture.Service.ToggleTrackingAsync();
+        Assert.True(fixture.Service.State.IsError);
+        Assert.False(fixture.Service.State.HasSession);
+        Assert.Equal(TimeSpan.Zero, fixture.Service.State.Elapsed);
+        Assert.Equal(0, fixture.Captures);
+    }
+
+    [Fact]
+    public async Task SavingPreferencesReportsSuccessEvenWhenCaptureIsBlocked()
+    {
+        await using var fixture = new Fixture(autoUpload: false, analyzer: new SyntheticAnalyzer
+        {
+            IsAvailable = false, Status = LootPanelCaptureGuard.MissingPanelMessage,
+        });
+        var saved = await fixture.Service.SavePreferencesAsync(fixture.Service.Preferences with { AutoPauseMinutes = 12 });
+        Assert.True(saved.Succeeded);
+        Assert.Null(saved.Error);
+        Assert.Equal(12, fixture.Settings.Load().AutoPauseMinutes);
+        Assert.True(fixture.Service.State.IsError);
+        Assert.NotNull(fixture.Service.State.TrackingBlockedReason);
+    }
+
+    [Fact]
+    public async Task PreferenceSaveReportsValidationAndDiskFailuresAndCanRecover()
+    {
+        await using var fixture = new Fixture(autoUpload: false);
+        var invalid = await fixture.Service.SavePreferencesAsync(fixture.Service.Preferences with { AutoPauseMinutes = 0 });
+        Assert.False(invalid.Succeeded);
+        Assert.Contains("Auto-Pause", invalid.Error);
+        await fixture.Service.SavePreferencesAsync(fixture.Service.Preferences);
+        using (var locked = new FileStream(fixture.SettingsPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+        {
+            var failed = await fixture.Service.SavePreferencesAsync(fixture.Service.Preferences with { FamilyFame = 1500 });
+            Assert.False(failed.Succeeded);
+            Assert.Contains("nicht gespeichert", failed.Error);
+        }
+        Assert.True((await fixture.Service.SavePreferencesAsync(fixture.Service.Preferences)).Succeeded);
+        Assert.Equal(1500, fixture.Settings.Load().SilverFamilyFame);
+    }
+
+    [Fact]
+    public async Task MissingMainLogBlocksCaptureAndItsErrorSurvivesOtherCommands()
+    {
+        await using var fixture = new Fixture(autoUpload: false, analyzer: new SyntheticAnalyzer
+        {
+            IsAvailable = false, Status = LootPanelCaptureGuard.MissingPanelMessage,
+        });
+        Assert.Equal(LootPanelCaptureGuard.MissingPanelMessage, fixture.Service.State.TrackingBlockedReason);
+        await fixture.Service.ToggleTrackingAsync();
+        Assert.Equal(0, fixture.Captures);
+        Assert.False(fixture.Clock.IsRunning);
+        Assert.False(fixture.Service.State.HasSession);
+        await fixture.Service.NewSessionAsync();
+        await fixture.Service.SavePreferencesAsync(fixture.Service.Preferences);
+        Assert.True(fixture.Service.State.IsError);
+        Assert.False(fixture.Service.State.AnalyzerAvailable);
+        Assert.Equal(LootPanelCaptureGuard.MissingPanelMessage, fixture.Service.State.Status);
+    }
+
+    [Fact]
+    public async Task StartValidatesTheSelectedMonitorBeforeStartingTheClockOrRecording()
+    {
+        var analyzer = new SyntheticAnalyzer();
+        Size? checkedSize = null;
+        analyzer.ValidateSetup = size =>
+        {
+            checkedSize = size;
+            analyzer.IsAvailable = false;
+            analyzer.Status = LootPanelCaptureGuard.MissingPanelMessage;
+            throw new LootPanelUnavailableException(analyzer.Status);
+        };
+        await using var fixture = new Fixture(autoUpload: false, analyzer: analyzer);
+        await fixture.Service.SavePreferencesAsync(fixture.Service.Preferences with { RecordLoot = true });
+        await fixture.Service.ToggleTrackingAsync();
+        Assert.Equal(new Size(1920, 1080), checkedSize);
+        Assert.Equal(0, fixture.Captures);
+        Assert.False(fixture.Clock.IsRunning);
+        Assert.False(fixture.Service.State.HasSession);
+        Assert.Null(fixture.Service.State.RecordingPath);
+        Assert.NotNull(fixture.Service.State.TrackingBlockedReason);
+    }
+
+    [Fact]
+    public async Task MissingRequiredPanelStopsCaptureWithoutCountingThatFramesDrops()
+    {
+        await using var fixture = new Fixture(autoUpload: false, analyzer: new SyntheticAnalyzer
+        {
+            RequiresLootPanel = true, NextResult = Analysis(("Black Crystal Fragment", 99)),
+        });
+        await fixture.Service.ToggleTrackingAsync();
+        await WaitUntilAsync(() => File.Exists(Path.Combine(fixture.DirectoryPath, "last-capture-error.json")));
+        await fixture.Service.TickAsync();
+        Assert.False(fixture.Service.State.IsRunning);
+        Assert.False(fixture.Clock.IsRunning);
+        Assert.True(fixture.Service.State.IsError);
+        Assert.NotNull(fixture.Service.State.TrackingBlockedReason);
+        Assert.Empty(fixture.Service.State.Loot.Totals);
+        var captures = fixture.Captures;
+        await fixture.Service.ToggleTrackingAsync();
+        Assert.Equal(captures, fixture.Captures);
+    }
+
+    [Theory]
+    [InlineData("no-private-item-window", false)]
+    [InlineData("invalid-chat-region", false)]
+    [InlineData("no-readable-item-lines", true)]
+    [InlineData("reading-private-items", true)]
+    [InlineData("chat-read-failed", true)]
+    public async Task ChatAvailabilityIsOptionalAndAConfiguredEmptyChatIsNotReportedMissing(string state, bool available)
+    {
+        await using var fixture = new Fixture(autoUpload: false, analyzer: new SyntheticAnalyzer { PrivateItemChatAvailable = true });
+        fixture.Begin();
+        fixture.Analyzer.NextResult = Analysis(("Black Crystal Fragment", 7)) with
+        {
+            ChatRecovery = new(1, state, 0, 0, 0),
+        };
+        using var frame = new Bitmap(2, 2);
+        await fixture.Service.ProcessFrameAsync(frame, new(1, fixture.Time.GetUtcNow()), CancellationToken.None);
+        fixture.Service.RefreshPendingState();
+        Assert.Equal(available, fixture.Service.State.PrivateItemChatAvailable);
+        Assert.True(fixture.Service.State.IsRunning);
+        Assert.False(fixture.Service.State.IsError);
+        Assert.Null(fixture.Service.State.TrackingBlockedReason);
+        Assert.Equal(7, fixture.Service.State.Loot.TotalQuantity);
+    }
+
+    [Theory]
+    [InlineData(false, false, false)]
+    [InlineData(true, false, true)]
+    [InlineData(true, true, false)]
+    public async Task OcrFiltersFollowTheBitmapRepresentation(bool isHdr, bool isToneMapped, bool expectedHdrOcr)
+    {
+        await using var fixture = new Fixture(autoUpload: false);
+        fixture.Begin();
+        using var frame = new Bitmap(2, 2);
+        await fixture.Service.ProcessFrameAsync(frame,
+            new CapturedFrameMetadata(1, fixture.Time.GetUtcNow(), isHdr, isToneMapped), CancellationToken.None);
+
+        Assert.Equal(1, fixture.Analyzer.Calls);
+        Assert.Equal(expectedHdrOcr, fixture.Analyzer.LastHdrOcr);
+    }
+
+    [Fact]
+    public async Task LiveCorrectionPersistsAndKeepsDropsReceivedWhileEditorWasOpen()
+    {
+        await using var fixture = new Fixture(autoUpload: false);
+        fixture.Begin();
+        await fixture.ProcessAfter(TimeSpan.FromMinutes(2), ("Black Crystal Fragment", 5));
+        var original = fixture.Service.State.Loot.Totals["Black Crystal Fragment"];
+        await fixture.ProcessAfter(TimeSpan.FromMinutes(1), ("Black Crystal Fragment", 2));
+        fixture.Time.Advance(TimeSpan.FromSeconds(10));
+        var idle = fixture.Activity.IdleDuration;
+        await fixture.Service.UpdateLootQuantityAsync(fixture.Service.State.SessionId, "Black Crystal Fragment", 1, original);
+
+        Assert.False(fixture.Service.State.IsError);
+        fixture.AssertTracking(TimeSpan.FromMinutes(3) + TimeSpan.FromSeconds(10), 3);
+        Assert.Equal(2, fixture.Service.State.Loot.ConfirmedEventCount);
+        Assert.Equal(idle, fixture.Activity.IdleDuration);
+        var saved = Assert.Single(fixture.HistoryStore.Load());
+        Assert.Equal(3, saved.Totals["Black Crystal Fragment"]);
+        Assert.Equal(3 * 160_539m, saved.SilverAfterTax);
+        await fixture.ProcessAfter(TimeSpan.FromSeconds(1), ("Black Crystal Fragment", 4));
+        Assert.Equal(7, fixture.Service.State.Loot.TotalQuantity);
+        await fixture.Service.PauseAsync();
+        Assert.Equal(7, Assert.Single(fixture.HistoryStore.Load()).Totals["Black Crystal Fragment"]);
+    }
+
+    [Fact]
+    public async Task FrameAlreadyBeingAnalyzedSurvivesAnAtomicManualCorrection()
+    {
+        await using var fixture = new Fixture(autoUpload: false);
+        fixture.Begin();
+        await fixture.ProcessAfter(TimeSpan.FromMinutes(2), ("Black Crystal Fragment", 5));
+        var result = new TaskCompletionSource<FrameAnalysisResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        fixture.Analyzer.Analyze = () => result.Task;
+        using var frame = new Bitmap(2, 2);
+        var pending = fixture.Service.ProcessFrameAsync(frame, new CapturedFrameMetadata(2, fixture.Time.GetUtcNow()), CancellationToken.None);
+        await fixture.Service.UpdateLootQuantityAsync(fixture.Service.State.SessionId, "Black Crystal Fragment", 1, 5);
+        result.SetResult(Analysis(("Black Crystal Fragment", 2)));
+        await pending;
+        fixture.Service.RefreshPendingState();
+        Assert.Equal(3, fixture.Service.State.Loot.TotalQuantity);
+        Assert.Equal(2, fixture.Service.State.Loot.ConfirmedEventCount);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task PausedAndSubmittedSessionsCanBeCorrectedToZeroAndEditedAgain(bool submitted)
+    {
+        await using var fixture = new Fixture(autoUpload: false);
+        fixture.Begin();
+        await fixture.ProcessAfter(TimeSpan.FromMinutes(2), ("Black Crystal Fragment", 5));
+        if (submitted) await fixture.Service.UploadAsync();
+        else await fixture.Service.PauseAsync();
+        var id = fixture.Service.State.SessionId;
+        await fixture.Service.UpdateLootQuantityAsync(id, "Black Crystal Fragment", 0, 5);
+
+        Assert.False(fixture.Service.State.IsError);
+        Assert.Equal(0, fixture.Service.State.Loot.Totals["Black Crystal Fragment"]);
+        Assert.Equal(0, fixture.Service.State.Loot.ItemTypeCount);
+        var saved = Assert.Single(fixture.HistoryStore.Load());
+        Assert.Equal(0, saved.Totals["Black Crystal Fragment"]);
+        Assert.Equal(0, saved.SilverAfterTax);
+        Assert.Equal(submitted, saved.GarmothUploadBlocked);
+        Assert.Equal(submitted, saved.GarmothUploadedAt.HasValue);
+        Assert.Equal(submitted, fixture.Service.State.IsSubmitted);
+
+        await fixture.Service.NewSessionAsync();
+        await fixture.Service.UpdateLootQuantityAsync(id, "Black Crystal Fragment", 2, 0);
+        saved = Assert.Single(fixture.HistoryStore.Load());
+        Assert.Equal(2, saved.Totals["Black Crystal Fragment"]);
+        Assert.Equal(submitted, saved.GarmothUploadBlocked);
+        Assert.Empty(fixture.Service.State.Loot.Totals);
+    }
+
+    [Fact]
+    public async Task FailedLiveCorrectionLeavesDiskAndCaptureCountersUnchangedAndCanBeRetried()
+    {
+        await using var fixture = new Fixture(autoUpload: false);
+        fixture.Begin();
+        await fixture.ProcessAfter(TimeSpan.FromMinutes(2), ("Black Crystal Fragment", 5));
+        await fixture.Service.PauseAsync();
+        fixture.ResumeClocks();
+        var historyPath = Path.Combine(fixture.DirectoryPath, "loot-history-v1.json");
+        var previousFile = File.ReadAllText(historyPath);
+        var id = fixture.Service.State.SessionId;
+        using (var locked = new FileStream(historyPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+        {
+            await fixture.Service.UpdateLootQuantityAsync(id, "Black Crystal Fragment", 1, 5);
+            Assert.True(fixture.Service.State.IsError);
+            Assert.Equal(5, fixture.Service.State.Loot.TotalQuantity);
+            Assert.Equal(5, Assert.Single(fixture.Service.History).Totals["Black Crystal Fragment"]);
+            Assert.Equal(previousFile, File.ReadAllText(historyPath));
+        }
+        await fixture.ProcessAfter(TimeSpan.FromSeconds(1), ("Black Crystal Fragment", 2));
+        await fixture.Service.UpdateLootQuantityAsync(id, "Black Crystal Fragment", 1, 5);
+        Assert.False(fixture.Service.State.IsError);
+        Assert.Equal(3, fixture.Service.State.Loot.TotalQuantity);
+        Assert.Equal(3, Assert.Single(fixture.HistoryStore.Load()).Totals["Black Crystal Fragment"]);
+    }
+
+    [Fact]
+    public async Task ManualCorrectionNeverLowersGarmothWatermarksOrChangesTheFrozenRequest()
+    {
+        await using var fixture = new Fixture();
+        var response = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+        fixture.Respond = () => response.Task;
+        fixture.Begin();
+        await fixture.ProcessAfter(TimeSpan.FromHours(1), ("Black Crystal Fragment", 10));
+        var pending = fixture.Service.UploadHourlyToGarmothAsync();
+        await WaitUntilAsync(() => fixture.Requests.Count == 1);
+        try
+        {
+            Assert.True(fixture.Service.State.CanEditLoot);
+            await fixture.Service.UpdateLootQuantityAsync(fixture.Service.State.SessionId, "Black Crystal Fragment", 3, 10);
+            Assert.False(fixture.Service.State.IsError);
+            Assert.Equal(3, fixture.Service.State.Loot.TotalQuantity);
+            AssertPayload(Assert.Single(fixture.Requests), 60, 10);
+        }
+        finally
+        {
+            response.TrySetResult(new HttpResponseMessage(HttpStatusCode.OK));
+            await pending;
+        }
+        fixture.Respond = () => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+        await fixture.ProcessAfter(TimeSpan.FromHours(1), ("Black Crystal Fragment", 9));
+        await fixture.Service.TickAsync();
+        AssertPayload(fixture.Requests.ToArray()[1], 60, 2);
+        Assert.Equal(12, fixture.Service.State.Loot.TotalQuantity);
+        Assert.True(Assert.Single(fixture.HistoryStore.Load()).GarmothUploadBlocked);
+    }
+
+    [Fact]
+    public async Task NegativeAndOverflowingCorrectionsLeaveSessionUnchanged()
+    {
+        await using var fixture = new Fixture(autoUpload: false);
+        fixture.Begin();
+        await fixture.ProcessAfter(TimeSpan.FromMinutes(2), ("Black Crystal Fragment", 5), ("Black Stone", 1));
+        var id = fixture.Service.State.SessionId;
+        await fixture.Service.UpdateLootQuantityAsync(id, "Black Crystal Fragment", -1, 5);
+        Assert.True(fixture.Service.State.IsError);
+        Assert.Equal(6, fixture.Service.State.Loot.TotalQuantity);
+        await fixture.Service.UpdateLootQuantityAsync(id, "Black Crystal Fragment", long.MaxValue, 5);
+        Assert.True(fixture.Service.State.IsError);
+        Assert.Equal(6, fixture.Service.State.Loot.TotalQuantity);
+        await fixture.Service.UpdateLootQuantityAsync(id, "Black Crystal Fragment", 0, long.MinValue);
+        Assert.True(fixture.Service.State.IsError);
+        Assert.Equal(6, fixture.Service.State.Loot.TotalQuantity);
+    }
+
+    [Fact]
+    public async Task APreviouslyNegativeOcrTotalCanBeCorrectedToZeroAndKeepCounting()
+    {
+        await using var fixture = new Fixture(autoUpload: false);
+        fixture.Begin();
+        await fixture.ProcessAfter(TimeSpan.FromMinutes(2), ("BON Wandering Origin Crystal", -2));
+        Assert.Equal(-2, fixture.Service.State.Loot.Totals["BON Wandering Origin Crystal"]);
+        await fixture.Service.UpdateLootQuantityAsync(fixture.Service.State.SessionId, "BON Wandering Origin Crystal", 0, -2);
+        Assert.False(fixture.Service.State.IsError);
+        Assert.Equal(0, fixture.Service.State.Loot.TotalQuantity);
+        Assert.Equal(0, fixture.Service.State.Loot.Totals["BON Wandering Origin Crystal"]);
+        Assert.Equal(0, Assert.Single(fixture.HistoryStore.Load()).Totals["BON Wandering Origin Crystal"]);
+        await fixture.ProcessAfter(TimeSpan.FromSeconds(1), ("BON Wandering Origin Crystal", 1));
+        Assert.Equal(1, fixture.Service.State.Loot.TotalQuantity);
+        Assert.Equal(1, fixture.Service.State.Loot.ConfirmedEventCount);
+    }
+
+    [Fact]
     public async Task DisabledAutomaticUploadDoesNotSendACompleteHour()
     {
         await using var fixture = new Fixture(autoUpload: false);
@@ -612,6 +963,42 @@ public sealed class TrackerSessionServiceTests
         Assert.False(fixture.Analyzer.Disposed);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task StoreInstallationKeepsSessionCommandsBlockedAndReleasesThemAfterward(bool installerFails)
+    {
+        await using var fixture = new Fixture(autoUpload: false);
+        fixture.Begin();
+        await fixture.ProcessAfter(TimeSpan.FromMinutes(2), ("Black Crystal Fragment", 3));
+        await fixture.Service.PauseAsync();
+        var sessionId = fixture.Service.State.SessionId;
+        var installation = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var pending = fixture.Service.RunPreparedUpdateAsync(async () =>
+        {
+            Assert.Equal(3, Assert.Single(fixture.HistoryStore.Load()).Totals["Black Crystal Fragment"]);
+            Assert.True(File.Exists(fixture.SettingsPath));
+            await installation.Task;
+            if (installerFails) throw new IOException("Synthetic installation failure");
+        });
+
+        Assert.True(fixture.Service.State.IsBusy);
+        await fixture.Service.ToggleTrackingAsync();
+        await fixture.Service.NewSessionAsync();
+        Assert.False(fixture.Service.State.IsRunning);
+        Assert.Equal(sessionId, fixture.Service.State.SessionId);
+        Assert.Equal(3, fixture.Service.State.Loot.TotalQuantity);
+
+        installation.SetResult();
+        if (installerFails) await Assert.ThrowsAsync<IOException>(() => pending);
+        else await pending;
+
+        Assert.False(fixture.Service.State.IsBusy);
+        Assert.False(fixture.Analyzer.Disposed);
+        await fixture.Service.NewSessionAsync();
+        Assert.False(fixture.Service.State.HasSession);
+    }
+
     [Fact]
     public async Task MissingKeyDoesNotPauseOrSubmitTheRunningSession()
     {
@@ -847,8 +1234,10 @@ public sealed class TrackerSessionServiceTests
     private sealed class Fixture : IAsyncDisposable
     {
         private long _sequence;
-        public Fixture(bool autoUpload = true, bool saveKey = true, AppSettings? initialSettings = null)
+        public Fixture(bool autoUpload = true, bool saveKey = true, AppSettings? initialSettings = null,
+            SyntheticAnalyzer? analyzer = null, Func<BdoGrindTracker.Ocr.GameLanguageDetection>? languageDetector = null)
         {
+            Analyzer = analyzer ?? new();
             Directory.CreateDirectory(DirectoryPath);
             SetField(Settings, "_settingsPath", SettingsPath);
             KeyStore = new GarmothApiKeyStore(Path.Combine(DirectoryPath, "test-key.dpapi"));
@@ -875,7 +1264,8 @@ public sealed class TrackerSessionServiceTests
             [
                 new("synthetic-primary", "Bildschirm 1", new Rectangle(0, 0, 1920, 1080), true),
                 new("synthetic-secondary", "Bildschirm 2", new Rectangle(1920, 0, 1920, 1080), false)
-            ], Clock, Activity, () => ClassDetection, Prices, client, KeyStore, HistoryStore);
+            ], Clock, Activity, () => ClassDetection, Prices, client, KeyStore, HistoryStore,
+                languageDetector ?? (() => new("en", "Automatisch erkannt: Englisch · Testkonfiguration")));
         }
 
         public string DirectoryPath { get; } = Path.Combine(Path.GetTempPath(), "BdoGrindTracker.Tests", Guid.NewGuid().ToString("N"));
@@ -887,7 +1277,7 @@ public sealed class TrackerSessionServiceTests
         public ManualTimeProvider Time { get; } = new();
         public GrindSessionClock Clock { get; }
         public GrindInactivityTimer Activity { get; }
-        public SyntheticAnalyzer Analyzer { get; } = new();
+        public SyntheticAnalyzer Analyzer { get; }
         public SyntheticPrices Prices { get; } = new();
         public CharacterClassDetection ClassDetection { get; set; } = CharacterClassDetection.Unknown;
         public int Captures { get; private set; }
@@ -972,14 +1362,27 @@ public sealed class TrackerSessionServiceTests
 
     private sealed class SyntheticAnalyzer : ILootFrameAnalyzer
     {
-        public bool IsAvailable => true;
-        public string Status => "Synthetic service test";
+        public bool IsAvailable { get; set; } = true;
+        public string Status { get; set; } = "Synthetic service test";
+        public bool? PrivateItemChatAvailable { get; set; }
+        public bool RequiresLootPanel { get; set; }
+        public Action<Size>? ValidateSetup { get; set; }
+        public Action<string>? ConfigureLanguage { get; set; }
+        public void ConfigureGameLanguage(string language) => ConfigureLanguage?.Invoke(language);
+        public void ValidateCaptureSetup(Size frameSize) => ValidateSetup?.Invoke(frameSize);
         public FrameAnalysisResult? NextResult { get; set; }
         public Func<Task<FrameAnalysisResult>>? Analyze { get; set; }
         public FrameAnalysisResult CompletionResult { get; set; } = Analysis();
         public int CompletionCalls { get; private set; }
         public bool Disposed { get; private set; }
         public int Calls { get; private set; }
+        public bool? LastHdrOcr { get; private set; }
+        public Task<FrameAnalysisResult> AnalyzeAsync(Bitmap frame, DateTimeOffset capturedAt, bool isHdr,
+            CancellationToken cancellationToken)
+        {
+            LastHdrOcr = isHdr;
+            return AnalyzeAsync(frame, capturedAt, cancellationToken);
+        }
         public Task<FrameAnalysisResult> AnalyzeAsync(Bitmap frame, DateTimeOffset capturedAt, CancellationToken cancellationToken)
         {
             Calls++;

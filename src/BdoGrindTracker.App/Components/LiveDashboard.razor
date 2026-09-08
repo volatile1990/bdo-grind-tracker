@@ -5,51 +5,69 @@
 @inject IJSRuntime JS
 
 <div class="page live-page">
-    <div class="page-heading">
-        <div><span class="eyebrow">DEIN GRIND, IM BLICK</span><h1>Live-Session</h1><p>Konzentrier dich aufs Abenteuer. Wir behalten den Loot im Blick.</p></div>
-        <div class="page-actions">
-            <button class="button secondary" @onclick="RequestNew" disabled="@(Acting || State.IsBusy)"><AppIcon Name="plus" />Neue Session</button>
-            <button class="button primary" @onclick="() => Act(Tracker.ToggleTrackingAsync)" disabled="@(Acting || State.IsBusy || State.IsSubmitted || (!State.IsRunning && !State.AnalyzerAvailable))" title="@(State.IsSubmitted ? "Diese Session ist abgeschlossen. Beginne eine neue Session." : null)"><AppIcon Name="@(State.IsRunning ? "pause" : "play")" />@(State.IsRunning ? "Pausieren" : State.HasSession ? "Fortsetzen" : "Tracking starten")</button>
+    <section class="live-session-header" style="@HeroStyle" aria-labelledby="live-session-title">
+        <div class="live-header-main">
+            <div class="live-session-context">
+                <div class="live-session-title-row">
+                    <h1 id="live-session-title">Live-Session</h1>
+                    <span class="live-session-status"><span class="status-dot @(State.IsError ? "error" : State.IsRunning ? "running" : "")"></span>@SessionStatus</span>
+                </div>
+                <div class="live-spot-identity">
+                    @if (CurrentProfile is { } profile) { <AssetImage Src="@("assets/spot-icons/" + profile.IconFileName)" Alt="" Class="spot-emblem" Fallback="pin" /> }
+                    <div class="live-spot-copy">
+                        <h2>@(State.SpotId is null ? "Spot wird automatisch erkannt" : SpotName(State.SpotId))</h2>
+                        <div class="live-session-meta">
+                            <span><AssetImage Src="@ClassIcon(State.CharacterClassId)" Alt="" Class="class-image" Fallback="shield" />@State.CharacterLabel</span>
+                            <span title="@MonitorLabel"><AppIcon Name="monitor" />@ShortMonitorLabel</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="live-session-actions">
+                <button class="button primary" @onclick="() => Act(Tracker.ToggleTrackingAsync)" disabled="@(Acting || State.IsBusy || State.IsSubmitted || (!State.IsRunning && (!State.AnalyzerAvailable || State.TrackingBlockedReason is not null)))" title="@(State.IsSubmitted ? "Diese Session ist abgeschlossen. Beginne eine neue Session." : State.TrackingBlockedReason)"><AppIcon Name="@(State.IsRunning ? "pause" : "play")" />@(State.IsRunning ? "Pausieren" : State.HasSession ? "Fortsetzen" : "Tracking starten")</button>
+                <button class="button secondary" @onclick="RequestNew" disabled="@(Acting || State.IsBusy)"><AppIcon Name="plus" />Neue Session</button>
+            </div>
         </div>
-    </div>
+        <div class="metrics-grid live-session-metrics" aria-label="Session-Kennzahlen">
+            <article class="metric-card"><div class="metric-label"><span>AKTIVE ZEIT</span><AppIcon Name="clock" /></div><strong class="metric-value time-value">@Duration(State.Elapsed)</strong><span class="metric-note">@(State.IsDemo ? "Beispielsession" : State.HasSession || State.IsRunning ? "Ohne Pausenzeiten" : "Ab dem ersten Loot")</span></article>
+            <article class="metric-card"><div class="metric-label"><span>TRASHLOOT</span><AppIcon Name="loot" /></div><strong class="metric-value">@Number(Trash(State.Loot.Totals, State.SpotId))</strong><span class="metric-note"><span class="teal">@Number(Hourly(Trash(State.Loot.Totals, State.SpotId), State.Elapsed))</span> pro Stunde</span></article>
+            <article class="metric-card gold-metric"><div class="metric-label"><span>SILBER NETTO</span><AppIcon Name="silver" /></div><strong class="metric-value">@(CanShowSilver ? Silver(State.Silver.AfterTax) : "—")@if (!State.Silver.IsComplete) { <span class="estimate-mark" title="Bekannter Teilbetrag. Es fehlen Gegenstandspreise."> *</span> }</strong><span class="metric-note">@ValuationLabel</span></article>
+            <article class="metric-card"><div class="metric-label"><span>SILBER / STUNDE</span><AppIcon Name="trend" /></div><strong class="metric-value">@(State.Elapsed > TimeSpan.Zero && CanShowSilver ? Silver(Hourly(State.Silver.AfterTax, State.Elapsed)) : "—")@if (!State.Silver.IsComplete && State.Elapsed > TimeSpan.Zero) { <span class="estimate-mark"> *</span> }</strong><span class="metric-note">Ø aktive Grindzeit</span></article>
+        </div>
+    </section>
 
     @if (State.IsDemo)
     {
-        <div class="notice demo-notice"><AppIcon Name="spark" /><div><strong>Du erkundest die Demo</strong><span>Beispieldaten werden weder im Verlauf gespeichert noch hochgeladen.</span></div><button class="text-button" @onclick="() => Act(() => Tracker.SetDemoAsync(false))" disabled="@Acting">Demo beenden <AppIcon Name="close" /></button></div>
+        <div class="notice demo-notice live-demo-notice"><AppIcon Name="spark" /><div><strong>Demo</strong><span>Beispieldaten · werden nicht gespeichert oder hochgeladen</span></div><button class="text-button" @onclick="() => Act(() => Tracker.SetDemoAsync(false))" disabled="@Acting">Demo beenden <AppIcon Name="close" /></button></div>
     }
     @if (ActionError is not null) { <div class="notice error-notice" role="alert"><AppIcon Name="info" />@ActionError</div> }
     @if (State.IsSubmitted) { <div class="notice"><AppIcon Name="info" /><div><strong>Session abgeschlossen</strong><span>Diese Session lässt sich nicht weiterführen oder erneut übertragen. Beginne für deinen nächsten Grind eine neue Session.</span></div></div> }
-    @if (!State.AnalyzerAvailable && !State.IsDemo) { <div class="notice warning-notice"><AppIcon Name="info" /><div><strong>Erfassung noch nicht verfügbar</strong><span>@State.Status</span></div><button class="text-button" @onclick="OpenSettings">Einstellungen <AppIcon Name="arrow" /></button></div> }
-
-    <section class="spot-hero" style="@HeroStyle" aria-label="Aktueller Grindspot">
-        <div class="hero-shade"></div>
-        <div class="hero-content">
-            <div class="hero-kicker"><span class="status-dot @(State.IsRunning ? "running" : "")"></span>@(State.SpotId is null ? "AUTOMATISCHE SPOTERKENNUNG" : "INNER EDANIA")</div>
-            <div class="hero-identity">
-                @if (CurrentProfile is { } profile) { <AssetImage Src="@("assets/spot-icons/" + profile.IconFileName)" Alt="" Class="spot-emblem" Fallback="pin" /> }
-                <div><h2>@(State.SpotId is null ? "Dein Abenteuer beginnt hier." : SpotName(State.SpotId))</h2><p>@(State.SpotId is null ? "Der erste eindeutige Drop erkennt deinen Grindspot automatisch." : CurrentProfile?.TrashItemName)</p></div>
-            </div>
-            <div class="hero-bottom"><span class="character-chip"><AssetImage Src="@ClassIcon(State.CharacterClassId)" Alt="" Class="class-image" Fallback="shield" />@State.CharacterLabel</span><span class="hero-divider"></span><span><AppIcon Name="monitor" />@MonitorLabel</span></div>
-        </div>
-        <div class="hero-badge"><span class="status-dot @(State.IsRunning ? "running" : "")"></span>@(State.IsDemo ? "Vorschau" : State.IsRunning ? "Live" : State.HasSession ? "Pausiert" : "Bereit für den Grind")</div>
-    </section>
-
-    <div class="metrics-grid" aria-label="Session-Kennzahlen">
-        <article class="metric-card"><div class="metric-label"><span>AKTIVE ZEIT</span><AppIcon Name="clock" /></div><strong class="metric-value time-value">@Duration(State.Elapsed)</strong><span class="metric-note">@(State.IsDemo ? "Beispielsession · 1 Stunde" : State.IsRunning ? "Deine Session läuft" : State.HasSession ? "Pause wird nicht mitgezählt" : "Beginnt mit dem ersten Loot")</span></article>
-        <article class="metric-card"><div class="metric-label"><span>TRASHLOOT</span><AppIcon Name="loot" /></div><strong class="metric-value">@Number(Trash(State.Loot.Totals, State.SpotId))</strong><span class="metric-note"><span class="teal">@Number(Hourly(Trash(State.Loot.Totals, State.SpotId), State.Elapsed))</span> pro Stunde</span></article>
-        <article class="metric-card gold-metric"><div class="metric-label"><span>SILBER NETTO</span><AppIcon Name="silver" /></div><strong class="metric-value">@(CanShowSilver ? Silver(State.Silver.AfterTax) : "—")@if (!State.Silver.IsComplete) { <span class="estimate-mark" title="Bekannter Teilbetrag. Es fehlen Gegenstandspreise."> *</span> }</strong><span class="metric-note">@ValuationLabel</span></article>
-        <article class="metric-card"><div class="metric-label"><span>SILBER / STUNDE</span><AppIcon Name="trend" /></div><strong class="metric-value">@(State.Elapsed > TimeSpan.Zero && CanShowSilver ? Silver(Hourly(State.Silver.AfterTax, State.Elapsed)) : "—")@if (!State.Silver.IsComplete && State.Elapsed > TimeSpan.Zero) { <span class="estimate-mark"> *</span> }</strong><span class="metric-note">Ø über deine aktive Grindzeit</span></article>
-    </div>
-    @if (!State.Silver.IsComplete || State.Silver.IsStale)
+    @if (!State.IsDemo && (!State.AnalyzerAvailable || State.TrackingBlockedReason is not null))
     {
-        <div class="valuation-note"><AppIcon Name="info" /><span>@(!State.Silver.IsComplete ? "* Teilbetrag: " + string.Join(", ", State.Silver.MissingItems.Concat(State.Silver.OverflowItems)) + " noch ohne verlässlichen Preis. " : "")@(State.Silver.IsStale ? "Einige Marktwerte stammen aus dem Cache." : "")</span></div>
+        <div class="notice error-notice tracking-blocked" role="alert"><AppIcon Name="info" /><div><strong>Tracking nicht möglich</strong><span>@(State.TrackingBlockedReason ?? State.Status)</span></div><button class="text-button" @onclick="OpenSettings">Einstellungen <AppIcon Name="arrow" /></button></div>
+    }
+    else if (!State.IsDemo && State.IsError)
+    {
+        <div class="notice error-notice" role="alert"><AppIcon Name="info" /><span>@State.Status</span></div>
     }
 
     <div class="live-content-grid">
-        <LootTable Totals="State.Loot.Totals" DurationTicks="State.Elapsed.Ticks" TrashName="CurrentProfile?.TrashItemName" />
+        <LootTable Title="Drops" Subtitle="" Totals="State.Loot.Totals" DurationTicks="State.Elapsed.Ticks" TrashName="CurrentProfile?.TrashItemName" EditableSessionId="State.SessionId" />
         <div class="session-aside">
+            @if (!State.IsDemo && State.AnalyzerAvailable && State.TrackingBlockedReason is null && State.PrivateItemChatAvailable == false)
+            {
+                <aside class="item-chat-help" aria-label="Optionale Hilfe zur Erkennung">
+                    <div class="item-chat-help-title"><AppIcon Name="info" /><strong>Erkennung ergänzen</strong><span>Optional</span></div>
+                    <p>Kein nutzbarer Chat mit „Beute“ (englisch: „Private Item“) erkannt. Ein separates Item-Chatfenster kann helfen, fehlende Dropmengen zu lesen.</p>
+                    <details><summary>So richtest du es ein</summary><p>Öffne in BDO ein separates, sichtbares Chatfenster und aktiviere dort ausschließlich die Systemmeldungen „Beute“ (englisch: „Private Item“). Speichere die UI-Einstellungen im Spiel. Während des Trackings wird das Fenster automatisch erneut geprüft.</p></details>
+                </aside>
+            }
             <section class="panel session-summary"><div class="panel-heading"><h2>Session-Details</h2><AppIcon Name="live" /></div><dl class="detail-list"><div><dt>Bestätigte Drops</dt><dd>@Number(State.Loot.ConfirmedEventCount)</dd></div><div><dt>Verschiedene Items</dt><dd>@State.Loot.ItemTypeCount</dd></div><div><dt>Bruttowert</dt><dd>@(CanShowSilver ? Silver(State.Silver.BeforeTax) : "—")@(!State.Silver.IsComplete ? " *" : "")</dd></div><div><dt>Markterlös</dt><dd>@Tracker.Preferences.Tax.MarketReturnRate.ToString("P2", German)</dd></div><div><dt>Automatische Pause</dt><dd>@Tracker.Preferences.AutoPauseMinutes Min.</dd></div></dl><div class="subtle-box"><AppIcon Name="shield" /><span>Die automatische Pause greift, wenn kein neuer Loot erkannt wird.</span></div></section>
             <div class="price-status"><span class="status-dot @(State.Silver.IsStale ? "" : "running")"></span><span>@State.PriceStatus</span><button class="icon-button" title="Marktpreise aktualisieren" aria-label="Marktpreise aktualisieren" @onclick="() => Act(Tracker.RefreshPricesAsync)" disabled="@(State.IsBusy || Acting)"><AppIcon Name="refresh" /></button></div>
+            @if (!State.Silver.IsComplete || State.Silver.IsStale)
+            {
+                <div class="valuation-note"><AppIcon Name="info" /><span>@(!State.Silver.IsComplete ? "* Teilbetrag: " + string.Join(", ", State.Silver.MissingItems.Concat(State.Silver.OverflowItems).Select(ItemLabel)) + " noch ohne verlässlichen Preis. " : "")@(State.Silver.IsStale ? "Einige Marktwerte stammen aus dem Cache." : "")</span></div>
+            }
         </div>
     </div>
     @if (!State.IsDemo && !State.HasSession)
@@ -70,7 +88,9 @@
     private bool CanShowSilver => State.Loot.Totals.Count == 0 || State.Silver.HasKnownValue;
     private string HeroStyle => $"background-image:url('assets/spot-backgrounds/{CurrentProfile?.BackgroundFileName ?? "aphrodon.jpg"}')";
     private string MonitorLabel => Tracker.Monitors.FirstOrDefault(monitor => monitor.DeviceName == Tracker.Preferences.MonitorDeviceName)?.Label ?? Tracker.Monitors.FirstOrDefault()?.Label ?? "Kein Bildschirm";
-    private string ValuationLabel => !State.Silver.IsComplete ? "Bekannter Teilbetrag · Preise fehlen" : State.Silver.IsStale ? "Mit gespeicherten Marktpreisen" : "Nach deinen Marktsteuern";
+    private string ShortMonitorLabel => MonitorLabel.Split('·')[0].Trim();
+    private string SessionStatus => State.IsDemo ? "Vorschau" : State.IsSubmitted ? "Abgeschlossen" : State.IsError ? "Fehler" : State.IsRunning ? "Live" : State.HasSession ? "Pausiert" : "Bereit";
+    private string ValuationLabel => !State.Silver.IsComplete ? "Teilbetrag · Preise fehlen" : State.Silver.IsStale ? "Gespeicherte Marktpreise" : "Nach Marktsteuern";
     private async Task RequestNew()
     {
         if (!State.HasSession && !State.IsDemo) { await Act(Tracker.NewSessionAsync); return; }

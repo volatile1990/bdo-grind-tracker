@@ -20,21 +20,24 @@
     <div class="garmoth-workspace">
         <section class="panel garmoth-connection" aria-label="Garmoth-Verbindung und Automatik">
             <div class="settings-heading"><div class="settings-icon"><AppIcon Name="key" /></div><div><h2>Zugang &amp; Automatik</h2><p>Einmal einrichten. Beim Grinden automatisch dabei.</p></div></div>
-            <form @onsubmit="SaveConnection" @onsubmit:preventDefault>
-                <label class="field"><span>API-Schlüssel <span class="badge @(State.HasApiKey ? "teal-badge" : "muted-badge")">@(State.HasApiKey ? "Gespeichert" : "Nicht hinterlegt")</span></span><div class="key-input"><AppIcon Name="key" /><input type="password" aria-label="Garmoth-API-Schlüssel" autocomplete="new-password" spellcheck="false" maxlength="4096" placeholder="@(State.HasApiKey ? "Gespeicherten Schlüssel beibehalten" : "API-Schlüssel einfügen")" @bind="_apiKey" @bind:event="oninput" @bind:after="FormChanged" disabled="@(_removeKey || Acting || State.IsBusy)" /></div><small>Leer lassen, um den vorhandenen Schlüssel zu behalten. Er wird verschlüsselt auf diesem PC gespeichert.</small></label>
+            <form @onsubmit="SaveKey" @onsubmit:preventDefault>
+                <label class="field"><span>API-Schlüssel <span class="badge @(State.HasApiKey ? "teal-badge" : "muted-badge")">@(State.HasApiKey ? "Gespeichert" : "Nicht hinterlegt")</span></span><div class="key-input"><AppIcon Name="key" /><input type="password" aria-label="Garmoth-API-Schlüssel" autocomplete="new-password" spellcheck="false" maxlength="4096" placeholder="@(State.HasApiKey ? "Gespeicherten Schlüssel beibehalten" : "API-Schlüssel einfügen")" @bind="_apiKey" @bind:event="oninput" @bind:after="FormChanged" @onblur="SaveKey" disabled="@(Acting || State.IsBusy)" /></div><small>Wird beim Verlassen des Feldes oder mit Enter automatisch verschlüsselt gespeichert. Ein leeres Feld behält den vorhandenen Schlüssel.</small></label>
                 <div class="garmoth-key-explainer"><AppIcon Name="shield" /><span>„Gespeichert“ bestätigt die lokale Ablage. Ob Garmoth den Schlüssel akzeptiert, zeigt sich beim Upload.</span></div>
                 @if (State.HasApiKey)
                 {
-                    <label class="checkbox-row garmoth-remove-key"><input type="checkbox" aria-label="Gespeicherten Garmoth-Schlüssel entfernen" @bind="_removeKey" @bind:after="RemoveKeyChanged" disabled="@(Acting || State.IsBusy)" /><span>Gespeicherten Schlüssel entfernen</span></label>
+                    <button type="button" class="text-button garmoth-remove-key" aria-label="Gespeicherten Garmoth-Schlüssel entfernen" @onclick="RemoveKey" disabled="@(Acting || State.IsBusy)"><AppIcon Name="delete" />Schlüssel entfernen</button>
                 }
-                <label class="toggle-row garmoth-auto-toggle"><span><strong>Stündlich automatisch hochladen</strong><small>Nach jeder vollen aktiven Grindstunde nur den neuen Stundenanteil übertragen.</small></span><input type="checkbox" class="switch" aria-label="Stündlich automatisch hochladen" @bind="_autoUpload" @bind:after="FormChanged" disabled="@(_removeKey || Acting || State.IsBusy)" /></label>
+                <label class="toggle-row garmoth-auto-toggle"><span><strong>Stündlich automatisch hochladen</strong><small>Nach jeder vollen aktiven Grindstunde nur den neuen Stundenanteil übertragen.</small></span><input type="checkbox" class="switch" aria-label="Stündlich automatisch hochladen" checked="@Tracker.Preferences.AutoUpload" @onchange="AutoUploadChanged" disabled="@(Acting || State.IsBusy)" /></label>
                 <div class="garmoth-auto-rule"><AppIcon Name="clock" /><span>Bereits übertragene Zeit und Lootmengen werden bei jedem weiteren Upload abgezogen. Pausen zählen nicht zur Grindstunde.</span></div>
-                @if (_removeKey) { <p class="field-note">Mit dem Entfernen des Schlüssels wird der automatische Upload ausgeschaltet.</p> }
                 @if (_saveFeedback is not null)
                 {
                     <div class="garmoth-form-feedback @(_saveFailed ? "is-error" : "is-success")" role="status"><AppIcon Name="@(_saveFailed ? "info" : "check")" />@_saveFeedback</div>
                 }
-                <div class="garmoth-connection-actions"><button type="button" class="text-button" @onclick="ResetConnection" disabled="@(Acting || State.IsBusy)">Verwerfen</button><button type="submit" class="button primary" aria-label="Garmoth-Einstellungen speichern" disabled="@(Acting || State.IsBusy)"><AppIcon Name="check" />@(_saving ? "Wird gespeichert …" : "Einstellungen speichern")</button></div>
+                <div class="settings-autosave compact-autosave" role="status"><AppIcon Name="@(_saving ? "refresh" : "shield")" /><span>@(_saving ? "Wird automatisch gespeichert …" : "Änderungen werden automatisch lokal gespeichert.")</span></div>
+                @if (State.AutomaticSuspended && !State.UploadBlocked && State.HasApiKey && Tracker.Preferences.AutoUpload)
+                {
+                    <button type="button" class="button secondary" @onclick="ResumeAutomatic" disabled="@(Acting || State.IsBusy)">Automatik fortsetzen</button>
+                }
             </form>
         </section>
 
@@ -52,7 +55,7 @@
                 <div class="garmoth-current-transfer"><div class="garmoth-transfer-icon"><AppIcon Name="@(State.UploadBlocked ? "shield" : "upload")" /></div><div><strong>@CurrentTransferTitle</strong><p>@CurrentTransferDescription</p></div></div>
                 @if (State.AutomaticSuspended && !State.UploadBlocked)
                 {
-                    <div class="garmoth-inline-warning"><AppIcon Name="info" /><span>Der automatische Upload ist für diese Session ausgesetzt. Prüfe die Statusmeldung. Nach der Korrektur kannst du die Garmoth-Einstellungen erneut speichern.</span></div>
+                    <div class="garmoth-inline-warning"><AppIcon Name="info" /><span>Der automatische Upload ist für diese Session ausgesetzt. Prüfe die Statusmeldung. Korrigiere den Schlüssel oder wähle „Automatik fortsetzen“, sobald die Ursache behoben ist.</span></div>
                 }
                 <div class="garmoth-current-actions"><button class="button primary" aria-label="Aktuellen Session-Anteil hochladen" @onclick="AskCurrentUpload" disabled="@(!CanUploadCurrent)" title="@CurrentUploadHint"><AppIcon Name="upload" />@(_uploadingCurrent ? "Wird übertragen …" : "Session-Anteil hochladen")</button><span>@CurrentUploadHint</span></div>
             }
@@ -103,16 +106,13 @@
 @code {
     private const int PageSize = 8;
     private string _apiKey = "", _search = "", _statusFilter = "all";
-    private bool _autoUpload, _removeKey, _saving, _saveFailed, _uploadFailed, _uploadingCurrent, _confirmCurrent;
+    private bool _saving, _saveFailed, _uploadFailed, _uploadingCurrent, _confirmCurrent;
     private string? _saveFeedback, _uploadFeedback, _dialogError;
     private int _page = 1;
     private Guid? _uploadingHistory, _confirmedSessionId;
     private LootHistoryEntry? _historyTarget;
 
-    protected override void OnInitialized() { base.OnInitialized(); ResetConnection(); }
-    private void ResetConnection() { _autoUpload = Tracker.Preferences.AutoUpload; _removeKey = false; _apiKey = ""; _saveFeedback = null; }
     private void FormChanged() => _saveFeedback = null;
-    private void RemoveKeyChanged() { if (_removeKey) _autoUpload = false; FormChanged(); }
     private void ResetPage() => _page = 1;
     private IEnumerable<LootHistoryEntry> HistorySessions => Tracker.History.Where(session => !State.HasSession || session.SessionId != State.SessionId);
     private IEnumerable<LootHistoryEntry> VisibleSessions => HistorySessions.Where(session => SpotName(session.SpotId).Contains(_search, StringComparison.OrdinalIgnoreCase) && (_statusFilter switch
@@ -137,28 +137,44 @@
     private static string HistoryStatusDetail(LootHistoryEntry session) => session.GarmothUploadedAt is { } uploaded ? uploaded.ToLocalTime().ToString("dd.MM.yyyy · HH:mm", German) : session.GarmothUploadBlocked ? "Ergebnis in Garmoth prüfen" : "Manueller Upload verfügbar";
     private string HistoryUploadHint(LootHistoryEntry session) => State.IsDemo ? "Im Demo-Modus werden keine Sessions hochgeladen." : !IsPending(session) ? "Erneuter Gesamt-Upload gesperrt, um doppelte Einträge zu vermeiden." : !State.HasApiKey ? "Zuerst einen Garmoth-API-Schlüssel hinterlegen." : Acting || State.IsBusy ? "Ein Vorgang wird gerade ausgeführt." : "Gespeicherte Session nach Garmoth übertragen.";
 
-    private async Task SaveConnection()
+    private Task SaveKey()
     {
-        if (Acting || State.IsBusy) return;
+        if (string.IsNullOrWhiteSpace(_apiKey)) return Task.CompletedTask;
+        return SaveConnection(p => p, _apiKey.Trim(), resume: true, message: "API-Schlüssel automatisch gespeichert.");
+    }
+    private Task RemoveKey() => SaveConnection(p => p with { AutoUpload = false }, "",
+        message: "Schlüssel entfernt. Der automatische Upload ist ausgeschaltet.");
+    private Task ResumeAutomatic() => SaveConnection(p => p, resume: true, message: "Automatik fortgesetzt.");
+    private Task AutoUploadChanged(ChangeEventArgs args)
+    {
+        var enabled = args.Value is true;
+        if (enabled && !State.HasApiKey)
+        {
+            _saveFeedback = "Hinterlege zuerst einen API-Schlüssel, um stündlich automatisch hochzuladen.";
+            _saveFailed = true;
+            return Task.CompletedTask;
+        }
+        return SaveConnection(p => p with { AutoUpload = enabled }, resume: enabled,
+            message: enabled ? "Automatischer Stunden-Upload aktiviert." : "Automatischer Stunden-Upload ausgeschaltet.");
+    }
+    private async Task SaveConnection(Func<TrackerPreferences, TrackerPreferences> change, string? key = null,
+        bool resume = false, string message = "Änderung automatisch gespeichert.")
+    {
+        if (Acting) return;
         _saveFeedback = null; _saveFailed = false;
-        if (!_removeKey && _autoUpload && !State.HasApiKey && string.IsNullOrWhiteSpace(_apiKey)) { _saveFeedback = "Hinterlege einen API-Schlüssel, um stündlich automatisch hochzuladen."; _saveFailed = true; return; }
-        string? key = _removeKey ? "" : string.IsNullOrWhiteSpace(_apiKey) ? null : _apiKey.Trim();
         _saving = true;
         try
         {
-            // Preserve the latest tracking and pricing preferences, including
-            // updates that arrived while the user was editing this form.
-            var preferences = Tracker.Preferences with { AutoUpload = !_removeKey && _autoUpload };
-            if (await Act(() => Tracker.SavePreferencesAsync(preferences, key, resumeAutomaticUpload: true)))
+            if (await SavePreferenceChange(change, key, resume))
             {
-                var removed = _removeKey;
-                ResetConnection();
-                _saveFeedback = removed ? "Schlüssel entfernt. Der automatische Upload ist ausgeschaltet." : "Garmoth-Einstellungen gespeichert.";
+                if (key is not null) _apiKey = "";
+                _saveFeedback = message;
             }
-            else { _saveFeedback = ActionError ?? State.Status; _saveFailed = true; }
+            else { _saveFeedback = ActionError ?? "Die Änderung wurde nicht gespeichert."; _saveFailed = true; }
         }
-        finally { _saving = false; _apiKey = ""; }
+        finally { _saving = false; }
     }
+    public override void Dispose() { _apiKey = ""; base.Dispose(); }
     private async Task AskCurrentUpload()
     {
         if (!CanUploadCurrent) return;

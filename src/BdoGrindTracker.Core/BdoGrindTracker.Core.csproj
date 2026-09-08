@@ -8,4 +8,9 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\data\items.de.json" LogicalName="BdoGrindTracker.Core.GermanItems.json" WithCulture="false" />
+    <EmbeddedResource Include="..\..\data\drop-quantities.json" LogicalName="BdoGrindTracker.Core.DropQuantities.json" />
+  </ItemGroup>
+
 </Project>

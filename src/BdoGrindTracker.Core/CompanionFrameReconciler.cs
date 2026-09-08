@@ -19,6 +19,8 @@ public sealed class CompanionFrameReconciler
 
         public bool EstimatedCount { get; set; }
 
+        public DropQuantityBounds? QuantityBounds { get; init; }
+
         public int Y { get; } = y;
 
         public long Frame { get; set; } = frame;
@@ -27,7 +29,11 @@ public sealed class CompanionFrameReconciler
 
         public Entry Copy()
         {
-            return new Entry(Name, Count, Y, Frame, Duplicate) { EstimatedCount = this.EstimatedCount };
+            return new Entry(Name, Count, Y, Frame, Duplicate)
+            {
+                EstimatedCount = this.EstimatedCount,
+                QuantityBounds = this.QuantityBounds,
+            };
         }
     }
 
@@ -79,7 +85,15 @@ public sealed class CompanionFrameReconciler
             {
                 throw new ArgumentException("A frame cannot contain a null entry.", "entries");
             }
-            list.Add(new Entry(entry.Name, entry.Count, entry.Y, 1L, duplicate: false));
+            // Normalize before row identities and overlap are compared. A bad
+            // OCR 7 followed by the real 1 must still identify the same drop.
+            var count = LimitQuantity(entry.Count, entry.QuantityBounds);
+            var isCertainUnit = count == InvalidCount && entry.QuantityBounds?.Maximum == 1;
+            list.Add(new Entry(entry.Name, isCertainUnit ? 1u : count, entry.Y, 1L, duplicate: false)
+            {
+                QuantityBounds = entry.QuantityBounds,
+                EstimatedCount = isCertainUnit,
+            });
         }
         frames.Add(new Frame(list));
         if (frames.Count - processedFrameCount >= 10)
@@ -110,11 +124,13 @@ public sealed class CompanionFrameReconciler
             {
                 if (!entry.Duplicate && entry.Count != uint.MaxValue)
                 {
-                    var minimum = 0u;
-                    var usesMinimum = entry.EstimatedCount && minimumQuantities.TryGetValue(entry.Name, out minimum);
+                    var minimum = entry.QuantityBounds?.Minimum ?? 0u;
+                    var usesMinimum = entry.EstimatedCount &&
+                        (entry.QuantityBounds is not null || minimumQuantities.TryGetValue(entry.Name, out minimum));
                     list.Add(new CompanionRecognizedEntry(entry.Name, usesMinimum ? minimum : entry.Count, entry.Y)
                     {
                         IsMinimumQuantityEstimate = usesMinimum,
+                        QuantityBounds = entry.QuantityBounds,
                     });
                 }
             }
@@ -157,8 +173,7 @@ public sealed class CompanionFrameReconciler
         // neighboring reads priority before freezing an unresolved run to the
         // native identity value 1. Previously emitted entries are read-only
         // anchors; a later read cannot rewrite their already booked amount.
-        if (minimumQuantities.Count > 0)
-            RepairConfiguredReadQuantities(Math.Max(repairStart, processedFrameCount));
+        RepairConfiguredReadQuantities(Math.Max(repairStart, processedFrameCount));
         for (int i = repairStart; i < frames.Count - 1; i++)
         {
             List<Entry> entries = frames[i].Entries;
@@ -167,7 +182,7 @@ public sealed class CompanionFrameReconciler
                 Entry entry = entries[j];
                 if (entry.Count == uint.MaxValue)
                 {
-                    if (UnitCountItems.Contains(entry.Name))
+                    if (entry.QuantityBounds is null && UnitCountItems.Contains(entry.Name))
                     {
                         entry.Count = 1u;
                         continue;
@@ -175,7 +190,7 @@ public sealed class CompanionFrameReconciler
                     if (TryCopyNeighborCount(i - 1, entries.Count, j, entry.Name, out var count, out var estimated) ||
                         TryCopyNeighborCount(i + 1, entries.Count, j, entry.Name, out count, out estimated))
                     {
-                        entry.Count = ((count == uint.MaxValue) ? 1u : count);
+                        entry.Count = ((count == uint.MaxValue) ? 1u : LimitQuantity(count, entry.QuantityBounds));
                         entry.EstimatedCount = count == uint.MaxValue || estimated;
                         continue;
                     }
@@ -188,14 +203,23 @@ public sealed class CompanionFrameReconciler
 
     private void RepairConfiguredReadQuantities(int repairStart)
     {
-        // Two linear passes allow the existing same-position neighbor evidence
-        // to reach a pending missing run from either direction. An estimated 1
-        // is never promoted into evidence, and the native unresolved final-row
-        // behavior is preserved.
-        for (var frameIndex = repairStart; frameIndex < frames.Count - 1; frameIndex++)
+        // Two linear passes let real reads reach a missing run from either
+        // direction. Only then do explicit spot policies resolve remaining
+        // unknowns. Legacy dictionary-only items retain their final-row rule.
+        for (var frameIndex = repairStart; frameIndex < frames.Count; frameIndex++)
             RepairFrame(frameIndex);
-        for (var frameIndex = frames.Count - 2; frameIndex >= repairStart; frameIndex--)
+        for (var frameIndex = frames.Count - 1; frameIndex >= repairStart; frameIndex--)
             RepairFrame(frameIndex);
+
+        for (var frameIndex = repairStart; frameIndex < frames.Count; frameIndex++)
+        {
+            foreach (var entry in frames[frameIndex].Entries)
+            {
+                if (entry.Count != InvalidCount || entry.QuantityBounds is null) continue;
+                entry.Count = 1;
+                entry.EstimatedCount = true;
+            }
+        }
 
         void RepairFrame(int frameIndex)
         {
@@ -203,12 +227,14 @@ public sealed class CompanionFrameReconciler
             for (var entryIndex = 0; entryIndex < entries.Count; entryIndex++)
             {
                 var entry = entries[entryIndex];
-                if (entry.Count != InvalidCount || UnitCountItems.Contains(entry.Name) ||
-                    !minimumQuantities.ContainsKey(entry.Name)) continue;
+                if (frameIndex == frames.Count - 1 && entry.QuantityBounds is null) continue;
+                if (entry.Count != InvalidCount ||
+                    (entry.QuantityBounds is null && (UnitCountItems.Contains(entry.Name) ||
+                        !minimumQuantities.ContainsKey(entry.Name)))) continue;
                 if (TryCopyReadNeighbor(frameIndex - 1, entries.Count, entryIndex, entry.Name, out var quantity) ||
                     TryCopyReadNeighbor(frameIndex + 1, entries.Count, entryIndex, entry.Name, out quantity))
                 {
-                    entry.Count = quantity;
+                    entry.Count = LimitQuantity(quantity, entry.QuantityBounds);
                     entry.EstimatedCount = false;
                 }
             }
@@ -219,6 +245,9 @@ public sealed class CompanionFrameReconciler
         string name, out uint count) =>
         TryCopyNeighborCount(frameIndex, expectedEntryCount, entryIndex, name, out count, out var estimated) &&
         count is > 0 and < InvalidCount && !estimated;
+
+    private static uint LimitQuantity(uint count, DropQuantityBounds? bounds) =>
+        count != InvalidCount && bounds?.Maximum is uint maximum && count > maximum ? maximum : count;
 
     private bool TryCopyNeighborCount(int frameIndex, int expectedEntryCount, int entryIndex,
         string name, out uint count, out bool estimated)

@@ -11,6 +11,27 @@ public sealed class PrivateItemChatFallbackTests
     private static readonly PrivateItemChatCalibration Window = new(3, new Rectangle(10, 10, 40, 30), false);
 
     [Fact]
+    public void GermanChatRecoversTheCanonicalPanelItemOnce()
+    {
+        using var frame = Frame();
+        static PrivateItemChatLine GermanLine(string text, int y)
+        {
+            Assert.True(PrivateItemChatParser.TryParse(text, out var item, out var quantity));
+            return new(item, quantity, y, text);
+        }
+        IReadOnlyList<PrivateItemChatLine> lines = [GermanLine("Ihr habt 1 x [Schwarzkristallfragment] erhalten.", 20)];
+        var fallback = Create(() => Window, (_, _) => lines);
+        fallback.Apply(frame, [Observation(1)], Start, CancellationToken.None);
+        lines = [GermanLine("Ihr habt 1 x [Schwarzkristallfragment] erhalten.", 5),
+            GermanLine("Ihr habt 6 x [Helm eines Anhängers Elions] erhalten.", 20)];
+        var normal = NewlyScrolledPanel();
+        var result = fallback.Apply(frame, normal, Start.AddMilliseconds(450), CancellationToken.None);
+        Assert.Equal(new ChatQuantityCorrection(0, 250, "Elion Follower's Helmet", 6), Assert.Single(result.Diagnostics.Corrections));
+        Assert.Equal(6, result.Observations[0].Quantity);
+        Assert.Equal(0, fallback.Apply(frame, normal, Start.AddMilliseconds(900), CancellationToken.None).Diagnostics.QuantitiesRecovered);
+    }
+
+    [Fact]
     public void MissingWindowPreservesNormalObservationsWithoutOcr()
     {
         var reads = 0;

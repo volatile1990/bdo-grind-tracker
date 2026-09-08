@@ -6,6 +6,59 @@ namespace BdoGrindTracker.App.Tests;
 public sealed class LootSessionAggregateTests
 {
     [Fact]
+    public void ManualCorrectionKeepsDropsReceivedWhileTheEditorWasOpen()
+    {
+        var aggregate = new LootSessionAggregate();
+        aggregate.Apply(Event("BON Wandering Origin Crystal", 5));
+        aggregate.Apply(Event("BON Wandering Origin Crystal", 2));
+        aggregate.AdjustQuantity("BON Wandering Origin Crystal", 1, originalQuantity: 5);
+        Assert.Equal(3, aggregate.Totals["BON Wandering Origin Crystal"]);
+        Assert.Equal(3, aggregate.TotalQuantity);
+        Assert.Equal(2, aggregate.ConfirmedEventCount);
+    }
+
+    [Fact]
+    public void FailedManualCommitLeavesCountersAndEventDeduplicationIntact()
+    {
+        var aggregate = new LootSessionAggregate();
+        var drop = Event("BON Wandering Origin Crystal", 5);
+        aggregate.Apply(drop);
+        Assert.Throws<IOException>(() => aggregate.AdjustQuantity(drop.ItemName, 0, 5,
+            _ => throw new IOException("Synthetic save failure")));
+        aggregate.Apply(drop);
+        Assert.Equal(5, aggregate.TotalQuantity);
+        Assert.Equal(1, aggregate.ConfirmedEventCount);
+    }
+
+    [Fact]
+    public void ExplicitZeroCorrectionCanBeEditedAgainWithoutCountingAnotherDrop()
+    {
+        var aggregate = new LootSessionAggregate();
+        aggregate.Apply(Event("BON Wandering Origin Crystal", 5));
+        aggregate.AdjustQuantity("BON Wandering Origin Crystal", 0, 5);
+        Assert.Equal(0, aggregate.Totals["BON Wandering Origin Crystal"]);
+        Assert.Equal(0, aggregate.ItemTypeCount);
+        aggregate.AdjustQuantity("BON Wandering Origin Crystal", 2, 0);
+        Assert.Equal(2, aggregate.TotalQuantity);
+        Assert.Equal(1, aggregate.ConfirmedEventCount);
+    }
+
+    [Fact]
+    public void LateRareReconciliationCannotMakeAnExplicitZeroCorrectionNegative()
+    {
+        var aggregate = new LootSessionAggregate();
+        aggregate.Apply(Event("BON Wandering Origin Crystal", 5));
+        aggregate.AdjustQuantity("BON Wandering Origin Crystal", 0, 5);
+        aggregate.Apply(Event("BON Wandering Origin Crystal", -1));
+        Assert.Equal(0, aggregate.Totals["BON Wandering Origin Crystal"]);
+        Assert.Equal(0, aggregate.TotalQuantity);
+        Assert.Equal(1, aggregate.ConfirmedEventCount);
+        aggregate.Apply(Event("BON Wandering Origin Crystal", 1));
+        Assert.Equal(1, aggregate.TotalQuantity);
+        Assert.Equal(2, aggregate.ConfirmedEventCount);
+    }
+
+    [Fact]
     public void TheSameEventIdCanOnlyBeAppliedOnce()
     {
         var aggregate = new LootSessionAggregate();

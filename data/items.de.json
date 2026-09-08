@@ -1,0 +1,348 @@
+{
+  "schemaVersion": 1,
+  "verifiedOn": "2026-09-08",
+  "items": [
+    {
+      "canonicalName": "Ancient Spirit Dust",
+      "itemId": 721002,
+      "germanName": "Urgeiststaub",
+      "source": "https://bdocodex.com/de/item/721002/"
+    },
+    {
+      "canonicalName": "Apeiron Belt",
+      "itemId": 12298,
+      "germanName": "Apeiron-Gürtel",
+      "source": "https://bdocodex.com/de/item/12298/"
+    },
+    {
+      "canonicalName": "Apeiron Earring",
+      "itemId": 11898,
+      "germanName": "Apeiron-Ohrring",
+      "source": "https://bdocodex.com/de/item/11898/"
+    },
+    {
+      "canonicalName": "Apeiron Necklace",
+      "itemId": 11733,
+      "germanName": "Apeiron-Halskette",
+      "source": "https://bdocodex.com/de/item/11733/"
+    },
+    {
+      "canonicalName": "Apeiron Ring",
+      "itemId": 12144,
+      "germanName": "Apeiron-Ring",
+      "source": "https://bdocodex.com/de/item/12144/"
+    },
+    {
+      "canonicalName": "BON Origin Shard",
+      "itemId": 821431,
+      "germanName": "BON-Kristall des Ursprungs",
+      "source": "https://bdocodex.com/de/item/821431/"
+    },
+    {
+      "canonicalName": "BON Wandering Origin Crystal",
+      "itemId": 15295,
+      "germanName": "BON-Kristall des wandernden Ursprungs",
+      "source": "https://bdocodex.com/de/item/15295/"
+    },
+    {
+      "canonicalName": "Black Crystal Fragment",
+      "itemId": 980128,
+      "germanName": "Schwarzkristallfragment",
+      "source": "https://bdocodex.com/de/item/980128/"
+    },
+    {
+      "canonicalName": "Black Gem Fragment",
+      "itemId": 4999,
+      "germanName": "Schwarzjuwelsplitter",
+      "source": "https://bdocodex.com/de/item/4999/"
+    },
+    {
+      "canonicalName": "Black Stone",
+      "itemId": 16001,
+      "germanName": "Schwarzstein",
+      "source": "https://bdocodex.com/de/item/16001/"
+    },
+    {
+      "canonicalName": "Branch of Abundance",
+      "itemId": 980127,
+      "germanName": "Von Überfluss erfüllter Zweig",
+      "source": "https://bdocodex.com/de/item/980127/"
+    },
+    {
+      "canonicalName": "Broken Gloves of the Void",
+      "itemId": 980132,
+      "germanName": "Zersplitterte Handschuhe der Leerenweite",
+      "source": "https://bdocodex.com/de/item/980132/"
+    },
+    {
+      "canonicalName": "Broken Vestige of Crimsonflare",
+      "itemId": 980142,
+      "germanName": "Zersplittertes Überbleibsel der Scharlachflamme",
+      "source": "https://bdocodex.com/de/item/980142/"
+    },
+    {
+      "canonicalName": "Broken Vestige of Ebonmere",
+      "itemId": 980140,
+      "germanName": "Zersplittertes Überbleibsel des Trübmeers",
+      "source": "https://bdocodex.com/de/item/980140/"
+    },
+    {
+      "canonicalName": "Broken Vestige of Everlight",
+      "itemId": 980141,
+      "germanName": "Zersplittertes Überbleibsel des Ewiglichts",
+      "source": "https://bdocodex.com/de/item/980141/"
+    },
+    {
+      "canonicalName": "Broken Vestige of Goldroot",
+      "itemId": 980139,
+      "germanName": "Zersplittertes Überbleibsel des Reifgolds",
+      "source": "https://bdocodex.com/de/item/980139/"
+    },
+    {
+      "canonicalName": "Broken Vestige of Voidreach",
+      "itemId": 980143,
+      "germanName": "Zersplittertes Überbleibsel der Leerenweite",
+      "source": "https://bdocodex.com/de/item/980143/"
+    },
+    {
+      "canonicalName": "Caphras Stone",
+      "itemId": 721003,
+      "germanName": "Caphras-Stein",
+      "source": "https://bdocodex.com/de/item/721003/"
+    },
+    {
+      "canonicalName": "Corrupt Oil of Immortality",
+      "itemId": 1178,
+      "germanName": "Verdorbenes Öl der Unsterblichkeit",
+      "source": "https://bdocodex.com/de/item/1178/"
+    },
+    {
+      "canonicalName": "Crimson Primordial Luster - Sovereign",
+      "itemId": 821341,
+      "germanName": "Roter Glanz der Urklasse – Gebieter",
+      "source": "https://bdocodex.com/de/item/821341/"
+    },
+    {
+      "canonicalName": "Crimson Primordial Pigment - Sovereign",
+      "itemId": 767293,
+      "germanName": "Rotes Farbmittel der Urklasse – Gebieter",
+      "source": "https://bdocodex.com/de/item/767293/"
+    },
+    {
+      "canonicalName": "Elion Follower's Helmet",
+      "itemId": 980129,
+      "germanName": "Helm eines Anhängers Elions",
+      "source": "https://bdocodex.com/de/item/980129/"
+    },
+    {
+      "canonicalName": "Elion Follower's Mark",
+      "itemId": 980130,
+      "germanName": "Zeichen eines Anhängers Elions",
+      "source": "https://bdocodex.com/de/item/980130/"
+    },
+    {
+      "canonicalName": "Embers of Ynix - Armor",
+      "itemId": 821462,
+      "germanName": "Glut der Ynix – Rüstung",
+      "source": "https://bdocodex.com/de/item/821462/"
+    },
+    {
+      "canonicalName": "Embers of Ynix - Gloves",
+      "itemId": 821463,
+      "germanName": "Glut der Ynix – Handschuhe",
+      "source": "https://bdocodex.com/de/item/821463/"
+    },
+    {
+      "canonicalName": "Embers of Ynix - Helmet",
+      "itemId": 821461,
+      "germanName": "Glut der Ynix – Helm",
+      "source": "https://bdocodex.com/de/item/821461/"
+    },
+    {
+      "canonicalName": "Embers of Ynix - Shoes",
+      "itemId": 821464,
+      "germanName": "Glut der Ynix – Schuhe",
+      "source": "https://bdocodex.com/de/item/821464/"
+    },
+    {
+      "canonicalName": "Fusion Shard",
+      "itemId": 821471,
+      "germanName": "Juwel der Fusion",
+      "source": "https://bdocodex.com/de/item/821471/"
+    },
+    {
+      "canonicalName": "HAN Origin Shard",
+      "itemId": 821433,
+      "germanName": "HAN-Kristall des Ursprungs",
+      "source": "https://bdocodex.com/de/item/821433/"
+    },
+    {
+      "canonicalName": "HAN Wandering Origin Crystal",
+      "itemId": 15297,
+      "germanName": "HAN-Kristall des wandernden Ursprungs",
+      "source": "https://bdocodex.com/de/item/15297/"
+    },
+    {
+      "canonicalName": "JIN Origin Shard",
+      "itemId": 821432,
+      "germanName": "JIN-Kristall des Ursprungs",
+      "source": "https://bdocodex.com/de/item/821432/"
+    },
+    {
+      "canonicalName": "JIN Wandering Origin Crystal",
+      "itemId": 15296,
+      "germanName": "JIN-Kristall des wandernden Ursprungs",
+      "source": "https://bdocodex.com/de/item/15296/"
+    },
+    {
+      "canonicalName": "Laila's Petal",
+      "itemId": 54031,
+      "germanName": "Lailas Blütenblatt",
+      "source": "https://bdocodex.com/de/item/54031/"
+    },
+    {
+      "canonicalName": "Nev's Fragment",
+      "itemId": 821460,
+      "germanName": "Nev-Fragment",
+      "source": "https://bdocodex.com/de/item/821460/"
+    },
+    {
+      "canonicalName": "Pure Black Stone",
+      "itemId": 13,
+      "germanName": "Reiner Schwarzstein",
+      "source": "https://bdocodex.com/de/item/13/"
+    },
+    {
+      "canonicalName": "Refined Essence of Devouring",
+      "itemId": 767338,
+      "germanName": "Veredelte Essenz des Verschlingens",
+      "source": "https://bdocodex.com/de/item/767338/"
+    },
+    {
+      "canonicalName": "Refined Origin of Hunger",
+      "itemId": 767337,
+      "germanName": "Veredelte Quelle des Verschlingens",
+      "source": "https://bdocodex.com/de/item/767337/"
+    },
+    {
+      "canonicalName": "Scorched Belt Ornament",
+      "itemId": 980131,
+      "germanName": "Verrußte Gürtelverzierung",
+      "source": "https://bdocodex.com/de/item/980131/"
+    },
+    {
+      "canonicalName": "Silent Crystal of Origin",
+      "itemId": 761803,
+      "germanName": "Stillschweigender Kristall der Vorzeit",
+      "source": "https://bdocodex.com/de/item/761803/"
+    },
+    {
+      "canonicalName": "Silent Fragment of Origin",
+      "itemId": 821318,
+      "germanName": "Stillschweigender Splitter der Vorzeit",
+      "source": "https://bdocodex.com/de/item/821318/"
+    },
+    {
+      "canonicalName": "Sunset Primordial Luster - Edana",
+      "itemId": 821459,
+      "germanName": "Abendgelber Glanz der Urklasse – Edana",
+      "source": "https://bdocodex.com/de/item/821459/"
+    },
+    {
+      "canonicalName": "Sunset Primordial Pigment - Edana",
+      "itemId": 767353,
+      "germanName": "Abendgelbes Farbmittel der Urklasse – Edana",
+      "source": "https://bdocodex.com/de/item/767353/"
+    },
+    {
+      "canonicalName": "Twilight of the End - Belt",
+      "itemId": 821424,
+      "germanName": "Dämmerung des Endes – Gürtel",
+      "source": "https://bdocodex.com/de/item/821424/"
+    },
+    {
+      "canonicalName": "Twilight of the End - Earring",
+      "itemId": 821422,
+      "germanName": "Dämmerung des Endes – Ohrring",
+      "source": "https://bdocodex.com/de/item/821422/"
+    },
+    {
+      "canonicalName": "Twilight of the End - Necklace",
+      "itemId": 821421,
+      "germanName": "Dämmerung des Endes – Halskette",
+      "source": "https://bdocodex.com/de/item/821421/"
+    },
+    {
+      "canonicalName": "Twilight of the End - Ring",
+      "itemId": 821423,
+      "germanName": "Dämmerung des Endes – Ring",
+      "source": "https://bdocodex.com/de/item/821423/"
+    },
+    {
+      "canonicalName": "Violet Primordial Luster - Edana",
+      "itemId": 821343,
+      "germanName": "Violetter Glanz der Urklasse – Edana",
+      "source": "https://bdocodex.com/de/item/821343/"
+    },
+    {
+      "canonicalName": "Violet Primordial Luster - Sovereign",
+      "itemId": 821342,
+      "germanName": "Violetter Glanz der Urklasse – Gebieter",
+      "source": "https://bdocodex.com/de/item/821342/"
+    },
+    {
+      "canonicalName": "Violet Primordial Pigment - Edana",
+      "itemId": 767296,
+      "germanName": "Violettes Farbmittel der Urklasse – Edana",
+      "source": "https://bdocodex.com/de/item/767296/"
+    },
+    {
+      "canonicalName": "Violet Primordial Pigment - Sovereign",
+      "itemId": 767294,
+      "germanName": "Violettes Farbmittel der Urklasse – Gebieter",
+      "source": "https://bdocodex.com/de/item/767294/"
+    },
+    {
+      "canonicalName": "WON Origin Shard",
+      "itemId": 821430,
+      "germanName": "WON-Kristall des Ursprungs",
+      "source": "https://bdocodex.com/de/item/821430/"
+    },
+    {
+      "canonicalName": "WON Wandering Origin Crystal",
+      "itemId": 15294,
+      "germanName": "WON-Kristall des wandernden Ursprungs",
+      "source": "https://bdocodex.com/de/item/15294/"
+    },
+    {
+      "canonicalName": "White Primordial Luster - Edana",
+      "itemId": 821420,
+      "germanName": "Weißer Glanz der Urklasse – Edana",
+      "source": "https://bdocodex.com/de/item/821420/"
+    },
+    {
+      "canonicalName": "White Primordial Luster - Sovereign",
+      "itemId": 821419,
+      "germanName": "Weißer Glanz der Urklasse – Gebieter",
+      "source": "https://bdocodex.com/de/item/821419/"
+    },
+    {
+      "canonicalName": "White Primordial Pigment - Edana",
+      "itemId": 767344,
+      "germanName": "Weißes Farbmittel der Urklasse – Edana",
+      "source": "https://bdocodex.com/de/item/767344/"
+    },
+    {
+      "canonicalName": "White Primordial Pigment - Sovereign",
+      "itemId": 767343,
+      "germanName": "Weißes Farbmittel der Urklasse – Gebieter",
+      "source": "https://bdocodex.com/de/item/767343/"
+    },
+    {
+      "canonicalName": "[Event] Mysterious Ore",
+      "itemId": 1000508,
+      "germanName": "[Event] Mysteriöses Erz",
+      "source": "https://bdocodex.com/de/item/1000508/"
+    }
+  ]
+}

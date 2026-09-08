@@ -4,6 +4,26 @@ namespace BdoGrindTracker.Ocr.Tests;
 
 public sealed class CompanionCalibrationReaderTests
 {
+    [Theory]
+    [InlineData("")]
+    [InlineData("<UIData Index='159' IsShow='false' RelativePosX='0.5' RelativePosY='0.5' />")]
+    [InlineData("<UIData Index='159' IsShow='true' RelativePosX='0.5' />")]
+    [InlineData("<UIData Index='159' IsShow='true' RelativePosX='NaN' RelativePosY='0.5' />")]
+    [InlineData("<UIData Index='159' IsShow='true' RelativePosX='0.5' RelativePosY='Infinity' />")]
+    [InlineData("<UIData Index='159' IsShow='true' RelativePosX='-0.1' RelativePosY='0.5' />")]
+    [InlineData("<UIData Index='159' IsShow='true' RelativePosX='0.5' RelativePosY='1.1' />")]
+    [InlineData("<Preset><UIData Index='159' IsShow='true' RelativePosX='0.5' RelativePosY='0.5' /></Preset>")]
+    [InlineData("<UIData Index='159' IsShow='false' /><UIData Index='159' IsShow='true' RelativePosX='0.5' RelativePosY='0.5' />")]
+    public void VisibleRareLogCannotReplaceAMissingOrInvalidMainLog(string mainLog)
+    {
+        using var fixture = new CalibrationFixture();
+        var profile = fixture.AddProfile("42", DateTime.UtcNow);
+        fixture.WriteOptions("width = 1920\nheight = 1080\nuiScale =  1.00\n");
+        File.WriteAllText(Path.Combine(profile, "gameVariable.xml"),
+            "<UIData>" + mainLog + "<UIData Index='161' IsShow='true' RelativePosX='0.5' RelativePosY='0.4' /></UIData>");
+        Assert.Throws<InvalidDataException>(() => new CompanionCalibrationReader().Read(fixture.RootPath));
+    }
+
     [Fact]
     public void InstalledBdoConfigurationStartsWhenPresent()
     {

@@ -13,8 +13,11 @@ public sealed class LootDiagnosticRecordingTests : IDisposable
 
     private static DateTimeOffset StartTime => new(2026, 9, 4, 20, 0, 0, TimeSpan.Zero);
 
-    [Fact]
-    public void RecoveryCountersAreRecordedWithoutChangingCounterReplayOrAddingImages()
+    [Theory]
+    [InlineData(null)]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void CaptureAndRecoveryMetadataDoNotChangeCounterReplayOrAddImages(bool? isToneMapped)
     {
         using var source = new Bitmap(4, 4);
         using var recording = DiagnosticRecordingSession.Start(temporaryDirectory, "hermesia");
@@ -22,13 +25,17 @@ public sealed class LootDiagnosticRecordingTests : IDisposable
         var observations = new[] { Observation() };
         var recovery = new NormalLootRecoveryDiagnostics(2, 4, 1, 1, 0);
         recording.RecordFrame(StartTime, observations,
-            tracker.ProcessFrame(StartTime, observations, false), source, null, null, recovery);
+            tracker.ProcessFrame(StartTime, observations, false), source, null, null, recovery,
+            isHdr: true, isToneMapped: isToneMapped);
         recording.RecordCompletion(StartTime.AddSeconds(1), tracker.CompleteSession(StartTime.AddSeconds(1)));
         recording.Dispose();
 
         var lines = File.ReadAllLines(recording.RecordingPath!);
         var entry = JsonSerializer.Deserialize<LootDiagnosticEntry>(lines[1], LootDiagnosticFormat.JsonOptions)!;
         Assert.Equal(recovery, entry.Recovery);
+        Assert.True(entry.IsHdr);
+        Assert.Equal(isToneMapped, entry.IsToneMapped);
+        Assert.Equal(isToneMapped.HasValue, lines[1].Contains("\"isToneMapped\"", StringComparison.Ordinal));
         Assert.Equal(observations, entry.Observations);
         Assert.Empty(entry.Crops);
         Assert.Single(Directory.GetFiles(Path.GetDirectoryName(recording.RecordingPath!)!));
@@ -75,6 +82,7 @@ public sealed class LootDiagnosticRecordingTests : IDisposable
         Assert.NotEmpty(header.Catalog);
         Assert.True(entry.RareEnabled);
         Assert.True(entry.IsHdr);
+        Assert.Null(entry.IsToneMapped);
         Assert.Equal(observation, Assert.Single(entry.Observations));
         Assert.Equal(eventId, Assert.Single(entry.Events).EventId);
         Assert.Equal("confirmed once", Assert.Single(entry.Decisions).Reason);
