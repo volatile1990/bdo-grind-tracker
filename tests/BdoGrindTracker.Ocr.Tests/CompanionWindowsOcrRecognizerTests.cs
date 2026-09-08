@@ -1,9 +1,48 @@
 using OpenCvSharp;
+using System.Drawing.Imaging;
+using System.Drawing.Text;
 
 namespace BdoGrindTracker.Ocr.Tests;
 
 public sealed class CompanionWindowsOcrRecognizerTests
 {
+    [Theory]
+    [InlineData("en-US", "Black Stone x 17", .75f)]
+    [InlineData("en-US", "Black Stone x 17", 1.5f)]
+    [InlineData("de-DE", "Bruchstück x 12", .75f)]
+    [InlineData("de-DE", "Bruchstück x 12", 1.5f)]
+    public void AvailableNativeEngineReturnsOwnedWordGeometryFromTheOriginalRead(
+        string language, string text, float scale)
+    {
+        var engine = CompanionWindowsOcrRecognizer.TryCreate(language, requirePreferredLanguage: true);
+        if (engine is null) return; // Optional Windows language packages are machine-local.
+        using var bitmap = new Bitmap((int)(900 * scale), (int)(100 * scale), PixelFormat.Format24bppRgb);
+        using (var graphics = Graphics.FromImage(bitmap))
+        using (var font = new Font("Segoe UI", 36 * scale, FontStyle.Regular, GraphicsUnit.Pixel))
+        {
+            graphics.Clear(Color.White);
+            graphics.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
+            graphics.DrawString(text, font, Brushes.Black, 18 * scale, 20 * scale);
+        }
+        using var stream = new MemoryStream();
+        bitmap.Save(stream, ImageFormat.Png);
+        using var image = Cv2.ImDecode(stream.ToArray(), ImreadModes.Color);
+
+        var result = engine.Recognize(image);
+
+        Assert.Equal(text, result.Text);
+        Assert.Equal(text.Split(' '), result.Words.Select(word => word.Text));
+        Assert.Equal(result.FirstWord, result.Words[0].Geometry);
+        Assert.InRange(result.Words.Count, 1, 64);
+        Assert.All(result.Words, word =>
+        {
+            Assert.Equal(CompanionOcrGeometryStatus.Success, word.Geometry.Status);
+            Assert.InRange(word.Geometry.X, 0, image.Width - word.Geometry.Width);
+            Assert.InRange(word.Geometry.Y, 0, image.Height - word.Geometry.Height);
+        });
+        Assert.True(Assert.IsAssignableFrom<IList<CompanionOcrWord>>(result.Words).IsReadOnly);
+    }
+
     [Theory]
     [InlineData(CompanionOcrGeometryStatus.Missing, 0f, 0f)]
     [InlineData(CompanionOcrGeometryStatus.Success, 201f, 50f)]

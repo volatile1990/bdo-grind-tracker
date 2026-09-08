@@ -28,7 +28,7 @@ weitergegeben und in Diagnoseframes gespeichert:
 
 Bei alten Aufnahmen fehlt `isToneMapped`; das bedeutet unbekannt. Die optionale
 Eigenschaft ändert weder das JSONL-Format 2 noch die Zähler-Engine
-`companion-0.7.4-drop-quantity-v5`. Offline-Replay verwendet weiterhin gespeicherte
+`companion-0.7.4-drop-quantity-v6`. Offline-Replay verwendet weiterhin gespeicherte
 OCR-Ergebnisse und führt weder Aufnahme noch OCR erneut aus.
 
 Fehlt Output5 oder meldet der Treiber `DXGI_ERROR_UNSUPPORTED` beziehungsweise

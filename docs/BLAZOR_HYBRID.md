@@ -35,8 +35,7 @@ werden als fehlend oder Teilbetrag kenntlich gemacht. Start/Pause und neue Sessi
 greifen auf dieselbe Sitzungssteuerung zu wie die automatische Pause.
 
 Ein fehlender oder ungültiger Haupt-Droplog blockiert die Erfassung und erscheint
-als roter Fehler in der Live-Ansicht. Ein nicht eingerichteter Private-Items-Chat
-erzeugt dagegen nur eine seitliche Hilfe mit ausklappbarer Anleitung.
+als roter Fehler in der Live-Ansicht.
 
 Einstellungen werden automatisch gespeichert: Auswahllisten und Schalter sofort,
 Zahlen und Garmoth-API-Schlüssel beim Verlassen des Feldes oder mit Enter. Die

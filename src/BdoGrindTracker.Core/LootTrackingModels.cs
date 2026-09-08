@@ -41,7 +41,11 @@ public sealed record TrackedLootEvent(
     Guid EventId,
     DateTimeOffset DetectedAt,
     string ItemName,
-    int Quantity);
+    int Quantity)
+{
+    public int Revision { get; init; }
+    public int? TotalDropQuantity { get; init; }
+}
 
 /// <summary>How the tracker handled one occupied row in the current frame.</summary>
 public enum LootTrackingDecisionStatus

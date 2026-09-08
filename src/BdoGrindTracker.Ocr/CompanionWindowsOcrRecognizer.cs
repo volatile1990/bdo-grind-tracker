@@ -23,7 +23,14 @@ public readonly record struct CompanionOcrWordGeometry(
 
 public sealed record CompanionOcrResult(
     string Text,
-    CompanionOcrWordGeometry FirstWord);
+    CompanionOcrWordGeometry FirstWord)
+{
+    // Optional coordinates from this exact OCR image. Historical/fake adapters
+    // can keep their original text/first-word contract without supplying them.
+    public IReadOnlyList<CompanionOcrWord> Words { get; init; } = [];
+}
+
+public sealed record CompanionOcrWord(string Text, CompanionOcrWordGeometry Geometry);
 
 /// <summary>
 /// Thin Windows.Media.Ocr adapter matching Companion's OCR-result access pattern:
@@ -148,7 +155,7 @@ public sealed class CompanionWindowsOcrRecognizer
             .GetAwaiter()
             .GetResult();
 
-        return new CompanionOcrResult(result.Text, ReadFirstWordGeometry(result));
+        return new CompanionOcrResult(result.Text, ReadFirstWordGeometry(result)) { Words = ReadWords(result) };
     }
 
     internal static bool PassesNormalGeometryGate(
@@ -232,6 +239,34 @@ public sealed class CompanionWindowsOcrRecognizer
                 0,
                 0,
                 0);
+        }
+    }
+
+    private static IReadOnlyList<CompanionOcrWord> ReadWords(OcrResult result)
+    {
+        const int maximumWords = 64;
+        const int maximumWordLength = 128;
+        try
+        {
+            var words = new List<CompanionOcrWord>();
+            foreach (var line in result.Lines)
+            foreach (var word in line.Words)
+            {
+                var text = word.Text;
+                // A truncated word sequence would misrepresent the suffix, so
+                // discard only this optional metadata if its bounds are exceeded.
+                if (words.Count >= maximumWords || text.Length > maximumWordLength) return [];
+                var bounds = word.BoundingRect;
+                words.Add(new CompanionOcrWord(text, new CompanionOcrWordGeometry(
+                    CompanionOcrGeometryStatus.Success, (float)bounds.X, (float)bounds.Y,
+                    (float)bounds.Width, (float)bounds.Height)));
+            }
+            return Array.AsReadOnly(words.ToArray());
+        }
+        catch (Exception exception) when (IsRecoverableRuntimeFailure(exception))
+        {
+            // Word metadata must never discard an otherwise usable primary read.
+            return [];
         }
     }
 

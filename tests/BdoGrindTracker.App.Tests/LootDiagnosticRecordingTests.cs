@@ -13,6 +13,33 @@ public sealed class LootDiagnosticRecordingTests : IDisposable
 
     private static DateTimeOffset StartTime => new(2026, 9, 4, 20, 0, 0, TimeSpan.Zero);
 
+    [Fact]
+    public void RowTrackingReplayPreservesQuantityCorrectionsAcrossCompletionBoundaries()
+    {
+        using var source = new Bitmap(4, 4);
+        using var recording = DiagnosticRecordingSession.Start(temporaryDirectory, "magaia");
+        var tracker = new CompanionDiagnosticCounter(Header().Catalog, trackRows: true);
+        var row = new LootObservation(LootSource.Normal, 0, "Elion Follower's Helmet",
+            "Elion Follower's Helmet", null, 1, 0, null, null)
+            { NativeY = 250, QuantityBounds = new(4, 1000) };
+        recording.RecordFrame(StartTime, [row], tracker.ProcessFrame(StartTime, [row], false),
+            source, null, null, recognitionVariant: "test+row-tracks-v1");
+        var initial = tracker.CompleteSession(StartTime.AddSeconds(1));
+        recording.RecordCompletion(StartTime.AddSeconds(1), initial);
+        row = row with { Quantity = 6, RawText = row.RawText + " x 6" };
+        recording.RecordFrame(StartTime.AddSeconds(2), [row], tracker.ProcessFrame(StartTime.AddSeconds(2), [row], false),
+            source, null, null, recognitionVariant: "test+row-tracks-v1");
+        var revised = tracker.CompleteSession(StartTime.AddSeconds(3));
+        recording.RecordCompletion(StartTime.AddSeconds(3), revised);
+        recording.Dispose();
+        Assert.Equal(Assert.Single(initial.NewEvents).EventId, Assert.Single(revised.NewEvents).EventId);
+        Assert.Equal(2, revised.NewEvents[0].Quantity);
+        var replay = LootDiagnosticReplay.Run(recording.RecordingPath!);
+        Assert.True(replay.TotalsMatch);
+        Assert.True(replay.EventTimelineMatches);
+        Assert.Equal(6, replay.Totals[row.ItemName!]);
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData(false)]
@@ -24,9 +51,10 @@ public sealed class LootDiagnosticRecordingTests : IDisposable
         var tracker = new CompanionDiagnosticCounter(Header().Catalog);
         var observations = new[] { Observation() };
         var recovery = new NormalLootRecoveryDiagnostics(2, 4, 1, 1, 0);
+        const string recognitionVariant = "test-analyzer+tone-mapped-normal-v1";
         recording.RecordFrame(StartTime, observations,
             tracker.ProcessFrame(StartTime, observations, false), source, null, null, recovery,
-            isHdr: true, isToneMapped: isToneMapped);
+            isHdr: true, isToneMapped: isToneMapped, recognitionVariant: recognitionVariant);
         recording.RecordCompletion(StartTime.AddSeconds(1), tracker.CompleteSession(StartTime.AddSeconds(1)));
         recording.Dispose();
 
@@ -35,11 +63,34 @@ public sealed class LootDiagnosticRecordingTests : IDisposable
         Assert.Equal(recovery, entry.Recovery);
         Assert.True(entry.IsHdr);
         Assert.Equal(isToneMapped, entry.IsToneMapped);
+        Assert.Equal(recognitionVariant, entry.RecognitionVariant);
         Assert.Equal(isToneMapped.HasValue, lines[1].Contains("\"isToneMapped\"", StringComparison.Ordinal));
         Assert.Equal(observations, entry.Observations);
         Assert.Empty(entry.Crops);
         Assert.Single(Directory.GetFiles(Path.GetDirectoryName(recording.RecordingPath!)!));
         var replay = LootDiagnosticReplay.Run(recording.RecordingPath!);
+        Assert.True(replay.TotalsMatch);
+        Assert.True(replay.EventTimelineMatches);
+    }
+
+    [Fact]
+    public void HistoricalRecordingsKeepUnknownApplicationAndRecognitionVersions()
+    {
+        Directory.CreateDirectory(temporaryDirectory);
+        var recordingPath = Path.Combine(temporaryDirectory, "without-build-metadata.jsonl");
+        var headerJson = Serialize(Header());
+        var frameJson = Serialize(new LootDiagnosticEntry("frame", 1, StartTime, [], [], [], []));
+        File.WriteAllLines(recordingPath, [headerJson, frameJson]);
+
+        Assert.DoesNotContain("\"appVersion\"", headerJson, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"recognitionVariant\"", frameJson, StringComparison.Ordinal);
+        var header = JsonSerializer.Deserialize<LootDiagnosticHeader>(headerJson, LootDiagnosticFormat.JsonOptions)!;
+        var frame = JsonSerializer.Deserialize<LootDiagnosticEntry>(frameJson, LootDiagnosticFormat.JsonOptions)!;
+        Assert.Null(header.AppVersion);
+        Assert.Null(frame.RecognitionVariant);
+
+        var replay = LootDiagnosticReplay.Run(recordingPath);
+        Assert.Equal(1, replay.FrameCount);
         Assert.True(replay.TotalsMatch);
         Assert.True(replay.EventTimelineMatches);
     }
@@ -79,10 +130,15 @@ public sealed class LootDiagnosticRecordingTests : IDisposable
         var entry = JsonSerializer.Deserialize<LootDiagnosticEntry>(lines[1], LootDiagnosticFormat.JsonOptions)!;
         var header = JsonSerializer.Deserialize<LootDiagnosticHeader>(lines[0], LootDiagnosticFormat.JsonOptions)!;
         Assert.Equal(LootDiagnosticFormat.EngineVersion, header.EngineVersion);
+        var expectedAppVersion = typeof(DiagnosticRecordingSession).Assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        Assert.False(string.IsNullOrWhiteSpace(expectedAppVersion));
+        Assert.Equal(expectedAppVersion, header.AppVersion);
         Assert.NotEmpty(header.Catalog);
         Assert.True(entry.RareEnabled);
         Assert.True(entry.IsHdr);
         Assert.Null(entry.IsToneMapped);
+        Assert.Null(entry.RecognitionVariant);
         Assert.Equal(observation, Assert.Single(entry.Observations));
         Assert.Equal(eventId, Assert.Single(entry.Events).EventId);
         Assert.Equal("confirmed once", Assert.Single(entry.Decisions).Reason);

@@ -1,4 +1,5 @@
 using System.Drawing.Imaging;
+using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using BdoGrindTracker.App.Analysis;
@@ -74,6 +75,8 @@ internal sealed class DiagnosticRecordingSession : IDisposable
                 spotId,
                 "companion-counter-only; OCR and spot matching are recorded inputs, not re-executed")
             {
+                AppVersion = typeof(DiagnosticRecordingSession).Assembly
+                    .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion,
                 MinimumTrashQuantities = minimumTrashQuantities ?? new Dictionary<string, uint>(),
                 Catalog = FrameAnalyzerFactory.LoadCatalog(
                     Path.Combine(AppContext.BaseDirectory, "data", "items.en.txt"),
@@ -97,9 +100,9 @@ internal sealed class DiagnosticRecordingSession : IDisposable
         Rectangle? rareBand,
         NormalLootRecoveryDiagnostics? recovery = null,
         bool? isHdr = null,
-        Rectangle? chatPanel = null,
-        ChatQuantityRecoveryDiagnostics? chatRecovery = null,
-        bool? isToneMapped = null)
+        bool? isToneMapped = null,
+        IReadOnlyList<LootRowReviewDiagnostics>? rowReviews = null,
+        string? recognitionVariant = null)
     {
         lock (sync)
         {
@@ -119,11 +122,10 @@ internal sealed class DiagnosticRecordingSession : IDisposable
                 ValidateObservations(observations);
                 ValidateResult(result);
                 var sequence = entrySequence + 1;
-                var crops = new List<LootDiagnosticCrop>(3);
-                var encodedCrops = new List<(string Path, byte[] Bytes)>(3);
+                var crops = new List<LootDiagnosticCrop>(2);
+                var encodedCrops = new List<(string Path, byte[] Bytes)>(2);
                 AddCrop(sourceFrame, normalPanel, "normal", sequence, crops, encodedCrops);
                 AddCrop(sourceFrame, rareBand, "rare", sequence, crops, encodedCrops);
-                AddCrop(sourceFrame, chatPanel, "chat", sequence, crops, encodedCrops);
                 var entry = new LootDiagnosticEntry(
                     "frame", sequence, capturedAt, observations, result.NewEvents, result.Decisions, crops)
                 {
@@ -131,7 +133,8 @@ internal sealed class DiagnosticRecordingSession : IDisposable
                     Recovery = recovery,
                     IsHdr = isHdr,
                     IsToneMapped = isToneMapped,
-                    ChatRecovery = chatRecovery,
+                    RecognitionVariant = recognitionVariant,
+                    RowReviews = rowReviews is { Count: > 0 } ? rowReviews : null,
                 };
                 var jsonBytes = SerializeLine(entry);
                 EnsureBudget(jsonBytes.LongLength + encodedCrops.Sum(static crop => crop.Bytes.LongLength));

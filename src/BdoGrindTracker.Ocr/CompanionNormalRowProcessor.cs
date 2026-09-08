@@ -17,7 +17,8 @@ public sealed class CompanionNormalRowResult : IDisposable
         int leftmostQuantityX,
         float quantityScore,
         float nameScale,
-        Mat? nameImage)
+        Mat? nameImage,
+        float normalizedNameTop = 0)
     {
         Y = y;
         IsBlank = isBlank;
@@ -28,6 +29,7 @@ public sealed class CompanionNormalRowResult : IDisposable
         QuantityScore = quantityScore;
         NameScale = nameScale;
         NameImage = nameImage;
+        NormalizedNameTop = normalizedNameTop;
     }
 
     public int Y { get; }
@@ -47,6 +49,9 @@ public sealed class CompanionNormalRowResult : IDisposable
     public float QuantityScore { get; }
 
     public float NameScale { get; }
+
+    /// <summary>Y origin of the name crop in the 100-pixel normalized row, before scaling.</summary>
+    public float NormalizedNameTop { get; }
 
     public Mat? NameImage { get; }
 
@@ -197,7 +202,8 @@ public sealed class CompanionNormalRowProcessor
             leftmostQuantityX,
             quantityScore,
             nameScale,
-            borderedName);
+            borderedName,
+            normalizedNameTop: nameTop);
     }
 
     internal static int CalculateMinimumValue(double averageLuma) => averageLuma switch

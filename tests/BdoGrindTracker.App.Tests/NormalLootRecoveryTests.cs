@@ -8,6 +8,46 @@ namespace BdoGrindTracker.App.Tests;
 public sealed class NormalLootRecoveryTests(Xunit.Abstractions.ITestOutputHelper output)
 {
     [Fact]
+    public void ReadObserverReceivesOnlyExistingNameReadsWithTheirPreparationScale()
+    {
+        using var source = SyntheticBand();
+        using var original = new Row();
+        var images = new Images();
+        var nameRead = Ocr("Black Crystal Fragment x b") with
+        {
+            Words = [new("Black", new(CompanionOcrGeometryStatus.Success, 20, 35, 100, 20))],
+        };
+        var names = new Recognizer((image, _) => image.Width < 150 ? Ocr("b") : nameRead);
+        var recovery = new NormalLootRecovery(Matcher(), names, images.Prepare);
+        var observed = new List<(CompanionOcrResult Reading, float Scale)>();
+        var budget = Budget();
+
+        recovery.Recover(source, original, Observation(null), 0, 1f, budget, default,
+            (reading, scale) => observed.Add((reading, scale)));
+
+        Assert.Equal(2, observed.Count);
+        Assert.All(observed, read => Assert.Same(nameRead, read.Reading));
+        Assert.Equal(images.Prepared.Select(image => image.NameScale), observed.Select(read => read.Scale));
+        Assert.Equal(4, names.Calls); // Existing quantity + name, for each of two variants.
+        Assert.Equal(names.Calls, budget.OcrCalls);
+        images.AssertDisposed();
+    }
+
+    [Fact]
+    public void SuccessfulPrimaryQuantityDoesNotInvokeReadObserverOrAdditionalOcr()
+    {
+        using var source = SyntheticBand();
+        using var original = new Row();
+        var baseline = Observation(17);
+        var names = new Recognizer((_, _) => throw new InvalidOperationException("No retry required."));
+        var recovery = new NormalLootRecovery(Matcher(), names);
+        var result = recovery.Recover(source, original, baseline, 0, 1f, Budget(), default,
+            (_, _) => throw new InvalidOperationException("No new name read occurred."));
+        Assert.Same(baseline, result);
+        Assert.Equal(0, names.Calls);
+    }
+
+    [Fact]
     public void FixedUnitBaselineNeedsNeitherPreparationNorQuantityOcr()
     {
         using var source = SyntheticBand();

@@ -44,13 +44,38 @@ public sealed class CompanionDropQuantityBoundsTests
     [InlineData(true, 2)]
     [InlineData(false, 6)]
     [InlineData(true, 6)]
-    public void ActualReadIsNeverRaisedToTheMinimum(bool rare, int quantity)
+    public void ActualReadIsClampedToTheSpotMinimum(bool rare, int quantity)
     {
         var counter = new Counter(rare, new DropQuantityBounds(4, 8));
         counter.Read(quantity);
         counter.Read(quantity);
 
-        Assert.Equal(quantity, Assert.Single(counter.Complete()));
+        Assert.Equal(Math.Max(4, quantity), Assert.Single(counter.Complete()));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void LowerBoundNormalizesContinuingDropBeforeIdentityMatching(bool rare)
+    {
+        var counter = new Counter(rare, new DropQuantityBounds(4, 8));
+        counter.Read(1);
+        counter.Read(4);
+
+        Assert.Equal(4, Assert.Single(counter.Complete()));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void SeparateDropsEachReceiveTheirOwnMinimum(bool rare)
+    {
+        var counter = new Counter(rare, new DropQuantityBounds(4, 8));
+        counter.Read(1);
+        for (var index = 0; index < 13; index++) counter.Empty();
+        counter.Read(2);
+
+        Assert.Equal(new[] { 4, 4 }, counter.Complete());
     }
 
     [Theory]
@@ -70,9 +95,9 @@ public sealed class CompanionDropQuantityBoundsTests
     [InlineData(true, 6, 6)]
     [InlineData(false, 17, 8)]
     [InlineData(true, 17, 8)]
-    [InlineData(false, 1, 1)]
-    [InlineData(true, 1, 1)]
-    public void NeighborReadWinsBeforeFallbackAndRespectsOnlyTheMaximum(bool rare, int read, int expected)
+    [InlineData(false, 1, 4)]
+    [InlineData(true, 1, 4)]
+    public void NeighborReadWinsBeforeFallbackAndRespectsBothBounds(bool rare, int read, int expected)
     {
         var counter = new Counter(rare, new DropQuantityBounds(4, 8));
         counter.Read(null);

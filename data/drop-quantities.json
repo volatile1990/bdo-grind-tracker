@@ -488,9 +488,9 @@
     {
       "spotId": "magaia",
       "itemName": "Elion Follower's Helmet",
-      "minimumQuantity": 7,
+      "minimumQuantity": 4,
       "maximumQuantity": 1000,
-      "source": "Eingabe!C79:D79"
+      "source": "Eingabe!C79:D79; Minimum am 2026-09-08 auf Nutzervorgabe auf 4 korrigiert"
     },
     {
       "spotId": "magaia",

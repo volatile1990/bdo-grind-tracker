@@ -44,7 +44,6 @@ internal static class FrameAnalyzerFactory
                 throw new InvalidOperationException("Windows OCR konnte nicht erstellt werden.");
             var matcher = new CompanionItemMatcher(catalog);
             var nameRecognizer = new CompanionNameRecognizer(windowsOcr);
-            var chatReader = PrivateItemChatOcrReader.TryCreate();
             string? configuredLanguage = null;
             void ConfigureLanguage(string language)
             {
@@ -57,25 +56,19 @@ internal static class FrameAnalyzerFactory
                 };
                 var recognizer = CompanionWindowsOcrRecognizer.TryCreate(tag, throwIfUnavailable: true,
                     requirePreferredLanguage: true)!;
-                var nextChatReader = PrivateItemChatOcrReader.TryCreate(tag);
                 nameRecognizer.SetRecognizer(recognizer);
-                chatReader = nextChatReader;
                 configuredLanguage = language;
             }
-            var chatCalibrationReader = new PrivateItemChatCalibrationReader();
             var analyzer = new CompanionLootFrameAnalyzer(
                 calibration,
                 matcher,
                 rowPipeline,
                 nameRecognizer,
-                reconciliation: new CompanionReconciliationAdapter(TrashLootMinimumCatalog.MinimumQuantities),
+                reconciliation: new CompanionReconciliationAdapter(TrashLootMinimumCatalog.MinimumQuantities, trackRows: true),
                 normalRecovery: new NormalLootRecovery(matcher, nameRecognizer),
-                chatFallback: new PrivateItemChatFallback(matcher,
-                    () => chatReader is null ? null : chatCalibrationReader.TryRead(calibration),
-                    (image, token) => chatReader?.Read(image, token) ?? []),
                 captureGuard: new LootPanelCaptureGuard(calibration, ReadCalibration),
-                privateItemChatAvailable: chatReader is not null && chatCalibrationReader.TryRead(calibration) is not null,
-                configureGameLanguage: ConfigureLanguage);
+                configureGameLanguage: ConfigureLanguage,
+                rowReview: new BackgroundLootRowReview(matcher, tag => PaddleLootOcrRecognizer.Create(tag)));
             rowPipeline = null;
             return analyzer;
         }

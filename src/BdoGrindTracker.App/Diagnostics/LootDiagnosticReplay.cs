@@ -81,6 +81,8 @@ internal static class LootDiagnosticReplay
         var header = Deserialize<LootDiagnosticHeader>(ReadBoundedLine(reader), 1);
         if (header.Kind != "header" || header.FormatVersion != LootDiagnosticFormat.Version ||
             (header.EngineVersion != LootDiagnosticFormat.EngineVersion &&
+             header.EngineVersion != LootDiagnosticFormat.ClampedQuantityEngineVersion &&
+             header.EngineVersion != LootDiagnosticFormat.MaximumQuantityEngineVersion &&
              header.EngineVersion != LootDiagnosticFormat.MinimumQuantityEngineVersion &&
              header.EngineVersion != LootDiagnosticFormat.RecoveryEngineVersion &&
              header.EngineVersion != LootDiagnosticFormat.PreviousEngineVersion &&
@@ -95,10 +97,12 @@ internal static class LootDiagnosticReplay
         }
 
         if (header.EngineVersion != LootDiagnosticFormat.EngineVersion &&
+            header.EngineVersion != LootDiagnosticFormat.ClampedQuantityEngineVersion &&
+            header.EngineVersion != LootDiagnosticFormat.MaximumQuantityEngineVersion &&
             header.EngineVersion != LootDiagnosticFormat.MinimumQuantityEngineVersion && header.MinimumTrashQuantities.Count != 0)
             throw new InvalidDataException("Diese ältere Ereignislogik-Version unterstützt keine Mindestmengen-Tabelle.");
 
-        var tracker = new CompanionDiagnosticCounter(header.Catalog, header.MinimumTrashQuantities);
+        CompanionDiagnosticCounter? tracker = null;
         var totals = new Dictionary<string, long>(StringComparer.Ordinal);
         var recordedTotals = new Dictionary<string, long>(StringComparer.Ordinal);
         var frameCount = 0;
@@ -121,9 +125,15 @@ internal static class LootDiagnosticReplay
 
             DiagnosticRecordingSession.ValidateObservations(entry.Observations);
             if (header.EngineVersion != LootDiagnosticFormat.EngineVersion &&
+                header.EngineVersion != LootDiagnosticFormat.ClampedQuantityEngineVersion &&
+                header.EngineVersion != LootDiagnosticFormat.MaximumQuantityEngineVersion &&
                 entry.Observations.Any(row => row.QuantityBounds is not null || row.UsesImplicitUnitQuantity || row.UsesFixedUnitQuantity))
                 throw new InvalidDataException("Diese ältere Ereignislogik-Version unterstützt keine Dropmengen-Grenzen.");
             ValidateEvents(entry.Events, sequence);
+            // Retain the counter mode recorded by the analyzer. Legacy recordings
+            // have no row-track marker; do not silently reinterpret their identities.
+            tracker ??= new CompanionDiagnosticCounter(header.Catalog, header.MinimumTrashQuantities,
+                trackRows: entry.RecognitionVariant?.Contains("+row-tracks-v1", StringComparison.Ordinal) == true);
             TrackerFrameResult actual;
             if (entry.Kind == "frame")
             {
@@ -212,7 +222,9 @@ internal static class LootDiagnosticReplay
     private static void ValidateEvents(IReadOnlyList<TrackedLootEvent> events, int sequence)
     {
         if (events.Any(static entry => entry is null || string.IsNullOrWhiteSpace(entry.ItemName) ||
-            entry.ItemName.Length > LootDiagnosticFormat.MaximumTextLength || entry.Quantity == 0))
+            entry.ItemName.Length > LootDiagnosticFormat.MaximumTextLength || entry.Quantity == 0 ||
+            entry.Revision < 0 || entry.TotalDropQuantity is <= 0 ||
+            entry.Revision > 0 && entry.TotalDropQuantity is null))
         {
             throw new InvalidDataException($"Ungültige Ereignisse in Sequenz {sequence}.");
         }

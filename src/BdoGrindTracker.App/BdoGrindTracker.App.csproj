@@ -25,7 +25,7 @@
     <AssemblyMetadata Include="UpdateRepositoryUrl" Value="$(UpdateRepositoryUrl)" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <Content Update="wwwroot\**\*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <WebUiAsset Include="..\..\data\**\*.png;..\..\data\**\*.jpg;..\..\data\**\*.json;..\..\data\**\*.ico" />
+    <WebUiAsset Include="..\..\data\**\*.png;..\..\data\**\*.jpg;..\..\data\**\*.json;..\..\data\**\*.ico" Exclude="..\..\data\ocr\**\*" />
   </ItemGroup>
 
   <ItemGroup>
@@ -150,6 +150,7 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
+    <Content Include="..\..\docs\BACKGROUND_OCR_REVIEW.md" Link="docs\BACKGROUND_OCR_REVIEW.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   <!-- Keep the stable managed assembly identity used by the OCR friend assembly.

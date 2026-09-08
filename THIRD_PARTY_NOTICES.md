@@ -1,8 +1,23 @@
 # Third-party notices
 
 Die verwendeten Bibliothekslizenzen sind über die referenzierten NuGet-Pakete
-dokumentiert. Der Produktpfad enthält keine Tesseract-Bibliothek und keine
-Tesseract-Sprachdaten.
+dokumentiert.
+
+## PaddleOCR and ONNX Runtime
+
+Die zusätzliche lokale Texterkennung verwendet das unveränderte offizielle
+`PP-OCRv6_small_rec_onnx`-Modell von PaddlePaddle, Revision
+`b8f84f0b80c529de40b4fbb3544b84fa7233a513`, unter Apache License 2.0.
+Der Zeichensatz stammt aus der Modellkonfiguration, mit CTC-Leerklasse und
+abschließendem Leerzeichen. Lizenz: `licenses/PaddleOCR-Apache-2.0.txt`.
+Quellen und Prüfsummen: `data/ocr/paddle-v6-small/SOURCES.md`.
+
+`Microsoft.ML.OnnxRuntime` 1.29.0 führt das Modell lokal auf der CPU aus.
+Lizenz: `licenses/ONNXRuntime-MIT.txt`; enthaltene weitere Komponenten:
+`licenses/ONNXRuntime-ThirdPartyNotices.txt`.
+Quellen: https://github.com/PaddlePaddle/PaddleOCR,
+https://huggingface.co/PaddlePaddle/PP-OCRv6_small_rec_onnx und
+https://github.com/microsoft/onnxruntime.
 
 ## Blazor Hybrid and WebView2
 

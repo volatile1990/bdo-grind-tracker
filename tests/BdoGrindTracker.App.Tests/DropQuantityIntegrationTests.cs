@@ -37,18 +37,26 @@ public sealed partial class CompanionLootFrameAnalyzerTests
 
     [Theory]
     [InlineData("Black Crystal Fragment", -1, 4)]
-    [InlineData("Black Crystal Fragment", 1, 1)]
+    [InlineData("Black Crystal Fragment", 1, 4)]
     [InlineData("Black Crystal Fragment", 4000, 1000)]
-    [InlineData("Elion Follower's Helmet", -1, 7)]
+    [InlineData("Elion Follower's Helmet", -1, 4)]
+    [InlineData("Elion Follower's Helmet", 1, 4)]
+    [InlineData("Elion Follower's Mark", 1, 2)]
     [InlineData("Elion Follower's Mark", -1, 2)]
     [InlineData("Elion Follower's Mark", 4000, 2000)]
-    public async Task UserTrashMinimumsAreFallbacksAndMaximumsCapSingleDrops(string trash, int quantity, int expected)
+    public async Task UserTrashBoundsClampSingleDropsAndSupplyMissingQuantities(string trash, int quantity, int expected)
     {
         var rows = new Rows(new Input(250, trash, quantity));
         using var analyzer = new CompanionLootFrameAnalyzer(Calibration(), new CompanionItemMatcher([trash]), rows, new Names(rows));
         using var frame = new Bitmap(800, 600);
         var result = await analyzer.AnalyzeAsync(frame, DateTimeOffset.UnixEpoch, CancellationToken.None);
         Assert.False(Assert.Single(result.Observations).UsesFixedUnitQuantity);
+        if (quantity > 0 && quantity < expected)
+        {
+            Assert.Equal(quantity, Assert.Single(result.Observations).Quantity);
+            Assert.Equal(LootDiagnosticFormat.MinimumQuantityClampReason,
+                Assert.Single(result.TrackingResult!.Decisions).Reason);
+        }
         Assert.Equal(expected, Assert.Single(analyzer.CompleteSession(DateTimeOffset.UnixEpoch).NewEvents).Quantity);
     }
 
@@ -105,9 +113,9 @@ public sealed partial class CompanionLootFrameAnalyzerTests
 
     [Theory]
     [InlineData("BON Origin Shard", 5)]
-    [InlineData("BON Origin Shard x1", 1)]
+    [InlineData("BON Origin Shard x1", 5)]
     [InlineData("BON Origin Shard x9", 8)]
-    public async Task ImplicitRareUnitUsesConfiguredMinimumButExplicitOneIsPreserved(string text, int expected)
+    public async Task ImplicitAndBelowMinimumRareQuantitiesUseConfiguredMinimum(string text, int expected)
     {
         var rows = new Rows { RareText = text };
         using var analyzer = new CompanionLootFrameAnalyzer(Calibration() with
@@ -148,11 +156,47 @@ public sealed class DropQuantityDiagnosticTests : IDisposable
 {
     private readonly string directory = Path.Combine(Path.GetTempPath(), "Grindcrest-drop-bounds-" + Guid.NewGuid().ToString("N"));
 
+    [Fact]
+    public void V5RecordingCanBeComparedWithTheCurrentMinimumClamp()
+    {
+        Directory.CreateDirectory(directory);
+        var start = DateTimeOffset.UnixEpoch;
+        const string item = "Black Crystal Fragment";
+        var header = new LootDiagnosticHeader("header", LootDiagnosticFormat.Version,
+            LootDiagnosticFormat.MaximumQuantityEngineVersion, start, null, "counter-only")
+        {
+            Catalog = [new(item)],
+            MinimumTrashQuantities = new Dictionary<string, uint> { [item] = 4 },
+        };
+        var observation = new LootObservation(LootSource.Normal, 0, item + " x1", item, 1, 1, 0, null, null)
+        {
+            NativeY = 250, QuantityBounds = new(4, 1000),
+        };
+        var path = Path.Combine(directory, "v5.jsonl");
+        File.WriteAllLines(path,
+        [
+            JsonSerializer.Serialize(header, LootDiagnosticFormat.JsonOptions),
+            JsonSerializer.Serialize(new LootDiagnosticEntry("frame", 1, start,
+                [observation], [], [], []), LootDiagnosticFormat.JsonOptions),
+            JsonSerializer.Serialize(new LootDiagnosticEntry("complete", 2, start.AddSeconds(1), [],
+                [new(Guid.NewGuid(), start.AddSeconds(1), item, 1)], [], []), LootDiagnosticFormat.JsonOptions),
+        ]);
+
+        var replay = LootDiagnosticReplay.Run(path);
+
+        Assert.False(replay.UsesCurrentEngine);
+        Assert.Equal(1, replay.RecordedTotals[item]);
+        Assert.Equal(4, replay.Totals[item]);
+        Assert.Equal(2, replay.FirstDifferentSequence);
+    }
+
     [Theory]
     [InlineData(LootSource.Normal, 7, false, 1, 1, 1)]
     [InlineData(LootSource.Rare, 9, false, 1, 2, 2)]
     [InlineData(LootSource.Rare, 1, true, 5, 8, 5)]
     [InlineData(LootSource.Normal, null, false, 3, 8, 3)]
+    [InlineData(LootSource.Normal, 1, false, 4, 8, 4)]
+    [InlineData(LootSource.Rare, 2, false, 4, 8, 4)]
     public void RecordingReplaysCapturedBoundsWithoutConsultingTheCurrentCatalog(
         LootSource source, int? quantity, bool implicitUnit, uint minimum, uint maximum, int expected)
     {

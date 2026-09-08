@@ -372,7 +372,9 @@ public sealed class CompanionRareFrameReconciler
         count > 0 && !estimated;
 
     private static int LimitQuantity(int count, DropQuantityBounds? bounds) =>
-        count > 0 && bounds?.Maximum is uint maximum && count > maximum ? checked((int)maximum) : count;
+        count > 0 && bounds is not null
+            ? checked((int)Math.Clamp((uint)count, bounds.Minimum, bounds.Maximum ?? int.MaxValue))
+            : count;
 
     private bool TryCopyNeighborCount(int frameIndex, int expectedEntryCount, int entryIndex, string name,
         out int count, out bool estimated)

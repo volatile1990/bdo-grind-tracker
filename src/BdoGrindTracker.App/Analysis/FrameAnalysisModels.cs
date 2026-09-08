@@ -6,7 +6,11 @@ internal sealed record LootEventView(
     Guid EventId,
     DateTimeOffset DetectedAt,
     string ItemName,
-    int Quantity);
+    int Quantity)
+{
+    public int Revision { get; init; }
+    public int? TotalDropQuantity { get; init; }
+}
 
 /// <summary>
 /// OCR observations, lifecycle decisions and confirmed loot from one pass through
@@ -43,9 +47,7 @@ internal sealed record FrameAnalysisResult(
 
     public NormalLootRecoveryDiagnostics Recovery { get; init; } = NormalLootRecoveryDiagnostics.Empty;
 
-    public Rectangle? ChatPanelRegion { get; init; }
-
-    public ChatQuantityRecoveryDiagnostics? ChatRecovery { get; init; }
+    public IReadOnlyList<LootRowReviewDiagnostics> RowReviews { get; init; } = [];
 }
 
 // Fixed-size per-frame counters only; no growing UI log or retained screenshots.

@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http;
 using System.Reflection;
@@ -168,30 +168,6 @@ public sealed class TrackerSessionServiceTests
     }
 
     [Theory]
-    [InlineData("no-private-item-window", false)]
-    [InlineData("invalid-chat-region", false)]
-    [InlineData("no-readable-item-lines", true)]
-    [InlineData("reading-private-items", true)]
-    [InlineData("chat-read-failed", true)]
-    public async Task ChatAvailabilityIsOptionalAndAConfiguredEmptyChatIsNotReportedMissing(string state, bool available)
-    {
-        await using var fixture = new Fixture(autoUpload: false, analyzer: new SyntheticAnalyzer { PrivateItemChatAvailable = true });
-        fixture.Begin();
-        fixture.Analyzer.NextResult = Analysis(("Black Crystal Fragment", 7)) with
-        {
-            ChatRecovery = new(1, state, 0, 0, 0),
-        };
-        using var frame = new Bitmap(2, 2);
-        await fixture.Service.ProcessFrameAsync(frame, new(1, fixture.Time.GetUtcNow()), CancellationToken.None);
-        fixture.Service.RefreshPendingState();
-        Assert.Equal(available, fixture.Service.State.PrivateItemChatAvailable);
-        Assert.True(fixture.Service.State.IsRunning);
-        Assert.False(fixture.Service.State.IsError);
-        Assert.Null(fixture.Service.State.TrackingBlockedReason);
-        Assert.Equal(7, fixture.Service.State.Loot.TotalQuantity);
-    }
-
-    [Theory]
     [InlineData(false, false, false)]
     [InlineData(true, false, true)]
     [InlineData(true, true, false)]
@@ -205,6 +181,7 @@ public sealed class TrackerSessionServiceTests
 
         Assert.Equal(1, fixture.Analyzer.Calls);
         Assert.Equal(expectedHdrOcr, fixture.Analyzer.LastHdrOcr);
+        Assert.Equal(isToneMapped, fixture.Analyzer.LastToneMapped);
     }
 
     [Fact]
@@ -1364,7 +1341,6 @@ public sealed class TrackerSessionServiceTests
     {
         public bool IsAvailable { get; set; } = true;
         public string Status { get; set; } = "Synthetic service test";
-        public bool? PrivateItemChatAvailable { get; set; }
         public bool RequiresLootPanel { get; set; }
         public Action<Size>? ValidateSetup { get; set; }
         public Action<string>? ConfigureLanguage { get; set; }
@@ -1377,6 +1353,13 @@ public sealed class TrackerSessionServiceTests
         public bool Disposed { get; private set; }
         public int Calls { get; private set; }
         public bool? LastHdrOcr { get; private set; }
+        public bool? LastToneMapped { get; private set; }
+        public Task<FrameAnalysisResult> AnalyzeAsync(Bitmap frame, DateTimeOffset capturedAt, bool isHdr,
+            bool isToneMapped, CancellationToken cancellationToken)
+        {
+            LastToneMapped = isToneMapped;
+            return AnalyzeAsync(frame, capturedAt, isHdr, cancellationToken);
+        }
         public Task<FrameAnalysisResult> AnalyzeAsync(Bitmap frame, DateTimeOffset capturedAt, bool isHdr,
             CancellationToken cancellationToken)
         {

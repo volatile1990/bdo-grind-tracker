@@ -1,4 +1,4 @@
-﻿using BdoGrindTracker.App.Persistence;
+using BdoGrindTracker.App.Persistence;
 using BdoGrindTracker.App.Pricing;
 using BdoGrindTracker.App.UI;
 
@@ -40,7 +40,6 @@ internal sealed record TrackerState
     public bool IsSubmitted { get; init; }
     public bool AnalyzerAvailable { get; init; }
     public string? TrackingBlockedReason { get; init; }
-    public bool? PrivateItemChatAvailable { get; init; }
     public string? DetectedGameLanguage { get; init; }
     public string GameLanguageStatus { get; init; } = "Die Spielsprache wird beim Tracking-Start geprüft.";
     public string? SpotId { get; init; }

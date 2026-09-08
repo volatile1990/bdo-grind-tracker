@@ -39,14 +39,12 @@ public sealed class MinimumTrashQuantityIntegrationTests : IDisposable
     }
 
     [Theory]
-    [InlineData(1, null, 1)]
-    [InlineData(6, null, 6)]
-    [InlineData(-1, 6, 6)]
-    public async Task ExistingOrChatRecoveredQuantitiesTakePriorityOverMinimum(
-        int templateQuantity, int? chatQuantity, int expected)
+    [InlineData(1, 1)]
+    [InlineData(6, 6)]
+    public async Task HistoricalFallbackPolicyPreservesRecordedReadQuantities(
+        int templateQuantity, int expected)
     {
-        using var analyzer = CreateAnalyzer(new Rows(templateQuantity),
-            chatQuantity is { } quantity ? new ChatQuantity(quantity) : null);
+        using var analyzer = CreateAnalyzer(new Rows(templateQuantity));
         using var frame = new Bitmap(800, 600);
 
         var result = await analyzer.AnalyzeAsync(frame, Start, CancellationToken.None);
@@ -164,21 +162,12 @@ public sealed class MinimumTrashQuantityIntegrationTests : IDisposable
     private static LootObservation Observation() =>
         new(LootSource.Normal, 0, Trash, Trash, null, 1, 0, null, null) { NativeY = 250 };
 
-    private static CompanionLootFrameAnalyzer CreateAnalyzer(Rows rows, IPrivateItemChatFallback? chat = null) =>
+    private static CompanionLootFrameAnalyzer CreateAnalyzer(Rows rows) =>
         new(new CompanionCalibration("profile", "gamevariable.xml", "GameOption.txt", 400, 300,
                 800, 600, 1f, CompanionFontType.StrongSword, 0, false),
             new CompanionItemMatcher([Trash]), rows, new Names(),
-            reconciliation: new CompanionReconciliationAdapter(Policy()), chatFallback: chat,
+            reconciliation: new CompanionReconciliationAdapter(Policy()),
             quantityBoundsResolver: (_, _) => null); // Exercise the historical dictionary policy independently of live data.
-
-    private sealed class ChatQuantity(int quantity) : IPrivateItemChatFallback
-    {
-        public ChatQuantityRecoveryResult Apply(Mat frame, IReadOnlyList<LootObservation> normal,
-            DateTimeOffset capturedAt, CancellationToken cancellationToken) =>
-            new(normal.Select(row => row with { Quantity = quantity }).ToArray(), null,
-                new(3, "reading-private-items", 1, 1, 0));
-        public void Reset() { }
-    }
 
     private sealed class Rows(int quantity) : ICompanionNormalRowPipeline
     {

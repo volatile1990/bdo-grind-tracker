@@ -13,6 +13,12 @@ internal interface INormalLootRecovery
     LootObservation? Recover(Mat sourceBand, ICompanionPreparedRow original,
         LootObservation? baseline, int slot, float uiScale,
         NormalLootRecoveryBudget budget, CancellationToken cancellationToken);
+
+    LootObservation? Recover(Mat sourceBand, ICompanionPreparedRow original,
+        LootObservation? baseline, int slot, float uiScale,
+        NormalLootRecoveryBudget budget, CancellationToken cancellationToken,
+        Action<CompanionOcrResult, float>? onRead) =>
+        Recover(sourceBand, original, baseline, slot, uiScale, budget, cancellationToken);
 }
 
 /// <summary>
@@ -62,7 +68,13 @@ internal sealed partial class NormalLootRecovery(
 
     public LootObservation? Recover(Mat sourceBand, ICompanionPreparedRow original,
         LootObservation? baseline, int slot, float uiScale,
-        NormalLootRecoveryBudget budget, CancellationToken cancellationToken)
+        NormalLootRecoveryBudget budget, CancellationToken cancellationToken) =>
+        Recover(sourceBand, original, baseline, slot, uiScale, budget, cancellationToken, null);
+
+    public LootObservation? Recover(Mat sourceBand, ICompanionPreparedRow original,
+        LootObservation? baseline, int slot, float uiScale,
+        NormalLootRecoveryBudget budget, CancellationToken cancellationToken,
+        Action<CompanionOcrResult, float>? onRead)
     {
         if (Accepted(baseline) && _quantityBounds(baseline!.ItemName!)?.IsFixedUnit == true)
             return FixedUnit(baseline);
@@ -96,6 +108,7 @@ internal sealed partial class NormalLootRecovery(
 
                 if (!budget.TryBeginOcr()) break;
                 var ocr = recognizer.Recognize(images.NameImage, cancellationToken);
+                onRead?.Invoke(ocr, images.NameScale);
                 if (!CompanionWindowsOcrRecognizer.PassesNormalGeometryGate(ocr.FirstWord, uiScale))
                     continue;
                 var knownQuantity = baseline?.Quantity ??

@@ -19,7 +19,7 @@ public sealed class DropQuantityCatalogTests
     [Theory]
     [InlineData("aphrodon", "Branch of Abundance", 4u, 1000u)]
     [InlineData("hermesia", "Black Crystal Fragment", 4u, 1000u)]
-    [InlineData("magaia", "Elion Follower's Helmet", 7u, 1000u)]
+    [InlineData("magaia", "Elion Follower's Helmet", 4u, 1000u)]
     [InlineData("aresion", "Scorched Belt Ornament", 2u, 1000u)]
     [InlineData("scales-of-judgment", "Elion Follower's Mark", 2u, 2000u)]
     [InlineData("event-horizon", "Broken Gloves of the Void", 2u, 1000u)]

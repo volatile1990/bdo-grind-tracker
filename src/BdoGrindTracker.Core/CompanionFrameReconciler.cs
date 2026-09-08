@@ -19,6 +19,10 @@ public sealed class CompanionFrameReconciler
 
         public bool EstimatedCount { get; set; }
 
+        public int? Slot { get; init; }
+        public bool IsPlaceholder { get; init; }
+        public DropTrack? Track { get; set; }
+
         public DropQuantityBounds? QuantityBounds { get; init; }
 
         public int Y { get; } = y;
@@ -33,8 +37,18 @@ public sealed class CompanionFrameReconciler
             {
                 EstimatedCount = this.EstimatedCount,
                 QuantityBounds = this.QuantityBounds,
+                Slot = this.Slot, IsPlaceholder = this.IsPlaceholder, Track = this.Track,
             };
         }
+    }
+
+    private sealed class DropTrack
+    {
+        public Guid Id { get; } = Guid.NewGuid();
+        public string? Name { get; set; }
+        public uint? EmittedQuantity { get; set; }
+        public bool Estimated { get; set; }
+        public int Revision { get; set; }
     }
 
     public const int BatchSize = 10;
@@ -52,6 +66,7 @@ public sealed class CompanionFrameReconciler
     private readonly Dictionary<string, uint> minimumQuantities;
 
     private int processedFrameCount;
+    private readonly bool trackRows;
 
     /// <summary>
     /// Optional, verified per-item minimums change only the emitted amount of a
@@ -62,8 +77,9 @@ public sealed class CompanionFrameReconciler
     {
     }
 
-    public CompanionFrameReconciler(IReadOnlyDictionary<string, uint>? minimumQuantities)
+    public CompanionFrameReconciler(IReadOnlyDictionary<string, uint>? minimumQuantities, bool trackRows = false)
     {
+        this.trackRows = trackRows;
         this.minimumQuantities = new Dictionary<string, uint>(StringComparer.Ordinal);
         if (minimumQuantities is null) return;
         foreach (var minimum in minimumQuantities)
@@ -87,13 +103,26 @@ public sealed class CompanionFrameReconciler
             }
             // Normalize before row identities and overlap are compared. A bad
             // OCR 7 followed by the real 1 must still identify the same drop.
-            var count = LimitQuantity(entry.Count, entry.QuantityBounds);
+            var count = LimitQuantity(trackRows && entry.Count == 0 ? InvalidCount : entry.Count, entry.QuantityBounds);
             var isCertainUnit = count == InvalidCount && entry.QuantityBounds?.Maximum == 1;
             list.Add(new Entry(entry.Name, isCertainUnit ? 1u : count, entry.Y, 1L, duplicate: false)
             {
                 QuantityBounds = entry.QuantityBounds,
                 EstimatedCount = isCertainUnit,
+                Slot = entry.Slot, IsPlaceholder = entry.IsPlaceholder,
+                Track = trackRows ? new DropTrack { Name = entry.IsPlaceholder ? null : entry.Name } : null,
             });
+        }
+        if (trackRows && list.Count > 0 && list.All(entry => entry.Slot is >= 0 and < 6))
+        {
+            // Preserve interior OCR gaps; never compress the physical row order.
+            // A placeholder cannot book loot and only participates with named anchors.
+            var bySlot = list.ToDictionary(entry => entry.Slot!.Value);
+            for (var slot = bySlot.Keys.Min(); slot <= bySlot.Keys.Max(); slot++)
+                if (!bySlot.ContainsKey(slot))
+                    list.Add(new Entry("<unread-row>", InvalidCount, 0, 1, false)
+                        { Slot = slot, IsPlaceholder = true, Track = new DropTrack() });
+            list.Sort((left, right) => left.Slot!.Value.CompareTo(right.Slot!.Value));
         }
         frames.Add(new Frame(list));
         if (frames.Count - processedFrameCount >= 10)
@@ -122,20 +151,51 @@ public sealed class CompanionFrameReconciler
         {
             foreach (Entry entry in frames[i].Entries)
             {
-                if (!entry.Duplicate && entry.Count != uint.MaxValue)
+                if (!entry.IsPlaceholder && entry.Count != uint.MaxValue && (!entry.Duplicate || trackRows))
                 {
                     var minimum = entry.QuantityBounds?.Minimum ?? 0u;
                     var usesMinimum = entry.EstimatedCount &&
                         (entry.QuantityBounds is not null || minimumQuantities.TryGetValue(entry.Name, out minimum));
-                    list.Add(new CompanionRecognizedEntry(entry.Name, usesMinimum ? minimum : entry.Count, entry.Y)
+                    var quantity = usesMinimum ? minimum : entry.Count;
+                    var track = entry.Track;
+                    if (track is { EmittedQuantity: { } emitted })
+                    {
+                        if (!track.Estimated || entry.EstimatedCount) continue;
+                        track.Estimated = false;
+                        track.EmittedQuantity = quantity;
+                        if (quantity == emitted) continue;
+                        track.Revision++;
+                        list.Add(new CompanionRecognizedEntry(entry.Name, quantity, entry.Y)
+                        {
+                            EventId = track.Id, Revision = track.Revision,
+                            QuantityDelta = checked((int)quantity - (int)emitted),
+                            TotalDropQuantity = checked((int)quantity), QuantityBounds = entry.QuantityBounds,
+                        });
+                        continue;
+                    }
+                    if (entry.Duplicate && track is null) continue;
+                    if (track is not null)
+                    {
+                        track.EmittedQuantity = quantity;
+                        track.Estimated = entry.EstimatedCount;
+                    }
+                    list.Add(new CompanionRecognizedEntry(entry.Name, quantity, entry.Y)
                     {
                         IsMinimumQuantityEstimate = usesMinimum,
                         QuantityBounds = entry.QuantityBounds,
+                        EventId = track?.Id, TotalDropQuantity = track is null ? null : checked((int)quantity),
                     });
                 }
             }
         }
         processedFrameCount = frames.Count;
+        if (trackRows && frames.Count > 1)
+        {
+            // Only the previous frame anchors the next batch. Track objects remain alive
+            // through the rows that reference them; session history is not retained here.
+            frames.RemoveRange(0, frames.Count - 1);
+            processedFrameCount = 1;
+        }
         return list;
     }
 
@@ -165,6 +225,33 @@ public sealed class CompanionFrameReconciler
                 frame.Entries[j].Duplicate = true;
             }
         }
+        if (trackRows)
+        {
+            // Resolve IDs in chronological order AFTER the overlap decisions. Quantity
+            // revisions share the same ID; the UI applies a revision at most once.
+            for (var i = Math.Max(1, processedStart); i < frames.Count; i++)
+            {
+                var left = frames[i - 1];
+                var right = frames[i];
+                var overlap = FindOverlap(left, right, requireFrameProgression: true);
+                var offset = right.Entries.Count - overlap;
+                for (var j = 0; j < overlap; j++)
+                    if (right.Entries[offset + j].Duplicate)
+                    {
+                        var next = right.Entries[offset + j];
+                        var track = left.Entries[j].Track!;
+                        if (!next.IsPlaceholder && track.Name is { } name && name != next.Name)
+                        {
+                            // An unread row may carry an old ID across a gap, but it
+                            // cannot change the item that was booked under that ID.
+                            next.Duplicate = false;
+                            continue;
+                        }
+                        if (!next.IsPlaceholder) track.Name = next.Name;
+                        next.Track = track;
+                    }
+            }
+        }
     }
 
     private void RepairInvalidCounts(int repairStart)
@@ -180,6 +267,7 @@ public sealed class CompanionFrameReconciler
             for (int j = 0; j < entries.Count; j++)
             {
                 Entry entry = entries[j];
+                if (entry.IsPlaceholder) continue;
                 if (entry.Count == uint.MaxValue)
                 {
                     if (entry.QuantityBounds is null && UnitCountItems.Contains(entry.Name))
@@ -223,6 +311,9 @@ public sealed class CompanionFrameReconciler
 
         void RepairFrame(int frameIndex)
         {
+            // With row IDs, quantities are transferred only AFTER a whole-row
+            // alignment. Same item/index alone can refer to a newly arriving drop.
+            if (trackRows) return;
             var entries = frames[frameIndex].Entries;
             for (var entryIndex = 0; entryIndex < entries.Count; entryIndex++)
             {
@@ -247,7 +338,9 @@ public sealed class CompanionFrameReconciler
         count is > 0 and < InvalidCount && !estimated;
 
     private static uint LimitQuantity(uint count, DropQuantityBounds? bounds) =>
-        count != InvalidCount && bounds?.Maximum is uint maximum && count > maximum ? maximum : count;
+        count is > 0 and not InvalidCount && bounds is not null
+            ? Math.Clamp(count, bounds.Minimum, bounds.Maximum ?? uint.MaxValue)
+            : count;
 
     private bool TryCopyNeighborCount(int frameIndex, int expectedEntryCount, int entryIndex,
         string name, out uint count, out bool estimated)
@@ -294,9 +387,9 @@ public sealed class CompanionFrameReconciler
         }
     }
 
-    private static int FindOverlap(Frame left, Frame right, bool requireFrameProgression)
+    private int FindOverlap(Frame left, Frame right, bool requireFrameProgression)
     {
-        if (TryInsertMissingEntry(left, right))
+        if (!trackRows && TryInsertMissingEntry(left, right))
         {
             return right.Entries.Count;
         }
@@ -306,16 +399,30 @@ public sealed class CompanionFrameReconciler
             long num3 = 0L;
             bool flag = false;
             bool flag2 = true;
+            int? slotShift = null;
+            var anchors = 0;
             for (int i = 0; i < num; i++)
             {
                 Entry entry = left.Entries[i];
                 Entry entry2 = right.Entries[num2 + i];
-                if (!SameIdentity(entry, entry2))
+                var same = SameIdentity(entry, entry2);
+                if (trackRows && entry.Slot is { } from && entry2.Slot is { } to)
+                {
+                    if (to < from || slotShift is { } shift && shift != to - from)
+                    { flag2 = false; break; }
+                    slotShift = to - from;
+                    same = entry.IsPlaceholder || entry2.IsPlaceholder ||
+                        entry.Name == entry2.Name && (same || entry.EstimatedCount || entry2.EstimatedCount);
+                    if (!entry.IsPlaceholder && !entry2.IsPlaceholder && same) anchors++;
+                }
+                else if (same) anchors++;
+                if (!same)
                 {
                     flag2 = false;
                     break;
                 }
-                if (requireFrameProgression)
+                if (requireFrameProgression && !(trackRows && entry.Name == entry2.Name &&
+                    entry.EstimatedCount != entry2.EstimatedCount))
                 {
                     bool flag3 = entry2.Frame < num3;
                     if (entry.Frame != entry2.Frame - 1 && !flag && !flag3)
@@ -327,7 +434,7 @@ public sealed class CompanionFrameReconciler
                     num3 = entry2.Frame;
                 }
             }
-            if (flag2)
+            if (flag2 && (!trackRows || anchors > 0))
             {
                 return num;
             }

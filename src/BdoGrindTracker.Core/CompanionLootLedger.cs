@@ -39,9 +39,17 @@ public sealed class CompanionLootLedger
         return true;
     }
 
+    public void ApplyDelta(string name, long delta)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        var quantity = checked(totals.GetValueOrDefault(name) + delta);
+        if (quantity < 0) throw new InvalidOperationException("A loot correction exceeds the booked quantity.");
+        if (quantity == 0) totals.Remove(name);
+        else totals[name] = quantity;
+    }
+
     public void Reset()
     {
         totals.Clear();
     }
 }
-

@@ -32,7 +32,10 @@ try {
     $entries = @($archive.Entries | ForEach-Object { $_.FullName.Replace('\', '/') })
     foreach ($required in @('Grindcrest.exe', 'BdoGrindTracker.dll', 'Velopack.dll', 'System.Private.CoreLib.dll',
             'wwwroot/index.html', 'data/items.en.txt', 'data/branding/grindcrest.ico', 'THIRD_PARTY_NOTICES.md',
-            'licenses/Microsoft.Web.WebView2.txt', 'licenses/Blazor.WebView.WindowsForms.txt', 'licenses/Velopack.txt')) {
+            'licenses/Microsoft.Web.WebView2.txt', 'licenses/Blazor.WebView.WindowsForms.txt', 'licenses/Velopack.txt',
+            'Microsoft.ML.OnnxRuntime.dll', 'onnxruntime.dll', 'onnxruntime_providers_shared.dll',
+            'data/ocr/paddle-v6-small/inference.onnx', 'data/ocr/paddle-v6-small/characters.json',
+            'licenses/PaddleOCR-Apache-2.0.txt', 'licenses/ONNXRuntime-MIT.txt', 'licenses/ONNXRuntime-ThirdPartyNotices.txt')) {
         if ($entries -notcontains "lib/app/$required") { throw "Required file missing from update package: $required" }
     }
     if (-not ($entries | Where-Object { $_ -like 'lib/app/wwwroot/assets/icons/*.png' })) {

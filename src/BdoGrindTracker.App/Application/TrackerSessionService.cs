@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.Security.Cryptography;
 using BdoGrindTracker.App.Analysis;
 using BdoGrindTracker.App.Capture;
@@ -62,7 +62,6 @@ internal sealed partial class TrackerSessionService : ITrackerSession
     private string? _settingsSaveError;
     private string _status;
     private bool _isError;
-    private bool? _privateItemChatAvailable;
     private string _priceStatus = "NPC- und Festwerte";
     private Task _operationTask = Task.CompletedTask;
     private Task _tickTask = Task.CompletedTask;
@@ -131,7 +130,6 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         };
         _status = analyzer.IsAvailable ? "Bereit für deine nächste Session." : analyzer.Status;
         _isError = !analyzer.IsAvailable;
-        _privateItemChatAvailable = analyzer.PrivateItemChatAvailable;
         _captureSession.Stopped += CaptureSessionStopped;
         PublishState();
     }
@@ -305,14 +303,15 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         CancellationToken cancellationToken)
     {
         var analysis = await _analyzer.AnalyzeAsync(frame, metadata.CapturedAtUtc,
-            metadata.UseHdrOcr, cancellationToken).ConfigureAwait(false);
+            metadata.UseHdrOcr, metadata.IsToneMapped, cancellationToken).ConfigureAwait(false);
         if (_analyzer.RequiresLootPanel && (analysis.PanelRegion is not { Width: > 0, Height: > 0 } panel ||
             !new Rectangle(Point.Empty, frame.Size).Contains(panel)))
             throw new LootPanelUnavailableException(LootPanelCaptureGuard.MissingPanelMessage);
         _recording?.RecordFrame(metadata.CapturedAtUtc, analysis.Observations,
             analysis.TrackingResult, frame, analysis.PanelRegion, analysis.RareBandRegion, analysis.Recovery,
-            isHdr: metadata.IsHdr, chatPanel: analysis.ChatPanelRegion, chatRecovery: analysis.ChatRecovery,
-            isToneMapped: metadata.IsToneMapped);
+            isHdr: metadata.IsHdr,
+            isToneMapped: metadata.IsToneMapped, rowReviews: analysis.RowReviews,
+            recognitionVariant: analysis.VariantName);
         _uiMailbox.Publish(analysis, onPublished: ObserveGarmothTotals);
     }
 
@@ -330,14 +329,6 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         if (update is not null)
         {
             _sessionSpotId = update.Analysis.SpotId;
-            if (update.Analysis.ChatRecovery is { } chat)
-            {
-                if (chat.State is "no-private-item-window" or "invalid-chat-region")
-                    _privateItemChatAvailable = false;
-                else if (chat.State is "no-readable-item-lines" or "reading-private-items")
-                    _privateItemChatAvailable = true;
-                // A transient OCR failure does not mean the configured chat vanished.
-            }
             if (update.Totals is { } totals) _sessionSummary = totals;
             if (_uiRunning && !_operationInProgress && !_garmothUploadInProgress &&
                 !_garmothIntervals.IsBlocked && !_garmothIntervals.AutomaticSuspended &&
@@ -458,7 +449,6 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             CanEditLoot = !_operationInProgress && !_shutdownStarted && !_disposed,
             AnalyzerAvailable = _analyzer.IsAvailable, SpotId = _sessionSpotId,
             TrackingBlockedReason = trackingBlockedReason,
-            PrivateItemChatAvailable = _privateItemChatAvailable,
             DetectedGameLanguage = _gameLanguageDetection.Language,
             GameLanguageStatus = _gameLanguageDetection.Message,
             CharacterClassId = character?.Id,

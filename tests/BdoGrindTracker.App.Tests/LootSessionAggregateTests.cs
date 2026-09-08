@@ -6,6 +6,43 @@ namespace BdoGrindTracker.App.Tests;
 public sealed class LootSessionAggregateTests
 {
     [Fact]
+    public void QuantityRevisionUpdatesTheExistingDropExactlyOnce()
+    {
+        var aggregate = new LootSessionAggregate();
+        var initial = Event("Helmet", 4) with { TotalDropQuantity = 4 };
+        var correction = initial with { Quantity = 2, TotalDropQuantity = 6, Revision = 1 };
+        aggregate.Apply(initial);
+        aggregate.Apply(correction);
+        aggregate.Apply(correction);
+        aggregate.Apply(initial);
+        Assert.Equal(6, aggregate.TotalQuantity);
+        Assert.Equal(1, aggregate.ConfirmedEventCount);
+    }
+
+    [Fact]
+    public void RevisionsRemainIdempotentEvenWhenUiDeliveryIsOutOfOrder()
+    {
+        var aggregate = new LootSessionAggregate();
+        var initial = Event("Helmet", 4) with { TotalDropQuantity = 4 };
+        aggregate.Apply(initial with { Quantity = 2, TotalDropQuantity = 6, Revision = 1 });
+        aggregate.Apply(initial);
+        Assert.Equal(6, aggregate.TotalQuantity);
+        Assert.Equal(1, aggregate.ConfirmedEventCount);
+    }
+
+    [Fact]
+    public void ManualCorrectionAndSubsequentAutomaticQuantityRevisionBothRemainApplied()
+    {
+        var aggregate = new LootSessionAggregate();
+        var initial = Event("Helmet", 4) with { TotalDropQuantity = 4 };
+        aggregate.Apply(initial);
+        aggregate.AdjustQuantity("Helmet", 10, 4);
+        aggregate.Apply(initial with { Quantity = 2, TotalDropQuantity = 6, Revision = 1 });
+        Assert.Equal(12, aggregate.TotalQuantity);
+        Assert.Equal(1, aggregate.ConfirmedEventCount);
+    }
+
+    [Fact]
     public void ManualCorrectionKeepsDropsReceivedWhileTheEditorWasOpen()
     {
         var aggregate = new LootSessionAggregate();

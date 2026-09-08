@@ -4,7 +4,7 @@
 erfasst jetzt alle Items je Spot. Die [neue vollständige Recherche](DROP_QUANTITIES_RESEARCH.md)
 ergänzt unter anderem die Event-Horizon-Teilwerte vom 3. September. Alle aktuellen
 Min-/Max-Grenzen sind inzwischen aus der ausgefüllten Nutzerdatei übernommen:
-Aphrodon 4/1000, Hermesia 4/1000, Magaia 7/1000, Aresion 2/1000,
+Aphrodon 4/1000, Hermesia 4/1000, Magaia 4/1000, Aresion 2/1000,
 Scales of Judgment 2/2000 und Event Horizon 2/1000. Diese Werte werden über
 `DropQuantityCatalog` pro Beobachtung verwendet. Der folgende historische Abschnitt
 dokumentiert den bisherigen Trash-Fallback und das weiterhin unterstützte v4-Replay.
@@ -45,11 +45,6 @@ Magaia-Priester und 10–15 Gürtelornamente bei den ausdrücklich mit `[Reforge
 bezeichneten Aresion-Gegnern. Diese Angaben decken die normalen Gegner nicht ab
 und sind deshalb keine Mindestmengen für den ganzen Spot.
 
-Auch der geprüfte [BDO-Codex-Eintrag des Enslaved Miner](https://bdocodex.com/us/npc/28697/)
-liefert keine entsprechende Droptabelle. Aus dem bereitgestellten Magaia-Chatbild
-mit Mengen 4 und 6 lässt sich wegen unbekannter Mengenboni und der kurzen Stichprobe
-ebenfalls kein Mindestwert ableiten.
-
 ## Vorbereiteter Fallback
 
 Ein später belegter positiver Wert kann im Eintrag des jeweiligen Trash-Items
@@ -58,8 +53,9 @@ nachvollziehbar ergänzt werden. Keine automatische Übernahme von Elite-Werten,
 keine Ableitung aus Stundenstatistiken und kein Raten fehlender Werte.
 
 Die App übergibt ausschließlich belegte Einträge an den normalen Frame-Zähler.
-Bereits gelesene Mengen einschließlich des Item-Chat-Fallbacks haben Vorrang;
-sie werden auch dann nicht angehoben, wenn sie unter dem hinterlegten Minimum liegen.
+Diese historische reine Fallback-Tabelle ist inzwischen durch die vollständigen
+[Item-/Spotgrenzen](DROP_QUANTITIES.md) abgelöst. Im aktuellen Tracking werden
+auch positiv gelesene Mengen unterhalb des Minimums auf das Minimum angehoben.
 Für konfigurierte Items werden zunächst tatsächliche Mengen aus passenden
 Nachbarbildern im noch offenen Batch übernommen. Erst wenn der bestehende Zähler
 eine fehlende Menge auf 1 schätzen würde, ersetzt das Minimum die ausgegebene Menge.

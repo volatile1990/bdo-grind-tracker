@@ -1,5 +1,12 @@
 # Erkennungsarchitektur 0.9.6-test.2
 
+**Aktueller Entwicklungsstand:** Windows OCR bleibt primär; PP-OCRv6 Small
+ersetzt die Tesseract-Zusatzprüfung. Der normale Laufzeitzähler ergänzt den
+Companion-Abgleich um kalibrierte Zeilenindizes, innere OCR-Lücken und
+Drop-IDs mit Mengenrevisionen. Die folgenden Versionsabschnitte beschreiben
+teilweise frühere Stände; aktuelle Regeln und Aufnahmenergebnisse stehen in
+[BACKGROUND_OCR_REVIEW.md](BACKGROUND_OCR_REVIEW.md).
+
 Die Zähleränderung aus test.1 ist zurückgenommen. Fortlaufende Tags führten im
 gemeldeten Live-Test zu etwa 1.500 gezählten bei 5.000 tatsächlichen Trashloot.
 Identische Beobachtungen können unterschiedliche neue Drops darstellen. Sie
@@ -69,13 +76,6 @@ sowie den ursprünglichen zusätzlichen Rare-Regeln. Der normale Pfad bekommt
 keine nachträgliche strengere Runner-up-Prüfung. Die gleichen Textreparaturen wie
 im Stand 0.5.1 bleiben erlaubt; native Mengen-/Lückenreparatur ist wieder aktiv.
 
-Der zusätzliche [Item-Chat-Fallback](OCR_RECOVERY.md#item-chat-als-mengen-fallback)
-ergänzt ausschließlich fehlende Mengen bereits erkannter normaler Zeilen vor dem
-Spotfilter und dem bestehenden Zähler. Der aktive Chat-Eintrag (Index32) liefert
-Filter und Geometrie. Windows OCR liest diesen Ausschnitt desselben Frames ohne
-die Farbmaske des normalen Lootpanels. Chatmeldungen werden nicht als separate
-Lootereignisse an den Zähler übergeben.
-
 ## Automatischer Spotfilter
 
 `LootSpotCatalog` enthält die Hauptloot-Tabellen aller sechs Inner-Edania-Zonen,
@@ -119,11 +119,13 @@ vollständiger Frame-Tag-Präfixvergleich, Fortschreiben von `lastY` nach regul�
 Treffern und serieller 450-ms-Aufnahmetakt. Ein Sitzungsabschluss verarbeitet noch
 ausstehende Blöcke nach diesen Regeln; er ist keine neue defensive Bestätigungsphase.
 
-Ausgegebene Buchungen besitzen UI-Ausgabe-IDs, jedoch keine eigene Lebensdauer-
-Identität. Die Oberfläche wendet jede Ausgabe höchstens einmal an. Signed
-Rare-Korrekturen ändern die Summen; negative Deltas erhöhen den Ereigniszähler
-nicht. Items mit Summe null werden entfernt. Auch reine Korrekturframes lösen
-eine UI-Summenaktualisierung aus.
+Im aktuellen normalen Laufzeitpfad teilen zugeordnete Zeilen eine Drop-ID.
+Eine spätere echte Menge ersetzt einen gebuchten Mindestwert mit einer Revision
+derselben ID und einem Mengendelta. Die UI verwendet zusätzlich die absolute
+Dropmenge, damit wiederholte oder verspätete Revisionen nicht doppelt wirken.
+Die Anzahl der Drops erhöht sich durch eine Mengenrevision nicht. Der getrennte
+Rare-Zähler behält seine bisherigen signierten Korrekturen. Auch reine
+Korrekturframes aktualisieren die Summen.
 
 ## Takt und Oberfläche
 

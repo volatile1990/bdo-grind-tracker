@@ -6,8 +6,6 @@ internal interface ILootFrameAnalyzer : IDisposable
 
     string Status { get; }
 
-    // Unknown for synthetic/alternative analyzers that do not inspect BDO's chat configuration.
-    bool? PrivateItemChatAvailable => null;
     bool RequiresLootPanel => false;
 
     void ValidateCaptureSetup(Size frameSize) { }
@@ -25,6 +23,14 @@ internal interface ILootFrameAnalyzer : IDisposable
         bool isHdr,
         CancellationToken cancellationToken) =>
         AnalyzeAsync(frame, capturedAt, cancellationToken);
+
+    Task<FrameAnalysisResult> AnalyzeAsync(
+        Bitmap frame,
+        DateTimeOffset capturedAt,
+        bool isHdr,
+        bool isToneMapped,
+        CancellationToken cancellationToken) =>
+        AnalyzeAsync(frame, capturedAt, isHdr, cancellationToken);
 
     /// <summary>Flushes pending native batches and finalizes session diagnostics.</summary>
     FrameAnalysisResult CompleteSession(DateTimeOffset completedAt) =>

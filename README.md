@@ -12,8 +12,21 @@ Der bestätigte Zählerstand aus **0.9.6-test.2** bleibt erhalten. Bestehende Ei
 Verlaufseinträge und der verschlüsselte Garmoth-Key werden weiterverwendet.
 [Architektur, Voraussetzungen und UI-Prüfung](docs/BLAZOR_HYBRID.md).
 
-Der erste Erkennungspfad und die normale Zählung basieren wieder
-auf dem Companion-Stand wie in 0.9.5.
+Im aktuellen Entwicklungsstand bleibt Windows OCR der Hauptweg. Deutliche
+Grenzfälle werden mit **PP-OCRv6 Small über ONNX Runtime** lokal nachgeprüft.
+Originalbild und Graustufen müssen dasselbe Item und eine verträgliche Menge
+liefern. Modell und Zeichensatz werden mitgeliefert; Python und ein Download
+beim Start sind nicht nötig. Das Paddle-Modell ist mehrsprachig.
+
+Mengenberichtigungen verwenden dieselbe Drop-ID mit einer neuen Revision.
+Nicht gelesene innere Zeilen behalten beim Abgleich ihren Platz. Geprüfte
+Minima und Maxima gelten weiterhin pro Drop; Magaia-Trash hat Minimum 4.
+Fertige Ergebnisse werden während der Sitzung übernommen; Pause und Beenden
+verarbeiten noch wartende Bilder.
+[Verhalten, Diagnose und Grenzen](docs/BACKGROUND_OCR_REVIEW.md).
+
+Der erste Erkennungspfad basiert auf dem Companion-Stand wie in 0.9.5.
+Der normale Zähler ergänzt diesen um Zeilenpositionen und Mengenrevisionen.
 Die zusätzlichen Bestätigungs- und Lebensdauerregeln aus 0.6.0/0.6.1 sind entfernt.
 Erhalten bleiben der automatische Spotfilter und die Verbesserungen der UI-Geschwindigkeit.
 
@@ -164,7 +177,7 @@ zur neuen Sitzung gesperrt. Ein früher gespeicherter manueller Spot wird ignori
 Aufnahme- und Event-Optionen lassen sich vor Beginn einer neuen Session ändern.
 Die Diagnose-Aufzeichnung ist beim Programmstart und nach jeder neuen Sitzung aus.
 
-### Automatischer Mengen-Fallback aus dem Item-Chat
+### Droplog-Voraussetzungen und Mengengrenzen
 
 Der Haupt-Droplog ist Voraussetzung für die Erfassung. Fehlt seine sichtbare,
 eindeutige Position in der aktiven BDO-UI-Konfiguration, bleibt der Start gesperrt
@@ -174,28 +187,7 @@ sie oder ändern sich die zugehörigen Anzeigeeinstellungen, hält die Erfassung
 Nach dem Speichern der korrigierten BDO-UI-Einstellungen Grindcrest neu starten.
 Ein leeres Droplog ohne neue Drops ist kein Fehler.
 
-Ein separates, sichtbares BDO-Chatfenster kann fehlende Mengen im normalen Lootpanel
-ergänzen. Im Spiel unter **System** ausschließlich **Beute** (englisch: **Private Item**) aktivieren und
-die normalen Chatkanäle ausschalten. Die gespeicherte UI muss dieses Fenster als
-eingeblendet und vom Hauptchat getrennt enthalten. Der Tracker liest Position,
-Größe und Filter automatisch aus der aktiven `gamevariable.xml`; Änderungen werden
-während der Aufnahme alle zwei Sekunden geprüft. Das Fenster muss auf dem gewählten
-Spielbildschirm sichtbar bleiben und am Ende des Chatverlaufs stehen.
-
-Unterstützt werden vollständige deutsche Meldungen wie
-`Ihr habt 6 x [Helm eines Anhängers Elions] erhalten.` sowie englische Meldungen wie
-`You have obtained [Elion Follower's Helmet] x6.`. Der Chat erzeugt keine eigenen
-Buchungen, sondern ergänzt ausschließlich eine noch fehlende Menge einer bereits
-erkannten normalen Lootzeile. Vorhandene Mengen, einschließlich einer möglicherweise
-falsch erkannten `1`, werden nicht überschrieben. Alte Chatzeilen beim Start oder
-Fortsetzen, mehrdeutige Folgen und unklare Zuordnungen liefern keine Ersatzmenge.
-Ohne geeignetes Chatfenster läuft die bisherige Erkennung weiter.
-Die Live-Ansicht zeigt dann seitlich den optionalen Hinweis **Erkennung ergänzen**
-mit einer aufklappbaren Anleitung. Er verschwindet, sobald ein passendes Fenster
-erkannt wird; ein konfiguriertes, momentan leeres Item-Chatfenster gilt als vorhanden.
-[Zuordnung, Diagnose und Grenzen](docs/OCR_RECOVERY.md#item-chat-als-mengen-fallback).
-
-Fehlende Mengen erhalten den hinterlegten Mindestwert für Item und Spot. Die
+Fehlende oder unterhalb des Minimums gelesene Mengen erhalten den hinterlegten Mindestwert für Item und Spot. Die
 Grenzen stammen aus der ausgefüllten Dropmengentabelle; bei festen 1/1-Drops entfällt
 die Mengen-OCR. [Dropmengen und Korrekturen](docs/DROP_QUANTITIES.md).
 
@@ -355,7 +347,6 @@ gehen konnten. Die Aufzeichnung kennzeichnet dies mit `isHdr: true` und
 [HDR_CAPTURE.md](docs/HDR_CAPTURE.md).
 
 Bei aktivierter Aufzeichnung werden ausschließlich die kalibrierten Lootausschnitte
-und gegebenenfalls das verwendete Item-Chatfenster
 als PNG sowie OCR-Beobachtungen und Entscheidungen als JSONL gespeichert:
 `%LOCALAPPDATA%\BdoGrindTracker\diagnostics\loot-...\observations.jsonl`.
 Die Aufzeichnung läuft ohne Gesamtlimit für Frames oder Dateigröße bis zum Ende

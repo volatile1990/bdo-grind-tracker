@@ -1,7 +1,7 @@
 # Black-Desert-Textsprache: Deutsch und Englisch
 
 Grindcrest unterstützt beide Spielsprachen für das normale Droplog, Rare-Drops,
-die zusätzliche Namens-/Mengenerkennung und den optionalen Item-Chat. Die Einstellung
+die zusätzliche Namens-/Mengenerkennung. Die Einstellung
 **Spielsprache in Black Desert** steht standardmäßig auf **Automatisch aus BDO-Einstellungen**
 und wird wie die übrigen Einstellungen automatisch gespeichert.
 
@@ -55,31 +55,6 @@ und Zubehör nicht einfach ergänzt. Die vorhandene englische Erkennung bleibt a
 Die Lootanzeige und Mengen-Editoren verwenden bei deutscher Spielsprache deutsche
 Namen. Die Lootsuche akzeptiert in beiden Anzeigemodi deutsche und englische Namen.
 
-## Optionaler deutscher Item-Chat
-
-Der deutsche Systemfilter heißt **Beute**, auf Englisch **Private Item**.
-Das sichtbare separate Chatfenster darf weiterhin ausschließlich diesen Filter
-verwenden. Die Auswahl erfolgt über dieselben sprachunabhängigen UI-/Filter-IDs.
-
-Das verifizierte deutsche Nachrichtenformat lautet:
-
-```text
-Ihr habt 6 x [Helm eines Anhängers Elions] erhalten.
-```
-
-Die Menge steht vor dem Item. Gruppierte Tausender mit Punkten werden akzeptiert;
-Dezimalwerte, negative/fehlende/uneindeutige Mengen und andere Chatkanäle nicht.
-Ein verschachteltes `[Event]` im Itemlink ist ebenfalls unterstützt. Die Meldung
-liefert ausschließlich eine fehlende Menge zu einer bereits erkannten normalen
-Dropzeile; sie erzeugt keine zusätzlichen Drops.
-
-Quellenprüfung: installierte englische/deutsche NAEU-Sprachdateien, UI-Tabelle 37,
-Text-ID 4114845628/Feld 1 (Lootmeldung), IDs 2963861916 und 68788512/Feld 1 (Filter).
-Für die einmalige Prüfung wurde das öffentlich dokumentierte
-[LOC-Dateiformat](https://github.com/iDevelopThings/bdo-data-extractor/blob/main/FORMATS.md#8-loc-localization)
-verwendet. Die Produkt-App lädt diese großen Sprachdateien nicht; sie nutzt den
-eingebetteten geprüften Katalog und die kleinen Konfigurationsdateien.
-
 ## Prüfung
 
 - Jede erlaubte deutsche Item/Spot-Kombination: Zuordnung, Minimum-Fallback,
@@ -88,9 +63,7 @@ eingebetteten geprüften Katalog und die kleinen Konfigurationsdateien.
   Schreibweisen und ähnlicher, unvollständiger Rare-Namen.
 - Konfigurationspriorität, widersprüchliche Installationen, Sprachwechsel,
   fehlendes OCR-Modell, persistierte manuelle Auswahl und Startblockade.
-- Deutsche Chatmengen und Wiederverwendungsschutz bei gescrollten Chatzeilen.
-- Tatsächliche Windows-OCR mit `de-DE`: alle 57 synthetisch gerenderten Itemnamen
-  sowie drei deutsche Chatbeispiele korrekt erkannt.
+- Tatsächliche Windows-OCR mit `de-DE`: alle 57 synthetisch gerenderten Itemnamen korrekt erkannt.
 - Isolierte WebView-Vorschau: Sprachwahl, zweisprachige Suche, Mengenänderung,
   automatisches Speichern und Layout bei 1440, 860 und 760 Pixeln geprüft.
 

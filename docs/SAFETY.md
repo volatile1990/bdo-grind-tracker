@@ -24,13 +24,6 @@ Die BDO-Konfigurationsdateien werden ausschließlich lesend geöffnet. Sie liefe
 Auflösung, UI-Skalierung, Schriftprofil, Textsprache und sichtbare UI-Positionen. Die Erkennung selbst
 arbeitet anschließend nur mit Bildpixeln.
 
-Für den optionalen Mengen-Fallback wird zusätzlich der aktive Chat-Eintrag mit Index32
-aus derselben `gamevariable.xml` gelesen. Presets werden ignoriert. Ein separates,
-sichtbares Fenster mit ausschließlich aktiviertem Private-Item-Systemfilter ist
-nötig; normale Chatkanäle sind ausgeschlossen. Einige interne BDO-Chatflags bleiben
-zulässig, weshalb zusätzlich jede gelesene Meldung das vollständige deutsche oder englische
-Private-Item-Format erfüllen muss. Die App liest keine Chatdaten aus dem Spielprozess.
-
 ## Nicht verwendet
 
 Der Produktcode verwendet keine Prozesssuche, kein `ReadProcessMemory`, keine DLL-
@@ -50,7 +43,7 @@ Während des Trackings dürfen die eigenen Fenster das kalibrierte Lootpanel nic
 Aufgenommene Frames werden im Arbeitsspeicher verarbeitet und nach der Analyse
 freigegeben. Ohne ausdrückliche Aktivierung der lokalen Diagnose werden keine
 Screenshots exportiert. Bei aktiviertem Opt-in werden ausschließlich kalibrierte
-Lootausschnitte und gegebenenfalls der verwendete Item-Chat (niemals ein Vollbild-Fallback)
+Lootausschnitte (niemals ein Vollbild-Fallback)
 sowie Rohtext und Zählentscheidungen
 lokal gespeichert. Für die Aufnahme gibt es kein Gesamtlimit für Frames oder
 Dateigröße; sie läuft bis zum Sessionende oder einem Aufnahmefehler. Die Prüfung

@@ -79,7 +79,9 @@ try {
         '-p:PublishSingleFile=false', '-p:PublishTrimmed=false') + $versionProperties)
 
     foreach ($required in @('Grindcrest.exe', 'BdoGrindTracker.dll', 'Velopack.dll', 'System.Private.CoreLib.dll',
-            'wwwroot/index.html', 'data/items.en.txt', 'data/branding/grindcrest.ico', 'THIRD_PARTY_NOTICES.md')) {
+            'wwwroot/index.html', 'data/items.en.txt', 'data/branding/grindcrest.ico', 'THIRD_PARTY_NOTICES.md',
+            'Microsoft.ML.OnnxRuntime.dll', 'onnxruntime.dll', 'onnxruntime_providers_shared.dll',
+            'data/ocr/paddle-v6-small/inference.onnx', 'data/ocr/paddle-v6-small/characters.json')) {
         if (-not (Test-Path -LiteralPath (Join-Path $publishDirectory $required) -PathType Leaf)) {
             throw "Required application content is missing: $required"
         }

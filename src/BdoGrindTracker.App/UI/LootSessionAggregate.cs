@@ -8,7 +8,8 @@ namespace BdoGrindTracker.App.UI;
 /// </summary>
 internal sealed class LootSessionAggregate
 {
-    private readonly HashSet<Guid> _appliedEvents = [];
+    private sealed record AppliedDrop(string ItemName, int Revision, int Quantity);
+    private readonly Dictionary<Guid, AppliedDrop> _appliedEvents = [];
     private readonly HashSet<string> _manuallyEditedItems = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, long> _totals =
         new(StringComparer.OrdinalIgnoreCase);
@@ -34,17 +35,26 @@ internal sealed class LootSessionAggregate
             throw new ArgumentException("A loot delta needs an output ID.", nameof(lootEvent));
         }
 
-        if (_appliedEvents.Contains(lootEvent.EventId))
+        if (lootEvent.Revision < 0 || lootEvent.TotalDropQuantity is <= 0 ||
+            lootEvent.Revision > 0 && lootEvent.TotalDropQuantity is null)
+            throw new ArgumentException("Invalid loot quantity revision.", nameof(lootEvent));
+        _appliedEvents.TryGetValue(lootEvent.EventId, out var applied);
+        if (applied is not null && applied.ItemName != lootEvent.ItemName)
+            throw new ArgumentException("A drop ID cannot change its item.", nameof(lootEvent));
+        if (applied is not null && applied.Revision >= lootEvent.Revision)
         {
             return;
         }
 
         _totals.TryGetValue(lootEvent.ItemName, out var currentQuantity);
-        var updatedQuantity = checked(currentQuantity + lootEvent.Quantity);
+        var delta = lootEvent.TotalDropQuantity is { } total
+            ? checked(total - (applied?.Quantity ?? 0)) : lootEvent.Quantity;
+        var updatedQuantity = checked(currentQuantity + delta);
         if (_manuallyEditedItems.Contains(lootEvent.ItemName)) updatedQuantity = Math.Max(0, updatedQuantity);
         var totalQuantity = checked(TotalQuantity + (updatedQuantity - currentQuantity));
-        var eventCount = checked(ConfirmedEventCount + (lootEvent.Quantity > 0 ? 1 : 0));
-        _appliedEvents.Add(lootEvent.EventId);
+        var eventCount = checked(ConfirmedEventCount + (applied is null && delta > 0 ? 1 : 0));
+        _appliedEvents[lootEvent.EventId] = new(lootEvent.ItemName, lootEvent.Revision,
+            lootEvent.TotalDropQuantity ?? lootEvent.Quantity);
         if (updatedQuantity == 0 && !_manuallyEditedItems.Contains(lootEvent.ItemName))
         {
             _totals.Remove(lootEvent.ItemName);

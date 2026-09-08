@@ -9,7 +9,9 @@ namespace BdoGrindTracker.App.Diagnostics;
 internal static class LootDiagnosticFormat
 {
     public const int Version = 2;
-    public const string EngineVersion = "companion-0.7.4-drop-quantity-v5";
+    public const string EngineVersion = "companion-0.7.4-row-tracks-v7";
+    public const string ClampedQuantityEngineVersion = "companion-0.7.4-drop-quantity-v6";
+    public const string MaximumQuantityEngineVersion = "companion-0.7.4-drop-quantity-v5";
     public const string MinimumQuantityEngineVersion = "companion-0.7.4-minimum-quantity-v4";
     public const string RecoveryEngineVersion = "companion-0.7.4-recovery-fix-v3";
     public const string PreviousEngineVersion = "companion-0.7.4-restore-v1";
@@ -19,6 +21,7 @@ internal static class LootDiagnosticFormat
     public const int MaximumTextLength = 2048;
     public const int MaximumJsonLineBytes = 512 * 1024;
     public const string MinimumQuantityEstimateReason = "companion-minimum-quantity-estimate";
+    public const string MinimumQuantityClampReason = "companion-minimum-quantity-clamp";
     public const string MaximumQuantityClampReason = "companion-maximum-quantity-clamp";
     public const string FixedUnitQuantityReason = "companion-fixed-unit-quantity";
 
@@ -55,6 +58,11 @@ internal sealed record LootDiagnosticHeader(
     string? SpotId,
     string ReplayScope)
 {
+    // Historical recordings did not identify the application build. Keep that
+    // unknown instead of substituting the version used to replay them.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? AppVersion { get; init; }
+
     private IReadOnlyDictionary<string, uint> _minimumTrashQuantities =
         LootDiagnosticFormat.SnapshotMinimumTrashQuantities(new Dictionary<string, uint>());
 
@@ -90,11 +98,16 @@ internal sealed record LootDiagnosticEntry(
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public bool? IsToneMapped { get; init; }
 
+    // This is supplied by the analyzer that processed the frame, independently
+    // of the counter engine version and the display's physical HDR state.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? RecognitionVariant { get; init; }
+
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public NormalLootRecoveryDiagnostics? Recovery { get; init; }
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public ChatQuantityRecoveryDiagnostics? ChatRecovery { get; init; }
+    public IReadOnlyList<LootRowReviewDiagnostics>? RowReviews { get; init; }
 }
 
 internal sealed record LootDiagnosticCrop(string Source, string FileName, int Width, int Height);

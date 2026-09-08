@@ -5,6 +5,47 @@ namespace BdoGrindTracker.Ocr.Tests;
 public sealed class CompanionNormalRowProcessorTests
 {
     [Theory]
+    [InlineData(129, 10)]
+    [InlineData(259, 10)]
+    [InlineData(260, 0)]
+    [InlineData(350, 0)]
+    public void NameOriginMetadataMatchesTheActualCropAtTheNarrowNameBoundary(int width, int expectedTop)
+    {
+        using var source = new Mat(100, width, MatType.CV_8UC3, Scalar.All(100));
+        var glyphs = new Rect(35, 25, Math.Min(80, width - 40), 40);
+        Cv2.Rectangle(source, glyphs, Scalar.All(232), -1);
+        using var expectedSource = new Mat(100, width, MatType.CV_8UC1, Scalar.Black);
+        Cv2.Rectangle(expectedSource, glyphs, Scalar.All(232), -1);
+        var processor = new CompanionNormalRowProcessor(null);
+
+        using var result = processor.Process(source, 250, 1f, fontType: 2);
+
+        Assert.False(result.IsBlank);
+        Assert.Equal((float)expectedTop, result.NormalizedNameTop);
+        using var expectedCrop = new Mat(expectedSource,
+            new Rect(10, expectedTop, result.RecognizedTextWidth, 100 - 2 * expectedTop));
+        using var expectedScaled = new Mat();
+        using var expected = new Mat();
+        Cv2.Resize(expectedCrop, expectedScaled, new OpenCvSharp.Size(), result.NameScale, result.NameScale,
+            InterpolationFlags.Cubic);
+        Cv2.CopyMakeBorder(expectedScaled, expected, 0, 0, 0, 5, BorderTypes.Constant, Scalar.Black);
+        Assert.Equal(0d, Cv2.Norm(expected, result.NameImage!, NormTypes.INF));
+    }
+
+    [Fact]
+    public void ToneMappedNarrowNameStillHasAFullHeightOrigin()
+    {
+        using var source = new Mat(100, 200, MatType.CV_8UC3, Scalar.All(100));
+        Cv2.Rectangle(source, new Rect(35, 25, 80, 40), Scalar.All(232), -1);
+        using var result = ToneMappedNormalRowProcessor.Process(source, 250);
+
+        Assert.False(result.IsBlank);
+        Assert.True(result.RecognizedTextWidth < 250);
+        Assert.Equal(0f, result.NormalizedNameTop);
+        Assert.Equal(100f, result.NameImage!.Height / result.NameScale);
+    }
+
+    [Theory]
     [InlineData(59.999f, 160)]
     [InlineData(60f, 170)]
     [InlineData(80f, 171)]

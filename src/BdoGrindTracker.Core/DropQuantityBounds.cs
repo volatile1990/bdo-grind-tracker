@@ -1,8 +1,8 @@
 namespace BdoGrindTracker.Core;
 
 /// <summary>
-/// Quantity policy for one item at one grind spot. The minimum is used only
-/// when OCR quantity repair fails; the maximum limits each individual drop.
+/// Quantity policy for one item at one grind spot. Positive reads are clamped
+/// to this range; the minimum also supplies unresolved quantity estimates.
 /// A null maximum means no verified upper bound is available.
 /// </summary>
 public sealed record DropQuantityBounds

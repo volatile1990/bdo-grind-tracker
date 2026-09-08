@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Text.RegularExpressions;
 using BdoGrindTracker.App.Components;
 using BdoGrindTracker.App.Persistence;
@@ -72,39 +72,6 @@ public sealed class BlazorFrontendTests
         Assert.Contains("Die Position des Haupt-Droplogs", markup);
         Assert.DoesNotContain("Unrelated saved-settings status", markup);
         Assert.True(IsDisabled(ButtonAttributes(markup, "Tracking starten")));
-    }
-
-    [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task MissingOptionalChatShowsHelpBesideDropsAndDoesNotDisableTracking(bool running)
-    {
-        var session = new SnapshotSession { State = ActiveState() with
-        {
-            IsRunning = running, PrivateItemChatAvailable = false,
-        } };
-        var markup = WebUtility.HtmlDecode(await RenderAsync<LiveDashboard>(session));
-        Assert.Contains("item-chat-help", markup);
-        Assert.Contains("Erkennung ergänzen", markup);
-        Assert.Contains("<details>", markup);
-        Assert.Contains("Private Item", markup);
-        Assert.Contains("Beute", markup);
-        Assert.DoesNotContain("role=\"alert\"", markup);
-        Assert.False(IsDisabled(ButtonAttributes(markup, running ? "Pausieren" : "Fortsetzen")));
-        Assert.True(markup.IndexOf("session-aside", StringComparison.Ordinal) < markup.IndexOf("item-chat-help", StringComparison.Ordinal));
-    }
-
-    [Theory]
-    [InlineData(null, false)]
-    [InlineData(true, false)]
-    [InlineData(false, true)]
-    public async Task ChatHelpIsHiddenWhenNotApplicable(bool? chatAvailable, bool demo)
-    {
-        var session = new SnapshotSession { State = ActiveState() with
-        {
-            IsDemo = demo, PrivateItemChatAvailable = chatAvailable,
-        } };
-        Assert.DoesNotContain("item-chat-help", await RenderAsync<LiveDashboard>(session));
     }
 
     [Theory]

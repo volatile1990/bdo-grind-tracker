@@ -54,14 +54,6 @@
     <div class="live-content-grid">
         <LootTable Title="Drops" Subtitle="" Totals="State.Loot.Totals" DurationTicks="State.Elapsed.Ticks" TrashName="CurrentProfile?.TrashItemName" EditableSessionId="State.SessionId" />
         <div class="session-aside">
-            @if (!State.IsDemo && State.AnalyzerAvailable && State.TrackingBlockedReason is null && State.PrivateItemChatAvailable == false)
-            {
-                <aside class="item-chat-help" aria-label="Optionale Hilfe zur Erkennung">
-                    <div class="item-chat-help-title"><AppIcon Name="info" /><strong>Erkennung ergänzen</strong><span>Optional</span></div>
-                    <p>Kein nutzbarer Chat mit „Beute“ (englisch: „Private Item“) erkannt. Ein separates Item-Chatfenster kann helfen, fehlende Dropmengen zu lesen.</p>
-                    <details><summary>So richtest du es ein</summary><p>Öffne in BDO ein separates, sichtbares Chatfenster und aktiviere dort ausschließlich die Systemmeldungen „Beute“ (englisch: „Private Item“). Speichere die UI-Einstellungen im Spiel. Während des Trackings wird das Fenster automatisch erneut geprüft.</p></details>
-                </aside>
-            }
             <section class="panel session-summary"><div class="panel-heading"><h2>Session-Details</h2><AppIcon Name="live" /></div><dl class="detail-list"><div><dt>Bestätigte Drops</dt><dd>@Number(State.Loot.ConfirmedEventCount)</dd></div><div><dt>Verschiedene Items</dt><dd>@State.Loot.ItemTypeCount</dd></div><div><dt>Bruttowert</dt><dd>@(CanShowSilver ? Silver(State.Silver.BeforeTax) : "—")@(!State.Silver.IsComplete ? " *" : "")</dd></div><div><dt>Markterlös</dt><dd>@Tracker.Preferences.Tax.MarketReturnRate.ToString("P2", German)</dd></div><div><dt>Automatische Pause</dt><dd>@Tracker.Preferences.AutoPauseMinutes Min.</dd></div></dl><div class="subtle-box"><AppIcon Name="shield" /><span>Die automatische Pause greift, wenn kein neuer Loot erkannt wird.</span></div></section>
             <div class="price-status"><span class="status-dot @(State.Silver.IsStale ? "" : "running")"></span><span>@State.PriceStatus</span><button class="icon-button" title="Marktpreise aktualisieren" aria-label="Marktpreise aktualisieren" @onclick="() => Act(Tracker.RefreshPricesAsync)" disabled="@(State.IsBusy || Acting)"><AppIcon Name="refresh" /></button></div>
             @if (!State.Silver.IsComplete || State.Silver.IsStale)

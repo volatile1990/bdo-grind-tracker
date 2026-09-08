@@ -17,7 +17,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
     private readonly ICompanionRareRowPipeline? _rareRowPipeline;
     private readonly ICompanionNameRecognizer _nameRecognizer;
     private readonly INormalLootRecovery? _normalRecovery;
-    private readonly IPrivateItemChatFallback? _chatFallback;
+    private readonly ILootRowReview? _rowReview;
     private readonly LootPanelCaptureGuard? _captureGuard;
     private readonly Action<string>? _configureGameLanguage;
     private readonly Func<string?, string, DropQuantityBounds?> _quantityBoundsResolver;
@@ -43,21 +43,19 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
         ICompanionRareRowPipeline? rareRowPipeline = null,
         ICompanionRareReconciliation? rareReconciliation = null,
         INormalLootRecovery? normalRecovery = null,
-        IPrivateItemChatFallback? chatFallback = null,
         Func<string?, string, DropQuantityBounds?>? quantityBoundsResolver = null,
         LootPanelCaptureGuard? captureGuard = null,
-        bool? privateItemChatAvailable = null,
-        Action<string>? configureGameLanguage = null)
+        Action<string>? configureGameLanguage = null,
+        ILootRowReview? rowReview = null)
     {
         _calibration = calibration ?? throw new ArgumentNullException(nameof(calibration));
         _itemMatcher = itemMatcher ?? throw new ArgumentNullException(nameof(itemMatcher));
         _rowPipeline = rowPipeline ?? throw new ArgumentNullException(nameof(rowPipeline));
         _nameRecognizer = nameRecognizer ?? throw new ArgumentNullException(nameof(nameRecognizer));
         _normalRecovery = normalRecovery;
-        _chatFallback = chatFallback;
+        _rowReview = rowReview;
         _captureGuard = captureGuard;
         _configureGameLanguage = configureGameLanguage;
-        PrivateItemChatAvailable = privateItemChatAvailable;
         _quantityBoundsResolver = quantityBoundsResolver ?? DropQuantityCatalog.GetBounds;
         _normalRecovery?.ConfigureQuantityBounds(name => _quantityBoundsResolver(_spotLock.Spot?.Id, name));
         _reconciliation = reconciliation ?? new CompanionReconciliationAdapter();
@@ -79,7 +77,6 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
     }
 
     public bool IsAvailable => !_disposed && _captureGuard?.Error is null;
-    public bool? PrivateItemChatAvailable { get; }
     public bool RequiresLootPanel => true;
     public string Status => _disposed ? "BDO-Companion-Erkennung wurde beendet."
         : _captureGuard?.Error ?? (_spotLock.Spot is { } spot ? $"Bereit: Companion · {spot.DisplayName} (Lootfilter)."
@@ -92,6 +89,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         _configureGameLanguage?.Invoke(language);
+        _rowReview?.ConfigureLanguage(_nameRecognizer.LanguageTag ?? language);
     }
 
     public void ConfigureLootFilter(bool includeEventLoot)
@@ -104,7 +102,11 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
         CancellationToken cancellationToken) => AnalyzeAsync(frame, capturedAt, false, cancellationToken);
 
     public Task<FrameAnalysisResult> AnalyzeAsync(Bitmap frame, DateTimeOffset capturedAt,
-        bool isHdr, CancellationToken cancellationToken)
+        bool isHdr, CancellationToken cancellationToken) =>
+        AnalyzeAsync(frame, capturedAt, isHdr, false, cancellationToken);
+
+    public async Task<FrameAnalysisResult> AnalyzeAsync(Bitmap frame, DateTimeOffset capturedAt,
+        bool isHdr, bool isToneMapped, CancellationToken cancellationToken)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(frame);
@@ -124,7 +126,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
                     bounds.Top - _panelBounds.Top, bounds.Width, bounds.Height);
                 using var band = new Mat(panel, ToOpenCvRect(relative));
                 preparedRows.Add(_rowPipeline.Process(band, relative.Y,
-                    _calibration.UiScale, (int)_calibration.FontType, isHdr));
+                    _calibration.UiScale, (int)_calibration.FontType, isHdr, isToneMapped));
             }
             if (_rareBandBounds is { } rareBounds && _rareRowPipeline is not null)
             {
@@ -137,10 +139,15 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
             // Preserve Companion's trimming and OCR order, including the one row
             // immediately above the first quantity. Do not add persistence gates.
             preparedRows.Sort((left, right) => left.Y.CompareTo(right.Y));
-            var first = CalculateRetainedStartIndex(preparedRows.Select(row => row.TemplateQuantity).ToArray());
+            // Tone-mapped rows read the full suffix with Windows OCR instead of
+            // digit templates. Missing templates therefore say nothing about
+            // whether a leading row is occupied; its image blank gate decides.
+            var first = isToneMapped ? 0 :
+                CalculateRetainedStartIndex(preparedRows.Select(row => row.TemplateQuantity).ToArray());
             var normal = new List<LootObservation>();
             var rare = new List<LootObservation>();
             var rawLines = new List<string>();
+            var primaryQuantityReads = _rowReview is null ? null : new Dictionary<int, List<PrimaryLootQuantityRead>>();
             var ocrCalls = 0;
             for (var index = first; index < preparedRows.Count; index++)
                 Observe(preparedRows[index], LootSource.Normal, preparedRows.Count - 1 - index, normal);
@@ -182,7 +189,8 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
                     using var originalBand = new Mat(panel, new Rect(bounds.Left - _panelBounds.Left,
                         candidate.Row.Y, bounds.Width, bounds.Height));
                     var recovered = _normalRecovery.Recover(originalBand, candidate.Row, candidate.Baseline,
-                        preparedRows.Count - 1 - candidate.Index, _calibration.UiScale, budget, cancellationToken);
+                        preparedRows.Count - 1 - candidate.Index, _calibration.UiScale, budget, cancellationToken,
+                        (reading, scale) => RememberPrimaryRead(candidate.Row.Y, reading, scale));
                     if (recovered is null || !IsAccepted(recovered)) continue;
                     recovered = ApplyQuantityPolicy(recovered);
                     if (candidate.Baseline is { } baseline && IsAccepted(baseline))
@@ -209,10 +217,62 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
                     quantitiesRecovered, rowsRecovered, budget.Errors);
             }
 
+            var reviewDiagnostics = new List<LootRowReviewDiagnostics>();
+            if (_rowReview is not null)
+            {
+                // Workers read only immutable per-frame policy and their own screenshot crop.
+                // They never see the ledger, reconciliation state or another frame.
+                var spotId = _spotLock.Spot?.Id;
+                // The real lock can have been selected on an earlier frame.
+                var allowed = _itemMatcher.CatalogEntries.Select(item => item.Name)
+                    .Where(name => _spotLock.Allows(name, _includeEventLoot)).ToHashSet(StringComparer.Ordinal);
+                var byY = normal.ToDictionary(row => row.NativeY!.Value);
+                var jobs = new List<Task<LootRowReviewResult>>();
+                foreach (var (row, index) in preparedRows.Select((row, index) => (row, index)))
+                {
+                    var baseline = byY.GetValueOrDefault(row.Y);
+                    if (baseline is null && row.IsBlank) continue;
+                    var bounds = _slotBounds.Single(bounds => bounds.Top - _panelBounds.Top == row.Y);
+                    jobs.Add(ReviewBand(new Rect(bounds.Left, bounds.Top, bounds.Width, bounds.Height),
+                        row, baseline, LootSource.Normal, preparedRows.Count - 1 - index));
+                }
+                if (rareRow is not null && (!rareRow.IsBlank || rare.Count > 0) && _rareBandBounds is { } reviewRareBounds)
+                    jobs.Add(ReviewBand(ToOpenCvRect(reviewRareBounds), rareRow, rare.SingleOrDefault(), LootSource.Rare, 0));
+
+                // Exactly one finalized observation per source/Y reaches the existing counter.
+                // Awaiting all jobs also keeps frame pixels alive and prevents late-session writes.
+                var reviewed = await Task.WhenAll(jobs).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+                foreach (var result in reviewed)
+                {
+                    if (result.Diagnostics is { } diagnostic) reviewDiagnostics.Add(diagnostic);
+                    if (result.Observation is not { } observation) continue;
+                    var target = observation.Source == LootSource.Normal ? normal : rare;
+                    target.RemoveAll(row => row.NativeY == observation.NativeY);
+                    target.Add(observation);
+                }
+                ocrCalls += reviewDiagnostics.Sum(diagnostic => diagnostic.Readings.Count);
+
+                async Task<LootRowReviewResult> ReviewBand(Rect bounds, ICompanionPreparedRow row,
+                    LootObservation? baseline, LootSource source, int slot)
+                {
+                    using var originalBand = new Mat(decodedFrame, bounds);
+                    var result = await _rowReview.ReviewAsync(originalBand,
+                        new(baseline, source, slot, row.Y, row.TemplateQuantity, row.QuantityScore,
+                            name => _quantityBoundsResolver(spotId, name), allowed.Contains)
+                        {
+                            UiScale = _calibration.UiScale,
+                            PrimaryQuantityReads = source == LootSource.Normal &&
+                                primaryQuantityReads?.TryGetValue(row.Y, out var reads) == true
+                                    ? Array.AsReadOnly(reads.ToArray()) : [],
+                        }, cancellationToken)
+                        .ConfigureAwait(false);
+                    return result with { Observation = result.Observation is { } revised
+                        ? revised with { Source = source, Slot = slot, NativeY = row.Y } : null };
+                }
+            }
+
             normal.Sort((left, right) => right.NativeY!.Value.CompareTo(left.NativeY!.Value));
-            var chatRecovery = _chatFallback?.Apply(decodedFrame, normal, capturedAt, cancellationToken);
-            if (chatRecovery is not null)
-                normal = chatRecovery.Observations.ToList();
             // The only added recognition restriction: identify from the newest native
             // trash match, then filter canonical items without rematching them into the pool.
             _spotLock.Observe(normal.Where(IsAccepted).Select(row => row.ItemName!));
@@ -225,7 +285,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
             var entries = observations.Where(row => row.Source == LootSource.Normal && IsAccepted(row))
                 .Select(row => new CompanionRecognizedEntry(row.ItemName!,
                     unchecked((uint)(row.Quantity ?? -1)), row.NativeY!.Value)
-                    { QuantityBounds = row.QuantityBounds }).ToArray();
+                    { QuantityBounds = row.QuantityBounds, Slot = _reconciliation.TracksRows ? row.Slot : null }).ToArray();
             var rareEntries = observations.Where(row => row.Source == LootSource.Rare && IsAccepted(row))
                 .Select(row => new CompanionRareRecognizedEntry(row.ItemName!,
                     row.UsesImplicitUnitQuantity && row.QuantityBounds is not null ? -1 : row.Quantity ?? -1,
@@ -233,16 +293,16 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
 
             // Ordering and shared ledger are important for signed rare-loot corrections.
             var reconciled = _reconciliation.ProcessFrame(entries);
-            foreach (var entry in reconciled) _ledger.Add(entry.Name, entry.Count);
+            foreach (var entry in reconciled) _ledger.ApplyDelta(entry.Name, entry.QuantityDelta ?? (long)entry.Count);
             var rareChanges = _rareReconciliation?.ProcessFrame(rareEntries) ?? [];
-            return Task.FromResult(CreateResult(reconciled, rareChanges, capturedAt, frame.Size,
+            return CreateResult(reconciled, rareChanges, capturedAt, frame.Size,
                 rawLines, observations, preparedRows.Count + (rareRow is null ? 0 : 1),
-                preparedRows.Count(row => !row.IsBlank) + (rareRow is { IsBlank: false } ? 1 : 0), ocrCalls) with
+                preparedRows.Count(row => !row.IsBlank) + (rareRow is { IsBlank: false } ? 1 : 0), ocrCalls,
+                isToneMapped) with
             {
                 Recovery = recoveryDiagnostics,
-                ChatPanelRegion = chatRecovery?.Region,
-                ChatRecovery = chatRecovery?.Diagnostics,
-            });
+                RowReviews = reviewDiagnostics,
+            };
 
             void Observe(ICompanionPreparedRow row, LootSource source, int slot, List<LootObservation> target)
             {
@@ -250,6 +310,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
                 if (row.IsBlank || row.NameImage is null) return;
                 ocrCalls++;
                 var ocr = _nameRecognizer.Recognize(row.NameImage, cancellationToken);
+                if (source == LootSource.Normal) RememberPrimaryRead(row.Y, ocr, row.NameScale, row.NormalizedNameTop);
                 if (ocr.Text.Length > 0) rawLines.Add(ocr.Text);
                 var isRare = source == LootSource.Rare;
                 string? rejection = null;
@@ -286,6 +347,18 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
                     UsesFixedUnitQuantity = text is { UsesFixedUnitQuantity: true },
                 });
             }
+
+            void RememberPrimaryRead(int y, CompanionOcrResult reading, float scale, float normalizedNameTop = 0)
+            {
+                if (primaryQuantityReads is null || reading.Words.Count == 0 || !float.IsFinite(scale) || scale <= 0 ||
+                    !float.IsFinite(normalizedNameTop) || normalizedNameTop < 0 || normalizedNameTop >= 100)
+                    return;
+                if (!primaryQuantityReads.TryGetValue(y, out var reads))
+                    primaryQuantityReads.Add(y, reads = []);
+                // One initial name read and the existing two recovery variants;
+                // no image or cross-frame history is retained with these hints.
+                if (reads.Count < 3) reads.Add(new PrimaryLootQuantityRead(reading, scale, normalizedNameTop));
+            }
         }
         finally
         {
@@ -297,11 +370,8 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
     public FrameAnalysisResult CompleteSession(DateTimeOffset completedAt)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        // Pausing preserves the normal counter, but chat accumulated while paused
-        // must be a fresh history baseline when the same analyzer resumes.
-        _chatFallback?.Reset();
         var reconciled = _reconciliation.Complete();
-        foreach (var entry in reconciled) _ledger.Add(entry.Name, entry.Count);
+        foreach (var entry in reconciled) _ledger.ApplyDelta(entry.Name, entry.QuantityDelta ?? (long)entry.Count);
         var rareChanges = _rareReconciliation?.Complete() ?? [];
         return CreateResult(reconciled, rareChanges, completedAt,
             new System.Drawing.Size(_calibration.ScreenWidth, _calibration.ScreenHeight),
@@ -316,7 +386,6 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
         _ledger.Reset();
         _spotLock.Reset();
         _recoveryCursor = 0;
-        _chatFallback?.Reset();
     }
 
     public void Dispose()
@@ -324,6 +393,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
         if (_disposed) return;
         _rowPipeline.Dispose();
         _rareRowPipeline?.Dispose();
+        _rowReview?.Dispose();
         _disposed = true;
     }
 
@@ -352,16 +422,21 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
     private FrameAnalysisResult CreateResult(IReadOnlyList<CompanionRecognizedEntry> reconciled,
         IReadOnlyList<CompanionRareCountDelta> rareChanges, DateTimeOffset timestamp,
         System.Drawing.Size frameSize, IReadOnlyList<string> rawLines,
-        IReadOnlyList<LootObservation> observations, int prepared, int nonBlank, int ocrCalls)
+        IReadOnlyList<LootObservation> observations, int prepared, int nonBlank, int ocrCalls,
+        bool isToneMapped = false)
     {
-        var events = reconciled.Select(entry => new LootEventView(Guid.NewGuid(), timestamp,
-                entry.Name, checked((int)entry.Count)))
+        var events = reconciled.Select(entry => new LootEventView(entry.EventId ?? Guid.NewGuid(), timestamp,
+                entry.Name, entry.QuantityDelta ?? checked((int)entry.Count))
+                { Revision = entry.Revision, TotalDropQuantity = entry.TotalDropQuantity })
             .Concat(rareChanges.Select(change => new LootEventView(Guid.NewGuid(), timestamp,
                 change.Name, change.Count))).ToArray();
         var accepted = observations.Where(IsAccepted).ToArray();
         var decisions = observations.Select(row => new LootTrackingDecision(row, null,
             IsAccepted(row) ? LootTrackingDecisionStatus.Pending : LootTrackingDecisionStatus.Rejected,
             row.RejectionReason ?? (row.UsesFixedUnitQuantity ? LootDiagnosticFormat.FixedUnitQuantityReason
+                : !row.UsesImplicitUnitQuantity && row.Quantity is > 0 &&
+                    row.QuantityBounds is { } bounds && row.Quantity < bounds.Minimum
+                ? LootDiagnosticFormat.MinimumQuantityClampReason
                 : row.QuantityBounds?.Maximum is { } maximum && row.Quantity > maximum
                 ? LootDiagnosticFormat.MaximumQuantityClampReason : "companion-input"))).ToList();
         for (var index = 0; index < events.Length; index++)
@@ -370,13 +445,16 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
             decisions.Add(new(new LootObservation(index < reconciled.Count ? LootSource.Normal : LootSource.Rare,
                 0, "", change.ItemName, change.Quantity, 0, 0, null, null),
                 change.EventId, LootTrackingDecisionStatus.Counted,
+                change.Revision > 0 ? "drop-quantity-correction" :
                 index < reconciled.Count && reconciled[index].IsMinimumQuantityEstimate
-                    ? LootDiagnosticFormat.MinimumQuantityEstimateReason : "companion-delta"));
+                    ? LootDiagnosticFormat.MinimumQuantityEstimateReason : "companion-delta") { TrackId = change.EventId });
         }
         return new FrameAnalysisResult(events, rawLines,
             accepted.Length == 0 ? 0 : accepted.Average(row => row.NameConfidence),
             (_normalRecovery is null ? ExactVariantName : RecoveryVariantName) +
-                (_chatFallback is null ? string.Empty : "+private-chat-v1"),
+                (isToneMapped ? "+tone-mapped-normal-v1" : string.Empty) +
+                (_rowReview is null ? string.Empty : "+paddle-review-v1") +
+                (_reconciliation.TracksRows ? "+row-tracks-v1" : string.Empty),
             prepared, nonBlank, ocrCalls, accepted.Length, _panelBounds)
         {
             FrameSize = frameSize,
@@ -387,7 +465,8 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
             TextRecognitionLanguage = _nameRecognizer.LanguageTag,
             Observations = observations,
             TrackingResult = new(events.Select(change => new TrackedLootEvent(change.EventId,
-                change.DetectedAt, change.ItemName, change.Quantity)).ToArray(), decisions),
+                change.DetectedAt, change.ItemName, change.Quantity)
+                { Revision = change.Revision, TotalDropQuantity = change.TotalDropQuantity }).ToArray(), decisions),
             SpotId = _spotLock.Spot?.Id,
         };
     }
@@ -410,15 +489,17 @@ internal interface ILootFilterConfigurableAnalyzer
 
 internal interface ICompanionReconciliation
 {
+    bool TracksRows => false;
     IReadOnlyList<CompanionRecognizedEntry> ProcessFrame(IReadOnlyList<CompanionRecognizedEntry> entries);
     IReadOnlyList<CompanionRecognizedEntry> Complete();
     void Reset();
 }
 
 internal sealed class CompanionReconciliationAdapter(
-    IReadOnlyDictionary<string, uint>? minimumQuantities = null) : ICompanionReconciliation
+    IReadOnlyDictionary<string, uint>? minimumQuantities = null, bool trackRows = false) : ICompanionReconciliation
 {
-    private readonly CompanionFrameReconciler _reconciler = new(minimumQuantities);
+    public bool TracksRows => trackRows;
+    private readonly CompanionFrameReconciler _reconciler = new(minimumQuantities, trackRows);
     public IReadOnlyList<CompanionRecognizedEntry> ProcessFrame(IReadOnlyList<CompanionRecognizedEntry> entries) => _reconciler.ProcessFrame(entries);
     public IReadOnlyList<CompanionRecognizedEntry> Complete() => _reconciler.Complete();
     public void Reset() => _reconciler.Reset();
@@ -470,6 +551,9 @@ internal interface ICompanionPreparedRow : IDisposable
 
     float NameScale { get; }
 
+    // Existing adapters/fakes and full-height recovery images retain Y=0.
+    float NormalizedNameTop => 0;
+
     Mat? NameImage { get; }
 }
 
@@ -481,6 +565,9 @@ internal interface ICompanionNormalRowPipeline : IDisposable
         float uiScale,
         int fontType,
         bool isHdr);
+
+    ICompanionPreparedRow Process(Mat band, int y, float uiScale, int fontType,
+        bool isHdr, bool isToneMapped) => Process(band, y, uiScale, fontType, isHdr);
 }
 
 internal sealed class CompanionNormalRowPipeline : ICompanionNormalRowPipeline
@@ -506,6 +593,15 @@ internal sealed class CompanionNormalRowPipeline : ICompanionNormalRowPipeline
         ObjectDisposedException.ThrowIf(_disposed, this);
         return new CompanionPreparedRow(
             _processor.Process(band, y, uiScale, fontType, isHdr));
+    }
+
+    public ICompanionPreparedRow Process(Mat band, int y, float uiScale, int fontType,
+        bool isHdr, bool isToneMapped)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        return isToneMapped
+            ? new CompanionPreparedRow(ToneMappedNormalRowProcessor.Process(band, y))
+            : Process(band, y, uiScale, fontType, isHdr);
     }
 
     public void Dispose()
@@ -535,6 +631,8 @@ internal sealed class CompanionNormalRowPipeline : ICompanionNormalRowPipeline
         public float QuantityScore => result.QuantityScore;
 
         public float NameScale => result.NameScale;
+
+        public float NormalizedNameTop => result.NormalizedNameTop;
 
         public Mat? NameImage => result.NameImage;
 
