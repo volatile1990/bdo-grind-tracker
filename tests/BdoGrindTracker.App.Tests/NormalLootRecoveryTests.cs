@@ -8,6 +8,42 @@ namespace BdoGrindTracker.App.Tests;
 public sealed class NormalLootRecoveryTests(Xunit.Abstractions.ITestOutputHelper output)
 {
     [Fact]
+    public void ZeroBaselineIsMissingAndCanBeRecoveredFromPositiveDigits()
+    {
+        using var source = SyntheticBand();
+        using var original = new Row(0);
+        var baseline = Observation(0);
+        var images = new Images();
+        var names = new Recognizer((_, _) => Ocr("6"));
+        var recovery = new NormalLootRecovery(Matcher(), names, images.Prepare);
+
+        var result = recovery.Recover(source, original, baseline, 0, 1f, Budget(), default);
+
+        Assert.Equal(baseline with { Quantity = 6 }, result);
+        Assert.Equal(1, names.Calls);
+        images.AssertDisposed();
+    }
+
+    [Fact]
+    public void RecoveringANameDoesNotReintroduceAZeroTemplateQuantity()
+    {
+        using var source = SyntheticBand();
+        using var original = new Row(0);
+        var images = new Images();
+        var names = new Recognizer((image, _) => Ocr(image.Width < 150
+            ? "0" : "Black Crystal Fragment x0"));
+        var recovery = new NormalLootRecovery(Matcher(), names, images.Prepare);
+
+        var result = recovery.Recover(source, original, null, 0, 1f, Budget(), default);
+
+        Assert.NotNull(result);
+        Assert.Equal("Black Crystal Fragment", result.ItemName);
+        Assert.Null(result.Quantity);
+        Assert.Null(result.RejectionReason);
+        images.AssertDisposed();
+    }
+
+    [Fact]
     public void CompleteBaselineIsReturnedWithoutPreparationOrOcr()
     {
         using var source = SyntheticBand();

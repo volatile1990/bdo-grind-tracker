@@ -17,6 +17,8 @@ public sealed class CompanionFrameReconciler
 
         public uint Count { get; set; } = count;
 
+        public bool EstimatedCount { get; set; }
+
         public int Y { get; } = y;
 
         public long Frame { get; set; } = frame;
@@ -25,7 +27,7 @@ public sealed class CompanionFrameReconciler
 
         public Entry Copy()
         {
-            return new Entry(Name, Count, Y, Frame, Duplicate);
+            return new Entry(Name, Count, Y, Frame, Duplicate) { EstimatedCount = this.EstimatedCount };
         }
     }
 
@@ -41,7 +43,31 @@ public sealed class CompanionFrameReconciler
 
     private readonly List<Frame> frames = new List<Frame>();
 
+    private readonly Dictionary<string, uint> minimumQuantities;
+
     private int processedFrameCount;
+
+    /// <summary>
+    /// Optional, verified per-item minimums change only the emitted amount of a
+    /// native missing-quantity estimate. Internal identity counts remain unchanged.
+    /// The caller's table is validated and copied for the lifetime of the counter.
+    /// </summary>
+    public CompanionFrameReconciler() : this(null)
+    {
+    }
+
+    public CompanionFrameReconciler(IReadOnlyDictionary<string, uint>? minimumQuantities)
+    {
+        this.minimumQuantities = new Dictionary<string, uint>(StringComparer.Ordinal);
+        if (minimumQuantities is null) return;
+        foreach (var minimum in minimumQuantities)
+        {
+            if (string.IsNullOrWhiteSpace(minimum.Key) || minimum.Value is 0 or > int.MaxValue)
+                throw new ArgumentException("Minimum quantities require item names and values from 1 to Int32.MaxValue.",
+                    nameof(minimumQuantities));
+            this.minimumQuantities.Add(minimum.Key, minimum.Value);
+        }
+    }
 
     public IReadOnlyList<CompanionRecognizedEntry> ProcessFrame(IReadOnlyList<CompanionRecognizedEntry> entries)
     {
@@ -84,7 +110,12 @@ public sealed class CompanionFrameReconciler
             {
                 if (!entry.Duplicate && entry.Count != uint.MaxValue)
                 {
-                    list.Add(new CompanionRecognizedEntry(entry.Name, entry.Count, entry.Y));
+                    var minimum = 0u;
+                    var usesMinimum = entry.EstimatedCount && minimumQuantities.TryGetValue(entry.Name, out minimum);
+                    list.Add(new CompanionRecognizedEntry(entry.Name, usesMinimum ? minimum : entry.Count, entry.Y)
+                    {
+                        IsMinimumQuantityEstimate = usesMinimum,
+                    });
                 }
             }
         }
@@ -122,6 +153,12 @@ public sealed class CompanionFrameReconciler
 
     private void RepairInvalidCounts(int repairStart)
     {
+        // Only configured items receive this additional repair pass. Give actual
+        // neighboring reads priority before freezing an unresolved run to the
+        // native identity value 1. Previously emitted entries are read-only
+        // anchors; a later read cannot rewrite their already booked amount.
+        if (minimumQuantities.Count > 0)
+            RepairConfiguredReadQuantities(Math.Max(repairStart, processedFrameCount));
         for (int i = repairStart; i < frames.Count - 1; i++)
         {
             List<Entry> entries = frames[i].Entries;
@@ -135,9 +172,11 @@ public sealed class CompanionFrameReconciler
                         entry.Count = 1u;
                         continue;
                     }
-                    if (TryCopyNeighborCount(i - 1, entries.Count, j, entry.Name, out var count) || TryCopyNeighborCount(i + 1, entries.Count, j, entry.Name, out count))
+                    if (TryCopyNeighborCount(i - 1, entries.Count, j, entry.Name, out var count, out var estimated) ||
+                        TryCopyNeighborCount(i + 1, entries.Count, j, entry.Name, out count, out estimated))
                     {
                         entry.Count = ((count == uint.MaxValue) ? 1u : count);
+                        entry.EstimatedCount = count == uint.MaxValue || estimated;
                         continue;
                     }
                     entries.RemoveAt(j);
@@ -147,9 +186,45 @@ public sealed class CompanionFrameReconciler
         }
     }
 
-    private bool TryCopyNeighborCount(int frameIndex, int expectedEntryCount, int entryIndex, string name, out uint count)
+    private void RepairConfiguredReadQuantities(int repairStart)
+    {
+        // Two linear passes allow the existing same-position neighbor evidence
+        // to reach a pending missing run from either direction. An estimated 1
+        // is never promoted into evidence, and the native unresolved final-row
+        // behavior is preserved.
+        for (var frameIndex = repairStart; frameIndex < frames.Count - 1; frameIndex++)
+            RepairFrame(frameIndex);
+        for (var frameIndex = frames.Count - 2; frameIndex >= repairStart; frameIndex--)
+            RepairFrame(frameIndex);
+
+        void RepairFrame(int frameIndex)
+        {
+            var entries = frames[frameIndex].Entries;
+            for (var entryIndex = 0; entryIndex < entries.Count; entryIndex++)
+            {
+                var entry = entries[entryIndex];
+                if (entry.Count != InvalidCount || UnitCountItems.Contains(entry.Name) ||
+                    !minimumQuantities.ContainsKey(entry.Name)) continue;
+                if (TryCopyReadNeighbor(frameIndex - 1, entries.Count, entryIndex, entry.Name, out var quantity) ||
+                    TryCopyReadNeighbor(frameIndex + 1, entries.Count, entryIndex, entry.Name, out quantity))
+                {
+                    entry.Count = quantity;
+                    entry.EstimatedCount = false;
+                }
+            }
+        }
+    }
+
+    private bool TryCopyReadNeighbor(int frameIndex, int expectedEntryCount, int entryIndex,
+        string name, out uint count) =>
+        TryCopyNeighborCount(frameIndex, expectedEntryCount, entryIndex, name, out count, out var estimated) &&
+        count is > 0 and < InvalidCount && !estimated;
+
+    private bool TryCopyNeighborCount(int frameIndex, int expectedEntryCount, int entryIndex,
+        string name, out uint count, out bool estimated)
     {
         count = uint.MaxValue;
+        estimated = false;
         if (frameIndex < 0 || frameIndex >= frames.Count)
         {
             return false;
@@ -160,6 +235,7 @@ public sealed class CompanionFrameReconciler
             return false;
         }
         count = entries[entryIndex].Count;
+        estimated = entries[entryIndex].EstimatedCount;
         return true;
     }
 

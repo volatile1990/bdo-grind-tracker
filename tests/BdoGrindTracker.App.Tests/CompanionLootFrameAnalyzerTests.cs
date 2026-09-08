@@ -8,6 +8,70 @@ namespace BdoGrindTracker.App.Tests;
 
 public sealed class CompanionLootFrameAnalyzerTests
 {
+    [Theory]
+    [InlineData("Black Crystal Fragment x0", 0)]
+    [InlineData("Black Crystal Fragment x00", -1)]
+    [InlineData("Black Crystal Fragment", 0)]
+    public async Task ZeroQuantityUsesMissingQuantityPathAcrossBatchAndResume(string text, int template)
+    {
+        var rows = new Rows(new Input(250, text, template));
+        var missingRows = new Rows(new Input(250, "Black Crystal Fragment", -1));
+        using var analyzer = Create(rows);
+        using var missing = Create(missingRows);
+        using var frame = new Bitmap(800, 600);
+        var emitted = new List<LootEventView>();
+        for (var index = 0; index < CompanionFrameReconciler.BatchSize; index++)
+        {
+            var now = DateTimeOffset.UnixEpoch.AddMilliseconds(index * 450);
+            var result = await analyzer.AnalyzeAsync(frame, now, CancellationToken.None);
+            var expected = await missing.AnalyzeAsync(frame, now, CancellationToken.None);
+            Assert.Null(Assert.Single(result.Observations).Quantity);
+            Assert.Equal(expected.NewEvents.Select(e => (e.ItemName, e.Quantity)),
+                result.NewEvents.Select(e => (e.ItemName, e.Quantity)));
+            emitted.AddRange(result.NewEvents);
+        }
+        Assert.NotEmpty(emitted);
+        Assert.All(emitted, entry => Assert.True(entry.Quantity > 0));
+        Assert.Equal(missing.CompleteSession(DateTimeOffset.UnixEpoch).NewEvents.Select(e => (e.ItemName, e.Quantity)),
+            analyzer.CompleteSession(DateTimeOffset.UnixEpoch).NewEvents.Select(e => (e.ItemName, e.Quantity)));
+
+        rows.Values = [new(250, "Black Crystal Fragment x6", 6)];
+        await analyzer.AnalyzeAsync(frame, DateTimeOffset.UnixEpoch.AddSeconds(10), CancellationToken.None);
+        Assert.Equal(6, Assert.Single(analyzer.CompleteSession(DateTimeOffset.UnixEpoch.AddSeconds(11)).NewEvents).Quantity);
+    }
+
+    [Fact]
+    public async Task ZeroOcrDoesNotReplaceAValidPositiveTemplate()
+    {
+        var rows = new Rows(new Input(250, "Black Crystal Fragment x0", 6));
+        using var analyzer = Create(rows);
+        using var frame = new Bitmap(800, 600);
+
+        var result = await analyzer.AnalyzeAsync(frame, DateTimeOffset.UnixEpoch, CancellationToken.None);
+
+        Assert.Equal(6, Assert.Single(result.Observations).Quantity);
+        Assert.Equal(6, Assert.Single(analyzer.CompleteSession(DateTimeOffset.UnixEpoch).NewEvents).Quantity);
+    }
+
+    [Fact]
+    public async Task RareZeroOcrUsesExistingUnitFallbackWithoutCrashingLedger()
+    {
+        var rows = new Rows { RareText = "BON Origin Shard x0" };
+        using var analyzer = new CompanionLootFrameAnalyzer(Calibration() with
+        {
+            HasRareLootAnchor = true,
+            RareLootAnchorX = 600,
+            RareLootAnchorY = 300,
+        }, Matcher(), rows, new Names(rows), rareRowPipeline: new RareRows());
+        using var frame = new Bitmap(800, 600);
+
+        var result = await analyzer.AnalyzeAsync(frame, DateTimeOffset.UnixEpoch, CancellationToken.None);
+        var completed = analyzer.CompleteSession(DateTimeOffset.UnixEpoch.AddSeconds(1));
+
+        Assert.Equal(1, Assert.Single(result.Observations).Quantity);
+        Assert.Equal(1, Assert.Single(completed.NewEvents).Quantity);
+    }
+
     public static IEnumerable<object[]> GlobalDropsBySpotAndChannel()
     {
         foreach (var trash in new[] { "Branch of Abundance", "Black Crystal Fragment", "Elion Follower's Helmet" })

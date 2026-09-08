@@ -6,9 +6,10 @@ namespace BdoGrindTracker.App.Diagnostics;
 /// Adapts recorded, already matched and spot-filtered rows to the restored counters.
 /// This deliberately does not perform confidence gating, OCR or spot inference.
 /// </summary>
-internal sealed class CompanionDiagnosticCounter(IReadOnlyList<CompanionRareCatalogEntry> catalog)
+internal sealed class CompanionDiagnosticCounter(IReadOnlyList<CompanionRareCatalogEntry> catalog,
+    IReadOnlyDictionary<string, uint>? minimumQuantities = null)
 {
-    private readonly CompanionFrameReconciler normal = new();
+    private readonly CompanionFrameReconciler normal = new(minimumQuantities);
     private readonly CompanionLootLedger ledger = new();
     private CompanionRareFrameReconciler? rare;
     private bool? rareEnabled;
@@ -49,39 +50,45 @@ internal sealed class CompanionDiagnosticCounter(IReadOnlyList<CompanionRareCata
                 observation.ItemName!, observation.Quantity ?? -1, observation.NativeY!.Value))
             .ToArray();
 
-        var events = AddNormal(timestamp, normal.ProcessFrame(normalRows));
+        var (events, decisions) = AddNormal(timestamp, normal.ProcessFrame(normalRows));
         if (rare is not null)
         {
             // Native rare reconciliation sees the same ledger as the normal path.
             AddRare(timestamp, rare.ProcessFrame(rareRows), events);
         }
 
-        return new TrackerFrameResult(events, []);
+        return new TrackerFrameResult(events, decisions);
     }
 
     public TrackerFrameResult CompleteSession(DateTimeOffset timestamp)
     {
-        var events = AddNormal(timestamp, normal.Complete());
+        var (events, decisions) = AddNormal(timestamp, normal.Complete());
         if (rare is not null)
         {
             AddRare(timestamp, rare.Complete(), events);
         }
 
-        return new TrackerFrameResult(events, []);
+        return new TrackerFrameResult(events, decisions);
     }
 
-    private List<TrackedLootEvent> AddNormal(
+    private (List<TrackedLootEvent> Events, List<LootTrackingDecision> Decisions) AddNormal(
         DateTimeOffset timestamp,
         IReadOnlyList<CompanionRecognizedEntry> entries)
     {
         var events = new List<TrackedLootEvent>(entries.Count);
+        var decisions = new List<LootTrackingDecision>();
         foreach (var entry in entries)
         {
             ledger.Add(entry.Name, entry.Count);
-            events.Add(new TrackedLootEvent(Guid.NewGuid(), timestamp, entry.Name, checked((int)entry.Count)));
+            var lootEvent = new TrackedLootEvent(Guid.NewGuid(), timestamp, entry.Name, checked((int)entry.Count));
+            events.Add(lootEvent);
+            if (entry.IsMinimumQuantityEstimate)
+                decisions.Add(new(new LootObservation(LootSource.Normal, 0, "", entry.Name,
+                    lootEvent.Quantity, 0, 0, null, null) { NativeY = entry.Y }, lootEvent.EventId,
+                    LootTrackingDecisionStatus.Counted, LootDiagnosticFormat.MinimumQuantityEstimateReason));
         }
 
-        return events;
+        return (events, decisions);
     }
 
     private static void AddRare(

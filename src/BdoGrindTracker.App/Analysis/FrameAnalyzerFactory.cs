@@ -43,12 +43,17 @@ internal static class FrameAnalyzerFactory
                 throw new InvalidOperationException("Windows OCR konnte nicht erstellt werden.");
             var matcher = new CompanionItemMatcher(catalog);
             var nameRecognizer = new CompanionNameRecognizer(windowsOcr);
+            var chatReader = PrivateItemChatOcrReader.TryCreate();
+            var chatCalibrationReader = new PrivateItemChatCalibrationReader();
             var analyzer = new CompanionLootFrameAnalyzer(
                 calibration,
                 matcher,
                 rowPipeline,
                 nameRecognizer,
-                normalRecovery: new NormalLootRecovery(matcher, nameRecognizer));
+                reconciliation: new CompanionReconciliationAdapter(TrashLootMinimumCatalog.MinimumQuantities),
+                normalRecovery: new NormalLootRecovery(matcher, nameRecognizer),
+                chatFallback: chatReader is null ? null : new PrivateItemChatFallback(matcher,
+                    () => chatCalibrationReader.TryRead(calibration), chatReader.Read));
             rowPipeline = null;
             return analyzer;
         }

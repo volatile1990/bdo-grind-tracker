@@ -42,6 +42,10 @@ internal sealed record FrameAnalysisResult(
     public TrackerFrameResult TrackingResult { get; init; } = new([], []);
 
     public NormalLootRecoveryDiagnostics Recovery { get; init; } = NormalLootRecoveryDiagnostics.Empty;
+
+    public Rectangle? ChatPanelRegion { get; init; }
+
+    public ChatQuantityRecoveryDiagnostics? ChatRecovery { get; init; }
 }
 
 // Fixed-size per-frame counters only; no growing UI log or retained screenshots.

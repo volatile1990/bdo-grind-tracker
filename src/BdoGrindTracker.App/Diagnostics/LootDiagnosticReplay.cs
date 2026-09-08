@@ -81,6 +81,7 @@ internal static class LootDiagnosticReplay
         var header = Deserialize<LootDiagnosticHeader>(ReadBoundedLine(reader), 1);
         if (header.Kind != "header" || header.FormatVersion != LootDiagnosticFormat.Version ||
             (header.EngineVersion != LootDiagnosticFormat.EngineVersion &&
+             header.EngineVersion != LootDiagnosticFormat.RecoveryEngineVersion &&
              header.EngineVersion != LootDiagnosticFormat.PreviousEngineVersion &&
              header.EngineVersion != LootDiagnosticFormat.ExperimentalEngineVersion) ||
             header.SpotId?.Length > LootDiagnosticFormat.MaximumTextLength ||
@@ -92,7 +93,10 @@ internal static class LootDiagnosticReplay
             throw new InvalidDataException("Nicht unterstütztes Diagnose-Format oder Ereignislogik-Version.");
         }
 
-        var tracker = new CompanionDiagnosticCounter(header.Catalog);
+        if (header.EngineVersion != LootDiagnosticFormat.EngineVersion && header.MinimumTrashQuantities.Count != 0)
+            throw new InvalidDataException("Diese ältere Ereignislogik-Version unterstützt keine Mindestmengen-Tabelle.");
+
+        var tracker = new CompanionDiagnosticCounter(header.Catalog, header.MinimumTrashQuantities);
         var totals = new Dictionary<string, long>(StringComparer.Ordinal);
         var recordedTotals = new Dictionary<string, long>(StringComparer.Ordinal);
         var frameCount = 0;
@@ -108,7 +112,7 @@ internal static class LootDiagnosticReplay
             if (entry.Sequence != sequence || entry.Timestamp < lastTimestamp ||
                 entry.Events is null || entry.Events.Count > 256 ||
                 entry.Decisions is null || entry.Decisions.Count > 256 ||
-                entry.Crops is null || entry.Crops.Count > 2)
+                entry.Crops is null || entry.Crops.Count > 3)
             {
                 throw new InvalidDataException($"Ungültige Diagnose-Metadaten in Sequenz {sequence}.");
             }

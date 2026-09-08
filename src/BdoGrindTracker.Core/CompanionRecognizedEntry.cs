@@ -11,6 +11,12 @@ public sealed record CompanionRecognizedEntry
 
     public int Y { get; }
 
+    /// <summary>
+    /// True when the counter emitted a configured minimum instead of its native
+    /// unresolved-quantity estimate. The value is an estimate, not an OCR read.
+    /// </summary>
+    public bool IsMinimumQuantityEstimate { get; init; }
+
     public CompanionRecognizedEntry(string name, uint count, int y = 0)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name, "name");
@@ -19,4 +25,3 @@ public sealed record CompanionRecognizedEntry
         Y = y;
     }
 }
-

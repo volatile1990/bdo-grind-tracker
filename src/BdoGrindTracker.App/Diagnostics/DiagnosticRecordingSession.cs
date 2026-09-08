@@ -39,14 +39,16 @@ internal sealed class DiagnosticRecordingSession : IDisposable
 
     public int RecordedFrameCount => frameCount;
 
-    public static DiagnosticRecordingSession Start(string baseDirectory, string? spotId = null) =>
-        Start(baseDirectory, spotId, maximumBytes: null, maximumFrames: null);
+    public static DiagnosticRecordingSession Start(string baseDirectory, string? spotId = null,
+        IReadOnlyDictionary<string, uint>? minimumTrashQuantities = null) =>
+        Start(baseDirectory, spotId, maximumBytes: null, maximumFrames: null, minimumTrashQuantities);
 
     internal static DiagnosticRecordingSession Start(
         string baseDirectory,
         string? spotId,
         long? maximumBytes,
-        int? maximumFrames)
+        int? maximumFrames,
+        IReadOnlyDictionary<string, uint>? minimumTrashQuantities = null)
     {
         var session = new DiagnosticRecordingSession(maximumBytes, maximumFrames);
         try
@@ -72,6 +74,7 @@ internal sealed class DiagnosticRecordingSession : IDisposable
                 spotId,
                 "companion-counter-only; OCR and spot matching are recorded inputs, not re-executed")
             {
+                MinimumTrashQuantities = minimumTrashQuantities ?? new Dictionary<string, uint>(),
                 Catalog = FrameAnalyzerFactory.LoadCatalog(
                     Path.Combine(AppContext.BaseDirectory, "data", "items.en.txt"),
                     Path.Combine(AppContext.BaseDirectory, "data", "icons", "catalog.json")),
@@ -93,7 +96,9 @@ internal sealed class DiagnosticRecordingSession : IDisposable
         Rectangle? normalPanel,
         Rectangle? rareBand,
         NormalLootRecoveryDiagnostics? recovery = null,
-        bool? isHdr = null)
+        bool? isHdr = null,
+        Rectangle? chatPanel = null,
+        ChatQuantityRecoveryDiagnostics? chatRecovery = null)
     {
         lock (sync)
         {
@@ -113,16 +118,18 @@ internal sealed class DiagnosticRecordingSession : IDisposable
                 ValidateObservations(observations);
                 ValidateResult(result);
                 var sequence = entrySequence + 1;
-                var crops = new List<LootDiagnosticCrop>(2);
-                var encodedCrops = new List<(string Path, byte[] Bytes)>(2);
+                var crops = new List<LootDiagnosticCrop>(3);
+                var encodedCrops = new List<(string Path, byte[] Bytes)>(3);
                 AddCrop(sourceFrame, normalPanel, "normal", sequence, crops, encodedCrops);
                 AddCrop(sourceFrame, rareBand, "rare", sequence, crops, encodedCrops);
+                AddCrop(sourceFrame, chatPanel, "chat", sequence, crops, encodedCrops);
                 var entry = new LootDiagnosticEntry(
                     "frame", sequence, capturedAt, observations, result.NewEvents, result.Decisions, crops)
                 {
                     RareEnabled = rareBand is not null,
                     Recovery = recovery,
                     IsHdr = isHdr,
+                    ChatRecovery = chatRecovery,
                 };
                 var jsonBytes = SerializeLine(entry);
                 EnsureBudget(jsonBytes.LongLength + encodedCrops.Sum(static crop => crop.Bytes.LongLength));

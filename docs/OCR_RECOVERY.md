@@ -49,20 +49,105 @@ es gibt keine neuen Zwischenbilder und keine höhere Aufnahmefrequenz.
 - Gleichförmige Originalbänder benötigen keine OCR-Wiederholung. Fehler im optionalen
   Leseweg behalten das Baseline-Ergebnis; echte Abbruchanforderungen werden beachtet.
 
+## Ungültige Nullmengen
+
+Ein OCR-Ergebnis wie `x0` oder eine isoliert erkannte Ziffer `0` kann keine gültige
+Lootmenge sein. Im bisherigen Stand gelangte sie dennoch in den normalen oder
+Rare-Zähler; `CompanionLootLedger.Add` warf daraufhin eine Ausnahme mit Parameter
+`count`, wodurch die laufende Aufnahme stoppte. Dieser Pfad wurde mit den DLLs
+der Testversion `artifacts/chat-fallback/app` reproduziert. Für den konkreten
+gemeldeten Vorfall lag keine aktuelle Diagnoseaufnahme vor.
+
+Die Textauswertung akzeptiert jetzt nur positive Mengen. Bei ungültigem OCR-Wert
+bleibt eine positive Template-Menge verwendbar; andernfalls ist die normale Menge
+fehlend und kann über Nachlesen, Item-Chat oder den bisherigen Zähler-Fallback
+ergänzt werden. Der bestehende Rare-Ersatzwert 1 bleibt erhalten. Auch die
+Zusatzlesungen dürfen keine Template-Nullmenge wieder einführen. Die interne
+Duplikaterkennung und der Zähler für bereits gespeicherte Beobachtungen ändern
+sich dadurch nicht. Das behebt den Fehlerstopp, belegt aber keine bestimmte
+OCR-Genauigkeit im Spiel.
+
+## Item-Chat als Mengen-Fallback
+
+Nach den normalen Zusatzlesungen kann `PrivateItemChatFallback` eine weiterhin
+fehlende Menge aus dem separat eingeblendeten Item-Chat übernehmen. Die
+`PrivateItemChatCalibrationReader` liest nur den direkten aktiven UI-Eintrag
+`Index="32"` der bereits kalibrierten `gamevariable.xml`, keine gespeicherten
+UI-Presets. Das Fenster muss sichtbar, verwendet und vom Hauptchat getrennt sein.
+System muss eingeschaltet sein und von den Systemfiltern ausschließlich
+`ChatSystemType_PrivateItem`. Normale Chatkanäle und unbekannte eingeschaltete
+Filter schließen einen Kandidaten aus; die in BDO gespeicherten internen Chatflags
+werden gesondert toleriert. Das ist keine Garantie, dass das Spiel niemals eine
+andere Meldung in dieses Fenster schreibt.
+
+Relative Positionen beschreiben den Mittelpunkt, Größen sind mit der UI-Skalierung
+in Pixel umzurechnen. Die Konfiguration wird alle zwei Sekunden neu gelesen.
+Fensteränderungen, fehlerhafte Konfiguration und verlorene Lesekontinuität setzen
+den Chatverlauf für die Zuordnung zurück. Fenster außerhalb des aufgenommenen
+Bildes werden übersprungen. Spielauflösung und UI-Skalierung stammen weiterhin aus
+der beim Anlegen des Analyzers gelesenen Kalibrierung.
+
+`PrivateItemChatOcrReader` liest nur diesen Ausschnitt desselben aufgenommenen
+Frames: Graustufen, höchstens 1,5-fache Vergrößerung, Windows OCR (bevorzugt en-US).
+Falls keine vollständige Itemmeldung gelesen wird, folgt höchstens ein zweiter
+Versuch mit invertierter Helligkeit. Jeder Treffer braucht den vollständigen
+englischen Systemtext `You have obtained`, einen geklammerten Itemnamen und eine
+vollständige positive Menge hinter `x`/`×`. Mehrzeilige, abgeschnittene oder
+anderweitig unklare Meldungen werden ausgelassen. Die Namen werden mit dem
+vorhandenen Katalogmatcher aufgelöst.
+
+Die Zuordnung ist bewusst vorsichtig: Der anfängliche Verlauf ist nur Referenz,
+alte Meldungen werden nicht nachgebucht. Neue Meldungen brauchen nachvollziehbares
+Aufrücken der bisherigen Zeilen. Im selben Frame muss auch das normale Lootpanel
+neue Zeilen am unteren Ende zeigen: Bereits vollständig erkannte Zeilen müssen
+eindeutig um entsprechend viele Plätze nach oben gerückt sein. Diese älteren
+Anker müssen außerdem schon im vorherigen Bild mit dem Chat-Ende übereinstimmen,
+damit gegeneinander verzögerte Anzeigen keine gleichnamigen Drops vertauschen. Nur die neuen
+Zeilen werden direkt mit den ebenso vielen neuen Chatmeldungen verglichen.
+Lücken oder abgelehnte Zeilen an neueren Panelpositionen sind Zuordnungsbarrieren.
+Ein Chat-Update wird nur in diesem einen Frame verwendet, niemals später erneut.
+Identische wiederholte Meldungen bleiben einzelne Positionen; bei mehreren
+möglichen Scrollabständen wird keine Menge geraten. Ohne lesbaren älteren
+Panelanker oder bei zeitversetzter Aktualisierung der beiden Anzeigen greift
+dieser vorsichtige Fallback nicht.
+Die normale Beobachtung behält Itemname, Position und Metadaten. Chat erstellt
+keine zusätzliche Beobachtung und ändert keine bereits vorhandene Menge. Der
+bestehende normale Zähler und der Rare-Pfad bleiben erhalten. Insbesondere eine
+bereits akzeptierte falsche `1` wird durch diesen Fallback noch nicht korrigiert.
+
+Bei aktivierter Diagnose wird das Chatfenster als dritter separater Crop `chat`
+gespeichert. `chatRecovery` enthält Fensterindex, Zustand, Anzahl gelesener
+Meldungen, Fehler und ergänzte Mengen samt Item/Zeilenposition. Diese Zähler
+beschreiben OCR-Ergänzungen, keine unabhängigen neuen Drops. Ohne Diagnose werden
+keine Chatbilder oder Chattexte auf Datenträger geschrieben. Das Replay verwendet
+die tatsächlich an den Zähler übergebenen Beobachtungen einschließlich ergänzter
+Mengen; es führt Chat-OCR und Zuordnung nicht erneut aus.
+
+Der bereitgestellte Chat-Screenshot wird mit 12 von 12 Meldungen und den richtigen
+Mengen (zusammen 64) gelesen. Das ist ein Bildtest, kein vollständiger Grindtest.
+Scrollzuordnung und Fehlerfälle werden zusätzlich mit synthetischen Bildfolgen
+geprüft; die tatsächlich erreichte Verbesserung braucht einen Inventarvergleich
+in einer neuen laufenden Sitzung.
+
 ## Diagnose und Nachweisgrenze
 
 Nur bei ausdrücklich aktivierter lokaler Diagnose enthalten die vorhandenen
 JSONL-Frame-Einträge zusätzlich kompakte `recovery`-Zähler (versuchte Zeilen,
 OCR-Aufrufe, gerettete Mengen/Katalogzeilen, Fehler). Kein wachsendes Dashboardlog,
-keine zusätzlichen Screenshots und keine Uploads. Gerettete Zeilen können weiterhin
+keine zusätzlichen Screenshots für das normale Nachlesen und keine Uploads. Der
+oben beschriebene Chat-Fallback ergänzt seinen eigenen Diagnoseausschnitt.
+Gerettete Zeilen können weiterhin
 am unveränderten Spotfilter scheitern; Rettungszähler sind keine echten Inventarmengen.
 
 Die neue Erkennungsvariante heißt `companion-0.7.4+normal-recovery-v1`. Das
 Diagnose-Replay bleibt ein Zählungs-Replay bereits gespeicherter Beobachtungen,
 kein erneuter OCR-Lauf. In 0.9.6-test.2 ist der normale Zähler auf den Stand von 0.9.5
 zurückgesetzt; nur die Mengenübernahme aus test.1 bleibt erhalten. Neue Aufnahmen
-tragen die Enginekennung `companion-0.7.4-recovery-fix-v3`. Aufnahmen mit
-`companion-0.7.4-restore-v1` oder `companion-0.7.4-overcount-fix-v2` werden als
+tragen die Enginekennung `companion-0.7.4-minimum-quantity-v4` und betten die aktive
+Mindestmengen-Tabelle ein. Der letzte Mengenersatz pro Trash-Item ist vorbereitet,
+aber mangels belegter Werte für alle sechs Spots noch ohne aktive Einträge;
+siehe [Recherche und Fallback-Regeln](TRASH_MINIMUMS.md). Aufnahmen mit
+`companion-0.7.4-recovery-fix-v3`, `companion-0.7.4-restore-v1` oder `companion-0.7.4-overcount-fix-v2` werden als
 Versionsvergleich ausgewiesen; gespeicherte OCR-Mengen werden dabei nicht neu
 erkannt oder repariert. Die Tests prüfen Auswahl,
 negative Fälle, Bildaufbereitung, Mengenwidersprüche und erhaltene Baseline-Verträge.

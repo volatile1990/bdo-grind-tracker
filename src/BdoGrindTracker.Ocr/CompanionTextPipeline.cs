@@ -29,7 +29,9 @@ internal static partial class CompanionTextPipeline
             ? parsedQuantity
             : rareDropMode
                 ? 1
-                : templateQuantity;
+                : templateQuantity > 0
+                    ? templateQuantity
+                    : -1;
 
         // Companion removes the first quantity-shaped match from the name even when the
         // captured digits cannot subsequently be parsed as an ASCII decimal value.
@@ -180,7 +182,7 @@ internal static partial class CompanionTextPipeline
             capture,
             NumberStyles.None,
             CultureInfo.InvariantCulture,
-            out quantity);
+            out quantity) && quantity > 0;
     }
 
     private static float ExpectedWidthBase(float recognizedTextWidth) =>

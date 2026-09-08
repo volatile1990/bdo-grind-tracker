@@ -560,7 +560,7 @@ public sealed class TrackerSessionServiceTests
     }
 
     [Fact]
-    public async Task ChangingMarketRegionWaitsForItsOwnPricesBeforeAllowingUpload()
+    public Task ChangingMarketRegionWaitsForItsOwnPricesBeforeAllowingUpload() => RunOnHostContextAsync(async () =>
     {
         await using var fixture = new Fixture(autoUpload: false);
         var eu = new TaskCompletionSource<LootPriceSnapshot>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -596,7 +596,7 @@ public sealed class TrackerSessionServiceTests
             await upload;
         }
         Assert.Equal(2600, Assert.Single(fixture.Requests).GetProperty("total").GetInt64());
-    }
+    });
 
     [Fact]
     public async Task PublishedLootSnapshotDoesNotChangeWhenAnotherFrameArrives()
@@ -715,6 +715,36 @@ public sealed class TrackerSessionServiceTests
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         while (!predicate()) await Task.Delay(1, timeout.Token);
+    }
+
+    private static Task RunOnHostContextAsync(Func<Task> action)
+    {
+        // Service commands and their continuations share the desktop host's
+        // serialized context. xUnit's concurrent continuations do not model that
+        // contract when two callers wait for the same previous-region request.
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var thread = new Thread(() =>
+        {
+            using var callbacks = new BlockingCollection<(SendOrPostCallback Callback, object? State)>();
+            var context = new QueuedSynchronizationContext(callbacks);
+            SynchronizationContext.SetSynchronizationContext(context);
+            context.Post(async _ =>
+            {
+                try { await action(); completion.TrySetResult(); }
+                catch (Exception exception) { completion.TrySetException(exception); }
+                finally { callbacks.CompleteAdding(); }
+            }, null);
+            foreach (var callback in callbacks.GetConsumingEnumerable())
+                callback.Callback(callback.State);
+        }) { IsBackground = true };
+        thread.Start();
+        return completion.Task;
+    }
+
+    private sealed class QueuedSynchronizationContext(
+        BlockingCollection<(SendOrPostCallback Callback, object? State)> callbacks) : SynchronizationContext
+    {
+        public override void Post(SendOrPostCallback callback, object? state) => callbacks.Add((callback, state));
     }
 
     private sealed class Fixture : IAsyncDisposable

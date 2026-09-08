@@ -101,6 +101,57 @@ public sealed class CompanionTextPipelineTests
     }
 
     [Theory]
+    [InlineData("Helmet x0", 6, 6)]
+    [InlineData("Helmet x00", 6, 6)]
+    [InlineData("Helmet x0", 0, -1)]
+    [InlineData("Helmet x00", 0, -1)]
+    [InlineData("Helmet x0", -1, -1)]
+    [InlineData("Helmet x00", -1, -1)]
+    public void Process_ZeroOcrQuantityUsesPositiveTemplateOrRemainsMissing(
+        string input,
+        int templateQuantity,
+        int expectedQuantity)
+    {
+        var result = CompanionTextPipeline.Process(input, templateQuantity, false, 300);
+
+        Assert.Equal("Helmet", result.Name);
+        Assert.Equal(expectedQuantity, result.Quantity);
+        Assert.False(result.HasParsedOcrQuantity);
+    }
+
+    [Theory]
+    [InlineData("Helmet x0", 0)]
+    [InlineData("Helmet x00", 6)]
+    [InlineData("Helmet x0", -1)]
+    public void Process_ZeroRareOcrQuantityKeepsSingleItemFallback(
+        string input,
+        int templateQuantity)
+    {
+        var result = CompanionTextPipeline.Process(input, templateQuantity, true, 300);
+
+        Assert.Equal("Helmet", result.Name);
+        Assert.Equal(1, result.Quantity);
+        Assert.False(result.HasParsedOcrQuantity);
+    }
+
+    [Theory]
+    [InlineData("Helmet", 0, -1)]
+    [InlineData("Helmet", -1, -1)]
+    [InlineData("Helmet x\u0666", 6, 6)]
+    [InlineData("Helmet x\u0666", 0, -1)]
+    public void Process_UnparsedNormalQuantityUsesOnlyPositiveTemplate(
+        string input,
+        int templateQuantity,
+        int expectedQuantity)
+    {
+        var result = CompanionTextPipeline.Process(input, templateQuantity, false, 300);
+
+        Assert.Equal("Helmet", result.Name);
+        Assert.Equal(expectedQuantity, result.Quantity);
+        Assert.False(result.HasParsedOcrQuantity);
+    }
+
+    [Theory]
     [InlineData("Tainted Golem's Heart", "Tainted Golem's Heart Fragment")]
     [InlineData("Tainted Heart Fragment", "Tainted Golem's Heart Fragment")]
     [InlineData("Tainted Golem's Fragment", "Tainted Golem's Heart Fragment")]

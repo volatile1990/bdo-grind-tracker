@@ -59,6 +59,9 @@ internal sealed partial class NormalLootRecovery(
         LootObservation? baseline, int slot, float uiScale,
         NormalLootRecoveryBudget budget, CancellationToken cancellationToken)
     {
+        // Zero cannot be a drop quantity. Keep its identified row eligible for
+        // recovery instead of allowing it to reach the positive-only ledger.
+        if (baseline is { Quantity: <= 0 }) baseline = baseline with { Quantity = null };
         // A successfully read baseline row is authoritative, even if a different
         // image variant would claim a higher number or another item.
         if (Accepted(baseline) && baseline!.Quantity.HasValue) return baseline;
@@ -89,7 +92,7 @@ internal sealed partial class NormalLootRecovery(
                 if (!CompanionWindowsOcrRecognizer.PassesNormalGeometryGate(ocr.FirstWord, uiScale))
                     continue;
                 var knownQuantity = baseline?.Quantity ??
-                    (original.TemplateQuantity >= 0 ? original.TemplateQuantity : (int?)null);
+                    (original.TemplateQuantity > 0 ? original.TemplateQuantity : (int?)null);
                 var hasFullQuantity = TryParseTrailingQuantity(ocr.Text, out var fullQuantity, out var nameText);
                 // The original row failed recognition, so its number is only a
                 // fallback. A complete quantity in the recovered text takes the
@@ -117,7 +120,7 @@ internal sealed partial class NormalLootRecovery(
                     continue;
 
                 best = new LootObservation(LootSource.Normal, slot, ocr.Text, match.CanonicalName,
-                    text.Quantity >= 0 ? text.Quantity : null,
+                    text.Quantity > 0 ? text.Quantity : null,
                     Math.Clamp(1 - match.NormalizedDistance, 0, 1), 0, null, null)
                 {
                     NativeY = original.Y,

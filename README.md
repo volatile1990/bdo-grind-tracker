@@ -129,6 +129,29 @@ zur neuen Sitzung gesperrt. Ein früher gespeicherter manueller Spot wird ignori
 Aufnahme- und Event-Optionen lassen sich vor Beginn einer neuen Session ändern.
 Die Diagnose-Aufzeichnung ist beim Programmstart und nach jeder neuen Sitzung aus.
 
+### Automatischer Mengen-Fallback aus dem Item-Chat
+
+Ein separates, sichtbares BDO-Chatfenster kann fehlende Mengen im normalen Lootpanel
+ergänzen. Im Spiel unter **System** ausschließlich **Private Item** aktivieren und
+die normalen Chatkanäle ausschalten. Die gespeicherte UI muss dieses Fenster als
+eingeblendet und vom Hauptchat getrennt enthalten. Der Tracker liest Position,
+Größe und Filter automatisch aus der aktiven `gamevariable.xml`; Änderungen werden
+während der Aufnahme alle zwei Sekunden geprüft. Das Fenster muss auf dem gewählten
+Spielbildschirm sichtbar bleiben und am Ende des Chatverlaufs stehen.
+
+Unterstützt werden vollständige englische Meldungen wie
+`You have obtained [Elion Follower's Helmet] x6.`. Der Chat erzeugt keine eigenen
+Buchungen, sondern ergänzt ausschließlich eine noch fehlende Menge einer bereits
+erkannten normalen Lootzeile. Vorhandene Mengen, einschließlich einer möglicherweise
+falsch erkannten `1`, werden nicht überschrieben. Alte Chatzeilen beim Start oder
+Fortsetzen, mehrdeutige Folgen und unklare Zuordnungen liefern keine Ersatzmenge.
+Ohne geeignetes Chatfenster läuft die bisherige Erkennung weiter.
+[Zuordnung, Diagnose und Grenzen](docs/OCR_RECOVERY.md#item-chat-als-mengen-fallback).
+
+Ein letzter Ersatz durch eine Mindestmenge pro Trash-Item ist technisch vorbereitet.
+Für die sechs unterstützten Spots sind noch keine verlässlichen Grundmengen belegt;
+deshalb sind keine erhöhten Mindestwerte aktiv. [Recherche und Fallback-Regeln](docs/TRASH_MINIMUMS.md).
+
 ### Auto-Pause und Klasse
 
 Nach **3 Minuten ohne neuen gezählten Drop** pausieren Aufnahme und Sitzungsuhr
@@ -278,12 +301,20 @@ Spielpixel. Es wurden keine zusätzlichen Erkennungsfilter oder Verwerfungsregel
 ## Lokale Diagnose und Replay
 
 Bei aktivierter Aufzeichnung werden ausschließlich die kalibrierten Lootausschnitte
+und gegebenenfalls das verwendete Item-Chatfenster
 als PNG sowie OCR-Beobachtungen und Entscheidungen als JSONL gespeichert:
 `%LOCALAPPDATA%\BdoGrindTracker\diagnostics\loot-...\observations.jsonl`.
 Die Aufzeichnung läuft ohne Gesamtlimit für Frames oder Dateigröße bis zum Ende
 der Session; Pause und Fortsetzen gehören zur selben Aufnahme. Ein Aufnahmefehler,
 etwa ein voller Datenträger, stoppt nur die Diagnose, nicht das Tracking.
 Es gibt keine automatische Übertragung.
+
+Bei einem unerwarteten Tracking-Stopp schreibt die App außerdem einen kleinen
+technischen Fehlernachweis nach `%LOCALAPPDATA%\BdoGrindTracker\last-capture-error.json`.
+Er enthält Zeit, Versionen, Fehlertyp und aufrufende Methoden, keine Bilder,
+OCR-Texte, Fehlermeldungstexte oder Parameterwerte. Es bleibt nur der letzte Fehler
+mit höchstens 8 KiB erhalten; dafür muss die Loot-Aufzeichnung nicht aktiv sein.
+Normales Pausieren erzeugt keinen Fehlernachweis.
 
 Nach dem Pausieren lässt sich die Aufzeichnung offline wiederholen:
 
@@ -299,10 +330,12 @@ zur visuellen Prüfung. Eine Übereinstimmung mit der Aufnahme ist kein Abgleich
 mit dem tatsächlichen Inventarloot; dafür werden manuell überprüfte Sollwerte benötigt.
 
 Neue Aufnahmen verwenden Formatversion 2 und die Enginekennung
-`companion-0.7.4-recovery-fix-v3`. Aufnahmen mit `companion-0.7.4-restore-v1` (0.9.5)
+`companion-0.7.4-minimum-quantity-v4`. Die aktive Mindestmengen-Tabelle wird im Header
+eingebettet; ältere Aufnahmen ohne Tabelle behalten den bisherigen Mengenersatz.
+Aufnahmen mit `companion-0.7.4-recovery-fix-v3`, `companion-0.7.4-restore-v1` (0.9.5)
 oder `companion-0.7.4-overcount-fix-v2` (test.1) lassen sich zum ausdrücklich
 gekennzeichneten Vergleich mit dem aktuellen Zähler öffnen. Dessen Verhalten
-entspricht wieder 0.9.5; gespeicherte OCR-Mengen werden im Replay nicht repariert.
+entspricht ohne Mindestmengen-Tabelle wieder 0.9.5; gespeicherte OCR-Mengen werden im Replay nicht repariert.
 Für die ursprüngliche test.1-Zählung wäre die damalige EXE erforderlich.
 Frühere Lebensdauer-Tracker-Aufnahmen bleiben inkompatibel.
 

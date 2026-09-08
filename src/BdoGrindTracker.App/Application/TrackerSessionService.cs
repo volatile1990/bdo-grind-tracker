@@ -231,7 +231,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
                 _sessionSpotId = null;
                 _recording?.Dispose();
                 _recording = Preferences.RecordLoot
-                    ? DiagnosticRecordingSession.Start(Path.Combine(_settingsStore.BaseDirectory, "diagnostics"))
+                    ? DiagnosticRecordingSession.Start(Path.Combine(_settingsStore.BaseDirectory, "diagnostics"),
+                        minimumTrashQuantities: TrashLootMinimumCatalog.MinimumQuantities)
                     : null;
             }
             Interlocked.Exchange(ref _lastCaptureStopError, null);
@@ -287,7 +288,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             metadata.IsHdr, cancellationToken).ConfigureAwait(false);
         _recording?.RecordFrame(metadata.CapturedAtUtc, analysis.Observations,
             analysis.TrackingResult, frame, analysis.PanelRegion, analysis.RareBandRegion, analysis.Recovery,
-            isHdr: metadata.IsHdr);
+            isHdr: metadata.IsHdr, chatPanel: analysis.ChatPanelRegion, chatRecovery: analysis.ChatRecovery);
         _uiMailbox.Publish(analysis, onPublished: ObserveGarmothTotals);
     }
 
@@ -338,7 +339,11 @@ internal sealed partial class TrackerSessionService : ITrackerSession
     {
         // The event is raised on capture's background thread. The next host tick
         // handles it after the serial producer has finished, without UI access.
-        if (args.Error is not null) Interlocked.Exchange(ref _lastCaptureStopError, args.Error);
+        if (args.Error is { } error)
+        {
+            Interlocked.Exchange(ref _lastCaptureStopError, error);
+            CaptureFailureDiagnostics.TryWrite(_settingsStore.BaseDirectory, error, DateTimeOffset.UtcNow);
+        }
     }
 
     public Task TickAsync()

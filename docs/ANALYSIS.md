@@ -58,12 +58,23 @@ Sentinel-Präfixfilter, Wortgeometrie-/Breitengates und `CompanionTextPipeline` 
 wieder aktiv. Erst vor dem zeitlichen Abgleich werden akzeptierte normale Einträge
 in die absteigende Reihenfolge umgekehrt. Der Rare-Pfad verwendet keine
 Ziffernvorlagen und ohne gelesenes Mengensuffix den bisherigen Mengenstandard 1.
+Nullmengen aus OCR oder Templates gelten jetzt als ungültig: Eine positive
+Template-Menge bleibt verwendbar, sonst greift die Behandlung fehlender Mengen.
+Damit erreicht keine Nullmenge mehr das positive-only Ledger und löst dort einen
+Tracking-Stopp aus. [Fehlerfall und Abgrenzung](OCR_RECOVERY.md#ungültige-nullmengen).
 
 `CompanionItemMatcher` verwendet erneut das vollständige Vergleichsvokabular und
 den ursprünglichen bytebasierten Matcher mit Grenzwert 0,34, dem Mengen-1-Filter
 sowie den ursprünglichen zusätzlichen Rare-Regeln. Der normale Pfad bekommt
 keine nachträgliche strengere Runner-up-Prüfung. Die gleichen Textreparaturen wie
 im Stand 0.5.1 bleiben erlaubt; native Mengen-/Lückenreparatur ist wieder aktiv.
+
+Der zusätzliche [Item-Chat-Fallback](OCR_RECOVERY.md#item-chat-als-mengen-fallback)
+ergänzt ausschließlich fehlende Mengen bereits erkannter normaler Zeilen vor dem
+Spotfilter und dem bestehenden Zähler. Der aktive Chat-Eintrag (Index32) liefert
+Filter und Geometrie. Windows OCR liest diesen Ausschnitt desselben Frames ohne
+die Farbmaske des normalen Lootpanels. Chatmeldungen werden nicht als separate
+Lootereignisse an den Zähler übergeben.
 
 ## Automatischer Spotfilter
 
@@ -189,13 +200,17 @@ Bei älteren Einträgen fehlt diese Angabe und gilt als unbekannt, nicht als SDR
 Replay liest JSONL weiterhin zeilenweise und ohne Gesamtgrößenlimit; die Prüfungen
 pro Eintrag, für Sequenz und Zeitstempel sowie die Pixelgrenze pro Lootausschnitt bleiben erhalten.
 
-Formatversion 2 trägt die Enginekennung `companion-0.7.4-recovery-fix-v3`. Die vorherigen
-Kennungen `companion-0.7.4-restore-v1` und `companion-0.7.4-overcount-fix-v2` werden
+Formatversion 2 trägt die Enginekennung `companion-0.7.4-minimum-quantity-v4`. Die vorherigen
+Kennungen `companion-0.7.4-recovery-fix-v3`, `companion-0.7.4-restore-v1` und `companion-0.7.4-overcount-fix-v2` werden
 als expliziter Vergleich mit dem aktuellen Zähler akzeptiert. Der Zähler entspricht
-wieder restore-v1; die OCR-Aufbereitung wird im Replay nicht wiederholt. Alte Aufnahmen
+wieder restore-v1, solange keine Mindestmengen konfiguriert sind; die OCR-Aufbereitung wird im Replay nicht wiederholt. Alte Aufnahmen
 des Lebensdauer-Trackers werden wegen der anderen Logik nicht akzeptiert.
 Die Rare-Katalogmetadaten werden eingebettet, damit eine spätere Installation die
 Klassifikation nicht unbemerkt ändert. Iconpfade sind dabei nur Klassifikationstext.
+Ebenso wird die aktive Mindestmengen-Tabelle im Header eingefroren; das Replay
+verwendet ausschließlich diese Werte. Alte Aufnahmen ohne Tabelle behalten ihren
+Mengenersatz. Derzeit fehlen belegte Minima für alle sechs Spots, daher ist die
+aktive Tabelle leer. [Quellen und Regeln](TRASH_MINIMUMS.md).
 
 `LootDiagnosticReplay` liest nur JSONL, prüft Format, Sequenz, Größen und Zeitstempel
 und wiederholt den aktuellen Companion-basierten Abgleich anhand akzeptierter

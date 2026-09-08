@@ -1,5 +1,6 @@
 using BdoGrindTracker.Core;
 using BdoGrindTracker.Ocr;
+using BdoGrindTracker.App.Diagnostics;
 using OpenCvSharp;
 
 namespace BdoGrindTracker.App.Analysis;
@@ -16,6 +17,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
     private readonly ICompanionRareRowPipeline? _rareRowPipeline;
     private readonly ICompanionNameRecognizer _nameRecognizer;
     private readonly INormalLootRecovery? _normalRecovery;
+    private readonly IPrivateItemChatFallback? _chatFallback;
     private readonly ICompanionReconciliation _reconciliation;
     private readonly ICompanionRareReconciliation? _rareReconciliation;
     private readonly CompanionLootLedger _ledger = new();
@@ -37,13 +39,15 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
         ICompanionBitmapDecoder? frameDecoder = null,
         ICompanionRareRowPipeline? rareRowPipeline = null,
         ICompanionRareReconciliation? rareReconciliation = null,
-        INormalLootRecovery? normalRecovery = null)
+        INormalLootRecovery? normalRecovery = null,
+        IPrivateItemChatFallback? chatFallback = null)
     {
         _calibration = calibration ?? throw new ArgumentNullException(nameof(calibration));
         _itemMatcher = itemMatcher ?? throw new ArgumentNullException(nameof(itemMatcher));
         _rowPipeline = rowPipeline ?? throw new ArgumentNullException(nameof(rowPipeline));
         _nameRecognizer = nameRecognizer ?? throw new ArgumentNullException(nameof(nameRecognizer));
         _normalRecovery = normalRecovery;
+        _chatFallback = chatFallback;
         _reconciliation = reconciliation ?? new CompanionReconciliationAdapter();
         _frameDecoder = frameDecoder ?? CompanionBitmapDecoder.Instance;
         _panelBounds = CompanionNormalLootGeometry.CalculatePanelBounds(calibration);
@@ -175,6 +179,9 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
             }
 
             normal.Sort((left, right) => right.NativeY!.Value.CompareTo(left.NativeY!.Value));
+            var chatRecovery = _chatFallback?.Apply(decodedFrame, normal, capturedAt, cancellationToken);
+            if (chatRecovery is not null)
+                normal = chatRecovery.Observations.ToList();
             // The only added recognition restriction: identify from the newest native
             // trash match, then filter canonical items without rematching them into the pool.
             _spotLock.Observe(normal.Where(IsAccepted).Select(row => row.ItemName!));
@@ -198,6 +205,8 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
                 preparedRows.Count(row => !row.IsBlank) + (rareRow is { IsBlank: false } ? 1 : 0), ocrCalls) with
             {
                 Recovery = recoveryDiagnostics,
+                ChatPanelRegion = chatRecovery?.Region,
+                ChatRecovery = chatRecovery?.Diagnostics,
             });
 
             void Observe(ICompanionPreparedRow row, LootSource source, int slot, List<LootObservation> target)
@@ -225,7 +234,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
                         rejection = "native-catalog-miss";
                 }
                 target.Add(new LootObservation(source, slot, ocr.Text, match?.CanonicalName,
-                    text is null || text.Value.Quantity == -1 ? null : text.Value.Quantity,
+                    text is null || text.Value.Quantity <= 0 ? null : text.Value.Quantity,
                     match is null ? 0 : Math.Clamp(1 - match.NormalizedDistance, 0, 1),
                     0, null, rejection)
                 {
@@ -243,6 +252,9 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
     public FrameAnalysisResult CompleteSession(DateTimeOffset completedAt)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        // Pausing preserves the normal counter, but chat accumulated while paused
+        // must be a fresh history baseline when the same analyzer resumes.
+        _chatFallback?.Reset();
         var reconciled = _reconciliation.Complete();
         foreach (var entry in reconciled) _ledger.Add(entry.Name, entry.Count);
         var rareChanges = _rareReconciliation?.Complete() ?? [];
@@ -259,6 +271,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
         _ledger.Reset();
         _spotLock.Reset();
         _recoveryCursor = 0;
+        _chatFallback?.Reset();
     }
 
     public void Dispose()
@@ -298,11 +311,14 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
             var change = events[index];
             decisions.Add(new(new LootObservation(index < reconciled.Count ? LootSource.Normal : LootSource.Rare,
                 0, "", change.ItemName, change.Quantity, 0, 0, null, null),
-                change.EventId, LootTrackingDecisionStatus.Counted, "companion-delta"));
+                change.EventId, LootTrackingDecisionStatus.Counted,
+                index < reconciled.Count && reconciled[index].IsMinimumQuantityEstimate
+                    ? LootDiagnosticFormat.MinimumQuantityEstimateReason : "companion-delta"));
         }
         return new FrameAnalysisResult(events, rawLines,
             accepted.Length == 0 ? 0 : accepted.Average(row => row.NameConfidence),
-            _normalRecovery is null ? ExactVariantName : RecoveryVariantName,
+            (_normalRecovery is null ? ExactVariantName : RecoveryVariantName) +
+                (_chatFallback is null ? string.Empty : "+private-chat-v1"),
             prepared, nonBlank, ocrCalls, accepted.Length, _panelBounds)
         {
             FrameSize = frameSize,
@@ -341,9 +357,10 @@ internal interface ICompanionReconciliation
     void Reset();
 }
 
-internal sealed class CompanionReconciliationAdapter : ICompanionReconciliation
+internal sealed class CompanionReconciliationAdapter(
+    IReadOnlyDictionary<string, uint>? minimumQuantities = null) : ICompanionReconciliation
 {
-    private readonly CompanionFrameReconciler _reconciler = new();
+    private readonly CompanionFrameReconciler _reconciler = new(minimumQuantities);
     public IReadOnlyList<CompanionRecognizedEntry> ProcessFrame(IReadOnlyList<CompanionRecognizedEntry> entries) => _reconciler.ProcessFrame(entries);
     public IReadOnlyList<CompanionRecognizedEntry> Complete() => _reconciler.Complete();
     public void Reset() => _reconciler.Reset();

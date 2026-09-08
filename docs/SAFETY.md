@@ -22,6 +22,13 @@ Die BDO-Konfigurationsdateien werden ausschließlich lesend geöffnet. Sie liefe
 Auflösung, UI-Skalierung, Schriftprofil und sichtbare UI-Positionen. Die Erkennung selbst
 arbeitet anschließend nur mit Bildpixeln.
 
+Für den optionalen Mengen-Fallback wird zusätzlich der aktive Chat-Eintrag mit Index32
+aus derselben `gamevariable.xml` gelesen. Presets werden ignoriert. Ein separates,
+sichtbares Fenster mit ausschließlich aktiviertem Private-Item-Systemfilter ist
+nötig; normale Chatkanäle sind ausgeschlossen. Einige interne BDO-Chatflags bleiben
+zulässig, weshalb zusätzlich jede gelesene Meldung das vollständige englische
+Private-Item-Format erfüllen muss. Die App liest keine Chatdaten aus dem Spielprozess.
+
 ## Nicht verwendet
 
 Der Produktcode verwendet keine Prozesssuche, kein `ReadProcessMemory`, keine DLL-
@@ -41,7 +48,8 @@ Während des Trackings dürfen die eigenen Fenster das kalibrierte Lootpanel nic
 Aufgenommene Frames werden im Arbeitsspeicher verarbeitet und nach der Analyse
 freigegeben. Ohne ausdrückliche Aktivierung der lokalen Diagnose werden keine
 Screenshots exportiert. Bei aktiviertem Opt-in werden ausschließlich kalibrierte
-Lootausschnitte (niemals ein Vollbild-Fallback) sowie Rohtext und Zählentscheidungen
+Lootausschnitte und gegebenenfalls der verwendete Item-Chat (niemals ein Vollbild-Fallback)
+sowie Rohtext und Zählentscheidungen
 lokal gespeichert. Für die Aufnahme gibt es kein Gesamtlimit für Frames oder
 Dateigröße; sie läuft bis zum Sessionende oder einem Aufnahmefehler. Die Prüfung
 jedes Eintrags und der Schutz vor zu großen oder ungültigen Lootausschnitten bleiben erhalten.
@@ -50,6 +58,16 @@ Nach Neustart oder neuer Sitzung ist das Opt-in wieder aus. Alte Aufnahmen werde
 nicht automatisch gelöscht; der Benutzer kann sie im angezeigten Ordner entfernen.
 Auch ein Lootausschnitt kann bei überdecktem Spiel andere sichtbare Inhalte enthalten.
 Deshalb Diagnose nur mit tatsächlich sichtbarem Lootpanel aktivieren.
+
+Ein unerwarteter Tracking-Stopp speichert unabhängig von der Loot-Aufzeichnung
+einen technischen Nachweis in `last-capture-error.json` im Einstellungsordner.
+Die Datei enthält ausschließlich Zeitpunkt, App-/Engineversion, Fehlertyp,
+Fehlercode, einen kurzen Parameternamen und begrenzt viele Methodennamen aus dem
+Aufrufpfad. Sie enthält weder Bilder noch OCR-Texte, Exception-Nachrichten,
+Dateipfade oder Parameterwerte. Ein neuer Fehler überschreibt diese eine Datei;
+sie ist auf 8 KiB begrenzt. Normale Pausen erzeugen keinen Eintrag. Schreibfehler
+beeinflussen weder den Tracking-Stopp noch die Sicherung der Sitzung. Die Datei
+wird nicht hochgeladen.
 
 Die Einstellungsdatei speichert Monitor, Auto-Pause, Preisregion, Steueroptionen,
 das Opt-in für stündliche Garmoth-Uploads und technische Versionsangaben, keine
