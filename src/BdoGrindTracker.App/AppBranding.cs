@@ -7,8 +7,12 @@ namespace BdoGrindTracker.App;
 internal static class AppBranding
 {
     public const string Name = "Grindcrest";
-    public const string WindowTitle = "Grindcrest · Black Desert Loot Tracker · 0.10.0-test.1";
-    public const string UserAgent = "Grindcrest/0.10.0-test.1";
+    public static string Version { get; } = typeof(AppBranding).Assembly
+        .GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
+        .OfType<System.Reflection.AssemblyInformationalVersionAttribute>()
+        .FirstOrDefault()?.InformationalVersion.Split('+')[0] ?? "0.0.0";
+    public static string WindowTitle => $"Grindcrest · Black Desert Loot Tracker · {Version}";
+    public static string UserAgent => $"Grindcrest/{Version}";
 
     public static Bitmap CreateLogo()
     {

@@ -531,6 +531,86 @@ public sealed class TrackerSessionServiceTests
         Assert.True(fixture.Analyzer.Disposed);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ShutdownReportsHistoryWriteFailureSoAnUpdateCannotRestart(bool temporaryPathIsDirectory)
+    {
+        await using var fixture = new Fixture(autoUpload: false);
+        fixture.Begin();
+        await fixture.ProcessAfter(TimeSpan.FromMinutes(2), ("Black Crystal Fragment", 3));
+        await fixture.Service.PauseAsync();
+        var historyPath = Path.Combine(fixture.DirectoryPath, "loot-history-v1.json");
+        var savedHistory = File.ReadAllText(historyPath);
+        if (temporaryPathIsDirectory) Directory.CreateDirectory(historyPath + ".tmp");
+        // Exercise both access-denied and file-sharing failures against private
+        // fixture data; the previously completed history file must survive.
+        using var lockedHistory = temporaryPathIsDirectory ? null : new FileStream(
+            historyPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+
+        await fixture.Service.ShutdownAsync();
+        await fixture.Service.DisposeAsync();
+
+        Assert.True(fixture.Service.State.ShutdownFailed);
+        Assert.True(fixture.Service.State.IsError);
+        Assert.Contains("Verlauf nicht gespeichert", fixture.Service.State.Status);
+        Assert.True(fixture.Analyzer.Disposed);
+        Assert.Equal(savedHistory, File.ReadAllText(historyPath));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task UpdatePreflightFailureKeepsUnsavedLootAliveAndRetryPersistsIt(bool temporaryPathIsDirectory)
+    {
+        await using var fixture = new Fixture(autoUpload: false);
+        fixture.Begin();
+        await fixture.ProcessAfter(TimeSpan.FromMinutes(2), ("Black Crystal Fragment", 3));
+        await fixture.Service.PauseAsync();
+        var historyPath = Path.Combine(fixture.DirectoryPath, "loot-history-v1.json");
+        if (temporaryPathIsDirectory) Directory.CreateDirectory(historyPath + ".tmp");
+        using var lockedHistory = temporaryPathIsDirectory ? null : new FileStream(
+            historyPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        fixture.ResumeClocks();
+        await fixture.ProcessAfter(TimeSpan.FromMinutes(1), ("Black Crystal Fragment", 2));
+        await fixture.Service.PauseAsync();
+
+        var failure = await Assert.ThrowsAnyAsync<Exception>(() => fixture.Service.PrepareUpdateRestartAsync());
+        Assert.True(failure is IOException or UnauthorizedAccessException);
+
+        Assert.False(fixture.Analyzer.Disposed);
+        Assert.False(fixture.Service.State.ShutdownFailed);
+        Assert.False(fixture.Service.State.IsBusy);
+        Assert.Equal(5, fixture.Service.State.Loot.TotalQuantity);
+        Assert.Equal(3, Assert.Single(fixture.HistoryStore.Load()).Totals["Black Crystal Fragment"]);
+
+        lockedHistory?.Dispose();
+        if (temporaryPathIsDirectory) Directory.Delete(historyPath + ".tmp");
+        await fixture.Service.PrepareUpdateRestartAsync();
+
+        Assert.False(fixture.Analyzer.Disposed);
+        Assert.Equal(5, Assert.Single(fixture.HistoryStore.Load()).Totals["Black Crystal Fragment"]);
+        await fixture.Service.NewSessionAsync();
+        Assert.False(fixture.Service.State.HasSession);
+    }
+
+    [Fact]
+    public async Task UpdatePreflightDoesNotDisposeSessionWhenSettingsCannotBeSaved()
+    {
+        await using var fixture = new Fixture(autoUpload: false);
+        Directory.CreateDirectory(fixture.SettingsPath);
+
+        await Assert.ThrowsAsync<IOException>(() => fixture.Service.PrepareUpdateRestartAsync());
+
+        Assert.False(fixture.Analyzer.Disposed);
+        Assert.False(fixture.Service.State.ShutdownFailed);
+        Assert.False(fixture.Service.State.IsBusy);
+        Directory.Delete(fixture.SettingsPath);
+        await fixture.Service.PrepareUpdateRestartAsync();
+        Assert.True(File.Exists(fixture.SettingsPath));
+        Assert.False(fixture.Analyzer.Disposed);
+    }
+
     [Fact]
     public async Task MissingKeyDoesNotPauseOrSubmitTheRunningSession()
     {

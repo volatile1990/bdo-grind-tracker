@@ -5,6 +5,7 @@ using BdoGrindTracker.App.Persistence;
 using BdoGrindTracker.App.Pricing;
 using BdoGrindTracker.App.Services;
 using BdoGrindTracker.App.UI;
+using BdoGrindTracker.App.Updates;
 using BdoGrindTracker.Core;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
@@ -149,6 +150,20 @@ public sealed class BlazorFrontendTests
         Assert.Equal(0, session.CommandCalls);
     }
 
+    [Theory]
+    [InlineData(true, false, true)]
+    [InlineData(false, true, true)]
+    [InlineData(false, false, false)]
+    public async Task UpdateRestartRequiresPausedIdleSession(bool running, bool busy, bool disabled)
+    {
+        var session = new SnapshotSession { State = ActiveState() with { IsRunning = running, IsBusy = busy } };
+        var updates = new StaticUpdates(new(true, true, "0.10.0-test.2", "0.10.0-test.3",
+            UpdatePhase.ReadyToRestart, 100, "Update bereit."));
+        var markup = await RenderAsync<AppUpdates>(session, updates: updates);
+        Assert.Equal(disabled, IsDisabled(ButtonAttributes(markup, "Installieren und neu starten")));
+        Assert.Equal(0, session.CommandCalls);
+    }
+
     private static TrackerState ActiveState()
     {
         var totals = new Dictionary<string, long> { ["Black Crystal Fragment"] = 1_582 };
@@ -171,11 +186,12 @@ public sealed class BlazorFrontendTests
     };
 
     private static async Task<string> RenderAsync<TComponent>(ITrackerSession session,
-        IDictionary<string, object?>? parameters = null) where TComponent : IComponent
+        IDictionary<string, object?>? parameters = null, IAppUpdates? updates = null) where TComponent : IComponent
     {
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddSingleton(session);
+        services.AddSingleton<IAppUpdates>(updates ?? new DisabledAppUpdates("0.10.0-test.2", "Updates sind in der Vorschau deaktiviert."));
         services.AddSingleton<IJSRuntime, NoJavaScript>();
         services.AddSingleton<NavigationManager, StaticNavigation>();
         await using var provider = services.BuildServiceProvider();
@@ -186,6 +202,16 @@ public sealed class BlazorFrontendTests
                 ? ParameterView.Empty : ParameterView.FromDictionary(parameters));
             return rendered.ToHtmlString();
         });
+    }
+
+    private sealed class StaticUpdates(UpdateState state) : IAppUpdates
+    {
+        public UpdateState State => state;
+        public event Action? Changed { add { } remove { } }
+        public Task CheckAsync() => Task.CompletedTask;
+        public Task DownloadAsync() => Task.CompletedTask;
+        public Task SetBetaAsync(bool enabled) => Task.CompletedTask;
+        public Task RequestRestartAsync() => Task.CompletedTask;
     }
 
     private static string ButtonAttributes(string markup, string label)
@@ -267,6 +293,7 @@ public sealed class BlazorFrontendTests
         public Task DeleteHistoryAsync(Guid sessionId) => Command();
         public Task RefreshPricesAsync() => Command();
         public Task TickAsync() => Command();
+        public Task PrepareUpdateRestartAsync() => Task.CompletedTask;
         public Task ShutdownAsync() => Task.CompletedTask;
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }

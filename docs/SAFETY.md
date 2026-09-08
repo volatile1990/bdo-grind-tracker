@@ -108,6 +108,26 @@ manuelle Uploads; lokales Tracking bleibt nutzbar. Die Auto-Pause erzeugt keinen
 zusätzlichen Reststunden-Upload. Details zu Intervallen, manuellen Uploads und
 Fehlerfällen: [Garmoth-Integration](GARMOTH_INTEGRATION.md).
 
+## Programmupdates
+
+Installierte Versionen prüfen beim Start und auf manuellen Wunsch die öffentlichen
+Releases von `https://github.com/volatile1990/bdo-grind-tracker` per HTTPS. Die
+Updateprüfung und der Paketdownload senden keine Sessions, Screenshots, OCR-Texte,
+Garmoth-Schlüssel oder GitHub-Zugangsdaten. Metadatenanfragen sind zeitlich begrenzt;
+ein Netzwerkfehler beeinflusst das Tracking nicht. Vorschau, UI-Prüfungen und
+Offline-Replay führen keine Updateprüfung aus.
+
+Downloads beginnen ausdrücklich per Klick. Velopack prüft die Paketintegrität.
+Die Installation erfordert einen weiteren Klick bei pausiertem Tracking und ohne
+laufenden Session-Vorgang. Vor dem Start des Updaters wird der Verlauf gespeichert
+und das Tracking beendet. Scheitert die erste Sicherung, bleibt die App mit der
+Session im Arbeitsspeicher geöffnet und die Installation kann erneut versucht werden.
+Beim normalen App-Start werden heruntergeladene Pakete nicht automatisch angewendet.
+Die Programmdateien liegen unter `%LOCALAPPDATA%\Grindcrest`, getrennt von den
+bestehenden Nutzerdaten unter `%LOCALAPPDATA%\BdoGrindTracker`. Die Updateauswahl
+wird dort in `update-settings.json` gespeichert. Beta-Versionen und stabile
+Versionen verwenden getrennte Kanäle; es gibt keine automatischen Downgrades.
+
 ## Öffentliche Marktpreise
 
 Die App ruft beim Anzeigen und anschließend höchstens alle zehn Minuten gebündelt

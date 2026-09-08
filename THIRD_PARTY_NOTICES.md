@@ -15,6 +15,13 @@ des NuGet-Pakets verwendet. Der Lizenztext liegt in
 `licenses/Microsoft.Web.WebView2.txt`. Die separat installierte WebView2 Evergreen
 Runtime wird nicht mit diesem Paket gebündelt.
 
+## Velopack
+
+Installer und Updatefunktion verwenden Velopack 1.2.0 unter der MIT-Lizenz.
+Quellcode: https://github.com/velopack/velopack (Commit
+`f2edcbcafb81da5b3c884aaea330e225ad91d8b6`). Der vollständige Lizenztext liegt in
+`licenses/Velopack.txt` und wird mit der Anwendung ausgeliefert.
+
 ## BDO Companion digit templates
 
 Für die geforderte Verhaltensparität enthält die OCR-Assembly 30 Ziffern-PNGs, die aus

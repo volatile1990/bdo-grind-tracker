@@ -5,6 +5,7 @@ using BdoGrindTracker.App.UI;
 using BdoGrindTracker.App.Diagnostics;
 using BdoGrindTracker.App.Services;
 using Microsoft.Web.WebView2.Core;
+using Velopack;
 
 namespace BdoGrindTracker.App;
 
@@ -13,6 +14,9 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
+        // Hooks must exit before Windows, WebView2, OCR or user data are touched.
+        // Downloading an update never authorizes an implicit restart of another session.
+        VelopackApp.Build().SetAutoApplyOnStartup(false).Run();
         ApplicationConfiguration.Initialize();
         if (args.Length > 0 && string.Equals(args[0], "--replay", StringComparison.OrdinalIgnoreCase))
         {
@@ -45,6 +49,20 @@ internal static class Program
         var emptyPreview = args.Contains("--ui-preview-empty", StringComparer.OrdinalIgnoreCase);
         var preview = uiSmokeTest || emptyPreview || args.Contains("--ui-preview", StringComparer.OrdinalIgnoreCase);
         var smokeTest = startupSmokeTest || uiSmokeTest;
+        using var instance = new Mutex(false, @"Global\Grindcrest-" +
+            System.Security.Principal.WindowsIdentity.GetCurrent().User?.Value);
+        if (!preview && !smokeTest)
+        {
+            bool acquired;
+            try { acquired = instance.WaitOne(0); }
+            catch (AbandonedMutexException) { acquired = true; }
+            if (!acquired)
+            {
+                MessageBox.Show("Grindcrest läuft bereits. Bitte verwende das geöffnete Fenster.",
+                    "Grindcrest", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return 0;
+            }
+        }
         try
         {
             _ = CoreWebView2Environment.GetAvailableBrowserVersionString();

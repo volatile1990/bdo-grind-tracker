@@ -4,6 +4,7 @@ using BdoGrindTracker.App.Services;
 using Microsoft.AspNetCore.Components.WebView.WindowsForms;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Web.WebView2.Core;
+using BdoGrindTracker.App.Updates;
 
 namespace BdoGrindTracker.App.UI;
 
@@ -13,6 +14,7 @@ internal sealed class HybridMainForm : Form
     private readonly ITrackerSession _session;
     private readonly BlazorWebView _web = new() { Dock = DockStyle.Fill };
     private readonly ServiceProvider _services;
+    private readonly IAppUpdates _updates;
     private readonly System.Windows.Forms.Timer _timer = new() { Interval = 500 };
     private readonly bool _smokeTest;
     private readonly bool _hidden;
@@ -51,6 +53,9 @@ internal sealed class HybridMainForm : Form
         var services = new ServiceCollection();
         services.AddWindowsFormsBlazorWebView();
         services.AddSingleton<ITrackerSession>(session);
+        _updates = AppUpdateService.Create(!preview && !smokeTest,
+            () => session.State.IsRunning, () => session.State.IsBusy, PrepareUpdateRestartAsync);
+        services.AddSingleton<IAppUpdates>(_updates);
         _services = services.BuildServiceProvider();
         _web.Services = _services;
         _web.HostPage = Path.Combine(AppContext.BaseDirectory, "wwwroot", "index.html");
@@ -147,6 +152,7 @@ internal sealed class HybridMainForm : Form
                         _renderReady = true;
                         Console.WriteLine("Blazor Hybrid ready");
                         if (_smokeTest) { Close(); return; }
+                        _ = _updates.CheckAsync();
                     }
                 }
                 if (!_renderReady) return;
@@ -180,6 +186,68 @@ internal sealed class HybridMainForm : Form
         try { await _session.ShutdownAsync(); await _session.DisposeAsync(); }
         catch (Exception error) { ExitCode = 1; Console.Error.WriteLine(error.Message); }
         finally { _closed = true; Close(); }
+    }
+
+    private Task<bool> PrepareUpdateRestartAsync(Action scheduleApply)
+    {
+        if (!InvokeRequired) return PrepareUpdateRestartCoreAsync(scheduleApply);
+        var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        BeginInvoke(async () =>
+        {
+            try { completion.SetResult(await PrepareUpdateRestartCoreAsync(scheduleApply)); }
+            catch (Exception error) { completion.SetException(error); }
+        });
+        return completion.Task;
+    }
+
+    private async Task<bool> PrepareUpdateRestartCoreAsync(Action scheduleApply)
+    {
+        // Recheck at the host boundary: tracking may have resumed since rendering.
+        if (_closing || _session.State.IsRunning || _session.State.IsBusy) return false;
+        _closing = true;
+        _timer.Stop();
+        Enabled = false;
+        try
+        {
+            // Keep the live service available for retry until the paused session
+            // has a durable snapshot. Shutdown itself disposes the service.
+            await _session.PrepareUpdateRestartAsync();
+        }
+        catch (Exception)
+        {
+            _closing = false;
+            Enabled = true;
+            _timer.Start();
+            MessageBox.Show(this,
+                "Deine Session konnte nicht gespeichert werden. Grindcrest bleibt geöffnet und das Update wartet. " +
+                "Bitte prüfe den freien Speicherplatz und versuche es erneut.",
+                "Session noch nicht gespeichert", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return false;
+        }
+        try
+        {
+            await _session.ShutdownAsync();
+            await _session.DisposeAsync();
+            if (_session.State.ShutdownFailed)
+                throw new IOException("Die Session konnte nicht vollständig gespeichert werden.");
+            // Start the updater's bounded exit wait only after all saves finish.
+            scheduleApply();
+            return true;
+        }
+        catch (Exception)
+        {
+            ExitCode = 1;
+            MessageBox.Show(this,
+                "Das Update wurde nicht gestartet, weil das Speichern oder Vorbereiten fehlgeschlagen ist. " +
+                "Bitte starte Grindcrest erneut und prüfe deinen Verlauf. Das Update kannst du danach erneut versuchen.",
+                "Update nicht installiert", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            return false;
+        }
+        finally
+        {
+            _closed = true;
+            Close();
+        }
     }
 
     protected override void Dispose(bool disposing)

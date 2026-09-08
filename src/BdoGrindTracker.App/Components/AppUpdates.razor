@@ -1,0 +1,70 @@
+@inherits TrackerComponentBase
+@using BdoGrindTracker.App.Updates
+@inject IAppUpdates Updates
+@inject NavigationManager Navigation
+
+@if (Compact)
+{
+    @if (Update.Phase is UpdatePhase.Available or UpdatePhase.Downloading or UpdatePhase.ReadyToRestart)
+    {
+        <div class="update-banner" role="status">
+            <AppIcon Name="refresh" />
+            <span>@Update.Message</span>
+            <button type="button" class="button secondary" @onclick="OpenSettings">Update ansehen</button>
+        </div>
+    }
+}
+else
+{
+    <section class="panel settings-panel update-panel" aria-labelledby="updates-heading">
+        <div class="settings-heading"><div class="settings-icon gold-icon"><AppIcon Name="refresh" /></div><div><h2 id="updates-heading">App-Updates</h2><p>Grindcrest @AppBranding.Version</p></div></div>
+        <p class="update-message" role="status" aria-live="polite">@Update.Message</p>
+        @if (Update.Phase == UpdatePhase.Downloading)
+        {
+            <div class="update-progress"><progress max="100" value="@Update.DownloadPercent" aria-label="Update herunterladen"></progress><span>@Update.DownloadPercent %</span></div>
+        }
+        <div class="update-actions">
+            <button type="button" class="button secondary" @onclick="Updates.CheckAsync" disabled="@(!Update.Enabled || Update.IsBusy || Update.Phase == UpdatePhase.ReadyToRestart)"><AppIcon Name="refresh" />Nach Updates suchen</button>
+            @if (Update.CanDownload)
+            {
+                <button type="button" class="button primary" @onclick="Updates.DownloadAsync">Update herunterladen</button>
+            }
+            @if (Update.Phase == UpdatePhase.ReadyToRestart)
+            {
+                <button type="button" class="button primary" @onclick="Updates.RequestRestartAsync" disabled="@(State.IsRunning || State.IsBusy)">Installieren und neu starten</button>
+            }
+        </div>
+        @if (Update.Enabled)
+        {
+            <p class="field-note">Updates werden beim Start gesucht. Du entscheidest, wann sie heruntergeladen und installiert werden.</p>
+            @if (Update.Phase == UpdatePhase.ReadyToRestart)
+            {
+                <div class="subtle-box"><AppIcon Name="shield" /><span>@(State.IsRunning ? "Pausiere zuerst deine Grind-Session, um das Update zu installieren." : "Deine Session wird im Verlauf gespeichert. Nach dem Neustart kannst du eine neue Session beginnen.")</span></div>
+            }
+            <label class="toggle-row"><span><strong>Beta-Updates erhalten</strong><small>Neue Funktionen früher testen. Diese Auswahl wird sofort gespeichert. Nach dem Ausschalten erhältst du die nächste höhere stabile Version.</small></span><input type="checkbox" class="switch" checked="@Update.IsBeta" @onchange="ChangeBeta" disabled="@Update.IsBusy" /></label>
+        }
+    </section>
+}
+
+@code {
+    [Parameter] public bool Compact { get; set; }
+    private UpdateState Update => Updates.State;
+    private bool _disposed;
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        Updates.Changed += UpdateChanged;
+    }
+    private void UpdateChanged()
+    {
+        if (!_disposed) _ = InvokeAsync(() => { if (!_disposed) StateHasChanged(); });
+    }
+    private void OpenSettings() => Navigation.NavigateTo("/settings");
+    private Task ChangeBeta(ChangeEventArgs args) => Updates.SetBetaAsync(args.Value is true);
+    public override void Dispose()
+    {
+        _disposed = true;
+        Updates.Changed -= UpdateChanged;
+        base.Dispose();
+    }
+}

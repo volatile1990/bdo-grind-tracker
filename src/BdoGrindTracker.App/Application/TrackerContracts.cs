@@ -44,6 +44,7 @@ internal sealed record TrackerState
     public bool HasApiKey { get; init; }
     public bool UploadBlocked { get; init; }
     public bool AutomaticSuspended { get; init; }
+    public bool ShutdownFailed { get; init; }
 }
 
 /// <summary>Desktop actions and immutable state consumed by the Blazor frontend.</summary>
@@ -69,5 +70,7 @@ internal interface ITrackerSession : IAsyncDisposable
     Task DeleteHistoryAsync(Guid sessionId);
     Task RefreshPricesAsync();
     Task TickAsync();
+    // Persist before irreversible shutdown; failure leaves the paused tracker usable.
+    Task PrepareUpdateRestartAsync();
     Task ShutdownAsync();
 }

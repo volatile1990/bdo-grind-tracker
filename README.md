@@ -1,6 +1,6 @@
 # Grindcrest
 
-Lokaler, passiver Loot-Tracker für Black Desert, Testversion **0.10.0-test.1** (bisher BDO
+Lokaler, passiver Loot-Tracker für Black Desert, Testversion **0.10.0-test.2** (bisher BDO
 Grind Tracker), mit vollständig neuem **Blazor-Hybrid-Frontend** für Windows.
 Live-Session, Verlauf, Garmoth, Lootkorrekturen, Bestätigungsdialoge und Einstellungen werden
 als lokale Razor-Komponenten in WebView2 dargestellt. Das Dashboard bietet eine
@@ -96,6 +96,30 @@ Drop-Tabellen. Quellen, Einordnung und verbleibende Grenzen stehen in
 [Lootpools](docs/LOOT_POOLS.md). OCR, Matchingregeln und Zählung bleiben unverändert.
 
 ## Benutzung
+
+### Installation und Updates
+
+Den Windows-x64-Installer `Grindcrest-win-x64-beta-Setup.exe` aus den
+[GitHub Releases](https://github.com/volatile1990/bdo-grind-tracker/releases) laden.
+Die aktuelle Testversion verwendet den Beta-Kanal; stabile Versionen erhalten einen
+eigenen Installer. Das Setup enthält .NET und installiert bei Bedarf WebView2 und
+die benötigte Visual-C++-Laufzeit. Eine passende Windows-OCR-Sprache wird weiterhin benötigt.
+
+Installierte Versionen suchen beim Start nach Updates. Unter **Einstellungen →
+App-Updates** lassen sich Updates herunterladen und mit **Installieren und neu starten**
+anwenden. Dazu muss die Session pausiert sein. Vor dem Neustart wird sie im Verlauf
+gespeichert; nach dem Neustart beginnt eine neue Session. Es gibt keinen erzwungenen
+Neustart während eines Grinds. Beta-Updates lassen sich dort ein- und ausschalten;
+beim Wechsel zurück zu stabil wartet die App auf die nächste höhere stabile Version.
+
+Einstellungen, Verlauf und Garmoth-Key bleiben unter `%LOCALAPPDATA%\BdoGrindTracker`.
+Die Installation liegt getrennt unter `%LOCALAPPDATA%\Grindcrest`. Für eine bisher
+entpackte Version den Installer einmal ausführen; die vorhandenen Daten werden
+weiterverwendet. Vorschau und Prüfmodi rufen keine Updates ab.
+
+[Neue Version über GitHub veröffentlichen und lokal bauen](docs/RELEASING.md).
+
+### Tracking starten
 
 1. `Grindcrest.exe` starten und unter **Einstellungen** den Spielbildschirm prüfen.
 2. Dort optional **Event-Loot mitzählen** aktivieren. Das ergänzt ausschließlich die

@@ -6,7 +6,7 @@ namespace BdoGrindTracker.App.Services;
 
 internal sealed partial class TrackerSessionService
 {
-    private void PersistCurrentSession(DateTimeOffset updatedAt)
+    private void PersistCurrentSession(DateTimeOffset updatedAt, bool throwOnError = false)
     {
         if (!_hasSession || _demoMode || _sessionSpotId is null ||
             _sessionClock.Elapsed <= TimeSpan.Zero || _sessionSummary.ItemTypeCount == 0)
@@ -40,7 +40,11 @@ internal sealed partial class TrackerSessionService
         try { _historyStore.Save(_historyEntries); }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
+            // Shutdown deliberately catches ordinary persistence failures. The
+            // update host still needs a durable failure signal before restarting.
+            if (_shutdownStarted) _shutdownFailed = true;
             SetStatus("Verlauf nicht gespeichert: " + exception.Message, true);
+            if (throwOnError) throw;
         }
     }
 

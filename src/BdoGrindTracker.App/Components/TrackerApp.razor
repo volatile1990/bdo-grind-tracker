@@ -26,6 +26,7 @@
             <div class="breadcrumb">Grindcrest <span>/</span> <strong>@PageLabel</strong></div>
             <div class="topbar-right"><span class="region-badge">@Tracker.Preferences.MarketRegion.ToUpperInvariant()</span><span class="connection"><span class="status-dot @(State.IsRunning ? "running" : State.IsError ? "error" : "")"></span>@(State.IsDemo ? "Demo-Modus" : State.IsRunning ? "Tracking aktiv" : State.HasSession ? "Pausiert" : "Bereit")</span></div>
         </header>
+        @if (_page != Page.Settings) { <AppUpdates Compact="true" /> }
         <main id="main-content">
             <Router AppAssembly="@typeof(TrackerApp).Assembly">
                 <Found Context="routeData">
@@ -99,6 +100,5 @@
         base.Dispose();
     }
     private string PageLabel => _page switch { Page.History => "Verlauf", Page.Garmoth => "Garmoth", Page.Settings => "Einstellungen", _ => "Live-Session" };
-    private static string Version => typeof(TrackerApp).Assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
-        .OfType<System.Reflection.AssemblyInformationalVersionAttribute>().FirstOrDefault()?.InformationalVersion.Split('+')[0] ?? "";
+    private static string Version => AppBranding.Version;
 }

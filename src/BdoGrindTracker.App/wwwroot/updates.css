@@ -1,0 +1,11 @@
+.update-banner { display:flex; align-items:center; gap:12px; margin:16px 28px 0; padding:12px 16px; border:1px solid #67552f; border-radius:12px; background:#272218; color:#e7d5ac; }
+.update-banner > .app-icon { flex-shrink:0; }
+.update-banner > span { flex:1; min-width:0; }
+.update-banner .button { flex-shrink:0; }
+.update-message { color:var(--text-muted, #a5adbb); line-height:1.6; overflow-wrap:anywhere; }
+.update-actions { display:flex; flex-wrap:wrap; gap:10px; margin:16px 0; }
+.update-progress { display:flex; align-items:center; gap:12px; margin:12px 0; }
+.update-progress progress { flex:1; min-width:0; height:8px; accent-color:#d6b56d; }
+.update-progress > span { min-width:44px; font-variant-numeric:tabular-nums; }
+.update-panel .subtle-box { margin-bottom:14px; }
+@media (max-width:900px) { .update-banner { margin:12px 18px 0; flex-wrap:wrap; } }

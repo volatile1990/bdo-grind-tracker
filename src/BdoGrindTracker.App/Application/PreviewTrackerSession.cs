@@ -90,6 +90,7 @@ internal sealed class PreviewTrackerSession : ITrackerSession
     public Task DeleteHistoryAsync(Guid sessionId) { _history.RemoveAll(entry => entry.SessionId == sessionId); Changed?.Invoke(); return Task.CompletedTask; }
     public Task RefreshPricesAsync() { Change(State with { Status = "Vorschau · Kein Netzwerkabruf." }); return Task.CompletedTask; }
     public Task TickAsync() => Task.CompletedTask;
+    public Task PrepareUpdateRestartAsync() => Task.CompletedTask;
     public Task ShutdownAsync() => Task.CompletedTask;
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }

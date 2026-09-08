@@ -13,15 +13,16 @@
     <Description>Passive Black Desert loot and grind-session tracker</Description>
     <ApplicationIcon>..\..\data\branding\grindcrest.ico</ApplicationIcon>
     <RootNamespace>BdoGrindTracker.App</RootNamespace>
-    <Version>0.10.0-test.1</Version>
-    <AssemblyVersion>0.10.0.0</AssemblyVersion>
-    <FileVersion>0.10.0.0</FileVersion>
-    <InformationalVersion>0.10.0-test.1</InformationalVersion>
+    <Version>0.10.0-test.2</Version>
+    <InformationalVersion>$(Version)</InformationalVersion>
+    <UpdateRepositoryUrl Condition="'$(UpdateRepositoryUrl)' == ''">https://github.com/volatile1990/bdo-grind-tracker</UpdateRepositoryUrl>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Components.WebView.WindowsForms" Version="9.0.120" />
+    <PackageReference Include="Velopack" Version="1.2.0" />
+    <AssemblyMetadata Include="UpdateRepositoryUrl" Value="$(UpdateRepositoryUrl)" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <Content Update="wwwroot\**\*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <WebUiAsset Include="..\..\data\**\*.png;..\..\data\**\*.jpg;..\..\data\**\*.json;..\..\data\**\*.ico" />

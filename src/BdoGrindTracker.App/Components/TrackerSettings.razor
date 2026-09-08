@@ -32,6 +32,7 @@
                     <label class="field"><span>Familienruhm</span><input type="number" min="0" max="2147483647" step="1" required @bind="_familyFame" /><small>Zusätzlicher Verkaufsbonus ab 1.000, 4.000 und 7.000 Ruhm.</small></label>
                     <div class="tax-preview"><span>Dein effektiver Markterlös</span><strong>@TaxPreview</strong><small>NPC-Verkäufe bleiben steuerfrei.</small></div>
                 </section>
+                <AppUpdates />
             </div>
         </div>
         <div class="settings-savebar"><span><AppIcon Name="shield" />Deine Einstellungen werden lokal gespeichert.</span><div><button type="button" class="button secondary" @onclick="ResetForm" disabled="@Acting">Änderungen verwerfen</button><button type="submit" class="button primary" disabled="@(Acting || State.IsBusy)"><AppIcon Name="check" />@(Acting ? "Wird gespeichert …" : "Einstellungen speichern")</button></div></div>

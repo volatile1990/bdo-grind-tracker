@@ -1,0 +1,132 @@
+name: Release Grindcrest
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (for example 0.10.0 or 0.10.0-beta.1, without v)'
+        required: true
+        type: string
+  push:
+    tags:
+      - 'v*'
+
+# Packaging can only read the repository. Only the separate publishing job may write.
+permissions:
+  contents: read
+
+concurrency:
+  group: grindcrest-release
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: pwsh
+
+jobs:
+  build:
+    name: Test and package Windows app
+    runs-on: windows-2022
+    timeout-minutes: 45
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Resolve and validate version
+        id: version
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
+        run: |
+          $version = if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch') {
+            $env:REQUESTED_VERSION
+          } else {
+            if (-not $env:GITHUB_REF_NAME.StartsWith('v')) { throw 'Expected a v-prefixed tag.' }
+            $env:GITHUB_REF_NAME.Substring(1)
+          }
+          $metadata = ./scripts/Get-ReleaseMetadata.ps1 -Version $version
+          "version=$($metadata.Version)" >> $env:GITHUB_OUTPUT
+
+      - name: Refuse an existing release or mismatched tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+        run: ./scripts/Publish-Release.ps1 -Version $env:RELEASE_VERSION -Repository $env:GITHUB_REPOSITORY -ExpectedCommit $env:GITHUB_SHA -CheckOnly
+
+      - name: Set up runtime for optional Azure signing
+        if: vars.GRINDCREST_AZURE_SIGN_METADATA_JSON != ''
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Test, publish app and create installer
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+          SIGN_METADATA_JSON: ${{ vars.GRINDCREST_AZURE_SIGN_METADATA_JSON }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+        run: |
+          if ($env:SIGN_METADATA_JSON) {
+            $env:SIGN_METADATA_JSON | ConvertFrom-Json | Out-Null
+            $env:GRINDCREST_AZURE_SIGN_METADATA = Join-Path $env:RUNNER_TEMP 'signing-metadata.json'
+            [IO.File]::WriteAllText($env:GRINDCREST_AZURE_SIGN_METADATA, $env:SIGN_METADATA_JSON)
+          }
+          ./scripts/Build-Release.ps1 -Version $env:RELEASE_VERSION `
+            -UpdateRepositoryUrl "https://github.com/$env:GITHUB_REPOSITORY" `
+            -OutputDirectory ./artifacts/release
+
+      - name: Save test results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: test-results
+          path: artifacts/test-results/**/*.trx
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Save verified release packages
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: grindcrest-release
+          path: artifacts/release/*
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    name: Publish GitHub release
+    needs: build
+    runs-on: windows-2022
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout release scripts
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Download verified packages
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: grindcrest-release
+          path: artifacts/release
+
+      - name: Publish all assets together
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          ./scripts/Publish-Release.ps1 -Version $env:RELEASE_VERSION `
+            -Repository $env:GITHUB_REPOSITORY -ExpectedCommit $env:GITHUB_SHA `
+            -Directory ./artifacts/release

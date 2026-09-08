@@ -432,6 +432,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             RecordingPath = _recording?.RecordingPath, IsRecording = _recording?.IsRecording ?? false,
             HasApiKey = _garmothApiKey.Length > 0, UploadBlocked = _sessionSubmitted || _garmothIntervals.IsBlocked,
             AutomaticSuspended = _garmothIntervals.AutomaticSuspended,
+            ShutdownFailed = _shutdownFailed,
         };
         if (_historyChanged)
         {
@@ -442,6 +443,30 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             _historyChanged = false;
         }
         Changed?.Invoke();
+    }
+
+    private bool _shutdownFailed;
+
+    public Task PrepareUpdateRestartAsync()
+    {
+        if (_disposed || _shutdownStarted || _uiRunning || IsBusy)
+            throw new InvalidOperationException("Bitte die Session pausieren und laufende Vorgänge abwarten.");
+        _operationInProgress = true;
+        try
+        {
+            // Keep every resource and the in-memory aggregate alive until both
+            // files have been saved. On failure the host can remain open/retry.
+            RefreshPendingState();
+            PersistCurrentSession(DateTimeOffset.UtcNow, throwOnError: true);
+            if (!TrySaveSettings())
+                throw new IOException("Die Einstellungen konnten nicht gespeichert werden.");
+            return Task.CompletedTask;
+        }
+        finally
+        {
+            _operationInProgress = false;
+            PublishState();
+        }
     }
 
     public Task ShutdownAsync() => _shutdownTask ??= ShutdownCoreAsync();
@@ -466,7 +491,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             RefreshPendingState();
             PersistCurrentSession(DateTimeOffset.UtcNow);
         }
-        catch (Exception exception) { SetStatus("Beenden: " + exception.Message, true); }
+        catch (Exception exception) { _shutdownFailed = true; SetStatus("Beenden: " + exception.Message, true); }
         finally
         {
             _uiRunning = false;
