@@ -1,4 +1,4 @@
-using BdoGrindTracker.App.Persistence;
+﻿using BdoGrindTracker.App.Persistence;
 using BdoGrindTracker.App.Pricing;
 using BdoGrindTracker.App.UI;
 
@@ -8,6 +8,8 @@ internal sealed record TrackerMonitor(string DeviceName, string Label, Rectangle
 
 internal sealed record TrackerPreferences
 {
+    public IReadOnlyList<string> FavoriteItems { get; init; } = [];
+    public IReadOnlyDictionary<string, string[]> LootColumnOrders { get; init; } = new Dictionary<string, string[]>();
     public string? MonitorDeviceName { get; init; }
     public string? CharacterClassId { get; init; }
     public int AutoPauseMinutes { get; init; } = 3;
@@ -65,7 +67,8 @@ internal interface ITrackerSession : IAsyncDisposable
         bool resumeAutomaticUpload = false);
     Task UploadAsync();
     Task UploadHistoryAsync(Guid sessionId);
-    Task UpdateHistoryLootAsync(Guid sessionId, IReadOnlyDictionary<string, long> totals);
+    Task UpdateHistoryLootAsync(Guid sessionId, IReadOnlyDictionary<string, long> totals,
+        string? characterClass = null);
     Task DeleteHistoryAsync(Guid sessionId);
     Task RefreshPricesAsync();
     Task TickAsync();

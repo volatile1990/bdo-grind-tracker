@@ -1,4 +1,4 @@
-using System.Net.Http;
+﻿using System.Net.Http;
 using System.Security.Cryptography;
 using BdoGrindTracker.App.Character;
 using BdoGrindTracker.App.Persistence;
@@ -74,6 +74,10 @@ internal sealed partial class TrackerSessionService
     {
         _settings.UpdateCapturePreferences(Preferences.MonitorDeviceName);
         _settings.AutoPauseMinutes = Preferences.AutoPauseMinutes;
+        _settings.FavoriteItems = Preferences.FavoriteItems.ToArray();
+        _settings.LootColumnOrders = Preferences.LootColumnOrders.ToDictionary(pair => pair.Key, pair => pair.Value.ToArray());
+        _settings.CharacterClassId = Preferences.CharacterClassId;
+        _settings.IncludeEventLoot = Preferences.IncludeEventLoot;
         _settings.GarmothAutoUploadEnabled = Preferences.AutoUpload;
         _settings.UpdateSilverPreferences(Preferences.MarketRegion, Preferences.Tax);
         try

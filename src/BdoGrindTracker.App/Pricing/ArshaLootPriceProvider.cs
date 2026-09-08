@@ -5,7 +5,7 @@ using System.Text.Json;
 namespace BdoGrindTracker.App.Pricing;
 
 /// <summary>
-/// One anonymous, batched market GET per refresh. Region-isolated persisted prices
+/// Anonymous batched market GET, with bounded individual requests after a batch HTTP 500. Region-isolated persisted prices
 /// remain usable offline but retain their old timestamps and stale markers.
 /// No captured images, quantities, class, session, account or API key are sent.
 /// </summary>
@@ -81,6 +81,15 @@ internal sealed class ArshaLootPriceProvider : ILootPriceProvider
                 request.Headers.UserAgent.ParseAdd(AppBranding.UserAgent);
                 using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead,
                     deadline.Token).ConfigureAwait(false);
+                if (response.StatusCode == HttpStatusCode.InternalServerError)
+                {
+                    receivedAt = _time.GetUtcNow();
+                    received = await FetchIndividualPricesAsync(region, receivedAt, deadline.Token).ConfigureAwait(false);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (received.Count == 0) return Failed(region, "Marktpreisquelle derzeit nicht verfügbar.");
+                }
+                else
+                {
                 if (!response.IsSuccessStatusCode)
                 {
                     var retryAfter = response.Headers.RetryAfter?.Delta ??
@@ -96,6 +105,7 @@ internal sealed class ArshaLootPriceProvider : ILootPriceProvider
                 var bytes = await response.Content.ReadAsByteArrayAsync(deadline.Token).ConfigureAwait(false);
                 receivedAt = _time.GetUtcNow();
                 received = ParsePrices(bytes, receivedAt);
+                }
                 if (received.Count == 0) return Failed(region, "Keine passenden Marktpreise erhalten.");
             }
             catch (Exception exception) when (exception is HttpRequestException or IOException or
@@ -124,6 +134,43 @@ internal sealed class ArshaLootPriceProvider : ILootPriceProvider
             return snapshot;
         }
         finally { _refreshGate.Release(); }
+    }
+
+    private async Task<Dictionary<int, MarketPrice>> FetchIndividualPricesAsync(string region, DateTimeOffset receivedAt, CancellationToken token)
+    {
+        var received = new System.Collections.Concurrent.ConcurrentDictionary<int, MarketPrice>();
+        using var slots = new SemaphoreSlim(4);
+        var stop = 0;
+        await Task.WhenAll(LootPriceCatalog.MarketItemIds.Select(async id =>
+        {
+            var entered = false;
+            try
+            {
+                await slots.WaitAsync(token).ConfigureAwait(false);
+                entered = true;
+                if (Volatile.Read(ref stop) != 0) return;
+                using var request = new HttpRequestMessage(HttpMethod.Get,
+                    $"https://api.arsha.io/v2/{region}/GetWorldMarketSubList?id={id}&lang=en");
+                request.Headers.Accept.ParseAdd("application/json");
+                request.Headers.UserAgent.ParseAdd(AppBranding.UserAgent);
+                using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token).ConfigureAwait(false);
+                if (response.StatusCode is HttpStatusCode.TooManyRequests or HttpStatusCode.Forbidden)
+                {
+                    Interlocked.Exchange(ref stop, 1);
+                    return;
+                }
+                if (!response.IsSuccessStatusCode || response.Content.Headers.ContentLength is > MaximumResponseBytes ||
+                    response.Content.Headers.ContentType?.MediaType is "text/html" or "application/xhtml+xml") return;
+                await response.Content.LoadIntoBufferAsync(MaximumResponseBytes, token).ConfigureAwait(false);
+                var bytes = await response.Content.ReadAsByteArrayAsync(token).ConfigureAwait(false);
+                var prices = ParsePrices(bytes, receivedAt);
+                if (prices.TryGetValue(id, out var price)) received[id] = price;
+            }
+            catch (Exception error) when (error is HttpRequestException or IOException or JsonException or
+                OperationCanceledException or InvalidDataException) { }
+            finally { if (entered) slots.Release(); }
+        })).ConfigureAwait(false);
+        return received.ToDictionary(pair => pair.Key, pair => pair.Value);
     }
 
     private LootPriceSnapshot Failed(string region, string message, TimeSpan? retryAfter = null)

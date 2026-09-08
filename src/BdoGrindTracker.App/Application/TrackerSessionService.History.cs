@@ -92,7 +92,8 @@ internal sealed partial class TrackerSessionService
         return Task.CompletedTask;
     });
 
-    public Task UpdateHistoryLootAsync(Guid sessionId, IReadOnlyDictionary<string, long> totals) => RunOperationAsync(() =>
+    public Task UpdateHistoryLootAsync(Guid sessionId, IReadOnlyDictionary<string, long> totals,
+        string? characterClass = null) => RunOperationAsync(() =>
     {
         ArgumentNullException.ThrowIfNull(totals);
         if (_hasSession && sessionId == _sessionId)
@@ -108,6 +109,9 @@ internal sealed partial class TrackerSessionService
         var valuation = SilverValuation.Calculate(cleaned, Prices, Preferences.Tax);
         _historyEntries[index] = previous with
         {
+            CharacterClass = characterClass is null
+                ? previous.CharacterClass
+                : string.IsNullOrWhiteSpace(characterClass) ? null : characterClass.Trim(),
             Totals = cleaned,
             SilverBeforeTax = valuation.BeforeTax,
             SilverAfterTax = valuation.AfterTax,
@@ -117,7 +121,7 @@ internal sealed partial class TrackerSessionService
         try
         {
             _historyStore.Save(_historyEntries);
-            SetStatus($"Lootmengen für {LootSpotCatalog.GetRequired(previous.SpotId).DisplayName} gespeichert.");
+            SetStatus($"Session für {LootSpotCatalog.GetRequired(previous.SpotId).DisplayName} gespeichert.");
         }
         catch
         {

@@ -14,6 +14,10 @@ internal static class Program
     private static int Main(string[] args)
     {
         ApplicationConfiguration.Initialize();
+#if DEBUG
+        if (args.Any(a => a.StartsWith("--demo-sessions=", StringComparison.Ordinal)))
+            return Development.DemoSessionGenerator.Run(args);
+#endif
         if (args.Length > 0 && string.Equals(args[0], "--replay", StringComparison.OrdinalIgnoreCase))
         {
             if (args.Length != 2)

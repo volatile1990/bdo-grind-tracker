@@ -163,4 +163,12 @@
   <Target Name="CopyWebUiAssetsToPublish" AfterTargets="Publish">
     <Copy SourceFiles="@(WebUiAsset)" DestinationFiles="@(WebUiAsset->'$(PublishDir)wwwroot\assets\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
   </Target>
+  <ItemGroup Condition="'$(Configuration)' == 'Debug'">
+    <EmbeddedResource Include="Development/Garmoth320.json" LogicalName="Development.Garmoth320.json" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(Configuration)' != 'Debug'">
+    <Compile Remove="Development/**/*.cs" />
+    <Content Remove="Development/**/*" />
+    <None Remove="Development/**/*" />
+  </ItemGroup>
 </Project>

@@ -1,4 +1,4 @@
-using BdoGrindTracker.App.Persistence;
+﻿using BdoGrindTracker.App.Persistence;
 using BdoGrindTracker.App.Pricing;
 using BdoGrindTracker.App.UI;
 using BdoGrindTracker.Core;
@@ -76,14 +76,14 @@ internal sealed class PreviewTrackerSession : ITrackerSession
     }
     public Task UploadAsync() { Change(State with { Status = "Vorschau · Es wird nichts an Garmoth gesendet." }); return Task.CompletedTask; }
     public Task UploadHistoryAsync(Guid sessionId) => UploadAsync();
-    public Task UpdateHistoryLootAsync(Guid sessionId, IReadOnlyDictionary<string, long> totals)
+    public Task UpdateHistoryLootAsync(Guid sessionId, IReadOnlyDictionary<string, long> totals, string? characterClass = null)
     {
         var index = _history.FindIndex(entry => entry.SessionId == sessionId);
         if (index >= 0)
         {
             var values = totals.Where(p => p.Value > 0).ToDictionary(p => p.Key, p => p.Value);
             var silver = SilverValuation.Calculate(values, Prices, Preferences.Tax);
-            _history[index] = _history[index] with { Totals = values, SilverBeforeTax = silver.BeforeTax, SilverAfterTax = silver.AfterTax, SilverIsComplete = silver.IsComplete };
+            _history[index] = _history[index] with { CharacterClass = characterClass is null ? _history[index].CharacterClass : string.IsNullOrWhiteSpace(characterClass) ? null : characterClass.Trim(), Totals = values, SilverBeforeTax = silver.BeforeTax, SilverAfterTax = silver.AfterTax, SilverIsComplete = silver.IsComplete };
         }
         Changed?.Invoke(); return Task.CompletedTask;
     }

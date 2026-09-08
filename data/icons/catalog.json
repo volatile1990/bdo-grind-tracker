@@ -596,6 +596,16 @@
       "sha256": "d2f48d18065f7f12898d23679f4370a38e2c80f7726b593ea66f1da45e010b1d",
       "width": 44,
       "height": 44
+    },
+    {
+      "itemId": "13",
+      "name": "Pure Black Stone",
+      "file": "pure-black-stone.png",
+      "page": "https://bdocodex.com/us/item/13/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/06_pc_equipitem/03_etc/12_doapplydirectlyitem/00000013.webp",
+      "sha256": "535d445caf2ccceefec7c41384a522765d85a1b547030d3c6674112ca574d77c",
+      "width": 44,
+      "height": 44
     }
   ]
 }

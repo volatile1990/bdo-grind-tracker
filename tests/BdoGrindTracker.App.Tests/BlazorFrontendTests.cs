@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Text.RegularExpressions;
 using BdoGrindTracker.App.Components;
 using BdoGrindTracker.App.Persistence;
@@ -16,6 +16,28 @@ namespace BdoGrindTracker.App.Tests;
 
 public sealed class BlazorFrontendTests
 {
+    [Fact]
+    public async Task SessionSilverUsesCurrentPricesInsteadOfSavedPartialDemoTotal()
+    {
+        var entry = HistoryEntry(Guid.NewGuid()) with
+        {
+            Totals = new Dictionary<string, long> { ["Black Stone"] = 100 },
+            Duration = TimeSpan.FromHours(1), SilverAfterTax = 999999999, SilverIsComplete = false
+        };
+        var session = new SnapshotSession
+        {
+            History = [entry],
+            Prices = new LootPriceSnapshot("eu", [new("Black Stone", 100, 0, LootPriceOrigin.LiveMarket, null)]),
+            Preferences = new()
+        };
+        var markup = WebUtility.HtmlDecode(await RenderAsync<HistoryDashboard>(session,
+            new Dictionary<string, object?> { [nameof(HistoryDashboard.SpotId)] = LootSpotCatalog.HermesiaId }));
+        Assert.Contains("numeric gold\">6.500</td>", markup);
+        Assert.DoesNotContain("* Enthält Sessions", markup);
+        Assert.Equal(999999999, entry.SilverAfterTax);
+        Assert.False(entry.SilverIsComplete);
+    }
+
     [Fact]
     public async Task RunningSessionOffersPauseAndShowsExactLootWithoutStartingAnyActionDuringRender()
     {
@@ -54,6 +76,51 @@ public sealed class BlazorFrontendTests
             [nameof(HistoryDashboard.SpotId)] = LootSpotCatalog.HermesiaId
         }));
         Assert.Equal(0, session.CommandCalls);
+    }
+
+    [Fact]
+    public async Task SpotHistoryRendersTheCompactLootMatrixWithPinnedSessionColumns()
+    {
+        var session = new SnapshotSession
+        {
+            History = [HistoryEntry(Guid.NewGuid())]
+        };
+
+        var markup = WebUtility.HtmlDecode(await RenderAsync<HistoryDashboard>(session,
+            new Dictionary<string, object?>
+            {
+                [nameof(HistoryDashboard.SpotId)] = LootSpotCatalog.HermesiaId
+            }));
+
+        Assert.Contains("spot-session-table-scroll", markup);
+        Assert.Contains("WIE LANG HER", markup);
+        Assert.Contains("GRINDZEIT", markup);
+        Assert.Contains("SILBER / H", markup);
+        Assert.Contains("Black Crystal Fragment", markup);
+        Assert.Contains("Aktionen für diese Session", markup);
+        Assert.Contains("Klasse dieser Session", markup);
+        Assert.Equal(0, session.CommandCalls);
+    }
+
+    [Fact]
+    public async Task ManualColumnOrderRemainsWithoutLootPool()
+    {
+        var session = new SnapshotSession
+        {
+            State = ActiveState() with { Loot = ActiveState().Loot with { Totals = new Dictionary<string, long> { ["Black Stone"] = 2 } } },
+            History = [HistoryEntry(Guid.NewGuid())],
+            Preferences = new() { LootColumnOrders = new Dictionary<string, string[]> { [LootSpotCatalog.HermesiaId] = ["Black Stone", "Black Crystal Fragment"] } }
+        };
+        var markup = WebUtility.HtmlDecode(await RenderAsync<HistoryDashboard>(session,
+            new Dictionary<string, object?> { [nameof(HistoryDashboard.SpotId)] = LootSpotCatalog.HermesiaId }));
+        Assert.DoesNotContain("spot-loot-pool", markup);
+
+        var headers = Regex.Matches(markup, "<th class=\"session-loot-column\"[^>]*title=\"([^\"]+)\"");
+        Assert.StartsWith("Black Stone", headers[0].Groups[1].Value);
+        Assert.StartsWith("Black Crystal Fragment", headers[1].Groups[1].Value);
+        var live = WebUtility.HtmlDecode(await RenderAsync<LiveDashboard>(session));
+        Assert.DoesNotContain("favorite-loot-row", live);
+        Assert.DoesNotContain("★ FAVORIT", live);
     }
 
     [Theory]
@@ -263,7 +330,8 @@ public sealed class BlazorFrontendTests
         public Task SavePreferencesAsync(TrackerPreferences preferences, string? apiKey = null, bool resumeAutomaticUpload = false) => Command();
         public Task UploadAsync() => Command();
         public Task UploadHistoryAsync(Guid sessionId) => Command();
-        public Task UpdateHistoryLootAsync(Guid sessionId, IReadOnlyDictionary<string, long> totals) => Command();
+        public Task UpdateHistoryLootAsync(Guid sessionId, IReadOnlyDictionary<string, long> totals,
+            string? characterClass = null) => Command();
         public Task DeleteHistoryAsync(Guid sessionId) => Command();
         public Task RefreshPricesAsync() => Command();
         public Task TickAsync() => Command();

@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Security.Cryptography;
 using BdoGrindTracker.App.Analysis;
 using BdoGrindTracker.App.Capture;
@@ -111,6 +111,10 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             MonitorDeviceName = Monitors.FirstOrDefault(m => m.DeviceName == _settings.MonitorDeviceName)?.DeviceName
                 ?? Monitors.FirstOrDefault(m => m.IsPrimary)?.DeviceName ?? Monitors.FirstOrDefault()?.DeviceName,
             AutoPauseMinutes = _settings.AutoPauseMinutes,
+            FavoriteItems = _settings.FavoriteItems ?? [],
+            LootColumnOrders = _settings.LootColumnOrders ?? new(),
+            CharacterClassId = CompanionCharacterClassCatalog.FindById(_settings.CharacterClassId ?? "")?.Id,
+            IncludeEventLoot = _settings.IncludeEventLoot,
             AutoUpload = _settings.GarmothAutoUploadEnabled,
             MarketRegion = _settings.MarketRegion,
             ValuePack = _settings.SilverValuePack,
@@ -128,7 +132,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
     public TrackerPreferences Preferences { get; private set; }
     public IReadOnlyList<TrackerMonitor> Monitors { get; }
     public IReadOnlyList<LootHistoryEntry> History { get; private set; } = [];
-    public LootPriceSnapshot Prices { get; private set; }
+    public LootPriceSnapshot Prices { get; private set; } = LootPriceCatalog.FixedSnapshot("eu");
     private bool IsBusy => _operationInProgress || _garmothUploadInProgress;
     private CharacterClass? SelectedCharacterClass => Preferences.CharacterClassId is { } id
         ? CompanionCharacterClassCatalog.FindById(id) : _classDetection.Class;

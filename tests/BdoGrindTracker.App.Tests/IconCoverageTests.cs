@@ -74,17 +74,17 @@ public sealed class IconCoverageTests
     }
 
     [Fact]
-    public void OnlyAmbiguousPureBlackStoneRemainsWithoutSingleVariantIcon()
+    public void EverySupportedItemHasAnIconIncludingRepresentativePureBlackStone()
     {
         var catalog = ReadCatalog();
         var names = LootSpotCatalog.Spots.SelectMany(static spot => spot.AllowedItems)
             .Distinct(StringComparer.Ordinal).ToArray();
         Assert.Equal(55, names.Length);
-        Assert.Equal(new[] { "Pure Black Stone" }, names.Where(name => !catalog.ContainsKey(name)));
-        Assert.Equal(56, catalog.Count);
-        Assert.Equal(56, Directory.GetFiles(IconDirectory, "*.png").Length);
-        Assert.False(catalog.ContainsKey("Pure Black Stone"));
-        Assert.Null(Presentation.ItemIcon("Pure Black Stone"));
+        Assert.DoesNotContain(names, name => !catalog.ContainsKey(name));
+        Assert.Equal(57, catalog.Count);
+        Assert.Equal(57, Directory.GetFiles(IconDirectory, "*.png").Length);
+        Assert.True(catalog.ContainsKey("Pure Black Stone"));
+        Assert.Equal("assets/icons/pure-black-stone.png", Presentation.ItemIcon("Pure Black Stone"));
         Assert.Equal(34, catalog.Values.Count(static entry => entry.TryGetProperty("addedAtUtc", out _)));
     }
 
