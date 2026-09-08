@@ -1,6 +1,6 @@
 # Grindcrest
 
-Lokaler, passiver Loot-Tracker für Black Desert, Testversion **0.10.0-test.2** (bisher BDO
+Lokaler, passiver Loot-Tracker für Black Desert, Version **1.0.0** (bisher BDO
 Grind Tracker), mit vollständig neuem **Blazor-Hybrid-Frontend** für Windows.
 Live-Session, Verlauf, Garmoth, Lootkorrekturen, Bestätigungsdialoge und Einstellungen werden
 als lokale Razor-Komponenten in WebView2 dargestellt. Das Dashboard bietet eine
@@ -99,10 +99,9 @@ Drop-Tabellen. Quellen, Einordnung und verbleibende Grenzen stehen in
 
 ### Installation und Updates
 
-Den Windows-x64-Installer `Grindcrest-win-x64-beta-Setup.exe` aus den
+Den Windows-x64-Installer `Grindcrest-win-x64-stable-Setup.exe` aus den
 [GitHub Releases](https://github.com/volatile1990/bdo-grind-tracker/releases) laden.
-Die aktuelle Testversion verwendet den Beta-Kanal; stabile Versionen erhalten einen
-eigenen Installer. Das Setup enthält .NET und installiert bei Bedarf WebView2 und
+Version 1.0.0 verwendet den stabilen Updatekanal. Das Setup enthält .NET und installiert bei Bedarf WebView2 und
 die benötigte Visual-C++-Laufzeit. Eine passende Windows-OCR-Sprache wird weiterhin benötigt.
 
 Installierte Versionen suchen beim Start nach Updates. Unter **Einstellungen →
@@ -111,6 +110,10 @@ anwenden. Dazu muss die Session pausiert sein. Vor dem Neustart wird sie im Verl
 gespeichert; nach dem Neustart beginnt eine neue Session. Es gibt keinen erzwungenen
 Neustart während eines Grinds. Beta-Updates lassen sich dort ein- und ausschalten;
 beim Wechsel zurück zu stabil wartet die App auf die nächste höhere stabile Version.
+
+Für den Wechsel von **0.10.0-test.2** zu **1.0.0** unter **App-Updates → Beta-Updates
+erhalten** den Schalter ausschalten. Die App sucht dann im stabilen Kanal und bietet
+1.0.0 zum Download an. Alternativ den aktuellen stabilen Installer ausführen.
 
 Einstellungen, Verlauf und Garmoth-Key bleiben unter `%LOCALAPPDATA%\BdoGrindTracker`.
 Die Installation liegt getrennt unter `%LOCALAPPDATA%\Grindcrest`. Für eine bisher
@@ -391,7 +394,7 @@ dieselben Dateien und Einstellungen. Nicht beide gleichzeitig für dieselbe Sitz
 dotnet restore BdoGrindTracker.slnx
 dotnet test BdoGrindTracker.slnx -c Release
 dotnet run --project src/BdoGrindTracker.App
-dotnet publish src/BdoGrindTracker.App -c Release -r win-x64 --self-contained true -o artifacts/v0.10.0-test.1
+dotnet publish src/BdoGrindTracker.App -c Release -r win-x64 --self-contained true -o artifacts/v1.0.0
 ```
 
 Die Herkunft der eingebetteten 30 Ziffern-PNGs und die historische Untersuchung der

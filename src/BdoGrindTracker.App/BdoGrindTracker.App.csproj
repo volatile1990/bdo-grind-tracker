@@ -13,7 +13,7 @@
     <Description>Passive Black Desert loot and grind-session tracker</Description>
     <ApplicationIcon>..\..\data\branding\grindcrest.ico</ApplicationIcon>
     <RootNamespace>BdoGrindTracker.App</RootNamespace>
-    <Version>0.10.0-test.2</Version>
+    <Version>1.0.0</Version>
     <InformationalVersion>$(Version)</InformationalVersion>
     <UpdateRepositoryUrl Condition="'$(UpdateRepositoryUrl)' == ''">https://github.com/volatile1990/bdo-grind-tracker</UpdateRepositoryUrl>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
