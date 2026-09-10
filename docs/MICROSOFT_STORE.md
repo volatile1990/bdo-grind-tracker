@@ -18,13 +18,15 @@ Der Produktlink ist erst nach der Veröffentlichung öffentlich verfügbar. Für
 
 ## Paket erstellen
 
-Windows, PowerShell 7.2+, .NET SDK 9 und das Windows SDK ab 10.0.19041.0 mit `MakeAppx.exe` sind erforderlich.
+Windows, PowerShell 7.2+, .NET SDK 9 und das Windows SDK ab 10.0.19041.0 mit `MakeAppx.exe` und `MakePri.exe` sind erforderlich.
 
 ```powershell
 ./scripts/Build-StoreRelease.ps1 -Version 1.1.0
 ```
 
-Das Skript führt alle Tests aus, veröffentlicht .NET samt Desktop-/Blazor-Laufzeit, erzeugt Logos aus der bestehenden Marke, erstellt das MSIX mit der Manifestprüfung des Windows SDK und prüft Identität, Inhalt und Logos. Das Ergebnis liegt unter `artifacts/store/1.1.0/Grindcrest-1.1.0.0-x64.msix`, zusammen mit SHA-256-Prüfsumme und MakeAppx-Protokoll. Das Ausgabeverzeichnis muss leer sein; zum Wiederholen einen neuen `-OutputDirectory` angeben. `-SkipTests` ist nur für lokale Paketierungsdiagnosen gedacht.
+Das Skript führt alle Tests aus, veröffentlicht .NET samt Desktop-/Blazor-Laufzeit, erzeugt Logos aus der bestehenden Marke, erstellt den Shell-Ressourcenindex mit MakePri und das MSIX mit der Manifestprüfung des Windows SDK. Anschließend prüft es Identität, Inhalt, Icontransparenz und Ressourcen-Zuordnungen. Das Ergebnis liegt unter `artifacts/store/1.1.0/Grindcrest-1.1.0.0-x64.msix`, zusammen mit SHA-256-Prüfsumme sowie MakePri- und MakeAppx-Protokollen. Das Ausgabeverzeichnis muss leer sein; zum Wiederholen einen neuen `-OutputDirectory` angeben. `-SkipTests` ist nur für lokale Paketierungsdiagnosen gedacht.
+
+Für Taskleiste, Start und Alt+Tab enthält das Paket transparente `Square44x44Logo.targetsize-*`-Icons in 15 Größen, jeweils als Standard-, `altform-unplated`- und `altform-lightunplated`-Variante. MakePri ordnet diese im mitgelieferten `resources.pri` dem Manifestlogo zu. `BackgroundColor="transparent"` allein verhindert die von Windows ergänzte farbige Hintergrundfläche nicht. Der PNG-Master und das EXE-Icon bleiben unverändert.
 
 Alternativ nach dem Push auf GitHub: **Actions → Build Grindcrest for Microsoft Store → Run workflow**. Das Artefakt `grindcrest-store-package` enthält das fertige MSIX. Der Workflow lädt nichts zu Microsoft hoch und veröffentlicht keinen GitHub-Release.
 
@@ -68,6 +70,8 @@ MSIX enthält die .NET-Laufzeit. Die aktuellen OpenCV- und WebView2-Loader-Binä
 
 - [Microsoft: MSIX-Paketanforderungen und Signierung](https://learn.microsoft.com/en-us/windows/apps/publish/publish-your-app/msix/app-package-requirements)
 - [Microsoft: Pakete mit MakeAppx erzeugen](https://learn.microsoft.com/en-us/windows/msix/package/create-app-package-with-makeappx-tool)
+- [Microsoft: transparente Shell-Icons und Varianten](https://learn.microsoft.com/en-us/windows/apps/design/iconography/app-icon-construction)
+- [Microsoft: Unplated-Assets und Ressourcenindex für MSIX](https://learn.microsoft.com/en-us/windows/msix/desktop/desktop-to-uwp-manual-conversion#optional-add-target-based-unplated-assets)
 - [Microsoft: Verhalten verpackter Desktop-Apps](https://learn.microsoft.com/en-us/windows/msix/desktop/desktop-to-uwp-behind-the-scenes)
 - [Microsoft: eingeschränkte App-Berechtigungen](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/app-capability-declarations#restricted-capabilities)
 - [Microsoft: lokale Paketprüfung und Status des WACK](https://learn.microsoft.com/en-us/windows/msix/package/packaging-uwp-apps#validate-your-app-package-locally)

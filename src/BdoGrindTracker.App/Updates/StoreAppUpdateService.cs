@@ -9,7 +9,7 @@ internal sealed class StoreAppUpdateService(
 {
     private readonly SemaphoreSlim _operation = new(1, 1);
     private volatile UpdateState _state = new(true, false, installedVersion, null, UpdatePhase.Idle, 0,
-        "Neue Versionen werden beim Start gesucht. Updates kannst du direkt hier installieren.") { UsesStore = true };
+        "Noch nicht geprüft.") { UsesStore = true };
     public UpdateState State => _state;
     public event Action? Changed;
 

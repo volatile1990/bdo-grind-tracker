@@ -25,7 +25,7 @@ else
         }
         @if (Update.Phase == UpdatePhase.StoreManaged)
         {
-            <p class="field-note">Öffne den Microsoft Store, um nach App-Updates zu suchen. Automatische Updates kannst du dort in den Einstellungen verwalten.</p>
+            <p class="field-note">Updates im Microsoft Store suchen.</p>
         }
         else
         {
@@ -43,14 +43,13 @@ else
         }
         @if (Update.Enabled)
         {
-            <p class="field-note">@(Update.UsesStore ? "Updates werden beim Start und während der Nutzung regelmäßig gesucht. Herunterladen und Installieren kannst du direkt hier; Windows kann eine Bestätigung anzeigen." : "Updates werden beim Start gesucht. Du entscheidest, wann sie heruntergeladen und installiert werden.")</p>
-            @if (Update.Phase == UpdatePhase.ReadyToRestart)
+            @if (Update.Phase == UpdatePhase.ReadyToRestart && (State.IsRunning || Update.UsesStore))
             {
-                <div class="subtle-box"><AppIcon Name="shield" /><span>@(State.IsRunning ? "Pausiere zuerst deine Grind-Session, um das Update zu installieren." : Update.UsesStore ? "Deine Session wird zuerst im Verlauf gespeichert. Windows kann Grindcrest für die Installation schließen. Öffne die App anschließend erneut, falls sie nicht automatisch startet." : "Deine Session wird im Verlauf gespeichert. Nach dem Neustart kannst du eine neue Session beginnen.")</span></div>
+                <div class="subtle-box"><AppIcon Name="shield" /><span>@(State.IsRunning ? "Pausiere zuerst deine Grind-Session, um das Update zu installieren." : "Windows kann Grindcrest für die Installation schließen.")</span></div>
             }
             @if (!Update.UsesStore)
             {
-                <label class="toggle-row"><span><strong>Beta-Updates erhalten</strong><small>Neue Funktionen früher testen. Diese Auswahl wird sofort gespeichert. Nach dem Ausschalten erhältst du die nächste höhere stabile Version.</small></span><input type="checkbox" class="switch" checked="@Update.IsBeta" @onchange="ChangeBeta" disabled="@Update.IsBusy" /></label>
+                <label class="toggle-row"><span><strong>Beta-Updates erhalten</strong><small>Nach dem Ausschalten erhältst du die nächste höhere stabile Version.</small></span><input type="checkbox" class="switch" checked="@Update.IsBeta" @onchange="ChangeBeta" disabled="@Update.IsBusy" /></label>
             }
         }
     </section>

@@ -10,11 +10,21 @@ public partial class OverlayEditor
     private OverlaySettings _settings = new();
     private string? _selectedId, _error;
     private string _itemSearch = "";
-    private bool _demo = true, _saving, _disposed;
+    private bool _demo, _saving, _disposed;
     private ElementReference _viewport;
     private DotNetObjectReference<OverlayEditor>? _reference;
     private readonly SemaphoreSlim _saveGate = new(1, 1);
     private long _revision;
+    private sealed record LayoutChange(string? Preset, OverlayTemplate? Template = null);
+    private LayoutChange? _pendingLayoutChange;
+    private bool _confirmingLayout;
+    private bool PendingClearLayout => _pendingLayoutChange?.Preset is null && _pendingLayoutChange?.Template is null;
+    private string LayoutConfirmationTitle => PendingClearLayout ? "Layout leeren?" : "Vorlage anwenden?";
+    private string LayoutConfirmationAction => PendingClearLayout ? "Layout leeren" : "Vorlage anwenden";
+    private string PendingPresetLabel => _pendingLayoutChange?.Template?.Name ?? (_pendingLayoutChange?.Preset switch
+    {
+        "loot" => "Loot-Inventar", "loot-strip" => "Loot-Leiste", "compact" => "Kompakt", "dashboard" => "Dashboard", _ => "Vorlage"
+    });
     private static IReadOnlyList<OverlayWidgetDefinition> Modules => OverlayCatalog.Widgets;
     private OverlayWidget? SelectedWidget => _settings.Widgets.FirstOrDefault(w => w.Id == _selectedId);
     private OverlaySnapshot PreviewSnapshot => _demo ? OverlaySnapshot.Demo : Overlay.Snapshot;
@@ -31,7 +41,7 @@ public partial class OverlayEditor
     {
         "passthrough" => "Das Overlay reagiert nicht auf die Maus. Spiele auch durch das Overlay hindurch.",
         "locked" => "Die Position bleibt fest. Tracking-Buttons lassen sich weiterhin anklicken.",
-        _ => "Im Spiel den Overlay-Hintergrund anklicken und ziehen. Die Position wird automatisch gespeichert.",
+        _ => "Zum Verschieben den Overlay-Hintergrund ziehen.",
     };
 
     protected override void OnInitialized()
@@ -150,6 +160,16 @@ public partial class OverlayEditor
         return Task.CompletedTask;
     }
 
+    [JSInvokable]
+    public Task ClearSelection()
+    {
+        if (_disposed || _selectedId is null) return Task.CompletedTask;
+        _selectedId = null;
+        _itemSearch = "";
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
     private IReadOnlyList<OverlayLootItem> ItemCatalog => PreviewSnapshot.ItemCatalog;
 
     private OverlayLootItem CatalogItem(string canonicalName) =>
@@ -251,7 +271,12 @@ public partial class OverlayEditor
 
     private async Task ApplyPreset(string name)
     {
-        if (_settings.Widgets.Count > 0 && !await JS.InvokeAsync<bool>("confirm", "Aktuelles Layout durch die Vorlage ersetzen? Anzeige- und Verhaltenseinstellungen bleiben erhalten.")) return;
+        if (_disposed || _saving || _confirmingLayout || _pendingLayoutChange is not null) return;
+        if (_settings.Widgets.Count > 0)
+        {
+            await RequestLayoutConfirmation(new(name));
+            return;
+        }
         var preset = OverlayCatalog.Preset(name);
         _selectedId = null;
         await Change(s => s with { Width = preset.Width, Height = preset.Height, Widgets = preset.Widgets });
@@ -259,9 +284,52 @@ public partial class OverlayEditor
 
     private async Task ClearLayout()
     {
-        if (_settings.Widgets.Count > 0 && !await JS.InvokeAsync<bool>("confirm", "Alle Module aus dem Overlay entfernen?")) return;
-        _selectedId = null;
-        await Change(s => s with { Widgets = [] });
+        if (_disposed || _saving || _confirmingLayout || _pendingLayoutChange is not null || _settings.Widgets.Count == 0) return;
+        await RequestLayoutConfirmation(new(null));
+    }
+
+    private async Task RequestLayoutConfirmation(LayoutChange change)
+    {
+        _pendingLayoutChange = change;
+        StateHasChanged();
+        try { await JS.InvokeVoidAsync("grindcrest.showDialog", "overlay-layout-confirm"); }
+        catch (JSException exception)
+        {
+            _pendingLayoutChange = null;
+            _error = "Die Bestätigung konnte nicht geöffnet werden. " + exception.Message;
+        }
+    }
+
+    private async Task CloseLayoutConfirmation()
+    {
+        if (_confirmingLayout) return;
+        _pendingLayoutChange = null;
+        await JS.InvokeVoidAsync("grindcrest.closeDialog", "overlay-layout-confirm");
+    }
+
+    private async Task ConfirmLayoutChange()
+    {
+        if (_disposed || _saving || _confirmingLayout || _pendingLayoutChange is not { } change) return;
+        _confirmingLayout = true;
+        try
+        {
+            _selectedId = null;
+            _itemSearch = "";
+            if (change.Template is { } template)
+                await Change(template.ApplyTo);
+            else if (change.Preset is { } name)
+            {
+                var preset = OverlayCatalog.Preset(name);
+                await Change(s => s with { Width = preset.Width, Height = preset.Height, Widgets = preset.Widgets });
+            }
+            else await Change(s => s with { Widgets = [] });
+            if (_error is null)
+            {
+                _pendingLayoutChange = null;
+                await JS.InvokeVoidAsync("grindcrest.closeDialog", "overlay-layout-confirm");
+            }
+        }
+        finally { _confirmingLayout = false; }
     }
 
     private async Task TogglePreview()

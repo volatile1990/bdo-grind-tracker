@@ -20,9 +20,8 @@ internal sealed partial class TrackerSessionService
             ArgumentNullException.ThrowIfNull(preferences);
             if (_hasSession && (preferences.MonitorDeviceName != Preferences.MonitorDeviceName ||
                 preferences.GameLanguage != Preferences.GameLanguage ||
-                preferences.IncludeEventLoot != Preferences.IncludeEventLoot ||
                 preferences.RecordLoot != Preferences.RecordLoot))
-                throw new ArgumentException("Monitor, Spielsprache, Lootfilter und Aufzeichnung können erst für eine neue Session geändert werden.");
+                throw new ArgumentException("Monitor, Spielsprache und Aufzeichnung können erst für eine neue Session geändert werden.");
             if (preferences.GameLanguage is not ("auto" or "en" or "de"))
                 throw new ArgumentException("Unterstützte Spielsprachen sind Deutsch und Englisch.");
             var classChanged = preferences.CharacterClassId != Preferences.CharacterClassId;
@@ -92,7 +91,6 @@ internal sealed partial class TrackerSessionService
         _settings.FavoriteItems = Preferences.FavoriteItems.ToArray();
         _settings.LootColumnOrders = Preferences.LootColumnOrders.ToDictionary(pair => pair.Key, pair => pair.Value.ToArray());
         _settings.CharacterClassId = Preferences.CharacterClassId;
-        _settings.IncludeEventLoot = Preferences.IncludeEventLoot;
         _settings.GarmothAutoUploadEnabled = Preferences.AutoUpload;
         _settings.UpdateSilverPreferences(Preferences.MarketRegion, Preferences.Tax);
         try

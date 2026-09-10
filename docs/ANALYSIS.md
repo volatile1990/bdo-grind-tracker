@@ -7,6 +7,66 @@ Drop-IDs mit Mengenrevisionen. Die folgenden Versionsabschnitte beschreiben
 teilweise frühere Stände; aktuelle Regeln und Aufnahmenergebnisse stehen in
 [BACKGROUND_OCR_REVIEW.md](BACKGROUND_OCR_REVIEW.md).
 
+## Passiver Loot-Scroll-Hinweis
+
+`LootScrollMonitor` prüft das HUD während einer laufenden Session einmal pro
+Minute in einem eigenen Hintergrundtask. `LootScrollGaugeDetector` vergleicht
+die sichtbaren Beutel-, Kreuz- und Pfeilsymbole mit Bildvorlagen. Helligkeit und
+Kontrast werden beim Vergleich angeglichen, damit die interne HDR-Tonemapping-
+Darstellung dieselben Symbole wie ein SDR-Screenshot erkennt. Die Bildvorlagen
+und ihre Quellen liegen unter `data/ocr/loot-scroll`.
+
+`LootScrollFrameDetector` ergänzt die Restzeit aus der kleinen Beschriftung links
+neben dem erkannten Symbol. `LootScrollTimerReader` verwendet dafür eine eigene,
+verzögert angelegte Windows-OCR-Instanz mit zwei kleinen Aufbereitungsvarianten je
+Minutenprüfung. Es gibt keine zusätzliche Vollbild-OCR und keinen Eingriff in
+die Loot-OCR. Widersprechen sich zwei lesbare Ergebnisse, wird die Probe verworfen.
+
+Die Prüfung übernimmt höchstens ein eigenes Frame und wartet nicht im
+Loot-Auswertungspfad. Fehler lassen den Status unbekannt und verändern weder
+Loot, Grindzeit noch die Tracking-Verfügbarkeit. Es werden nur Aufnahmen des
+eingestellten Monitors berücksichtigt, wenn Black Desert dort im Vordergrund
+ist. Die Sichtbarkeit wird vor und nach der Aufnahme geprüft und mit dem Frame
+weitergereicht, damit eine verzögerte OCR keinen späteren Fensterwechsel als
+Beleg verwendet. Die Erkennung benötigt eine sichtbare, passende Spielanzeige; ihre
+Abwesenheit ist kein Nachweis einer inaktiven Scroll.
+
+Nur die Änderung der Restzeit bestimmt den Status. Zwei aufeinanderfolgende,
+plausible Abnahmen bestätigen Aktivität (bei Minutenprüfungen nach etwa zwei
+Minuten). Der Verbrauch muss zur Zeit zwischen den Aufnahmen passen: etwa
+ein- bis zweifache Geschwindigkeit mit Toleranz für Rundung und Teilintervalle.
+Kleine OCR-Schwankungen und unplausible Zeitsprünge bestätigen keine Aktivität.
+Eine wiederholt unveränderte Restzeit bestätigt Inaktivität; bei einer Anzeige
+ohne Sekunden muss sie mindestens 62 Sekunden unverändert bleiben. Aufladen,
+wechselnde Zeitgenauigkeit und unterbrochene Messungen beginnen den Vergleich
+neu. Ohne lesbare Restzeit bleibt der Status unbekannt. Symbole dienen nur zum
+Auffinden der Anzeige und zum Ablesen der Stufe, niemals als Ersatz für den
+Zeitvergleich. Unbekannte Messwerte brechen die
+Bestätigungsfolge ab; nach 90 Sekunden ohne frische Beobachtung verfällt der
+Status. Beim Fensterwechsel bleibt ein frischer Hinweis deshalb kurz lesbar.
+Neue Sessions, Tracking-Start und Pause verwerfen vorherige Ergebnisse,
+einschließlich noch laufender Hintergrundarbeit. `TrackerState.LootScroll` ist
+die einzige Statusquelle für Live-Session und Overlay.
+
+## Positionsänderungen des Droplogs
+
+`LootPanelCaptureGuard` prüft vor jedem Frame die Änderungszeiten von
+`gameVariable.xml` und `GameOption.txt`. Nach einer Dateiänderung wird die
+BDO-Konfiguration sofort erneut gelesen, sonst höchstens alle zwei Sekunden.
+Eine gültige Positionsänderung aktualisiert im vorhandenen Analyzer sowohl
+Normal- als auch Rare-Panel und deren Zeilenbereiche vor dem nächsten Crop.
+Noch wartende Aufnahmen von vor der gespeicherten Änderung verwenden weiterhin
+die vorherigen Koordinaten; maßgeblich ist der Aufnahmezeitpunkt.
+Reconciliation, offene Mengenrevisionen, Ledger und Spot-Lock bleiben erhalten;
+nur die geometrieabhängige Alignment-Prüfung und der Recovery-Cursor beginnen neu.
+
+Eine reine Verschiebung benötigt keinen App-Neustart. Fehlende oder ungültige
+Konfigurationen, ein anderes Profil, geänderte Schrift/Skalierung/Auflösung sowie
+Clipping mit geänderten Zeilenidentitäten halten das Tracking weiterhin an,
+damit vorhandene Drops nicht mit falschen Koordinaten erneut gezählt werden.
+
+## Historische Zähleränderungen
+
 Die Zähleränderung aus test.1 ist zurückgenommen. Fortlaufende Tags führten im
 gemeldeten Live-Test zu etwa 1.500 gezählten bei 5.000 tatsächlichen Trashloot.
 Identische Beobachtungen können unterschiedliche neue Drops darstellen. Sie
@@ -103,8 +163,9 @@ legt den Spot fest:
 Vor dieser Erkennung bleibt der Spot unbekannt; es wirkt noch kein zusätzlicher
 Spotfilter. Der erkannte Spot bleibt bis `Reset` gesperrt. Pause/Fortsetzen erhält
 ihn; für einen Spotwechsel ist eine neue Sitzung nötig. Eine frühere manuelle
-Spot-Einstellung wird nicht eingelesen. Event-Loot ist nach Aktivierung des
-Spotfilters standardmäßig ausgeschlossen und nur per explizitem Opt-in erlaubt.
+Spot-Einstellung wird nicht eingelesen. Bekannte Event-Gegenstände bleiben auch
+nach Aktivierung des Spotfilters immer erlaubt. Die frühere Event-Loot-Einstellung
+wird nicht mehr eingelesen oder gespeichert.
 
 ## Companion-Zählung und Summen
 
@@ -238,7 +299,7 @@ Eine vollständige Beseitigung der Über- und Unterzählungen wird nicht behaupt
 manuell geprüfte Inventarmengen bleiben der Maßstab für den nächsten Livevergleich.
 
 Die 0.6.3-Pooltests prüfen gemeinsame Drops nach einem bereits erfolgten Spotlock
-in beiden OCR-Kanälen bis zur ausgegebenen Buchung, ohne Event-Opt-in. Außerdem
+in beiden OCR-Kanälen bis zur ausgegebenen Buchung. Außerdem
 muss jeder Eintrag des gebündelten Vokabulars zu einem normalen Pool, der
 Eventliste oder einem ausdrücklich ausgeschlossenen Vergleichskandidaten gehören.
 Das verhindert erneut vergessene Poolzuordnungen, beweist aber nicht, dass alle

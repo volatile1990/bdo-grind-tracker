@@ -43,7 +43,6 @@ public sealed class LootPanelCaptureGuardTests
     }
 
     [Theory]
-    [InlineData("position")]
     [InlineData("scale")]
     [InlineData("resolution")]
     [InlineData("font")]
@@ -56,7 +55,6 @@ public sealed class LootPanelCaptureGuardTests
         guard.Validate(new Size(1920, 1080), DateTimeOffset.UnixEpoch);
         current = field switch
         {
-            "position" => calibration with { LootAnchorX = 800 },
             "scale" => calibration with { UiScale = 1.2f },
             "resolution" => calibration with { ScreenWidth = 2560 },
             "font" => calibration with { FontType = CompanionFontType.DejaVu },
@@ -68,6 +66,126 @@ public sealed class LootPanelCaptureGuardTests
         Assert.Equal(error.Message, guard.Error);
         Assert.Throws<LootPanelUnavailableException>(() =>
             guard.Validate(new Size(1920, 1080), DateTimeOffset.UnixEpoch.AddSeconds(3)));
+    }
+
+    [Fact]
+    public void FreshConfigCorrectsBothAnchorsAndBecomesTheNewBaseline()
+    {
+        var calibration = Calibration() with { HasRareLootAnchor = true, RareLootAnchorX = 1200, RareLootAnchorY = 500 };
+        var current = calibration;
+        var reads = 0;
+        var guard = new LootPanelCaptureGuard(calibration, () => { reads++; return current; });
+        Assert.Equal(calibration, guard.Validate(new Size(1920, 1080), DateTimeOffset.UnixEpoch));
+        current = calibration with { LootAnchorX = 800, LootAnchorY = 600, RareLootAnchorX = 1300, RareLootAnchorY = 450 };
+        var moved = guard.Validate(new Size(1920, 1080), DateTimeOffset.UnixEpoch.AddSeconds(2));
+        Assert.Equal(current, moved);
+        Assert.Null(guard.Error);
+        Assert.Equal(current, guard.Validate(new Size(1920, 1080), DateTimeOffset.UnixEpoch.AddSeconds(2.1)));
+        Assert.Equal(2, reads);
+        Assert.Equal(current, guard.Validate(new Size(1920, 1080), DateTimeOffset.UnixEpoch.AddSeconds(4)));
+        Assert.Null(guard.Error);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void SavedFileChangeReloadsBeforeTheNextFrameDespiteThePollingInterval(bool options)
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "grindcrest-panel-reload-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        try
+        {
+            var calibration = Calibration() with
+            {
+                GameVariablePath = Path.Combine(folder, "gameVariable.xml"),
+                GameOptionPath = Path.Combine(folder, "GameOption.txt"),
+            };
+            File.WriteAllText(calibration.GameVariablePath, "original");
+            File.WriteAllText(calibration.GameOptionPath, "original");
+            File.SetLastWriteTimeUtc(calibration.GameVariablePath, DateTime.UnixEpoch.AddSeconds(-5));
+            File.SetLastWriteTimeUtc(calibration.GameOptionPath, DateTime.UnixEpoch.AddSeconds(-5));
+            var current = calibration;
+            var reads = 0;
+            var guard = new LootPanelCaptureGuard(calibration, () => { reads++; return current; });
+            guard.Validate(new Size(1920, 1080), DateTimeOffset.UnixEpoch);
+            var path = options ? calibration.GameOptionPath : calibration.GameVariablePath;
+            current = calibration with { LootAnchorX = 800, LootAnchorY = 600 };
+            File.WriteAllText(path, "saved move");
+            File.SetLastWriteTimeUtc(path, DateTime.UnixEpoch.AddMilliseconds(100));
+
+            // A queued image from before the move keeps its original coordinates.
+            Assert.Equal(calibration, guard.Validate(new Size(1920, 1080), DateTimeOffset.UnixEpoch.AddMilliseconds(50)));
+            Assert.Equal(1, reads);
+            Assert.Equal(current, guard.Validate(new Size(1920, 1080), DateTimeOffset.UnixEpoch.AddMilliseconds(450)));
+            Assert.Equal(2, reads);
+            guard.Validate(new Size(1920, 1080), DateTimeOffset.UnixEpoch.AddMilliseconds(900));
+            Assert.Equal(2, reads);
+        }
+        finally
+        {
+            File.Delete(Path.Combine(folder, "gameVariable.xml"));
+            File.Delete(Path.Combine(folder, "GameOption.txt"));
+            Directory.Delete(folder);
+        }
+    }
+
+    [Theory]
+    [InlineData(540, 980)] // bottom clipping changes the physical row assigned to slot zero
+    [InlineData(100, 540)] // revealing older rows cannot be treated as newly dropped loot
+    [InlineData(540, 100)]
+    public void MovingAcrossScreenEdgesCannotSilentlyChangeRowIdentities(int previousY, int currentY)
+    {
+        var calibration = Calibration() with { LootAnchorY = previousY };
+        var current = calibration;
+        var guard = new LootPanelCaptureGuard(calibration, () => current);
+        guard.Validate(new Size(1920, 1080), DateTimeOffset.UnixEpoch);
+        current = calibration with { LootAnchorY = currentY };
+        var error = Assert.Throws<LootPanelUnavailableException>(() =>
+            guard.Validate(new Size(1920, 1080), DateTimeOffset.UnixEpoch.AddSeconds(2)));
+        Assert.Contains("Bildschirmrand", error.Message);
+        Assert.Equal(error.Message, guard.Error);
+    }
+
+    [Fact]
+    public void SavedBdoXmlIsReadAgainAndSuppliesTheCorrectedPosition()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "grindcrest-bdo-config-" + Guid.NewGuid().ToString("N"));
+        var cache = Path.Combine(folder, "UserCache");
+        var profile = Path.Combine(cache, "42");
+        var variables = Path.Combine(profile, "gameVariable.xml");
+        var options = Path.Combine(folder, "GameOption.txt");
+        Directory.CreateDirectory(profile);
+        try
+        {
+            File.WriteAllText(options, "width = 1920\nheight = 1080\nuiScale =  1.00\nUIFontType = 2\nwindowed = 1\n");
+            void SavePosition(string x, string y) => File.WriteAllText(variables,
+                $"<Resolution Width='1920' Height='1080'/><UiScale Value='1.0'/><UIData>" +
+                $"<UIData Index='159' IsShow='true' RelativePosX='{x}' RelativePosY='{y}'/></UIData>");
+            SavePosition("0.5", "0.5");
+            File.SetLastWriteTimeUtc(variables, DateTime.UnixEpoch.AddSeconds(-5));
+            var reader = new CompanionCalibrationReader();
+            var initial = reader.Read(folder);
+            var reads = 0;
+            var guard = new LootPanelCaptureGuard(initial, () => { reads++; return reader.Read(folder); });
+            guard.Validate(new Size(1920, 1080), DateTimeOffset.UnixEpoch);
+            SavePosition("0.4", "0.6");
+            File.SetLastWriteTimeUtc(variables, DateTime.UnixEpoch.AddMilliseconds(100));
+
+            var corrected = guard.Validate(new Size(1920, 1080), DateTimeOffset.UnixEpoch.AddMilliseconds(450));
+
+            Assert.Equal(768, corrected.LootAnchorX);
+            Assert.Equal(648, corrected.LootAnchorY);
+            Assert.Equal(2, reads);
+            Assert.Null(guard.Error);
+        }
+        finally
+        {
+            File.Delete(variables);
+            File.Delete(options);
+            Directory.Delete(profile);
+            Directory.Delete(cache);
+            Directory.Delete(folder);
+        }
     }
 
     [Fact]

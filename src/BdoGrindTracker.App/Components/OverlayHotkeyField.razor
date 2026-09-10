@@ -1,0 +1,32 @@
+@using BdoGrindTracker.App.Overlay
+
+<fieldset class="oe-hotkey-field" disabled="@Disabled">
+    <legend>@Label</legend>
+    <div class="oe-hotkey-options">
+        <div class="oe-hotkey-modifiers">
+            @foreach (var modifier in Modifiers)
+            {
+                <label class="oe-modifier"><input type="checkbox" checked="@Value.Modifiers.HasFlag(modifier.Value)" @onchange="e => ToggleModifier(modifier.Value, e.Value is true)" /><span>@modifier.Label</span></label>
+            }
+        </div>
+        <label class="oe-field oe-hotkey-key"><span>Taste</span><select aria-label="@($"Taste für {Label}")" value="@Value.Key" @onchange="ChangeKey">@foreach (var key in OverlayHotkey.SupportedKeys) { <option value="@key">@OverlayHotkey.KeyDisplayText(key)</option> }</select></label>
+        <kbd>@Value.DisplayText</kbd>
+    </div>
+</fieldset>
+
+@code {
+    [Parameter, EditorRequired] public string Label { get; set; } = "";
+    [Parameter, EditorRequired] public OverlayHotkey Value { get; set; } = OverlayHotkey.DefaultToggleOverlay;
+    [Parameter] public EventCallback<OverlayHotkey> ValueChanged { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    private static readonly (OverlayHotkeyModifiers Value, string Label)[] Modifiers =
+    [
+        (OverlayHotkeyModifiers.Control, "Strg"), (OverlayHotkeyModifiers.Alt, "Alt"),
+        (OverlayHotkeyModifiers.Shift, "Umschalt"), (OverlayHotkeyModifiers.Windows, "Win"),
+    ];
+    private Task ToggleModifier(OverlayHotkeyModifiers modifier, bool enabled) => ValueChanged.InvokeAsync(Value with
+    {
+        Modifiers = enabled ? Value.Modifiers | modifier : Value.Modifiers & ~modifier,
+    });
+    private Task ChangeKey(ChangeEventArgs e) => ValueChanged.InvokeAsync(Value with { Key = e.Value?.ToString() ?? "" });
+}

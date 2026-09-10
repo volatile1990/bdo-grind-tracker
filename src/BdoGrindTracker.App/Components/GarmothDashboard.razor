@@ -3,96 +3,89 @@
 @inherits TrackerComponentBase
 @inject IJSRuntime JS
 
+@{
+    var rows = SessionRows;
+    var visible = FilterRows(rows).ToArray();
+    var pageCount = Math.Max(1, (visible.Length + PageSize - 1) / PageSize);
+    var currentPage = Math.Clamp(_page, 1, pageCount);
+}
 <div class="page garmoth-page">
-    <div class="page-heading">
-        <div><span class="eyebrow">DEIN GRIND GEHT WEITER</span><h1>Garmoth</h1><p>Verbindung, automatische Stunden und manuelle Uploads an einem Ort.</p></div>
-        <span class="garmoth-key-state @(State.HasApiKey ? "has-key" : "")"><AppIcon Name="key" />@(State.HasApiKey ? "Schlüssel gespeichert" : "Noch kein API-Schlüssel")</span>
-    </div>
-
+    <div class="page-heading"><h1>Garmoth</h1><a class="text-button" href="@GarmothUploadClient.TrackerPage" target="_blank" rel="noopener noreferrer">Garmoth öffnen <AppIcon Name="arrow" /></a></div>
     @if (State.IsDemo)
     {
-        <div class="notice demo-notice"><AppIcon Name="spark" /><div><strong>Du erkundest die Demo</strong><span>Beispieldaten können nicht nach Garmoth hochgeladen werden.</span></div></div>
+        <div class="notice demo-notice"><AppIcon Name="spark" /><span>Demo · Beispieldaten können nicht hochgeladen werden.</span></div>
     }
     @if (_uploadFeedback is not null)
     {
         <div class="notice @(_uploadFailed ? "error-notice" : "success-notice")" role="status"><AppIcon Name="@(_uploadFailed ? "info" : "check")" />@_uploadFeedback</div>
     }
 
-    <div class="garmoth-workspace">
-        <section class="panel garmoth-connection" aria-label="Garmoth-Verbindung und Automatik">
-            <div class="settings-heading"><div class="settings-icon"><AppIcon Name="key" /></div><div><h2>Zugang &amp; Automatik</h2><p>Einmal einrichten. Beim Grinden automatisch dabei.</p></div></div>
-            <form @onsubmit="SaveKey" @onsubmit:preventDefault>
-                <label class="field"><span>API-Schlüssel <span class="badge @(State.HasApiKey ? "teal-badge" : "muted-badge")">@(State.HasApiKey ? "Gespeichert" : "Nicht hinterlegt")</span></span><div class="key-input"><AppIcon Name="key" /><input type="password" aria-label="Garmoth-API-Schlüssel" autocomplete="new-password" spellcheck="false" maxlength="4096" placeholder="@(State.HasApiKey ? "Gespeicherten Schlüssel beibehalten" : "API-Schlüssel einfügen")" @bind="_apiKey" @bind:event="oninput" @bind:after="FormChanged" @onblur="SaveKey" disabled="@(Acting || State.IsBusy)" /></div><small>Wird beim Verlassen des Feldes oder mit Enter automatisch verschlüsselt gespeichert. Ein leeres Feld behält den vorhandenen Schlüssel.</small></label>
-                <div class="garmoth-key-explainer"><AppIcon Name="shield" /><span>„Gespeichert“ bestätigt die lokale Ablage. Ob Garmoth den Schlüssel akzeptiert, zeigt sich beim Upload.</span></div>
+    <section class="panel garmoth-connection" aria-label="Garmoth-Verbindung und Automatik">
+        <form @onsubmit="SaveKey" @onsubmit:preventDefault>
+            <div class="garmoth-connection-fields">
+                <label class="field"><span>API-Schlüssel <span class="badge @(State.HasApiKey ? "teal-badge" : "muted-badge")">@(State.HasApiKey ? "Gespeichert" : "Nicht hinterlegt")</span></span><div class="key-input"><AppIcon Name="key" /><input type="password" aria-label="Garmoth-API-Schlüssel" autocomplete="new-password" spellcheck="false" maxlength="4096" placeholder="@(State.HasApiKey ? "Schlüssel ersetzen …" : "API-Schlüssel einfügen")" @bind="_apiKey" @bind:event="oninput" @bind:after="FormChanged" @onblur="SaveKey" disabled="@InteractionBlocked" /></div></label>
+                <label class="toggle-row garmoth-auto-toggle"><span><strong>Stündlich automatisch hochladen</strong></span><input type="checkbox" class="switch" aria-label="Stündlich automatisch hochladen" checked="@Tracker.Preferences.AutoUpload" @onchange="AutoUploadChanged" disabled="@InteractionBlocked" /></label>
                 @if (State.HasApiKey)
                 {
-                    <button type="button" class="text-button garmoth-remove-key" aria-label="Gespeicherten Garmoth-Schlüssel entfernen" @onclick="RemoveKey" disabled="@(Acting || State.IsBusy)"><AppIcon Name="delete" />Schlüssel entfernen</button>
+                    <button type="button" class="text-button garmoth-remove-key" aria-label="Gespeicherten Garmoth-Schlüssel entfernen" @onclick="RemoveKey" disabled="@InteractionBlocked"><AppIcon Name="delete" />Schlüssel entfernen</button>
                 }
-                <label class="toggle-row garmoth-auto-toggle"><span><strong>Stündlich automatisch hochladen</strong><small>Nach jeder vollen aktiven Grindstunde nur den neuen Stundenanteil übertragen.</small></span><input type="checkbox" class="switch" aria-label="Stündlich automatisch hochladen" checked="@Tracker.Preferences.AutoUpload" @onchange="AutoUploadChanged" disabled="@(Acting || State.IsBusy)" /></label>
-                <div class="garmoth-auto-rule"><AppIcon Name="clock" /><span>Bereits übertragene Zeit und Lootmengen werden bei jedem weiteren Upload abgezogen. Pausen zählen nicht zur Grindstunde.</span></div>
-                @if (_saveFeedback is not null)
-                {
-                    <div class="garmoth-form-feedback @(_saveFailed ? "is-error" : "is-success")" role="status"><AppIcon Name="@(_saveFailed ? "info" : "check")" />@_saveFeedback</div>
-                }
-                <div class="settings-autosave compact-autosave" role="status"><AppIcon Name="@(_saving ? "refresh" : "shield")" /><span>@(_saving ? "Wird automatisch gespeichert …" : "Änderungen werden automatisch lokal gespeichert.")</span></div>
-                @if (State.AutomaticSuspended && !State.UploadBlocked && State.HasApiKey && Tracker.Preferences.AutoUpload)
-                {
-                    <button type="button" class="button secondary" @onclick="ResumeAutomatic" disabled="@(Acting || State.IsBusy)">Automatik fortsetzen</button>
-                }
-            </form>
-        </section>
-
-        <section class="panel garmoth-current" aria-label="Aktuelle Session">
-            <div class="garmoth-current-heading"><div><span class="eyebrow">AKTUELLE SESSION</span><h2>Dein nächster Upload</h2></div><span class="badge @(AutomaticReady ? "teal-badge" : "muted-badge")">@CurrentAutomationLabel</span></div>
-            @if (State.HasSession || State.IsDemo)
+            </div>
+            <a class="text-button" href="@GarmothUploadClient.SettingsPage" target="_blank" rel="noopener noreferrer">API-Schlüssel erhalten</a>
+            @if (_saveFeedback is not null)
             {
-                <div class="garmoth-session-banner" style="@CurrentBackground"><div class="garmoth-banner-shade"></div><div class="garmoth-session-identity">@if (Profile(State.SpotId) is { } currentProfile) { <AssetImage Src="@("assets/spot-icons/" + currentProfile.IconFileName)" Alt="" Class="garmoth-current-spot" Fallback="pin" /> }<div><h3>@SpotName(State.SpotId)</h3><span><AssetImage Src="@ClassIcon(State.CharacterClassId)" Alt="" Class="class-image" Fallback="shield" />@State.CharacterLabel</span></div></div><span class="garmoth-session-state"><span class="status-dot @(State.IsRunning ? "running" : "")"></span>@(State.IsDemo ? "Demo" : State.IsSubmitted ? "Abgeschlossen" : State.IsRunning ? "Tracking aktiv" : "Pausiert")</span></div>
-                <div class="garmoth-total-caption">GESAMTE SESSION <span>Bereits übertragene Anteile sind hier enthalten.</span></div>
-                <div class="garmoth-current-metrics"><div><span>AKTIVE ZEIT</span><strong>@Duration(State.Elapsed)</strong></div><div><span>TRASHLOOT</span><strong>@Number(Trash(State.Loot.Totals, State.SpotId))</strong></div><div><span>SILBER NETTO</span><strong class="gold">@(State.Silver.HasKnownValue ? Silver(State.Silver.AfterTax) : "—")@(!State.Silver.IsComplete ? " *" : "")</strong></div></div>
-                @if (!State.Silver.IsComplete || State.Silver.IsStale)
-                {
-                    <p class="garmoth-valuation">@(!State.Silver.IsComplete ? "* Bekannter Teilbetrag. Für einige Gegenstände fehlt ein verlässlicher Preis. " : "")@(State.Silver.IsStale ? "Einige Marktpreise stammen aus dem Cache." : "")</p>
-                }
-                <div class="garmoth-current-transfer"><div class="garmoth-transfer-icon"><AppIcon Name="@(State.UploadBlocked ? "shield" : "upload")" /></div><div><strong>@CurrentTransferTitle</strong><p>@CurrentTransferDescription</p></div></div>
-                @if (State.AutomaticSuspended && !State.UploadBlocked)
-                {
-                    <div class="garmoth-inline-warning"><AppIcon Name="info" /><span>Der automatische Upload ist für diese Session ausgesetzt. Prüfe die Statusmeldung. Korrigiere den Schlüssel oder wähle „Automatik fortsetzen“, sobald die Ursache behoben ist.</span></div>
-                }
-                <div class="garmoth-current-actions"><button class="button primary" aria-label="Aktuellen Session-Anteil hochladen" @onclick="AskCurrentUpload" disabled="@(!CanUploadCurrent)" title="@CurrentUploadHint"><AppIcon Name="upload" />@(_uploadingCurrent ? "Wird übertragen …" : "Session-Anteil hochladen")</button><span>@CurrentUploadHint @if (CurrentPreview.CorrectionHref is { } correctionHref) { <a href="@correctionHref">@CurrentPreview.CorrectionLabel</a> }</span></div>
+                <div class="garmoth-form-feedback is-error" role="alert"><AppIcon Name="info" />@_saveFeedback</div>
             }
-            else
+            @if (State.AutomaticSuspended && !State.UploadBlocked && State.HasApiKey && Tracker.Preferences.AutoUpload)
             {
-                <div class="empty-state garmoth-current-empty"><div class="empty-symbol"><AppIcon Name="upload" /></div><h3>Bereit für deine nächste Session.</h3><p>Nach dem Start einer Session kannst du hier den noch nicht übertragenen Grind nach Garmoth senden.</p><a class="button secondary" href="/">Zur Live-Session <AppIcon Name="arrow" /></a></div>
+                <div class="garmoth-resume"><span>Automatik ausgesetzt</span><button type="button" class="button secondary" @onclick="ResumeAutomatic" disabled="@InteractionBlocked">Automatik fortsetzen</button></div>
             }
-        </section>
-    </div>
+        </form>
+    </section>
 
-    <section class="panel garmoth-history" aria-label="Gespeicherte Sessions für Garmoth">
-        <div class="panel-heading"><div><h2>Gespeicherte Sessions <span class="count-pill">@HistorySessions.Count()</span></h2><p>Frühere Grinds nachträglich übertragen und ihren Upload-Status prüfen.</p></div><span class="garmoth-history-count">@HistorySessions.Count(IsPending) noch nicht übertragen</span></div>
-        <div class="garmoth-history-toolbar"><label class="search-field"><AppIcon Name="search" /><input aria-label="Gespeicherte Garmoth-Sessions nach Spot suchen" placeholder="Grindspot suchen …" @bind="_search" @bind:event="oninput" @bind:after="ResetPage" /></label><label class="filter-field"><span>Status</span><select aria-label="Garmoth-Upload-Status filtern" @bind="_statusFilter" @bind:after="ResetPage"><option value="all">Alle Sessions</option><option value="pending">Noch nicht übertragen</option><option value="transferred">Übertragung vermerkt</option><option value="blocked">Upload gesperrt</option></select></label><span class="filter-count">@VisibleSessions.Count() Treffer</span></div>
-        @if (VisibleSessions.Any())
+    <section class="panel garmoth-history" aria-label="Sessions für Garmoth">
+        <div class="panel-heading"><h2>Sessions <span class="count-pill">@rows.Count</span></h2><button class="button primary" @onclick="AskAllUploads" disabled="@(!CanUploadAll)"><AppIcon Name="upload" />@(_batchUploading ? $"Hochladen · {_batchCompleted} / {_batchTotal}" : "Alles hochladen")</button></div>
+        <div class="garmoth-history-toolbar"><label class="search-field"><AppIcon Name="search" /><input aria-label="Gespeicherte Garmoth-Sessions nach Spot suchen" placeholder="Grindspot suchen …" @bind="_search" @bind:event="oninput" @bind:after="ResetPage" /></label><label class="filter-field"><span>Status</span><select aria-label="Garmoth-Upload-Status filtern" @bind="_statusFilter" @bind:after="ResetPage"><option value="all">Alle Sessions</option><option value="pending">Noch offen</option><option value="transferred">Hochgeladen</option><option value="blocked">Upload gesperrt</option></select></label><span class="filter-count">@visible.Length Treffer</span></div>
+        @if (visible.Length > 0)
         {
-            <div class="table-scroll"><table class="garmoth-upload-table" aria-label="Upload-Tabelle gespeicherter Sessions"><thead><tr><th scope="col">Grindspot / Session</th><th scope="col">Dauer</th><th scope="col" class="numeric">Silber netto · aktuell</th><th scope="col">Upload-Status</th><th scope="col"><span class="sr-only">Aktion</span></th></tr></thead><tbody>
-                @foreach (var session in VisibleSessions.Skip((CurrentPage - 1) * PageSize).Take(PageSize))
+            <div class="table-scroll"><table class="garmoth-upload-table" aria-label="Upload-Tabelle der Sessions"><thead><tr><th scope="col">Grindspot / Session</th><th scope="col">Dauer</th><th scope="col" class="numeric">Silber netto · aktuell</th><th scope="col">Upload-Status</th><th scope="col"><span class="sr-only">Aktion</span></th></tr></thead><tbody>
+                @foreach (var row in visible.Skip((currentPage - 1) * PageSize).Take(PageSize))
                 {
-                    var currentValuation = HistoryValuation(session);
-                    var readiness = HistoryPreview(session);
-                    <tr @key="session.SessionId" data-session-id="@session.SessionId"><td><div class="garmoth-history-identity"><AssetImage Src="@("assets/spot-icons/" + Profile(session.SpotId)?.IconFileName)" Alt="" Class="garmoth-history-spot" Fallback="pin" /><span><strong>@SpotName(session.SpotId)</strong><small>@session.StartedAt.ToLocalTime().ToString("dd. MMM yyyy · HH:mm", German)</small><small class="garmoth-history-class">@(session.CharacterClass ?? "Klasse nicht erkannt")</small></span></div></td><td class="garmoth-duration">@ShortDuration(session.Duration)</td><td class="numeric garmoth-silver" title="Bewertung mit dem aktuellen Preisstand und deinen Steuereinstellungen">@(currentValuation.HasKnownValue ? Silver(currentValuation.AfterTax) : "—")@(!currentValuation.IsComplete ? " *" : "")<small>Gespeichert: @(session.SilverAfterTax == 0 && !session.SilverIsComplete ? "—" : Silver(session.SilverAfterTax))</small></td><td><div class="garmoth-history-status"><span class="garmoth-status-label @HistoryStatusClass(session)"><AppIcon Name="@(session.GarmothUploadedAt is not null ? "check" : session.GarmothUploadBlocked ? "shield" : "clock")" />@HistoryStatus(session)</span><small>@HistoryStatusDetail(session)</small></div></td><td class="garmoth-row-action"><button class="button secondary" aria-label="Gespeicherte Session hochladen" @onclick="() => AskHistoryUpload(session)" disabled="@(!CanUploadHistory(session))" title="@HistoryUploadHint(session)"><AppIcon Name="upload" />@(_uploadingHistory == session.SessionId ? "Sendet …" : "Hochladen")</button>@if (readiness.CorrectionHref is { } correctionHref) { <a class="text-button" href="@correctionHref">@readiness.CorrectionLabel</a> }</td></tr>
+                    <tr @key="row.SessionId" data-session-id="@row.SessionId">
+                        <td><div class="garmoth-history-identity"><AssetImage Src="@("assets/spot-icons/" + Profile(row.SpotId)?.IconFileName)" Alt="" Class="garmoth-history-spot" Fallback="pin" /><span><strong>@SpotName(row.SpotId)</strong>
+                            @if (row.IsCurrent && !State.IsSubmitted) { <small class="garmoth-live-marker"><span class="status-dot @(State.IsRunning ? "running" : "")"></span>Live-Session · @(State.IsRunning ? "Aktiv" : "Pausiert")</small> }
+                            @if (row.StartedAt is { } startedAt) { <small>@startedAt.ToLocalTime().ToString("dd. MMM yyyy · HH:mm", German)</small> }
+                            <small class="garmoth-history-class">@(row.CharacterClass ?? "Klasse nicht erkannt")</small></span></div></td>
+                        <td class="garmoth-duration">@ShortDuration(row.Duration)</td>
+                        <td class="numeric garmoth-silver">@(row.Valuation.HasKnownValue ? Silver(row.Valuation.AfterTax) : "—")@(!row.Valuation.IsComplete ? " *" : "")
+                            @if (!row.Valuation.IsComplete) { <small>Teilbetrag · Preise fehlen</small> }
+                            @if (row.Valuation.IsStale) { <small>Älterer Preisstand</small> }
+                        </td>
+                        <td><div class="garmoth-history-status"><span class="garmoth-status-label @(row.Blocked ? "is-blocked" : row.Uploaded ? "is-transferred" : "is-pending")"><AppIcon Name="@(row.Blocked ? "shield" : row.Uploaded ? "check" : "clock")" />@RowStatus(row)</span>
+                            @if (row.LocallyModified) { <small>Lokal geändert · Garmoth unverändert</small> }
+                            @if (row.Blocked && !row.Uploaded) { <small>Ergebnis in Garmoth prüfen</small> }
+                            else if (!row.Blocked && !row.Preview.IsReady) { <small>@row.Preview.Error</small> }
+                        </div></td>
+                        <td class="garmoth-row-action"><button class="button secondary" aria-label="@(row.IsCurrent ? "Aktuellen Session-Anteil hochladen" : "Gespeicherte Session hochladen")" @onclick="() => AskUpload(row)" disabled="@(!CanUpload(row))" title="@UploadHint(row)"><AppIcon Name="upload" />@(_uploadingSession == row.SessionId ? "Sendet …" : "Hochladen")</button>
+                            @if (row.Preview.CorrectionHref is { } correctionHref) { <a class="text-button" href="@correctionHref">@row.Preview.CorrectionLabel</a> }
+                        </td>
+                    </tr>
                 }
             </tbody></table></div>
-            <div class="pagination"><span>@(((CurrentPage - 1) * PageSize) + 1)–@Math.Min(CurrentPage * PageSize, VisibleSessions.Count()) von @VisibleSessions.Count() Sessions</span><div><button class="icon-button" aria-label="Vorherige Seite der Garmoth-Sessions" @onclick="() => _page = CurrentPage - 1" disabled="@(CurrentPage <= 1)"><AppIcon Name="back" /></button><span>Seite @CurrentPage von @PageCount</span><button class="icon-button" aria-label="Nächste Seite der Garmoth-Sessions" @onclick="() => _page = CurrentPage + 1" disabled="@(CurrentPage >= PageCount)"><AppIcon Name="arrow" /></button></div></div>
+            @if (pageCount > 1)
+            {
+                <div class="pagination"><span>@(((currentPage - 1) * PageSize) + 1)–@Math.Min(currentPage * PageSize, visible.Length) von @visible.Length Sessions</span><div><button class="icon-button" aria-label="Vorherige Seite der Garmoth-Sessions" @onclick="() => _page = currentPage - 1" disabled="@(currentPage <= 1)"><AppIcon Name="back" /></button><span>Seite @currentPage von @pageCount</span><button class="icon-button" aria-label="Nächste Seite der Garmoth-Sessions" @onclick="() => _page = currentPage + 1" disabled="@(currentPage >= pageCount)"><AppIcon Name="arrow" /></button></div></div>
+            }
         }
         else
         {
-            <div class="empty-state garmoth-history-empty"><AppIcon Name="history" /><h3>@(HistorySessions.Any() ? "Keine passenden Sessions" : "Hier erscheinen deine früheren Grinds.")</h3><p>@(HistorySessions.Any() ? "Versuche einen anderen Grindspot oder Upload-Status." : State.HasSession ? "Die aktuelle Session findest du oben. Nach Beginn einer neuen Session wird sie hier aufgeführt." : "Sobald ein Grind im Verlauf gespeichert ist, kannst du ihn hier nachträglich hochladen.")</p></div>
+            <div class="empty-state garmoth-history-empty"><AppIcon Name="history" /><h3>@(rows.Count > 0 ? "Keine passenden Sessions" : "Noch keine Sessions")</h3></div>
         }
-        <div class="garmoth-history-footnote"><AppIcon Name="shield" /><p>Silber wird für Tabelle und Upload mit dem aktuellen Preisstand und deinen Steuereinstellungen berechnet. Der gespeicherte Wert steht zum Vergleich darunter. Ein Übertragungsvermerk kann auch einzelne automatisch hochgeladene Stunden betreffen. Gesperrte Gesamt-Sessions werden nicht erneut gesendet. Bei unklarem Ergebnis prüfe den Eintrag direkt in Garmoth.@if (HistorySessions.Any(session => !HistoryValuation(session).IsComplete)) { <span> * Teilbetrag: Für einige Gegenstände fehlen aktuelle Silberwerte.</span> }</p></div>
     </section>
 </div>
 
 <dialog id="garmoth-upload-confirm" class="modal confirm-modal" aria-labelledby="garmoth-upload-title" @oncancel="CloseUploadDialog">
     <div class="modal-heading"><div><span class="eyebrow">GARMOTH-UPLOAD</span><h2 id="garmoth-upload-title">@(_confirmCurrent ? "Session-Anteil hochladen?" : "Gespeicherte Session hochladen?")</h2></div><button class="icon-button" @onclick="CloseUploadDialog" aria-label="Upload-Dialog schließen" disabled="@Acting"><AppIcon Name="close" /></button></div>
-    <p>@(_confirmCurrent ? "An Garmoth geht ausschließlich der noch nicht übertragene Anteil. Bereits hochgeladene Zeit und Lootmengen werden abgezogen. Die Erfassung ist für diese Vorschau pausiert." : "Diese gespeicherte Session wird an dein Garmoth-Konto übertragen und anschließend gegen einen erneuten Upload gesperrt.")</p>
+    <p>@(_confirmCurrent ? "Nur der offene Rest wird hochgeladen. Die Live-Session ist pausiert und wird nach erfolgreichem Upload abgeschlossen." : "Diese Session wird an dein Garmoth-Konto übertragen.")</p>
     @if (_confirmedPreview is { IsReady: true } preview)
     {
         @if (preview.Draft is { } draft && preview.Payload is { } payload)
@@ -103,7 +96,6 @@
                 <span>@Duration(draft.ActiveDuration) aktive Zeit · @Number(payload.Minutes) Minuten an Garmoth</span>
                 <span>@draft.ClassName · @draft.Specialization</span>
                 <span>@Silver(payload.Total) Silber netto · @Silver(payload.Hourly) pro Stunde</span>
-                <small>Preisstand bei Öffnen dieser Vorschau; aktuelle Steuereinstellungen.</small>
                 @if (!preview.SilverIsComplete) { <small>* Teilbetrag: Fehlende Preise wurden nicht geschätzt.</small> }
                 @if (preview.SilverIsStale) { <small>Einige Marktpreise stammen aus dem Cache.</small> }
             </div>
@@ -124,138 +116,41 @@
             }
         }
 
-        @if (_confirmCurrent)
-        {
-            <p class="garmoth-confirm-note">Ein erfolgreicher manueller Upload schließt diese Session ab. Für den nächsten Grind beginnst du eine neue Session.</p>
-        }
     }
     @if (_dialogError is not null) { <div class="garmoth-form-feedback is-error" role="alert"><AppIcon Name="info" />@_dialogError</div> }
     else if (_confirmedPreview is not null && !CanConfirmUpload && !Acting)
     {
-        <div class="garmoth-form-feedback is-error" role="status"><AppIcon Name="info" />Diese Vorschau kann derzeit nicht übertragen werden. Der Session- oder Uploadstatus hat sich geändert. Schließe die Vorschau und öffne sie erneut, sobald der laufende Vorgang beendet ist.</div>
+        <div class="garmoth-form-feedback is-error" role="status"><AppIcon Name="info" />Diese Vorschau kann derzeit nicht übertragen werden. Der Session- oder Uploadstatus hat sich geändert. Bitte öffne die Vorschau erneut.</div>
     }
     <div class="modal-actions"><button class="button secondary" @onclick="CloseUploadDialog" disabled="@Acting">Abbrechen</button><button class="button primary" @onclick="ConfirmUpload" disabled="@(!CanConfirmUpload)"><AppIcon Name="upload" />Jetzt hochladen</button></div>
 </dialog>
 
-@code {
-    private const int PageSize = 8;
-    private string _apiKey = "", _search = "", _statusFilter = "all";
-    private bool _saving, _saveFailed, _uploadFailed, _uploadingCurrent, _confirmCurrent;
-    private string? _saveFeedback, _uploadFeedback, _dialogError;
-    private int _page = 1;
-    private Guid? _uploadingHistory, _confirmedSessionId;
-    private LootHistoryEntry? _historyTarget;
-    private GarmothUploadPreview? _confirmedPreview;
-
-    private void FormChanged() => _saveFeedback = null;
-    private void ResetPage() => _page = 1;
-    private IEnumerable<LootHistoryEntry> HistorySessions => Tracker.History.Where(session => !State.HasSession || session.SessionId != State.SessionId);
-    private IEnumerable<LootHistoryEntry> VisibleSessions => HistorySessions.Where(session => SpotName(session.SpotId).Contains(_search, StringComparison.OrdinalIgnoreCase) && (_statusFilter switch
-    {
-        "pending" => IsPending(session), "transferred" => session.GarmothUploadedAt is not null,
-        "blocked" => session.GarmothUploadBlocked && session.GarmothUploadedAt is null, _ => true
-    })).OrderByDescending(session => session.StartedAt);
-    private int PageCount => Math.Max(1, (VisibleSessions.Count() + PageSize - 1) / PageSize);
-    private int CurrentPage => Math.Clamp(_page, 1, PageCount);
-    private static bool IsPending(LootHistoryEntry session) => !session.GarmothUploadBlocked && session.GarmothUploadedAt is null;
-    private GarmothUploadPreview CurrentPreview => State.CurrentGarmothUpload;
-    private GarmothUploadPreview HistoryPreview(LootHistoryEntry session) => State.PersistenceError is { } error
-        ? GarmothUploadPreview.Unavailable(error) : GarmothUploadPreview.ForHistory(session, Tracker.Prices, Tracker.Preferences.Tax);
-    private SilverValuationResult HistoryValuation(LootHistoryEntry session) => SilverValuation.Calculate(session.Totals, Tracker.Prices, Tracker.Preferences.Tax);
-    private bool CanUploadCurrent => !Acting && !State.IsBusy && !State.IsDemo && !State.UploadBlocked && !State.IsSubmitted && State.HasApiKey && CurrentPreview.IsReady;
-    private bool CanUploadHistory(LootHistoryEntry session) => !Acting && !State.IsBusy && !State.IsDemo && State.HasApiKey && HistoryPreview(session).IsReady && (!State.HasSession || session.SessionId != State.SessionId);
-    private bool CanConfirmUpload => _confirmedPreview is { IsReady: true } preview && (_confirmCurrent
-        ? _confirmedSessionId == State.SessionId && CanUploadCurrent && preview.HasSameSessionData(CurrentPreview)
-        : _historyTarget is { } target && Tracker.History.FirstOrDefault(session => session.SessionId == target.SessionId) is { } current && CanUploadHistory(current) && preview.HasSameSessionData(HistoryPreview(current)));
-    private bool AutomaticReady => Tracker.Preferences.AutoUpload && State.HasApiKey && !State.AutomaticSuspended && !State.UploadBlocked && !State.IsSubmitted;
-    private string CurrentAutomationLabel => State.IsSubmitted ? "Session abgeschlossen" : !Tracker.Preferences.AutoUpload ? "Manueller Upload" : State.AutomaticSuspended || State.UploadBlocked ? "Automatik ausgesetzt" : !State.HasApiKey ? "Schlüssel erforderlich" : "Automatik aktiviert";
-    private string? CurrentBackground => Profile(State.SpotId) is { } profile ? "background-image:url('assets/spot-backgrounds/" + profile.BackgroundFileName + "')" : null;
-    private string CurrentTransferTitle => State.UploadBlocked || State.IsSubmitted ? "Weitere Uploads sind gesperrt" : "Nur der noch nicht übertragene Anteil";
-    private string CurrentTransferDescription => State.UploadBlocked || State.IsSubmitted ? "Diese Session wird nicht erneut gesendet. Ein unklarer Übertragungsstatus muss direkt in Garmoth geprüft werden; ein weiterer Versuch könnte doppelte Einträge erzeugen." : "Beim manuellen Upload werden frühere Stunden-Uploads automatisch berücksichtigt. Die Gesamtwerte oben dienen zur Orientierung und entsprechen nicht zwangsläufig dem verbleibenden Upload.";
-    private string CurrentUploadHint => State.IsDemo ? "Demo-Sessions werden nicht hochgeladen." : Acting || State.IsBusy ? "Ein Vorgang wird gerade ausgeführt." : !State.HasApiKey ? "Hinterlege zuerst deinen Garmoth-API-Schlüssel." : CurrentPreview.Error ?? "Vorschau öffnen; ein laufender Grind wird dafür pausiert.";
-    private static string HistoryStatus(LootHistoryEntry session) => session.GarmothUploadedAt is not null ? "Übertragung vermerkt" : session.GarmothUploadBlocked ? "Upload gesperrt" : "Noch nicht übertragen";
-    private static string HistoryStatusClass(LootHistoryEntry session) => session.GarmothUploadedAt is not null ? "is-transferred" : session.GarmothUploadBlocked ? "is-blocked" : "is-pending";
-    private string HistoryStatusDetail(LootHistoryEntry session) => session.GarmothUploadedAt is { } uploaded ? uploaded.ToLocalTime().ToString("dd.MM.yyyy · HH:mm", German) : session.GarmothUploadBlocked ? "Ergebnis in Garmoth prüfen" : HistoryUploadHint(session);
-    private string HistoryUploadHint(LootHistoryEntry session) => State.IsDemo ? "Im Demo-Modus werden keine Sessions hochgeladen." : !State.HasApiKey ? "Zuerst einen Garmoth-API-Schlüssel hinterlegen." : Acting || State.IsBusy ? "Ein Vorgang wird gerade ausgeführt." : HistoryPreview(session).Error ?? "Manueller Upload verfügbar";
-
-
-    private Task SaveKey()
-    {
-        if (string.IsNullOrWhiteSpace(_apiKey)) return Task.CompletedTask;
-        return SaveConnection(p => p, _apiKey.Trim(), resume: true, message: "API-Schlüssel automatisch gespeichert.");
-    }
-    private Task RemoveKey() => SaveConnection(p => p with { AutoUpload = false }, "",
-        message: "Schlüssel entfernt. Der automatische Upload ist ausgeschaltet.");
-    private Task ResumeAutomatic() => SaveConnection(p => p, resume: true, message: "Automatik fortgesetzt.");
-    private Task AutoUploadChanged(ChangeEventArgs args)
-    {
-        var enabled = args.Value is true;
-        if (enabled && !State.HasApiKey)
-        {
-            _saveFeedback = "Hinterlege zuerst einen API-Schlüssel, um stündlich automatisch hochzuladen.";
-            _saveFailed = true;
-            return Task.CompletedTask;
-        }
-        return SaveConnection(p => p with { AutoUpload = enabled }, resume: enabled,
-            message: enabled ? "Automatischer Stunden-Upload aktiviert." : "Automatischer Stunden-Upload ausgeschaltet.");
-    }
-    private async Task SaveConnection(Func<TrackerPreferences, TrackerPreferences> change, string? key = null,
-        bool resume = false, string message = "Änderung automatisch gespeichert.")
-    {
-        if (Acting) return;
-        _saveFeedback = null; _saveFailed = false;
-        _saving = true;
-        try
-        {
-            if (await SavePreferenceChange(change, key, resume))
+<dialog id="garmoth-all-upload-confirm" class="modal confirm-modal" aria-labelledby="garmoth-all-upload-title" @oncancel="CloseAllUploadsDialog">
+    <div class="modal-heading"><h2 id="garmoth-all-upload-title">Alles hochladen?</h2><button class="icon-button" @onclick="CloseAllUploadsDialog" aria-label="Sammelupload-Dialog schließen" disabled="@Acting"><AppIcon Name="close" /></button></div>
+    <p>@_batchTargets.Count Sessions an dein Garmoth-Konto übertragen – aus allen Seiten und unabhängig vom Listenfilter.</p>
+    @if (_batchSkipped > 0) { <p>@_batchSkipped bereits übertragene, gesperrte oder noch nicht uploadfähige Sessions werden ausgelassen.</p> }
+    @if (_batchTargets.Any(target => target.IsCurrent)) { <p>Die Live-Session ist pausiert. Ihr offener Rest wird hochgeladen und die Session danach abgeschlossen.</p> }
+    <div class="table-scroll garmoth-confirm-loot">
+        <table aria-label="Sessions im Sammelupload"><thead><tr><th>Session</th><th>Dauer</th><th class="numeric">Silber netto</th></tr></thead><tbody>
+            @foreach (var target in _batchTargets)
             {
-                if (key is not null) _apiKey = "";
-                _saveFeedback = message;
+                var batchPreview = target.Preview;
+                var batchDraft = batchPreview.Draft!;
+                <tr><td>@SpotName(batchDraft.SpotId)<small>@batchDraft.StartedAt.ToLocalTime().ToString("dd.MM.yyyy · HH:mm", German) · @batchDraft.ClassName @(target.IsCurrent ? "· Live-Session" : "")</small></td><td>@Duration(batchDraft.ActiveDuration)</td><td class="numeric">@Silver(batchPreview.Payload!.Total)@(!batchPreview.SilverIsComplete ? " *" : "")</td></tr>
             }
-            else { _saveFeedback = ActionError ?? "Die Änderung wurde nicht gespeichert."; _saveFailed = true; }
-        }
-        finally { _saving = false; }
-    }
-    public override void Dispose() { _apiKey = ""; base.Dispose(); }
-    private async Task AskCurrentUpload()
+        </tbody></table>
+    </div>
+    <p class="garmoth-confirm-note">Bei einem Fehler wird gestoppt. Erfolgreiche Uploads bleiben in Garmoth erhalten.</p>
+    @if (_batchTargets.Any(target => !target.Preview.SilverIsComplete)) { <p class="garmoth-confirm-note">* Teilbetrag: Für einige Gegenstände fehlen Preise.</p> }
+    @if (_batchTargets.Any(target => target.Preview.SilverIsStale)) { <p class="garmoth-confirm-note">Einige Marktpreise stammen aus dem Cache.</p> }
+    @if (_batchTargets.SelectMany(target => target.Preview.Payload!.OmittedItems).Distinct().ToArray() is { Length: > 0 } omitted)
     {
-        if (!CanUploadCurrent) return;
-        if (State.IsRunning && !await Act(Tracker.PauseAsync))
-        {
-            _uploadFailed = true;
-            _uploadFeedback = ActionError ?? "Die Session konnte für die Uploadvorschau nicht sicher pausiert werden.";
-            return;
-        }
-        await Tracker.RefreshPricesAsync();
-        if (!CanUploadCurrent) return;
-        _confirmedPreview = CurrentPreview;
-        _confirmCurrent = true; _confirmedSessionId = State.SessionId; _historyTarget = null; _dialogError = null;
-        await JS.InvokeVoidAsync("grindcrest.showDialog", "garmoth-upload-confirm");
+        <p class="garmoth-confirm-note">Ohne Garmoth-Zuordnung ausgelassen: @string.Join(", ", omitted.Select(ItemLabel)). Ihr bekannter Silberwert ist im Gesamtbetrag enthalten.</p>
     }
-    private async Task AskHistoryUpload(LootHistoryEntry session)
+    @if (_dialogError is not null) { <div class="garmoth-form-feedback is-error" role="alert">@_dialogError</div> }
+    else if (_batchTargets.Count > 0 && !CanConfirmAllUploads && !Acting)
     {
-        if (!CanUploadHistory(session)) return;
-        await Tracker.RefreshPricesAsync();
-        session = Tracker.History.FirstOrDefault(entry => entry.SessionId == session.SessionId) ?? session;
-        if (!CanUploadHistory(session)) return;
-        _confirmedPreview = HistoryPreview(session);
-        _confirmCurrent = false; _historyTarget = session; _confirmedSessionId = null; _dialogError = null;
-        await JS.InvokeVoidAsync("grindcrest.showDialog", "garmoth-upload-confirm");
+        <div class="garmoth-form-feedback is-error" role="status">Der Session- oder Uploadstatus hat sich geändert. Bitte öffne die Vorschau erneut.</div>
     }
-    private async Task CloseUploadDialog() { await JS.InvokeVoidAsync("grindcrest.closeDialog", "garmoth-upload-confirm"); _dialogError = null; }
-    private async Task ConfirmUpload()
-    {
-        if (!CanConfirmUpload) { _dialogError = "Diese Session kann derzeit nicht übertragen werden. Bitte prüfe ihren aktuellen Status."; return; }
-        var uploadCurrent = _confirmCurrent;
-        var historyId = _historyTarget?.SessionId;
-        await CloseUploadDialog();
-        _uploadFeedback = null; _uploadingCurrent = uploadCurrent; _uploadingHistory = uploadCurrent ? null : historyId;
-        try
-        {
-            var succeeded = await Act(() => Tracker.UploadConfirmedAsync(_confirmedPreview!));
-            _uploadFailed = !succeeded;
-            _uploadFeedback = succeeded ? "Der bestätigte Grind wurde erfolgreich an Garmoth übertragen." : ActionError ?? "Der Upload konnte nicht abgeschlossen werden.";
-        }
-        finally { _uploadingCurrent = false; _uploadingHistory = null; }
-    }
-}
+    <div class="modal-actions"><button class="button secondary" @onclick="CloseAllUploadsDialog" disabled="@Acting">Abbrechen</button><button class="button primary" @onclick="ConfirmAllUploads" disabled="@(!CanConfirmAllUploads)"><AppIcon Name="upload" />@_batchTargets.Count Sessions hochladen</button></div>
+</dialog>

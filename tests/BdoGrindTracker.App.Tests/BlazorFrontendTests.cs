@@ -25,7 +25,7 @@ public sealed class BlazorFrontendTests
     {
         var session = new SnapshotSession { Preferences = new() { GameLanguage = preference }, State = ActiveState() with
         {
-            DetectedGameLanguage = "de", GameLanguageStatus = "Automatisch erkannt: Deutsch · BDO-Konfiguration",
+            DetectedGameLanguage = "de", GameLanguageStatus = "Erkannt: Deutsch",
         } };
         var markup = WebUtility.HtmlDecode(await RenderAsync<LootTable>(session, new Dictionary<string, object?>
         {
@@ -47,13 +47,14 @@ public sealed class BlazorFrontendTests
     }
 
     [Fact]
-    public async Task SettingsPagesExplainAutosaveAndHaveNoSaveOrDiscardButtons()
+    public async Task SettingsPagesHaveNoAutosaveExplanationsOrSaveOrDiscardButtons()
     {
         var session = new SnapshotSession { State = ActiveState() };
         foreach (var markup in new[] { await RenderAsync<TrackerSettings>(session), await RenderAsync<GarmothDashboard>(session) })
         {
             var text = WebUtility.HtmlDecode(markup);
-            Assert.Contains("automatisch lokal gespeichert", text);
+            Assert.DoesNotContain("automatisch lokal gespeichert", text);
+            Assert.DoesNotContain("Einmal einrichten", text);
             Assert.DoesNotContain("Einstellungen speichern", text);
             Assert.DoesNotContain("Verwerfen", text);
             Assert.DoesNotContain("Änderungen verwerfen", text);
@@ -374,7 +375,7 @@ public sealed class BlazorFrontendTests
         var markup = await RenderAsync<TrackerSettings>(session);
         Assert.True(IsDisabled(FieldSelectAttributes(markup, "Spielbildschirm")));
         Assert.Equal(running, IsDisabled(FieldSelectAttributes(markup, "Charakterklasse")));
-        Assert.True(IsDisabled(ToggleAttributes(markup, "Event-Loot mitzählen")));
+        Assert.DoesNotContain("Event-Loot mitzählen", markup);
         Assert.True(IsDisabled(ToggleAttributes(markup, "Diese Session aufzeichnen")));
     }
 
@@ -473,7 +474,7 @@ public sealed class BlazorFrontendTests
     }
 
     [Fact]
-    public async Task GarmothHistoryExcludesTheCurrentSessionAndDisablesAlreadyTransferredRows()
+    public async Task GarmothListIncludesCurrentSessionOnceAndDisablesAlreadyTransferredRows()
     {
         var state = ActiveState() with { IsRunning = false };
         var session = new SnapshotSession
@@ -489,6 +490,9 @@ public sealed class BlazorFrontendTests
         };
         var markup = await RenderAsync<GarmothDashboard>(session);
         Assert.DoesNotContain("CURRENT-ROW-MUST-NOT-REAPPEAR", markup);
+        Assert.Single(Regex.Matches(markup, $"data-session-id=\"{state.SessionId}\""));
+        Assert.Contains("Live-Session", WebUtility.HtmlDecode(markup));
+        Assert.DoesNotContain("garmoth-current", markup);
         var uploadButtons = AriaButtons(markup, "Gespeicherte Session hochladen").ToArray();
         Assert.Equal(3, uploadButtons.Length);
         Assert.Equal(2, uploadButtons.Count(IsDisabled));
@@ -520,7 +524,7 @@ public sealed class BlazorFrontendTests
         var markup = WebUtility.HtmlDecode(await RenderAsync<AppUpdates>(session, updates: updates));
 
         Assert.Contains("Diese Version wird über den Microsoft Store aktualisiert.", markup);
-        Assert.Contains("Automatische Updates kannst du dort in den Einstellungen verwalten.", markup);
+        Assert.Contains("Updates im Microsoft Store suchen.", markup);
         Assert.DoesNotContain("<button", markup);
         Assert.DoesNotContain("Beta-Updates", markup);
         Assert.DoesNotContain("Grindcrest-Setup", markup);

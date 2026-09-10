@@ -35,6 +35,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="..\..\data\branding\grindcrest-header.png" LogicalName="BdoGrindTracker.App.Branding.grindcrest-header.png" />
+    <EmbeddedResource Include="..\..\data\ocr\loot-scroll\*.png" LogicalName="BdoGrindTracker.App.LootScroll.%(Filename)%(Extension)" />
     <EmbeddedResource Include="..\..\data\branding\grindcrest.ico" LogicalName="BdoGrindTracker.App.Branding.grindcrest.ico" />
     <Content Include="..\..\data\branding\*" Link="data\branding\%(Filename)%(Extension)">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

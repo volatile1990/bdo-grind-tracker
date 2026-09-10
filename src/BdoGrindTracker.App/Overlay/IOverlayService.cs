@@ -21,6 +21,12 @@ internal interface IOverlayService : IDisposable
     OverlaySettings Settings { get; }
     OverlayRuntimeState State { get; }
     OverlaySnapshot Snapshot { get; }
+    IReadOnlyList<OverlayTemplate> Templates => Array.Empty<OverlayTemplate>();
+    string? TemplateError => null;
+    Task<OverlaySaveResult> SaveTemplateAsync(string name, OverlaySettings layout, string? replaceId = null) =>
+        Task.FromResult(new OverlaySaveResult("Eigene Vorlagen sind hier nicht verfügbar."));
+    Task<OverlaySaveResult> DeleteTemplateAsync(string id) =>
+        Task.FromResult(new OverlaySaveResult("Eigene Vorlagen sind hier nicht verfügbar."));
     Task<OverlaySaveResult> SaveAsync(OverlaySettings settings);
     Task<OverlaySaveResult> SavePositionAsync(double x, double y, double? width = null, double? height = null);
     Task SetPreviewAsync(bool enabled);

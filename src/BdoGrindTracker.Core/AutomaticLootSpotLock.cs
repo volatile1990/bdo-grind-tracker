@@ -29,9 +29,9 @@ public sealed class AutomaticLootSpotLock
         }
     }
 
-    public bool Allows(string canonicalName, bool includeEventLoot = false) =>
+    public bool Allows(string canonicalName) =>
         Spot is null || Spot.Allows(canonicalName) ||
-        (includeEventLoot && LootSpotCatalog.IsEventItem(canonicalName));
+        LootSpotCatalog.IsEventItem(canonicalName);
 
     public void Reset() => Spot = null;
 }

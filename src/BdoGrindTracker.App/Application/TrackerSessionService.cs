@@ -8,6 +8,7 @@ using BdoGrindTracker.App.Integrations.Garmoth;
 using BdoGrindTracker.App.Persistence;
 using BdoGrindTracker.App.Pricing;
 using BdoGrindTracker.App.UI;
+using BdoGrindTracker.App.Overlay.Native;
 using BdoGrindTracker.Core;
 using BdoGrindTracker.Ocr;
 
@@ -22,6 +23,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
 {
     private readonly PassiveCaptureSession _captureSession;
     private ILootFrameAnalyzer _analyzer;
+    private readonly LootScrollMonitor _lootScrollMonitor;
+    private readonly Func<Rectangle, bool> _isLootScrollCaptureVisible;
     private readonly SettingsStore _settingsStore;
     private readonly AppSettings _settings;
     private readonly GrindSessionClock _sessionClock;
@@ -35,6 +38,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
     private readonly LootHistoryStore _historyStore;
     private readonly List<LootHistoryEntry> _historyEntries;
     private readonly FrameUiMailbox _uiMailbox = new();
+    private readonly SessionSilverHistory _silverHistory = new();
     private readonly GarmothUploadIntervals _garmothIntervals = new();
     private readonly CancellationTokenSource _priceLifetime = new();
     private readonly AsyncLocal<CommandOutcome?> _commandOutcome = new();
@@ -92,10 +96,14 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         LootHistoryStore? historyStore = null,
         Func<GameLanguageDetection>? languageDetector = null,
         IWindowsOcrLanguageInstaller? ocrLanguageInstaller = null,
-        Func<string, ILootFrameAnalyzer>? analyzerFactory = null)
+        Func<string, ILootFrameAnalyzer>? analyzerFactory = null,
+        LootScrollMonitor? lootScrollMonitor = null,
+        Func<Rectangle, bool>? isLootScrollCaptureVisible = null)
     {
         _captureSession = capture ?? throw new ArgumentNullException(nameof(capture));
         _analyzer = analyzer ?? throw new ArgumentNullException(nameof(analyzer));
+        _lootScrollMonitor = lootScrollMonitor ?? new LootScrollMonitor(new LootScrollFrameDetector());
+        _isLootScrollCaptureVisible = isLootScrollCaptureVisible ?? CreateLootScrollVisibilityCheck();
         _ocrLanguageInstaller = ocrLanguageInstaller ?? new WindowsOcrLanguageInstaller();
         _analyzerFactory = analyzerFactory ?? (language => FrameAnalyzerFactory.Create(language));
         _settingsStore = settingsStore ?? throw new ArgumentNullException(nameof(settingsStore));
@@ -132,7 +140,6 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             FavoriteItems = _settings.FavoriteItems ?? [],
             LootColumnOrders = _settings.LootColumnOrders ?? new(),
             CharacterClassId = CompanionCharacterClassCatalog.FindById(_settings.CharacterClassId ?? "")?.Id,
-            IncludeEventLoot = _settings.IncludeEventLoot,
             AutoUpload = _settings.GarmothAutoUploadEnabled,
             MarketRegion = _settings.MarketRegion,
             ValuePack = _settings.SilverValuePack,
@@ -179,6 +186,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         PersistCurrentSession(DateTimeOffset.UtcNow, throwOnError: true);
         SavePendingHistory();
         _analyzer.Reset();
+        _lootScrollMonitor.Reset();
         _recording?.Dispose();
         _recording = null;
         _hasSession = false;
@@ -259,8 +267,6 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             await RefreshClassDetectionAsync();
             if (_shutdownStarted) return;
             _sessionClass ??= SelectedCharacterClass;
-            if (_analyzer is ILootFilterConfigurableAnalyzer filter)
-                filter.ConfigureLootFilter(Preferences.IncludeEventLoot);
             if (!continuesExistingSession || geometryChanged)
             {
                 _analyzer.Reset();
@@ -276,11 +282,13 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             _ocrInstallationStatus = null;
             if (!_hasSession) _sessionStartedAt = DateTimeOffset.UtcNow;
             _hasSession = true;
+            _lootScrollMonitor.Reset();
             _uiRunning = true;
             _inactivityTimer.Start();
             _sessionClock.Start();
-            _captureSession.StartCompanion(monitor.Bounds, ProcessFrameAsync);
             _lastCaptureDesktopRegion = monitor.Bounds;
+            _captureSession.StartCompanion(monitor.Bounds, ProcessFrameAsync,
+                () => _isLootScrollCaptureVisible(monitor.Bounds));
             _priceRefreshEnabled = true;
             SetStatus(_settingsSaveError is { } settingsError
                 ? "Tracking aktiv. " + settingsError
@@ -311,6 +319,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             _sessionClock.Pause(_inactivityTimer.PauseAndGetIdleDuration());
         CompleteCaptureSegment(DateTimeOffset.UtcNow);
         _uiRunning = false;
+        _lootScrollMonitor.Reset();
         PersistCurrentSession(DateTimeOffset.UtcNow, throwOnError: true);
         var failure = Interlocked.CompareExchange(ref _lastCaptureStopError, null, null);
         SetStatus(failure is not null ? "Tracking gestoppt: " + failure.Message
@@ -332,6 +341,19 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             isToneMapped: metadata.IsToneMapped, rowReviews: analysis.RowReviews,
             recognitionVariant: analysis.VariantName);
         _uiMailbox.Publish(analysis, onPublished: ObserveGarmothTotals);
+        if (_uiRunning && metadata.CanObserveHud)
+            _lootScrollMonitor.Observe(frame, metadata.CapturedAtUtc);
+    }
+
+    private static Func<Rectangle, bool> CreateLootScrollVisibilityCheck()
+    {
+        var gameWindow = new NativeOverlayGameWindow();
+        return region =>
+        {
+            var (screen, foreground) = gameWindow.Locate();
+            // A wiki screenshot, video or this app must not count as game HUD evidence.
+            return foreground && screen?.Bounds == region;
+        };
     }
 
     internal void ObserveGarmothTotals(IReadOnlyDictionary<string, long> totals, bool hasNewDrop)
@@ -492,6 +514,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             CharacterLabel = character?.DisplayName ?? (_classDetection.Status == CharacterClassDetectionStatus.Ambiguous
                 ? "Klasse mehrdeutig – bitte auswählen" : "Klasse unbekannt – automatische Erkennung"),
             Elapsed = _demoMode ? TimeSpan.FromHours(1) : _sessionClock.Elapsed,
+            LootScroll = !_demoMode && _uiRunning
+                ? _lootScrollMonitor.Snapshot(DateTimeOffset.UtcNow) : LootScrollState.Unknown,
             Loot = new(totals, _sessionSummary.TotalQuantity, _sessionSummary.ConfirmedEventCount),
             ManualLootItems = Array.AsReadOnly(_sessionManualLootItems.ToArray()),
             Silver = SilverValuation.Calculate(totals, Prices, Preferences.Tax),
@@ -503,6 +527,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             AutomaticSuspended = _garmothIntervals.AutomaticSuspended,
             ShutdownFailed = _shutdownFailed,
         };
+        State = State with { SilverHistory = _silverHistory.Update(State) };
         if (_historyChanged)
         {
             History = Array.AsReadOnly(_historyEntries.Select(entry => entry with
@@ -593,6 +618,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             PublishState();
             _disposed = true;
             _analyzer.Dispose();
+            _lootScrollMonitor.Dispose();
             _priceProvider.Dispose();
             _garmothClient.Dispose();
             _uiMailbox.Dispose();

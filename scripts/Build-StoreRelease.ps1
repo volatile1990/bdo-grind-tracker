@@ -26,11 +26,14 @@ if (-not $WindowsSdkBin) {
         Where-Object { $_.Name -match '^10\.0\.\d+\.0$' -and [version]$_.Name -ge [version]'10.0.19041.0' } |
         Sort-Object { [version]$_.Name } -Descending |
         ForEach-Object { Join-Path $_.FullName 'x64' } |
-        Where-Object { Test-Path -LiteralPath (Join-Path $_ 'makeappx.exe') } | Select-Object -First 1
+        Where-Object { (Test-Path -LiteralPath (Join-Path $_ 'makeappx.exe')) -and
+            (Test-Path -LiteralPath (Join-Path $_ 'makepri.exe')) } | Select-Object -First 1
 }
-if (-not $WindowsSdkBin) { throw 'Install Windows SDK 10.0.19041.0 or newer, including MakeAppx.' }
+if (-not $WindowsSdkBin) { throw 'Install Windows SDK 10.0.19041.0 or newer, including MakeAppx and MakePri.' }
 $makeAppx = Join-Path $WindowsSdkBin 'makeappx.exe'
+$makePri = Join-Path $WindowsSdkBin 'makepri.exe'
 if (-not (Test-Path -LiteralPath $makeAppx -PathType Leaf)) { throw 'MakeAppx.exe was not found.' }
+if (-not (Test-Path -LiteralPath $makePri -PathType Leaf)) { throw 'MakePri.exe was not found.' }
 
 function Invoke-DotNet([string[]] $Arguments) {
     & dotnet @Arguments
@@ -59,6 +62,20 @@ try {
     $manifest.Package.Identity.SetAttribute('Version', $packageVersion)
     $manifest.Save((Join-Path $publishDirectory 'AppxManifest.xml'))
 
+    # The shell resolves target-size/unplated logos through the package resource index.
+    # Copying transparent PNGs alone still permits an accent-colored icon backplate.
+    $resourceDirectory = Join-Path $workDirectory 'shell-resources'
+    [IO.Directory]::CreateDirectory($resourceDirectory) | Out-Null
+    Copy-Item -LiteralPath (Join-Path $publishDirectory 'Assets') -Destination $resourceDirectory -Recurse
+    $priLog = Join-Path $workDirectory 'makepri.log'
+    & $makePri new /pr $resourceDirectory /cf (Join-Path $workspaceRoot 'packaging/msix/priconfig.xml') `
+        /mn (Join-Path $publishDirectory 'AppxManifest.xml') `
+        /of (Join-Path $publishDirectory 'resources.pri') /o *> $priLog
+    if ($LASTEXITCODE -ne 0) {
+        Get-Content -LiteralPath $priLog -Tail 25 | Write-Host
+        throw "MakePri failed with exit code $LASTEXITCODE. Full log: $priLog"
+    }
+
     # Partner Center accepts unsigned MSIX submissions and signs them after certification.
     # Do not run Velopack, inject an installer, or embed a private signing key in this package.
     $packLog = Join-Path $workDirectory 'makeappx.log'
@@ -67,10 +84,11 @@ try {
         Get-Content -LiteralPath $packLog -Tail 25 | Write-Host
         throw "MakeAppx failed with exit code $LASTEXITCODE. Full log: $packLog"
     }
-    & (Join-Path $PSScriptRoot 'Test-StorePackage.ps1') -PackagePath (Join-Path $workDirectory $packageName) -Version $Version
+    & (Join-Path $PSScriptRoot 'Test-StorePackage.ps1') -PackagePath (Join-Path $workDirectory $packageName) -Version $Version -WindowsSdkBin $WindowsSdkBin
     [IO.Directory]::CreateDirectory($OutputDirectory) | Out-Null
     Copy-Item -LiteralPath (Join-Path $workDirectory $packageName) -Destination $OutputDirectory
     Copy-Item -LiteralPath $packLog -Destination $OutputDirectory
+    Copy-Item -LiteralPath $priLog -Destination $OutputDirectory
     $hash = (Get-FileHash -LiteralPath (Join-Path $OutputDirectory $packageName) -Algorithm SHA256).Hash
     [IO.File]::WriteAllText((Join-Path $OutputDirectory 'SHA256SUMS.txt'), "$hash  $packageName`n")
     Write-Host "Store submission package ready: $(Join-Path $OutputDirectory $packageName)"

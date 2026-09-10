@@ -64,7 +64,7 @@ denselben offiziellen Tabellen:
 | Elion Follower's Mark | Scales of Judgment |
 | Broken Gloves of the Void | Event Horizon |
 
-Der vorhandene Eintrag `[Event] Mysterious Ore` bleibt optional verfügbar.
+Der vorhandene Eintrag `[Event] Mysterious Ore` wird an allen Spots mitgezählt.
 Das bedeutet nicht, dass dieses Event derzeit aktiv ist. Eine Ereignisliste kann
 nicht im Voraus alle zukünftigen Eventnamen enthalten.
 

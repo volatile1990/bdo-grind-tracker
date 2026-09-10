@@ -120,7 +120,6 @@ public sealed partial class CompanionLootFrameAnalyzerTests
                 RareLootAnchorY = 300,
             } : calibration, Matcher(), rows, new Names(rows),
             rareRowPipeline: source == LootSource.Rare ? new RareRows() : null);
-        analyzer.ConfigureLootFilter(includeEventLoot: false);
         using var frame = new Bitmap(800, 600);
         rows.RareText = "";
         var initial = await analyzer.AnalyzeAsync(frame, DateTimeOffset.UnixEpoch, CancellationToken.None);
@@ -205,17 +204,37 @@ public sealed partial class CompanionLootFrameAnalyzerTests
     }
 
     [Theory]
-    [InlineData(false, 1)]
-    [InlineData(true, 2)]
-    public async Task EventOptInSurvivesReset(bool includeEvents, int acceptedCount)
+    [InlineData(LootSource.Normal)]
+    [InlineData(LootSource.Rare)]
+    public async Task EventLootIsAlwaysCountedInBothChannelsIncludingAfterReset(LootSource source)
     {
-        using var analyzer = Create(new Rows(new Input(250, "Black Crystal Fragment x17"),
-            new(200, "[Event] Mysterious Ore x1")));
-        analyzer.ConfigureLootFilter(includeEvents);
-        analyzer.Reset();
+        var rows = new Rows(new Input(250, "Black Crystal Fragment x17"));
+        if (source == LootSource.Normal)
+            rows.Values = [new(250, "Black Crystal Fragment x17"), new(200, "[Event] Mysterious Ore x1")];
+        else
+            rows.RareText = "[Event] Mysterious Ore x1";
+        var calibration = Calibration();
+        using var analyzer = new CompanionLootFrameAnalyzer(
+            source == LootSource.Rare ? calibration with
+            {
+                HasRareLootAnchor = true,
+                RareLootAnchorX = 600,
+                RareLootAnchorY = 300,
+            } : calibration, Matcher(), rows, new Names(rows),
+            rareRowPipeline: source == LootSource.Rare ? new RareRows() : null);
         using var frame = new Bitmap(800, 600);
-        await analyzer.AnalyzeAsync(frame, DateTimeOffset.UnixEpoch, CancellationToken.None);
-        Assert.Equal(acceptedCount, analyzer.CompleteSession(DateTimeOffset.UnixEpoch).NewEvents.Count);
+        for (var session = 0; session < 2; session++)
+        {
+            var result = await analyzer.AnalyzeAsync(frame, DateTimeOffset.UnixEpoch, CancellationToken.None);
+            Assert.Equal(LootSpotCatalog.HermesiaId, result.SpotId);
+            var observation = Assert.Single(result.Observations, row => row.ItemName == "[Event] Mysterious Ore");
+            Assert.Null(observation.RejectionReason);
+            Assert.Equal(source, observation.Source);
+            var counted = Assert.Single(analyzer.CompleteSession(DateTimeOffset.UnixEpoch).NewEvents,
+                row => row.ItemName == "[Event] Mysterious Ore");
+            Assert.Equal(1, counted.Quantity);
+            analyzer.Reset();
+        }
     }
 
     [Theory]

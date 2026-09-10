@@ -13,3 +13,11 @@
 .garmoth-upload-table{min-width:820px}.garmoth-upload-table th{font-size:12px;white-space:normal}
 .garmoth-history-status{min-width:155px}.garmoth-history-identity{min-width:210px}
 @media(max-width:1200px){.garmoth-workspace{grid-template-columns:1fr}.garmoth-current{grid-row:1}}
+.garmoth-page>.garmoth-connection{margin-bottom:22px;padding:20px}
+.garmoth-connection-fields{display:grid;grid-template-columns:minmax(220px,1fr) minmax(220px,1fr) auto;gap:20px;align-items:center}
+.garmoth-connection-fields .field,.garmoth-connection-fields .garmoth-auto-toggle,.garmoth-connection-fields .garmoth-remove-key{margin:0;padding:0}
+.garmoth-resume{display:flex;gap:16px;align-items:center;margin-top:14px;color:var(--gold)}
+.garmoth-history-identity .garmoth-live-marker{display:flex;align-items:center;gap:6px;color:#94c7b7}
+.garmoth-history .panel-heading{flex-wrap:wrap}
+.garmoth-confirm-loot td small{display:block;color:var(--muted);margin-top:4px}
+@media(max-width:880px){.garmoth-connection-fields{grid-template-columns:minmax(0,1fr)}.garmoth-resume{flex-wrap:wrap}}

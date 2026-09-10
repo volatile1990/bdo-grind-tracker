@@ -64,7 +64,8 @@ internal sealed class HybridMainForm : Form
         var services = new ServiceCollection();
         services.AddWindowsFormsBlazorWebView();
         services.AddSingleton<ITrackerSession>(session);
-        _overlay = new OverlayService(session, preview || smokeTest ? null : new OverlaySettingsStore());
+        _overlay = new OverlayService(session, preview || smokeTest ? null : new OverlaySettingsStore(),
+            preview || smokeTest ? null : new OverlayTemplateStore());
         services.AddSingleton<IOverlayService>(_overlay);
         _nativeOverlay = new NativeOverlayHost(_overlay, session, this, validationMode: preview || smokeTest);
         _updates = AppUpdateService.Create(!preview && !smokeTest,

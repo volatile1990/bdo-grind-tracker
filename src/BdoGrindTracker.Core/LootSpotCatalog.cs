@@ -52,7 +52,7 @@ public sealed class LootSpot
 
 /// <summary>
 /// Compile-time loot pools for the supported Inner Edania spots, including shared drops.
-/// Event loot is deliberately kept outside every spot's default allow-list.
+/// Event loot is listed separately and is always allowed alongside the detected spot's loot.
 /// </summary>
 public static class LootSpotCatalog
 {

@@ -174,23 +174,20 @@ public sealed class NormalLootRecoveryIntegrationTests
             reconciliation.Frames.Single().Select(row => row.Name));
     }
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task RescuedEventRowsRespectExistingOptIn(bool includeEventLoot)
+    [Fact]
+    public async Task RescuedEventRowsAreAlwaysCounted()
     {
         var recovery = new Recovery(call => call.Row.Y == 200 ? Observation("[Event] Mysterious Ore", 1) : null);
         var reconciliation = new Reconciliation();
         using var analyzer = Create(new Rows(new Input(250, "Black Crystal Fragment", 17)),
             recovery, reconciliation);
-        analyzer.ConfigureLootFilter(includeEventLoot);
         using var frame = new Bitmap(800, 600);
 
         var result = await analyzer.AnalyzeAsync(frame, DateTimeOffset.UnixEpoch, CancellationToken.None);
 
         var item = Assert.Single(result.Observations, row => row.ItemName == "[Event] Mysterious Ore");
-        Assert.Equal(includeEventLoot ? null : AutomaticLootSpotLock.OutsideSpotPoolReason, item.RejectionReason);
-        Assert.Equal(includeEventLoot ? 2 : 1, reconciliation.Frames.Single().Count);
+        Assert.Null(item.RejectionReason);
+        Assert.Equal(2, reconciliation.Frames.Single().Count);
     }
 
     [Fact]

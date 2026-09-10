@@ -34,7 +34,7 @@ public static partial class BlackDesertLanguageReader
         };
         return language is null
             ? new(null, "Die gespeicherte BDO-Textsprache wird nicht unterstützt. Unterstützt werden Deutsch und Englisch.")
-            : new(language, $"Automatisch erkannt: {(language == "de" ? "Deutsch" : "Englisch")} · BDO-Konfiguration");
+            : new(language, $"Erkannt: {(language == "de" ? "Deutsch" : "Englisch")}");
     }
 
     private static string? ReadSetting(string path, string key, string? requiredSection)

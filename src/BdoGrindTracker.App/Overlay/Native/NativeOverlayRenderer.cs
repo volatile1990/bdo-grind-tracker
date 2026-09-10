@@ -41,6 +41,13 @@ internal sealed class NativeOverlayRenderer : IDisposable
             var state = graphics.Save();
             graphics.SetClip(rectangle);
             FillRound(graphics, Color.FromArgb((int)(alpha * .11), 182, 201, 213), rectangle, 6);
+            if (snapshot.Metrics.TryGetValue(widget.Kind, out var widgetMetric) && widgetMetric.IsWarning)
+            {
+                FillRound(graphics, Color.FromArgb(13, Gold), rectangle, 6);
+                using var warningBorder = new Pen(Color.FromArgb(112, Gold), 1);
+                using var warningPath = Round(RectangleF.Inflate(rectangle, -.5f, -.5f), 6);
+                graphics.DrawPath(warningBorder, warningPath);
+            }
             var inner = RectangleF.Inflate(rectangle, -10, -8);
             if (widget.Kind == "controls")
             {
@@ -52,12 +59,21 @@ internal sealed class NativeOverlayRenderer : IDisposable
                     inner.Y += 16; inner.Height -= 16;
                 }
                 var enabled = snapshot.CanToggleTracking && settings.Interaction != "passthrough";
-                FillRound(graphics, enabled ? Gold : Color.FromArgb(115, Gold), inner, 5);
+                var buttonHeight = Math.Min(inner.Height, 28 * (float)widget.FontScale);
+                inner.Y += (inner.Height - buttonHeight) / 2;
+                inner.Height = buttonHeight;
+                FillRound(graphics, Color.FromArgb(enabled ? 24 : 12, Gold), inner, 5);
+                using (var outline = new Pen(Color.FromArgb(enabled ? 100 : 50, Gold), 1))
+                using (var path = Round(inner, 5)) graphics.DrawPath(outline, path);
                 var textBounds = inner;
+                var buttonColor = enabled ? Gold : Color.FromArgb(130, Gold);
                 if (widget.ShowIcon)
                 {
-                    using var glyph = new SolidBrush(Color.FromArgb(35, 31, 24));
-                    var center = new PointF(inner.X + 14, inner.Y + inner.Height / 2);
+                    using var labelFont = new Font("Segoe UI", 12 * (float)widget.FontScale, FontStyle.Bold, GraphicsUnit.Pixel);
+                    var textWidth = Math.Min(inner.Width - 32, graphics.MeasureString(snapshot.TrackingButtonLabel, labelFont).Width);
+                    var groupWidth = textWidth + 20;
+                    using var glyph = new SolidBrush(buttonColor);
+                    var center = new PointF(inner.X + (inner.Width - groupWidth) / 2 + 5, inner.Y + inner.Height / 2);
                     if (snapshot.IsRunning)
                     {
                         graphics.FillRectangle(glyph, center.X - 4, center.Y - 5, 3, 10);
@@ -65,10 +81,10 @@ internal sealed class NativeOverlayRenderer : IDisposable
                     }
                     else graphics.FillPolygon(glyph, [new PointF(center.X - 3, center.Y - 5),
                         new(center.X + 5, center.Y), new(center.X - 3, center.Y + 5)]);
-                    textBounds.X += 20; textBounds.Width -= 20;
+                    textBounds.X = center.X + 15; textBounds.Width = textWidth;
                 }
                 Draw(graphics, snapshot.TrackingButtonLabel, textBounds, 12 * (float)widget.FontScale,
-                    Color.FromArgb(35, 31, 24), true, StringAlignment.Center, StringAlignment.Center);
+                    buttonColor, true, StringAlignment.Center, StringAlignment.Center);
                 if (enabled) controls["toggle-tracking:" + widget.Id] = new RectangleF(inner.X * scale, inner.Y * scale, inner.Width * scale, inner.Height * scale);
             }
             else if (OverlayCatalog.IsLootWidget(widget.Kind))
@@ -101,8 +117,8 @@ internal sealed class NativeOverlayRenderer : IDisposable
             inner.Y += 18 * fontScale;
             inner.Height -= 18 * fontScale;
         }
-        var font = widget.Kind is "spot" or "status" ? 16 : 23;
-        var color = widget.Kind is "silver" or "silver-hour" ? Gold : Text;
+        var font = widget.Kind is "spot" or "status" or "loot-scroll" ? 16 : 23;
+        var color = metric.IsWarning || widget.Kind is "silver" or "silver-hour" ? Gold : Text;
         if (widget.ShowLabel && widget.Kind != "status" && metric.Detail is { Length: > 0 } && inner.Height >= 31)
         {
             var height = 12 * fontScale;
@@ -253,34 +269,37 @@ internal sealed class NativeOverlayRenderer : IDisposable
 
     private static void DrawChart(Graphics graphics, OverlayWidget widget, RectangleF inner, OverlaySnapshot snapshot)
     {
+        var fontScale = (float)widget.FontScale;
         if (widget.ShowLabel)
         {
-            var inset = widget.ShowIcon ? 17 : 0;
-            if (widget.ShowIcon) DrawGlyph(graphics, "chart", new RectangleF(inner.X, inner.Y + 1, 12, 12));
-            Draw(graphics, "Silber / Stunde · Verlauf", new RectangleF(inner.X + inset, inner.Y, inner.Width - inset, 16), 10, Muted);
-            inner.Y += 20; inner.Height -= 20;
+            var inset = widget.ShowIcon ? 17 * fontScale : 0;
+            if (widget.ShowIcon) DrawGlyph(graphics, "chart", new RectangleF(inner.X, inner.Y + fontScale, 12 * fontScale, 12 * fontScale));
+            Draw(graphics, "Silber / Stunde · Verlauf", new RectangleF(inner.X + inset, inner.Y, inner.Width - inset, 16 * fontScale), 10 * fontScale, Muted);
+            inner.Y += 20 * fontScale; inner.Height -= 20 * fontScale;
         }
-        if (snapshot.Metrics.TryGetValue("silver-hour", out var metric))
+        if (snapshot.Metrics.TryGetValue("chart", out var metric))
         {
-            var inset = !widget.ShowLabel && widget.ShowIcon ? 21 : 0;
-            if (inset > 0) DrawGlyph(graphics, "chart", new RectangleF(inner.X, inner.Y + 5, 15, 15));
-            Draw(graphics, metric.Value, new RectangleF(inner.X + inset, inner.Y, inner.Width - inset, 27), 21 * (float)widget.FontScale, Gold, true);
-            inner.Y += 33; inner.Height -= 33;
+            var inset = !widget.ShowLabel && widget.ShowIcon ? 21 * fontScale : 0;
+            if (inset > 0) DrawGlyph(graphics, "chart", new RectangleF(inner.X, inner.Y + 5 * fontScale, 15 * fontScale, 15 * fontScale));
+            Draw(graphics, metric.Value, new RectangleF(inner.X + inset, inner.Y, inner.Width - inset, 27 * fontScale), 21 * fontScale, Gold, true);
+            inner.Y += 33 * fontScale; inner.Height -= 33 * fontScale;
         }
-        if (snapshot.Metrics.TryGetValue("chart", out var chart) && chart.Detail is { Length: > 0 } && inner.Height > 30)
+        if (snapshot.Metrics.TryGetValue("chart", out var chart) && chart.Detail is { Length: > 0 } && inner.Height > 30 * fontScale)
         {
-            Draw(graphics, chart.Detail, new RectangleF(inner.X, inner.Bottom - 13, inner.Width, 13), 9, Muted);
-            inner.Height -= 16;
+            Draw(graphics, chart.Detail, new RectangleF(inner.X, inner.Bottom - 13 * fontScale, inner.Width, 13 * fontScale), 9 * fontScale, Muted);
+            inner.Height -= 16 * fontScale;
         }
         if (snapshot.SilverHistory.Count < 2 || inner.Height < 8)
         {
             Draw(graphics, "Verlauf entsteht während der Session", inner, 10, Muted, vertical: StringAlignment.Center);
             return;
         }
-        var highest = Math.Max(1m, snapshot.SilverHistory.Max());
-        var points = snapshot.SilverHistory.Select((value, index) => new PointF(
-            inner.X + index * inner.Width / (snapshot.SilverHistory.Count - 1),
-            inner.Bottom - 2 - (float)(Math.Max(0m, value) / highest) * Math.Max(1, inner.Height - 5))).ToArray();
+        var highest = Math.Max(1m, snapshot.SilverHistory.Max(point => point.SilverPerHour));
+        var first = snapshot.SilverHistory[0].Elapsed.Ticks;
+        var span = Math.Max(1, snapshot.SilverHistory[^1].Elapsed.Ticks - first);
+        var points = snapshot.SilverHistory.Select(point => new PointF(
+            inner.X + (float)((decimal)(point.Elapsed.Ticks - first) / span) * inner.Width,
+            inner.Bottom - 2 - (float)(Math.Max(0m, point.SilverPerHour) / highest) * Math.Max(1, inner.Height - 5))).ToArray();
         using var fill = new SolidBrush(Color.FromArgb(40, Gold));
         graphics.FillPolygon(fill, [new PointF(inner.Left, inner.Bottom), .. points, new PointF(inner.Right, inner.Bottom)]);
         using var line = new Pen(Gold, 1.6f);
@@ -340,7 +359,7 @@ internal sealed class NativeOverlayRenderer : IDisposable
             graphics.DrawLines(pen, [new PointF(1, 12), new(6, 7), new(9, 9), new(14, 3)]);
             graphics.DrawLines(pen, [new PointF(10, 3), new(14, 3), new(14, 7)]);
         }
-        else if (kind is "trash" or "drops" or "rare-drops")
+        else if (kind is "trash" or "drops" or "rare-drops" or "loot-scroll")
         {
             graphics.DrawPolygon(pen, [new PointF(8, 1), new(14, 4), new(14, 12), new(8, 15), new(2, 12), new(2, 4)]);
             graphics.DrawLines(pen, [new PointF(2, 4), new(8, 7), new(14, 4)]);

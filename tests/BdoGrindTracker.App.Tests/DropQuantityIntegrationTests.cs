@@ -24,7 +24,6 @@ public sealed partial class CompanionLootFrameAnalyzerTests
             HasRareLootAnchor = source == LootSource.Rare, RareLootAnchorX = 600, RareLootAnchorY = 300,
         }, new CompanionItemMatcher([trash, item]), rows, new Names(rows),
             rareRowPipeline: source == LootSource.Rare ? new RareRows() : null);
-        analyzer.ConfigureLootFilter(true);
         using var frame = new Bitmap(800, 600);
         var result = await analyzer.AnalyzeAsync(frame, DateTimeOffset.UnixEpoch, CancellationToken.None);
         var observed = Assert.Single(result.Observations, observation => observation.ItemName == item);

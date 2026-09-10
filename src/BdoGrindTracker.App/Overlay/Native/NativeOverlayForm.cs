@@ -14,7 +14,7 @@ internal sealed class NativeOverlayForm : Form
     private bool _dragging, _resizing;
     private string? _pressedAction;
     private IReadOnlyDictionary<string, RectangleF> _actions = new Dictionary<string, RectangleF>();
-    private readonly HashSet<int> _hotkeys = [];
+    private readonly NativeOverlayHotkeyRegistration _hotkeys;
 
     internal event Action<Rectangle, bool>? GeometryCommitted;
     internal event Action<string>? ActionClicked;
@@ -31,6 +31,9 @@ internal sealed class NativeOverlayForm : Form
 
     internal NativeOverlayForm()
     {
+        _hotkeys = new NativeOverlayHotkeyRegistration(
+            (id, modifiers, key) => NativeOverlayApi.RegisterHotKey(Handle, id, modifiers, key),
+            id => { if (IsHandleCreated) NativeOverlayApi.UnregisterHotKey(Handle, id); });
         Text = "Grindcrest Overlay";
         FormBorderStyle = FormBorderStyle.None;
         ShowInTaskbar = false;
@@ -111,23 +114,10 @@ internal sealed class NativeOverlayForm : Form
         }
     }
 
-    internal string? SetHotkeys(bool enabled)
-    {
-        if (!enabled)
-        {
-            foreach (var id in _hotkeys) NativeOverlayApi.UnregisterHotKey(Handle, id);
-            _hotkeys.Clear();
-            return null;
-        }
-        var failures = new List<string>();
-        foreach (var (id, key, label) in new[] { (1, Keys.O, "Strg+Alt+O"), (2, Keys.L, "Strg+Alt+L") })
-        {
-            if (_hotkeys.Contains(id)) continue;
-            if (NativeOverlayApi.RegisterHotKey(Handle, id, 0x4003, (uint)key)) _hotkeys.Add(id);
-            else failures.Add(label);
-        }
-        return failures.Count == 0 ? null : "Tastenkürzel bereits belegt: " + string.Join(", ", failures) + ".";
-    }
+    internal string? SetHotkeys(bool enabled, OverlayHotkey? toggleOverlay = null, OverlayHotkey? toggleInteraction = null) =>
+        _hotkeys.Apply(enabled,
+            OverlayHotkey.Normalize(toggleOverlay, OverlayHotkey.DefaultToggleOverlay),
+            OverlayHotkey.Normalize(toggleInteraction, OverlayHotkey.DefaultToggleInteraction));
 
     protected override void WndProc(ref Message message)
     {
@@ -138,7 +128,9 @@ internal sealed class NativeOverlayForm : Form
         }
         if (message.Msg == WmHotkey)
         {
-            HotkeyPressed?.Invoke((int)message.WParam);
+            var packed = unchecked((uint)message.LParam.ToInt64());
+            if (_hotkeys.Matches((int)message.WParam, packed & 0xffff, packed >> 16))
+                HotkeyPressed?.Invoke((int)message.WParam);
             return;
         }
         base.WndProc(ref message);
@@ -221,7 +213,61 @@ internal sealed class NativeOverlayForm : Form
 
     protected override void Dispose(bool disposing)
     {
-        if (disposing && IsHandleCreated) SetHotkeys(false);
+        if (disposing) _hotkeys.Clear();
         base.Dispose(disposing);
     }
+
+    protected override void OnHandleDestroyed(EventArgs e)
+    {
+        _hotkeys.Clear();
+        base.OnHandleDestroyed(e);
+    }
+}
+
+/// <summary>Owns only this window's registrations and replaces both bindings as one update.</summary>
+internal sealed class NativeOverlayHotkeyRegistration(Func<int, uint, uint, bool> register, Action<int> unregister)
+{
+    private const uint NoRepeat = 0x4000;
+    private readonly HashSet<int> _registered = [];
+    private Bindings? _bindings;
+    private string? _error;
+
+    internal string? Apply(bool enabled, OverlayHotkey toggleOverlay, OverlayHotkey toggleInteraction)
+    {
+        var requested = new Bindings(enabled, toggleOverlay, toggleInteraction);
+        if (requested == _bindings) return _error;
+        // Release both old combinations first, including when the user swaps them.
+        Clear();
+        _bindings = requested;
+        if (!enabled) return null;
+
+        var failures = new List<string>();
+        var combinations = new HashSet<OverlayHotkey>();
+        foreach (var (id, shortcut) in new[] { (1, toggleOverlay), (2, toggleInteraction) })
+        {
+            if (!shortcut.IsValid || !combinations.Add(shortcut) ||
+                !register(id, (uint)shortcut.Modifiers | NoRepeat, shortcut.VirtualKey))
+                failures.Add(shortcut.DisplayText);
+            else _registered.Add(id);
+        }
+        _error = failures.Count == 0 ? null : "Tastenkürzel bereits belegt: " + string.Join(", ", failures) + ".";
+        return _error;
+    }
+
+    internal bool Matches(int id, uint modifiers, uint key)
+    {
+        if (!_registered.Contains(id)) return false;
+        var shortcut = id switch { 1 => _bindings?.ToggleOverlay, 2 => _bindings?.ToggleInteraction, _ => null };
+        return shortcut is not null && (uint)shortcut.Modifiers == modifiers && shortcut.VirtualKey == key;
+    }
+
+    internal void Clear()
+    {
+        foreach (var id in _registered) unregister(id);
+        _registered.Clear();
+        _bindings = null;
+        _error = null;
+    }
+
+    private sealed record Bindings(bool Enabled, OverlayHotkey ToggleOverlay, OverlayHotkey ToggleInteraction);
 }

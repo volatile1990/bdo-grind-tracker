@@ -22,6 +22,7 @@
   <Applications>
     <Application Id="App" Executable="Grindcrest.exe" EntryPoint="Windows.FullTrustApplication"
                  uap10:RuntimeBehavior="packagedClassicApp" uap10:TrustLevel="mediumIL">
+      <!-- Transparent taskbar icons also require the indexed targetsize/altform assets. -->
       <uap:VisualElements DisplayName="Grindcrest" Description="Grind-Sessions und Beute in Black Desert verfolgen."
                           BackgroundColor="transparent" Square44x44Logo="Assets\Square44x44Logo.png"
                           Square150x150Logo="Assets\Square150x150Logo.png" />

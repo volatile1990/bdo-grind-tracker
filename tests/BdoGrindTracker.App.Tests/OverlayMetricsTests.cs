@@ -87,47 +87,40 @@ public sealed class OverlayMetricsTests
         var snapshot = new OverlayMetrics().Update(new(), new());
         Assert.Equal("0", snapshot.Metrics["silver"].Value);
         Assert.Equal("—", snapshot.Metrics["silver-hour"].Value);
-        Assert.Equal("—", snapshot.Metrics["trash-hour"].Value);
+        Assert.Equal("0", snapshot.Metrics["trash-hour"].Value);
         Assert.Empty(snapshot.SilverHistory);
         Assert.Empty(snapshot.Drops);
     }
 
     [Fact]
-    public void HistorySamplesActiveTimeAndReplacesEditsInTheCurrentBucket()
-    {
-        var metrics = new OverlayMetrics();
-        var state = Session() with { Elapsed = TimeSpan.FromSeconds(9), Silver = new(100, 100, 1, [], [], false) };
-        Assert.Empty(metrics.Update(state, new()).SilverHistory);
-
-        var first = metrics.Update(state with { Elapsed = TimeSpan.FromSeconds(10) }, new());
-        Assert.Equal(36_000m, Assert.Single(first.SilverHistory), precision: 12);
-        var correction = state with { Elapsed = TimeSpan.FromSeconds(10), Silver = new(200, 200, 1, [], [], false) };
-        Assert.Equal(72_000m, Assert.Single(metrics.Update(correction, new()).SilverHistory), precision: 12);
-        Assert.Equal(36_000m, Assert.Single(first.SilverHistory), precision: 12);
-
-        var paused = metrics.Update(correction with { IsRunning = false }, new());
-        Assert.Single(paused.SilverHistory);
-        var later = metrics.Update(correction with { Elapsed = TimeSpan.FromSeconds(20) }, new());
-        Assert.Collection(later.SilverHistory,
-            value => Assert.Equal(72_000m, value, precision: 12),
-            value => Assert.Equal(36_000m, value, precision: 12));
-    }
-
-    [Fact]
-    public void HistoryResetsForNewSessionsDemoAndElapsedTimeRewindAndRemainsBounded()
+    public void OverlayProjectsSessionHistoryWithoutStartingItsOwnCollection()
     {
         var metrics = new OverlayMetrics();
         var state = Session();
-        OverlaySnapshot snapshot = new();
-        for (var step = 1; step <= 200; step++)
-            snapshot = metrics.Update(state with { Elapsed = TimeSpan.FromSeconds(step * 10) }, new());
-        Assert.Equal(120, snapshot.SilverHistory.Count);
+        Assert.Empty(metrics.Update(state, new()).SilverHistory);
+        Assert.Empty(metrics.Update(state with { Elapsed = TimeSpan.FromHours(1) }, new()).SilverHistory);
+        var history = Array.AsReadOnly(new[]
+        {
+            new SessionSilverSample(TimeSpan.FromMinutes(1), 12_000_000),
+            new SessionSilverSample(TimeSpan.FromMinutes(10), 6_000_000),
+        });
+        var snapshot = metrics.Update(state with { SilverHistory = history }, new());
+        Assert.Same(history, snapshot.SilverHistory);
+        Assert.Equal(snapshot.Metrics["silver-hour"].Value, snapshot.Metrics["chart"].Value);
+        Assert.Equal("Session-Durchschnitt", snapshot.Metrics["chart"].Detail);
+    }
 
-        var newSession = state with { SessionId = Guid.NewGuid(), Elapsed = TimeSpan.FromSeconds(40) };
-        Assert.Single(metrics.Update(newSession, new()).SilverHistory);
-        Assert.Single(metrics.Update(newSession with { IsDemo = true, Elapsed = TimeSpan.FromSeconds(50) }, new()).SilverHistory);
-        Assert.Single(metrics.Update(newSession with { IsDemo = true, Elapsed = TimeSpan.FromSeconds(20) }, new()).SilverHistory);
-        Assert.Empty(metrics.Update(newSession with { HasSession = false, IsRunning = false }, new()).SilverHistory);
+    [Fact]
+    public void OverlayKeepsTheCompleteSuppliedSessionHistoryAcrossRecreation()
+    {
+        var state = Session() with
+        {
+            Elapsed = TimeSpan.FromSeconds(2_000),
+            SilverHistory = Array.AsReadOnly(Enumerable.Range(1, 200)
+                .Select(step => new SessionSilverSample(TimeSpan.FromSeconds(step * 10), 1_000_000)).ToArray()),
+        };
+        Assert.Same(state.SilverHistory, new OverlayMetrics().Update(state, new()).SilverHistory);
+        Assert.Same(state.SilverHistory, new OverlayMetrics().Update(state with { IsRunning = false }, new()).SilverHistory);
     }
 
     [Theory]
@@ -208,6 +201,35 @@ public sealed class OverlayMetricsTests
         Assert.DoesNotContain("NaN", chart);
         var empty = await RenderAsync(OverlayCatalog.CreateWidget("rare-drops"), new());
         Assert.Contains("Noch keine seltenen Drops", empty);
+    }
+
+    [Fact]
+    public async Task PreviewChartUsesActualSessionSampleTimes()
+    {
+        var chart = await RenderAsync(OverlayCatalog.CreateWidget("chart"), new()
+        {
+            SilverHistory = [new(TimeSpan.FromSeconds(10), 100), new(TimeSpan.FromSeconds(20), 100),
+                new(TimeSpan.FromSeconds(110), 100)],
+        });
+        Assert.Contains("points=\"0,6 30,6 300,6\"", chart);
+    }
+
+    [Fact]
+    public async Task LootScrollPreviewHighlightsOnlyTheSessionsConfirmedInactiveWarning()
+    {
+        var state = Session() with { LootScroll = new(LootScrollStatus.Inactive) };
+        var widget = OverlayCatalog.CreateWidget("loot-scroll");
+        var warning = await RenderAsync(widget, new OverlayMetrics().Update(state, new()));
+        Assert.Contains("is-warning", warning);
+        Assert.Contains("Loot-Scroll ist nicht aktiv.", warning);
+        Assert.Contains("Inaktiv", warning);
+        Assert.DoesNotContain("<button", warning);
+
+        var unknown = await RenderAsync(widget, new OverlayMetrics().Update(
+            state with { LootScroll = LootScrollState.Unknown }, new()));
+        Assert.Contains("Nicht erkannt", unknown);
+        Assert.DoesNotContain("is-warning", unknown);
+        Assert.DoesNotContain("Loot-Scroll ist nicht aktiv.", unknown);
     }
 
     private static TrackerState Session() => new()

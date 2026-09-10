@@ -6,15 +6,15 @@ using OpenCvSharp;
 namespace BdoGrindTracker.App.Analysis;
 
 /// <summary>Companion baseline with optional recovery and per-spot single-drop quantity bounds.</summary>
-internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilterConfigurableAnalyzer
+internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
 {
     internal const string ExactVariantName = "bdo-companion-0.7.4";
     internal const string RecoveryVariantName = "companion-0.7.4+normal-recovery-v1";
-    private readonly CompanionCalibration _calibration;
+    private CompanionCalibration _calibration;
     private readonly CompanionItemMatcher _itemMatcher;
     private readonly ICompanionBitmapDecoder _frameDecoder;
     private readonly ICompanionNormalRowPipeline _rowPipeline;
-    private readonly ICompanionRareRowPipeline? _rareRowPipeline;
+    private ICompanionRareRowPipeline? _rareRowPipeline;
     private readonly ICompanionNameRecognizer _nameRecognizer;
     private readonly INormalLootRecovery? _normalRecovery;
     private readonly ILootRowReview? _rowReview;
@@ -22,14 +22,13 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
     private readonly Action<string>? _configureGameLanguage;
     private readonly Func<string?, string, DropQuantityBounds?> _quantityBoundsResolver;
     private readonly ICompanionReconciliation _reconciliation;
-    private readonly ICompanionRareReconciliation? _rareReconciliation;
+    private ICompanionRareReconciliation? _rareReconciliation;
     private readonly CompanionLootLedger _ledger = new();
     private readonly AutomaticLootSpotLock _spotLock = new();
-    private readonly Rectangle _panelBounds;
-    private readonly Rectangle[] _slotBounds;
-    private readonly Rectangle? _rarePanelBounds;
-    private readonly Rectangle? _rareBandBounds;
-    private bool _includeEventLoot;
+    private Rectangle _panelBounds;
+    private Rectangle[] _slotBounds;
+    private Rectangle? _rarePanelBounds;
+    private Rectangle? _rareBandBounds;
     private bool _disposed;
     private int _recoveryCursor;
     private readonly NormalLootAlignmentReview _alignmentReview = new();
@@ -84,7 +83,38 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
         : "Bereit: Companion · Spot wird aus Trashloot erkannt.");
 
     public void ValidateCaptureSetup(System.Drawing.Size frameSize) =>
-        _captureGuard?.Validate(frameSize, DateTimeOffset.UtcNow, force: true);
+        RefreshCapturePosition(frameSize, DateTimeOffset.UtcNow, force: true);
+
+    private void RefreshCapturePosition(System.Drawing.Size frameSize, DateTimeOffset now, bool force = false)
+    {
+        var current = _captureGuard?.Validate(frameSize, now, force);
+        if (current is null || current == _calibration) return;
+
+        // Executed by the serial capture producer before any crop or row review,
+        // or during startup while capture is stopped. Build all geometry first.
+        var panel = CompanionNormalLootGeometry.CalculatePanelBounds(current);
+        var slots = CompanionNormalLootGeometry.CalculateSlotCrops(current).ToArray();
+        Rectangle? rarePanel = current.HasRareLootAnchor
+            ? CompanionNormalLootGeometry.CalculateRarePanelBounds(current) : null;
+        Rectangle? rareBand = current.HasRareLootAnchor
+            ? CompanionNormalLootGeometry.CalculateRareBandCrop(current) : null;
+        if (current.HasRareLootAnchor && _rareRowPipeline is null)
+        {
+            _rareRowPipeline = new CompanionRareRowPipeline();
+            _rareReconciliation ??= new CompanionRareReconciliationAdapter(
+                new CompanionRareFrameReconciler(_itemMatcher.CatalogEntries, _ledger));
+        }
+
+        _calibration = current;
+        _panelBounds = panel;
+        _slotBounds = slots;
+        _rarePanelBounds = rarePanel;
+        _rareBandBounds = rareBand;
+        _alignmentReview.Reset();
+        _recoveryCursor = 0;
+        // Preserve pending drops, event IDs, spot lock and the shared ledger.
+        // Resetting reconciliation would count the still-visible log again.
+    }
 
     public void ConfigureGameLanguage(string language)
     {
@@ -92,12 +122,6 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
         _configureGameLanguage?.Invoke(language);
         _rowReview?.ConfigureLanguage(_nameRecognizer.LanguageTag ?? language);
         _alignmentReview.Reset();
-    }
-
-    public void ConfigureLootFilter(bool includeEventLoot)
-    {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        _includeEventLoot = includeEventLoot;
     }
 
     public Task<FrameAnalysisResult> AnalyzeAsync(Bitmap frame, DateTimeOffset capturedAt,
@@ -113,7 +137,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(frame);
         cancellationToken.ThrowIfCancellationRequested();
-        _captureGuard?.Validate(frame.Size, capturedAt);
+        RefreshCapturePosition(frame.Size, capturedAt);
         var preparedRows = new List<ICompanionPreparedRow>(_slotBounds.Length);
         ICompanionPreparedRow? rareRow = null;
         try
@@ -227,7 +251,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
                 var spotId = _spotLock.Spot?.Id;
                 // The real lock can have been selected on an earlier frame.
                 var allowed = _itemMatcher.CatalogEntries.Select(item => item.Name)
-                    .Where(name => _spotLock.Allows(name, _includeEventLoot)).ToHashSet(StringComparer.Ordinal);
+                    .Where(_spotLock.Allows).ToHashSet(StringComparer.Ordinal);
                 var byY = normal.ToDictionary(row => row.NativeY!.Value);
                 var jobs = new List<Task<LootRowReviewResult>>();
                 foreach (var (row, index) in preparedRows.Select((row, index) => (row, index)))
@@ -277,7 +301,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
             if (_rowReview is not null && _reconciliation.TracksRows)
             {
                 var allowed = _itemMatcher.CatalogEntries.Select(item => item.Name)
-                    .Where(name => _spotLock.Allows(name, _includeEventLoot)).ToHashSet(StringComparer.Ordinal);
+                    .Where(_spotLock.Allows).ToHashSet(StringComparer.Ordinal);
                 var plan = _alignmentReview.Prepare(normal.Where(r => IsAccepted(r) && allowed.Contains(r.ItemName!))
                     .ToArray(), capturedAt, preparedRows.Count);
                 if (plan is not null)
@@ -315,7 +339,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
             // trash match, then filter canonical items without rematching them into the pool.
             _spotLock.Observe(normal.Where(IsAccepted).Select(row => row.ItemName!));
             var observations = normal.Concat(rare).Select(row =>
-                IsAccepted(row) && !_spotLock.Allows(row.ItemName!, _includeEventLoot)
+                IsAccepted(row) && !_spotLock.Allows(row.ItemName!)
                     ? row with { RejectionReason = AutomaticLootSpotLock.OutsideSpotPoolReason }
                     : IsAccepted(row)
                         ? ApplyQuantityPolicy(row)
@@ -522,11 +546,6 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
     }
 
     private static Rect ToOpenCvRect(Rectangle r) => new(r.X, r.Y, r.Width, r.Height);
-}
-
-internal interface ILootFilterConfigurableAnalyzer
-{
-    void ConfigureLootFilter(bool includeEventLoot);
 }
 
 internal interface ICompanionReconciliation

@@ -3,7 +3,22 @@
 ## Umfang und Datensicherheit
 
 Der eigene Menüpunkt **Garmoth** bündelt Verbindung, Stundenautomatik und sämtliche
-Upload-Aktionen. Die Integration sendet nach Bestätigung mit **Jetzt hochladen** oder
+Upload-Aktionen. Die aktuelle Session steht genau einmal in derselben Liste wie
+gespeicherte Sessions; solange sie nicht abgeschlossen ist, trägt sie einen kleinen
+Live-Hinweis. Für sie gilt die Vorschau des noch offenen Rests, auch wenn im Verlauf
+bereits eine automatisch übertragene Stunde vermerkt ist.
+
+**Alles hochladen** bereitet alle uploadfähigen Sessions unabhängig von Suchfilter
+und Listenseite vor. Die Sicherheitsabfrage zeigt die Sessions mit Dauer und
+Silberbetrag sowie die Zahl ausgelassener Einträge. Eine enthaltene laufende Session
+wird vor der Vorschau sicher pausiert. Erst die Bestätigung startet den Versand.
+Die bestätigte Liste wird eingefroren, vor Beginn und vor jedem einzelnen Upload
+erneut geprüft und nacheinander übertragen. Beim ersten Fehler stoppt der Vorgang;
+erfolgreiche Uploads bleiben bestehen, ein unklares Ergebnis wird nicht wiederholt.
+Abbrechen verwirft die Bestätigung und sendet nichts; die Session bleibt pausiert.
+
+Die Integration sendet nach Bestätigung mit **Jetzt hochladen** beziehungsweise
+**N Sessions hochladen** oder
 mit ausdrücklich aktivierter Stundenautomatik. Beim Öffnen der manuellen Vorschau wird die laufende
 Aufnahme pausiert und ausstehender Loot abgeschlossen. Die Bestätigung zeigt den
 tatsächlichen Rest mit Dauer, Mengen, ausgelassenen Items und dem eingefrorenen
@@ -11,12 +26,12 @@ Silberbetrag. Ändern sich Klasse, Dauer oder Mengen danach, ist eine neue Vorsc
 erforderlich. Automatische Uploads lassen das Tracking weiterlaufen.
 Die App meldet sich nicht selbstständig an und
 liest weder Browser-Cookies noch gespeicherte Companion-API-Keys. Der eigene Key
-wird einmal unter **Garmoth → Zugang & Automatik** hinterlegt und mit Windows-DPAPI für
+wird im Bereich **Garmoth** hinterlegt und mit Windows-DPAPI für
 CurrentUser plus App-spezifischer Entropie in `garmoth-api-key.dpapi` gespeichert.
 Beim Upload steht er nur im HTTPS-Request-Header `apiKey`, niemals in URL, Payload,
 Klartext-Einstellungen oder Diagnoseausgaben. Entfernen im Garmoth-Bereich löscht
-die verschlüsselte Datei erst nach Speichern und deaktiviert automatische Uploads;
-Verwerfen verändert nichts. Die Option **Stündlich automatisch hochladen**
+die verschlüsselte Datei und deaktiviert automatische Uploads.
+Die Option **Stündlich automatisch hochladen**
 ist standardmäßig aus und wird getrennt vom Key in den normalen Einstellungen
 gespeichert. Sie benötigt einen gültigen, nicht leeren Key.
 

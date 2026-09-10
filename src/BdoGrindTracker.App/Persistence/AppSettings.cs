@@ -18,7 +18,6 @@ internal sealed class AppSettings
     public string? SpotId { get; set; }
 
     public string? CharacterClassId { get; set; }
-    public bool IncludeEventLoot { get; set; }
 
     public string[] FavoriteItems { get; set; } = [];
     public Dictionary<string, string[]> LootColumnOrders { get; set; } = new();

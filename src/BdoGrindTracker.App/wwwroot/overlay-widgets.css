@@ -17,6 +17,9 @@
 .overlay-widget-detail { flex: 0 1 auto; }
 .overlay-widget-spot .overlay-widget-value { font-size: calc(17px * var(--widget-font-scale, 1)); }
 .overlay-widget-status .overlay-widget-value { font-size: calc(15px * var(--widget-font-scale, 1)); }
+.overlay-widget-loot-scroll .overlay-widget-value { font-size: calc(16px * var(--widget-font-scale, 1)); }
+.overlay-widget-preview.is-warning { border-color: #f1cc7a70; background: #f1cc7a0d; }
+.overlay-widget-preview.is-warning .overlay-widget-value { color: #f1cc7a; }
 .overlay-widget-controls { padding: 6px 8px; gap: 3px; }
 .overlay-status-value { display: flex; align-items: center; gap: 7px; }
 .overlay-status-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #8d9ca6; flex: 0 0 auto; }

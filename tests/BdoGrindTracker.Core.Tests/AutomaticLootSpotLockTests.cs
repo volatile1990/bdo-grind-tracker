@@ -38,23 +38,23 @@ public sealed class AutomaticLootSpotLockTests
 
     [Theory]
     [MemberData(nameof(SharedGlobalDropCases))]
-    public void EveryGlobalDropRemainsAllowedAfterAnySpotLocksWithoutEventOptIn(string trash, string item)
+    public void EveryGlobalDropRemainsAllowedAfterAnySpotLocks(string trash, string item)
     {
         var filter = new AutomaticLootSpotLock();
         filter.Observe([item]);
         Assert.Null(filter.Spot);
-        Assert.True(filter.Allows(item, includeEventLoot: false));
+        Assert.True(filter.Allows(item));
 
         filter.Observe([trash]);
         Assert.NotNull(filter.Spot);
         Assert.True(filter.Spot.Allows(item));
-        Assert.True(filter.Allows(item, includeEventLoot: false));
+        Assert.True(filter.Allows(item));
 
         filter.Reset();
         Assert.Null(filter.Spot);
-        Assert.True(filter.Allows(item, includeEventLoot: false));
+        Assert.True(filter.Allows(item));
         filter.Observe([trash]);
-        Assert.True(filter.Allows(item, includeEventLoot: false));
+        Assert.True(filter.Allows(item));
     }
 
     [Theory]
@@ -71,8 +71,7 @@ public sealed class AutomaticLootSpotLockTests
         Assert.False(filter.Allows(foreignTrash));
         Assert.False(filter.Allows(otherForeignTrash));
         Assert.False(filter.Allows("Black Gem Fragment"));
-        Assert.False(filter.Allows("[Event] Mysterious Ore", includeEventLoot: false));
-        Assert.True(filter.Allows("[Event] Mysterious Ore", includeEventLoot: true));
+        Assert.True(filter.Allows("[Event] Mysterious Ore"));
     }
 
     [Fact]
@@ -129,12 +128,18 @@ public sealed class AutomaticLootSpotLockTests
     }
 
     [Fact]
-    public void EventOptInDoesNotAllowForeignRegularLoot()
+    public void EveryKnownEventItemRemainsAllowedAcrossSpotsAndReset()
     {
         var filter = new AutomaticLootSpotLock();
-        filter.Observe(["Black Crystal Fragment"]);
-        Assert.False(filter.Allows("[Event] Mysterious Ore"));
-        Assert.True(filter.Allows("[Event] Mysterious Ore", includeEventLoot: true));
-        Assert.False(filter.Allows("Black Gem Fragment", includeEventLoot: true));
+        Assert.NotEmpty(LootSpotCatalog.EventItems);
+        foreach (var trash in TrashItems)
+        {
+            Assert.All(LootSpotCatalog.EventItems, item => Assert.True(filter.Allows(item)));
+            filter.Observe([trash]);
+            Assert.All(LootSpotCatalog.EventItems, item => Assert.True(filter.Allows(item)));
+            Assert.False(filter.Allows("Black Gem Fragment"));
+            Assert.False(filter.Allows("[Event] Unknown Item"));
+            filter.Reset();
+        }
     }
 }

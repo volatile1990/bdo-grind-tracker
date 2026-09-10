@@ -2,29 +2,28 @@
 @inherits TrackerComponentBase
 
 <div class="page settings-page">
-    <div class="page-heading"><div><span class="eyebrow">PASSEND ZU DEINEM GRIND</span><h1>Einstellungen</h1><p>Erfassung, Silberwerte und lokale Diagnose.</p></div></div>
+    <div class="page-heading"><h1>Einstellungen</h1></div>
     @if (ActionError is not null) { <div class="notice error-notice" role="alert"><AppIcon Name="info" />@ActionError</div> }
     <form @onsubmit="CommitNumbers" @onsubmit:preventDefault>
         <fieldset class="autosave-fields" disabled="@(Acting || State.IsBusy)">
         <div class="settings-layout">
             <div class="settings-column">
-                <section class="panel settings-panel"><div class="settings-heading"><div class="settings-icon"><AppIcon Name="monitor" /></div><div><h2>Erfassung</h2><p>Dein Spiel. Dein Bildschirm.</p></div></div>
-                    <label class="field"><span>Spielbildschirm</span><select @bind="_monitor" @bind:after="MonitorChanged" disabled="@State.HasSession">@foreach (var monitor in Tracker.Monitors) { <option value="@monitor.DeviceName">@monitor.Label</option> }</select><small>Wähle den Bildschirm, auf dem Black Desert läuft.</small></label>
-                    <label class="field"><span>Spielsprache in Black Desert</span><select @bind="_gameLanguage" @bind:after="GameLanguageChanged" disabled="@State.HasSession"><option value="auto">Automatisch aus BDO-Einstellungen</option><option value="en">Englisch</option><option value="de">Deutsch</option></select><small>@(_gameLanguage == "auto" ? State.GameLanguageStatus : "Manuelle Textsprache: " + (_gameLanguage == "de" ? "Deutsch" : "Englisch"))</small><small>Wird bei jedem Tracking-Start geprüft. Die Erkennung verwendet das passende Windows-Sprachpaket.</small></label>
-                    <label class="field"><span>Charakterklasse</span><select @bind="_characterClass" @bind:after="CharacterChanged" disabled="@(State.IsRunning || State.IsSubmitted)"><option value="">Automatisch erkennen</option>@foreach (var characterClass in CompanionCharacterClassCatalog.Classes) { <option value="@characterClass.Id">@characterClass.DisplayName</option> }</select><small>Bei pausierter Session kannst du die erkannte Klasse vor dem Upload korrigieren.</small></label>
-                    <label class="field"><span>Automatische Pause nach</span><div class="input-with-unit"><input type="number" min="1" max="60" step="1" required @bind="_autoPause" @bind:event="oninput" @bind:after="PauseInputChanged" @onblur="SaveAutoPause" /><span>Minuten ohne neuen Loot</span></div><small>Die Erfassung pausiert, wenn kein neuer Drop gezählt wird.</small>@if (_autoPauseError is not null) { <small class="field-error" role="alert">@_autoPauseError</small> }</label>
-                    <label class="toggle-row"><span><strong>Event-Loot mitzählen</strong><small>Zusätzlich bekannte Event-Gegenstände erfassen.</small></span><input type="checkbox" class="switch" @bind="_eventLoot" @bind:after="EventLootChanged" disabled="@State.HasSession" /></label>
-                    @if (State.HasSession) { <p class="field-note"><AppIcon Name="info" />Bildschirm, Spielsprache, Lootfilter und Aufzeichnung lassen sich vor dem Start einer neuen Session ändern.</p> }
+                <section class="panel settings-panel"><div class="settings-heading"><div class="settings-icon"><AppIcon Name="monitor" /></div><h2>Erfassung</h2></div>
+                    <label class="field"><span>Spielbildschirm</span><select @bind="_monitor" @bind:after="MonitorChanged" disabled="@State.HasSession">@foreach (var monitor in Tracker.Monitors) { <option value="@monitor.DeviceName">@monitor.Label</option> }</select></label>
+                    <label class="field"><span>Spielsprache in Black Desert</span><select @bind="_gameLanguage" @bind:after="GameLanguageChanged" disabled="@State.HasSession"><option value="auto">Automatisch aus BDO-Einstellungen</option><option value="en">Englisch</option><option value="de">Deutsch</option></select>@if (_gameLanguage == "auto") { <small>@State.GameLanguageStatus</small> }</label>
+                    <label class="field"><span>Charakterklasse</span><select @bind="_characterClass" @bind:after="CharacterChanged" disabled="@(State.IsRunning || State.IsSubmitted)"><option value="">Automatisch erkennen</option>@foreach (var characterClass in CompanionCharacterClassCatalog.Classes) { <option value="@characterClass.Id">@characterClass.DisplayName</option> }</select></label>
+                    <label class="field"><span>Automatische Pause nach</span><div class="input-with-unit"><input type="number" min="1" max="60" step="1" required @bind="_autoPause" @bind:event="oninput" @bind:after="PauseInputChanged" @onblur="SaveAutoPause" /><span>Minuten ohne neuen Loot</span></div>@if (_autoPauseError is not null) { <small class="field-error" role="alert">@_autoPauseError</small> }</label>
+                    @if (State.HasSession) { <p class="field-note"><AppIcon Name="info" />Bildschirm, Spielsprache und Aufzeichnung lassen sich vor dem Start einer neuen Session ändern.</p> }
                 </section>
-                <section class="panel settings-panel"><div class="settings-heading"><div class="settings-icon"><AppIcon Name="shield" /></div><div><h2>Loot-Diagnose</h2><p>Hilfreich, wenn ein Drop nicht richtig gezählt wird.</p></div></div>
+                <section class="panel settings-panel"><div class="settings-heading"><div class="settings-icon"><AppIcon Name="shield" /></div><h2>Loot-Diagnose</h2></div>
                     <label class="toggle-row"><span><strong>Diese Session aufzeichnen</strong><small>Loot-Ausschnitte und Erkennungsdaten lokal speichern.</small></span><input type="checkbox" class="switch" @bind="_recordLoot" @bind:after="RecordingChanged" disabled="@State.HasSession" /></label>
-                    <div class="subtle-box"><AppIcon Name="info" /><span>Gilt nur für die aktuelle Session und wird bei einer neuen Session ausgeschaltet. Die Dateien bleiben lokal, bis du sie selbst teilst.</span></div>
+                    <div class="subtle-box"><AppIcon Name="info" /><span>Die Dateien bleiben lokal, bis du sie selbst teilst.</span></div>
                     <p class="field-note">Speicherort: <code>%LOCALAPPDATA%\BdoGrindTracker\diagnostics</code></p>
                     @if (State.IsRecording && State.RecordingPath is { } path) { <div class="recording-path"><span class="record-dot"></span><span>@path</span></div> }
                 </section>
             </div>
             <div class="settings-column">
-                <section class="panel settings-panel"><div class="settings-heading"><div class="settings-icon gold-icon"><AppIcon Name="silver" /></div><div><h2>Silber &amp; Zentralmarkt</h2><p>Werte nach deinen persönlichen Verkaufsboni.</p></div></div>
+                <section class="panel settings-panel"><div class="settings-heading"><div class="settings-icon gold-icon"><AppIcon Name="silver" /></div><h2>Silber &amp; Zentralmarkt</h2></div>
                     <label class="field"><span>Marktregion</span><select @bind="_region" @bind:after="RegionChanged"><option value="eu">Europa (EU)</option><option value="na">Nordamerika (NA)</option></select></label>
                     <label class="toggle-row"><span><strong>Vorteilspaket</strong><small>30 % Bonus auf den Basis-Markterlös.</small></span><input type="checkbox" class="switch" @bind="_valuePack" @bind:after="ValuePackChanged" /></label>
                     <label class="toggle-row"><span><strong>Ring eines reichen Händlers</strong><small>5 % Bonus auf den Basis-Markterlös.</small></span><input type="checkbox" class="switch" @bind="_merchantRing" @bind:after="MerchantRingChanged" /></label>
@@ -35,14 +34,13 @@
             </div>
         </div>
         </fieldset>
-        <div class="settings-autosave" role="status"><AppIcon Name="@(Acting ? "refresh" : _saved ? "check" : "shield")" /><span>@(Acting ? "Wird automatisch gespeichert …" : _saved ? "Änderung automatisch gespeichert." : "Änderungen werden automatisch lokal gespeichert.")<small>Zahlen werden beim Verlassen des Feldes oder mit Enter übernommen.</small></span></div>
     </form>
 </div>
 
 @code {
     private string? _monitor, _characterClass;
     private string _autoPause = "3", _familyFame = "0";
-    private bool _eventLoot, _recordLoot, _valuePack, _merchantRing, _saved;
+    private bool _recordLoot, _valuePack, _merchantRing;
     private string _region = "eu";
     private string _gameLanguage = "auto";
     private string? _autoPauseError, _familyFameError;
@@ -55,7 +53,6 @@
         _characterClass = preferences.CharacterClassId;
         _gameLanguage = preferences.GameLanguage;
         _autoPause = preferences.AutoPauseMinutes.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        _eventLoot = preferences.IncludeEventLoot;
         _recordLoot = preferences.RecordLoot;
         _region = preferences.MarketRegion;
         _valuePack = preferences.ValuePack;
@@ -65,31 +62,26 @@
     private Task MonitorChanged() => Save(p => p with { MonitorDeviceName = _monitor });
     private Task GameLanguageChanged() => Save(p => p with { GameLanguage = _gameLanguage });
     private Task CharacterChanged() => Save(p => p with { CharacterClassId = string.IsNullOrEmpty(_characterClass) ? null : _characterClass });
-    private Task EventLootChanged() => Save(p => p with { IncludeEventLoot = _eventLoot });
     private Task RecordingChanged() => Save(p => p with { RecordLoot = _recordLoot });
     private Task RegionChanged() => Save(p => p with { MarketRegion = _region });
     private Task ValuePackChanged() => Save(p => p with { ValuePack = _valuePack });
     private Task MerchantRingChanged() => Save(p => p with { MerchantRing = _merchantRing });
-    private void PauseInputChanged() { _saved = false; _autoPauseError = null; }
-    private void FameInputChanged() { _saved = false; _familyFameError = null; }
+    private void PauseInputChanged() => _autoPauseError = null;
+    private void FameInputChanged() => _familyFameError = null;
     private async Task SaveAutoPause()
     {
         _autoPauseError = !int.TryParse(_autoPause, out var minutes) || minutes is < 1 or > 60 ? "Bitte eine ganze Zahl zwischen 1 und 60 eingeben." : null;
-        if (_autoPauseError is not null) { _saved = false; return; }
+        if (_autoPauseError is not null) return;
         if (minutes != Tracker.Preferences.AutoPauseMinutes || ActionError is not null)
             await Save(p => p with { AutoPauseMinutes = minutes });
     }
     private async Task SaveFamilyFame()
     {
         _familyFameError = !int.TryParse(_familyFame, out var fame) || fame < 0 ? "Bitte eine ganze Zahl ab 0 eingeben." : null;
-        if (_familyFameError is not null) { _saved = false; return; }
+        if (_familyFameError is not null) return;
         if (fame != Tracker.Preferences.FamilyFame || ActionError is not null)
             await Save(p => p with { FamilyFame = fame });
     }
     private async Task CommitNumbers() { await SaveAutoPause(); await SaveFamilyFame(); }
-    private async Task Save(Func<TrackerPreferences, TrackerPreferences> change)
-    {
-        _saved = false;
-        _saved = await SavePreferenceChange(change);
-    }
+    private Task Save(Func<TrackerPreferences, TrackerPreferences> change) => SavePreferenceChange(change);
 }

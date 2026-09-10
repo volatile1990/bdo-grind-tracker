@@ -12,6 +12,13 @@ nicht Teil dieser lokalen Implementierung. Kein offizielles Pearl-Abyss-Produkt.
 - `grindcrest-header.png`: technisch auf 128 × 128 px skaliert, für das App-Logo.
 - `grindcrest.ico`: derselbe Entwurf als Windows-Icon mit 16/24/32/48/64/128/256 px.
 
+Der Store-Build erzeugt aus demselben PNG zusätzlich die drei MSIX-Basislogos
+und je 15 `Square44x44Logo.targetsize-*`-Varianten für 16/20/24/30/32/36/40/44/48/60/64/72/80/96/256 px.
+Jede Größe liegt auch als `altform-unplated` und `altform-lightunplated` vor,
+damit Windows das transparente Logo auf dunklen und hellen Taskleisten ohne
+farbige Hintergrundfläche darstellen kann. Alle 48 PNG-Dateien behalten die
+Transparenz des Masters; das Motiv wird ausschließlich skaliert.
+
 Die finale Bildmarke wurde mit der integrierten Bildgenerierung erstellt und
 anschließend mit demselben Werkzeug vereinfacht und freigestellt. Keine CLI/API-
 Fallback-Generierung. Keine BDO-/Companion-/Garmoth-Logos oder Charaktere als Vorlage.
@@ -60,4 +67,3 @@ Preserve the gold angular G shape and crystal exactly; preserve positioning and 
 
 Der zweite Zwischenschritt enthielt ein eingebranntes Schachbrett und wurde nicht
 ausgeliefert. Der finale Master wurde auf tatsächlichen Alphakanal geprüft.
-

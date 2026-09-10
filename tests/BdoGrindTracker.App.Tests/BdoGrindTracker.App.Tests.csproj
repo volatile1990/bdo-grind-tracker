@@ -23,5 +23,7 @@
   <ItemGroup>
     <Content Include="..\fixtures\companion-counter-v1.jsonl" Link="fixtures\companion-counter-v1.jsonl"
              CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\fixtures\loot-scroll\*.png" Link="fixtures\loot-scroll\%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

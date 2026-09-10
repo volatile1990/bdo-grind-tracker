@@ -80,7 +80,7 @@ Der Schlüssel wird nie zurück in das Eingabefeld geladen. Entfernen und Speich
 schaltet auch die Automatik aus. Nur das Speichern im Garmoth-Bereich gibt eindeutig
 fehlgeschlagene automatische Versuche wieder frei; unklare Ergebnisse bleiben gesperrt.
 
-**Einstellungen** bündelt Monitor, Klasse, Auto-Pause, Event-Loot, Diagnoseaufzeichnung,
+**Einstellungen** bündelt Monitor, Klasse, Auto-Pause, Diagnoseaufzeichnung,
 Marktregion und Steuern. Monitor, Lootfilter und Aufzeichnung werden vor einer
 neuen Session festgelegt; die Klasse lässt sich vor dem Start oder während einer noch
 nicht abgeschlossenen Pause korrigieren. Änderungen werden explizit gespeichert.

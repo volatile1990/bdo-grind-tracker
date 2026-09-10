@@ -205,7 +205,7 @@ internal sealed class AppUpdateService : IAppUpdates
 
     private UpdateState NewState() => new(_backend.IsInstalled, _preferences.IsBeta, _backend.InstalledVersion,
         null, _backend.IsInstalled ? UpdatePhase.Idle : UpdatePhase.Disabled, 0,
-        _backend.IsInstalled ? "Neue Versionen werden beim Start geprüft." : "Updates sind nur in der installierten App verfügbar.");
+        _backend.IsInstalled ? "Noch nicht geprüft." : "Updates sind nur in der installierten App verfügbar.");
 
     private void Publish(UpdateState next)
     {

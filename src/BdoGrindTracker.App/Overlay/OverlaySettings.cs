@@ -21,6 +21,7 @@ public sealed record OverlayWidget
 
 public sealed record OverlaySettings
 {
+    public const int CurrentHotkeySettingsVersion = 1;
     public bool Enabled { get; init; }
     public string Interaction { get; init; } = "move";
     public string Visibility { get; init; } = "game";
@@ -35,7 +36,10 @@ public sealed record OverlaySettings
     public bool ShowBorder { get; init; } = true;
     public bool SnapToGrid { get; init; } = true;
     public bool CaptureExcluded { get; init; } = true;
-    public bool HotkeysEnabled { get; init; }
+    public bool HotkeysEnabled { get; init; } = true;
+    public int HotkeySettingsVersion { get; init; } = CurrentHotkeySettingsVersion;
+    public OverlayHotkey ToggleOverlayHotkey { get; init; } = OverlayHotkey.DefaultToggleOverlay;
+    public OverlayHotkey ToggleInteractionHotkey { get; init; } = OverlayHotkey.DefaultToggleInteraction;
     public IReadOnlyList<OverlayWidget> Widgets { get; init; } = OverlayCatalog.CompactWidgets();
 }
 
@@ -62,6 +66,7 @@ public static class OverlayCatalog
         new OverlayWidgetDefinition("chart", "Silberverlauf", "Silber pro Stunde im Sessionverlauf", "trend", 344, 144),
         new OverlayWidgetDefinition("controls", "Tracking-Steuerung", "Grind starten, pausieren und fortsetzen", "play", 168, 56),
         new OverlayWidgetDefinition("status", "Tracking-Status", "Aktiv, pausiert oder Fehler", "live", 168, 56),
+        new OverlayWidgetDefinition("loot-scroll", "Loot-Scroll", "Aktivstatus und erkannte Stufe", "loot", 168, 72),
     });
 
     public static OverlayWidgetDefinition? Find(string kind) => Widgets.FirstOrDefault(value => value.Kind == kind);
@@ -105,12 +110,16 @@ public static class OverlayCatalog
         },
         "loot" => new()
         {
-            Width = 360, Height = 408,
+            Width = 504, Height = 960,
             Widgets = Array.AsReadOnly(new[]
             {
-                CreateWidget("duration", 8, 8), CreateWidget("trash", 184, 8),
-                CreateWidget("drop-grid", 8, 88) with { Height = 224, ItemLimit = 24 },
-                CreateWidget("controls", 8, 344), CreateWidget("status", 184, 344),
+                CreateWidget("spot", 12, 12) with { Width = 480, Height = 108, FontScale = 1.5 },
+                CreateWidget("duration", 12, 132) with { Width = 252, Height = 108, ShowLabel = false, FontScale = 1.5 },
+                CreateWidget("silver", 276, 132) with { Width = 216, Height = 108, FontScale = 1.5 },
+                CreateWidget("chart", 12, 252) with { Width = 480, Height = 216, ShowLabel = false, FontScale = 1.5 },
+                CreateWidget("controls", 12, 480) with { Width = 252, Height = 108, ShowLabel = false, FontScale = 1.5 },
+                CreateWidget("trash-hour", 276, 480) with { Width = 216, Height = 108, FontScale = 1.5 },
+                CreateWidget("drop-grid", 12, 600) with { Width = 480, Height = 348, ItemLimit = 24, ItemSize = 84, ShowLabel = false, FontScale = 1.5 },
             })
         },
         "loot-strip" => new()
@@ -135,6 +144,13 @@ public static class OverlayLayout
         settings ??= new();
         var width = Finite(settings.Width, 360, 160, 1600);
         var height = Finite(settings.Height, 260, 64, 1200);
+        var toggleOverlay = OverlayHotkey.Normalize(settings.ToggleOverlayHotkey, OverlayHotkey.DefaultToggleOverlay);
+        var toggleInteraction = OverlayHotkey.Normalize(settings.ToggleInteractionHotkey, OverlayHotkey.DefaultToggleInteraction);
+        if (toggleOverlay == toggleInteraction)
+        {
+            toggleOverlay = OverlayHotkey.DefaultToggleOverlay;
+            toggleInteraction = OverlayHotkey.DefaultToggleInteraction;
+        }
         var ids = new HashSet<string>(StringComparer.Ordinal);
         var widgets = new List<OverlayWidget>();
         foreach (var widget in (settings.Widgets ?? []).Take(OverlayCatalog.MaximumWidgets))
@@ -167,6 +183,9 @@ public static class OverlayLayout
             BackgroundOpacity = Finite(settings.BackgroundOpacity, .85, 0, 1),
             Interaction = settings.Interaction is "move" or "locked" or "passthrough" ? settings.Interaction : "move",
             Visibility = settings.Visibility is "game" or "session" or "always" ? settings.Visibility : "game",
+            HotkeySettingsVersion = Math.Max(OverlaySettings.CurrentHotkeySettingsVersion, settings.HotkeySettingsVersion),
+            ToggleOverlayHotkey = toggleOverlay,
+            ToggleInteractionHotkey = toggleInteraction,
             Widgets = Array.AsReadOnly(widgets.ToArray()),
         };
     }

@@ -10,7 +10,7 @@ internal sealed class NativeOverlayHost(IOverlayService service, ITrackerSession
     private readonly NativeOverlayRenderer _renderer = new();
     private NativeOverlayForm? _window;
     private bool _disposed, _commandInProgress;
-    private bool? _captureExcluded, _hotkeysEnabled;
+    private bool? _captureExcluded;
     private string? _captureError, _hotkeyError, _commandError;
     private double _dpi = 96;
 
@@ -29,21 +29,19 @@ internal sealed class NativeOverlayHost(IOverlayService service, ITrackerSession
             if (!settings.Enabled && !preview && !settings.HotkeysEnabled)
             {
                 _window?.Hide();
-                if (_window is not null && _hotkeysEnabled == true)
+                if (_window is not null)
                 {
                     _window.SetHotkeys(false);
-                    _hotkeysEnabled = false;
                     _hotkeyError = null;
                 }
                 Publish(false, "Overlay ausgeschaltet.", null);
                 return;
             }
             EnsureWindow();
-            if (_hotkeysEnabled != settings.HotkeysEnabled)
-            {
-                _hotkeyError = _window!.SetHotkeys(settings.HotkeysEnabled);
-                _hotkeysEnabled = settings.HotkeysEnabled;
-            }
+            // The form compares the full binding pair, so editing either shortcut
+            // and recreating its window handle both trigger fresh registration.
+            _hotkeyError = _window!.SetHotkeys(settings.HotkeysEnabled,
+                settings.ToggleOverlayHotkey, settings.ToggleInteractionHotkey);
             _window!.SetInteraction(settings.Interaction);
             if (_captureExcluded != settings.CaptureExcluded)
             {
@@ -94,6 +92,7 @@ internal sealed class NativeOverlayHost(IOverlayService service, ITrackerSession
     {
         if (_window is not null) return;
         _window = new NativeOverlayForm();
+        _window.HandleCreated += (_, _) => _captureExcluded = null;
         _window.RenderBitmap = size =>
         {
             var settings = service.Settings;

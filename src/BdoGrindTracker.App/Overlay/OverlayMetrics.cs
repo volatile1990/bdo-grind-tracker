@@ -10,12 +10,6 @@ namespace BdoGrindTracker.App.Overlay;
 /// <summary>Projects existing session totals. This class never creates or changes loot events.</summary>
 internal sealed class OverlayMetrics
 {
-    private const int HistoryLimit = 120;
-    private static readonly TimeSpan HistoryInterval = TimeSpan.FromSeconds(10);
-    private readonly List<(long Bucket, decimal Value)> _history = [];
-    private Guid? _sessionId;
-    private bool _isDemo;
-    private TimeSpan _lastElapsed;
     private string? _catalogLanguage;
     private IReadOnlyList<OverlayLootItem> _itemCatalog = [];
     private static readonly HashSet<string> TrashItems = LootSpotPresentationCatalog.Profiles
@@ -48,13 +42,7 @@ internal sealed class OverlayMetrics
     {
         ArgumentNullException.ThrowIfNull(state);
         ArgumentNullException.ThrowIfNull(preferences);
-        var elapsed = state.Elapsed < TimeSpan.Zero ? TimeSpan.Zero : state.Elapsed;
-        if (_sessionId != state.SessionId || _isDemo != state.IsDemo || elapsed < _lastElapsed ||
-            (!state.HasSession && !state.IsRunning))
-            _history.Clear();
-        _sessionId = state.SessionId;
-        _isDemo = state.IsDemo;
-        _lastElapsed = elapsed;
+        var session = new LiveSessionPresentation(state);
 
         var language = preferences.GameLanguage == "auto" ? state.DetectedGameLanguage ?? "en" : preferences.GameLanguage;
         if (_catalogLanguage != language)
@@ -67,16 +55,9 @@ internal sealed class OverlayMetrics
                 .OrderBy(item => item.Name, StringComparer.CurrentCultureIgnoreCase).ToArray());
         }
         var profile = Presentation.Profile(state.SpotId);
-        var trash = Math.Max(0, Presentation.Trash(state.Loot.Totals, state.SpotId));
         var positiveItems = state.Loot.Totals.Where(item => item.Value > 0).ToArray();
-        var canShowSilver = positiveItems.Length == 0 || state.Silver.HasKnownValue;
-        var silverHourly = canShowSilver ? SafeHourly(state.Silver.AfterTax, elapsed) : null;
         var incomplete = !state.Silver.IsComplete;
-        var valuationDetail = incomplete ? "Teilbetrag · Preise fehlen" :
-            state.Silver.IsStale ? "Gespeicherte Marktpreise" : "Nach Marktsteuern";
-        var silverMarker = incomplete && canShowSilver ? " *" : "";
-        var compactStatus = state.IsDemo ? "Vorschau" : state.IsSubmitted ? "Abgeschlossen" :
-            state.IsError ? "Fehler" : state.IsRunning ? "Live" : state.HasSession ? "Pausiert" : "Bereit";
+        var valuationDetail = session.SilverDetail;
         var drops = positiveItems
             .OrderByDescending(item => string.Equals(item.Key, profile?.TrashItemName, StringComparison.Ordinal))
             .ThenByDescending(item => item.Value)
@@ -86,37 +67,23 @@ internal sealed class OverlayMetrics
                 item.Value, TrashItems.Contains(item.Key)))
             .ToArray();
 
-        if (silverHourly is { } hourly && elapsed >= HistoryInterval && (state.HasSession || state.IsRunning))
-        {
-            var bucket = elapsed.Ticks / HistoryInterval.Ticks;
-            if (_history.Count > 0 && _history[^1].Bucket == bucket)
-                _history[^1] = (bucket, hourly);
-            else
-                _history.Add((bucket, hourly));
-            if (_history.Count > HistoryLimit) _history.RemoveAt(0);
-        }
-        else if (!canShowSilver)
-        {
-            // A line cannot imply a known value while every item price is unavailable.
-            _history.Clear();
-        }
-
-        var rateText = silverHourly is { } rate ? Presentation.Silver(rate) + silverMarker : "—";
+        var rateText = session.SilverPerHour + (session.PartialSilverHourly ? " *" : "");
         var metrics = new Dictionary<string, OverlayMetric>(StringComparer.Ordinal)
         {
-            ["duration"] = new("Aktive Zeit", Presentation.Duration(elapsed), "Ohne Pausenzeiten"),
+            ["duration"] = new("Aktive Zeit", session.Duration, "Ohne Pausenzeiten"),
             ["spot"] = new("Grindspot", Presentation.SpotName(state.SpotId), state.CharacterLabel),
-            ["silver"] = new("Silber netto", canShowSilver ? Presentation.Silver(state.Silver.AfterTax) + silverMarker : "—", valuationDetail),
+            ["silver"] = new("Silber netto", session.Silver + (session.PartialSilver ? " *" : ""), valuationDetail),
             ["silver-hour"] = new("Silber / Stunde", rateText, incomplete ? valuationDetail : "Ø aktive Grindzeit"),
-            ["trash"] = new("Trashloot", Presentation.Number(trash), profile is null ? "Spot wird erkannt" :
+            ["trash"] = new("Trashloot", session.Trash, profile is null ? "Spot wird erkannt" :
                 ItemLocalizationCatalog.DisplayName(profile.TrashItemName, language)),
-            ["trash-hour"] = new("Trash / Stunde", SafeHourly(trash, elapsed) is { } trashRate ? Presentation.Number(trashRate) : "—", "Ø aktive Grindzeit"),
-            ["drops"] = new("Drops", Presentation.Number(positiveItems.Length), "Verschiedene Items"),
+            ["trash-hour"] = new("Trash / Stunde", session.TrashHourly, "Ø aktive Grindzeit"),
+            ["drops"] = new("Drops", Presentation.Number(state.Loot.ItemTypeCount), "Verschiedene Items"),
             ["rare-drops"] = new("Seltene Drops", Presentation.Number(drops.Count(item => item.IsRare)), "Auswahl seltener Items"),
             ["total-drops"] = new("Bestätigte Drops", Presentation.Number(state.Loot.ConfirmedEventCount)),
-            ["chart"] = new("Silber / h · Verlauf", rateText, incomplete ? valuationDetail : "Session-Durchschnitt · ab Overlay-Start"),
-            ["controls"] = new("Tracking", compactStatus),
-            ["status"] = new("Session", compactStatus, state.Status),
+            ["chart"] = new("Silber / h · Verlauf", rateText, incomplete ? valuationDetail : "Session-Durchschnitt"),
+            ["controls"] = new("Tracking", session.Status),
+            ["status"] = new("Session", session.Status, state.Status),
+            ["loot-scroll"] = new("Loot-Scroll", session.LootScroll, IsWarning: session.LootScrollWarning),
         };
 
         return new()
@@ -125,7 +92,8 @@ internal sealed class OverlayMetrics
             Drops = Array.AsReadOnly(drops),
             RareDrops = Array.AsReadOnly(drops.Where(item => item.IsRare).ToArray()),
             ItemCatalog = _itemCatalog,
-            SilverHistory = Array.AsReadOnly(_history.Select(point => point.Value).ToArray()),
+            SilverHistory = state.SilverHistory,
+            LootScroll = state.LootScroll,
             Status = state.Status,
             IsRunning = state.IsRunning,
             CanToggleTracking = state.IsRunning ? state.CanPause :
@@ -136,24 +104,19 @@ internal sealed class OverlayMetrics
         };
     }
 
-    private static decimal? SafeHourly(decimal value, TimeSpan elapsed)
-    {
-        if (elapsed <= TimeSpan.Zero) return null;
-        try { return Presentation.Hourly(value, elapsed); }
-        catch (OverflowException) { return null; }
-    }
-
     internal static OverlaySnapshot Demo { get; } = CreateDemo();
 
     private static OverlaySnapshot CreateDemo()
     {
         var metrics = new OverlayMetrics();
+        var history = new SessionSilverHistory();
         var state = new TrackerState
         {
             SessionId = new Guid("15a78f74-8514-4a50-b510-8eefb1c95c8e"),
             HasSession = true, IsRunning = true, CanPause = true, IsDemo = true, AnalyzerAvailable = true,
             SpotId = LootSpotCatalog.HermesiaId, CharacterLabel = "Agent", DetectedGameLanguage = "de",
             Status = "Beispieldaten · keine echte Session",
+            LootScroll = new(LootScrollStatus.Active, Level: 2),
             Loot = new LootSessionSnapshot(new Dictionary<string, long>(StringComparer.Ordinal)
             {
                 ["Black Crystal Fragment"] = 2387,
@@ -170,7 +133,8 @@ internal sealed class OverlayMetrics
         {
             var elapsed = TimeSpan.FromSeconds(830 + index * 10);
             var value = rates[index] * 1_000_000m * (decimal)elapsed.TotalHours;
-            snapshot = metrics.Update(state with { Elapsed = elapsed, Silver = new(value, value, 5, [], [], false) }, preferences);
+            state = state with { Elapsed = elapsed, Silver = new(value, value, 5, [], [], false) };
+            snapshot = metrics.Update(state with { SilverHistory = history.Update(state) }, preferences);
         }
         return snapshot;
     }

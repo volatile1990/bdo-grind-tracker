@@ -105,7 +105,8 @@ internal sealed class PassiveCaptureSession : IAsyncDisposable
     /// </summary>
     internal void StartCompanion(
         Rectangle desktopRegion,
-        Func<Bitmap, CapturedFrameMetadata, CancellationToken, Task> onFrame)
+        Func<Bitmap, CapturedFrameMetadata, CancellationToken, Task> onFrame,
+        Func<bool>? canObserveHud = null)
     {
         ArgumentNullException.ThrowIfNull(onFrame);
         ValidateArguments(desktopRegion);
@@ -121,7 +122,7 @@ internal sealed class PassiveCaptureSession : IAsyncDisposable
             _cancellation = new CancellationTokenSource();
             var token = _cancellation.Token;
             _runTask = Task.Run(
-                () => RunAsync(desktopRegion, onFrame, token),
+                () => RunAsync(desktopRegion, onFrame, canObserveHud, token),
                 CancellationToken.None);
         }
     }
@@ -154,6 +155,7 @@ internal sealed class PassiveCaptureSession : IAsyncDisposable
     private async Task RunAsync(
         Rectangle desktopRegion,
         Func<Bitmap, CapturedFrameMetadata, CancellationToken, Task> onFrame,
+        Func<bool>? canObserveHud,
         CancellationToken cancellationToken)
     {
         Exception? failure = null;
@@ -166,7 +168,7 @@ internal sealed class PassiveCaptureSession : IAsyncDisposable
             AllowSynchronousContinuations = false
         });
         var producer = Task.Run(
-            () => CaptureFramesAsync(desktopRegion, frames.Writer, producerCancellation.Token),
+            () => CaptureFramesAsync(desktopRegion, frames.Writer, canObserveHud, producerCancellation.Token),
             CancellationToken.None);
 
         try
@@ -201,6 +203,7 @@ internal sealed class PassiveCaptureSession : IAsyncDisposable
     private async Task<Exception?> CaptureFramesAsync(
         Rectangle desktopRegion,
         ChannelWriter<QueuedCapture> frames,
+        Func<bool>? canObserveHud,
         CancellationToken cancellationToken)
     {
         var lastCapturedAt = DateTimeOffset.MinValue;
@@ -211,10 +214,12 @@ internal sealed class PassiveCaptureSession : IAsyncDisposable
             while (await frames.WaitToWriteAsync(cancellationToken).ConfigureAwait(false))
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                var hudVisible = TryObserveHud(canObserveHud);
                 var capturedFrame = _captureFrame(desktopRegion, cancellationToken);
                 // Capture succeeded: even a stop arriving now must drain this
                 // bitmap. The single producer already reserved a queue slot.
                 using var pending = new PendingCapture(capturedFrame.Bitmap);
+                hudVisible = hudVisible && TryObserveHud(canObserveHud);
                 var frameDeadlineStart = _timeProvider.GetTimestamp();
                 var capturedAt = EnsureMonotonicTimestamp(
                     _timeProvider.GetUtcNow(),
@@ -225,7 +230,7 @@ internal sealed class PassiveCaptureSession : IAsyncDisposable
                 var metadata = new CapturedFrameMetadata(
                     sequence,
                     capturedAt,
-                    capturedFrame.IsHdr, capturedFrame.IsToneMapped);
+                    capturedFrame.IsHdr, capturedFrame.IsToneMapped) { CanObserveHud = hudVisible };
                 if (!frames.TryWrite(new QueuedCapture(capturedFrame.Bitmap, metadata)))
                 {
                     throw new InvalidOperationException("Ein aufgenommenes Bild konnte nicht zur OCR-Verarbeitung übergeben werden.");
@@ -257,6 +262,12 @@ internal sealed class PassiveCaptureSession : IAsyncDisposable
     }
 
     private readonly record struct QueuedCapture(Bitmap Bitmap, CapturedFrameMetadata Metadata);
+
+    private static bool TryObserveHud(Func<bool>? canObserveHud)
+    {
+        try { return canObserveHud?.Invoke() ?? false; }
+        catch (Exception) { return false; } // Optional HUD checks cannot fail loot capture.
+    }
 
     private sealed class PendingCapture(Bitmap bitmap) : IDisposable
     {
@@ -331,6 +342,8 @@ internal readonly record struct CapturedFrameMetadata(
     // The legacy HDR threshold expects clipped BGRA highlights near 255.
     // Tone-mapped scRGB instead uses the existing SDR recognition thresholds.
     public bool UseHdrOcr => IsHdr && !IsToneMapped;
+    // Bound to acquisition, before OCR/queue delay can change the foreground window.
+    public bool CanObserveHud { get; init; }
 }
 
 internal sealed class CaptureSessionStoppedEventArgs(Exception? error) : EventArgs

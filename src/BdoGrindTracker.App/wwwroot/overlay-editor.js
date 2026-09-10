@@ -12,6 +12,7 @@
             const viewport = root.querySelector(".oe-stage-viewport");
             const wrap = root.querySelector(".oe-stage-wrap");
             const stage = root.querySelector(".oe-stage");
+            const inspector = root.querySelector(".oe-inspector");
             let drag = null, ghost = null, suppressClick = false, disposed = false;
             const invoke = (name, ...args) => {
                 if (disposed) return;
@@ -128,6 +129,14 @@
                 if (cancelled || !current.moved) fit();
             };
             const click = e => { if (suppressClick) { e.preventDefault(); e.stopImmediatePropagation(); suppressClick = false; } };
+            const outsideClick = e => {
+                if (drag || suppressClick || !stage.querySelector(".oe-widget.is-selected")) return;
+                // Keep the selection while editing its properties or adding a module.
+                // Clicks inside the canvas already use the Blazor selection handlers.
+                if (stage.contains(e.target) || inspector?.contains(e.target)
+                    || (root.contains(e.target) && e.target.closest("[data-module-kind]"))) return;
+                invoke("ClearSelection");
+            };
             const key = e => {
                 if (e.key === "Escape" && drag) {
                     restore(drag); cleanupDrag(); fit(); e.preventDefault(); return;
@@ -146,6 +155,7 @@
             root.addEventListener("pointercancel", up);
             root.addEventListener("click", click, true);
             root.addEventListener("keydown", key);
+            document.addEventListener("click", outsideClick);
             const resizeObserver = new ResizeObserver(fit); resizeObserver.observe(viewport);
             const mutationObserver = new MutationObserver(fit); mutationObserver.observe(stage, { attributes: true, attributeFilter: ["data-width", "data-height"] });
             fit();
@@ -155,6 +165,7 @@
                 root.removeEventListener("pointerdown", down); root.removeEventListener("pointermove", move);
                 root.removeEventListener("pointerup", up); root.removeEventListener("pointercancel", up);
                 root.removeEventListener("click", click, true); root.removeEventListener("keydown", key);
+                document.removeEventListener("click", outsideClick);
             });
         },
         unmount(id) { editors.get(id)?.(); editors.delete(id); }

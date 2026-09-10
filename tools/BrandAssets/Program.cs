@@ -8,11 +8,18 @@ namespace BrandAssets;
 internal static class Program
 {
     private static readonly int[] IconSizes = [16, 24, 32, 48, 64, 128, 256];
+    private static readonly int[] MsixTargetSizes = [16, 20, 24, 30, 32, 36, 40, 44, 48, 60, 64, 72, 80, 96, 256];
     private static readonly (string Name, int Size)[] MsixAssets =
     [
         ("StoreLogo.png", 50),
         ("Square44x44Logo.png", 44),
-        ("Square150x150Logo.png", 150)
+        ("Square150x150Logo.png", 150),
+        .. MsixTargetSizes.SelectMany(static size => new (string Name, int Size)[]
+        {
+            ($"Square44x44Logo.targetsize-{size}.png", size),
+            ($"Square44x44Logo.targetsize-{size}_altform-unplated.png", size),
+            ($"Square44x44Logo.targetsize-{size}_altform-lightunplated.png", size)
+        })
     ];
     private static readonly byte[] PngSignature = [137, 80, 78, 71, 13, 10, 26, 10];
 
@@ -268,7 +275,7 @@ internal static class Program
             Package(source, output, header, force: true);
             var msixDirectory = Path.Combine(directory, "msix");
             PackageMsix(source, msixDirectory);
-            Require(Directory.GetFiles(msixDirectory).Length == MsixAssets.Length, "Wrong MSIX asset count.");
+            Require(Directory.GetFiles(msixDirectory).Length == 48, "Expected 3 base logos and 45 MSIX target-size variants.");
             foreach (var (name, size) in MsixAssets)
             {
                 using var result = new Bitmap(Path.Combine(msixDirectory, name));
@@ -291,7 +298,7 @@ internal static class Program
                 ExpectFailure(() => ValidateSource(nonsquare), "Nonsquare input was accepted.");
             using (var invisible = new Bitmap(256, 256, PixelFormat.Format32bppArgb))
                 ExpectFailure(() => ValidateSource(invisible), "Fully transparent input was accepted.");
-            Console.WriteLine("SELF-TEST PASS: 7 ICO PNG frames, offsets, Windows ICO decode, 128px header, 3 MSIX PNG logos, alpha 0/128/255, unchanged source, overwrite/dimension/alpha guards.");
+            Console.WriteLine("SELF-TEST PASS: 7 ICO PNG frames, offsets, Windows ICO decode, 128px header, 48 MSIX PNG logos including unplated/lightunplated variants, alpha 0/128/255, unchanged source, overwrite/dimension/alpha guards.");
         }
         finally { Directory.Delete(directory, recursive: true); }
     }

@@ -1227,11 +1227,10 @@ public sealed partial class TrackerSessionServiceTests
     {
         var settings = new AppSettings
         {
-            CharacterClassId = "maegu-awakening", IncludeEventLoot = true,
+            CharacterClassId = "maegu-awakening",
         };
         await using var fixture = new Fixture(initialSettings: settings);
         Assert.Equal("maegu-awakening", fixture.Service.Preferences.CharacterClassId);
-        Assert.True(fixture.Service.Preferences.IncludeEventLoot);
         Assert.False(fixture.Service.State.IsDemo);
         Assert.Empty(fixture.Service.State.Loot.Totals);
         Assert.False(fixture.Service.State.IsRunning);
@@ -1242,7 +1241,8 @@ public sealed partial class TrackerSessionServiceTests
     {
         private long _sequence;
         public Fixture(bool autoUpload = true, bool saveKey = true, AppSettings? initialSettings = null,
-            SyntheticAnalyzer? analyzer = null, Func<BdoGrindTracker.Ocr.GameLanguageDetection>? languageDetector = null)
+            SyntheticAnalyzer? analyzer = null, Func<BdoGrindTracker.Ocr.GameLanguageDetection>? languageDetector = null,
+            LootScrollMonitor? lootScrollMonitor = null, Func<Rectangle, bool>? lootScrollVisible = null)
         {
             Analyzer = analyzer ?? new();
             Directory.CreateDirectory(DirectoryPath);
@@ -1272,7 +1272,8 @@ public sealed partial class TrackerSessionServiceTests
                 new("synthetic-primary", "Bildschirm 1", new Rectangle(0, 0, 1920, 1080), true),
                 new("synthetic-secondary", "Bildschirm 2", new Rectangle(1920, 0, 1920, 1080), false)
             ], Clock, Activity, () => ClassDetection, Prices, client, KeyStore, HistoryStore,
-                languageDetector ?? (() => new("en", "Automatisch erkannt: Englisch · Testkonfiguration")));
+                languageDetector ?? (() => new("en", "Erkannt: Englisch")),
+                lootScrollMonitor: lootScrollMonitor, isLootScrollCaptureVisible: lootScrollVisible ?? (_ => false));
         }
 
         public string DirectoryPath { get; } = Path.Combine(Path.GetTempPath(), "BdoGrindTracker.Tests", Guid.NewGuid().ToString("N"));

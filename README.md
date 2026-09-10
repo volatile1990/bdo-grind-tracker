@@ -157,11 +157,9 @@ weiterhin über Microsoft. [Store-Paket erstellen und einreichen](docs/MICROSOFT
 ### Tracking starten
 
 1. `Grindcrest.exe` starten und unter **Einstellungen** den Spielbildschirm prüfen.
-2. Dort optional **Event-Loot mitzählen** aktivieren. Das ergänzt ausschließlich die
-   explizite Event-Liste, keine beliebigen fremden Items.
-3. Optional unter **Loot-Diagnose → Diese Session aufzeichnen** die Diagnose aktivieren.
+2. Optional unter **Loot-Diagnose → Diese Session aufzeichnen** die Diagnose aktivieren.
    Änderungen werden automatisch übernommen. Unter **Live-Session** auf **Tracking starten** klicken.
-4. Der Spot wird aus dem ersten passenden Trashloot automatisch erkannt und angezeigt:
+3. Der Spot wird aus dem ersten passenden Trashloot automatisch erkannt und angezeigt:
 
    | Erkannter Trashloot | Spot |
    |---|---|
@@ -172,7 +170,7 @@ weiterhin über Microsoft. [Store-Paket erstellen und einreichen](docs/MICROSOFT
    | Elion Follower's Mark | Scales of Judgment |
    | Broken Gloves of the Void | Event Horizon |
 
-5. **Pausieren** erhält die Session und stoppt die Sitzungsuhr. **Fortsetzen** zählt
+4. **Pausieren** erhält die Session und stoppt die Sitzungsuhr. **Fortsetzen** zählt
    aktive Grindzeit weiter; Pausen zählen nicht mit. **Neue Session** setzt Uhr,
    Summen, Zählzustand und Spot zurück. Vor einem Spotwechsel eine neue Sitzung anlegen.
 
@@ -185,7 +183,8 @@ im lokalen App-Konfigurationsordner, ohne Cloud-Synchronisierung.
 Vor dem ersten erkannten Trashloot wird kein zusätzlicher Spotfilter angewendet;
 es muss kein Spot manuell ausgewählt werden. Danach bleibt der erkannte Spot bis
 zur neuen Sitzung gesperrt. Ein früher gespeicherter manueller Spot wird ignoriert.
-Aufnahme- und Event-Optionen lassen sich vor Beginn einer neuen Session ändern.
+Bekannte Event-Gegenstände werden immer mitgezählt, auch nach der Spoterkennung.
+Die Diagnose-Aufzeichnung lässt sich vor Beginn einer neuen Session aktivieren.
 Die Diagnose-Aufzeichnung ist beim Programmstart und nach jeder neuen Sitzung aus.
 
 ### Droplog-Voraussetzungen und Mengengrenzen
@@ -193,8 +192,11 @@ Die Diagnose-Aufzeichnung ist beim Programmstart und nach jeder neuen Sitzung au
 Der Haupt-Droplog ist Voraussetzung für die Erfassung. Fehlt seine sichtbare,
 eindeutige Position in der aktiven BDO-UI-Konfiguration, bleibt der Start gesperrt
 und die Live-Ansicht zeigt **Tracking nicht möglich** mit einer Anleitung.
-Beim Start und während der Aufnahme wird die Position erneut geprüft. Verschwindet
-sie oder ändern sich die zugehörigen Anzeigeeinstellungen, hält die Erfassung an.
+Beim Start und während der Aufnahme wird die Position erneut geprüft. Gespeicherte
+Verschiebungen werden aus der BDO-Konfiguration übernommen, ohne die Session oder
+bereits erkannte Drops zurückzusetzen. Verschwindet die Position, ändern sich
+Schrift/Skalierung/Auflösung oder werden andere Zeilen am Bildschirmrand abgeschnitten,
+hält die Erfassung an.
 Nach dem Speichern der korrigierten BDO-UI-Einstellungen Grindcrest neu starten.
 Ein leeres Droplog ohne neue Drops ist kein Fehler.
 

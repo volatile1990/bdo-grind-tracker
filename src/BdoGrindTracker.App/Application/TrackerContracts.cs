@@ -26,7 +26,6 @@ internal sealed record TrackerPreferences
     public string GameLanguage { get; init; } = "auto";
     public string? CharacterClassId { get; init; }
     public int AutoPauseMinutes { get; init; } = 3;
-    public bool IncludeEventLoot { get; init; }
     public bool RecordLoot { get; init; }
     public bool AutoUpload { get; init; }
     public string MarketRegion { get; init; } = "eu";
@@ -55,14 +54,16 @@ internal sealed record TrackerState
     public string? OcrInstallationStatus { get; init; }
     public bool OcrRestartRequired { get; init; }
     public string? DetectedGameLanguage { get; init; }
-    public string GameLanguageStatus { get; init; } = "Die Spielsprache wird beim Tracking-Start geprüft.";
+    public string GameLanguageStatus { get; init; } = "Noch nicht erkannt.";
     public string? SpotId { get; init; }
     public string? CharacterClassId { get; init; }
     public string CharacterLabel { get; init; } = "Automatische Erkennung";
     public TimeSpan Elapsed { get; init; }
     public LootSessionSnapshot Loot { get; init; } = LootSessionSnapshot.Empty;
+    public LootScrollState LootScroll { get; init; } = LootScrollState.Unknown;
     public IReadOnlyList<string> ManualLootItems { get; init; } = [];
     public SilverValuationResult Silver { get; init; } = new(0, 0, 0, [], [], false);
+    public IReadOnlyList<SessionSilverSample> SilverHistory { get; init; } = [];
     public string PriceStatus { get; init; } = "NPC- und Festwerte";
     public string Status { get; init; } = "Bereit für deine nächste Session.";
     public bool IsError { get; init; }

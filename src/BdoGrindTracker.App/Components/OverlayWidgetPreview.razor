@@ -1,6 +1,6 @@
 @using BdoGrindTracker.App.Overlay
 
-<div class="overlay-widget-preview overlay-widget-@Widget.Kind @(IsLoot ? "is-loot-widget" : "")" style="@PreviewStyle" title="@(IsLoot ? Loot.Detail : Metric.Detail)">
+<div class="overlay-widget-preview overlay-widget-@Widget.Kind @(IsLoot ? "is-loot-widget" : "") @(Metric.IsWarning ? "is-warning" : "")" style="@PreviewStyle" title="@(IsLoot ? Loot.Detail : Metric.IsWarning ? "Loot-Scroll ist nicht aktiv." : Metric.Detail)">
     @if (Widget.ShowLabel)
     {
         <div class="overlay-widget-label">
@@ -102,10 +102,13 @@
         get
         {
             var values = Snapshot.SilverHistory;
-            var maximum = values.Count == 0 ? 1m : Math.Max(1m, values.Max());
-            return string.Join(" ", values.Select((value, index) =>
-                (300m * index / Math.Max(1, values.Count - 1)).ToString("0.##", CultureInfo.InvariantCulture) + "," +
-                (70m - Math.Clamp(value / maximum, 0, 1) * 64m).ToString("0.##", CultureInfo.InvariantCulture)));
+            if (values.Count == 0) return "";
+            var maximum = Math.Max(1m, values.Max(point => point.SilverPerHour));
+            var first = values[0].Elapsed.Ticks;
+            var span = Math.Max(1, values[^1].Elapsed.Ticks - first);
+            return string.Join(" ", values.Select(point =>
+                (300m * (point.Elapsed.Ticks - first) / span).ToString("0.##", CultureInfo.InvariantCulture) + "," +
+                (70m - Math.Clamp(point.SilverPerHour / maximum, 0, 1) * 64m).ToString("0.##", CultureInfo.InvariantCulture)));
         }
     }
 }

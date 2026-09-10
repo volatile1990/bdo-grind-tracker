@@ -9,6 +9,7 @@ namespace BdoGrindTracker.App.Services;
 internal sealed class PreviewTrackerSession : ITrackerSession
 {
     private readonly List<LootHistoryEntry> _history = [];
+    private readonly SessionSilverHistory _silverHistory = new();
     public event Action? Changed;
     public TrackerState State { get; private set; } = new() { AnalyzerAvailable = true, IsDemo = true,
         DetectedGameLanguage = "en", GameLanguageStatus = "Vorschau: Englisch · keine BDO-Konfiguration gelesen" };
@@ -60,8 +61,13 @@ internal sealed class PreviewTrackerSession : ITrackerSession
             Status = "Vorschau · Beispieldaten werden weder aufgezeichnet noch hochgeladen.", PriceStatus = "EU · NPC- und Festwerte"
         });
     }
-    private void Change(TrackerState state) { State = state with { CanPause = state.IsRunning, DetectedGameLanguage = "en",
-        GameLanguageStatus = "Vorschau: Englisch · keine BDO-Konfiguration gelesen" }; Changed?.Invoke(); }
+    private void Change(TrackerState state)
+    {
+        State = state with { CanPause = state.IsRunning, DetectedGameLanguage = "en",
+            GameLanguageStatus = "Vorschau: Englisch · keine BDO-Konfiguration gelesen" };
+        State = State with { SilverHistory = _silverHistory.Update(State) };
+        Changed?.Invoke();
+    }
     public Task<TrackerCommandResult> ToggleTrackingAsync() { Change(State with { IsRunning = !State.IsRunning, HasSession = true, Status = "Vorschau · Tracking wird nur simuliert." }); return Task.FromResult(TrackerCommandResult.Success); }
     public Task<TrackerCommandResult> PauseAsync() { Change(State with { IsRunning = false }); return Task.FromResult(TrackerCommandResult.Success); }
     public Task<TrackerCommandResult> InstallOcrLanguageAsync() { Change(State with { OcrInstallationStatus = "Vorschau · Es wird kein Windows-Sprachpaket installiert." }); return Task.FromResult(TrackerCommandResult.Success); }

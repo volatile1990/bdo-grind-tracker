@@ -36,6 +36,23 @@ public sealed class SettingsStoreTests
     }
 
     [Fact]
+    public void LegacyDisabledEventLootIsIgnoredAndRemovedOnNextSave()
+    {
+        using var fixture = new IsolatedStore();
+        File.WriteAllText(fixture.Path,
+            """
+            { "SettingsVersion": 6, "IncludeEventLoot": false, "AutoPauseMinutes": 9, "MonitorDeviceName": "DISPLAY2" }
+            """);
+
+        var settings = fixture.Store.Load();
+        fixture.Store.Save(settings);
+
+        Assert.Equal(9, settings.AutoPauseMinutes);
+        Assert.Equal("DISPLAY2", settings.MonitorDeviceName);
+        Assert.DoesNotContain("IncludeEventLoot", File.ReadAllText(fixture.Path));
+    }
+
+    [Fact]
     public void ConfiguredTimeoutPersistsAlongWithCapturePreferences()
     {
         using var fixture = new IsolatedStore();
