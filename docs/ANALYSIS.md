@@ -1,7 +1,7 @@
 # Erkennungsarchitektur 0.9.6-test.2
 
-**Aktueller Entwicklungsstand:** Windows OCR bleibt primär; PP-OCRv6 Small
-ersetzt die Tesseract-Zusatzprüfung. Der normale Laufzeitzähler ergänzt den
+**Entwicklungsbranch `codex/paddle-primary-ocr`:** PP-OCRv6 Small liest Lootzeilen
+primär, Windows OCR übernimmt bei Enthaltung oder Modellfehler. Der normale Laufzeitzähler ergänzt den
 Companion-Abgleich um kalibrierte Zeilenindizes, innere OCR-Lücken und
 Drop-IDs mit Mengenrevisionen. Die folgenden Versionsabschnitte beschreiben
 teilweise frühere Stände; aktuelle Regeln und Aufnahmenergebnisse stehen in

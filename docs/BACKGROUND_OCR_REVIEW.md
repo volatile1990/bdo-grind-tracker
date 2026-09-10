@@ -1,17 +1,52 @@
-# Paddle-Zusatzprüfung und Mengenabgleich
+# Paddle-Erkennung und Mengenabgleich
 
-Stand: 8. September 2026, Entwicklungsstand nach 1.0.2-test.4.
+Stand: 10. September 2026, Entwicklungsbranch `codex/paddle-primary-ocr`.
 
-Windows OCR bleibt der erste Erkennungsweg. PP-OCRv6 Small ersetzt Tesseract als
-lokale Zusatzprüfung. Die Anwendung führt das mitgelieferte Modell über ONNX
+PP-OCRv6 Small ist der erste Erkennungsweg für normale und seltene Lootzeilen.
+Windows OCR übernimmt, wenn Paddle kein bestätigtes Ergebnis liefert. Die Anwendung führt das mitgelieferte Modell über ONNX
 Runtime 1.29.0 auf der CPU aus. Python, GPU und Downloads beim Start sind nicht
 erforderlich. Modell und Zeichensatz sind auf eine überprüfte Revision festgelegt;
 Quellen stehen in `data/ocr/paddle-v6-small/SOURCES.md`.
 
-## Auswahl und Annahme
+## Primäre Erkennung und Windows-Fallback
 
-Der bisherige Windows-Durchlauf und sein begrenztes Nachlesen bleiben bestehen.
-Paddle erhält nur deutliche Grenzfälle: fehlende oder widersprüchliche Mengen,
+`PaddlePrimaryLootReader` liest die ursprüngliche kalibrierte Zeile in Farbe und
+Graustufen. Beide Lesungen müssen denselben erlaubten Katalogeintrag mit Score
+mindestens 0,95 und Namensdistanz höchstens 0,05 sowie dieselbe vollständige
+positive Endmenge bestätigen. Ein Item mit kataloggebundener fester Einzelmenge
+bleibt bei 1. Nichtfixe Mengen werden nicht aus einem einzelnen OCR-Ergebnis
+geraten. Die vorhandenen Minima und Maxima wendet weiterhin der Zähler an.
+
+Paddle liefert keine Wortboxen. Es verwendet deshalb direkt die kalibrierten
+Bildbereiche und seine eigenen Annahmeregeln; die Windows-Prüfungen auf Wortlage
+und Textbreite bleiben beim Fallback erhalten. Die bisherige Windows-Schriftmaske
+darf Paddle keine blassen Zeilen vorenthalten: In der Magaia-Aufnahme sind genau
+die beiden falsch als 43/45 gelesenen Zeilen durch diese Maske als leer markiert,
+obwohl Paddle jeweils zweimal 4 liest. Paddle prüft deshalb jeden kalibrierten
+Slot mit eigenen Bild-/Konsensprüfungen; Windows behält seine Leerprüfung.
+Zifferntemplates dürfen beim primären Paddle-Pfad keine vorderen Zeilen mehr
+abschneiden. Sprache, Abbruch und Freigabe der Modellinstanz sind an
+den Analyzer gebunden; ein Modellfehler führt zum Windows-Fallback.
+
+Bestätigte Paddle-Zeilen erreichen ohne weiteres Mengenreview den bestehenden
+Spotfilter und Zähler. Bei Enthaltung läuft die bisherige Windows-Erkennung
+einschließlich begrenztem Recovery und den nachfolgend beschriebenen Reviews.
+Die Zuordnungsprüfung darf weiterhin nur tatsächlich fehlende Slots ergänzen.
+Das Verhalten der HUD-Erkennung für Loot-Scroll und Erfahrung bleibt unverändert.
+
+Diagnosen kennzeichnen den Pfad mit `+paddle-primary-v1+windows-fallback-v1`.
+Die Einträge unter `rowReviews` mit `reason: primary-ocr` enthalten beide
+Rohlesungen, Laufzeit, Ergebnis und Fehlerzahl; diese OCR-Aufrufe werden genau
+einmal in der Frame-Statistik gezählt. Es gibt keine eigene Paddle-Zähllogik.
+
+Die vollständige Neuauswertung gespeicherter Bildausschnitte erfolgt mit
+`tools/PaddlePrimaryReplay`; ein normales `--replay` verwendet weiterhin
+gespeicherte Beobachtungen und misst keine neue OCR-Erkennung.
+
+## Zusatzprüfung nach Windows-Fallback
+
+Nach dem Windows-Durchlauf und seinem begrenzten Nachlesen erhält das Paddle-Review
+nur deutliche Grenzfälle: fehlende oder widersprüchliche Mengen,
 schwache Namenszuordnung oder katalognahe, zunächst nicht akzeptierte Zeilen.
 Eine vollständige, übereinstimmende primäre Menge oder ein zuverlässiges Template
 bedarf keiner Zusatzprüfung. Ein sicher zugeordnetes Item mit Minimum/Maximum

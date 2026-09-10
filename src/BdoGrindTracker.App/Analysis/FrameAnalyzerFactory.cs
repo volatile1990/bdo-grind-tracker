@@ -64,7 +64,8 @@ internal static class FrameAnalyzerFactory
                 normalRecovery: new NormalLootRecovery(matcher, nameRecognizer),
                 captureGuard: new LootPanelCaptureGuard(calibration, ReadCalibration),
                 configureGameLanguage: ConfigureLanguage,
-                rowReview: new BackgroundLootRowReview(matcher, tag => PaddleLootOcrRecognizer.Create(tag)));
+                rowReview: new BackgroundLootRowReview(matcher, tag => PaddleLootOcrRecognizer.Create(tag)),
+                primaryRowReader: new PaddlePrimaryLootReader(matcher, tag => PaddleLootOcrRecognizer.Create(tag)));
             rowPipeline = null;
             return analyzer;
         }

@@ -16,6 +16,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
     private readonly ICompanionNormalRowPipeline _rowPipeline;
     private ICompanionRareRowPipeline? _rareRowPipeline;
     private readonly ICompanionNameRecognizer _nameRecognizer;
+    private readonly ILootPrimaryRowReader? _primaryRowReader;
     private readonly INormalLootRecovery? _normalRecovery;
     private readonly ILootRowReview? _rowReview;
     private readonly LootPanelCaptureGuard? _captureGuard;
@@ -46,12 +47,15 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
         Func<string?, string, DropQuantityBounds?>? quantityBoundsResolver = null,
         LootPanelCaptureGuard? captureGuard = null,
         Action<string>? configureGameLanguage = null,
-        ILootRowReview? rowReview = null)
+        ILootRowReview? rowReview = null,
+        ILootPrimaryRowReader? primaryRowReader = null)
     {
         _calibration = calibration ?? throw new ArgumentNullException(nameof(calibration));
         _itemMatcher = itemMatcher ?? throw new ArgumentNullException(nameof(itemMatcher));
         _rowPipeline = rowPipeline ?? throw new ArgumentNullException(nameof(rowPipeline));
         _nameRecognizer = nameRecognizer ?? throw new ArgumentNullException(nameof(nameRecognizer));
+        _primaryRowReader = primaryRowReader;
+        _primaryRowReader?.ConfigureLanguage(_nameRecognizer.LanguageTag ?? "en-US");
         _normalRecovery = normalRecovery;
         _rowReview = rowReview;
         _captureGuard = captureGuard;
@@ -120,6 +124,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         _configureGameLanguage?.Invoke(language);
+        _primaryRowReader?.ConfigureLanguage(_nameRecognizer.LanguageTag ?? language);
         _rowReview?.ConfigureLanguage(_nameRecognizer.LanguageTag ?? language);
         _alignmentReview.Reset();
     }
@@ -165,14 +170,15 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
             // Preserve Companion's trimming and OCR order, including the one row
             // immediately above the first quantity. Do not add persistence gates.
             preparedRows.Sort((left, right) => left.Y.CompareTo(right.Y));
-            // Tone-mapped rows read the full suffix with Windows OCR instead of
-            // digit templates. Missing templates therefore say nothing about
-            // whether a leading row is occupied; its image blank gate decides.
-            var first = isToneMapped ? 0 :
+            // Full-row OCR reads its own suffix. Missing digit templates cannot
+            // determine whether a leading row is occupied; its blank gate decides.
+            var first = isToneMapped || _primaryRowReader is not null ? 0 :
                 CalculateRetainedStartIndex(preparedRows.Select(row => row.TemplateQuantity).ToArray());
             var normal = new List<LootObservation>();
             var rare = new List<LootObservation>();
             var rawLines = new List<string>();
+            var reviewDiagnostics = new List<LootRowReviewDiagnostics>();
+            var primaryAccepted = new HashSet<(LootSource Source, int Y)>();
             var primaryQuantityReads = _rowReview is null ? null : new Dictionary<int, List<PrimaryLootQuantityRead>>();
             var ocrCalls = 0;
             for (var index = first; index < preparedRows.Count; index++)
@@ -243,7 +249,6 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
                     quantitiesRecovered, rowsRecovered, budget.Errors);
             }
 
-            var reviewDiagnostics = new List<LootRowReviewDiagnostics>();
             if (_rowReview is not null)
             {
                 // Workers read only immutable per-frame policy and their own screenshot crop.
@@ -256,13 +261,15 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
                 var jobs = new List<Task<LootRowReviewResult>>();
                 foreach (var (row, index) in preparedRows.Select((row, index) => (row, index)))
                 {
+                    if (primaryAccepted.Contains((LootSource.Normal, row.Y))) continue;
                     var baseline = byY.GetValueOrDefault(row.Y);
                     if (baseline is null && row.IsBlank) continue;
                     var bounds = _slotBounds.Single(bounds => bounds.Top - _panelBounds.Top == row.Y);
                     jobs.Add(ReviewBand(new Rect(bounds.Left, bounds.Top, bounds.Width, bounds.Height),
                         row, baseline, LootSource.Normal, preparedRows.Count - 1 - index));
                 }
-                if (rareRow is not null && (!rareRow.IsBlank || rare.Count > 0) && _rareBandBounds is { } reviewRareBounds)
+                if (rareRow is not null && !primaryAccepted.Contains((LootSource.Rare, rareRow.Y)) &&
+                    (!rareRow.IsBlank || rare.Count > 0) && _rareBandBounds is { } reviewRareBounds)
                     jobs.Add(ReviewBand(ToOpenCvRect(reviewRareBounds), rareRow, rare.SingleOrDefault(), LootSource.Rare, 0));
 
                 // Exactly one finalized observation per source/Y reaches the existing counter.
@@ -277,7 +284,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
                     target.RemoveAll(row => row.NativeY == observation.NativeY);
                     target.Add(observation);
                 }
-                ocrCalls += reviewDiagnostics.Sum(diagnostic => diagnostic.Readings.Count);
+                ocrCalls += reviewed.Sum(result => result.Diagnostics?.Readings.Count ?? 0);
 
                 async Task<LootRowReviewResult> ReviewBand(Rect bounds, ICompanionPreparedRow row,
                     LootObservation? baseline, LootSource source, int slot)
@@ -370,6 +377,39 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
             void Observe(ICompanionPreparedRow row, LootSource source, int slot, List<LootObservation> target)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                if (_primaryRowReader is not null)
+                {
+                    // Paddle reads the calibrated native band, including its quantity.
+                    // The Windows threshold mask can discard fading but legible text.
+                    // It must not decide whether Paddle may inspect the original pixels.
+                    // Windows' word-box gates apply only to the Windows fallback.
+                    var bounds = source == LootSource.Normal
+                        ? _slotBounds.Single(bounds => bounds.Top - _panelBounds.Top == row.Y)
+                        : _rareBandBounds!.Value;
+                    using var originalBand = new Mat(decodedFrame, ToOpenCvRect(bounds));
+                    PrimaryReadResult primary;
+                    try
+                    {
+                        primary = _primaryRowReader.Read(originalBand, source, slot, row.Y,
+                            _calibration.UiScale, name => _quantityBoundsResolver(_spotLock.Spot?.Id, name),
+                            _spotLock.Allows, cancellationToken);
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+                    catch (Exception exception) when (exception is not OutOfMemoryException)
+                    {
+                        primary = new(null, new(source, row.Y, "primary-ocr", "paddle-primary",
+                            _nameRecognizer.LanguageTag ?? "", "error-windows-fallback", 0, null, null, [], 1));
+                    }
+                    reviewDiagnostics.Add(primary.Diagnostics);
+                    ocrCalls += primary.Diagnostics.Readings.Count;
+                    if (primary.Observation is { Quantity: > 0 } observation && IsAccepted(observation))
+                    {
+                        primaryAccepted.Add((source, row.Y));
+                        target.Add(observation with { Source = source, Slot = slot, NativeY = row.Y });
+                        if (observation.RawText.Length > 0) rawLines.Add(observation.RawText);
+                        return;
+                    }
+                }
                 if (row.IsBlank || row.NameImage is null) return;
                 ocrCalls++;
                 var ocr = _nameRecognizer.Recognize(row.NameImage, cancellationToken);
@@ -459,6 +499,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
         _rowPipeline.Dispose();
         _rareRowPipeline?.Dispose();
         _rowReview?.Dispose();
+        _primaryRowReader?.Dispose();
         _disposed = true;
     }
 
@@ -517,6 +558,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
         return new FrameAnalysisResult(events, rawLines,
             accepted.Length == 0 ? 0 : accepted.Average(row => row.NameConfidence),
             (_normalRecovery is null ? ExactVariantName : RecoveryVariantName) +
+                (_primaryRowReader is null ? string.Empty : "+paddle-primary-v1+windows-fallback-v1") +
                 (isToneMapped ? "+tone-mapped-normal-v1" : string.Empty) +
                 (_rowReview is null ? string.Empty : "+paddle-review-v2+alignment-review-v1") +
                 (_reconciliation.TracksRows ? "+row-tracks-v1" : string.Empty),
@@ -526,7 +568,8 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
             SlotRegions = _slotBounds,
             RarePanelRegion = _rarePanelBounds,
             RareBandRegion = _rareBandBounds,
-            TextRecognitionBackend = _nameRecognizer.BackendName,
+            TextRecognitionBackend = _primaryRowReader is null ? _nameRecognizer.BackendName
+                : "paddle-pp-ocrv6-small-onnx (fallback: " + _nameRecognizer.BackendName + ")",
             TextRecognitionLanguage = _nameRecognizer.LanguageTag,
             Observations = observations,
             TrackingResult = new(events.Select(change => new TrackedLootEvent(change.EventId,

@@ -12,20 +12,21 @@ Der bestätigte Zählerstand aus **0.9.6-test.2** bleibt erhalten. Bestehende Ei
 Verlaufseinträge und der verschlüsselte Garmoth-Key werden weiterverwendet.
 [Architektur, Voraussetzungen und UI-Prüfung](docs/BLAZOR_HYBRID.md).
 
-Im aktuellen Entwicklungsstand bleibt Windows OCR der Hauptweg. Deutliche
-Grenzfälle werden mit **PP-OCRv6 Small über ONNX Runtime** lokal nachgeprüft.
-Originalbild und Graustufen müssen dasselbe Item und eine verträgliche Menge
-liefern. Modell und Zeichensatz werden mitgeliefert; Python und ein Download
-beim Start sind nicht nötig. Das Paddle-Modell ist mehrsprachig.
+Auf dem Entwicklungsbranch `codex/paddle-primary-ocr` liest **PP-OCRv6 Small über
+ONNX Runtime** die Lootzeilen zuerst. Originalbild und Graustufen müssen dasselbe
+Item und dieselbe positive Menge bestätigen; kataloggebundene feste Einzelmengen
+bleiben zulässig. Bei Enthaltung oder Modellfehler übernimmt Windows OCR mit dem
+bisherigen begrenzten Nachlesen. Modell und Zeichensatz werden mitgeliefert;
+Python und ein Download beim Start sind nicht nötig. Das Paddle-Modell ist mehrsprachig.
 
 Mengenberichtigungen verwenden dieselbe Drop-ID mit einer neuen Revision.
 Nicht gelesene innere Zeilen behalten beim Abgleich ihren Platz. Geprüfte
-Minima und Maxima gelten weiterhin pro Drop; Magaia-Trash hat Minimum 4.
+Minima und Maxima gelten weiterhin pro Drop; Magaia-Trash hat Minimum 2.
 Fertige Ergebnisse werden während der Sitzung übernommen; Pause und Beenden
 verarbeiten noch wartende Bilder.
 [Verhalten, Diagnose und Grenzen](docs/BACKGROUND_OCR_REVIEW.md).
 
-Der erste Erkennungspfad basiert auf dem Companion-Stand wie in 0.9.5.
+Kalibrierung und Windows-Fallback basieren auf dem Companion-Stand wie in 0.9.5.
 Der normale Zähler ergänzt diesen um Zeilenpositionen und Mengenrevisionen.
 Die zusätzlichen Bestätigungs- und Lebensdauerregeln aus 0.6.0/0.6.1 sind entfernt.
 Erhalten bleiben der automatische Spotfilter und die Verbesserungen der UI-Geschwindigkeit.
