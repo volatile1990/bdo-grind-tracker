@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Security.Cryptography;
 using BdoGrindTracker.App.Analysis;
 using BdoGrindTracker.App.Capture;
@@ -55,6 +56,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
     private DateTimeOffset? _sessionStartedAt;
     private string? _sessionSpotId;
     private Rectangle? _lastCaptureDesktopRegion;
+    private DateTimeOffset? _lastProcessedCaptureAt;
     private Exception? _lastCaptureStopError;
     private bool _captureSegmentCompleted = true;
     private bool _hasSession;
@@ -215,6 +217,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         _lastCheckpointDuration = TimeSpan.Zero;
         _nextCheckpointRetry = DateTimeOffset.MinValue;
         _lastCaptureDesktopRegion = null;
+        _lastProcessedCaptureAt = null;
         _captureSegmentCompleted = true;
         Interlocked.Exchange(ref _lastCaptureStopError, null);
         SetStatus("Neue Session angelegt. Die Diagnose-Aufzeichnung ist ausgeschaltet.");
@@ -282,11 +285,14 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             if (!continuesExistingSession || geometryChanged)
             {
                 _analyzer.Reset();
+                _lastProcessedCaptureAt = null;
                 _sessionSpotId = null;
                 _recording?.Dispose();
                 _recording = Preferences.RecordLoot
                     ? DiagnosticRecordingSession.Start(Path.Combine(_settingsStore.BaseDirectory, "diagnostics"),
-                        minimumTrashQuantities: TrashLootMinimumCatalog.MinimumQuantities)
+                        minimumTrashQuantities: TrashLootMinimumCatalog.MinimumQuantities,
+                        targetFrameInterval: _captureSession.FrameInterval,
+                        maximumQueuedFrames: _captureSession.MaximumQueuedFrames)
                     : null;
             }
             Interlocked.Exchange(ref _lastCaptureStopError, null);
@@ -356,16 +362,24 @@ internal sealed partial class TrackerSessionService : ITrackerSession
     internal async Task ProcessFrameAsync(Bitmap frame, CapturedFrameMetadata metadata,
         CancellationToken cancellationToken)
     {
+        var analysisStarted = Stopwatch.GetTimestamp();
         var analysis = await _analyzer.AnalyzeAsync(frame, metadata.CapturedAtUtc,
             metadata.UseHdrOcr, metadata.IsToneMapped, cancellationToken).ConfigureAwait(false);
+        var analysisDuration = Stopwatch.GetElapsedTime(analysisStarted);
         if (_analyzer.RequiresLootPanel && (analysis.PanelRegion is not { Width: > 0, Height: > 0 } panel ||
             !new Rectangle(Point.Empty, frame.Size).Contains(panel)))
             throw new LootPanelUnavailableException(LootPanelCaptureGuard.MissingPanelMessage);
+        _lastProcessedCaptureAt = metadata.CapturedAtUtc;
         _recording?.RecordFrame(metadata.CapturedAtUtc, analysis.Observations,
             analysis.TrackingResult, frame, analysis.PanelRegion, analysis.RareBandRegion, analysis.Recovery,
             isHdr: metadata.IsHdr,
             isToneMapped: metadata.IsToneMapped, rowReviews: analysis.RowReviews,
-            recognitionVariant: analysis.VariantName);
+            recognitionVariant: analysis.VariantName,
+            captureTiming: metadata.TargetFrameInterval > TimeSpan.Zero
+                ? new LootCaptureTiming(metadata.TargetFrameInterval.TotalMilliseconds,
+                    metadata.CaptureDuration.TotalMilliseconds, metadata.CaptureInterval?.TotalMilliseconds,
+                    metadata.BackpressureDuration.TotalMilliseconds, metadata.QueueDelay.TotalMilliseconds,
+                    analysisDuration.TotalMilliseconds) : null);
         _uiMailbox.Publish(analysis, onPublished: ObserveGarmothTotals);
         if (_uiRunning && metadata.CanObserveHud)
         {
@@ -427,6 +441,10 @@ internal sealed partial class TrackerSessionService : ITrackerSession
     private void CompleteCaptureSegment(DateTimeOffset completedAt)
     {
         if (_captureSegmentCompleted) return;
+        // Capture uses one UTC epoch advanced by its monotonic clock. A flush
+        // adds no newer image evidence: keep its timestamp in that same domain,
+        // including across wall-clock jumps and a later pause/resume.
+        completedAt = _lastProcessedCaptureAt ?? completedAt;
         var completed = _analyzer.CompleteSession(completedAt);
         _captureSegmentCompleted = true;
         _recording?.RecordCompletion(completedAt, completed.TrackingResult);

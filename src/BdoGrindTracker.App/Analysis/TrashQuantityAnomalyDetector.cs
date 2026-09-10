@@ -20,14 +20,15 @@ internal sealed record TrashQuantityAnomaly(int BaselineQuantity, int TypicalQua
 /// <summary>
 /// Flags unusually large primary trash amounts for a second OCR check. Learns
 /// only newly counted, non-estimated events, never repeated sightings of a HUD row.
+/// Later revisions update an existing sample without adding another observation.
 /// This class neither changes a quantity nor rejects a drop.
 /// </summary>
 internal sealed class TrashQuantityAnomalyDetector
 {
     private const int HistoryCapacity = 64;
     private const int MinimumHistorySamples = 8;
-    private readonly Queue<(Guid Id, int Quantity)> _history = new();
-    private readonly HashSet<Guid> _recentIds = [];
+    private readonly LinkedList<(Guid Id, int Quantity, int Revision)> _history = new();
+    private readonly Dictionary<Guid, LinkedListNode<(Guid Id, int Quantity, int Revision)>> _historyById = [];
     private string? _spotId;
     private string? _trashItem;
 
@@ -44,10 +45,27 @@ internal sealed class TrashQuantityAnomalyDetector
         foreach (var entry in reconciled)
         {
             if (entry.Name != _trashItem || entry.IsMinimumQuantityEstimate || entry.IsPlaceholder || entry.IsAlignmentAnchor ||
-                entry.Revision != 0 || entry.QuantityDelta is <= 0 || entry.Count is 0 or > int.MaxValue ||
-                entry.EventId is not { } id || id == Guid.Empty || !_recentIds.Add(id)) continue;
-            _history.Enqueue((id, (int)entry.Count));
-            if (_history.Count > HistoryCapacity) _recentIds.Remove(_history.Dequeue().Id);
+                entry.EventId is not { } id || id == Guid.Empty) continue;
+            if (entry.Revision > 0)
+            {
+                if (_historyById.TryGetValue(id, out var sample) && entry.Revision > sample.Value.Revision &&
+                    entry.TotalDropQuantity is int quantity && quantity > 0)
+                {
+                    var bounds = entry.QuantityBounds ?? DropQuantityCatalog.GetBounds(_spotId, _trashItem);
+                    if (bounds is not null && (quantity < bounds.Minimum ||
+                        bounds.Maximum is { } maximum && quantity > maximum)) continue;
+                    sample.Value = (id, quantity, entry.Revision);
+                }
+                continue;
+            }
+            if (entry.Revision != 0 || entry.QuantityDelta is <= 0 || entry.Count is 0 or > int.MaxValue ||
+                _historyById.ContainsKey(id)) continue;
+            _historyById.Add(id, _history.AddLast((id, (int)entry.Count, 0)));
+            if (_history.Count > HistoryCapacity)
+            {
+                _historyById.Remove(_history.First!.Value.Id);
+                _history.RemoveFirst();
+            }
         }
     }
 
@@ -95,7 +113,7 @@ internal sealed class TrashQuantityAnomalyDetector
     public void Reset()
     {
         _history.Clear();
-        _recentIds.Clear();
+        _historyById.Clear();
         _spotId = null;
         _trashItem = null;
     }

@@ -8,8 +8,20 @@ responsive dunkle Oberfläche, Spotbilder, Silber- und Trash-Kennzahlen, durchsu
 Loot-Tabellen, Stundenwerte und Tastaturbedienung. Die Sitzungssteuerung ist von der
 Darstellung getrennt; es wird kein Webserver gestartet und keine UI aus dem Netz geladen.
 
-Der bestätigte Zählerstand aus **0.9.6-test.2** bleibt erhalten. Bestehende Einstellungen,
-Verlaufseinträge und der verschlüsselte Garmoth-Key werden weiterverwendet.
+**Aktueller Entwicklungsstand:** Die normale Live-Zählung verwendet einen eigenen
+zeitlichen Zeilenzähler (`temporal-v1`). Er verfolgt Zeilenbewegungen über mehrere
+Aufnahmen und sammelt wiederholte Mengenlesungen. Der Ziel-Aufnahmetakt beträgt
+**200 ms**; eine begrenzte Warteschlange hält höchstens vier wartende Bilder.
+Diagnose-Aufnahmen enthalten den tatsächlich beobachteten Takt und die Wartezeiten.
+Eine höhere Zählgenauigkeit im echten Grind ist damit noch nicht nachgewiesen.
+[Verfahren, Messwerte und Prüfgrenzen](docs/TEMPORAL_LOOT_TRACKING.md).
+
+Die Live-Factory aktiviert den neuen Normalzähler. Der ältere Companion-Zähler
+bleibt für historische Replays und Vergleichstests verfügbar. Die
+[Garmoth-Analyse vom 10. September 2026](docs/GARMOTH_REVERSE_ENGINEERING.md)
+dokumentiert den Vergleichsstand vor dieser Umstellung.
+
+Bestehende Einstellungen, Verlaufseinträge und der verschlüsselte Garmoth-Key werden weiterverwendet.
 [Architektur, Voraussetzungen und UI-Prüfung](docs/BLAZOR_HYBRID.md).
 
 Im aktuellen Entwicklungsstand bleibt Windows OCR der Hauptweg. Auffällige
@@ -29,15 +41,17 @@ Fertige Ergebnisse werden während der Sitzung übernommen; Pause und Beenden
 verarbeiten noch wartende Bilder.
 [Verhalten, Diagnose und Grenzen](docs/BACKGROUND_OCR_REVIEW.md).
 
-Der erste Erkennungspfad basiert auf dem Companion-Stand wie in 0.9.5.
-Der normale Zähler ergänzt diesen um Zeilenpositionen und Mengenrevisionen.
-Die zusätzlichen Bestätigungs- und Lebensdauerregeln aus 0.6.0/0.6.1 sind entfernt.
-Erhalten bleiben der automatische Spotfilter und die Verbesserungen der UI-Geschwindigkeit.
+Der erste OCR-Erkennungspfad basiert weiterhin auf dem Companion-Stand.
+Die zeitliche Zuordnung normaler Drops ist eine neue Implementierung; sie
+reaktiviert weder den früheren Lebensdauer-Tracker aus 0.6.0/0.6.1 noch die
+experimentelle dauerhafte Zuordnung aus 0.9.6-test.1.
 
 0.9.6-test.2 nimmt die Zähleränderung aus test.1 zurück. Im Live-Test wurden dort nur
 etwa 1.500 von 5.000 Trashloot gezählt: Gleiche OCR-Zeilen können neue gleiche Drops
 darstellen und dürfen nicht dauerhaft zu einem einzigen Drop zusammengefasst werden.
-Der ursprüngliche Drei-Bilder-Zyklus ist deshalb wieder aktiv. Test.1 wird ersetzt.
+Der ursprüngliche Drei-Bilder-Zyklus wurde damals wieder aktiviert. Dieser Stand
+bleibt als historische Referenz erhalten; die aktuelle Live-Factory verwendet
+den oben beschriebenen zeitlichen Normalzähler.
 
 Erhalten bleibt ausschließlich die getrennte Mengenübernahme beim Nachlesen eines
 zuvor nicht erkannten Itemnamens: Eine vollständig gelesene OCR-Endmenge hat Vorrang
@@ -308,13 +322,17 @@ eine Teilsumme, **—** einen noch nicht bewertbaren Lootstand. Details per Maus
   Leseversuche auf den Originalpixeln. Pro Zeilenplatz entsteht höchstens eine
   Beobachtung; erfolgreiche Namen/Mengen werden nicht überschrieben. Rare-Loot
   verwendet weiterhin ausschließlich seinen bisherigen Erkennungsweg.
-- Normal- und Rare-Loot verwenden wieder den 10-Frame-Abgleich und das gemeinsame
-  Korrektur-Ledger aus 0.5.1, einschließlich dessen Mengen- und Lückenreparaturen.
-  Die versuchsweise dauerhafte Zuordnung aus 0.9.6-test.1 ist wegen starker
-  Unterzählung zurückgenommen; der ursprüngliche Drei-Bilder-Zyklus ist wieder aktiv.
-- Es gibt keine zusätzliche verpflichtende zweite Lesung, eigene Mengenbestätigung,
-  Lebensdauer-ID-Zuordnung, BON/JIN/WON-Sperre oder neue Runner-up-Regel mehr.
-  Die bereits im Companion-Matcher enthaltenen Regeln bleiben unverändert.
+- Der normale Live-Zähler ordnet zeitgestempelte Beobachtungen den sechs kalibrierten
+  Zeilenplätzen zu. Bis zu 24 mögliche Verläufe berücksichtigen Nachrücken, fehlende
+  Lesungen und wiederholte gleiche Drops. Zeilenalter ist ein weicher Hinweis und
+  erneuert eine weiterhin sichtbare Zeile nicht allein durch Zeitablauf.
+- Wiederholte Item- und Mengenlesungen bestimmen die Buchung. Veröffentlichte
+  Drop-IDs bleiben erhalten; Mengenberichtigungen verwenden dieselbe ID mit neuer
+  Revision und nur der Mengendifferenz. Mehrdeutige Beobachtungen können zunächst
+  offenbleiben. [Konkrete Regeln und Grenzen](docs/TEMPORAL_LOOT_TRACKING.md).
+- Rare-Loot behält seinen bestehenden Erkennungs- und Abgleichsweg. Der ältere
+  Normalzähler mit Frame-Tags bleibt für historische Diagnose-Varianten und
+  Vergleichstests verfügbar.
 - Nach der Namensauflösung wird der automatisch erkannte Spotpool angewendet.
   Er umfasst den Spot-Hauptloot, den gemeinsamen HighestTier-Pool und die
   gemeinsamen Standard-/Worlddrops; letztere benötigen keinen Event-Schalter.
@@ -324,17 +342,21 @@ eine Teilsumme, **—** einen noch nicht bewertbaren Lootstand. Details per Maus
 - Negative Rare-Korrekturen ändern die Summen, zählen aber nicht als neue
   Logeinträge. Auf null korrigierte Itemarten verschwinden aus der Summenliste.
 
-Der Rückbau basiert auf den erhaltenen, hashgeprüften 0.5.1-Assemblies; der eigene
-frühere C#-Code wurde daraus mit ILSpy wiederhergestellt. Das ist kein neuer
-Genauigkeitsnachweis für reale Spielszenen. Die bekannte kleinere Überzählung des
-früheren Stands kann damit ebenfalls zurückkehren.
+Der historische Companion-Vergleichszähler basiert auf dem aus erhaltenen,
+hashgeprüften 0.5.1-Assemblies wiederhergestellten eigenen C#-Code. Der neue
+Normalzähler ist separat implementiert. Weder die historische Parität noch
+synthetische Tests belegen eine Fehlerquote in realen Spielszenen.
 
 ## Oberfläche und Aufnahme
 
-Die Capture-Pipeline bleibt seriell mit 450 ms Mindestintervall. Es gibt keinen
-Screenshot-Vorrat und keine Abhängigkeit von der UI-Antwortzeit. Alle ausgegebenen
-Buchungen und Korrekturen werden in der Sitzungssumme übernommen; die UI erhält
-nur den neuesten Anzeigezustand.
+Die Aufnahme hat einen konfigurierbaren Ziel-Takt von standardmäßig 200 ms,
+einschließlich der Aufnahmezeit. Ein einzelner Consumer verarbeitet die Bilder
+in Aufnahme-Reihenfolge; höchstens vier weitere Bilder warten. Bei voller Queue
+wartet die nächste Aufnahme. Langsame Erkennung kann deshalb den tatsächlichen
+Aufnahmetakt verlängern. Aufnahmeabstand, Rückstau und Analysedauer werden in der
+optionalen Diagnose gemessen. Pause und Beenden verarbeiten bereits aufgenommene
+Bilder fertig. Alle ausgegebenen Buchungen und Korrekturen werden in der
+Sitzungssumme übernommen; die UI erhält nur den neuesten Anzeigezustand.
 
 Das Dashboard zeigt aktive Sitzungsdauer (HH:MM:SS), Trashloot, Netto-Silber und
 Silber pro Stunde. **Dein Loot** zeigt Itemicons, Mengen und Silberwerte als
@@ -385,21 +407,20 @@ Nach dem Pausieren lässt sich die Aufzeichnung offline wiederholen:
 ```
 
 Der Replay-Bericht wird als neue `replay-*.txt` neben der Aufnahme abgelegt.
-Verglichen werden Itemmengen und Buchungen/Korrekturen je Frame. Das Replay führt
-die wiederhergestellte Companion-Zählung mit den gespeicherten akzeptierten
-OCR-/Matching-Ergebnissen aus; **es führt OCR nicht erneut aus**. Die PNGs dienen
+Verglichen werden Itemmengen und Buchungen/Korrekturen je Frame. Das Replay wählt
+den in der Aufnahme gekennzeichneten Normalzähler und verwendet die gespeicherten
+OCR-/Matching-Ergebnisse; **es führt OCR nicht erneut aus**. Die PNGs dienen
 zur visuellen Prüfung. Eine Übereinstimmung mit der Aufnahme ist kein Abgleich
 mit dem tatsächlichen Inventarloot; dafür werden manuell überprüfte Sollwerte benötigt.
 
 Neue Aufnahmen verwenden Formatversion 2 und die Enginekennung
-`companion-0.7.4-minimum-quantity-v4`. Die aktive Mindestmengen-Tabelle wird im Header
-eingebettet; ältere Aufnahmen ohne Tabelle behalten den bisherigen Mengenersatz.
-Aufnahmen mit `companion-0.7.4-recovery-fix-v3`, `companion-0.7.4-restore-v1` (0.9.5)
-oder `companion-0.7.4-overcount-fix-v2` (test.1) lassen sich zum ausdrücklich
-gekennzeichneten Vergleich mit dem aktuellen Zähler öffnen. Dessen Verhalten
-entspricht ohne Mindestmengen-Tabelle wieder 0.9.5; gespeicherte OCR-Mengen werden im Replay nicht repariert.
-Für die ursprüngliche test.1-Zählung wäre die damalige EXE erforderlich.
-Frühere Lebensdauer-Tracker-Aufnahmen bleiben inkompatibel.
+`grindcrest-temporal-v1`. Der Header enthält die aktive Mindestmengen-Tabelle,
+den konfigurierten Aufnahmetakt und die Queue-Grenze. Frames kennzeichnen den
+Normalzähler in `recognitionVariant`; historische Aufnahmen mit Zeilen-IDs oder
+Companion-Abgleich bleiben getrennt auswertbar. Fehlende Zeitmesswerte älterer
+Aufnahmen gelten als unbekannt. Historische Kennungen bedeuten keine vollständige
+Emulation jeder früheren EXE; frühere experimentelle Lebensdauer-Aufnahmen bleiben
+inkompatibel. [Diagnosefelder und Vergleichsgrenzen](docs/TEMPORAL_LOOT_TRACKING.md).
 
 ## Grenzen und Sicherheit
 

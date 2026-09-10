@@ -9,7 +9,8 @@ namespace BdoGrindTracker.App.Diagnostics;
 internal static class LootDiagnosticFormat
 {
     public const int Version = 2;
-    public const string EngineVersion = "companion-0.7.4-row-tracks-v8";
+    public const string EngineVersion = "grindcrest-temporal-v1";
+    public const string LegacyRowTracksEngineVersion = "companion-0.7.4-row-tracks-v8";
     public const string PreviousRowTracksEngineVersion = "companion-0.7.4-row-tracks-v7";
     public const string ClampedQuantityEngineVersion = "companion-0.7.4-drop-quantity-v6";
     public const string MaximumQuantityEngineVersion = "companion-0.7.4-drop-quantity-v5";
@@ -60,6 +61,12 @@ internal sealed record LootDiagnosticHeader(
     string? SpotId,
     string ReplayScope)
 {
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public double? TargetFrameIntervalMilliseconds { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? MaximumQueuedFrames { get; init; }
+
     // Historical recordings did not identify the application build. Keep that
     // unknown instead of substituting the version used to replay them.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -93,6 +100,9 @@ internal sealed record LootDiagnosticEntry(
     IReadOnlyList<LootTrackingDecision> Decisions,
     IReadOnlyList<LootDiagnosticCrop> Crops)
 {
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public LootCaptureTiming? CaptureTiming { get; init; }
+
     public bool RareEnabled { get; init; }
 
     // Missing in older recordings: absence must not be interpreted as SDR.
@@ -126,3 +136,27 @@ internal sealed record RecordedNormalReconciliation(NormalLootReconciliationTrac
     string? PreviousNormalCropFileName);
 
 internal sealed record LootDiagnosticCrop(string Source, string FileName, int Width, int Height);
+
+/// <summary>Monotonic elapsed measurements; null fields mean unavailable in an older recording.</summary>
+internal sealed record LootCaptureTiming(
+    double TargetFrameIntervalMilliseconds,
+    double CaptureDurationMilliseconds,
+    double? CaptureIntervalMilliseconds,
+    double BackpressureDurationMilliseconds,
+    double QueueDelayMilliseconds,
+    double AnalysisDurationMilliseconds)
+{
+    public double CaptureToResultMilliseconds => QueueDelayMilliseconds + AnalysisDurationMilliseconds;
+
+    public void Validate()
+    {
+        if (!double.IsFinite(TargetFrameIntervalMilliseconds) || TargetFrameIntervalMilliseconds <= 0 ||
+            !IsElapsed(CaptureDurationMilliseconds) ||
+            CaptureIntervalMilliseconds is { } interval && !IsElapsed(interval) ||
+            !IsElapsed(BackpressureDurationMilliseconds) || !IsElapsed(QueueDelayMilliseconds) ||
+            !IsElapsed(AnalysisDurationMilliseconds) || !double.IsFinite(CaptureToResultMilliseconds))
+            throw new InvalidDataException("Ungültige Zeitmessung in der Diagnose-Aufnahme.");
+    }
+
+    private static bool IsElapsed(double value) => double.IsFinite(value) && value >= 0;
+}

@@ -60,7 +60,7 @@ internal static class FrameAnalyzerFactory
                 matcher,
                 rowPipeline,
                 nameRecognizer,
-                reconciliation: new CompanionReconciliationAdapter(TrashLootMinimumCatalog.MinimumQuantities, trackRows: true),
+                reconciliation: new TemporalNormalReconciliationAdapter(TrashLootMinimumCatalog.MinimumQuantities),
                 normalRecovery: new NormalLootRecovery(matcher, nameRecognizer),
                 captureGuard: new LootPanelCaptureGuard(calibration, ReadCalibration),
                 configureGameLanguage: ConfigureLanguage,

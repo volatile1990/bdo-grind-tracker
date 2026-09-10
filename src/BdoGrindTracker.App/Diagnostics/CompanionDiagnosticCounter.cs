@@ -1,4 +1,5 @@
 using BdoGrindTracker.Core;
+using BdoGrindTracker.App.Analysis;
 
 namespace BdoGrindTracker.App.Diagnostics;
 
@@ -7,9 +8,11 @@ namespace BdoGrindTracker.App.Diagnostics;
 /// This deliberately does not perform confidence gating, OCR or spot inference.
 /// </summary>
 internal sealed class CompanionDiagnosticCounter(IReadOnlyList<CompanionRareCatalogEntry> catalog,
-    IReadOnlyDictionary<string, uint>? minimumQuantities = null, bool trackRows = false)
+    IReadOnlyDictionary<string, uint>? minimumQuantities = null, bool trackRows = false, bool temporal = false)
 {
-    private readonly CompanionFrameReconciler normal = new(minimumQuantities, trackRows);
+    private readonly ICompanionReconciliation normal = temporal
+        ? new TemporalNormalReconciliationAdapter(minimumQuantities)
+        : new CompanionReconciliationAdapter(minimumQuantities, trackRows);
     private readonly CompanionLootLedger ledger = new();
     private CompanionRareFrameReconciler? rare;
     private bool? rareEnabled;
@@ -43,8 +46,10 @@ internal sealed class CompanionDiagnosticCounter(IReadOnlyList<CompanionRareCata
             .OrderByDescending(static observation => observation.NativeY)
             .Select(observation => new CompanionRecognizedEntry(
                 observation.ItemName!, unchecked((uint)(observation.Quantity ?? -1)), observation.NativeY!.Value)
-                { QuantityBounds = observation.QuantityBounds, Slot = trackRows ? observation.Slot : null,
-                    IsAlignmentAnchor = observation.IsAlignmentAnchor, AlignmentPreviousSlot = observation.AlignmentPreviousSlot })
+                { QuantityBounds = observation.QuantityBounds, Slot = trackRows || temporal ? observation.Slot : null,
+                    IsAlignmentAnchor = observation.IsAlignmentAnchor, AlignmentPreviousSlot = observation.AlignmentPreviousSlot,
+                    NameConfidence = temporal ? observation.NameConfidence : 1,
+                    RawText = temporal ? observation.RawText : null })
             .ToArray();
         var rareRows = accepted.Where(static observation => observation.Source == LootSource.Rare)
             .OrderBy(static observation => observation.NativeY)
@@ -62,7 +67,7 @@ internal sealed class CompanionDiagnosticCounter(IReadOnlyList<CompanionRareCata
         }
 
         return new TrackerFrameResult(events, decisions)
-            { NormalCaptureIndex = trackRows ? normal.CaptureIndex : null, NormalReconciliation = normal.LastTrace };
+            { NormalCaptureIndex = normal.CaptureIndex, NormalReconciliation = normal.LastTrace };
     }
 
     public TrackerFrameResult CompleteSession(DateTimeOffset timestamp)
@@ -74,7 +79,7 @@ internal sealed class CompanionDiagnosticCounter(IReadOnlyList<CompanionRareCata
         }
 
         return new TrackerFrameResult(events, decisions)
-            { NormalCaptureIndex = trackRows ? normal.CaptureIndex : null, NormalReconciliation = normal.LastTrace };
+            { NormalCaptureIndex = normal.CaptureIndex, NormalReconciliation = normal.LastTrace };
     }
 
     private (List<TrackedLootEvent> Events, List<LootTrackingDecision> Decisions) AddNormal(
@@ -87,7 +92,7 @@ internal sealed class CompanionDiagnosticCounter(IReadOnlyList<CompanionRareCata
         {
             var delta = entry.QuantityDelta ?? checked((int)entry.Count);
             ledger.ApplyDelta(entry.Name, delta);
-            var lootEvent = new TrackedLootEvent(entry.EventId ?? Guid.NewGuid(), timestamp, entry.Name, delta)
+            var lootEvent = new TrackedLootEvent(entry.EventId ?? Guid.NewGuid(), entry.DetectedAt ?? timestamp, entry.Name, delta)
                 { Revision = entry.Revision, TotalDropQuantity = entry.TotalDropQuantity };
             events.Add(lootEvent);
             if (entry.IsMinimumQuantityEstimate)

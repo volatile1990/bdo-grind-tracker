@@ -21,6 +21,8 @@ internal sealed record LootDiagnosticReplayResult(
 
     public bool UsesCurrentEngine => RecordingEngineVersion == LootDiagnosticFormat.EngineVersion;
 
+    public string? NormalTrackingAlgorithm { get; init; }
+
     public string ToDisplayText()
     {
         var text = new StringBuilder();
@@ -29,9 +31,9 @@ internal sealed record LootDiagnosticReplayResult(
         text.AppendLine($"Spot: {SpotId ?? "nicht angegeben"}");
         text.AppendLine($"Frames: {FrameCount}; Sitzungsabschlüsse: {CompletionCount}");
         text.AppendLine($"Aufnahme-Engine: {RecordingEngineVersion}; Replay-Engine: {LootDiagnosticFormat.EngineVersion}");
-        text.AppendLine("Umfang: aktuelle Companion-basierte Zähllogik; gespeicherte OCR-/Matching-Ergebnisse werden wiederverwendet.");
+        text.AppendLine($"Normalzähler: {NormalTrackingAlgorithm ?? "keine Frames"}; gespeicherte OCR-/Matching-Ergebnisse werden wiederverwendet.");
         if (!UsesCurrentEngine)
-            text.AppendLine("Versionsvergleich: Die Aufnahme stammt aus einer anderen Engine-Version und wird mit dem aktuellen Zähler verglichen. Unterschiede können versionsbedingt sein; gespeicherte OCR-Mengen bleiben unverändert.");
+            text.AppendLine("Versionsvergleich: Die Aufnahme stammt aus einer anderen Engine-Version. Der aufgezeichnete Zählermodus bleibt erhalten; gespeicherte OCR-Mengen bleiben unverändert.");
         text.AppendLine("Bildausschnitte werden nicht geöffnet. OCR-Erkennung wird nicht erneut ausgeführt.");
         text.AppendLine($"Summen identisch: {(TotalsMatch ? "ja" : "nein")}");
         text.AppendLine($"Ereignisse je Frame identisch: {(EventTimelineMatches ? "ja" : "nein")}");
@@ -61,7 +63,7 @@ internal sealed record LootDiagnosticReplayResult(
 }
 
 /// <summary>
-/// Replays serialized accepted observations through the current Companion-based counters. It does not execute
+/// Replays serialized accepted observations through their recorded normal-counter mode. It does not execute
 /// OCR, capture a screen, interact with a game, or follow any image path from the recording.
 /// </summary>
 internal static class LootDiagnosticReplay
@@ -81,6 +83,7 @@ internal static class LootDiagnosticReplay
         var header = Deserialize<LootDiagnosticHeader>(ReadBoundedLine(reader), 1);
         if (header.Kind != "header" || header.FormatVersion != LootDiagnosticFormat.Version ||
             (header.EngineVersion != LootDiagnosticFormat.EngineVersion &&
+             header.EngineVersion != LootDiagnosticFormat.LegacyRowTracksEngineVersion &&
              header.EngineVersion != LootDiagnosticFormat.PreviousRowTracksEngineVersion &&
              header.EngineVersion != LootDiagnosticFormat.ClampedQuantityEngineVersion &&
              header.EngineVersion != LootDiagnosticFormat.MaximumQuantityEngineVersion &&
@@ -98,6 +101,7 @@ internal static class LootDiagnosticReplay
         }
 
         if (header.EngineVersion != LootDiagnosticFormat.EngineVersion &&
+            header.EngineVersion != LootDiagnosticFormat.LegacyRowTracksEngineVersion &&
             header.EngineVersion != LootDiagnosticFormat.PreviousRowTracksEngineVersion &&
             header.EngineVersion != LootDiagnosticFormat.ClampedQuantityEngineVersion &&
             header.EngineVersion != LootDiagnosticFormat.MaximumQuantityEngineVersion &&
@@ -105,6 +109,10 @@ internal static class LootDiagnosticReplay
             throw new InvalidDataException("Diese ältere Ereignislogik-Version unterstützt keine Mindestmengen-Tabelle.");
 
         CompanionDiagnosticCounter? tracker = null;
+        string? normalAlgorithm = null;
+        if (header.TargetFrameIntervalMilliseconds is { } target && (!double.IsFinite(target) || target <= 0) ||
+            header.MaximumQueuedFrames is <= 0)
+            throw new InvalidDataException("Ungültige Aufnahme-Konfiguration in der Diagnose-Datei.");
         var totals = new Dictionary<string, long>(StringComparer.Ordinal);
         var recordedTotals = new Dictionary<string, long>(StringComparer.Ordinal);
         var frameCount = 0;
@@ -126,27 +134,36 @@ internal static class LootDiagnosticReplay
             }
 
             DiagnosticRecordingSession.ValidateObservations(entry.Observations);
+            entry.CaptureTiming?.Validate();
             if (header.EngineVersion != LootDiagnosticFormat.EngineVersion &&
+                header.EngineVersion != LootDiagnosticFormat.LegacyRowTracksEngineVersion &&
                 header.EngineVersion != LootDiagnosticFormat.PreviousRowTracksEngineVersion &&
                 header.EngineVersion != LootDiagnosticFormat.ClampedQuantityEngineVersion &&
                 header.EngineVersion != LootDiagnosticFormat.MaximumQuantityEngineVersion &&
                 entry.Observations.Any(row => row.QuantityBounds is not null || row.UsesImplicitUnitQuantity || row.UsesFixedUnitQuantity))
                 throw new InvalidDataException("Diese ältere Ereignislogik-Version unterstützt keine Dropmengen-Grenzen.");
             ValidateEvents(entry.Events, sequence);
-            // Retain the counter mode recorded by the analyzer. Legacy recordings
-            // have no row-track marker; do not silently reinterpret their identities.
-            tracker ??= new CompanionDiagnosticCounter(header.Catalog, header.MinimumTrashQuantities,
-                trackRows: entry.RecognitionVariant?.Contains("+row-tracks-v1", StringComparison.Ordinal) == true);
             TrackerFrameResult actual;
             if (entry.Kind == "frame")
             {
+                // Select from the actual analyzer marker, not the application version.
+                // Old and directly constructed baseline analyzers retain their counter.
+                var algorithm = ReadNormalAlgorithm(entry.RecognitionVariant);
+                if (normalAlgorithm is not null && algorithm != normalAlgorithm)
+                    throw new InvalidDataException("Normalzähler wechselt innerhalb der Diagnose-Aufnahme.");
+                if (algorithm == TemporalLootReconciler.AlgorithmName && header.EngineVersion != LootDiagnosticFormat.EngineVersion)
+                    throw new InvalidDataException("Diese ältere Engine-Version unterstützt keinen zeitlichen Normalzähler.");
+                normalAlgorithm = algorithm;
+                tracker ??= new CompanionDiagnosticCounter(header.Catalog, header.MinimumTrashQuantities,
+                    trackRows: algorithm == "row-tracks-v1", temporal: algorithm == TemporalLootReconciler.AlgorithmName);
                 frameCount++;
                 actual = tracker.ProcessFrame(entry.Timestamp, entry.Observations, entry.RareEnabled);
                 finalCompletion = false;
             }
             else if (entry.Kind == "complete" && entry.Observations.Count == 0 && entry.Crops.Count == 0)
             {
-                actual = tracker.CompleteSession(entry.Timestamp);
+                // A pause before the first capture must not preselect the legacy counter.
+                actual = tracker?.CompleteSession(entry.Timestamp) ?? new TrackerFrameResult([], []);
                 completionCount++;
                 finalCompletion = true;
             }
@@ -158,7 +175,8 @@ internal static class LootDiagnosticReplay
             lastTimestamp = entry.Timestamp;
             AddEvents(totals, actual.NewEvents);
             AddEvents(recordedTotals, entry.Events);
-            if (firstDifferentSequence is null && !EventsEqual(actual.NewEvents, entry.Events))
+            if (firstDifferentSequence is null && !EventsEqual(actual.NewEvents, entry.Events,
+                    compareTemporalMetadata: normalAlgorithm == TemporalLootReconciler.AlgorithmName))
             {
                 firstDifferentSequence = sequence;
             }
@@ -177,7 +195,16 @@ internal static class LootDiagnosticReplay
             finalCompletion)
         {
             RecordingEngineVersion = header.EngineVersion,
+            NormalTrackingAlgorithm = normalAlgorithm,
         };
+    }
+
+    private static string ReadNormalAlgorithm(string? variant)
+    {
+        var markers = variant?.Split('+') ?? [];
+        if (markers.Contains(TemporalLootReconciler.AlgorithmName, StringComparer.Ordinal))
+            return TemporalLootReconciler.AlgorithmName;
+        return markers.Contains("row-tracks-v1", StringComparer.Ordinal) ? "row-tracks-v1" : "companion-legacy";
     }
 
     private static T Deserialize<T>(string? line, int lineNumber)
@@ -250,13 +277,30 @@ internal static class LootDiagnosticReplay
         }
     }
 
-    private static bool EventsEqual(IReadOnlyList<TrackedLootEvent> actual, IReadOnlyList<TrackedLootEvent> expected) =>
+    private static bool EventsEqual(IReadOnlyList<TrackedLootEvent> actual, IReadOnlyList<TrackedLootEvent> expected,
+        bool compareTemporalMetadata) =>
+        compareTemporalMetadata ?
+        actual.Select(TemporalEventValue)
+            .OrderBy(entry => entry.ItemName, StringComparer.Ordinal).ThenBy(entry => entry.Quantity)
+            .ThenBy(entry => entry.Revision).ThenBy(entry => entry.TotalDropQuantity).ThenBy(entry => entry.DetectedAt)
+            .ThenBy(entry => entry.Identity)
+            .SequenceEqual(expected.Select(TemporalEventValue)
+                .OrderBy(entry => entry.ItemName, StringComparer.Ordinal).ThenBy(entry => entry.Quantity)
+                .ThenBy(entry => entry.Revision).ThenBy(entry => entry.TotalDropQuantity).ThenBy(entry => entry.DetectedAt)
+                .ThenBy(entry => entry.Identity)) :
         actual.Select(static entry => (entry.ItemName, entry.Quantity))
             .OrderBy(static entry => entry.ItemName, StringComparer.Ordinal)
             .ThenBy(static entry => entry.Quantity)
             .SequenceEqual(expected.Select(static entry => (entry.ItemName, entry.Quantity))
                 .OrderBy(static entry => entry.ItemName, StringComparer.Ordinal)
                 .ThenBy(static entry => entry.Quantity));
+
+    private static (string ItemName, int Quantity, int Revision, int? TotalDropQuantity, DateTimeOffset DetectedAt, Guid Identity)
+        TemporalEventValue(TrackedLootEvent entry) =>
+        // Temporal normal IDs are derived from capture evidence. Legacy rare
+        // corrections use fresh output IDs and remain compared by their value.
+        (entry.ItemName, entry.Quantity, entry.Revision, entry.TotalDropQuantity, entry.DetectedAt,
+            entry.TotalDropQuantity is not null ? entry.EventId : Guid.Empty);
 
     private static bool TotalsEqual(
         IReadOnlyDictionary<string, long> actual,

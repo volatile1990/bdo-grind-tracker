@@ -88,6 +88,87 @@ public sealed class TrashQuantityAnomalyDetectorTests
     }
 
     [Fact]
+    public void CorrectedDropTotalsReplaceInitialOcrMistakesWithoutGrowingHistory()
+    {
+        var detector = new TrashQuantityAnomalyDetector();
+        var drops = Enumerable.Range(0, 8).Select(_ => Drop(43)).ToArray();
+        detector.ObserveCountedDrops(Spot, drops);
+        detector.ObserveCountedDrops(Spot, drops.Select(drop => Revision(drop, 4, 1)).ToArray());
+
+        Assert.Equal(new TrashQuantityAnomaly(43, 4, "history", 8), detector.Assess(Spot, Row(43)));
+    }
+
+    [Fact]
+    public void DuplicateAndOlderRevisionsCannotUndoANewerCorrection()
+    {
+        var detector = new TrashQuantityAnomalyDetector();
+        var drops = Enumerable.Range(0, 8).Select(_ => Drop(43)).ToArray();
+        detector.ObserveCountedDrops(Spot, drops);
+        detector.ObserveCountedDrops(Spot, drops.Select(drop => Revision(drop, 4, 2)).ToArray());
+        detector.ObserveCountedDrops(Spot, drops.Select(drop => Revision(drop, 8, 1)).ToArray());
+        detector.ObserveCountedDrops(Spot, drops.Select(drop => Revision(drop, 8, 2)).ToArray());
+        detector.ObserveCountedDrops(Spot, drops);
+        Assert.Equal(new TrashQuantityAnomaly(43, 4, "history", 8), detector.Assess(Spot, Row(43)));
+
+        detector.ObserveCountedDrops(Spot, drops.Select(drop => Revision(drop, 8, 3)).ToArray());
+        Assert.Equal(new TrashQuantityAnomaly(43, 8, "history", 8), detector.Assess(Spot, Row(43)));
+    }
+
+    [Fact]
+    public void RevisionsOfUnknownIdsCannotEstablishOrExpandHistory()
+    {
+        var detector = Learned(4);
+        detector.ObserveCountedDrops(Spot, Enumerable.Range(0, 20).Select(_ => Revision(Drop(8), 8, 1)).ToArray());
+        Assert.Equal(new TrashQuantityAnomaly(43, 4, "history", 8), detector.Assess(Spot, Row(43)));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(1)]
+    [InlineData(1001)]
+    public void MissingNonpositiveAndOutOfBoundsRevisionTotalsAreNotLearned(int? quantity)
+    {
+        var detector = new TrashQuantityAnomalyDetector();
+        var drops = Enumerable.Range(0, 8).Select(_ => Drop(4)).ToArray();
+        detector.ObserveCountedDrops(Spot, drops);
+        detector.ObserveCountedDrops(Spot, drops.Select(drop => Revision(drop, quantity, 2)).ToArray());
+        Assert.Equal(new TrashQuantityAnomaly(43, 4, "history", 8), detector.Assess(Spot, Row(43)));
+        detector.ObserveCountedDrops(Spot, drops.Select(drop => Revision(drop, 8, 1)).ToArray());
+        Assert.Equal(new TrashQuantityAnomaly(43, 8, "history", 8), detector.Assess(Spot, Row(43)));
+    }
+
+    [Fact]
+    public void EstimatedOrPlaceholderRevisionsDoNotRewriteConcreteHistory()
+    {
+        var detector = new TrashQuantityAnomalyDetector();
+        var drops = Enumerable.Range(0, 8).Select(_ => Drop(4)).ToArray();
+        detector.ObserveCountedDrops(Spot, drops);
+        detector.ObserveCountedDrops(Spot, drops.Select(drop => Revision(drop, 8, 1) with { IsMinimumQuantityEstimate = true }).ToArray());
+        detector.ObserveCountedDrops(Spot, drops.Select(drop => Revision(drop, 8, 1) with { IsPlaceholder = true }).ToArray());
+        detector.ObserveCountedDrops(Spot, drops.Select(drop => Revision(drop, 8, 1) with { IsAlignmentAnchor = true }).ToArray());
+        Assert.Equal(new TrashQuantityAnomaly(43, 4, "history", 8), detector.Assess(Spot, Row(43)));
+    }
+
+    [Fact]
+    public void RevisionPreservesSampleAgeAndEvictedIdsCannotReenterThroughCorrections()
+    {
+        var detector = new TrashQuantityAnomalyDetector();
+        var drops = Enumerable.Range(0, 64).Select(i => Drop(i < 32 ? 4u : 8u)).ToArray();
+        detector.ObserveCountedDrops(Spot, drops);
+        detector.ObserveCountedDrops(Spot, [Revision(drops[0], 8, 1)]);
+        Assert.Equal(new TrashQuantityAnomaly(43, 8, "history", 64), detector.Assess(Spot, Row(43)));
+
+        detector.ObserveCountedDrops(Spot, [Drop(4)]);
+        Assert.Equal("catalog", detector.Assess(Spot, Row(43))!.Basis);
+        detector.ObserveCountedDrops(Spot, [Revision(drops[0], 8, 2)]);
+        Assert.Equal("catalog", detector.Assess(Spot, Row(43))!.Basis);
+        detector.ObserveCountedDrops(Spot, [Revision(drops[1], 8, 1)]);
+        Assert.Equal(new TrashQuantityAnomaly(43, 8, "history", 64), detector.Assess(Spot, Row(43)));
+    }
+
+    [Fact]
     public void HistoryIsBoundedAndAdaptsWhenRegularDropsChange()
     {
         var detector = Learned(4);
@@ -161,6 +242,14 @@ public sealed class TrashQuantityAnomalyDetectorTests
 
     private static CompanionRecognizedEntry Drop(uint quantity) =>
         new(Helmet, quantity) { EventId = Guid.NewGuid(), QuantityDelta = quantity <= int.MaxValue ? (int)quantity : null };
+
+    private static CompanionRecognizedEntry Revision(CompanionRecognizedEntry drop, int? total, int revision) =>
+        new(Helmet, 0)
+        {
+            EventId = drop.EventId, Revision = revision, TotalDropQuantity = total,
+            QuantityDelta = total is { } quantity ? quantity - (int)drop.Count : 0,
+            QuantityBounds = new(2, 1000),
+        };
 
     private static LootObservation Row(int quantity) =>
         new(LootSource.Normal, 0, Helmet + " x " + quantity, Helmet, quantity, 1, 0, null, null)

@@ -44,15 +44,18 @@ internal sealed class DiagnosticRecordingSession : IDisposable
     public int RecordedFrameCount => frameCount;
 
     public static DiagnosticRecordingSession Start(string baseDirectory, string? spotId = null,
-        IReadOnlyDictionary<string, uint>? minimumTrashQuantities = null) =>
-        Start(baseDirectory, spotId, maximumBytes: null, maximumFrames: null, minimumTrashQuantities);
+        IReadOnlyDictionary<string, uint>? minimumTrashQuantities = null,
+        TimeSpan? targetFrameInterval = null, int? maximumQueuedFrames = null) =>
+        Start(baseDirectory, spotId, maximumBytes: null, maximumFrames: null, minimumTrashQuantities,
+            targetFrameInterval, maximumQueuedFrames);
 
     internal static DiagnosticRecordingSession Start(
         string baseDirectory,
         string? spotId,
         long? maximumBytes,
         int? maximumFrames,
-        IReadOnlyDictionary<string, uint>? minimumTrashQuantities = null)
+        IReadOnlyDictionary<string, uint>? minimumTrashQuantities = null,
+        TimeSpan? targetFrameInterval = null, int? maximumQueuedFrames = null)
     {
         var session = new DiagnosticRecordingSession(maximumBytes, maximumFrames);
         try
@@ -60,6 +63,9 @@ internal sealed class DiagnosticRecordingSession : IDisposable
             ArgumentException.ThrowIfNullOrWhiteSpace(baseDirectory);
             if (maximumBytes is { } byteLimit) ArgumentOutOfRangeException.ThrowIfNegativeOrZero(byteLimit);
             if (maximumFrames is { } frameLimit) ArgumentOutOfRangeException.ThrowIfNegativeOrZero(frameLimit);
+            if (targetFrameInterval is { } interval && interval <= TimeSpan.Zero)
+                throw new ArgumentOutOfRangeException(nameof(targetFrameInterval));
+            if (maximumQueuedFrames is { } queueLimit) ArgumentOutOfRangeException.ThrowIfNegativeOrZero(queueLimit);
             var directory = Path.Combine(
                 Path.GetFullPath(baseDirectory),
                 $"loot-{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}");
@@ -76,8 +82,10 @@ internal sealed class DiagnosticRecordingSession : IDisposable
                 LootDiagnosticFormat.EngineVersion,
                 DateTimeOffset.UtcNow,
                 spotId,
-                "companion-counter-only; OCR and spot matching are recorded inputs, not re-executed")
+                "matched-loot-counter-only; recorded recognition variant selects the counter; OCR and spot matching are recorded inputs")
             {
+                TargetFrameIntervalMilliseconds = targetFrameInterval?.TotalMilliseconds,
+                MaximumQueuedFrames = maximumQueuedFrames,
                 AppVersion = typeof(DiagnosticRecordingSession).Assembly
                     .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion,
                 MinimumTrashQuantities = minimumTrashQuantities ?? new Dictionary<string, uint>(),
@@ -106,7 +114,8 @@ internal sealed class DiagnosticRecordingSession : IDisposable
         bool? isHdr = null,
         bool? isToneMapped = null,
         IReadOnlyList<LootRowReviewDiagnostics>? rowReviews = null,
-        string? recognitionVariant = null)
+        string? recognitionVariant = null,
+        LootCaptureTiming? captureTiming = null)
     {
         lock (sync)
         {
@@ -125,6 +134,7 @@ internal sealed class DiagnosticRecordingSession : IDisposable
 
                 ValidateObservations(observations);
                 ValidateResult(result);
+                captureTiming?.Validate();
                 var sequence = entrySequence + 1;
                 var crops = new List<LootDiagnosticCrop>(2);
                 var encodedCrops = new List<(string Path, byte[] Bytes)>(2);
@@ -146,6 +156,7 @@ internal sealed class DiagnosticRecordingSession : IDisposable
                     IsHdr = isHdr,
                     IsToneMapped = isToneMapped,
                     RecognitionVariant = recognitionVariant,
+                    CaptureTiming = captureTiming,
                     RowReviews = rowReviews is { Count: > 0 } ? rowReviews : null,
                     NormalCaptureIndex = result.NormalCaptureIndex,
                     NormalReconciliation = reconciliation,

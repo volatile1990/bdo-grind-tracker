@@ -1383,6 +1383,7 @@ public sealed partial class TrackerSessionServiceTests
         public Func<Task<FrameAnalysisResult>>? Analyze { get; set; }
         public FrameAnalysisResult CompletionResult { get; set; } = Analysis();
         public int CompletionCalls { get; private set; }
+        public DateTimeOffset? LastCompletedAt { get; private set; }
         public bool Disposed { get; private set; }
         public int Calls { get; private set; }
         public bool? LastHdrOcr { get; private set; }
@@ -1410,6 +1411,7 @@ public sealed partial class TrackerSessionServiceTests
         public FrameAnalysisResult CompleteSession(DateTimeOffset completedAt)
         {
             CompletionCalls++;
+            LastCompletedAt = completedAt;
             return CompletionResult;
         }
         public void Reset() { }

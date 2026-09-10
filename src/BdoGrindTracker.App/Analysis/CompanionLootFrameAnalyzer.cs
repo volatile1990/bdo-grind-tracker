@@ -182,9 +182,10 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
                 Observe(preparedRows[index], LootSource.Normal, preparedRows.Count - 1 - index, normal);
             if (rareRow is not null) Observe(rareRow, LootSource.Rare, 0, rare);
 
-            // Resolve this frame's spot before scheduling any quantity retries.
-            // Some shared drops are fixed at only a subset of the spots.
-            _spotLock.Observe(normal.AsEnumerable().Reverse().Where(IsAccepted).Select(row => row.ItemName!));
+            // Legacy parity selects from the first read. Temporal tracking waits
+            // for distinct confirmed events; until then shared items use broad bounds.
+            if (!UsesTemporalTracking)
+                _spotLock.Observe(normal.AsEnumerable().Reverse().Where(IsAccepted).Select(row => row.ItemName!));
             normal = normal.Select(ApplyQuantityPolicy).ToList();
             rare = rare.Select(ApplyQuantityPolicy).ToList();
 
@@ -193,8 +194,9 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
             {
                 // Baseline trash takes priority over a rescued row when selecting
                 // the spot. Finish every original read before spending time on retries.
-                _spotLock.Observe(normal.AsEnumerable().Reverse().Where(IsAccepted)
-                    .Select(row => row.ItemName!));
+                if (!UsesTemporalTracking)
+                    _spotLock.Observe(normal.AsEnumerable().Reverse().Where(IsAccepted)
+                        .Select(row => row.ItemName!));
                 var baselineByY = normal.ToDictionary(row => row.NativeY!.Value);
                 var cursor = _recoveryCursor;
                 _recoveryCursor = (_recoveryCursor + 1) % Math.Max(preparedRows.Count, 1);
@@ -339,9 +341,10 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
             }
 
             normal.Sort((left, right) => right.NativeY!.Value.CompareTo(left.NativeY!.Value));
-            // The only added recognition restriction: identify from the newest native
-            // trash match, then filter canonical items without rematching them into the pool.
-            _spotLock.Observe(normal.Where(IsAccepted).Select(row => row.ItemName!));
+            // Apply the existing confirmed pool without rematching rejected names
+            // into that pool. Temporal spot evidence is updated only after counting.
+            if (!UsesTemporalTracking)
+                _spotLock.Observe(normal.Where(IsAccepted).Select(row => row.ItemName!));
             var observations = normal.Concat(rare).Select(row =>
                 IsAccepted(row) && !_spotLock.Allows(row.ItemName!)
                     ? row with { RejectionReason = AutomaticLootSpotLock.OutsideSpotPoolReason }
@@ -352,7 +355,9 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
                 .Select(row => new CompanionRecognizedEntry(row.ItemName!,
                     unchecked((uint)(row.Quantity ?? -1)), row.NativeY!.Value)
                     { QuantityBounds = row.QuantityBounds, Slot = _reconciliation.TracksRows ? row.Slot : null,
-                        IsAlignmentAnchor = row.IsAlignmentAnchor, AlignmentPreviousSlot = row.AlignmentPreviousSlot }).ToArray();
+                        IsAlignmentAnchor = row.IsAlignmentAnchor, AlignmentPreviousSlot = row.AlignmentPreviousSlot,
+                        NameConfidence = UsesTemporalTracking ? row.NameConfidence : 1,
+                        RawText = UsesTemporalTracking ? row.RawText : null }).ToArray();
             var rareEntries = observations.Where(row => row.Source == LootSource.Rare && IsAccepted(row))
                 .Select(row => new CompanionRareRecognizedEntry(row.ItemName!,
                     row.UsesImplicitUnitQuantity && row.QuantityBounds is not null ? -1 : row.Quantity ?? -1,
@@ -360,6 +365,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
 
             // Ordering and shared ledger are important for signed rare-loot corrections.
             var reconciled = _reconciliation.ProcessFrame(entries, capturedAt);
+            if (UsesTemporalTracking) _spotLock.ObserveConfirmed(reconciled);
             _trashQuantityAnomalies?.ObserveCountedDrops(_spotLock.Spot?.Id, reconciled);
             foreach (var entry in reconciled) _ledger.ApplyDelta(entry.Name, entry.QuantityDelta ?? (long)entry.Count);
             var rareChanges = _rareReconciliation?.ProcessFrame(rareEntries) ?? [];
@@ -440,6 +446,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
         ObjectDisposedException.ThrowIf(_disposed, this);
         _alignmentReview.Reset();
         var reconciled = _reconciliation.Complete();
+        if (UsesTemporalTracking) _spotLock.ObserveConfirmed(reconciled);
         _trashQuantityAnomalies?.ObserveCountedDrops(_spotLock.Spot?.Id, reconciled);
         foreach (var entry in reconciled) _ledger.ApplyDelta(entry.Name, entry.QuantityDelta ?? (long)entry.Count);
         var rareChanges = _rareReconciliation?.Complete() ?? [];
@@ -480,6 +487,8 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
 
     private static bool IsAccepted(LootObservation row) => row.ItemName is not null && row.RejectionReason is null;
 
+    private bool UsesTemporalTracking => _reconciliation.AlgorithmName == TemporalLootReconciler.AlgorithmName;
+
     private LootObservation ApplyQuantityPolicy(LootObservation row)
     {
         if (!IsAccepted(row)) return row;
@@ -497,7 +506,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
         IReadOnlyList<LootObservation> observations, int prepared, int nonBlank, int ocrCalls,
         bool isToneMapped = false)
     {
-        var events = reconciled.Select(entry => new LootEventView(entry.EventId ?? Guid.NewGuid(), timestamp,
+        var events = reconciled.Select(entry => new LootEventView(entry.EventId ?? Guid.NewGuid(), entry.DetectedAt ?? timestamp,
                 entry.Name, entry.QuantityDelta ?? checked((int)entry.Count))
                 { Revision = entry.Revision, TotalDropQuantity = entry.TotalDropQuantity })
             .Concat(rareChanges.Select(change => new LootEventView(Guid.NewGuid(), timestamp,
@@ -527,7 +536,8 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
                 (isToneMapped ? "+tone-mapped-normal-v1" : string.Empty) +
                 (_rowReview is null ? string.Empty : "+paddle-review-v2+alignment-review-v1") +
                 (_rowReview is not null && _trashQuantityAnomalies is not null ? "+trash-quantity-anomaly-v1" : string.Empty) +
-                (_reconciliation.TracksRows ? "+row-tracks-v1" : string.Empty),
+                (UsesTemporalTracking ? "+" + TemporalLootReconciler.AlgorithmName :
+                    _reconciliation.TracksRows ? "+row-tracks-v1" : string.Empty),
             prepared, nonBlank, ocrCalls, accepted.Length, _panelBounds)
         {
             FrameSize = frameSize,
@@ -558,6 +568,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
 
 internal interface ICompanionReconciliation
 {
+    string? AlgorithmName => null;
     bool TracksRows => false;
     long? CaptureIndex => null;
     IReadOnlyList<NormalLootReconciliationTrace> LastTrace => [];
@@ -566,6 +577,23 @@ internal interface ICompanionReconciliation
         DateTimeOffset capturedAt) => ProcessFrame(entries);
     IReadOnlyList<CompanionRecognizedEntry> Complete();
     void Reset();
+}
+
+/// <summary>Normal tracking with capture-time evidence; the legacy adapter stays available for parity replay.</summary>
+internal sealed class TemporalNormalReconciliationAdapter(
+    IReadOnlyDictionary<string, uint>? minimumQuantities = null) : ICompanionReconciliation
+{
+    private readonly TemporalLootReconciler _reconciler = new(minimumQuantities);
+    public string AlgorithmName => TemporalLootReconciler.AlgorithmName;
+    public bool TracksRows => true;
+    public long? CaptureIndex => _reconciler.CaptureIndex;
+    public IReadOnlyList<NormalLootReconciliationTrace> LastTrace => _reconciler.LastTrace;
+    public IReadOnlyList<CompanionRecognizedEntry> ProcessFrame(IReadOnlyList<CompanionRecognizedEntry> entries) =>
+        throw new InvalidOperationException("Temporal reconciliation requires a capture timestamp.");
+    public IReadOnlyList<CompanionRecognizedEntry> ProcessFrame(IReadOnlyList<CompanionRecognizedEntry> entries,
+        DateTimeOffset capturedAt) => _reconciler.ProcessFrame(entries, capturedAt);
+    public IReadOnlyList<CompanionRecognizedEntry> Complete() => _reconciler.Complete();
+    public void Reset() => _reconciler.Reset();
 }
 
 internal sealed class CompanionReconciliationAdapter(
