@@ -1,6 +1,6 @@
 # Paddle-Zusatzprüfung und Mengenabgleich
 
-Stand: 8. September 2026, Entwicklungsstand nach 1.0.2-test.4.
+Stand: 10. September 2026.
 
 Windows OCR bleibt der erste Erkennungsweg. PP-OCRv6 Small ersetzt Tesseract als
 lokale Zusatzprüfung. Die Anwendung führt das mitgelieferte Modell über ONNX
@@ -9,6 +9,13 @@ erforderlich. Modell und Zeichensatz sind auf eine überprüfte Revision festgel
 Quellen stehen in `data/ocr/paddle-v6-small/SOURCES.md`.
 
 ## Auswahl und Annahme
+
+Die [gezielte Trash-Anomalieprüfung](TRASH_QUANTITY_ANOMALIES.md) hat bei
+auffälligen, bereits von Windows akzeptierten Mengen Vorrang vor den folgenden
+bisherigen Reviewgründen. Sie hebt die Schutzregel für eine vollständige primäre
+Endmenge nur für diesen Prüffall auf. Zwei gleiche positive Zahlen und ein
+plausibler Ersatz sind erforderlich; etwa `4/0` reicht hier nicht aus.
+Gegenstand und Sichtbarkeit bleiben an die ursprüngliche Windows-Zeile gebunden.
 
 Der bisherige Windows-Durchlauf und sein begrenztes Nachlesen bleiben bestehen.
 Paddle erhält nur deutliche Grenzfälle: fehlende oder widersprüchliche Mengen,

@@ -7,6 +7,9 @@ Drop-IDs mit Mengenrevisionen. Die folgenden Versionsabschnitte beschreiben
 teilweise frühere Stände; aktuelle Regeln und Aufnahmenergebnisse stehen in
 [BACKGROUND_OCR_REVIEW.md](BACKGROUND_OCR_REVIEW.md).
 
+[Auffällige Trashmengen](TRASH_QUANTITY_ANOMALIES.md) werden zusätzlich anhand
+der tatsächlich gebuchten Drops erkannt und gezielt mit Paddle nachgeprüft.
+
 ## Passiver Loot-Scroll-Hinweis
 
 `LootScrollMonitor` prüft das HUD während einer laufenden Session alle

@@ -18,6 +18,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
     private readonly ICompanionNameRecognizer _nameRecognizer;
     private readonly INormalLootRecovery? _normalRecovery;
     private readonly ILootRowReview? _rowReview;
+    private readonly TrashQuantityAnomalyDetector? _trashQuantityAnomalies;
     private readonly LootPanelCaptureGuard? _captureGuard;
     private readonly Action<string>? _configureGameLanguage;
     private readonly Func<string?, string, DropQuantityBounds?> _quantityBoundsResolver;
@@ -46,7 +47,8 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
         Func<string?, string, DropQuantityBounds?>? quantityBoundsResolver = null,
         LootPanelCaptureGuard? captureGuard = null,
         Action<string>? configureGameLanguage = null,
-        ILootRowReview? rowReview = null)
+        ILootRowReview? rowReview = null,
+        bool reviewTrashQuantityAnomalies = true)
     {
         _calibration = calibration ?? throw new ArgumentNullException(nameof(calibration));
         _itemMatcher = itemMatcher ?? throw new ArgumentNullException(nameof(itemMatcher));
@@ -54,6 +56,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
         _nameRecognizer = nameRecognizer ?? throw new ArgumentNullException(nameof(nameRecognizer));
         _normalRecovery = normalRecovery;
         _rowReview = rowReview;
+        _trashQuantityAnomalies = reviewTrashQuantityAnomalies ? new TrashQuantityAnomalyDetector() : null;
         _captureGuard = captureGuard;
         _configureGameLanguage = configureGameLanguage;
         _quantityBoundsResolver = quantityBoundsResolver ?? DropQuantityCatalog.GetBounds;
@@ -288,6 +291,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
                             name => _quantityBoundsResolver(spotId, name), allowed.Contains)
                         {
                             UiScale = _calibration.UiScale,
+                            QuantityAnomaly = baseline is null ? null : _trashQuantityAnomalies?.Assess(spotId, baseline),
                             PrimaryQuantityReads = source == LootSource.Normal &&
                                 primaryQuantityReads?.TryGetValue(row.Y, out var reads) == true
                                     ? Array.AsReadOnly(reads.ToArray()) : [],
@@ -356,6 +360,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
 
             // Ordering and shared ledger are important for signed rare-loot corrections.
             var reconciled = _reconciliation.ProcessFrame(entries, capturedAt);
+            _trashQuantityAnomalies?.ObserveCountedDrops(_spotLock.Spot?.Id, reconciled);
             foreach (var entry in reconciled) _ledger.ApplyDelta(entry.Name, entry.QuantityDelta ?? (long)entry.Count);
             var rareChanges = _rareReconciliation?.ProcessFrame(rareEntries) ?? [];
             return CreateResult(reconciled, rareChanges, capturedAt, frame.Size,
@@ -435,6 +440,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
         ObjectDisposedException.ThrowIf(_disposed, this);
         _alignmentReview.Reset();
         var reconciled = _reconciliation.Complete();
+        _trashQuantityAnomalies?.ObserveCountedDrops(_spotLock.Spot?.Id, reconciled);
         foreach (var entry in reconciled) _ledger.ApplyDelta(entry.Name, entry.QuantityDelta ?? (long)entry.Count);
         var rareChanges = _rareReconciliation?.Complete() ?? [];
         return CreateResult(reconciled, rareChanges, completedAt,
@@ -451,6 +457,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
         _spotLock.Reset();
         _recoveryCursor = 0;
         _alignmentReview.Reset();
+        _trashQuantityAnomalies?.Reset();
     }
 
     public void Dispose()
@@ -519,6 +526,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
             (_normalRecovery is null ? ExactVariantName : RecoveryVariantName) +
                 (isToneMapped ? "+tone-mapped-normal-v1" : string.Empty) +
                 (_rowReview is null ? string.Empty : "+paddle-review-v2+alignment-review-v1") +
+                (_rowReview is not null && _trashQuantityAnomalies is not null ? "+trash-quantity-anomaly-v1" : string.Empty) +
                 (_reconciliation.TracksRows ? "+row-tracks-v1" : string.Empty),
             prepared, nonBlank, ocrCalls, accepted.Length, _panelBounds)
         {

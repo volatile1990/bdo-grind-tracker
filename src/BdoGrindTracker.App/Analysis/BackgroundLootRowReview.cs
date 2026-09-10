@@ -12,6 +12,7 @@ internal sealed record LootRowReviewInput(LootObservation? Baseline, LootSource 
     public double UiScale { get; init; } = 1;
     public IReadOnlyList<PrimaryLootQuantityRead> PrimaryQuantityReads { get; init; } = [];
     public bool ReviewMissingAlignmentAnchor { get; init; }
+    public TrashQuantityAnomaly? QuantityAnomaly { get; init; }
 }
 
 internal sealed record PrimaryLootQuantityRead(CompanionOcrResult Reading, float NameScale, float NormalizedNameTop = 0);
@@ -22,7 +23,10 @@ internal sealed record LootRowReviewReading(string Variant, string Text, double 
 internal sealed record LootRowReviewDiagnostics(LootSource Source, int NativeY, string Reason,
     string Backend, string Language, string Outcome, double ElapsedMilliseconds,
     LootObservation? Before, LootObservation? After, IReadOnlyList<LootRowReviewReading> Readings,
-    int Errors);
+    int Errors)
+{
+    public TrashQuantityAnomaly? QuantityAnomaly { get; init; }
+}
 
 internal sealed record LootRowReviewResult(LootObservation? Observation, LootRowReviewDiagnostics? Diagnostics);
 
@@ -85,6 +89,7 @@ internal sealed class BackgroundLootRowReview : ILootRowReview
         if (row?.ItemName is null || row.RejectionReason is not null) return "unrecognized-row";
         if (!input.Allows(row.ItemName)) return row.NameConfidence == 1 ? null : "outside-spot-pool";
         var bounds = input.Bounds(row.ItemName);
+        if (HasQuantityAnomaly(input, row)) return "trash-quantity-anomaly";
         if (row.NameConfidence < NameReviewThreshold) return "uncertain-name";
         return QuantityReviewReason(input, row, bounds);
     }
@@ -100,6 +105,11 @@ internal sealed class BackgroundLootRowReview : ILootRowReview
         if (HasTrustedTemplateQuantity(input, row)) return null;
         return "quantity-without-complete-text";
     }
+
+    private static bool HasQuantityAnomaly(LootRowReviewInput input, LootObservation row) =>
+        input.Source == LootSource.Normal && row is { ItemName: not null, RejectionReason: null, Quantity: > 0 } &&
+        input.QuantityAnomaly is { } anomaly && anomaly.BaselineQuantity == row.Quantity &&
+        input.Allows(row.ItemName) && input.Bounds(row.ItemName)?.IsFixedUnit != true;
 
     private static bool HasTrustedTemplateQuantity(LootRowReviewInput input, LootObservation row) =>
         input.TemplateQuantity == row.Quantity && input.TemplateScore >= TrustedTemplateScore &&
@@ -184,6 +194,32 @@ internal sealed class BackgroundLootRowReview : ILootRowReview
                 return Finish(input.Baseline, "no-consensus");
             var winner = candidates[0];
             var baseline = input.Baseline;
+            if (baseline is not null && HasQuantityAnomaly(input, baseline))
+            {
+                // This review may correct only a suspicious amount on an existing
+                // Windows row. It cannot introduce an item or extend row visibility.
+                if (winner.Name != baseline.ItemName)
+                    return Finish(baseline, "anomaly-item-disagreement");
+                if (readings.Any(reading => reading.Quantity is not > 0) ||
+                    readings[0].Quantity != readings[1].Quantity)
+                    return Finish(baseline, "anomaly-no-quantity-consensus");
+                var correction = readings[0].Quantity!.Value;
+                if (correction == baseline.Quantity) return Finish(baseline, "baseline-confirmed");
+                if (!_matcher.TryMatch(baseline.ItemName!, correction, false, out var correctedMatch) ||
+                    correctedMatch?.CanonicalName != baseline.ItemName)
+                    return Finish(baseline, "anomaly-quantity-filtered");
+                if (!input.QuantityAnomaly!.IsPlausibleCorrection(correction, input.Bounds(baseline.ItemName!)))
+                    return Finish(baseline, "anomaly-implausible-correction");
+                return Finish(baseline with
+                {
+                    RawText = readings[0].Text,
+                    Quantity = correction,
+                    QuantityConfidence = Math.Min(candidates[0].Confidence, candidates[1].Confidence),
+                    QuantityBounds = input.Bounds(baseline.ItemName!),
+                    UsesImplicitUnitQuantity = false,
+                    UsesFixedUnitQuantity = false,
+                }, "anomaly-quantity-corrected");
+            }
             if (input.ReviewMissingAlignmentAnchor &&
                 (readings.Any(r => r.Quantity is not > 0) || readings[0].Quantity != readings[1].Quantity ||
                  winner.Bounds is { } anchorBounds && (readings[0].Quantity < anchorBounds.Minimum ||
@@ -250,7 +286,8 @@ internal sealed class BackgroundLootRowReview : ILootRowReview
 
         LootRowReviewResult Finish(LootObservation? observation, string outcome) => new(observation,
             new(input.Source, input.NativeY, reason, backend, _language, outcome,
-                timer.Elapsed.TotalMilliseconds, input.Baseline, observation, readings.ToArray(), errors));
+                timer.Elapsed.TotalMilliseconds, input.Baseline, observation, readings.ToArray(), errors)
+                { QuantityAnomaly = input.QuantityAnomaly });
     }
 
     private sealed record Candidate(string Name, int? Quantity, double NameConfidence,

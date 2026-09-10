@@ -12,15 +12,19 @@ Der bestätigte Zählerstand aus **0.9.6-test.2** bleibt erhalten. Bestehende Ei
 Verlaufseinträge und der verschlüsselte Garmoth-Key werden weiterverwendet.
 [Architektur, Voraussetzungen und UI-Prüfung](docs/BLAZOR_HYBRID.md).
 
-Im aktuellen Entwicklungsstand bleibt Windows OCR der Hauptweg. Deutliche
-Grenzfälle werden mit **PP-OCRv6 Small über ONNX Runtime** lokal nachgeprüft.
+Im aktuellen Entwicklungsstand bleibt Windows OCR der Hauptweg. Auffällige
+Trashmengen und deutliche Grenzfälle werden mit **PP-OCRv6 Small über ONNX Runtime** lokal nachgeprüft.
 Originalbild und Graustufen müssen dasselbe Item und eine verträgliche Menge
 liefern. Modell und Zeichensatz werden mitgeliefert; Python und ein Download
 beim Start sind nicht nötig. Das Paddle-Modell ist mehrsprachig.
 
+Die [gezielte Mengenprüfung](docs/TRASH_QUANTITY_ANOMALIES.md) lernt die übliche
+Trashmenge aus gebuchten Drops. Eine Korrektur benötigt zwei übereinstimmende,
+plausible Paddle-Lesungen desselben Items. Bestätigte große Drops bleiben erhalten.
+
 Mengenberichtigungen verwenden dieselbe Drop-ID mit einer neuen Revision.
 Nicht gelesene innere Zeilen behalten beim Abgleich ihren Platz. Geprüfte
-Minima und Maxima gelten weiterhin pro Drop; Magaia-Trash hat Minimum 4.
+Minima und Maxima gelten weiterhin pro Drop; Magaia-Trash hat Minimum 2.
 Fertige Ergebnisse werden während der Sitzung übernommen; Pause und Beenden
 verarbeiten noch wartende Bilder.
 [Verhalten, Diagnose und Grenzen](docs/BACKGROUND_OCR_REVIEW.md).
