@@ -1,0 +1,12 @@
+Neu in Grindcrest 1.1.0:
+
+• Frei gestaltbares Ingame-Overlay für Zeit, Silber, Trashloot und Drops – mit Vorlagen, Vorschau, Itemauswahl und Mausdurchlässigkeit.
+• Deutsche und englische Itemnamen, automatische Spielspracherkennung und Installationshilfe für fehlende Windows-OCR-Sprachpakete.
+• Überarbeitete HDR-Verarbeitung, lokale Zusatzprüfung unsicherer Lootzeilen und nachträgliche Mengenberichtigungen.
+• Fehlende Gegenstände direkt in der Live-Session ergänzen und Mengen korrigieren.
+• Regelmäßige lokale Zwischenspeicherung, Sicherungsdateien und sichtbare Hinweise bei Speicherproblemen.
+• Garmoth-Uploadvorschau mit tatsächlichem Rest sowie dauerhaftes Uploadjournal gegen Wiederholungen nach ungeklärten Übertragungen.
+• Verbesserte Verlaufsfilter, schmale Ansichten, Mausrad- und Tastaturbedienung.
+• Store-Updates direkt in den App-Einstellungen prüfen, herunterladen und installieren.
+
+Das Overlay ist standardmäßig ausgeschaltet. Die Loot-Erkennung kann weiterhin über- oder unterzählen.

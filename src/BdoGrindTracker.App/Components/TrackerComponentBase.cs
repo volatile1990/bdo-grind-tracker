@@ -12,6 +12,7 @@ public abstract class TrackerComponentBase : ComponentBase, IDisposable
     protected string? ActionError { get; private set; }
     protected bool Acting { get; private set; }
     private bool _disposed;
+    protected void ClearActionError() => ActionError = null;
 
     protected override void OnInitialized() => Tracker.Changed += OnChanged;
 
@@ -21,12 +22,18 @@ public abstract class TrackerComponentBase : ComponentBase, IDisposable
             _ = InvokeAsync(() => { if (!_disposed) StateHasChanged(); });
     }
 
-    protected async Task<bool> Act(Func<Task> action, bool checkTrackerError = true)
+    private protected Task<bool> Act(Func<Task<TrackerCommandResult>> action) => Act(async () =>
+    {
+        var result = await action();
+        if (!result.Succeeded) throw new InvalidOperationException(result.Error);
+    });
+
+    protected async Task<bool> Act(Func<Task> action)
     {
         if (Acting) return false;
         Acting = true;
         ActionError = null;
-        try { await action(); return !checkTrackerError || !State.IsError; }
+        try { await action(); return true; }
         catch (Exception exception) { ActionError = exception.Message; return false; }
         finally { Acting = false; }
     }
@@ -37,7 +44,7 @@ public abstract class TrackerComponentBase : ComponentBase, IDisposable
         {
             var result = await Tracker.SavePreferencesAsync(change(Tracker.Preferences), apiKey, resumeAutomaticUpload);
             if (!result.Succeeded) throw new InvalidOperationException(result.Error);
-        }, checkTrackerError: false);
+        });
 
     public virtual void Dispose()
     {

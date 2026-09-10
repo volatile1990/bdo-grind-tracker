@@ -11,6 +11,7 @@ internal sealed record LootRowReviewInput(LootObservation? Baseline, LootSource 
 {
     public double UiScale { get; init; } = 1;
     public IReadOnlyList<PrimaryLootQuantityRead> PrimaryQuantityReads { get; init; } = [];
+    public bool ReviewMissingAlignmentAnchor { get; init; }
 }
 
 internal sealed record PrimaryLootQuantityRead(CompanionOcrResult Reading, float NameScale, float NormalizedNameTop = 0);
@@ -78,11 +79,18 @@ internal sealed class BackgroundLootRowReview : ILootRowReview
     internal static string? ReviewReason(LootRowReviewInput input)
     {
         var row = input.Baseline;
+        if (input.ReviewMissingAlignmentAnchor)
+            return input.Source == LootSource.Normal && row is null ? "missing-alignment-anchor" : null;
         if (row is null || row.ItemName is null && string.IsNullOrWhiteSpace(row.RawText)) return null;
         if (row?.ItemName is null || row.RejectionReason is not null) return "unrecognized-row";
         if (!input.Allows(row.ItemName)) return row.NameConfidence == 1 ? null : "outside-spot-pool";
         var bounds = input.Bounds(row.ItemName);
         if (row.NameConfidence < NameReviewThreshold) return "uncertain-name";
+        return QuantityReviewReason(input, row, bounds);
+    }
+
+    private static string? QuantityReviewReason(LootRowReviewInput input, LootObservation row, DropQuantityBounds? bounds)
+    {
         if (bounds?.IsFixedUnit == true) return null;
         if (row.Quantity is not > 0) return "missing-quantity";
         if (row.Quantity > bounds?.Maximum) return "quantity-outside-range";
@@ -176,6 +184,11 @@ internal sealed class BackgroundLootRowReview : ILootRowReview
                 return Finish(input.Baseline, "no-consensus");
             var winner = candidates[0];
             var baseline = input.Baseline;
+            if (input.ReviewMissingAlignmentAnchor &&
+                (readings.Any(r => r.Quantity is not > 0) || readings[0].Quantity != readings[1].Quantity ||
+                 winner.Bounds is { } anchorBounds && (readings[0].Quantity < anchorBounds.Minimum ||
+                     readings[0].Quantity > anchorBounds.Maximum)))
+                return Finish(baseline, "no-anchor-quantity-consensus");
             if (baseline is { ItemName: not null, RejectionReason: null, NameConfidence: >= NameReviewThreshold } &&
                 baseline.ItemName != winner.Name)
                 return Finish(baseline, "primary-name-preserved");
@@ -191,8 +204,10 @@ internal sealed class BackgroundLootRowReview : ILootRowReview
                 amount = quantities[0];
             }
             if (baseline is { ItemName: not null, RejectionReason: null, Quantity: > 0 } &&
-                baseline.ItemName == winner.Name && reason is not ("quantity-outside-range" or
-                    "quantity-disagreement" or "quantity-without-complete-text"))
+                baseline.ItemName == winner.Name && winner.Bounds?.IsFixedUnit != true &&
+                QuantityReviewReason(input, baseline, winner.Bounds) is null)
+                // Name and quantity can both be uncertain. The reason that started
+                // this review must not protect an independently unreliable amount.
                 amount = baseline.Quantity;
             var revised = (baseline ?? new LootObservation(input.Source, input.Slot, "", null, null, 0, 0, null, null)) with
             {
@@ -204,6 +219,7 @@ internal sealed class BackgroundLootRowReview : ILootRowReview
                 QuantityBounds = winner.Bounds, UsesImplicitUnitQuantity = false,
                 UsesFixedUnitQuantity = winner.Bounds?.IsFixedUnit == true,
                 Source = input.Source, Slot = input.Slot, NativeY = input.NativeY,
+                IsAlignmentAnchor = input.ReviewMissingAlignmentAnchor,
             };
             if (baseline is not null && baseline.ItemName == revised.ItemName && baseline.Quantity == revised.Quantity &&
                 baseline.RejectionReason == revised.RejectionReason)
@@ -228,7 +244,7 @@ internal sealed class BackgroundLootRowReview : ILootRowReview
                 !_matcher.TryMatch(name.Trim(), -1, input.Source == LootSource.Rare, out var match) ||
                 match is null || match.NormalizedDistance > .05 || !input.Allows(match.CanonicalName)) return null;
             var bounds = input.Bounds(match.CanonicalName);
-            return new(match.CanonicalName, bounds?.IsFixedUnit == true ? 1 : quantity,
+            return new(match.CanonicalName, bounds?.IsFixedUnit == true && !input.ReviewMissingAlignmentAnchor ? 1 : quantity,
                 1 - match.NormalizedDistance, confidence, bounds);
         }
 

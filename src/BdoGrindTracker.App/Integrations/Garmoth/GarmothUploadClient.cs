@@ -10,6 +10,7 @@ internal enum GarmothUploadStatus { Succeeded, Rejected, OutcomeUnknown, Already
 
 internal sealed record GarmothUploadResult(GarmothUploadStatus Status, string Message)
 {
+    public bool LocalPersistenceFailed { get; init; }
     public bool BlocksAnotherUpload => Status is GarmothUploadStatus.Succeeded or
         GarmothUploadStatus.OutcomeUnknown or GarmothUploadStatus.AlreadySubmitted;
 }

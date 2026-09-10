@@ -32,6 +32,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
     private bool _includeEventLoot;
     private bool _disposed;
     private int _recoveryCursor;
+    private readonly NormalLootAlignmentReview _alignmentReview = new();
 
     public CompanionLootFrameAnalyzer(
         CompanionCalibration calibration,
@@ -90,6 +91,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
         ObjectDisposedException.ThrowIf(_disposed, this);
         _configureGameLanguage?.Invoke(language);
         _rowReview?.ConfigureLanguage(_nameRecognizer.LanguageTag ?? language);
+        _alignmentReview.Reset();
     }
 
     public void ConfigureLootFilter(bool includeEventLoot)
@@ -272,6 +274,42 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
                 }
             }
 
+            if (_rowReview is not null && _reconciliation.TracksRows)
+            {
+                var allowed = _itemMatcher.CatalogEntries.Select(item => item.Name)
+                    .Where(name => _spotLock.Allows(name, _includeEventLoot)).ToHashSet(StringComparer.Ordinal);
+                var plan = _alignmentReview.Prepare(normal.Where(r => IsAccepted(r) && allowed.Contains(r.ItemName!))
+                    .ToArray(), capturedAt, preparedRows.Count);
+                if (plan is not null)
+                {
+                    var spotId = _spotLock.Spot?.Id;
+                    var probes = await Task.WhenAll(plan.Slots.Where(slot => normal.All(r => r.Slot != slot))
+                        .Select(async slot =>
+                        {
+                            var row = preparedRows[preparedRows.Count - 1 - slot];
+                            var bounds = _slotBounds.Single(b => b.Top - _panelBounds.Top == row.Y);
+                            using var band = new Mat(decodedFrame, ToOpenCvRect(bounds));
+                            return await _rowReview.ReviewAsync(band,
+                                new(null, LootSource.Normal, slot, row.Y, -1, 0,
+                                    name => _quantityBoundsResolver(spotId, name), allowed.Contains)
+                                { UiScale = _calibration.UiScale, ReviewMissingAlignmentAnchor = true }, cancellationToken)
+                                .ConfigureAwait(false);
+                        })).ConfigureAwait(false);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var anchors = plan.Resolve(probes.Select(p => p.Observation));
+                    normal.AddRange(anchors);
+                    foreach (var probe in probes)
+                        if (probe.Diagnostics is { } diagnostic)
+                        {
+                            var retained = anchors.Any(a => a.Slot == probe.Observation?.Slot);
+                            reviewDiagnostics.Add(probe.Observation is { IsAlignmentAnchor: true }
+                                ? diagnostic with { Outcome = retained ? "alignment-anchor-retained" : "alignment-anchor-discarded",
+                                    After = anchors.FirstOrDefault(a => a.Slot == probe.Observation?.Slot) } : diagnostic);
+                            ocrCalls += diagnostic.Readings.Count;
+                        }
+                }
+            }
+
             normal.Sort((left, right) => right.NativeY!.Value.CompareTo(left.NativeY!.Value));
             // The only added recognition restriction: identify from the newest native
             // trash match, then filter canonical items without rematching them into the pool.
@@ -285,14 +323,15 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
             var entries = observations.Where(row => row.Source == LootSource.Normal && IsAccepted(row))
                 .Select(row => new CompanionRecognizedEntry(row.ItemName!,
                     unchecked((uint)(row.Quantity ?? -1)), row.NativeY!.Value)
-                    { QuantityBounds = row.QuantityBounds, Slot = _reconciliation.TracksRows ? row.Slot : null }).ToArray();
+                    { QuantityBounds = row.QuantityBounds, Slot = _reconciliation.TracksRows ? row.Slot : null,
+                        IsAlignmentAnchor = row.IsAlignmentAnchor, AlignmentPreviousSlot = row.AlignmentPreviousSlot }).ToArray();
             var rareEntries = observations.Where(row => row.Source == LootSource.Rare && IsAccepted(row))
                 .Select(row => new CompanionRareRecognizedEntry(row.ItemName!,
                     row.UsesImplicitUnitQuantity && row.QuantityBounds is not null ? -1 : row.Quantity ?? -1,
                     row.NativeY!.Value) { QuantityBounds = row.QuantityBounds }).ToArray();
 
             // Ordering and shared ledger are important for signed rare-loot corrections.
-            var reconciled = _reconciliation.ProcessFrame(entries);
+            var reconciled = _reconciliation.ProcessFrame(entries, capturedAt);
             foreach (var entry in reconciled) _ledger.ApplyDelta(entry.Name, entry.QuantityDelta ?? (long)entry.Count);
             var rareChanges = _rareReconciliation?.ProcessFrame(rareEntries) ?? [];
             return CreateResult(reconciled, rareChanges, capturedAt, frame.Size,
@@ -370,6 +409,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
     public FrameAnalysisResult CompleteSession(DateTimeOffset completedAt)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        _alignmentReview.Reset();
         var reconciled = _reconciliation.Complete();
         foreach (var entry in reconciled) _ledger.ApplyDelta(entry.Name, entry.QuantityDelta ?? (long)entry.Count);
         var rareChanges = _rareReconciliation?.Complete() ?? [];
@@ -386,6 +426,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
         _ledger.Reset();
         _spotLock.Reset();
         _recoveryCursor = 0;
+        _alignmentReview.Reset();
     }
 
     public void Dispose()
@@ -453,7 +494,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
             accepted.Length == 0 ? 0 : accepted.Average(row => row.NameConfidence),
             (_normalRecovery is null ? ExactVariantName : RecoveryVariantName) +
                 (isToneMapped ? "+tone-mapped-normal-v1" : string.Empty) +
-                (_rowReview is null ? string.Empty : "+paddle-review-v1") +
+                (_rowReview is null ? string.Empty : "+paddle-review-v2+alignment-review-v1") +
                 (_reconciliation.TracksRows ? "+row-tracks-v1" : string.Empty),
             prepared, nonBlank, ocrCalls, accepted.Length, _panelBounds)
         {
@@ -466,7 +507,8 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer, ILootFilt
             Observations = observations,
             TrackingResult = new(events.Select(change => new TrackedLootEvent(change.EventId,
                 change.DetectedAt, change.ItemName, change.Quantity)
-                { Revision = change.Revision, TotalDropQuantity = change.TotalDropQuantity }).ToArray(), decisions),
+                { Revision = change.Revision, TotalDropQuantity = change.TotalDropQuantity }).ToArray(), decisions)
+                { NormalCaptureIndex = _reconciliation.CaptureIndex, NormalReconciliation = _reconciliation.LastTrace },
             SpotId = _spotLock.Spot?.Id,
         };
     }
@@ -490,7 +532,11 @@ internal interface ILootFilterConfigurableAnalyzer
 internal interface ICompanionReconciliation
 {
     bool TracksRows => false;
+    long? CaptureIndex => null;
+    IReadOnlyList<NormalLootReconciliationTrace> LastTrace => [];
     IReadOnlyList<CompanionRecognizedEntry> ProcessFrame(IReadOnlyList<CompanionRecognizedEntry> entries);
+    IReadOnlyList<CompanionRecognizedEntry> ProcessFrame(IReadOnlyList<CompanionRecognizedEntry> entries,
+        DateTimeOffset capturedAt) => ProcessFrame(entries);
     IReadOnlyList<CompanionRecognizedEntry> Complete();
     void Reset();
 }
@@ -500,7 +546,11 @@ internal sealed class CompanionReconciliationAdapter(
 {
     public bool TracksRows => trackRows;
     private readonly CompanionFrameReconciler _reconciler = new(minimumQuantities, trackRows);
+    public long? CaptureIndex => trackRows ? _reconciler.CaptureIndex : null;
+    public IReadOnlyList<NormalLootReconciliationTrace> LastTrace => _reconciler.LastTrace;
     public IReadOnlyList<CompanionRecognizedEntry> ProcessFrame(IReadOnlyList<CompanionRecognizedEntry> entries) => _reconciler.ProcessFrame(entries);
+    public IReadOnlyList<CompanionRecognizedEntry> ProcessFrame(IReadOnlyList<CompanionRecognizedEntry> entries,
+        DateTimeOffset capturedAt) => _reconciler.ProcessFrame(entries, capturedAt);
     public IReadOnlyList<CompanionRecognizedEntry> Complete() => _reconciler.Complete();
     public void Reset() => _reconciler.Reset();
 }

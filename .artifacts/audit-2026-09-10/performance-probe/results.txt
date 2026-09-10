@@ -1,0 +1,14 @@
+OrtTensorTypeAndShapeInfo IDisposable=False
+OrtTensorTypeAndShapeInfo Base=System.ValueType
+Matcher Bruchstück: accepted=False, canonical=, distance=
+Matcher Bruchstüuk: accepted=False, canonical=, distance=
+Matcher Tungrad-Ruinenfragment: accepted=False, canonical=, distance=
+Matcher Black Stone: accepted=True, canonical=Black Stone, distance=0
+Matcher Black Stane: accepted=True, canonical=Black Stone, distance=0,09090909361839294
+Synthetic rendered OCR 'Bruchstück x 12' => 'Bruchstüukx12' confidence=0,9024, ms=18,5
+Synthetic rendered OCR 'Black Stone x 17' => 'Black Stone x 17' confidence=0,9651, ms=10,2
+Synthetic rendered OCR 'Tungrad-Ruinenfragment x 12' => 'Tungrad-Ruinenfragment x 12' confidence=0,9826, ms=8,7
+Calibration change rare-position-moved: accepted-without-error
+Calibration change rare-panel-hidden: accepted-without-error
+Calibration change normal-position-moved-control: correctly-rejected
+ReviewBudgetMs=2000, measuredMs=2608,8, engineCalls=1, tokenCanCancel=False, outcome=no-consensus

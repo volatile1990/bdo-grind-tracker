@@ -1,6 +1,6 @@
 # Grindcrest
 
-Lokaler, passiver Loot-Tracker für Black Desert, Version **1.0.0** (bisher BDO
+Lokaler, passiver Loot-Tracker für Black Desert, Version **1.1.0** (bisher BDO
 Grind Tracker), mit vollständig neuem **Blazor-Hybrid-Frontend** für Windows.
 Live-Session, Verlauf, Garmoth, Lootkorrekturen, Bestätigungsdialoge und Einstellungen werden
 als lokale Razor-Komponenten in WebView2 dargestellt. Das Dashboard bietet eine
@@ -110,12 +110,23 @@ Drop-Tabellen. Quellen, Einordnung und verbleibende Grenzen stehen in
 
 ## Benutzung
 
+### Ingame-Overlay
+
+Unter **Overlay** kannst du Metriken, Lootlisten, einen Silberverlauf und optionale
+Tracking-Buttons frei anordnen. Größe, Transparenz, Sichtbarkeit und Mausverhalten
+sind einstellbar; Änderungen werden automatisch gespeichert. Das Overlay ist
+zunächst ausgeschaltet und lässt sich vorab am Desktop testen.
+[Bedienung und technische Grenzen](docs/OVERLAY.md).
+
 ### Installation und Updates
 
 Den Windows-x64-Installer `Grindcrest-win-x64-stable-Setup.exe` aus den
 [GitHub Releases](https://github.com/volatile1990/bdo-grind-tracker/releases) laden.
 Version 1.0.0 verwendet den stabilen Updatekanal. Das Setup enthält .NET und installiert bei Bedarf WebView2 und
 die benötigte Visual-C++-Laufzeit. Eine passende Windows-OCR-Sprache wird weiterhin benötigt.
+Fehlt die Texterkennung für die Spielsprache, bietet Grindcrest in der Live-Session
+**OCR-Sprachpaket installieren** an. Windows fragt nach Administratorrechten;
+anschließend prüft Grindcrest die Verfügbarkeit erneut. [Details](docs/GAME_LANGUAGES.md#windows-ocr-sprachpaket-installieren).
 
 Installierte Versionen suchen beim Start nach Updates. Unter **Einstellungen →
 App-Updates** lassen sich Updates herunterladen und mit **Installieren und neu starten**

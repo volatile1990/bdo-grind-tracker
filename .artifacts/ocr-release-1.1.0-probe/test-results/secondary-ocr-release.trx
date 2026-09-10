@@ -1,0 +1,88 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="f96d00f4-cb6f-4c46-9f02-fb19b90d6969" name="marku@MARKUSPC 2026-09-10 11:01:45" runUser="MARKUSPC\marku" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-09-10T11:01:45.9550271+02:00" queuing="2026-09-10T11:01:45.9550274+02:00" start="2026-09-10T11:01:44.9503753+02:00" finish="2026-09-10T11:01:45.9879261+02:00" />
+  <TestSettings name="default" id="63d532d3-8ebd-42cf-9ce8-625fcfd5036a">
+    <Deployment runDeploymentRoot="marku_MARKUSPC_2026-09-10_11_01_45" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="eaeb7ac7-fb77-4c9c-bfa2-696b7fdc3be9" testId="463c130b-7b30-526f-edfb-976614e808fc" testName="BdoGrindTracker.Ocr.Tests.SecondaryLootOcrRecognizerTests.CtcCollapsesRepeatsButPreservesRepeatedDigitsSeparatedByBlankAndUnicode" computerName="MARKUSPC" duration="00:00:00.0047246" startTime="2026-09-10T11:01:45.3678596+02:00" endTime="2026-09-10T11:01:45.3751582+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="eaeb7ac7-fb77-4c9c-bfa2-696b7fdc3be9" />
+    <UnitTestResult executionId="bae62589-a436-4628-85f8-fa17904fbdc3" testId="7eb6724d-24f3-f469-8334-ad1a12bf466c" testName="BdoGrindTracker.Ocr.Tests.SecondaryLootOcrRecognizerTests.CancelledReadDoesNotEnterNativeRecognition" computerName="MARKUSPC" duration="00:00:00.0702483" startTime="2026-09-10T11:01:45.8527382+02:00" endTime="2026-09-10T11:01:45.9229206+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="bae62589-a436-4628-85f8-fa17904fbdc3" />
+    <UnitTestResult executionId="216e9c80-b80d-415b-8872-720a3aee064b" testId="7caf1156-3a19-e72b-1cb9-79b9f1839e83" testName="BdoGrindTracker.Ocr.Tests.SecondaryLootOcrRecognizerTests.DisposedEngineRejectsFurtherReadAndCanBeDisposedTwice" computerName="MARKUSPC" duration="00:00:00.0546662" startTime="2026-09-10T11:01:45.7978990+02:00" endTime="2026-09-10T11:01:45.8525951+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="216e9c80-b80d-415b-8872-720a3aee064b" />
+    <UnitTestResult executionId="5053b84b-91f6-4b9d-b5e2-ed5c2306000f" testId="6374a6d7-9f09-f173-a11a-714c1175be20" testName="BdoGrindTracker.Ocr.Tests.SecondaryLootOcrRecognizerTests.MissingModelReportsItsExpectedLocalPath" computerName="MARKUSPC" duration="00:00:00.0008183" startTime="2026-09-10T11:01:45.7969699+02:00" endTime="2026-09-10T11:01:45.7978238+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="5053b84b-91f6-4b9d-b5e2-ed5c2306000f" />
+    <UnitTestResult executionId="bae68b82-2417-4816-a0ef-b5cc7fcf4fb6" testId="978fe809-666a-0423-9609-3a79a74903d0" testName="BdoGrindTracker.Ocr.Tests.SecondaryLootOcrRecognizerTests.SeparateWorkersCanReadEnglishAndGermanAtTheSameTime" computerName="MARKUSPC" duration="00:00:00.1371110" startTime="2026-09-10T11:01:45.6575840+02:00" endTime="2026-09-10T11:01:45.7964005+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="bae68b82-2417-4816-a0ef-b5cc7fcf4fb6" />
+    <UnitTestResult executionId="d177ac9c-27c9-4978-97ca-124780407713" testId="72f45287-42af-812d-880b-2767b5f588af" testName="BdoGrindTracker.Ocr.Tests.SecondaryLootOcrRecognizerTests.BundledModelHasTheVerifiedUpstreamBytes" computerName="MARKUSPC" duration="00:00:00.0199078" startTime="2026-09-10T11:01:45.9366967+02:00" endTime="2026-09-10T11:01:45.9428869+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="d177ac9c-27c9-4978-97ca-124780407713" />
+    <UnitTestResult executionId="b2570dd2-b6d4-4578-9ab2-62ed64364ece" testId="0b45c917-2f1a-f2fb-997c-ad07ac80278b" testName="BdoGrindTracker.Ocr.Tests.SecondaryLootOcrRecognizerTests.BundledNativeEngineRecognizesARealRenderedRow(language: &quot;en-US&quot;, text: &quot;Black Stone x 17&quot;)" computerName="MARKUSPC" duration="00:00:00.0758019" startTime="2026-09-10T11:01:45.5789809+02:00" endTime="2026-09-10T11:01:45.6546758+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="b2570dd2-b6d4-4578-9ab2-62ed64364ece" />
+    <UnitTestResult executionId="06548f06-b5e2-4e3e-9e65-f7d63e825de0" testId="ad039ff6-226e-2070-90d0-631f13ad049f" testName="BdoGrindTracker.Ocr.Tests.SecondaryLootOcrRecognizerTests.EmptyOrNonByteImagesAreRejectedBeforeNativeRecognition" computerName="MARKUSPC" duration="00:00:00.1154682" startTime="2026-09-10T11:01:45.3797464+02:00" endTime="2026-09-10T11:01:45.4906758+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="06548f06-b5e2-4e3e-9e65-f7d63e825de0" />
+    <UnitTestResult executionId="b1375468-3593-471e-8cbc-a47cf414a3a9" testId="5be46d01-2ff6-5df1-42b9-0e8eb2789f5c" testName="BdoGrindTracker.Ocr.Tests.SecondaryLootOcrRecognizerTests.TensorKeepsBgrOrderAspectRatioAndNormalizedZeroPadding" computerName="MARKUSPC" duration="00:00:00.0027037" startTime="2026-09-10T11:01:45.6547901+02:00" endTime="2026-09-10T11:01:45.6574646+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="b1375468-3593-471e-8cbc-a47cf414a3a9" />
+    <UnitTestResult executionId="02f50845-1876-499d-bab6-c5c7d5143a01" testId="038a6d3b-ea9d-e9e6-ee53-4fbd01e20456" testName="BdoGrindTracker.Ocr.Tests.SecondaryLootOcrRecognizerTests.BundledNativeEngineRecognizesARealRenderedRow(language: &quot;de-DE&quot;, text: &quot;Bruchstück x 12&quot;)" computerName="MARKUSPC" duration="00:00:00.0880512" startTime="2026-09-10T11:01:45.4910510+02:00" endTime="2026-09-10T11:01:45.5788200+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="02f50845-1876-499d-bab6-c5c7d5143a01" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="BdoGrindTracker.Ocr.Tests.SecondaryLootOcrRecognizerTests.BundledNativeEngineRecognizesARealRenderedRow(language: &quot;de-DE&quot;, text: &quot;Bruchstück x 12&quot;)" storage="d:\projects\bdo-grind-tracker\tests\bdogrindtracker.ocr.tests\bin\release\net9.0-windows10.0.19041.0\bdogrindtracker.ocr.tests.dll" id="038a6d3b-ea9d-e9e6-ee53-4fbd01e20456">
+      <Execution id="02f50845-1876-499d-bab6-c5c7d5143a01" />
+      <TestMethod codeBase="D:\Projects\bdo-grind-tracker\tests\BdoGrindTracker.Ocr.Tests\bin\Release\net9.0-windows10.0.19041.0\BdoGrindTracker.Ocr.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="BdoGrindTracker.Ocr.Tests.SecondaryLootOcrRecognizerTests" name="BundledNativeEngineRecognizesARealRenderedRow" />
+    </UnitTest>
+    <UnitTest name="BdoGrindTracker.Ocr.Tests.SecondaryLootOcrRecognizerTests.CancelledReadDoesNotEnterNativeRecognition" storage="d:\projects\bdo-grind-tracker\tests\bdogrindtracker.ocr.tests\bin\release\net9.0-windows10.0.19041.0\bdogrindtracker.ocr.tests.dll" id="7eb6724d-24f3-f469-8334-ad1a12bf466c">
+      <Execution id="bae62589-a436-4628-85f8-fa17904fbdc3" />
+      <TestMethod codeBase="D:\Projects\bdo-grind-tracker\tests\BdoGrindTracker.Ocr.Tests\bin\Release\net9.0-windows10.0.19041.0\BdoGrindTracker.Ocr.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="BdoGrindTracker.Ocr.Tests.SecondaryLootOcrRecognizerTests" name="CancelledReadDoesNotEnterNativeRecognition" />
+    </UnitTest>
+    <UnitTest name="BdoGrindTracker.Ocr.Tests.SecondaryLootOcrRecognizerTests.EmptyOrNonByteImagesAreRejectedBeforeNativeRecognition" storage="d:\projects\bdo-grind-tracker\tests\bdogrindtracker.ocr.tests\bin\release\net9.0-windows10.0.19041.0\bdogrindtracker.ocr.tests.dll" id="ad039ff6-226e-2070-90d0-631f13ad049f">
+      <Execution id="06548f06-b5e2-4e3e-9e65-f7d63e825de0" />
+      <TestMethod codeBase="D:\Projects\bdo-grind-tracker\tests\BdoGrindTracker.Ocr.Tests\bin\Release\net9.0-windows10.0.19041.0\BdoGrindTracker.Ocr.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="BdoGrindTracker.Ocr.Tests.SecondaryLootOcrRecognizerTests" name="EmptyOrNonByteImagesAreRejectedBeforeNativeRecognition" />
+    </UnitTest>
+    <UnitTest name="BdoGrindTracker.Ocr.Tests.SecondaryLootOcrRecognizerTests.BundledNativeEngineRecognizesARealRenderedRow(language: &quot;en-US&quot;, text: &quot;Black Stone x 17&quot;)" storage="d:\projects\bdo-grind-tracker\tests\bdogrindtracker.ocr.tests\bin\release\net9.0-windows10.0.19041.0\bdogrindtracker.ocr.tests.dll" id="0b45c917-2f1a-f2fb-997c-ad07ac80278b">
+      <Execution id="b2570dd2-b6d4-4578-9ab2-62ed64364ece" />
+      <TestMethod codeBase="D:\Projects\bdo-grind-tracker\tests\BdoGrindTracker.Ocr.Tests\bin\Release\net9.0-windows10.0.19041.0\BdoGrindTracker.Ocr.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="BdoGrindTracker.Ocr.Tests.SecondaryLootOcrRecognizerTests" name="BundledNativeEngineRecognizesARealRenderedRow" />
+    </UnitTest>
+    <UnitTest name="BdoGrindTracker.Ocr.Tests.SecondaryLootOcrRecognizerTests.DisposedEngineRejectsFurtherReadAndCanBeDisposedTwice" storage="d:\projects\bdo-grind-tracker\tests\bdogrindtracker.ocr.tests\bin\release\net9.0-windows10.0.19041.0\bdogrindtracker.ocr.tests.dll" id="7caf1156-3a19-e72b-1cb9-79b9f1839e83">
+      <Execution id="216e9c80-b80d-415b-8872-720a3aee064b" />
+      <TestMethod codeBase="D:\Projects\bdo-grind-tracker\tests\BdoGrindTracker.Ocr.Tests\bin\Release\net9.0-windows10.0.19041.0\BdoGrindTracker.Ocr.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="BdoGrindTracker.Ocr.Tests.SecondaryLootOcrRecognizerTests" name="DisposedEngineRejectsFurtherReadAndCanBeDisposedTwice" />
+    </UnitTest>
+    <UnitTest name="BdoGrindTracker.Ocr.Tests.SecondaryLootOcrRecognizerTests.SeparateWorkersCanReadEnglishAndGermanAtTheSameTime" storage="d:\projects\bdo-grind-tracker\tests\bdogrindtracker.ocr.tests\bin\release\net9.0-windows10.0.19041.0\bdogrindtracker.ocr.tests.dll" id="978fe809-666a-0423-9609-3a79a74903d0">
+      <Execution id="bae68b82-2417-4816-a0ef-b5cc7fcf4fb6" />
+      <TestMethod codeBase="D:\Projects\bdo-grind-tracker\tests\BdoGrindTracker.Ocr.Tests\bin\Release\net9.0-windows10.0.19041.0\BdoGrindTracker.Ocr.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="BdoGrindTracker.Ocr.Tests.SecondaryLootOcrRecognizerTests" name="SeparateWorkersCanReadEnglishAndGermanAtTheSameTime" />
+    </UnitTest>
+    <UnitTest name="BdoGrindTracker.Ocr.Tests.SecondaryLootOcrRecognizerTests.CtcCollapsesRepeatsButPreservesRepeatedDigitsSeparatedByBlankAndUnicode" storage="d:\projects\bdo-grind-tracker\tests\bdogrindtracker.ocr.tests\bin\release\net9.0-windows10.0.19041.0\bdogrindtracker.ocr.tests.dll" id="463c130b-7b30-526f-edfb-976614e808fc">
+      <Execution id="eaeb7ac7-fb77-4c9c-bfa2-696b7fdc3be9" />
+      <TestMethod codeBase="D:\Projects\bdo-grind-tracker\tests\BdoGrindTracker.Ocr.Tests\bin\Release\net9.0-windows10.0.19041.0\BdoGrindTracker.Ocr.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="BdoGrindTracker.Ocr.Tests.SecondaryLootOcrRecognizerTests" name="CtcCollapsesRepeatsButPreservesRepeatedDigitsSeparatedByBlankAndUnicode" />
+    </UnitTest>
+    <UnitTest name="BdoGrindTracker.Ocr.Tests.SecondaryLootOcrRecognizerTests.TensorKeepsBgrOrderAspectRatioAndNormalizedZeroPadding" storage="d:\projects\bdo-grind-tracker\tests\bdogrindtracker.ocr.tests\bin\release\net9.0-windows10.0.19041.0\bdogrindtracker.ocr.tests.dll" id="5be46d01-2ff6-5df1-42b9-0e8eb2789f5c">
+      <Execution id="b1375468-3593-471e-8cbc-a47cf414a3a9" />
+      <TestMethod codeBase="D:\Projects\bdo-grind-tracker\tests\BdoGrindTracker.Ocr.Tests\bin\Release\net9.0-windows10.0.19041.0\BdoGrindTracker.Ocr.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="BdoGrindTracker.Ocr.Tests.SecondaryLootOcrRecognizerTests" name="TensorKeepsBgrOrderAspectRatioAndNormalizedZeroPadding" />
+    </UnitTest>
+    <UnitTest name="BdoGrindTracker.Ocr.Tests.SecondaryLootOcrRecognizerTests.BundledModelHasTheVerifiedUpstreamBytes" storage="d:\projects\bdo-grind-tracker\tests\bdogrindtracker.ocr.tests\bin\release\net9.0-windows10.0.19041.0\bdogrindtracker.ocr.tests.dll" id="72f45287-42af-812d-880b-2767b5f588af">
+      <Execution id="d177ac9c-27c9-4978-97ca-124780407713" />
+      <TestMethod codeBase="D:\Projects\bdo-grind-tracker\tests\BdoGrindTracker.Ocr.Tests\bin\Release\net9.0-windows10.0.19041.0\BdoGrindTracker.Ocr.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="BdoGrindTracker.Ocr.Tests.SecondaryLootOcrRecognizerTests" name="BundledModelHasTheVerifiedUpstreamBytes" />
+    </UnitTest>
+    <UnitTest name="BdoGrindTracker.Ocr.Tests.SecondaryLootOcrRecognizerTests.MissingModelReportsItsExpectedLocalPath" storage="d:\projects\bdo-grind-tracker\tests\bdogrindtracker.ocr.tests\bin\release\net9.0-windows10.0.19041.0\bdogrindtracker.ocr.tests.dll" id="6374a6d7-9f09-f173-a11a-714c1175be20">
+      <Execution id="5053b84b-91f6-4b9d-b5e2-ed5c2306000f" />
+      <TestMethod codeBase="D:\Projects\bdo-grind-tracker\tests\BdoGrindTracker.Ocr.Tests\bin\Release\net9.0-windows10.0.19041.0\BdoGrindTracker.Ocr.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="BdoGrindTracker.Ocr.Tests.SecondaryLootOcrRecognizerTests" name="MissingModelReportsItsExpectedLocalPath" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="463c130b-7b30-526f-edfb-976614e808fc" executionId="eaeb7ac7-fb77-4c9c-bfa2-696b7fdc3be9" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="7eb6724d-24f3-f469-8334-ad1a12bf466c" executionId="bae62589-a436-4628-85f8-fa17904fbdc3" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="7caf1156-3a19-e72b-1cb9-79b9f1839e83" executionId="216e9c80-b80d-415b-8872-720a3aee064b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="6374a6d7-9f09-f173-a11a-714c1175be20" executionId="5053b84b-91f6-4b9d-b5e2-ed5c2306000f" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="978fe809-666a-0423-9609-3a79a74903d0" executionId="bae68b82-2417-4816-a0ef-b5cc7fcf4fb6" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="72f45287-42af-812d-880b-2767b5f588af" executionId="d177ac9c-27c9-4978-97ca-124780407713" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="0b45c917-2f1a-f2fb-997c-ad07ac80278b" executionId="b2570dd2-b6d4-4578-9ab2-62ed64364ece" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="ad039ff6-226e-2070-90d0-631f13ad049f" executionId="06548f06-b5e2-4e3e-9e65-f7d63e825de0" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="5be46d01-2ff6-5df1-42b9-0e8eb2789f5c" executionId="b1375468-3593-471e-8cbc-a47cf414a3a9" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="038a6d3b-ea9d-e9e6-ee53-4fbd01e20456" executionId="02f50845-1876-499d-bab6-c5c7d5143a01" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Ergebnisse nicht in einer Liste" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="Alle geladenen Ergebnisse" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="10" executed="10" passed="10" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.4+50e68bbb8b (64-bit .NET 9.0.10)&#xD;
+[xUnit.net 00:00:00.10]   Discovering: BdoGrindTracker.Ocr.Tests&#xD;
+[xUnit.net 00:00:00.15]   Discovered:  BdoGrindTracker.Ocr.Tests&#xD;
+[xUnit.net 00:00:00.16]   Starting:    BdoGrindTracker.Ocr.Tests&#xD;
+[xUnit.net 00:00:00.75]   Finished:    BdoGrindTracker.Ocr.Tests&#xD;
+</StdOut>
+    </Output>
+  </ResultSummary>
+</TestRun>

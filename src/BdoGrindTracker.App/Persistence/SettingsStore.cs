@@ -56,7 +56,7 @@ internal sealed class SettingsStore
 
         Directory.CreateDirectory(directory);
         var json = JsonSerializer.Serialize(settings, JsonOptions);
-        File.WriteAllText(_settingsPath, json);
+        AtomicFile.WriteAllText(_settingsPath, json);
     }
 
     private static AppSettings CreateCurrentDefaults()

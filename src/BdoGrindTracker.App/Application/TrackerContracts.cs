@@ -1,6 +1,7 @@
 using BdoGrindTracker.App.Persistence;
 using BdoGrindTracker.App.Pricing;
 using BdoGrindTracker.App.UI;
+using BdoGrindTracker.App.Integrations.Garmoth;
 
 namespace BdoGrindTracker.App.Services;
 
@@ -9,6 +10,12 @@ internal sealed record TrackerMonitor(string DeviceName, string Label, Rectangle
 internal sealed record PreferenceSaveResult(string? Error = null)
 {
     public bool Succeeded => Error is null;
+}
+
+internal sealed record TrackerCommandResult(string? Error = null)
+{
+    public bool Succeeded => Error is null;
+    public static TrackerCommandResult Success { get; } = new();
 }
 
 internal sealed record TrackerPreferences
@@ -36,10 +43,17 @@ internal sealed record TrackerState
     public bool IsRunning { get; init; }
     public bool IsBusy { get; init; }
     public bool CanEditLoot { get; init; } = true;
+    public bool CanPause { get; init; }
+    public string? PersistenceError { get; init; }
+    public GarmothUploadPreview CurrentGarmothUpload { get; init; } = GarmothUploadPreview.Unavailable("Keine Session vorhanden.");
     public bool IsDemo { get; init; }
     public bool IsSubmitted { get; init; }
     public bool AnalyzerAvailable { get; init; }
     public string? TrackingBlockedReason { get; init; }
+    public string? MissingOcrLanguageTag { get; init; }
+    public bool IsInstallingOcrLanguage { get; init; }
+    public string? OcrInstallationStatus { get; init; }
+    public bool OcrRestartRequired { get; init; }
     public string? DetectedGameLanguage { get; init; }
     public string GameLanguageStatus { get; init; } = "Die Spielsprache wird beim Tracking-Start geprüft.";
     public string? SpotId { get; init; }
@@ -47,6 +61,7 @@ internal sealed record TrackerState
     public string CharacterLabel { get; init; } = "Automatische Erkennung";
     public TimeSpan Elapsed { get; init; }
     public LootSessionSnapshot Loot { get; init; } = LootSessionSnapshot.Empty;
+    public IReadOnlyList<string> ManualLootItems { get; init; } = [];
     public SilverValuationResult Silver { get; init; } = new(0, 0, 0, [], [], false);
     public string PriceStatus { get; init; } = "NPC- und Festwerte";
     public string Status { get; init; } = "Bereit für deine nächste Session.";
@@ -68,21 +83,27 @@ internal interface ITrackerSession : IAsyncDisposable
     IReadOnlyList<TrackerMonitor> Monitors { get; }
     IReadOnlyList<LootHistoryEntry> History { get; }
     LootPriceSnapshot Prices { get; }
-    Task ToggleTrackingAsync();
-    Task PauseAsync();
-    Task NewSessionAsync();
-    Task SetDemoAsync(bool enabled);
+    Task<TrackerCommandResult> ToggleTrackingAsync();
+    Task<TrackerCommandResult> PauseAsync();
+    Task<TrackerCommandResult> NewSessionAsync();
+    Task<TrackerCommandResult> SetDemoAsync(bool enabled);
+    Task<TrackerCommandResult> InstallOcrLanguageAsync();
+    Task<TrackerCommandResult> RecheckOcrLanguageAsync();
     // null keeps the encrypted key; empty string removes it. Never expose a saved key to markup.
     // Only a deliberate key/toggle change or resume action on the Garmoth page resumes a rejected upload.
     Task<PreferenceSaveResult> SavePreferencesAsync(TrackerPreferences preferences, string? apiKey = null,
         bool resumeAutomaticUpload = false);
-    Task UploadAsync();
-    Task UploadHistoryAsync(Guid sessionId);
-    Task UpdateHistoryLootAsync(Guid sessionId, IReadOnlyDictionary<string, long> totals,
+    Task<TrackerCommandResult> UploadAsync();
+    Task<TrackerCommandResult> UploadHistoryAsync(Guid sessionId);
+    Task<TrackerCommandResult> UploadConfirmedAsync(GarmothUploadPreview preview) =>
+        preview.Draft?.SourceSessionId is { } id ? UploadHistoryAsync(id) :
+            Task.FromResult(new TrackerCommandResult("Die Upload-Vorschau ist nicht mehr verfügbar."));
+    Task<TrackerCommandResult> UpdateHistoryLootAsync(Guid sessionId, IReadOnlyDictionary<string, long> totals,
         string? characterClass = null);
     // Apply an editor's change against its starting value without losing later drops.
-    Task UpdateLootQuantityAsync(Guid sessionId, string itemName, long quantity, long originalQuantity);
-    Task DeleteHistoryAsync(Guid sessionId);
+    Task<TrackerCommandResult> UpdateLootQuantityAsync(Guid sessionId, string itemName, long quantity, long originalQuantity);
+    Task<TrackerCommandResult> DeleteHistoryAsync(Guid sessionId);
+    Task<TrackerCommandResult> SaveSessionAsync() => Task.FromResult(TrackerCommandResult.Success);
     Task RefreshPricesAsync();
     Task TickAsync();
     // Persist before irreversible shutdown; failure leaves the paused tracker usable.

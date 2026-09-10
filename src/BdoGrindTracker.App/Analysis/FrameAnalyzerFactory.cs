@@ -6,7 +6,7 @@ namespace BdoGrindTracker.App.Analysis;
 
 internal static class FrameAnalyzerFactory
 {
-    public static ILootFrameAnalyzer Create()
+    public static ILootFrameAnalyzer Create(string? gameLanguage = null)
     {
         var vocabularyPath = Path.Combine(AppContext.BaseDirectory, "data", "items.en.txt");
         var iconCatalogPath = Path.Combine(AppContext.BaseDirectory, "data", "icons", "catalog.json");
@@ -39,21 +39,17 @@ internal static class FrameAnalyzerFactory
             var quantityRecognizer = new CompanionQuantityRecognizer(templateSet.Templates);
             rowPipeline = new CompanionNormalRowPipeline(quantityRecognizer);
             var windowsOcr = CompanionWindowsOcrRecognizer.TryCreate(
-                    preferredLanguageTag: "en-US",
-                    throwIfUnavailable: true) ??
+                    preferredLanguageTag: gameLanguage is null ? "en-US" : GetOcrLanguageTag(gameLanguage),
+                    throwIfUnavailable: true,
+                    requirePreferredLanguage: gameLanguage is not null) ??
                 throw new InvalidOperationException("Windows OCR konnte nicht erstellt werden.");
             var matcher = new CompanionItemMatcher(catalog);
             var nameRecognizer = new CompanionNameRecognizer(windowsOcr);
-            string? configuredLanguage = null;
+            string? configuredLanguage = gameLanguage;
             void ConfigureLanguage(string language)
             {
                 if (language == configuredLanguage) return;
-                var tag = language switch
-                {
-                    "de" => "de-DE",
-                    "en" => "en-US",
-                    _ => throw new ArgumentException("Unterstützte Spielsprachen sind Deutsch und Englisch.")
-                };
+                var tag = GetOcrLanguageTag(language);
                 var recognizer = CompanionWindowsOcrRecognizer.TryCreate(tag, throwIfUnavailable: true,
                     requirePreferredLanguage: true)!;
                 nameRecognizer.SetRecognizer(recognizer);
@@ -76,11 +72,18 @@ internal static class FrameAnalyzerFactory
         {
             rowPipeline?.Dispose();
             return new UnavailableFrameAnalyzer(
-                ex is LootPanelUnavailableException ? ex.Message :
+                ex is LootPanelUnavailableException or WindowsOcrLanguageUnavailableException ? ex.Message :
                 "Die Loot-Erkennung konnte nicht gestartet werden: " +
-                DescribeException(ex));
+                DescribeException(ex), (ex as WindowsOcrLanguageUnavailableException)?.LanguageTag);
         }
     }
+
+    internal static string GetOcrLanguageTag(string language) => language switch
+    {
+        "de" => "de-DE",
+        "en" => "en-US",
+        _ => throw new ArgumentException("Unterstützte Spielsprachen sind Deutsch und Englisch."),
+    };
 
     private static string DescribeException(Exception exception)
     {

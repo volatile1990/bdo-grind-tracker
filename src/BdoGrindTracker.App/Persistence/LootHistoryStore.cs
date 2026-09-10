@@ -17,6 +17,11 @@ internal sealed record LootHistoryEntry
     public required bool SilverIsComplete { get; init; }
     public DateTimeOffset? GarmothUploadedAt { get; init; }
     public bool GarmothUploadBlocked { get; init; }
+    public string[] ManualLootItems { get; init; } = [];
+    public bool GarmothLocallyModified { get; init; }
+    // Corrections after a request snapshot was frozen; only a possibly committed
+    // matching interval turns these into a visible remote-divergence warning.
+    public Guid[] GarmothPendingCorrectionIntervals { get; init; } = [];
 }
 
 internal sealed class LootHistoryStore
@@ -30,6 +35,7 @@ internal sealed class LootHistoryStore
     };
 
     private readonly string _historyPath;
+    public string? LoadError { get; private set; }
 
     public LootHistoryStore(string historyPath)
     {
@@ -41,16 +47,29 @@ internal sealed class LootHistoryStore
     {
         try
         {
-            var file = new FileInfo(_historyPath);
-            if (!file.Exists || file.Length > MaximumFileBytes)
-                return [];
-
-            var json = File.ReadAllText(_historyPath);
+            using var stream = new FileStream(_historyPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            if (stream.Length > MaximumFileBytes)
+                throw new InvalidDataException("Die Verlaufsdatei ist größer als das unterstützte Dateilimit.");
+            using var reader = new StreamReader(stream);
+            var json = reader.ReadToEnd();
             var document = JsonSerializer.Deserialize<LootHistoryDocument>(json, JsonOptions);
-            return Normalize(document?.Entries ?? []);
+            if (document is null || document.Version != 1 || document.Entries is null)
+                throw new InvalidDataException("Das Format der Verlaufsdatei wird nicht unterstützt.");
+            if (document.Entries.Any(entry => entry is null || entry.Totals is null))
+                throw new InvalidDataException("Die Verlaufsdatei enthält einen unvollständigen Sessiondatensatz.");
+            var entries = Normalize(document.Entries);
+            LoadError = null;
+            return entries;
         }
-        catch (Exception exception) when (exception is JsonException or IOException or UnauthorizedAccessException)
+        catch (Exception exception) when (exception is FileNotFoundException or DirectoryNotFoundException)
         {
+            LoadError = null;
+            return [];
+        }
+        catch (Exception exception) when (exception is JsonException or IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException)
+        {
+            LoadError = "Der Verlauf konnte nicht gelesen werden und wird nicht überschrieben. " +
+                "Bitte prüfe die Datei " + _historyPath + " und versuche das Speichern erneut. " + exception.Message;
             return [];
         }
     }
@@ -58,39 +77,18 @@ internal sealed class LootHistoryStore
     public void Save(IEnumerable<LootHistoryEntry> entries)
     {
         ArgumentNullException.ThrowIfNull(entries);
+        if (LoadError is not null) throw new IOException(LoadError);
         var normalized = Normalize(entries);
         var directory = Path.GetDirectoryName(_historyPath)
             ?? throw new InvalidOperationException("Der Verlaufsordner ist ungültig.");
         Directory.CreateDirectory(directory);
 
-        var temporaryPath = _historyPath + ".tmp";
-        try
+        var json = JsonSerializer.Serialize(new LootHistoryDocument
         {
-            var json = JsonSerializer.Serialize(new LootHistoryDocument
-            {
-                Version = 1,
-                Entries = normalized.ToList()
-            }, JsonOptions);
-            File.WriteAllText(temporaryPath, json);
-            File.Move(temporaryPath, _historyPath, overwrite: true);
-        }
-        finally
-        {
-            try
-            {
-                if (File.Exists(temporaryPath))
-                    File.Delete(temporaryPath);
-            }
-            catch (IOException)
-            {
-                // The completed history file is authoritative. A locked temporary
-                // file can safely be replaced during the next save.
-            }
-            catch (UnauthorizedAccessException)
-            {
-                // Saving already reported the material failure to the caller.
-            }
-        }
+            Version = 1,
+            Entries = normalized.ToList()
+        }, JsonOptions);
+        AtomicFile.WriteAllText(_historyPath, json);
     }
 
     private static IReadOnlyList<LootHistoryEntry> Normalize(IEnumerable<LootHistoryEntry> entries)
@@ -112,7 +110,12 @@ internal sealed class LootHistoryStore
                 Totals = entry.Totals
                     .Where(static pair => !string.IsNullOrWhiteSpace(pair.Key) && pair.Value >= 0)
                     .ToDictionary(static pair => pair.Key, static pair => pair.Value,
-                        StringComparer.OrdinalIgnoreCase)
+                        StringComparer.OrdinalIgnoreCase),
+                ManualLootItems = (entry.ManualLootItems ?? [])
+                    .Where(name => !string.IsNullOrWhiteSpace(name) && entry.Totals.ContainsKey(name))
+                    .Distinct(StringComparer.OrdinalIgnoreCase).ToArray(),
+                GarmothPendingCorrectionIntervals = (entry.GarmothPendingCorrectionIntervals ?? [])
+                    .Where(id => id != Guid.Empty).Distinct().ToArray(),
             })
             .Where(static entry => entry.Totals.Count > 0)
             .OrderByDescending(static entry => entry.UpdatedAt)
@@ -123,7 +126,7 @@ internal sealed class LootHistoryStore
 
     private sealed class LootHistoryDocument
     {
-        public int Version { get; init; } = 1;
-        public List<LootHistoryEntry> Entries { get; init; } = [];
+        public required int Version { get; init; }
+        public required List<LootHistoryEntry> Entries { get; init; }
     }
 }

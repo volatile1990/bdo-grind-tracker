@@ -4,8 +4,11 @@
 
 Der eigene Menüpunkt **Garmoth** bündelt Verbindung, Stundenautomatik und sämtliche
 Upload-Aktionen. Die Integration sendet nach Bestätigung mit **Jetzt hochladen** oder
-mit ausdrücklich aktivierter Stundenautomatik. Beim manuellen Upload wird die laufende
-Aufnahme pausiert und ausstehender Loot abgeschlossen. Automatische Uploads lassen das Tracking weiterlaufen.
+mit ausdrücklich aktivierter Stundenautomatik. Beim Öffnen der manuellen Vorschau wird die laufende
+Aufnahme pausiert und ausstehender Loot abgeschlossen. Die Bestätigung zeigt den
+tatsächlichen Rest mit Dauer, Mengen, ausgelassenen Items und dem eingefrorenen
+Silberbetrag. Ändern sich Klasse, Dauer oder Mengen danach, ist eine neue Vorschau
+erforderlich. Automatische Uploads lassen das Tracking weiterlaufen.
 Die App meldet sich nicht selbstständig an und
 liest weder Browser-Cookies noch gespeicherte Companion-API-Keys. Der eigene Key
 wird einmal unter **Garmoth → Zugang & Automatik** hinterlegt und mit Windows-DPAPI für
@@ -76,10 +79,27 @@ Ein erfolgreicher oder unklarer manueller Upload sperrt wie bisher weitere Uploa
 und das Fortsetzen dieser Sitzung; eine ausdrücklich abgelehnte Anfrage erlaubt
 einen neuen manuellen Versuch.
 
-Stundenstände, bereits gesendete Mengen und Sperren sind sitzungs-/prozesslokal,
-da Sitzungen nach einem Neustart nicht wiederhergestellt werden. Es wird kein
-serverseitiger Idempotency-Key erfunden; unklare Ergebnisse werden nicht automatisch
-wiederholt.
+Vor jedem HTTP-Versand wird die Uploadabsicht in `garmoth-upload-journal-v1.json`
+atomar geschrieben und auf den Datenträger geflusht. Der Eintrag enthält eine
+Versuchs-ID, Quellsession, eingefrorene Abschnittsmengen, Dauer, Klasse, Spot und
+Silber; keine Zugangsdaten oder Serverantworten. Ohne erfolgreiche Speicherung
+wird kein HTTP-Aufruf ausgeführt. Danach wird das Ergebnis atomar ergänzt.
+Schlägt dies fehl, bleibt die offene Absicht erhalten und weitere Uploads werden
+gesperrt. Ein nicht lesbares Journal wird nie als leer behandelt.
+
+Beim Neustart sperren erfolgreiche, unklare und unvollständige Versuche den
+Gesamt-Upload der jeweiligen Session, auch wenn ihr Verlaufsvermerk vorher nicht
+gespeichert werden konnte. Eindeutige Ablehnungen erlauben einen neuen Versuch.
+Die während des laufenden Prozesses verwendeten Stundenstände und Mengenabzüge
+werden weiterhin im Speicher geführt; ein Rest nach einem vollständigen Neustart
+wird konservativ nicht erneut gesendet. Die Notiz-ID ist kein serverseitiger
+Idempotency-Key. Eine garantierte Einmalverarbeitung wird damit nicht behauptet;
+unklare Ergebnisse werden nicht automatisch wiederholt.
+
+Uploadbereitschaft und Versand nutzen dieselbe Payload-Prüfung für Klasse/Spec,
+Spotzuordnung, mindestens eine volle **ungesendete** Minute, unterstützten Loot
+und darstellbare Silberwerte. Der Verlauf auf der Garmoth-Seite zeigt die aktuelle
+Bewertung für den Upload und den gespeicherten Silberwert getrennt.
 
 ## Statisch belegter Vertrag
 

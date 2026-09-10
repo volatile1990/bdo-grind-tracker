@@ -1,0 +1,125 @@
+{
+  "auditLayoutVerified": [
+    {
+      "page": "Live-Session",
+      "width": 1440,
+      "mainClient": 1208,
+      "mainScroll": 1208,
+      "brokenImages": [],
+      "errorVisible": false
+    },
+    {
+      "page": "Live-Session",
+      "width": 860,
+      "mainClient": 772,
+      "mainScroll": 772,
+      "brokenImages": [],
+      "errorVisible": false
+    },
+    {
+      "page": "Live-Session",
+      "width": 760,
+      "mainClient": 672,
+      "mainScroll": 672,
+      "brokenImages": [],
+      "errorVisible": false
+    },
+    {
+      "page": "Verlauf",
+      "width": 1440,
+      "mainClient": 1208,
+      "mainScroll": 1208,
+      "brokenImages": [],
+      "errorVisible": false
+    },
+    {
+      "page": "Verlauf",
+      "width": 860,
+      "mainClient": 772,
+      "mainScroll": 772,
+      "brokenImages": [],
+      "errorVisible": false
+    },
+    {
+      "page": "Verlauf",
+      "width": 760,
+      "mainClient": 672,
+      "mainScroll": 672,
+      "brokenImages": [],
+      "errorVisible": false
+    },
+    {
+      "page": "Garmoth",
+      "width": 1440,
+      "mainClient": 1208,
+      "mainScroll": 1208,
+      "brokenImages": [],
+      "errorVisible": false
+    },
+    {
+      "page": "Garmoth",
+      "width": 860,
+      "mainClient": 772,
+      "mainScroll": 772,
+      "brokenImages": [],
+      "errorVisible": false
+    },
+    {
+      "page": "Garmoth",
+      "width": 760,
+      "mainClient": 672,
+      "mainScroll": 672,
+      "brokenImages": [],
+      "errorVisible": false
+    },
+    {
+      "page": "Overlay",
+      "width": 1440,
+      "mainClient": 1208,
+      "mainScroll": 1208,
+      "brokenImages": [],
+      "errorVisible": false
+    },
+    {
+      "page": "Overlay",
+      "width": 860,
+      "mainClient": 772,
+      "mainScroll": 772,
+      "brokenImages": [],
+      "errorVisible": false
+    },
+    {
+      "page": "Overlay",
+      "width": 760,
+      "mainClient": 672,
+      "mainScroll": 672,
+      "brokenImages": [],
+      "errorVisible": false
+    },
+    {
+      "page": "Einstellungen",
+      "width": 1440,
+      "mainClient": 1208,
+      "mainScroll": 1208,
+      "brokenImages": [],
+      "errorVisible": false
+    },
+    {
+      "page": "Einstellungen",
+      "width": 860,
+      "mainClient": 772,
+      "mainScroll": 772,
+      "brokenImages": [],
+      "errorVisible": false
+    },
+    {
+      "page": "Einstellungen",
+      "width": 760,
+      "mainClient": 672,
+      "mainScroll": 672,
+      "brokenImages": [],
+      "errorVisible": false
+    }
+  ],
+  "auditErrors": []
+}

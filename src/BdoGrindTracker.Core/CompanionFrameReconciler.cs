@@ -6,9 +6,15 @@ namespace BdoGrindTracker.Core;
 
 public sealed class CompanionFrameReconciler
 {
-    private sealed class Frame(List<Entry> entries)
+    private sealed class Frame(List<Entry> entries, long captureIndex, DateTimeOffset? capturedAt)
     {
         public List<Entry> Entries { get; } = entries;
+        public long CaptureIndex { get; } = captureIndex;
+        public DateTimeOffset? CapturedAt { get; } = capturedAt;
+        public long? PreviousCaptureIndex { get; set; }
+        public int GeometricOverlap { get; set; }
+        public int ConfirmedOverlap { get; set; }
+        public List<NormalLootOverlapAttempt> Attempts { get; } = [];
     }
 
     private sealed class Entry(string name, uint count, int y, long frame, bool duplicate)
@@ -21,7 +27,15 @@ public sealed class CompanionFrameReconciler
 
         public int? Slot { get; init; }
         public bool IsPlaceholder { get; init; }
+        public bool IsAlignmentAnchor { get; init; }
+        public int? AlignmentPreviousSlot { get; init; }
         public DropTrack? Track { get; set; }
+        public uint? InputQuantity { get; init; }
+        public Guid? CandidatePreviousTrackId { get; set; }
+        public int? CandidatePreviousSlot { get; set; }
+        public Guid? MatchedPreviousTrackId { get; set; }
+        public int? MatchedPreviousSlot { get; set; }
+        public string AlignmentReason { get; set; } = "first-frame";
 
         public DropQuantityBounds? QuantityBounds { get; init; }
 
@@ -38,6 +52,9 @@ public sealed class CompanionFrameReconciler
                 EstimatedCount = this.EstimatedCount,
                 QuantityBounds = this.QuantityBounds,
                 Slot = this.Slot, IsPlaceholder = this.IsPlaceholder, Track = this.Track,
+                InputQuantity = this.InputQuantity,
+                IsAlignmentAnchor = this.IsAlignmentAnchor,
+                AlignmentPreviousSlot = this.AlignmentPreviousSlot,
             };
         }
     }
@@ -67,6 +84,8 @@ public sealed class CompanionFrameReconciler
 
     private int processedFrameCount;
     private readonly bool trackRows;
+    public long CaptureIndex { get; private set; }
+    public IReadOnlyList<NormalLootReconciliationTrace> LastTrace { get; private set; } = [];
 
     /// <summary>
     /// Optional, verified per-item minimums change only the emitted amount of a
@@ -91,9 +110,11 @@ public sealed class CompanionFrameReconciler
         }
     }
 
-    public IReadOnlyList<CompanionRecognizedEntry> ProcessFrame(IReadOnlyList<CompanionRecognizedEntry> entries)
+    public IReadOnlyList<CompanionRecognizedEntry> ProcessFrame(IReadOnlyList<CompanionRecognizedEntry> entries,
+        DateTimeOffset? capturedAt = null)
     {
         ArgumentNullException.ThrowIfNull(entries, "entries");
+        LastTrace = [];
         List<Entry> list = new List<Entry>(entries.Count);
         foreach (CompanionRecognizedEntry entry in entries)
         {
@@ -101,6 +122,7 @@ public sealed class CompanionFrameReconciler
             {
                 throw new ArgumentException("A frame cannot contain a null entry.", "entries");
             }
+            if (entry.IsAlignmentAnchor && !trackRows) continue;
             // Normalize before row identities and overlap are compared. A bad
             // OCR 7 followed by the real 1 must still identify the same drop.
             var count = LimitQuantity(trackRows && entry.Count == 0 ? InvalidCount : entry.Count, entry.QuantityBounds);
@@ -110,7 +132,10 @@ public sealed class CompanionFrameReconciler
                 QuantityBounds = entry.QuantityBounds,
                 EstimatedCount = isCertainUnit,
                 Slot = entry.Slot, IsPlaceholder = entry.IsPlaceholder,
+                IsAlignmentAnchor = entry.IsAlignmentAnchor,
+                AlignmentPreviousSlot = entry.AlignmentPreviousSlot,
                 Track = trackRows ? new DropTrack { Name = entry.IsPlaceholder ? null : entry.Name } : null,
+                InputQuantity = entry.Count == InvalidCount ? null : entry.Count,
             });
         }
         if (trackRows && list.Count > 0 && list.All(entry => entry.Slot is >= 0 and < 6))
@@ -124,7 +149,7 @@ public sealed class CompanionFrameReconciler
                         { Slot = slot, IsPlaceholder = true, Track = new DropTrack() });
             list.Sort((left, right) => left.Slot!.Value.CompareTo(right.Slot!.Value));
         }
-        frames.Add(new Frame(list));
+        frames.Add(new Frame(list, ++CaptureIndex, capturedAt));
         if (frames.Count - processedFrameCount >= 10)
         {
             return Flush();
@@ -141,16 +166,22 @@ public sealed class CompanionFrameReconciler
     {
         frames.Clear();
         processedFrameCount = 0;
+        CaptureIndex = 0;
+        LastTrace = [];
     }
 
     private IReadOnlyList<CompanionRecognizedEntry> Flush()
     {
+        LastTrace = [];
         Repair(processedFrameCount);
         List<CompanionRecognizedEntry> list = new List<CompanionRecognizedEntry>();
+        var traces = trackRows ? new List<NormalLootReconciliationTrace>() : null;
         for (int i = processedFrameCount; i < frames.Count; i++)
         {
+            var rowTraces = trackRows ? new List<NormalLootRowTrace>() : null;
             foreach (Entry entry in frames[i].Entries)
             {
+                if (entry.IsAlignmentAnchor) { Trace(entry, "alignment-anchor", 0); continue; }
                 if (!entry.IsPlaceholder && entry.Count != uint.MaxValue && (!entry.Duplicate || trackRows))
                 {
                     var minimum = entry.QuantityBounds?.Minimum ?? 0u;
@@ -160,10 +191,11 @@ public sealed class CompanionFrameReconciler
                     var track = entry.Track;
                     if (track is { EmittedQuantity: { } emitted })
                     {
-                        if (!track.Estimated || entry.EstimatedCount) continue;
+                        if (!track.Estimated || entry.EstimatedCount)
+                        { Trace(entry, "matched-existing", 0); continue; }
                         track.Estimated = false;
                         track.EmittedQuantity = quantity;
-                        if (quantity == emitted) continue;
+                        if (quantity == emitted) { Trace(entry, "estimate-confirmed", 0); continue; }
                         track.Revision++;
                         list.Add(new CompanionRecognizedEntry(entry.Name, quantity, entry.Y)
                         {
@@ -171,6 +203,7 @@ public sealed class CompanionFrameReconciler
                             QuantityDelta = checked((int)quantity - (int)emitted),
                             TotalDropQuantity = checked((int)quantity), QuantityBounds = entry.QuantityBounds,
                         });
+                        Trace(entry, "quantity-revised", checked((int)quantity - (int)emitted));
                         continue;
                     }
                     if (entry.Duplicate && track is null) continue;
@@ -185,9 +218,23 @@ public sealed class CompanionFrameReconciler
                         QuantityBounds = entry.QuantityBounds,
                         EventId = track?.Id, TotalDropQuantity = track is null ? null : checked((int)quantity),
                     });
+                    if (rowTraces is not null) Trace(entry, "counted-new", checked((int)quantity));
                 }
+                else Trace(entry, entry.IsPlaceholder ? "unresolved-placeholder" : "unresolved-quantity", 0);
             }
+            if (rowTraces is not null)
+                traces!.Add(new(frames[i].CaptureIndex, frames[i].CapturedAt, frames[i].PreviousCaptureIndex,
+                    frames[i].GeometricOverlap, frames[i].ConfirmedOverlap, frames[i].Attempts.ToArray(), rowTraces.ToArray()));
+
+            void Trace(Entry entry, string outcome, int delta) => rowTraces?.Add(new(
+                entry.Slot, entry.IsPlaceholder ? null : entry.Y, entry.IsPlaceholder ? null : entry.Name,
+                entry.InputQuantity, entry.Count == InvalidCount ? null : entry.Count,
+                entry.QuantityBounds, entry.EstimatedCount, entry.IsPlaceholder, entry.Frame,
+                entry.Track?.Id, entry.CandidatePreviousTrackId, entry.CandidatePreviousSlot,
+                entry.AlignmentReason, outcome, entry.Track?.Revision ?? 0, delta)
+                { MatchedPreviousTrackId = entry.MatchedPreviousTrackId, MatchedPreviousSlot = entry.MatchedPreviousSlot });
         }
+        LastTrace = traces?.ToArray() ?? [];
         processedFrameCount = frames.Count;
         if (trackRows && frames.Count > 1)
         {
@@ -212,6 +259,13 @@ public sealed class CompanionFrameReconciler
             Frame left = frames[i];
             Frame right = frames[i + 1];
             int overlap = FindOverlap(left, right, requireFrameProgression: false);
+            if (trackRows)
+            {
+                right.PreviousCaptureIndex = left.CaptureIndex;
+                right.GeometricOverlap = overlap;
+                foreach (var entry in right.Entries)
+                    entry.AlignmentReason = left.Entries.Count == 0 ? "after-empty-frame" : "no-overlap";
+            }
             AssignNextFrames(left, right, overlap);
         }
         int num2 = ((processedStart <= 0) ? 1 : processedStart);
@@ -219,7 +273,9 @@ public sealed class CompanionFrameReconciler
         {
             Frame left2 = frames[num3 - 1];
             Frame frame = frames[num3];
-            int num4 = FindOverlap(left2, frame, requireFrameProgression: true);
+            if (trackRows) frame.Attempts.Clear();
+            int num4 = FindOverlap(left2, frame, requireFrameProgression: true, trackRows ? frame.Attempts : null);
+            if (trackRows) frame.ConfirmedOverlap = num4;
             for (int j = frame.Entries.Count - num4; j < frame.Entries.Count; j++)
             {
                 frame.Entries[j].Duplicate = true;
@@ -235,6 +291,19 @@ public sealed class CompanionFrameReconciler
                 var right = frames[i];
                 var overlap = FindOverlap(left, right, requireFrameProgression: true);
                 var offset = right.Entries.Count - overlap;
+                var geometricOffset = right.Entries.Count - right.GeometricOverlap;
+                for (var j = 0; j < right.Entries.Count; j++)
+                {
+                    var next = right.Entries[j];
+                    if (j >= geometricOffset)
+                    {
+                        var previous = left.Entries[j - geometricOffset];
+                        next.CandidatePreviousTrackId = previous.Track?.Id;
+                        next.CandidatePreviousSlot = previous.Slot;
+                        next.AlignmentReason = j < offset ? "overlap-rejected-by-frame-tags" : "matched-overlap";
+                    }
+                    else if (right.GeometricOverlap > 0) next.AlignmentReason = "new-leading-row";
+                }
                 for (var j = 0; j < overlap; j++)
                     if (right.Entries[offset + j].Duplicate)
                     {
@@ -245,11 +314,28 @@ public sealed class CompanionFrameReconciler
                             // An unread row may carry an old ID across a gap, but it
                             // cannot change the item that was booked under that ID.
                             next.Duplicate = false;
+                            next.AlignmentReason = "item-conflict-after-placeholder";
                             continue;
                         }
                         if (!next.IsPlaceholder) track.Name = next.Name;
+                        next.MatchedPreviousTrackId = track.Id;
+                        next.MatchedPreviousSlot = left.Entries[j].Slot;
                         next.Track = track;
                     }
+                foreach (var anchor in right.Entries.Where(entry => entry.IsAlignmentAnchor))
+                {
+                    var previous = left.Entries.FirstOrDefault(entry => anchor.AlignmentPreviousSlot is not null &&
+                        entry.Slot == anchor.AlignmentPreviousSlot && !entry.IsPlaceholder && SameIdentity(entry, anchor));
+                    if (previous?.Track is not { } track) continue;
+                    // A verified older row retains its original ID even when cyclic
+                    // tags reject ordinary overlap. Otherwise a later primary read
+                    // could count the recovered fading row under a fresh ID.
+                    anchor.Track = track;
+                    anchor.Duplicate = true;
+                    anchor.MatchedPreviousTrackId = track.Id;
+                    anchor.MatchedPreviousSlot = previous.Slot;
+                    anchor.AlignmentReason = "verified-older-row";
+                }
             }
         }
     }
@@ -387,7 +473,8 @@ public sealed class CompanionFrameReconciler
         }
     }
 
-    private int FindOverlap(Frame left, Frame right, bool requireFrameProgression)
+    private int FindOverlap(Frame left, Frame right, bool requireFrameProgression,
+        List<NormalLootOverlapAttempt>? attempts = null)
     {
         if (!trackRows && TryInsertMissingEntry(left, right))
         {
@@ -401,15 +488,19 @@ public sealed class CompanionFrameReconciler
             bool flag2 = true;
             int? slotShift = null;
             var anchors = 0;
+            var failure = "no-named-anchor";
+            int? previousSlot = null, currentSlot = null;
             for (int i = 0; i < num; i++)
             {
                 Entry entry = left.Entries[i];
                 Entry entry2 = right.Entries[num2 + i];
+                previousSlot = entry.Slot;
+                currentSlot = entry2.Slot;
                 var same = SameIdentity(entry, entry2);
                 if (trackRows && entry.Slot is { } from && entry2.Slot is { } to)
                 {
                     if (to < from || slotShift is { } shift && shift != to - from)
-                    { flag2 = false; break; }
+                    { flag2 = false; failure = "inconsistent-slot-shift"; break; }
                     slotShift = to - from;
                     same = entry.IsPlaceholder || entry2.IsPlaceholder ||
                         entry.Name == entry2.Name && (same || entry.EstimatedCount || entry2.EstimatedCount);
@@ -419,6 +510,7 @@ public sealed class CompanionFrameReconciler
                 if (!same)
                 {
                     flag2 = false;
+                    failure = entry.Name != entry2.Name ? "item-mismatch" : "quantity-mismatch";
                     break;
                 }
                 if (requireFrameProgression && !(trackRows && entry.Name == entry2.Name &&
@@ -428,6 +520,7 @@ public sealed class CompanionFrameReconciler
                     if (entry.Frame != entry2.Frame - 1 && !flag && !flag3)
                     {
                         flag2 = false;
+                        failure = "frame-tag-progression";
                         break;
                     }
                     flag = flag || flag3;
@@ -436,8 +529,10 @@ public sealed class CompanionFrameReconciler
             }
             if (flag2 && (!trackRows || anchors > 0))
             {
+                attempts?.Add(new(num, true, "matched", null, null));
                 return num;
             }
+            attempts?.Add(new(num, false, failure, previousSlot, currentSlot));
         }
         return 0;
     }

@@ -1,0 +1,16 @@
+NULL totals: ArgumentNullException
+case-colliding totals: ArgumentException
+After 10m active: historyFileExists=False
+Blocked pause status=Pausiert. Die Session bleibt erhalten.
+Blocked new session status=Neue Session angelegt. Die Diagnose-Aufzeichnung ist ausgeschaltet.; HasSession=False
+Persisted loot after clearing failed session={"Black Stone":100}
+Pending auto upload: IsBusy=True
+After PauseAsync during auto upload: IsRunning=True
+After 60m upload + 30m unsent + new session: Requests=1
+All replays used isolated temporary data and mocked HTTP/capture.
+Correction1 under analyzer error: Total=15; IsError=True
+Correction2 same stale original: Total=20; IsError=True
+Upload with blocked local save: Requests=1; Status=Sitzung erfolgreich an Garmoth übertragen. Zum Weitergrinden eine neue Sitzung starten.
+Upload guard on disk despite remote success=False
+Transiently locked valid history: Loaded=0
+After saving loader result: Entries=0

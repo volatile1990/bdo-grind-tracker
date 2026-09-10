@@ -34,6 +34,10 @@ public sealed record LootObservation(
     /// <summary>The confirmed item/spot range supplies one without reading a quantity.</summary>
     public bool UsesFixedUnitQuantity { get; init; }
 
+    /// <summary>Recovered older row used only for alignment; cannot emit loot or quantity revisions.</summary>
+    public bool IsAlignmentAnchor { get; init; }
+    public int? AlignmentPreviousSlot { get; init; }
+
 }
 
 /// <summary>A native loot delta, including signed rare corrections.</summary>
@@ -74,4 +78,8 @@ public sealed record LootTrackingDecision(
 /// <summary>All newly confirmed events and per-row decisions from one frame.</summary>
 public sealed record TrackerFrameResult(
     IReadOnlyList<TrackedLootEvent> NewEvents,
-    IReadOnlyList<LootTrackingDecision> Decisions);
+    IReadOnlyList<LootTrackingDecision> Decisions)
+{
+    public long? NormalCaptureIndex { get; init; }
+    public IReadOnlyList<NormalLootReconciliationTrace> NormalReconciliation { get; init; } = [];
+}

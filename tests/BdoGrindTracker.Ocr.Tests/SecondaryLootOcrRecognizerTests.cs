@@ -116,12 +116,16 @@ public sealed class SecondaryLootOcrRecognizerTests
 
     private static Mat RenderRow(string text)
     {
-        using var bitmap = new Bitmap(900, 100, PixelFormat.Format24bppRgb);
+        using var font = new Font("Segoe UI", 36, FontStyle.Regular, GraphicsUnit.Pixel);
+        const int padding = 4;
+        // This recognition-only engine receives a cropped text line in production.
+        // Size the fixture from its line height so normalization does not shrink
+        // the glyphs together with an unrelated, mostly empty panel background.
+        using var bitmap = new Bitmap(900, font.Height + 2 * padding, PixelFormat.Format24bppRgb);
         using var graphics = Graphics.FromImage(bitmap);
         graphics.Clear(Color.White);
         graphics.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
-        using var font = new Font("Segoe UI", 36, FontStyle.Regular, GraphicsUnit.Pixel);
-        graphics.DrawString(text, font, Brushes.Black, 18, 20);
+        graphics.DrawString(text, font, Brushes.Black, padding, padding);
         graphics.Flush();
         return CompanionFrameDecoder.Decode(bitmap);
     }

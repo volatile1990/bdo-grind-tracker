@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "parameters": "--vulnerable --include-transitive",
+  "sources": [
+    "https://api.nuget.org/v3/index.json"
+  ],
+  "projects": [
+    {
+      "path": "D:/Projects/bdo-grind-tracker/src/BdoGrindTracker.App/BdoGrindTracker.App.csproj"
+    },
+    {
+      "path": "D:/Projects/bdo-grind-tracker/src/BdoGrindTracker.Core/BdoGrindTracker.Core.csproj"
+    },
+    {
+      "path": "D:/Projects/bdo-grind-tracker/src/BdoGrindTracker.Ocr/BdoGrindTracker.Ocr.csproj"
+    },
+    {
+      "path": "D:/Projects/bdo-grind-tracker/tests/BdoGrindTracker.App.Tests/BdoGrindTracker.App.Tests.csproj"
+    },
+    {
+      "path": "D:/Projects/bdo-grind-tracker/tests/BdoGrindTracker.Core.Tests/BdoGrindTracker.Core.Tests.csproj"
+    },
+    {
+      "path": "D:/Projects/bdo-grind-tracker/tests/BdoGrindTracker.Ocr.Tests/BdoGrindTracker.Ocr.Tests.csproj"
+    }
+  ]
+}

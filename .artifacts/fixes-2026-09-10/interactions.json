@@ -1,0 +1,119 @@
+[
+  {
+    "test": "empty-search",
+    "text": "JEDER GRIND ZÄHLT\nDein Verlauf\n\nDeine Sessions, deine Fortschritte, deine nächsten Ziele.\n\nEU · NPC- und Festwerte\nZeitraum\nGesamter Verlauf\nLetzte 7 Tage\nLetzte 30 Tage\nLetzte 90 Tage\nKlasse\nAlle Klassen\nWarrior · Awakening\n0 Sessions\nSESSIONS\n0\nGRINDZEIT\n0 Min.\nSILBER NETTO\n—\nØ SILBER / STUNDE\n—\nDeine Grindspots\nGrindspots\nAlle Sessions\nKein Grindspot gefunden\n\nVersuche einen anderen Suchbegriff.\n\nSuche zurücksetzen"
+  },
+  {
+    "test": "keyboard-reorder",
+    "before": [
+      "Branch of Abundance",
+      "WON Wandering Origin Crystal",
+      "WON Origin Shard",
+      "Silent Fragment of Origin",
+      "Silent Crystal of Origin",
+      "Embers of Ynix - Armor",
+      "Twilight of the End - Earring",
+      "Apeiron Earring",
+      "Broken Vestige of Goldroot",
+      "Nev's Fragment",
+      "Fusion Shard",
+      "Ancient Spirit Dust",
+      "Black Stone",
+      "Caphras Stone",
+      "Laila's Petal",
+      "Pure Black Stone",
+      "Refined Origin of Hunger",
+      "Refined Essence of Devouring",
+      "Crimson Primordial Pigment - Sovereign",
+      "Violet Primordial Pigment - Sovereign",
+      "Violet Primordial Pigment - Edana",
+      "Sunset Primordial Pigment - Edana",
+      "Crimson Primordial Luster - Sovereign",
+      "Violet Primordial Luster - Sovereign",
+      "Violet Primordial Luster - Edana",
+      "Sunset Primordial Luster - Edana",
+      "Corrupt Oil of Immortality"
+    ],
+    "after": [
+      "WON Wandering Origin Crystal",
+      "Branch of Abundance",
+      "WON Origin Shard",
+      "Silent Fragment of Origin",
+      "Silent Crystal of Origin",
+      "Embers of Ynix - Armor",
+      "Twilight of the End - Earring",
+      "Apeiron Earring",
+      "Broken Vestige of Goldroot",
+      "Nev's Fragment",
+      "Fusion Shard",
+      "Ancient Spirit Dust",
+      "Black Stone",
+      "Caphras Stone",
+      "Laila's Petal",
+      "Pure Black Stone",
+      "Refined Origin of Hunger",
+      "Refined Essence of Devouring",
+      "Crimson Primordial Pigment - Sovereign",
+      "Violet Primordial Pigment - Sovereign",
+      "Violet Primordial Pigment - Edana",
+      "Sunset Primordial Pigment - Edana",
+      "Crimson Primordial Luster - Sovereign",
+      "Violet Primordial Luster - Sovereign",
+      "Violet Primordial Luster - Edana",
+      "Sunset Primordial Luster - Edana",
+      "Corrupt Oil of Immortality"
+    ],
+    "focus": "Branch of Abundance · Lootspalte 2 von 27 – als Favorit markieren"
+  },
+  {
+    "test": "table-wheel",
+    "normal": {
+      "prevented": false,
+      "x": 0
+    },
+    "shift": {
+      "prevented": true,
+      "x": 120
+    },
+    "edge": {
+      "prevented": false,
+      "x": 2061.333251953125
+    }
+  },
+  {
+    "test": "quantity-edit-focus",
+    "quantity": "56",
+    "focused": "Gesamtmenge für Black Stone bearbeiten"
+  },
+  {
+    "test": "missing-item",
+    "name": "Caphras Stone",
+    "quantity": 7
+  },
+  {
+    "test": "garmoth-local-scroll",
+    "width": 860,
+    "document": 860
+  },
+  {
+    "test": "garmoth-local-scroll",
+    "width": 430,
+    "document": 430
+  },
+  {
+    "test": "garmoth-local-scroll",
+    "width": 320,
+    "document": 320
+  },
+  {
+    "test": "named-small-dialog",
+    "metrics": {
+      "name": "Fehlenden Gegenstand ergänzen",
+      "width": 296,
+      "viewport": 320,
+      "scroll": 773,
+      "client": 773,
+      "overflows": 0
+    }
+  }
+]

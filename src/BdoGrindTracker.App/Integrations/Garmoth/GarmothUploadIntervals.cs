@@ -34,6 +34,7 @@ internal sealed class GarmothUploadIntervals
 
     public bool IsBlocked { get { lock (_gate) return _blocked; } }
     public bool AutomaticSuspended { get { lock (_gate) return _automaticSuspended; } }
+    public Guid? PreparedIntervalId { get { lock (_gate) return _prepared?.Interval.Id; } }
 
     public void Observe(TimeSpan confirmedActiveDuration,
         IReadOnlyDictionary<string, long> totals, DateTimeOffset observedAt)
@@ -115,6 +116,22 @@ internal sealed class GarmothUploadIntervals
             return Reserve(new(new(Guid.NewGuid(), remaining, delta,
                 startedAt + _consumedDuration), activeDuration, IsAutomatic: false));
         }
+    }
+
+    public GarmothUploadInterval? PreviewManual(TimeSpan activeDuration,
+        IReadOnlyDictionary<string, long> totals, DateTimeOffset startedAt)
+    {
+        lock (_gate)
+        {
+            if (_blocked || _inFlight) return null;
+            return new(Guid.NewGuid(), activeDuration > _consumedDuration ? activeDuration - _consumedDuration : TimeSpan.Zero,
+                Delta(CopyTotals(totals)), startedAt + _consumedDuration);
+        }
+    }
+
+    public void BlockFurtherUploads()
+    {
+        lock (_gate) { _blocked = true; _automaticSuspended = true; }
     }
 
     public void Complete(GarmothUploadInterval interval, GarmothUploadResult result)

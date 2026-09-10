@@ -1,4 +1,4 @@
-﻿using BdoGrindTracker.App.Persistence;
+using BdoGrindTracker.App.Persistence;
 using BdoGrindTracker.App.Pricing;
 using BdoGrindTracker.App.UI;
 using BdoGrindTracker.Core;
@@ -60,12 +60,14 @@ internal sealed class PreviewTrackerSession : ITrackerSession
             Status = "Vorschau · Beispieldaten werden weder aufgezeichnet noch hochgeladen.", PriceStatus = "EU · NPC- und Festwerte"
         });
     }
-    private void Change(TrackerState state) { State = state with { DetectedGameLanguage = "en",
+    private void Change(TrackerState state) { State = state with { CanPause = state.IsRunning, DetectedGameLanguage = "en",
         GameLanguageStatus = "Vorschau: Englisch · keine BDO-Konfiguration gelesen" }; Changed?.Invoke(); }
-    public Task ToggleTrackingAsync() { Change(State with { IsRunning = !State.IsRunning, HasSession = true, Status = "Vorschau · Tracking wird nur simuliert." }); return Task.CompletedTask; }
-    public Task PauseAsync() { Change(State with { IsRunning = false }); return Task.CompletedTask; }
-    public Task NewSessionAsync() { Change(new() { SessionId = Guid.NewGuid(), AnalyzerAvailable = true, IsDemo = true, HasApiKey = State.HasApiKey, Status = "Vorschau · Neue Session bereit." }); return Task.CompletedTask; }
-    public Task SetDemoAsync(bool enabled) { if (enabled) ShowSample(); else return NewSessionAsync(); return Task.CompletedTask; }
+    public Task<TrackerCommandResult> ToggleTrackingAsync() { Change(State with { IsRunning = !State.IsRunning, HasSession = true, Status = "Vorschau · Tracking wird nur simuliert." }); return Task.FromResult(TrackerCommandResult.Success); }
+    public Task<TrackerCommandResult> PauseAsync() { Change(State with { IsRunning = false }); return Task.FromResult(TrackerCommandResult.Success); }
+    public Task<TrackerCommandResult> InstallOcrLanguageAsync() { Change(State with { OcrInstallationStatus = "Vorschau · Es wird kein Windows-Sprachpaket installiert." }); return Task.FromResult(TrackerCommandResult.Success); }
+    public Task<TrackerCommandResult> RecheckOcrLanguageAsync() { Change(State with { OcrInstallationStatus = "Vorschau · Windows-Sprachpakete werden nicht geprüft." }); return Task.FromResult(TrackerCommandResult.Success); }
+    public Task<TrackerCommandResult> NewSessionAsync() { Change(new() { SessionId = Guid.NewGuid(), AnalyzerAvailable = true, IsDemo = true, HasApiKey = State.HasApiKey, Status = "Vorschau · Neue Session bereit." }); return Task.FromResult(TrackerCommandResult.Success); }
+    public Task<TrackerCommandResult> SetDemoAsync(bool enabled) { if (enabled) ShowSample(); else return NewSessionAsync(); return Task.FromResult(TrackerCommandResult.Success); }
     public Task<PreferenceSaveResult> SavePreferencesAsync(TrackerPreferences preferences, string? apiKey = null,
         bool resumeAutomaticUpload = false)
     {
@@ -76,9 +78,9 @@ internal sealed class PreviewTrackerSession : ITrackerSession
             Silver = SilverValuation.Calculate(State.Loot.Totals, Prices, Preferences.Tax), Status = "Vorschau · Einstellungen nur im Arbeitsspeicher gespeichert." });
         return Task.FromResult(new PreferenceSaveResult());
     }
-    public Task UploadAsync() { Change(State with { Status = "Vorschau · Es wird nichts an Garmoth gesendet." }); return Task.CompletedTask; }
-    public Task UploadHistoryAsync(Guid sessionId) => UploadAsync();
-    public Task UpdateHistoryLootAsync(Guid sessionId, IReadOnlyDictionary<string, long> totals, string? characterClass = null)
+    public Task<TrackerCommandResult> UploadAsync() { Change(State with { Status = "Vorschau · Es wird nichts an Garmoth gesendet." }); return Task.FromResult(TrackerCommandResult.Success); }
+    public Task<TrackerCommandResult> UploadHistoryAsync(Guid sessionId) => UploadAsync();
+    public Task<TrackerCommandResult> UpdateHistoryLootAsync(Guid sessionId, IReadOnlyDictionary<string, long> totals, string? characterClass = null)
     {
         var index = _history.FindIndex(entry => entry.SessionId == sessionId);
         if (index >= 0)
@@ -88,9 +90,9 @@ internal sealed class PreviewTrackerSession : ITrackerSession
             var silver = SilverValuation.Calculate(values, Prices, Preferences.Tax);
             _history[index] = _history[index] with { CharacterClass = characterClass is null ? _history[index].CharacterClass : string.IsNullOrWhiteSpace(characterClass) ? null : characterClass.Trim(), Totals = values, SilverBeforeTax = silver.BeforeTax, SilverAfterTax = silver.AfterTax, SilverIsComplete = silver.IsComplete };
         }
-        Changed?.Invoke(); return Task.CompletedTask;
+        Changed?.Invoke(); return Task.FromResult(TrackerCommandResult.Success);
     }
-    public Task UpdateLootQuantityAsync(Guid sessionId, string itemName, long quantity, long originalQuantity)
+    public Task<TrackerCommandResult> UpdateLootQuantityAsync(Guid sessionId, string itemName, long quantity, long originalQuantity)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(itemName);
         ArgumentOutOfRangeException.ThrowIfNegative(quantity);
@@ -108,12 +110,13 @@ internal sealed class PreviewTrackerSession : ITrackerSession
         Change(State with
         {
             Loot = new(totals, totalQuantity, State.Loot.ConfirmedEventCount),
+            ManualLootItems = Array.AsReadOnly(State.ManualLootItems.Append(itemName).Distinct(StringComparer.OrdinalIgnoreCase).ToArray()),
             Silver = SilverValuation.Calculate(totals, Prices, Preferences.Tax),
             Status = "Vorschau · Lootmenge nur im Arbeitsspeicher korrigiert.",
         });
-        return Task.CompletedTask;
+        return Task.FromResult(TrackerCommandResult.Success);
     }
-    public Task DeleteHistoryAsync(Guid sessionId) { _history.RemoveAll(entry => entry.SessionId == sessionId); Changed?.Invoke(); return Task.CompletedTask; }
+    public Task<TrackerCommandResult> DeleteHistoryAsync(Guid sessionId) { _history.RemoveAll(entry => entry.SessionId == sessionId); Changed?.Invoke(); return Task.FromResult(TrackerCommandResult.Success); }
     public Task RefreshPricesAsync() { Change(State with { Status = "Vorschau · Kein Netzwerkabruf." }); return Task.CompletedTask; }
     public Task TickAsync() => Task.CompletedTask;
     public Task PrepareUpdateRestartAsync() => Task.CompletedTask;

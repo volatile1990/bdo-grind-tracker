@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Reflection;
 using System.Text.Json;
 using BdoGrindTracker.App.Analysis;
+using BdoGrindTracker.App.Diagnostics;
 using BdoGrindTracker.App.Services;
 using BdoGrindTracker.App.Capture;
 using BdoGrindTracker.App.Character;
@@ -20,7 +21,7 @@ namespace BdoGrindTracker.App.Tests;
 /// a monotonic test clock, mock HTTP and private temporary persistence. No game
 /// capture, WebView, message pump or user configuration is involved.
 /// </summary>
-public sealed class TrackerSessionServiceTests
+public sealed partial class TrackerSessionServiceTests
 {
     [Fact]
     public async Task AutomaticGameLanguageIsReadAgainBeforeCaptureStarts()
@@ -301,12 +302,16 @@ public sealed class TrackerSessionServiceTests
             Assert.False(fixture.Service.State.IsError);
             Assert.Equal(3, fixture.Service.State.Loot.TotalQuantity);
             AssertPayload(Assert.Single(fixture.Requests), 60, 10);
+            var correctedWhilePending = Assert.Single(fixture.HistoryStore.Load());
+            Assert.False(correctedWhilePending.GarmothLocallyModified);
+            Assert.Single(correctedWhilePending.GarmothPendingCorrectionIntervals);
         }
         finally
         {
             response.TrySetResult(new HttpResponseMessage(HttpStatusCode.OK));
             await pending;
         }
+        Assert.True(Assert.Single(fixture.HistoryStore.Load()).GarmothLocallyModified);
         fixture.Respond = () => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
         await fixture.ProcessAfter(TimeSpan.FromHours(1), ("Black Crystal Fragment", 9));
         await fixture.Service.TickAsync();
@@ -653,6 +658,26 @@ public sealed class TrackerSessionServiceTests
     }
 
     [Fact]
+    public async Task SavingSessionWritesCountAuditForTheSameHistorySession()
+    {
+        await using var fixture = new Fixture(autoUpload: false);
+        fixture.Begin();
+        var recording = DiagnosticRecordingSession.Start(Path.Combine(fixture.DirectoryPath, "diagnostics"), LootSpotCatalog.HermesiaId);
+        SetField(fixture.Service, "_recording", recording);
+        await fixture.ProcessAfter(TimeSpan.FromMinutes(2), ("Black Crystal Fragment", 3));
+        await fixture.Service.PauseAsync();
+        var saved = Assert.Single(fixture.HistoryStore.Load());
+        var summaryPath = Path.Combine(Path.GetDirectoryName(recording.RecordingPath!)!, LootDiagnosticFormat.CountSummaryFileName);
+        using var summary = JsonDocument.Parse(File.ReadAllText(summaryPath));
+        Assert.Equal(saved.SessionId, summary.RootElement.GetProperty("sessionId").GetGuid());
+        Assert.Equal(saved.Duration.TotalSeconds, summary.RootElement.GetProperty("activeSeconds").GetDouble());
+        var total = Assert.Single(summary.RootElement.GetProperty("totals").EnumerateArray());
+        Assert.Equal("Black Crystal Fragment", total.GetProperty("itemName").GetString());
+        Assert.Equal(3, total.GetProperty("saved").GetInt64());
+        Assert.Null(recording.LastError);
+    }
+
+    [Fact]
     public async Task ManualPauseRetainsTheTimeAfterTheLastDropAndResetKeepsHistory()
     {
         await using var fixture = new Fixture(autoUpload: false);
@@ -882,9 +907,14 @@ public sealed class TrackerSessionServiceTests
 
         Assert.True(fixture.Service.State.ShutdownFailed);
         Assert.True(fixture.Service.State.IsError);
-        Assert.Contains("Verlauf nicht gespeichert", fixture.Service.State.Status);
-        Assert.True(fixture.Analyzer.Disposed);
+        Assert.NotNull(fixture.Service.State.PersistenceError);
+        Assert.False(fixture.Analyzer.Disposed);
         Assert.Equal(savedHistory, File.ReadAllText(historyPath));
+        lockedHistory?.Dispose();
+        if (temporaryPathIsDirectory) Directory.Delete(historyPath + ".tmp");
+        await fixture.Service.ShutdownAsync();
+        Assert.False(fixture.Service.State.ShutdownFailed);
+        Assert.True(fixture.Analyzer.Disposed);
     }
 
     [Theory]

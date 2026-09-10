@@ -60,11 +60,13 @@ public sealed class CompanionWindowsOcrRecognizer
     {
         Exception? initializationError = null;
         OcrEngine? engine = null;
+        bool? preferredLanguageSupported = null;
 
         try
         {
             var preferred = CreatePreferredLanguage(preferredLanguageTag);
-            if (OcrEngine.IsLanguageSupported(preferred))
+            preferredLanguageSupported = OcrEngine.IsLanguageSupported(preferred);
+            if (preferredLanguageSupported.Value)
             {
                 engine = OcrEngine.TryCreateFromLanguage(preferred);
             }
@@ -101,11 +103,14 @@ public sealed class CompanionWindowsOcrRecognizer
             return null;
         }
 
+        // A failed API call is not evidence that a Windows feature is missing.
+        if (preferredLanguageSupported == false && initializationError is null)
+            throw new WindowsOcrLanguageUnavailableException(preferredLanguageTag);
+
         if (requirePreferredLanguage)
             throw new InvalidOperationException(
-                $"Die Windows-Texterkennung für {(preferredLanguageTag.StartsWith("de", StringComparison.OrdinalIgnoreCase) ? "Deutsch" : "Englisch")} ({preferredLanguageTag}) ist nicht verfügbar. " +
-                "Installiere in den Windows-Einstellungen unter Zeit und Sprache → Sprache und Region " +
-                "die Texterkennung der Spielsprache. Versuche danach erneut, das Tracking zu starten.", initializationError);
+                $"Die Windows-Texterkennung für {preferredLanguageTag} konnte nicht initialisiert werden. " +
+                "Bitte starte Grindcrest erneut und prüfe Windows Update.", initializationError);
 
         string languages;
         try

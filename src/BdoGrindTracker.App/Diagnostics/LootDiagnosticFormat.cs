@@ -17,6 +17,7 @@ internal static class LootDiagnosticFormat
     public const string PreviousEngineVersion = "companion-0.7.4-restore-v1";
     public const string ExperimentalEngineVersion = "companion-0.7.4-overcount-fix-v2";
     public const string RecordingFileName = "observations.jsonl";
+    public const string CountSummaryFileName = "count-summary.json";
     public const int MaximumObservationsPerFrame = 32;
     public const int MaximumTextLength = 2048;
     public const int MaximumJsonLineBytes = 512 * 1024;
@@ -63,6 +64,9 @@ internal sealed record LootDiagnosticHeader(
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? AppVersion { get; init; }
 
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? ReconciliationTraceVersion { get; init; }
+
     private IReadOnlyDictionary<string, uint> _minimumTrashQuantities =
         LootDiagnosticFormat.SnapshotMinimumTrashQuantities(new Dictionary<string, uint>());
 
@@ -108,6 +112,16 @@ internal sealed record LootDiagnosticEntry(
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<LootRowReviewDiagnostics>? RowReviews { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? NormalCaptureIndex { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<RecordedNormalReconciliation>? NormalReconciliation { get; init; }
 }
+
+internal sealed record RecordedNormalReconciliation(NormalLootReconciliationTrace Trace,
+    int? RecordingSequence, string? NormalCropFileName, int? PreviousRecordingSequence,
+    string? PreviousNormalCropFileName);
 
 internal sealed record LootDiagnosticCrop(string Source, string FileName, int Width, int Height);

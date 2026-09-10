@@ -6,7 +6,69 @@ namespace BdoGrindTracker.App.Services;
 
 internal sealed partial class TrackerSessionService
 {
-    private void PersistCurrentSession(DateTimeOffset updatedAt, bool throwOnError = false)
+    private string? _historyPersistenceError;
+    private bool _historyDirty;
+    private TimeSpan _lastCheckpointDuration;
+    private DateTimeOffset _nextCheckpointRetry;
+    internal static readonly TimeSpan CheckpointInterval = TimeSpan.FromSeconds(15);
+    private readonly HashSet<string> _sessionManualLootItems = new(StringComparer.OrdinalIgnoreCase);
+    private bool _sessionGarmothLocallyModified;
+
+    private void SaveHistoryEntries()
+    {
+        try
+        {
+            _historyStore.Save(_historyEntries);
+            _historyPersistenceError = null;
+            _historyDirty = false;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            _historyDirty = true;
+            _historyPersistenceError = "Verlauf noch nicht gespeichert. Die Session bleibt in Grindcrest erhalten. " + exception.Message;
+            throw;
+        }
+    }
+
+    private void SavePendingHistory()
+    {
+        if (_historyDirty) SaveHistoryEntries();
+    }
+
+    public Task<TrackerCommandResult> SaveSessionAsync() => RunOperationAsync(() =>
+    {
+        if (_historyStore.LoadError is not null)
+        {
+            var recovered = _historyStore.Load();
+            if (_historyStore.LoadError is { } error) throw new IOException(error);
+            var knownIds = _historyEntries.Select(entry => entry.SessionId).ToHashSet();
+            _historyEntries.AddRange(recovered.Where(entry => !knownIds.Contains(entry.SessionId)));
+            SortHistory();
+            InitializeGarmothUploadJournal();
+        }
+        if (_garmothPersistenceError is not null)
+        {
+            InitializeGarmothUploadJournal();
+            if (_garmothPersistenceError is { } error) throw new IOException(error);
+        }
+        RefreshPendingState();
+        PersistCurrentSession(DateTimeOffset.UtcNow, throwOnError: true);
+        SavePendingHistory();
+        if (!TrySaveSettings()) throw new IOException(_settingsSaveError);
+        SetStatus("Der aktuelle Stand ist im Verlauf gespeichert.");
+        return Task.CompletedTask;
+    });
+
+    private void SaveCheckpointIfDue()
+    {
+        if (!_uiRunning || _operationInProgress || _sessionClock.Elapsed - _lastCheckpointDuration < CheckpointInterval ||
+            DateTimeOffset.UtcNow < _nextCheckpointRetry) return;
+        _nextCheckpointRetry = DateTimeOffset.UtcNow.AddSeconds(15);
+        PersistCurrentSession(DateTimeOffset.UtcNow);
+    }
+
+    private void PersistCurrentSession(DateTimeOffset updatedAt, bool throwOnError = false,
+        Guid? pendingGarmothCorrectionInterval = null)
     {
         if (!_hasSession || _demoMode || _sessionSpotId is null ||
             _sessionClock.Elapsed <= TimeSpan.Zero || _sessionSummary.Totals.Count == 0)
@@ -27,6 +89,9 @@ internal sealed partial class TrackerSessionService
             SilverBeforeTax = valuation.BeforeTax,
             SilverAfterTax = valuation.AfterTax,
             SilverIsComplete = valuation.IsComplete,
+            ManualLootItems = _sessionManualLootItems.ToArray(),
+            GarmothLocallyModified = _sessionGarmothLocallyModified,
+            GarmothPendingCorrectionIntervals = pendingGarmothCorrectionInterval is { } intervalId ? [intervalId] : [],
         };
         var index = _historyEntries.FindIndex(candidate => candidate.SessionId == entry.SessionId);
         if (index >= 0)
@@ -34,10 +99,18 @@ internal sealed partial class TrackerSessionService
             {
                 GarmothUploadedAt = _historyEntries[index].GarmothUploadedAt,
                 GarmothUploadBlocked = _historyEntries[index].GarmothUploadBlocked,
+                GarmothLocallyModified = _sessionGarmothLocallyModified || _historyEntries[index].GarmothLocallyModified,
+                GarmothPendingCorrectionIntervals = _historyEntries[index].GarmothPendingCorrectionIntervals
+                    .Concat(entry.GarmothPendingCorrectionIntervals).Distinct().ToArray(),
             };
         else _historyEntries.Add(entry);
         SortHistory();
-        try { _historyStore.Save(_historyEntries); }
+        try
+        {
+            SaveHistoryEntries();
+            _lastCheckpointDuration = _sessionClock.Elapsed;
+            _recording?.SaveCountSummary(entry.SessionId, updatedAt, entry.Duration, totals);
+        }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             // Shutdown deliberately catches ordinary persistence failures. The
@@ -48,7 +121,8 @@ internal sealed partial class TrackerSessionService
         }
     }
 
-    private void MarkHistoryUploadBlocked(Guid sessionId, bool succeeded)
+    private bool MarkHistoryUploadBlocked(Guid sessionId, bool succeeded, Guid? intervalId = null,
+        bool completesSession = false)
     {
         if (_hasSession && sessionId == _sessionId)
         {
@@ -58,23 +132,33 @@ internal sealed partial class TrackerSessionService
             PersistCurrentSession(DateTimeOffset.UtcNow);
         }
         var index = _historyEntries.FindIndex(entry => entry.SessionId == sessionId);
-        if (index < 0) return;
+        if (index < 0) return true;
+        var correctedFrozenRequest = intervalId is { } id &&
+            _historyEntries[index].GarmothPendingCorrectionIntervals.Contains(id);
+        if (_hasSession && sessionId == _sessionId) _sessionGarmothLocallyModified |= correctedFrozenRequest;
         _historyEntries[index] = _historyEntries[index] with
         {
             GarmothUploadBlocked = true,
             GarmothUploadedAt = succeeded ? DateTimeOffset.UtcNow : null,
+            GarmothLocallyModified = _historyEntries[index].GarmothLocallyModified || correctedFrozenRequest,
+            GarmothPendingCorrectionIntervals = completesSession ? [] :
+                _historyEntries[index].GarmothPendingCorrectionIntervals.Where(candidate => candidate != intervalId).ToArray(),
         };
         _historyChanged = true;
-        try { _historyStore.Save(_historyEntries); }
+        _historyDirty = true;
+        var saved = true;
+        try { SaveHistoryEntries(); }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             // Keep the in-memory block even if saving fails after a remote write.
             SetStatus("Upload abgeschlossen, sein lokaler Status konnte nicht gespeichert werden: " + exception.Message, true);
+            saved = false;
         }
         PublishState();
+        return saved;
     }
 
-    public Task DeleteHistoryAsync(Guid sessionId) => RunOperationAsync(() =>
+    public Task<TrackerCommandResult> DeleteHistoryAsync(Guid sessionId) => RunOperationAsync(() =>
     {
         if (_hasSession && sessionId == _sessionId)
             throw new InvalidOperationException("Die aktuelle Session kann erst nach einer neuen Session gelöscht werden.");
@@ -84,7 +168,7 @@ internal sealed partial class TrackerSessionService
         _historyChanged = true;
         try
         {
-            _historyStore.Save(_historyEntries);
+            SaveHistoryEntries();
             SetStatus("Grind aus dem Verlauf gelöscht.");
         }
         catch
@@ -96,7 +180,7 @@ internal sealed partial class TrackerSessionService
         return Task.CompletedTask;
     });
 
-    public Task UpdateHistoryLootAsync(Guid sessionId, IReadOnlyDictionary<string, long> totals,
+    public Task<TrackerCommandResult> UpdateHistoryLootAsync(Guid sessionId, IReadOnlyDictionary<string, long> totals,
         string? characterClass = null) => RunOperationAsync(() =>
     {
         ArgumentNullException.ThrowIfNull(totals);
@@ -118,6 +202,11 @@ internal sealed partial class TrackerSessionService
                 ? previous.CharacterClass
                 : string.IsNullOrWhiteSpace(characterClass) ? null : characterClass.Trim(),
             Totals = cleaned,
+            ManualLootItems = previous.ManualLootItems.Concat(cleaned.Keys.Where(name =>
+                previous.Totals.GetValueOrDefault(name) != cleaned[name])).Distinct(StringComparer.OrdinalIgnoreCase).ToArray(),
+            GarmothLocallyModified = previous.GarmothLocallyModified || ((previous.GarmothUploadBlocked || previous.GarmothUploadedAt is not null) &&
+                (cleaned.Count != previous.Totals.Count || cleaned.Any(pair => previous.Totals.GetValueOrDefault(pair.Key) != pair.Value) ||
+                 (characterClass is not null && characterClass != previous.CharacterClass))),
             SilverBeforeTax = valuation.BeforeTax,
             SilverAfterTax = valuation.AfterTax,
             SilverIsComplete = valuation.IsComplete,
@@ -125,7 +214,7 @@ internal sealed partial class TrackerSessionService
         _historyChanged = true;
         try
         {
-            _historyStore.Save(_historyEntries);
+            SaveHistoryEntries();
             SetStatus($"Session für {LootSpotCatalog.GetRequired(previous.SpotId).DisplayName} gespeichert.");
         }
         catch
@@ -137,7 +226,7 @@ internal sealed partial class TrackerSessionService
         return Task.CompletedTask;
     });
 
-    public Task UpdateLootQuantityAsync(Guid sessionId, string itemName, long quantity, long originalQuantity)
+    public Task<TrackerCommandResult> UpdateLootQuantityAsync(Guid sessionId, string itemName, long quantity, long originalQuantity)
     {
         // Frozen HTTP requests can finish while quantities are corrected. Only
         // another local command or shutdown blocks this short transaction.
@@ -145,7 +234,7 @@ internal sealed partial class TrackerSessionService
             throw new InvalidOperationException("Bitte warte, bis der laufende Vorgang abgeschlossen ist.");
         _operationInProgress = true;
         PublishState();
-        return _operationTask = RunOperationCoreAsync(() =>
+        var task = RunOperationCoreAsync(() =>
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(itemName);
             ArgumentOutOfRangeException.ThrowIfNegative(quantity);
@@ -157,6 +246,7 @@ internal sealed partial class TrackerSessionService
                 {
                     var totals = CorrectedTotals(_sessionSummary.Totals, canonicalName, quantity, originalQuantity);
                     _sessionSummary = new(totals, totals.Values.Sum(), _sessionSummary.ConfirmedEventCount);
+                    _sessionManualLootItems.Add(canonicalName);
                 }
                 else
                 {
@@ -164,13 +254,24 @@ internal sealed partial class TrackerSessionService
                     {
                         var previousSummary = _sessionSummary;
                         var previousHistory = _historyEntries.ToArray();
+                        var previousManual = _sessionManualLootItems.ToArray();
+                        var previousModified = _sessionGarmothLocallyModified;
+                        _sessionManualLootItems.Add(canonicalName);
+                        _sessionGarmothLocallyModified |= quantity != originalQuantity && (_sessionSubmitted ||
+                            _historyEntries.Any(entry => entry.SessionId == _sessionId && entry.GarmothUploadBlocked));
                         _sessionSummary = snapshot;
-                        try { PersistCurrentSession(DateTimeOffset.UtcNow, throwOnError: true); }
+                        var pendingCorrection = snapshot.Totals.GetValueOrDefault(canonicalName) != previousSummary.Totals.GetValueOrDefault(canonicalName)
+                            ? _garmothIntervals.PreparedIntervalId : null;
+                        try { PersistCurrentSession(DateTimeOffset.UtcNow, throwOnError: true,
+                            pendingGarmothCorrectionInterval: pendingCorrection); }
                         catch
                         {
                             _sessionSummary = previousSummary;
                             _historyEntries.Clear();
                             _historyEntries.AddRange(previousHistory);
+                            _sessionManualLootItems.Clear();
+                            _sessionManualLootItems.UnionWith(previousManual);
+                            _sessionGarmothLocallyModified = previousModified;
                             _historyChanged = true;
                             throw;
                         }
@@ -188,18 +289,23 @@ internal sealed partial class TrackerSessionService
                 _historyEntries[index] = previous with
                 {
                     Totals = totals,
+                    ManualLootItems = previous.ManualLootItems.Append(canonicalName).Distinct(StringComparer.OrdinalIgnoreCase).ToArray(),
+                    GarmothLocallyModified = previous.GarmothLocallyModified ||
+                        (quantity != originalQuantity && (previous.GarmothUploadBlocked || previous.GarmothUploadedAt is not null)),
                     SilverBeforeTax = valuation.BeforeTax,
                     SilverAfterTax = valuation.AfterTax,
                     SilverIsComplete = valuation.IsComplete,
                 };
                 _historyChanged = true;
-                try { _historyStore.Save(_historyEntries); }
+                try { SaveHistoryEntries(); }
                 catch { _historyEntries[index] = previous; throw; }
             }
             SetStatus(_demoMode && sessionId == _sessionId
                 ? "Menge in der Demo korrigiert." : "Lootmenge gespeichert.");
             return Task.CompletedTask;
         });
+        _operationTask = task;
+        return task;
     }
 
     private static string EditableItemName(string? spotId, IReadOnlyDictionary<string, long> totals, string itemName) =>
@@ -224,6 +330,7 @@ internal sealed partial class TrackerSessionService
     private void SortHistory()
     {
         _historyChanged = true;
+        _historyDirty = true;
         _historyEntries.Sort(static (left, right) => right.UpdatedAt.CompareTo(left.UpdatedAt));
         if (_historyEntries.Count > LootHistoryStore.MaximumEntries)
             _historyEntries.RemoveRange(LootHistoryStore.MaximumEntries, _historyEntries.Count - LootHistoryStore.MaximumEntries);

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.RegularExpressions;
 using BdoGrindTracker.App.Components;
+using BdoGrindTracker.App.Integrations.Garmoth;
 using BdoGrindTracker.App.Persistence;
 using BdoGrindTracker.App.Pricing;
 using BdoGrindTracker.App.Services;
@@ -33,6 +34,10 @@ public sealed class BlazorFrontendTests
         }));
         Assert.Contains("Schwarzkristallfragment", markup);
         Assert.Contains("Gesamtmenge für Schwarzkristallfragment bearbeiten", markup);
+        Assert.Contains("quantity-edit-trigger", ButtonAttributes(markup, "2.387"));
+        Assert.DoesNotContain("quantity-edit-button", markup);
+        Assert.DoesNotContain("<svg", Regex.Match(markup,
+            "<button[^>]*class=\"quantity-edit-trigger\"[^>]*>(.*?)</button>", RegexOptions.Singleline).Groups[1].Value);
         Assert.Contains("assets/icons/black-crystal-fragment.png", markup);
         Assert.DoesNotContain("Preis fehlt", markup);
         var settings = WebUtility.HtmlDecode(await RenderAsync<TrackerSettings>(session));
@@ -72,6 +77,130 @@ public sealed class BlazorFrontendTests
         Assert.Contains("Die Position des Haupt-Droplogs", markup);
         Assert.DoesNotContain("Unrelated saved-settings status", markup);
         Assert.True(IsDisabled(ButtonAttributes(markup, "Tracking starten")));
+        Assert.DoesNotContain("ocr-install-notice", markup);
+        Assert.DoesNotContain("OCR-Sprachpaket installieren", markup);
+    }
+
+    [Theory]
+    [InlineData("de-DE", "Deutsch (de-DE)")]
+    [InlineData("en-US", "Englisch (en-US)")]
+    public async Task MissingOcrLanguageOffersAnExplicitInstallAndRecheckWithoutStartingEither(
+        string languageTag, string languageLabel)
+    {
+        var session = new SnapshotSession { State = new()
+        {
+            AnalyzerAvailable = true, IsError = true, MissingOcrLanguageTag = languageTag,
+            TrackingBlockedReason = "Windows-OCR fehlt.",
+        } };
+
+        var markup = WebUtility.HtmlDecode(await RenderAsync<LiveDashboard>(session));
+
+        Assert.Contains("ocr-install-notice warning-notice", markup);
+        Assert.Contains(languageLabel, markup);
+        Assert.Contains("Administratorbestätigung", markup);
+        Assert.Contains("Internet", markup);
+        Assert.Contains("einige Minuten", markup);
+        Assert.False(IsDisabled(ButtonAttributes(markup, "OCR-Sprachpaket installieren")));
+        Assert.False(IsDisabled(ButtonAttributes(markup, "Erneut prüfen")));
+        Assert.False(IsDisabled(ButtonAttributes(markup, "Einstellungen")));
+        Assert.True(IsDisabled(ButtonAttributes(markup, "Tracking starten")));
+        Assert.DoesNotContain("tracking-blocked", markup);
+        Assert.Equal(0, session.CommandCalls);
+    }
+
+    [Fact]
+    public async Task OcrInstallationShowsIndeterminateProgressAndDisablesRepeatedActions()
+    {
+        var session = new SnapshotSession { State = new()
+        {
+            AnalyzerAvailable = false, MissingOcrLanguageTag = "en-US", IsInstallingOcrLanguage = true,
+            OcrInstallationStatus = "Windows lädt die Texterkennung herunter …",
+        } };
+
+        var markup = WebUtility.HtmlDecode(await RenderAsync<LiveDashboard>(session));
+
+        Assert.Contains("Windows lädt die Texterkennung herunter …", markup);
+        Assert.Contains("role=\"status\"", markup);
+        Assert.Contains("aria-live=\"polite\"", markup);
+        var progress = Regex.Match(markup, "<progress(?<attributes>[^>]*)>");
+        Assert.True(progress.Success);
+        Assert.Contains("aria-label=\"OCR-Sprachpaket wird installiert\"", progress.Groups["attributes"].Value);
+        Assert.DoesNotContain("value=", progress.Groups["attributes"].Value);
+        Assert.True(IsDisabled(ButtonAttributes(markup, "Wird installiert …")));
+        Assert.True(IsDisabled(ButtonAttributes(markup, "Erneut prüfen")));
+        Assert.True(IsDisabled(ButtonAttributes(markup, "Einstellungen")));
+        Assert.Equal(0, session.CommandCalls);
+    }
+
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task OcrInstallActionsRequireAnIdlePausedTracker(bool busy, bool running)
+    {
+        var session = new SnapshotSession { State = new()
+        {
+            MissingOcrLanguageTag = "de-DE", IsBusy = busy, IsRunning = running,
+        } };
+
+        var markup = WebUtility.HtmlDecode(await RenderAsync<LiveDashboard>(session));
+
+        Assert.True(IsDisabled(ButtonAttributes(markup, "OCR-Sprachpaket installieren")));
+        Assert.True(IsDisabled(ButtonAttributes(markup, "Erneut prüfen")));
+        Assert.Equal(0, session.CommandCalls);
+    }
+
+    [Fact]
+    public async Task OcrRestartRequirementShowsTheResultWithoutOfferingAnotherInstallation()
+    {
+        var session = new SnapshotSession { State = new()
+        {
+            MissingOcrLanguageTag = "de-DE", OcrRestartRequired = true,
+            OcrInstallationStatus = "Windows benötigt einen Neustart, um das Sprachpaket zu aktivieren.",
+        } };
+
+        var markup = WebUtility.HtmlDecode(await RenderAsync<LiveDashboard>(session));
+
+        Assert.Contains("Windows-Neustart erforderlich", markup);
+        Assert.Contains(session.State.OcrInstallationStatus, markup);
+        Assert.DoesNotContain("OCR-Sprachpaket installieren", markup);
+        Assert.False(IsDisabled(ButtonAttributes(markup, "Erneut prüfen")));
+        Assert.True(IsDisabled(ButtonAttributes(markup, "Tracking starten")));
+        Assert.Equal(0, session.CommandCalls);
+    }
+
+    [Fact]
+    public async Task SuccessfulOcrInstallationKeepsItsResultVisibleAndEnablesTracking()
+    {
+        var session = new SnapshotSession { State = new()
+        {
+            AnalyzerAvailable = true,
+            OcrInstallationStatus = "Die Windows-Texterkennung für Englisch ist verfügbar. Du kannst das Tracking starten.",
+        } };
+
+        var markup = WebUtility.HtmlDecode(await RenderAsync<LiveDashboard>(session));
+
+        Assert.Contains("ocr-install-notice success-notice", markup);
+        Assert.Contains(session.State.OcrInstallationStatus, markup);
+        Assert.DoesNotContain("OCR-Sprachpaket installieren", markup);
+        Assert.DoesNotContain("<progress", markup);
+        Assert.False(IsDisabled(ButtonAttributes(markup, "Tracking starten")));
+        Assert.Equal(0, session.CommandCalls);
+    }
+
+    [Fact]
+    public async Task GenericOcrRuntimeErrorsDoNotOfferALanguageInstallation()
+    {
+        var session = new SnapshotSession { State = new()
+        {
+            AnalyzerAvailable = true, IsError = true, Status = "Windows OCR konnte nicht erstellt werden.",
+        } };
+
+        var markup = WebUtility.HtmlDecode(await RenderAsync<LiveDashboard>(session));
+
+        Assert.Contains(session.State.Status, markup);
+        Assert.DoesNotContain("ocr-install-notice", markup);
+        Assert.DoesNotContain("OCR-Sprachpaket installieren", markup);
+        Assert.Equal(0, session.CommandCalls);
     }
 
     [Theory]
@@ -82,7 +211,10 @@ public sealed class BlazorFrontendTests
     {
         var session = new SnapshotSession { State = ActiveState() with { IsRunning = running, IsSubmitted = submitted } };
         var markup = await RenderAsync<LiveDashboard>(session);
-        Assert.False(IsDisabled(AriaButtonAttributes(markup, "Gesamtmenge für Black Crystal Fragment bearbeiten")));
+        var attributes = AriaButtonAttributes(markup, "Gesamtmenge für Black Crystal Fragment bearbeiten");
+        Assert.False(IsDisabled(attributes));
+        Assert.Contains("quantity-edit-trigger", attributes);
+        Assert.Contains("quantity-edit-trigger", ButtonAttributes(markup, "1.582"));
         Assert.Equal(0, session.CommandCalls);
     }
 
@@ -95,6 +227,8 @@ public sealed class BlazorFrontendTests
             new Dictionary<string, object?> { [nameof(HistoryDashboard.SpotId)] = entry.SpotId });
         Assert.False(IsDisabled(AriaButtonAttributes(markup, "Gesamtmenge für Black Crystal Fragment bearbeiten")));
         Assert.False(IsDisabled(AriaButtonAttributes(markup, "Gesamtmenge für BON Wandering Origin Crystal bearbeiten")));
+        Assert.DoesNotContain("quantity-edit-button", markup);
+        Assert.Contains("quantity-edit-trigger", ButtonAttributes(markup, "1.582"));
         Assert.Equal(0, session.CommandCalls);
     }
 
@@ -106,7 +240,8 @@ public sealed class BlazorFrontendTests
         {
             [nameof(LootTable.Totals)] = ActiveState().Loot.Totals,
         });
-        Assert.DoesNotContain("quantity-edit-button", markup);
+        Assert.DoesNotContain("quantity-edit-trigger", markup);
+        Assert.DoesNotContain("loot-quantity-control", markup);
     }
 
     [Fact]
@@ -139,6 +274,16 @@ public sealed class BlazorFrontendTests
         Assert.False(IsDisabled(ButtonAttributes(markup, "Pausieren")));
         Assert.Contains("1.582", markup);
         Assert.Contains("00:30:00", markup);
+        Assert.Equal(0, session.CommandCalls);
+    }
+
+    [Fact]
+    public async Task PauseRemainsAvailableWhenTheServiceAllowsItDuringAnUpload()
+    {
+        var session = new SnapshotSession { State = ActiveState() with { IsBusy = true, CanPause = true } };
+        var markup = await RenderAsync<LiveDashboard>(session);
+        Assert.False(IsDisabled(ButtonAttributes(markup, "Pausieren")));
+        Assert.True(IsDisabled(ButtonAttributes(markup, "Neue Session")));
         Assert.Equal(0, session.CommandCalls);
     }
 
@@ -190,7 +335,11 @@ public sealed class BlazorFrontendTests
         Assert.Contains("GRINDZEIT", markup);
         Assert.Contains("SILBER / H", markup);
         Assert.Contains("Black Crystal Fragment", markup);
-        Assert.Contains("Aktionen für diese Session", markup);
+        Assert.Contains("session-delete-button", AriaButtonAttributes(markup, "Session löschen"));
+        Assert.DoesNotContain("session-action-menu", markup);
+        Assert.DoesNotContain("Aktionen für diese Session", markup);
+        Assert.Contains("Session löschen?", markup);
+        Assert.Contains("dauerhaft aus deinem lokalen Verlauf entfernt", markup);
         Assert.Contains("Klasse dieser Session", markup);
         Assert.Equal(0, session.CommandCalls);
     }
@@ -277,12 +426,50 @@ public sealed class BlazorFrontendTests
             Loot = new(totals, 1_584, 102),
             Silver = SilverValuation.Calculate(totals, LootPriceCatalog.FixedSnapshot("eu"), SilverTaxOptions.Default)
         };
+        state = state with { CurrentGarmothUpload = GarmothUploadPreview.Create(Guid.NewGuid(), state.SessionId,
+            state.SpotId, state.CharacterLabel, state.Elapsed, totals, DateTimeOffset.UnixEpoch,
+            LootPriceCatalog.FixedSnapshot("eu"), SilverTaxOptions.Default) };
         Assert.False(state.Silver.IsComplete);
         Assert.True(state.Silver.HasKnownValue);
+        Assert.True(state.CurrentGarmothUpload.IsReady);
+        Assert.False(state.CurrentGarmothUpload.SilverIsComplete);
         var session = new SnapshotSession { State = state };
         var markup = await RenderAsync<GarmothDashboard>(session);
         Assert.Contains("Teilbetrag", WebUtility.HtmlDecode(markup));
         Assert.False(IsDisabled(AriaButtonAttributes(markup, "Aktuellen Session-Anteil hochladen")));
+    }
+
+    [Fact]
+    public async Task GarmothCurrentButtonUsesReadinessOfTheRemainderInsteadOfTheWholeSession()
+    {
+        var state = ActiveState();
+        var remainder = GarmothUploadPreview.Create(Guid.NewGuid(), state.SessionId, state.SpotId,
+            state.CharacterLabel, TimeSpan.FromSeconds(30), state.Loot.Totals, DateTimeOffset.UnixEpoch,
+            LootPriceCatalog.FixedSnapshot("eu"), SilverTaxOptions.Default);
+        var session = new SnapshotSession { State = state with { CurrentGarmothUpload = remainder } };
+        var markup = WebUtility.HtmlDecode(await RenderAsync<GarmothDashboard>(session));
+
+        Assert.True(state.Elapsed > TimeSpan.FromMinutes(1));
+        Assert.True(IsDisabled(AriaButtonAttributes(markup, "Aktuellen Session-Anteil hochladen")));
+        Assert.Contains("volle aktive Minute", markup);
+        Assert.Equal(0, session.CommandCalls);
+    }
+
+    [Fact]
+    public async Task GarmothHistoryExplainsKnownMissingRequirementsBeforeConfirmation()
+    {
+        var missingClass = HistoryEntry(Guid.NewGuid()) with { CharacterClass = null };
+        var shortSession = HistoryEntry(Guid.NewGuid()) with { Duration = TimeSpan.FromSeconds(30) };
+        var session = new SnapshotSession { State = ActiveState(), History = [missingClass, shortSession] };
+        var markup = WebUtility.HtmlDecode(await RenderAsync<GarmothDashboard>(session));
+
+        var buttons = AriaButtons(markup, "Gespeicherte Session hochladen").ToArray();
+        Assert.Equal(2, buttons.Length);
+        Assert.All(buttons, attributes => Assert.True(IsDisabled(attributes)));
+        Assert.Contains("Für diesen Grind fehlt die Charakterklasse", markup);
+        Assert.Contains("volle aktive Minute", markup);
+        Assert.Contains($"/history/spots/{missingClass.SpotId}/{missingClass.SessionId}?edit=1", markup);
+        Assert.Equal(0, session.CommandCalls);
     }
 
     [Fact]
@@ -388,13 +575,17 @@ public sealed class BlazorFrontendTests
     private static TrackerState ActiveState()
     {
         var totals = new Dictionary<string, long> { ["Black Crystal Fragment"] = 1_582 };
+        var sessionId = Guid.NewGuid();
         return new()
         {
-            SessionId = Guid.NewGuid(), HasSession = true, IsRunning = true, AnalyzerAvailable = true,
+            SessionId = sessionId, HasSession = true, IsRunning = true, CanPause = true, AnalyzerAvailable = true,
             HasApiKey = true, SpotId = LootSpotCatalog.HermesiaId, Elapsed = TimeSpan.FromMinutes(30),
             CharacterClassId = "warrior-awakening", CharacterLabel = "Warrior · Awakening",
             Loot = new(totals, 1_582, 100),
-            Silver = SilverValuation.Calculate(totals, LootPriceCatalog.FixedSnapshot("eu"), SilverTaxOptions.Default)
+            Silver = SilverValuation.Calculate(totals, LootPriceCatalog.FixedSnapshot("eu"), SilverTaxOptions.Default),
+            CurrentGarmothUpload = GarmothUploadPreview.Create(Guid.NewGuid(), sessionId, LootSpotCatalog.HermesiaId,
+                "Warrior · Awakening", TimeSpan.FromMinutes(30), totals, DateTimeOffset.UnixEpoch,
+                LootPriceCatalog.FixedSnapshot("eu"), SilverTaxOptions.Default),
         };
     }
 
@@ -502,18 +693,20 @@ public sealed class BlazorFrontendTests
         public IReadOnlyList<LootHistoryEntry> History { get; init; } = [];
         public LootPriceSnapshot Prices { get; init; } = LootPriceCatalog.FixedSnapshot("eu");
         public int CommandCalls { get; private set; }
-        private Task Command() { CommandCalls++; return Task.CompletedTask; }
-        public Task ToggleTrackingAsync() => Command();
-        public Task PauseAsync() => Command();
-        public Task NewSessionAsync() => Command();
-        public Task SetDemoAsync(bool enabled) => Command();
+        private Task<TrackerCommandResult> Command() { CommandCalls++; return Task.FromResult(TrackerCommandResult.Success); }
+        public Task<TrackerCommandResult> ToggleTrackingAsync() => Command();
+        public Task<TrackerCommandResult> PauseAsync() => Command();
+        public Task<TrackerCommandResult> InstallOcrLanguageAsync() => Command();
+        public Task<TrackerCommandResult> RecheckOcrLanguageAsync() => Command();
+        public Task<TrackerCommandResult> NewSessionAsync() => Command();
+        public Task<TrackerCommandResult> SetDemoAsync(bool enabled) => Command();
         public Task<PreferenceSaveResult> SavePreferencesAsync(TrackerPreferences preferences, string? apiKey = null, bool resumeAutomaticUpload = false) { CommandCalls++; return Task.FromResult(new PreferenceSaveResult()); }
-        public Task UploadAsync() => Command();
-        public Task UploadHistoryAsync(Guid sessionId) => Command();
-        public Task UpdateHistoryLootAsync(Guid sessionId, IReadOnlyDictionary<string, long> totals,
+        public Task<TrackerCommandResult> UploadAsync() => Command();
+        public Task<TrackerCommandResult> UploadHistoryAsync(Guid sessionId) => Command();
+        public Task<TrackerCommandResult> UpdateHistoryLootAsync(Guid sessionId, IReadOnlyDictionary<string, long> totals,
             string? characterClass = null) => Command();
-        public Task UpdateLootQuantityAsync(Guid sessionId, string itemName, long quantity, long originalQuantity) => Command();
-        public Task DeleteHistoryAsync(Guid sessionId) => Command();
+        public Task<TrackerCommandResult> UpdateLootQuantityAsync(Guid sessionId, string itemName, long quantity, long originalQuantity) => Command();
+        public Task<TrackerCommandResult> DeleteHistoryAsync(Guid sessionId) => Command();
         public Task RefreshPricesAsync() => Command();
         public Task TickAsync() => Command();
         public Task PrepareUpdateRestartAsync() => Task.CompletedTask;

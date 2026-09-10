@@ -23,6 +23,51 @@ public sealed class BackgroundLootRowReviewTests
         new(text, confidence, new(CompanionOcrGeometryStatus.Missing, 0, 0, 0, 0));
 
     [Theory]
+    [InlineData("en-US", "Elion Follower's Helmet x 6")]
+    [InlineData("de-DE", "Helm eines Anhängers Elions x 6")]
+    public async Task ExplicitMissingAnchorProbeRequiresTwoMatchingReads(string language, string text)
+    {
+        using var review = new BackgroundLootRowReview(new CompanionItemMatcher([Helmet]),
+            _ => new Engine(new([Read(text), Read(text)])));
+        review.ConfigureLanguage(language);
+        using var image = Band();
+        Assert.Null((await review.ReviewAsync(image, Input(null), default)).Diagnostics);
+        var result = await review.ReviewAsync(image, Input(null) with { ReviewMissingAlignmentAnchor = true }, default);
+        Assert.Equal("missing-alignment-anchor", result.Diagnostics!.Reason);
+        Assert.True(result.Observation!.IsAlignmentAnchor);
+        Assert.Equal(6, result.Observation.Quantity);
+        Assert.Equal(Helmet, result.Observation.ItemName);
+    }
+
+    [Theory]
+    [InlineData("6", "0", .99)]
+    [InlineData("6", "4", .99)]
+    [InlineData("6", "", .99)]
+    [InlineData("6", "6", .94)]
+    [InlineData("2", "2", .99)]
+    [InlineData("1001", "1001", .99)]
+    public async Task MissingAnchorCannotUseAClampedOrSingleQuantity(string a, string b, float confidence)
+    {
+        using var review = new BackgroundLootRowReview(new CompanionItemMatcher([Helmet]),
+            _ => new Engine(new([Read(Helmet + " x " + a, confidence), Read(Helmet + " x " + b, confidence)])));
+        using var image = Band();
+        var result = await review.ReviewAsync(image, Input(null) with { ReviewMissingAlignmentAnchor = true }, default);
+        Assert.Null(result.Observation);
+    }
+
+    [Fact]
+    public async Task AnchorProbeCannotReplaceAPrimaryRowOrUseTheRareChannel()
+    {
+        using var review = new BackgroundLootRowReview(new CompanionItemMatcher([Helmet]), _ => throw new Exception());
+        using var image = Band();
+        var baseline = Row();
+        Assert.Same(baseline, (await review.ReviewAsync(image,
+            Input(baseline) with { ReviewMissingAlignmentAnchor = true }, default)).Observation);
+        Assert.Null((await review.ReviewAsync(image,
+            Input(null) with { ReviewMissingAlignmentAnchor = true, Source = LootSource.Rare }, default)).Diagnostics);
+    }
+
+    [Theory]
     [InlineData("Elion Follower's Helmet x 6", 6)]
     [InlineData("Elion Follower's Helmet", 6)]
     public async Task GoodPrimaryResultSkipsNativeFallback(string text, int amount)
@@ -45,6 +90,55 @@ public sealed class BackgroundLootRowReviewTests
         var result = await review.ReviewAsync(image, Input(baseline) with { Bounds = _ => new(1, 1) }, default);
         Assert.Null(result.Diagnostics);
         Assert.Same(baseline, result.Observation);
+    }
+
+    [Theory]
+    [InlineData("en-US", "Elion Follower(s Helmet x IO", "Elion Follower's Helmet x 10", 1)]
+    [InlineData("de-DE", "Helm eines Anhängers Elions x IO", "Helm eines Anhängers Elions x 10", 1)]
+    [InlineData("en-US", "Elion Follower(s Helmet x 10", "Elion Follower's Helmet x 10", 1)]
+    [InlineData("en-US", "Elion Follower(s Helmet x 1001", "Elion Follower's Helmet x 10", 1001)]
+    public async Task NameReviewAlsoRepairsAnIndependentlyUnreliableQuantity(string language, string primary, string secondary, int amount)
+    {
+        var baseline = Row(amount, primary) with { NameConfidence = .7 };
+        using var review = new BackgroundLootRowReview(new CompanionItemMatcher([Helmet]),
+            _ => new Engine(new([Read(secondary), Read(secondary)])));
+        review.ConfigureLanguage(language);
+        using var image = Band();
+        var result = await review.ReviewAsync(image, Input(baseline), default);
+        Assert.Equal("uncertain-name", result.Diagnostics!.Reason);
+        Assert.Equal("observation-revised", result.Diagnostics.Outcome);
+        Assert.Equal(10, result.Observation!.Quantity);
+        Assert.Equal(Helmet, result.Observation.ItemName);
+    }
+
+    [Theory]
+    [InlineData("Elion Follower(s Helmet x 6", -1, 0)]
+    [InlineData("Elion Follower(s Helmet", 6, .96)]
+    public async Task NameReviewPreservesAnIndependentlyTrustedPrimaryQuantity(string primary, int template, float score)
+    {
+        var baseline = Row(6, primary) with { NameConfidence = .7 };
+        using var review = new BackgroundLootRowReview(new CompanionItemMatcher([Helmet]),
+            _ => new Engine(new([Read(Helmet + " x 10"), Read(Helmet + " x 10")])));
+        using var image = Band();
+        var result = await review.ReviewAsync(image, Input(baseline) with { TemplateQuantity = template, TemplateScore = score }, default);
+        Assert.Equal("uncertain-name", result.Diagnostics!.Reason);
+        Assert.Equal(6, result.Observation!.Quantity);
+        Assert.Equal("baseline-confirmed", result.Diagnostics.Outcome);
+    }
+
+    [Theory]
+    [InlineData("10", "7", .99)]
+    [InlineData("10", "", .99)]
+    [InlineData("10", "10", .94)]
+    public async Task NameAndQuantityReviewStillRequiresReliablePaddleConsensus(string first, string second, float confidence)
+    {
+        var baseline = Row(1, Helmet + " x IO") with { NameConfidence = .7 };
+        using var review = new BackgroundLootRowReview(new CompanionItemMatcher([Helmet]),
+            _ => new Engine(new([Read(Helmet + " x " + first, confidence), Read(Helmet + " x " + second, confidence)])));
+        using var image = Band();
+        var result = await review.ReviewAsync(image, Input(baseline), default);
+        Assert.Same(baseline, result.Observation);
+        Assert.NotEqual("observation-revised", result.Diagnostics!.Outcome);
     }
 
     [Theory]

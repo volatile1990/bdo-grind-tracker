@@ -14,6 +14,7 @@
             <button class="nav-item @(_page == Page.Live ? "active" : "")" aria-label="Live-Session" title="Live-Session" aria-current="@(_page == Page.Live ? "page" : null)" @onclick="() => Navigate(Page.Live)"><AppIcon Name="live" /><span>Live-Session</span>@if (State.IsRunning) { <span class="nav-live-dot"></span> }</button>
             <button class="nav-item @(_page == Page.History ? "active" : "")" aria-label="Verlauf" title="Verlauf" aria-current="@(_page == Page.History ? "page" : null)" @onclick="() => Navigate(Page.History)"><AppIcon Name="history" /><span>Verlauf</span><span class="nav-count">@Tracker.History.Count</span></button>
             <button class="nav-item @(_page == Page.Garmoth ? "active" : "")" aria-label="Garmoth" title="Garmoth" aria-current="@(_page == Page.Garmoth ? "page" : null)" @onclick="() => Navigate(Page.Garmoth)"><AppIcon Name="upload" /><span>Garmoth</span></button>
+            <button class="nav-item @(_page == Page.Overlay ? "active" : "")" aria-label="Overlay" title="Overlay" aria-current="@(_page == Page.Overlay ? "page" : null)" @onclick="() => Navigate(Page.Overlay)"><AppIcon Name="monitor" /><span>Overlay</span></button>
             <button class="nav-item @(_page == Page.Settings ? "active" : "")" aria-label="Einstellungen" title="Einstellungen" aria-current="@(_page == Page.Settings ? "page" : null)" @onclick="() => Navigate(Page.Settings)"><AppIcon Name="settings" /><span>Einstellungen</span></button>
         </nav>
         <div class="sidebar-bottom">
@@ -27,6 +28,13 @@
             <div class="topbar-right"><span class="region-badge">@Tracker.Preferences.MarketRegion.ToUpperInvariant()</span><span class="connection"><span class="status-dot @(State.IsError ? "error" : State.IsRunning ? "running" : "")"></span>@(State.IsDemo ? "Demo-Modus" : State.IsError ? "Fehler" : State.IsRunning ? "Tracking aktiv" : State.HasSession ? "Pausiert" : "Bereit")</span></div>
         </header>
         @if (_page != Page.Settings) { <AppUpdates Compact="true" /> }
+        @if (State.PersistenceError is not null)
+        {
+            <div class="notice error-notice persistence-notice" role="alert">
+                <AppIcon Name="info" /><div><strong>Problem mit lokalen Daten</strong><span>@State.PersistenceError</span></div>
+                <button class="button secondary" @onclick="() => Act(Tracker.SaveSessionAsync)" disabled="@(Acting || State.IsBusy)">Erneut sichern</button>
+            </div>
+        }
         <main id="main-content">
             <Router AppAssembly="@typeof(TrackerApp).Assembly">
                 <Found Context="routeData">
@@ -46,7 +54,7 @@
 </div>
 
 @code {
-    private enum Page { Live, History, Garmoth, Settings }
+    private enum Page { Live, History, Garmoth, Overlay, Settings }
     private bool _scrollPending;
     private string _scrollKey = "";
     private Page _page
@@ -54,7 +62,7 @@
         get
         {
             var path = Navigation.ToBaseRelativePath(Navigation.Uri).Split('?', '#')[0].TrimEnd('/');
-            return path == "settings" ? Page.Settings : path == "garmoth" ? Page.Garmoth : path == "history" || path.StartsWith("history/", StringComparison.Ordinal) ? Page.History : Page.Live;
+            return path == "settings" ? Page.Settings : path == "overlay" ? Page.Overlay : path == "garmoth" ? Page.Garmoth : path == "history" || path.StartsWith("history/", StringComparison.Ordinal) ? Page.History : Page.Live;
         }
     }
     protected override void OnInitialized()
@@ -65,7 +73,7 @@
     }
     private void Navigate(Page page)
     {
-        var path = page switch { Page.History => "/history", Page.Garmoth => "/garmoth", Page.Settings => "/settings", _ => "/" };
+        var path = page switch { Page.History => "/history", Page.Garmoth => "/garmoth", Page.Overlay => "/overlay", Page.Settings => "/settings", _ => "/" };
         if (Navigation.Uri != Navigation.ToAbsoluteUri(path).AbsoluteUri)
             Navigation.NavigateTo(path);
     }
@@ -99,6 +107,6 @@
         Navigation.LocationChanged -= LocationChanged;
         base.Dispose();
     }
-    private string PageLabel => _page switch { Page.History => "Verlauf", Page.Garmoth => "Garmoth", Page.Settings => "Einstellungen", _ => "Live-Session" };
+    private string PageLabel => _page switch { Page.History => "Verlauf", Page.Garmoth => "Garmoth", Page.Overlay => "Overlay", Page.Settings => "Einstellungen", _ => "Live-Session" };
     private static string Version => AppBranding.Version;
 }

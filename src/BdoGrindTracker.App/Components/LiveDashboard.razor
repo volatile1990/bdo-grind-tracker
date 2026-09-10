@@ -24,7 +24,7 @@
                 </div>
             </div>
             <div class="live-session-actions">
-                <button class="button primary" @onclick="() => Act(Tracker.ToggleTrackingAsync)" disabled="@(Acting || State.IsBusy || State.IsSubmitted || (!State.IsRunning && (!State.AnalyzerAvailable || State.TrackingBlockedReason is not null)))" title="@(State.IsSubmitted ? "Diese Session ist abgeschlossen. Beginne eine neue Session." : State.TrackingBlockedReason)"><AppIcon Name="@(State.IsRunning ? "pause" : "play")" />@(State.IsRunning ? "Pausieren" : State.HasSession ? "Fortsetzen" : "Tracking starten")</button>
+                <button class="button primary" @onclick="() => Act(State.IsRunning ? Tracker.PauseAsync : Tracker.ToggleTrackingAsync)" disabled="@(Acting || (State.IsRunning ? !State.CanPause : State.IsBusy || State.IsSubmitted || !State.AnalyzerAvailable || State.TrackingBlockedReason is not null || State.MissingOcrLanguageTag is not null || State.OcrRestartRequired))" title="@(State.IsSubmitted ? "Diese Session ist abgeschlossen. Beginne eine neue Session." : State.TrackingBlockedReason)"><AppIcon Name="@(State.IsRunning ? "pause" : "play")" />@(State.IsRunning ? "Pausieren" : State.HasSession ? "Fortsetzen" : "Tracking starten")</button>
                 <button class="button secondary" @onclick="RequestNew" disabled="@(Acting || State.IsBusy)"><AppIcon Name="plus" />Neue Session</button>
             </div>
         </div>
@@ -42,17 +42,49 @@
     }
     @if (ActionError is not null) { <div class="notice error-notice" role="alert"><AppIcon Name="info" />@ActionError</div> }
     @if (State.IsSubmitted) { <div class="notice"><AppIcon Name="info" /><div><strong>Session abgeschlossen</strong><span>Diese Session lässt sich nicht weiterführen oder erneut übertragen. Beginne für deinen nächsten Grind eine neue Session.</span></div></div> }
-    @if (!State.IsDemo && (!State.AnalyzerAvailable || State.TrackingBlockedReason is not null))
+    @if (!State.IsDemo && (State.MissingOcrLanguageTag is not null || State.OcrInstallationStatus is not null || State.OcrRestartRequired))
+    {
+        <section class="notice ocr-install-notice @(State.MissingOcrLanguageTag is not null || State.OcrRestartRequired || State.IsError ? "warning-notice" : "success-notice")" aria-labelledby="ocr-install-title">
+            <AppIcon Name="@(State.OcrRestartRequired ? "refresh" : "info")" />
+            <div class="ocr-install-content">
+                <strong id="ocr-install-title">@(State.IsInstallingOcrLanguage ? "Windows-Texterkennung wird installiert · " + OcrLanguageLabel : State.OcrRestartRequired ? "Windows-Neustart erforderlich" : State.MissingOcrLanguageTag is not null ? "Windows-Texterkennung fehlt · " + OcrLanguageLabel : "Windows-Texterkennung")</strong>
+                @if (State.MissingOcrLanguageTag is not null && !State.OcrRestartRequired)
+                {
+                    <span>Grindcrest benötigt dieses OCR-Sprachpaket, um die Drops in deiner Spielsprache zu erkennen.</span>
+                    <span class="ocr-install-help">Windows fragt nach einer Administratorbestätigung. Der Download benötigt Internet und kann einige Minuten dauern.</span>
+                }
+                <div class="ocr-install-status" role="status" aria-live="polite" aria-atomic="true">
+                    @if (State.IsInstallingOcrLanguage)
+                    {
+                        <progress aria-label="OCR-Sprachpaket wird installiert"></progress>
+                    }
+                    @if (State.OcrInstallationStatus is not null) { <span>@State.OcrInstallationStatus</span> }
+                </div>
+                <div class="ocr-install-actions">
+                    @if (State.MissingOcrLanguageTag is not null)
+                    {
+                        @if (!State.OcrRestartRequired)
+                        {
+                            <button class="button primary" @onclick="() => Act(Tracker.InstallOcrLanguageAsync)" disabled="@OcrActionDisabled">@(State.IsInstallingOcrLanguage ? "Wird installiert …" : "OCR-Sprachpaket installieren")</button>
+                        }
+                        <button class="button secondary" @onclick="() => Act(Tracker.RecheckOcrLanguageAsync)" disabled="@OcrActionDisabled"><AppIcon Name="refresh" />Erneut prüfen</button>
+                    }
+                    <button class="text-button" @onclick="OpenSettings" disabled="@(Acting || State.IsInstallingOcrLanguage)">Einstellungen <AppIcon Name="arrow" /></button>
+                </div>
+            </div>
+        </section>
+    }
+    @if (!State.IsDemo && State.MissingOcrLanguageTag is null && (!State.AnalyzerAvailable || State.TrackingBlockedReason is not null))
     {
         <div class="notice error-notice tracking-blocked" role="alert"><AppIcon Name="info" /><div><strong>Tracking nicht möglich</strong><span>@(State.TrackingBlockedReason ?? State.Status)</span></div><button class="text-button" @onclick="OpenSettings">Einstellungen <AppIcon Name="arrow" /></button></div>
     }
-    else if (!State.IsDemo && State.IsError)
+    else if (!State.IsDemo && State.MissingOcrLanguageTag is null && State.IsError && State.OcrInstallationStatus != State.Status)
     {
         <div class="notice error-notice" role="alert"><AppIcon Name="info" /><span>@State.Status</span></div>
     }
 
     <div class="live-content-grid">
-        <LootTable Title="Drops" Subtitle="" Totals="State.Loot.Totals" DurationTicks="State.Elapsed.Ticks" TrashName="CurrentProfile?.TrashItemName" EditableSessionId="State.SessionId" />
+        <LootTable Title="Drops" Subtitle="" Totals="State.Loot.Totals" DurationTicks="State.Elapsed.Ticks" TrashName="@CurrentProfile?.TrashItemName" EditableSessionId="State.SessionId" AllowAddingItems="true" SpotId="@State.SpotId" />
         <div class="session-aside">
             <section class="panel session-summary"><div class="panel-heading"><h2>Session-Details</h2><AppIcon Name="live" /></div><dl class="detail-list"><div><dt>Bestätigte Drops</dt><dd>@Number(State.Loot.ConfirmedEventCount)</dd></div><div><dt>Verschiedene Items</dt><dd>@State.Loot.ItemTypeCount</dd></div><div><dt>Bruttowert</dt><dd>@(CanShowSilver ? Silver(State.Silver.BeforeTax) : "—")@(!State.Silver.IsComplete ? " *" : "")</dd></div><div><dt>Markterlös</dt><dd>@Tracker.Preferences.Tax.MarketReturnRate.ToString("P2", German)</dd></div><div><dt>Automatische Pause</dt><dd>@Tracker.Preferences.AutoPauseMinutes Min.</dd></div></dl><div class="subtle-box"><AppIcon Name="shield" /><span>Die automatische Pause greift, wenn kein neuer Loot erkannt wird.</span></div></section>
             <div class="price-status"><span class="status-dot @(State.Silver.IsStale ? "" : "running")"></span><span>@State.PriceStatus</span><button class="icon-button" title="Marktpreise aktualisieren" aria-label="Marktpreise aktualisieren" @onclick="() => Act(Tracker.RefreshPricesAsync)" disabled="@(State.IsBusy || Acting)"><AppIcon Name="refresh" /></button></div>
@@ -68,14 +100,22 @@
     }
 </div>
 
-<dialog id="live-confirm" class="modal confirm-modal" @oncancel="CloseConfirmation">
-    <div class="modal-heading"><div><span class="eyebrow">SESSION</span><h2>Neue Session beginnen?</h2></div><button class="icon-button" @onclick="CloseConfirmation" aria-label="Dialog schließen"><AppIcon Name="close" /></button></div>
-    <p>Die aktuelle Session wird beendet und im Verlauf gesichert. Für die neue Session beginnen Zeit und Loot wieder bei null.</p>
+<dialog id="live-confirm" class="modal confirm-modal" aria-labelledby="live-confirm-title" @oncancel="CloseConfirmation">
+    <div class="modal-heading"><div><span class="eyebrow">SESSION</span><h2 id="live-confirm-title">Neue Session beginnen?</h2></div><button class="icon-button" @onclick="CloseConfirmation" aria-label="Dialog schließen"><AppIcon Name="close" /></button></div>
+    <p>@(State.IsDemo ? "Die Demo wird beendet. Beispieldaten werden nicht im Verlauf gespeichert." : "Die aktuelle Session wird beendet und im Verlauf gesichert.") Für die neue Session beginnen Zeit und Loot wieder bei null.</p>
+    @if (ActionError is not null) { <div class="notice error-notice" role="alert">@ActionError</div> }
     <div class="modal-actions"><button class="button secondary" @onclick="CloseConfirmation">Abbrechen</button><button class="button primary" @onclick="ConfirmAction" disabled="@Acting">Neue Session</button></div>
 </dialog>
 
 @code {
     private void OpenSettings() => Navigation.NavigateTo("/settings");
+    private bool OcrActionDisabled => Acting || State.IsBusy || State.IsRunning || State.IsInstallingOcrLanguage;
+    private string OcrLanguageLabel => State.MissingOcrLanguageTag switch
+    {
+        "de-DE" => "Deutsch (de-DE)",
+        "en-US" => "Englisch (en-US)",
+        var tag => tag ?? "",
+    };
     private LootSpotPresentation? CurrentProfile => Profile(State.SpotId);
     private bool CanShowSilver => State.Loot.Totals.Count == 0 || State.Silver.HasKnownValue;
     private string HeroStyle => $"background-image:url('assets/spot-backgrounds/{CurrentProfile?.BackgroundFileName ?? "aphrodon.jpg"}')";
@@ -85,13 +125,14 @@
     private string ValuationLabel => !State.Silver.IsComplete ? "Teilbetrag · Preise fehlen" : State.Silver.IsStale ? "Gespeicherte Marktpreise" : "Nach Marktsteuern";
     private async Task RequestNew()
     {
+        ClearActionError();
         if (!State.HasSession && !State.IsDemo) { await Act(Tracker.NewSessionAsync); return; }
         await JS.InvokeVoidAsync("grindcrest.showDialog", "live-confirm");
     }
     private async Task CloseConfirmation() => await JS.InvokeVoidAsync("grindcrest.closeDialog", "live-confirm");
     private async Task ConfirmAction()
     {
-        await CloseConfirmation();
-        await Act(async () => { if (State.IsRunning) await Tracker.PauseAsync(); if (!State.IsError) await Tracker.NewSessionAsync(); });
+        if (State.IsRunning && !await Act(Tracker.PauseAsync)) return;
+        if (await Act(Tracker.NewSessionAsync)) await CloseConfirmation();
     }
 }

@@ -12,6 +12,10 @@ Die Produkt-App liest nur:
   `Documents/Black Desert/UserCache`;
 - den lokalen Itemkatalog und optionale Darstellungsicons aus dem App-Verzeichnis.
 
+Das optionale Ingame-Overlay ordnet sichtbare Windows-Fenster anhand ihrer
+Prozessnamen Black Desert zu und liest deren Monitor und Vordergrundstatus. Es
+liest dabei keine Spielprozess-Speicherbereiche oder geladenen Spielmodule.
+
 Für die passive Klassenerkennung werden aus derselben gespeicherten
 `gameVariable.xml` ausschließlich die Skill-IDs der Quickslots/Cooldown-Slots
 ausgewertet. Es gibt keine Spielbedienung oder Klassenerkennung über Prozessdaten.
@@ -26,10 +30,18 @@ arbeitet anschließend nur mit Bildpixeln.
 
 ## Nicht verwendet
 
-Der Produktcode verwendet keine Prozesssuche, kein `ReadProcessMemory`, keine DLL-
+Der Produktcode verwendet kein `ReadProcessMemory`, keine DLL-
 Injection, keine globalen Hooks, kein Packet-Capture und kein `SendInput`. Er liest keine
-internen Spieldaten und steuert weder BDO noch BDO Companion. Es gibt keinen Laufzeit-
-Download für die Erkennung.
+internen Spieldaten und steuert weder BDO noch BDO Companion. Die Paddle-Modelle und
+Ziffernvorlagen sind lokal enthalten.
+
+Ein fehlendes Windows-OCR-Sprachpaket kann der Nutzer ausdrücklich aus Grindcrest
+nachinstallieren. Dafür startet die App die vertrauenswürdige Windows-Systemdatei
+`dism.exe` mit Administratorabfrage und einer festen Whitelist für die OCR-Pakete
+`en-US` und `de-DE`. Es werden keine frei formulierten Befehle oder Scripts erhöht
+ausgeführt. Windows bezieht die Komponenten aus seinen Updatequellen; dieser
+Vorgang überträgt keine Sessiondaten oder Bilder. Ohne Installationsklick wird kein
+Paket installiert, und Windows wird nicht automatisch neu gestartet.
 
 ## Datenschutz und Speicherung
 
@@ -39,6 +51,13 @@ Snipping-Ansicht; es löst selbst keine Bildschirmaufnahme aus. Auch die beiden
 Optionsdialoge bleiben aufnehmbar. Der API-Key ist dort weiterhin maskiert.
 Während des Trackings dürfen die eigenen Fenster das kalibrierte Lootpanel nicht
 überdecken; es werden weiterhin ausschließlich tatsächlich sichtbare Pixel gelesen.
+
+Für das separat aktivierbare Ingame-Overlay gilt standardmäßig
+`WDA_EXCLUDEFROMCAPTURE`, damit seine Metriken nicht selbst in der OCR landen.
+Dieser Ausschluss betrifft nur das Overlay und lässt sich in dessen Editor
+abschalten. Optionale globale Overlay-Tastenkürzel verwenden `RegisterHotKey`,
+keine Tastatur-Hooks. Layout und Position werden unabhängig von Sessiondaten in
+`overlay.json` gespeichert. [Bedienung und Grenzen](OVERLAY.md).
 
 Aufgenommene Frames werden im Arbeitsspeicher verarbeitet und nach der Analyse
 freigegeben. Ohne ausdrückliche Aktivierung der lokalen Diagnose werden keine

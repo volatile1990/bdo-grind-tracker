@@ -27,9 +27,40 @@ Die Automatik startet dann keine Erfassung mit einer geratenen Sprache. Deutsch
 oder Englisch kann vor einer neuen Session manuell ausgewählt werden.
 
 Für die Erkennung wird das passende installierte Windows-OCR-Modell verwendet
-(`de-DE` bzw. `en-US`). Fehlt es, bleibt die Session ungestartet; die Fehlermeldung
-verweist auf die Windows-Sprachoptionen. Eine manuelle Sprachwahl benötigt keinen
+(`de-DE` bzw. `en-US`). Fehlt es, bleibt die Session ungestartet; Grindcrest bietet
+die Installation direkt in der Live-Session an. Eine manuelle Sprachwahl benötigt keinen
 App-Neustart. Die Spieleinstellungen werden niemals verändert.
+
+## Windows-OCR-Sprachpaket installieren
+
+Bei einem fehlenden Paket zeigt die Live-Session die betroffene Sprache und
+**OCR-Sprachpaket installieren**. Der Klick prüft die aktuelle Spielsprache noch
+einmal und startet anschließend die Windows-Installation mit Administratorabfrage.
+Die App bleibt bedienbar und zeigt den laufenden Vorgang; Tracking und weitere
+Installationen bleiben währenddessen gesperrt. Windows lädt die benötigten Dateien
+über seine eingerichteten Updatequellen. Das kann einige Minuten dauern.
+
+Nach dem Abschluss versucht Grindcrest, die Texterkennung erneut zu initialisieren.
+Erst die erfolgreiche Prüfung gibt den Tracking-Start frei. Vorhandene Sessions
+und Zähler bleiben erhalten; das Tracking startet nicht automatisch. Ein abgelehnter
+Administratorzugriff gilt als Abbruch und lässt sich erneut versuchen. Installationsfehler
+zeigen den Windows-Fehlercode. Wenn Windows einen Neustart verlangt, zeigt Grindcrest
+dies an und startet den Rechner nicht selbst neu. **Erneut prüfen** erkennt auch
+eine inzwischen außerhalb von Grindcrest installierte Sprache.
+
+Technisch wird ausschließlich `dism.exe` aus dem Windows-Systemverzeichnis mit
+`/Online /Add-Capability /CapabilityName:Language.OCR~~~en-US~0.0.1.0 /NoRestart /Quiet`
+aufgerufen, für Deutsch entsprechend `de-DE`. Nur diese beiden fest vorgegebenen
+Pakete sind zugelassen. Ein WinRT-Initialisierungsfehler allein löst kein Installangebot
+aus; die Windows-API muss die fehlende Sprache bestätigen. Firmenrichtlinien oder
+fehlender Zugriff auf Windows Update können die Installation verhindern.
+
+Microsoft dokumentiert die [OCR-Sprachpakete](https://learn.microsoft.com/en-us/windows/powertoys/text-extractor),
+die [DISM-Paketinstallation und Updatequellen](https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/dism-capabilities-package-servicing-command-line-options?view=windows-11)
+sowie [NoRestart und Quiet](https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/dism-global-options-for-command-line-syntax?view=windows-11).
+
+Die automatischen Tests verwenden isolierte Einstellungen und simulierte
+Installationsprozesse. Sie installieren oder entfernen keine Windows-Komponenten.
 
 ## Itemnamen, Identität und vollständige Abdeckung
 

@@ -6,6 +6,8 @@ internal interface ILootFrameAnalyzer : IDisposable
 
     string Status { get; }
 
+    string? MissingOcrLanguageTag => null;
+
     bool RequiresLootPanel => false;
 
     void ValidateCaptureSetup(Size frameSize) { }

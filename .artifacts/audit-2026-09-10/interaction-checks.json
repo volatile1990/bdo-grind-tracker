@@ -1,0 +1,37 @@
+{
+  "historyFilterMismatch": {
+    "emptyResult": true,
+    "displayedSessions": 18
+  },
+  "wheelEdge": {
+    "before": {
+      "main": 584,
+      "left": 1651.3333740234375,
+      "scrollMax": 1651
+    },
+    "after": {
+      "main": 584,
+      "left": 1651.3333740234375
+    },
+    "defaultPrevented": true
+  },
+  "quantityEdit": {
+    "before": 18420,
+    "after": 18421,
+    "focusAfterSave": {
+      "tag": "BODY",
+      "role": null,
+      "label": null
+    }
+  },
+  "dialog": {
+    "label": null,
+    "labelledby": null,
+    "heading": "Neue Session beginnen?"
+  },
+  "reflow": {
+    "width": 430,
+    "bodyWidth": 640
+  },
+  "errors": []
+}

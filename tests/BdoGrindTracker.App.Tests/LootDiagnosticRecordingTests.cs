@@ -23,14 +23,19 @@ public sealed class LootDiagnosticRecordingTests : IDisposable
             "Elion Follower's Helmet", null, 1, 0, null, null)
             { NativeY = 250, QuantityBounds = new(4, 1000) };
         recording.RecordFrame(StartTime, [row], tracker.ProcessFrame(StartTime, [row], false),
-            source, null, null, recognitionVariant: "test+row-tracks-v1");
+            source, new Rectangle(0, 0, 2, 2), null, recognitionVariant: "test+row-tracks-v1");
         var initial = tracker.CompleteSession(StartTime.AddSeconds(1));
         recording.RecordCompletion(StartTime.AddSeconds(1), initial);
         row = row with { Quantity = 6, RawText = row.RawText + " x 6" };
         recording.RecordFrame(StartTime.AddSeconds(2), [row], tracker.ProcessFrame(StartTime.AddSeconds(2), [row], false),
-            source, null, null, recognitionVariant: "test+row-tracks-v1");
+            source, new Rectangle(0, 0, 2, 2), null, recognitionVariant: "test+row-tracks-v1");
         var revised = tracker.CompleteSession(StartTime.AddSeconds(3));
         recording.RecordCompletion(StartTime.AddSeconds(3), revised);
+        var sessionId = Guid.NewGuid();
+        var savedTotals = new Dictionary<string, long> { [row.ItemName!] = 5 };
+        recording.SaveCountSummary(sessionId, StartTime.AddSeconds(4), TimeSpan.FromSeconds(4), savedTotals);
+        // Repeated persistence must replace the snapshot, without counting the same evidence again.
+        recording.SaveCountSummary(sessionId, StartTime.AddSeconds(5), TimeSpan.FromSeconds(4), savedTotals);
         recording.Dispose();
         Assert.Equal(Assert.Single(initial.NewEvents).EventId, Assert.Single(revised.NewEvents).EventId);
         Assert.Equal(2, revised.NewEvents[0].Quantity);
@@ -38,6 +43,72 @@ public sealed class LootDiagnosticRecordingTests : IDisposable
         Assert.True(replay.TotalsMatch);
         Assert.True(replay.EventTimelineMatches);
         Assert.Equal(6, replay.Totals[row.ItemName!]);
+        var entries = File.ReadAllLines(recording.RecordingPath!).Skip(1)
+            .Select(line => JsonSerializer.Deserialize<LootDiagnosticEntry>(line, LootDiagnosticFormat.JsonOptions)!).ToArray();
+        var linked = Assert.Single(entries[3].NormalReconciliation!);
+        Assert.Equal(2, linked.Trace.CaptureIndex);
+        Assert.Equal(3, linked.RecordingSequence);
+        Assert.Equal(1, linked.PreviousRecordingSequence);
+        Assert.Equal("000003-normal.png", linked.NormalCropFileName);
+        Assert.Equal("000001-normal.png", linked.PreviousNormalCropFileName);
+        using var summary = JsonDocument.Parse(File.ReadAllText(Path.Combine(
+            Path.GetDirectoryName(recording.RecordingPath!)!, LootDiagnosticFormat.CountSummaryFileName)));
+        var root = summary.RootElement;
+        Assert.Equal(sessionId, root.GetProperty("sessionId").GetGuid());
+        Assert.Equal(2, root.GetProperty("normalTraceFrames").GetInt32());
+        Assert.Equal(0, root.GetProperty("pendingNormalFrames").GetInt32());
+        Assert.Equal(1, root.GetProperty("newNormalDrops").GetInt32());
+        Assert.Equal(1, root.GetProperty("normalQuantityRevisions").GetInt32());
+        Assert.Equal(0, root.GetProperty("candidateCount").GetInt32());
+        var total = Assert.Single(root.GetProperty("totals").EnumerateArray());
+        Assert.Equal(6, total.GetProperty("recorded").GetInt64());
+        Assert.Equal(5, total.GetProperty("saved").GetInt64());
+        Assert.Equal(-1, total.GetProperty("savedMinusRecorded").GetInt64());
+        Assert.Null(recording.LastError);
+    }
+
+    [Fact]
+    public void SummaryWriteFailureLeavesExistingRecordingReadableAndDoesNotThrow()
+    {
+        using var recording = DiagnosticRecordingSession.Start(temporaryDirectory, "magaia");
+        recording.RecordCompletion(StartTime, new TrackerFrameResult([], []));
+        var summaryPath = Path.Combine(Path.GetDirectoryName(recording.RecordingPath!)!, LootDiagnosticFormat.CountSummaryFileName);
+        Directory.CreateDirectory(summaryPath);
+        recording.SaveCountSummary(Guid.NewGuid(), StartTime, TimeSpan.Zero, new Dictionary<string, long>());
+        Assert.NotNull(recording.LastError);
+        Assert.False(recording.IsRecording);
+        Assert.Equal(2, File.ReadAllLines(recording.RecordingPath!).Length);
+        Assert.False(File.Exists(summaryPath + ".tmp"));
+    }
+
+    [Fact]
+    public void AuditBoundsExamplesButCountsEveryCandidateAndKeepsImageReferences()
+    {
+        var audit = new LootCountAudit();
+        var counter = new CompanionFrameReconciler(null, trackRows: true);
+        for (var i = 1; i <= 310; i++)
+        {
+            var output = counter.ProcessFrame([new CompanionRecognizedEntry("Helmet", 6, 250)
+                { Slot = 0, QuantityBounds = new(4, 1000) }], StartTime.AddMilliseconds(i * 100));
+            var result = new TrackerFrameResult(output.Select(entry => new TrackedLootEvent(
+                entry.EventId!.Value, StartTime, entry.Name, checked((int)entry.Count))).ToArray(), [])
+                { NormalCaptureIndex = counter.CaptureIndex, NormalReconciliation = counter.LastTrace };
+            audit.Observe(result, result.NormalReconciliation.Select(trace => new RecordedNormalReconciliation(
+                trace, (int)trace.CaptureIndex, $"{trace.CaptureIndex:D6}-normal.png",
+                (int?)trace.PreviousCaptureIndex, $"{trace.PreviousCaptureIndex:D6}-normal.png")).ToArray());
+        }
+        using var json = JsonDocument.Parse(JsonSerializer.Serialize(audit.Snapshot(Guid.NewGuid(), StartTime,
+            TimeSpan.FromSeconds(31), new Dictionary<string, long>()), LootDiagnosticFormat.JsonOptions));
+        var root = json.RootElement;
+        Assert.Equal(104, root.GetProperty("newNormalDrops").GetInt32());
+        Assert.Equal(103, root.GetProperty("candidateCount").GetInt32());
+        Assert.Equal(103, root.GetProperty("candidatesByItem").GetProperty("Helmet").GetInt32());
+        Assert.True(root.GetProperty("examplesTruncated").GetBoolean());
+        var examples = root.GetProperty("examples");
+        Assert.Equal(100, examples.GetArrayLength());
+        Assert.Equal("000004-normal.png", examples[0].GetProperty("normalCropFileName").GetString());
+        Assert.Equal("000003-normal.png", examples[0].GetProperty("previousNormalCropFileName").GetString());
+        Assert.Equal(6, examples[0].GetProperty("quantity").GetInt32());
     }
 
     [Theory]

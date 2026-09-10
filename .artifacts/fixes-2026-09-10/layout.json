@@ -1,0 +1,398 @@
+{
+  "layouts": [
+    {
+      "route": "Live-Session",
+      "width": 1440,
+      "doc": 1440,
+      "main": 1216,
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "route": "Verlauf",
+      "width": 1440,
+      "doc": 1440,
+      "main": 1216,
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "route": "Garmoth",
+      "width": 1440,
+      "doc": 1440,
+      "main": 1216,
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "route": "Overlay",
+      "width": 1440,
+      "doc": 1440,
+      "main": 1216,
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "route": "Einstellungen",
+      "width": 1440,
+      "doc": 1440,
+      "main": 1216,
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "route": "Live-Session",
+      "width": 860,
+      "doc": 860,
+      "main": 780,
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "route": "Verlauf",
+      "width": 860,
+      "doc": 860,
+      "main": 780,
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "route": "Garmoth",
+      "width": 860,
+      "doc": 963,
+      "main": 780,
+      "overflow": [
+        {
+          "label": "Gespeicherte Session hochladen",
+          "right": 1077,
+          "left": 963,
+          "scrollParent": "table-scroll"
+        },
+        {
+          "label": "Gespeicherte Session hochladen",
+          "right": 1077,
+          "left": 963,
+          "scrollParent": "table-scroll"
+        },
+        {
+          "label": "Gespeicherte Session hochladen",
+          "right": 1077,
+          "left": 963,
+          "scrollParent": "table-scroll"
+        },
+        {
+          "label": "Gespeicherte Session hochladen",
+          "right": 1077,
+          "left": 963,
+          "scrollParent": "table-scroll"
+        },
+        {
+          "label": "Gespeicherte Session hochladen",
+          "right": 1077,
+          "left": 963,
+          "scrollParent": "table-scroll"
+        },
+        {
+          "label": "Gespeicherte Session hochladen",
+          "right": 1077,
+          "left": 963,
+          "scrollParent": "table-scroll"
+        },
+        {
+          "label": "Gespeicherte Session hochladen",
+          "right": 1077,
+          "left": 963,
+          "scrollParent": "table-scroll"
+        },
+        {
+          "label": "Gespeicherte Session hochladen",
+          "right": 1077,
+          "left": 963,
+          "scrollParent": "table-scroll"
+        }
+      ],
+      "brokenImages": 0
+    },
+    {
+      "route": "Overlay",
+      "width": 860,
+      "doc": 860,
+      "main": 780,
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "route": "Einstellungen",
+      "width": 860,
+      "doc": 860,
+      "main": 780,
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "route": "Live-Session",
+      "width": 430,
+      "doc": 430,
+      "main": 430,
+      "overflow": [
+        {
+          "label": "Gesamtmenge für Broken Vestige of Goldroot bearbeiten",
+          "right": 439,
+          "left": 327,
+          "scrollParent": "table-scroll"
+        },
+        {
+          "label": "Gesamtmenge für Branch of Abundance bearbeiten",
+          "right": 439,
+          "left": 327,
+          "scrollParent": "table-scroll"
+        },
+        {
+          "label": "Gesamtmenge für WON Wandering Origin Crystal bearbeiten",
+          "right": 439,
+          "left": 327,
+          "scrollParent": "table-scroll"
+        },
+        {
+          "label": "Gesamtmenge für WON Origin Shard bearbeiten",
+          "right": 439,
+          "left": 327,
+          "scrollParent": "table-scroll"
+        },
+        {
+          "label": "Gesamtmenge für Ancient Spirit Dust bearbeiten",
+          "right": 439,
+          "left": 327,
+          "scrollParent": "table-scroll"
+        },
+        {
+          "label": "Gesamtmenge für Black Stone bearbeiten",
+          "right": 439,
+          "left": 327,
+          "scrollParent": "table-scroll"
+        },
+        {
+          "label": "Gesamtmenge für Nev's Fragment bearbeiten",
+          "right": 439,
+          "left": 327,
+          "scrollParent": "table-scroll"
+        }
+      ],
+      "brokenImages": 0
+    },
+    {
+      "route": "Verlauf",
+      "width": 430,
+      "doc": 430,
+      "main": 430,
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "route": "Garmoth",
+      "width": 430,
+      "doc": 877,
+      "main": 430,
+      "overflow": [
+        {
+          "label": "Gespeicherte Session hochladen",
+          "right": 933,
+          "left": 877,
+          "scrollParent": "table-scroll"
+        },
+        {
+          "label": "Gespeicherte Session hochladen",
+          "right": 933,
+          "left": 877,
+          "scrollParent": "table-scroll"
+        },
+        {
+          "label": "Gespeicherte Session hochladen",
+          "right": 933,
+          "left": 877,
+          "scrollParent": "table-scroll"
+        },
+        {
+          "label": "Gespeicherte Session hochladen",
+          "right": 933,
+          "left": 877,
+          "scrollParent": "table-scroll"
+        },
+        {
+          "label": "Gespeicherte Session hochladen",
+          "right": 933,
+          "left": 877,
+          "scrollParent": "table-scroll"
+        },
+        {
+          "label": "Gespeicherte Session hochladen",
+          "right": 933,
+          "left": 877,
+          "scrollParent": "table-scroll"
+        },
+        {
+          "label": "Gespeicherte Session hochladen",
+          "right": 933,
+          "left": 877,
+          "scrollParent": "table-scroll"
+        },
+        {
+          "label": "Gespeicherte Session hochladen",
+          "right": 933,
+          "left": 877,
+          "scrollParent": "table-scroll"
+        }
+      ],
+      "brokenImages": 0
+    },
+    {
+      "route": "Overlay",
+      "width": 430,
+      "doc": 430,
+      "main": 430,
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "route": "Einstellungen",
+      "width": 430,
+      "doc": 430,
+      "main": 430,
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "route": "Live-Session",
+      "width": 320,
+      "doc": 320,
+      "main": 320,
+      "overflow": [
+        {
+          "label": "Gesamtmenge für Broken Vestige of Goldroot bearbeiten",
+          "right": 436,
+          "left": 324,
+          "scrollParent": "table-scroll"
+        },
+        {
+          "label": "Gesamtmenge für Branch of Abundance bearbeiten",
+          "right": 436,
+          "left": 324,
+          "scrollParent": "table-scroll"
+        },
+        {
+          "label": "Gesamtmenge für WON Wandering Origin Crystal bearbeiten",
+          "right": 436,
+          "left": 324,
+          "scrollParent": "table-scroll"
+        },
+        {
+          "label": "Gesamtmenge für WON Origin Shard bearbeiten",
+          "right": 436,
+          "left": 324,
+          "scrollParent": "table-scroll"
+        },
+        {
+          "label": "Gesamtmenge für Ancient Spirit Dust bearbeiten",
+          "right": 436,
+          "left": 324,
+          "scrollParent": "table-scroll"
+        },
+        {
+          "label": "Gesamtmenge für Black Stone bearbeiten",
+          "right": 436,
+          "left": 324,
+          "scrollParent": "table-scroll"
+        },
+        {
+          "label": "Gesamtmenge für Nev's Fragment bearbeiten",
+          "right": 436,
+          "left": 324,
+          "scrollParent": "table-scroll"
+        }
+      ],
+      "brokenImages": 0
+    },
+    {
+      "route": "Verlauf",
+      "width": 320,
+      "doc": 320,
+      "main": 320,
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "route": "Garmoth",
+      "width": 320,
+      "doc": 874,
+      "main": 320,
+      "overflow": [
+        {
+          "label": "Gespeicherte Session hochladen",
+          "right": 930,
+          "left": 874,
+          "scrollParent": "table-scroll"
+        },
+        {
+          "label": "Gespeicherte Session hochladen",
+          "right": 930,
+          "left": 874,
+          "scrollParent": "table-scroll"
+        },
+        {
+          "label": "Gespeicherte Session hochladen",
+          "right": 930,
+          "left": 874,
+          "scrollParent": "table-scroll"
+        },
+        {
+          "label": "Gespeicherte Session hochladen",
+          "right": 930,
+          "left": 874,
+          "scrollParent": "table-scroll"
+        },
+        {
+          "label": "Gespeicherte Session hochladen",
+          "right": 930,
+          "left": 874,
+          "scrollParent": "table-scroll"
+        },
+        {
+          "label": "Gespeicherte Session hochladen",
+          "right": 930,
+          "left": 874,
+          "scrollParent": "table-scroll"
+        },
+        {
+          "label": "Gespeicherte Session hochladen",
+          "right": 930,
+          "left": 874,
+          "scrollParent": "table-scroll"
+        },
+        {
+          "label": "Gespeicherte Session hochladen",
+          "right": 930,
+          "left": 874,
+          "scrollParent": "table-scroll"
+        }
+      ],
+      "brokenImages": 0
+    },
+    {
+      "route": "Overlay",
+      "width": 320,
+      "doc": 320,
+      "main": 320,
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "route": "Einstellungen",
+      "width": 320,
+      "doc": 320,
+      "main": 320,
+      "overflow": [],
+      "brokenImages": 0
+    }
+  ],
+  "errors": []
+}

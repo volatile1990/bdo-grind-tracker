@@ -25,6 +25,9 @@ internal sealed class DiagnosticRecordingSession : IDisposable
     private int entrySequence;
     private int frameCount;
     private bool disposed;
+    private readonly Dictionary<long, (int Sequence, string? Crop)> normalFrameReferences = [];
+    private readonly LootCountAudit countAudit = new();
+    private long summaryBytes;
 
     private DiagnosticRecordingSession(long? maximumBytes, int? maximumFrames)
     {
@@ -81,6 +84,7 @@ internal sealed class DiagnosticRecordingSession : IDisposable
                 Catalog = FrameAnalyzerFactory.LoadCatalog(
                     Path.Combine(AppContext.BaseDirectory, "data", "items.en.txt"),
                     Path.Combine(AppContext.BaseDirectory, "data", "icons", "catalog.json")),
+                ReconciliationTraceVersion = 1,
             });
         }
         catch (Exception exception) when (IsRecordingException(exception))
@@ -126,6 +130,14 @@ internal sealed class DiagnosticRecordingSession : IDisposable
                 var encodedCrops = new List<(string Path, byte[] Bytes)>(2);
                 AddCrop(sourceFrame, normalPanel, "normal", sequence, crops, encodedCrops);
                 AddCrop(sourceFrame, rareBand, "rare", sequence, crops, encodedCrops);
+                if (result.NormalCaptureIndex is { } captureIndex)
+                {
+                    normalFrameReferences[captureIndex] = (sequence, crops.FirstOrDefault(crop => crop.Source == "normal")?.FileName);
+                    // A normal batch spans ten captures, plus its preceding anchor.
+                    // Pause/completion records do not consume capture references.
+                    if (normalFrameReferences.Count > 32) normalFrameReferences.Remove(normalFrameReferences.Keys.Min());
+                }
+                var reconciliation = LinkTraces(result.NormalReconciliation);
                 var entry = new LootDiagnosticEntry(
                     "frame", sequence, capturedAt, observations, result.NewEvents, result.Decisions, crops)
                 {
@@ -135,6 +147,8 @@ internal sealed class DiagnosticRecordingSession : IDisposable
                     IsToneMapped = isToneMapped,
                     RecognitionVariant = recognitionVariant,
                     RowReviews = rowReviews is { Count: > 0 } ? rowReviews : null,
+                    NormalCaptureIndex = result.NormalCaptureIndex,
+                    NormalReconciliation = reconciliation,
                 };
                 var jsonBytes = SerializeLine(entry);
                 EnsureBudget(jsonBytes.LongLength + encodedCrops.Sum(static crop => crop.Bytes.LongLength));
@@ -148,6 +162,7 @@ internal sealed class DiagnosticRecordingSession : IDisposable
                 WriteBytes(jsonBytes);
                 entrySequence = sequence;
                 frameCount++;
+                countAudit.Observe(result, reconciliation);
             }
             catch (Exception exception) when (IsRecordingException(exception))
             {
@@ -168,9 +183,12 @@ internal sealed class DiagnosticRecordingSession : IDisposable
             try
             {
                 ValidateResult(result);
+                var reconciliation = LinkTraces(result.NormalReconciliation);
                 WriteJson(new LootDiagnosticEntry(
-                    "complete", entrySequence + 1, completedAt, [], result.NewEvents, result.Decisions, []));
+                    "complete", entrySequence + 1, completedAt, [], result.NewEvents, result.Decisions, [])
+                    { NormalCaptureIndex = result.NormalCaptureIndex, NormalReconciliation = reconciliation });
                 entrySequence++;
+                countAudit.Observe(result, reconciliation);
             }
             catch (Exception exception) when (IsRecordingException(exception))
             {
@@ -201,6 +219,42 @@ internal sealed class DiagnosticRecordingSession : IDisposable
             journal = null;
         }
     }
+
+    public void SaveCountSummary(Guid sessionId, DateTimeOffset savedAt, TimeSpan activeTime,
+        IReadOnlyDictionary<string, long> savedTotals)
+    {
+        lock (sync)
+        {
+            if (!IsRecording) return;
+            var path = Path.Combine(Path.GetDirectoryName(RecordingPath!)!, LootDiagnosticFormat.CountSummaryFileName);
+            var temporary = path + ".tmp";
+            try
+            {
+                var bytes = JsonSerializer.SerializeToUtf8Bytes(countAudit.Snapshot(sessionId, savedAt, activeTime, savedTotals),
+                    new JsonSerializerOptions(LootDiagnosticFormat.JsonOptions) { WriteIndented = true });
+                EnsureBudget(Math.Max(0, bytes.LongLength - summaryBytes));
+                File.WriteAllBytes(temporary, bytes);
+                File.Move(temporary, path, overwrite: true);
+                writtenBytes += bytes.LongLength - summaryBytes;
+                summaryBytes = bytes.LongLength;
+            }
+            catch (Exception exception) when (IsRecordingException(exception)) { StopWithError(exception.Message); }
+            finally
+            {
+                try { if (File.Exists(temporary)) File.Delete(temporary); }
+                catch (Exception exception) when (IsRecordingException(exception)) { LastError ??= exception.Message; }
+            }
+        }
+    }
+
+    private IReadOnlyList<RecordedNormalReconciliation>? LinkTraces(IReadOnlyList<NormalLootReconciliationTrace> traces) =>
+        traces.Count == 0 ? null : traces.Select(trace =>
+        {
+            var current = normalFrameReferences.GetValueOrDefault(trace.CaptureIndex);
+            var previous = trace.PreviousCaptureIndex is { } prior ? normalFrameReferences.GetValueOrDefault(prior) : default;
+            return new RecordedNormalReconciliation(trace, current.Sequence == 0 ? null : current.Sequence, current.Crop,
+                previous.Sequence == 0 ? null : previous.Sequence, previous.Crop);
+        }).ToArray();
 
     private void AddCrop(
         Bitmap frame,
@@ -316,7 +370,9 @@ internal sealed class DiagnosticRecordingSession : IDisposable
     {
         ArgumentNullException.ThrowIfNull(result);
         if (result.NewEvents is null || result.NewEvents.Count > 256 ||
-            result.Decisions is null || result.Decisions.Count > 256)
+            result.Decisions is null || result.Decisions.Count > 256 || result.NormalReconciliation is null ||
+            result.NormalReconciliation.Count > CompanionFrameReconciler.BatchSize ||
+            result.NormalReconciliation.Any(trace => trace is null || trace.Rows.Count > 32 || trace.OverlapAttempts.Count > 32))
         {
             throw new InvalidDataException("Ungültiges Diagnose-Ergebnis.");
         }

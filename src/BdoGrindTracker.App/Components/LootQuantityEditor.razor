@@ -1,4 +1,5 @@
 @inherits TrackerComponentBase
+@inject IJSRuntime JS
 
 <div class="loot-quantity-control" @onclick:stopPropagation>
     @if (_editing)
@@ -9,12 +10,13 @@
                 @bind="_value" @bind:event="oninput" /></label>
             <div class="quantity-edit-actions"><button type="submit" class="icon-button" aria-label="Menge speichern" title="Speichern (Enter)" disabled="@(Acting || !State.CanEditLoot)"><AppIcon Name="check" /></button><button type="button" class="icon-button" aria-label="Bearbeitung abbrechen" title="Abbrechen (Esc)" @onclick="Cancel" disabled="@Acting"><AppIcon Name="close" /></button></div>
             @if (Quantity != _originalQuantity) { <small class="quantity-edit-note">Zwischenzeitliche Drops bleiben erhalten.</small> }
+            @if (HasGarmothUpload) { <small class="quantity-edit-note">Bereits übertragene Garmoth-Einträge bleiben unverändert.</small> }
             @if (_error is not null) { <small class="quantity-edit-error" role="alert">@_error</small> }
         </form>
     }
     else
     {
-        <span>@DisplayQuantity</span><button type="button" class="icon-button quantity-edit-button" aria-label="@("Gesamtmenge für " + ItemLabel(ItemName) + " bearbeiten")" title="Gesamtmenge bearbeiten" @onclick="Begin" disabled="@(!State.CanEditLoot)"><AppIcon Name="edit" /></button>
+        <button @ref="_trigger" type="button" class="quantity-edit-trigger" aria-label="@("Gesamtmenge für " + ItemLabel(ItemName) + " bearbeiten")" title="@(State.CanEditLoot ? "Gesamtmenge bearbeiten" : null)" @onclick="Begin" disabled="@(!State.CanEditLoot)">@DisplayQuantity</button>
     }
 </div>
 
@@ -25,21 +27,33 @@
     [Parameter] public string DisplayQuantity { get; set; } = "";
     private bool _editing;
     private bool _focusInput;
+    private bool _focusTrigger;
     private long _originalQuantity;
     private Guid _editingSessionId;
     private string _editingItemName = "";
     private string _value = "";
     private string? _error;
     private ElementReference _input;
+    private ElementReference _trigger;
+    private bool HasGarmothUpload => Tracker.History.Any(entry => entry.SessionId == SessionId &&
+        (entry.GarmothUploadedAt is not null || entry.GarmothUploadBlocked)) ||
+        SessionId == State.SessionId && State.UploadBlocked;
 
     protected override void OnParametersSet()
     {
-        if (_editing && (SessionId != _editingSessionId || ItemName != _editingItemName)) Cancel();
+        if (_editing && (SessionId != _editingSessionId || ItemName != _editingItemName))
+        {
+            _editing = false;
+            _error = null;
+            _focusInput = false;
+            _focusTrigger = false;
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (_focusInput) { _focusInput = false; await _input.FocusAsync(); }
+        if (_focusTrigger) { _focusTrigger = false; await JS.InvokeVoidAsync("grindcrest.focusIfUnclaimed", _trigger); }
     }
 
     private void Begin()
@@ -54,11 +68,11 @@
         _focusInput = true;
     }
 
-    private void Cancel() { _editing = false; _error = null; }
+    private void Cancel() { _editing = false; _error = null; _focusInput = false; _focusTrigger = true; }
     private void OnKeyDown(KeyboardEventArgs args) { if (args.Key == "Escape" && !Acting) Cancel(); }
     private async Task Save()
     {
-        if (Acting || !State.CanEditLoot) return;
+        if (!_editing || Acting || !State.CanEditLoot) return;
         if (!long.TryParse(_value, NumberStyles.None, CultureInfo.InvariantCulture, out var quantity))
         {
             _error = "Bitte eine ganze Menge ab 0 eingeben.";

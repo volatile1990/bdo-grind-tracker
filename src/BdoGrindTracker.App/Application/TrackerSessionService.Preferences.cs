@@ -15,7 +15,7 @@ internal sealed partial class TrackerSessionService
             return new("Die Einstellungen konnten nicht gespeichert werden, weil Grindcrest beendet wird.");
         if (IsBusy)
             return new("Die Einstellungen konnten noch nicht gespeichert werden. Bitte warte, bis der laufende Vorgang abgeschlossen ist.");
-        await RunOperationAsync(() =>
+        var result = await RunOperationAsync(() =>
         {
             ArgumentNullException.ThrowIfNull(preferences);
             if (_hasSession && (preferences.MonitorDeviceName != Preferences.MonitorDeviceName ||
@@ -56,6 +56,7 @@ internal sealed partial class TrackerSessionService
             var regionChanged = region != Preferences.MarketRegion;
             Preferences = preferences with { MarketRegion = region, AutoUpload = preferences.AutoUpload && nextKey.Length > 0 };
             if (!_hasSession && Preferences.GameLanguage == "auto") _gameLanguageDetection = _detectGameLanguage();
+            if (!_hasSession) RefreshMissingOcrLanguageOffer();
             if (classChanged || (!_hasSession && !_demoMode)) _sessionClass = SelectedCharacterClass;
             _settings.UpdateSilverPreferences(region, tax);
             if (regionChanged)
@@ -80,7 +81,7 @@ internal sealed partial class TrackerSessionService
         });
         // A blocked capture has its own persistent error. It does not turn a
         // successfully persisted setting into a failed save.
-        return new(_isError ? _status : null);
+        return new(result.Error);
     }
 
     private bool TrySaveSettings()

@@ -5,6 +5,15 @@
 @inherits TrackerComponentBase
 @inject IJSRuntime JS
 
+@{
+    // All visible totals, counts and rows use the same projection for this render.
+    var filtered = Filtered.ToArray();
+    var visibleSessions = (_spotId is null ? filtered : filtered.Where(session => session.SpotId == _spotId))
+        .OrderByDescending(session => session.StartedAt).ToArray();
+    var visibleProfiles = VisibleProfiles.ToArray();
+    var pageCount = Math.Max(1, (visibleSessions.Length + PageSize - 1) / PageSize);
+    _page = Math.Clamp(_page, 1, pageCount);
+}
 <div class="page history-page">
     <div class="page-heading"><div><span class="eyebrow">JEDER GRIND ZÄHLT</span><h1>@(_spotId is null ? "Dein Verlauf" : SpotName(_spotId))</h1><p>@(_spotId is null ? "Deine Sessions, deine Fortschritte, deine nächsten Ziele." : "Deine Ergebnisse an diesem Grindspot im Detail.")</p></div>@if (_spotId is not null) { <button class="button secondary" @onclick="BackToSpots"><AppIcon Name="back" />Alle Grindspots</button> }</div>
     @if (ActionError is not null) { <div class="notice error-notice" role="alert"><AppIcon Name="info" />@ActionError</div> }
@@ -14,11 +23,11 @@
         @if (_spotId is null) { <label class="search-field"><AppIcon Name="search" /><input placeholder="Grindspot suchen …" aria-label="Grindspot suchen" @bind="_query" @bind:event="oninput" @bind:after="FiltersChanged" /></label> }
         <label class="filter-field"><span>Zeitraum</span><select @bind="_days" @bind:after="FiltersChanged"><option value="0">Gesamter Verlauf</option><option value="7">Letzte 7 Tage</option><option value="30">Letzte 30 Tage</option><option value="90">Letzte 90 Tage</option></select></label>
         <label class="filter-field"><span>Klasse</span><select @bind="_class" @bind:after="FiltersChanged"><option value="">Alle Klassen</option>@foreach (var characterClass in HistoryClasses) { <option value="@characterClass">@characterClass</option> }</select></label>
-        <span class="filter-count">@(_spotId is null ? Filtered.Count() : SpotSessions.Count()) Sessions</span>
+        <span class="filter-count">@visibleSessions.Length Sessions</span>
     </div>
     @if (_spotId is null)
     {
-        var all = Filtered.ToArray();
+        var all = visibleSessions;
         var time = TimeSpan.FromTicks(all.Sum(session => session.Duration.Ticks));
         var silver = all.Sum(session => session.SilverAfterTax);
         <div class="history-overview-stats"><div><span>SESSIONS</span><strong>@all.Length</strong></div><div><span>GRINDZEIT</span><strong>@ShortDuration(time)</strong></div><div><span>SILBER NETTO</span><strong class="gold">@(all.Length > 0 ? Silver(silver) : "—")@PartialMark(all)</strong></div><div><span>Ø SILBER / STUNDE</span><strong>@(time > TimeSpan.Zero ? Silver(Hourly(silver, time)) : "—")@PartialMark(all)</strong></div></div>
@@ -27,14 +36,14 @@
         <div class="section-title"><h2>@(_allSessions ? "Alle Sessions" : "Deine Grindspots")</h2><div class="segmented" aria-label="Verlaufsansicht"><button class="@(!_allSessions ? "selected" : "")" aria-pressed="@(!_allSessions ? "true" : "false")" @onclick="() => SetOverview(false)">Grindspots</button><button class="@(_allSessions ? "selected" : "")" aria-pressed="@(_allSessions ? "true" : "false")" @onclick="() => SetOverview(true)">Alle Sessions</button></div></div>
         @if (_allSessions)
         {
-            var chronological = AllSessions.ToArray();
+            var chronological = visibleSessions;
             <section class="panel chronological-history" aria-label="Alle gespeicherten Sessions">
                 @foreach (var session in chronological.Skip((_page - 1) * PageSize).Take(PageSize))
                 {
                     <details class="chronological-session-card" @key="session.SessionId">
                         <summary class="chronological-session-header" style="@("background-image:linear-gradient(90deg,#111820ef,#111820cc),url('assets/spot-backgrounds/" + Profile(session.SpotId)?.BackgroundFileName + "')")">
                             <span class="chronological-date"><strong>@session.StartedAt.ToLocalTime().ToString("dd.MM.yy", German)</strong><small>@session.StartedAt.ToLocalTime().ToString("HH:mm 'Uhr'", German)</small></span>
-                            <span class="chronological-spot"><AssetImage Src="@("assets/spot-icons/" + Profile(session.SpotId)?.IconFileName)" Alt="" Class="chronological-spot-icon" /><span><strong>@SpotName(session.SpotId)</strong><small>@(session.CharacterClass ?? "Klasse nicht erkannt")</small></span></span>
+                            <span class="chronological-spot"><AssetImage Src="@("assets/spot-icons/" + Profile(session.SpotId)?.IconFileName)" Alt="" Class="chronological-spot-icon" /><span><strong>@SpotName(session.SpotId)</strong><small>@(session.CharacterClass ?? "Klasse nicht erkannt")</small>@if (session.GarmothLocallyModified) { <small class="session-local-correction">Lokal korrigiert; Garmoth unverändert</small> }</span></span>
                             <span class="chronological-loot-preview">
                                 @foreach (var item in ChronologicalLoot(session))
                                 {
@@ -48,7 +57,7 @@
                         <div class="chronological-session-details">
                             <div class="chronological-session-actions"><span>Loot dieser Session · aktuelle Preise</span><div>
                                 <button class="button secondary" @onclick="() => OpenSession(session)"><AppIcon Name="pin" />Zum Grindspot</button>
-                                <button class="button secondary" @onclick="() => Edit(session)" disabled="@(Acting || State.IsBusy || IsCurrent(session))"><AppIcon Name="edit" />Bearbeiten</button>
+                                <button class="button secondary" @onclick="() => Edit(session)" disabled="@(Acting || State.IsBusy || IsCurrent(session))">Bearbeiten</button>
                                 <button class="button secondary danger" @onclick="() => AskDelete(session)" disabled="@(Acting || State.IsBusy || IsCurrent(session))"><AppIcon Name="delete" />Löschen</button>
                             </div></div>
                             <LootTable Totals="SessionTotals(session)" DurationTicks="session.Duration.Ticks" TrashName="@(Profile(session.SpotId)?.TrashItemName)" Title="Loot der Session" Subtitle="Mengen und Bewertung im Detail" EditableSessionId="session.SessionId" />
@@ -56,15 +65,15 @@
                     </details>
                 }
                 @if (chronological.Length == 0) { <div class="empty-state"><div class="empty-symbol"><AppIcon Name="history" /></div><h3>Keine passenden Sessions</h3><p>Wähle einen anderen Zeitraum oder starte deinen nächsten Grind.</p></div> }
-                else { <div class="pagination"><span>@(((_page - 1) * PageSize) + 1)–@Math.Min(_page * PageSize, chronological.Length) von @chronological.Length Sessions</span><div><button class="icon-button" aria-label="Vorherige Seite" @onclick="() => ChangePage(_page - 1)" disabled="@(_page <= 1)"><AppIcon Name="back" /></button><span>Seite @_page von @AllPageCount</span><button class="icon-button" aria-label="Nächste Seite" @onclick="() => ChangePage(_page + 1)" disabled="@(_page >= AllPageCount)"><AppIcon Name="arrow" /></button></div></div> }
+                else { <div class="pagination"><span>@(((_page - 1) * PageSize) + 1)–@Math.Min(_page * PageSize, chronological.Length) von @chronological.Length Sessions</span><div><button class="icon-button" aria-label="Vorherige Seite" @onclick="() => ChangePage(_page - 1)" disabled="@(_page <= 1)"><AppIcon Name="back" /></button><span>Seite @_page von @pageCount</span><button class="icon-button" aria-label="Nächste Seite" @onclick="() => ChangePage(_page + 1)" disabled="@(_page >= pageCount)"><AppIcon Name="arrow" /></button></div></div> }
             </section>
         }
         else
         {
         <div class="spot-grid">
-            @foreach (var profile in VisibleProfiles)
+            @foreach (var profile in visibleProfiles)
             {
-                var sessions = Filtered.Where(session => session.SpotId == profile.SpotId).ToArray();
+                var sessions = filtered.Where(session => session.SpotId == profile.SpotId).ToArray();
                 var metrics = HistoryPresentation.CalculateMetrics(profile, sessions);
                 <button class="spot-card" @onclick="() => OpenSpot(profile.SpotId)">
                     <div class="spot-card-art" style="@("background-image:url('assets/spot-backgrounds/" + profile.BackgroundFileName + "')")"><span class="spot-session-count">@sessions.Length @(sessions.Length == 1 ? "Session" : "Sessions")</span><AssetImage Src="@("assets/spot-icons/" + profile.IconFileName)" Alt="" Class="spot-card-emblem" Fallback="pin" /><div><span class="eyebrow">INNER EDANIA</span><h3>@SpotName(profile.SpotId)</h3></div></div>
@@ -72,12 +81,12 @@
                 </button>
             }
         </div>
-        @if (!VisibleProfiles.Any()) { <div class="empty-state"><AppIcon Name="search" /><h3>Kein Grindspot gefunden</h3><p>Versuche einen anderen Suchbegriff.</p><button class="button secondary" @onclick="ClearSearch">Suche zurücksetzen</button></div> }
+        @if (visibleProfiles.Length == 0) { <div class="empty-state"><AppIcon Name="search" /><h3>Kein Grindspot gefunden</h3><p>Versuche einen anderen Suchbegriff.</p><button class="button secondary" @onclick="ClearSearch">Suche zurücksetzen</button></div> }
         }
     }
     else if (Profile(_spotId) is { } profile)
     {
-        var sessions = SpotSessions.ToArray();
+        var sessions = visibleSessions;
         var metrics = HistoryPresentation.CalculateMetrics(profile, sessions);
         var chart = HistoryPresentation.BuildChartData(profile, sessions);
         <section class="spot-detail-hero" style="@("background-image:url('assets/spot-backgrounds/" + profile.BackgroundFileName + "')")"><div class="hero-shade"></div><div class="spot-detail-content"><div class="spot-detail-identity"><AssetImage Src="@("assets/spot-icons/" + profile.IconFileName)" Alt="" Class="spot-emblem" /><div><span class="eyebrow">SPOT-GUIDE</span><h2>@SpotName(_spotId)</h2><p>@ItemLabel(profile.TrashItemName) · @Number(profile.TrashSilver) Silber / Stück</p></div></div><div class="spot-guidance"><div><span>EMPFOHLENE AP</span><strong>@Number(profile.RecommendedAp)</strong><small>AP-Limit @Number(profile.MaxApLimit)</small></div><div><span>EMPFOHLENE DP</span><strong>@Number(profile.RecommendedDp)</strong><small>Verteidigung</small></div><div class="crystal-guidance"><AssetImage Src="@("assets/crystal-icons/" + profile.RecommendedCrystalFileName)" Alt="" Class="crystal-image" Fallback="spark" /><div><span>KRISTALL-EMPFEHLUNG</span><strong>@profile.RecommendedCrystalName</strong><small>@string.Join(" · ", profile.Traits.Where(LootSpotPresentationCatalog.IsResistanceTrait).Select(Trait))</small></div></div></div><div class="trait-list">@foreach (var trait in profile.Traits.Where(trait => !LootSpotPresentationCatalog.IsResistanceTrait(trait))) { <span>@Trait(trait)</span> }</div></div></section>
@@ -95,25 +104,28 @@
             else
             {
                 var lootColumns = BuildLootColumns(profile, sessions);
-                <div id="spot-session-table-scroll" class="spot-session-table-scroll">
+                <p id="session-column-help" class="session-table-help">Mausrad: Seite scrollen · Umschalt + Mausrad: Tabelle seitlich scrollen. Lootspalten lassen sich ziehen oder mit Alt + Pfeil links/rechts verschieben. Enter oder Leertaste setzt einen Favoriten.</p>
+                <span class="sr-only" role="status" aria-live="polite">@_columnStatus</span>
+                <div id="spot-session-table-scroll" class="spot-session-table-scroll" tabindex="0" role="region" aria-label="Lootmengen der gefilterten Sessions" aria-describedby="session-column-help">
                     <table class="spot-session-table" style="@SessionTableWidth(lootColumns.Count)">
                         <thead><tr>
                             <th class="session-fixed session-class-column" scope="col">KLASSE</th>
                             <th class="session-fixed session-age-column" scope="col">WIE LANG HER</th>
                             <th class="session-fixed session-duration-column" scope="col">GRINDZEIT</th>
                             <th class="session-fixed session-silver-column numeric" scope="col">SILBER / H</th>
-                            @foreach (var column in lootColumns)
+                            @for (var columnIndex = 0; columnIndex < lootColumns.Count; columnIndex++)
                             {
-                                <th class="session-loot-column" scope="col" title="@ColumnPriceTooltip(column.Name)" data-loot-name="@column.Name" @key="column.Name"><button type="button" class="session-favorite-button @(IsFavorite(column.Name) ? "is-favorite" : "")" aria-label="@(ItemLabel(column.Name) + (IsFavorite(column.Name) ? " – Favorit entfernen" : " – als Favorit markieren"))" aria-pressed="@(IsFavorite(column.Name) ? "true" : "false")" disabled="@(Acting || State.IsBusy)" @onclick="e => KeyboardFavorite(e, column.Name)"><AssetImage Src="@ItemIcon(column.Name)" Alt="" Class="session-loot-icon" Fallback="loot" />@if (IsFavorite(column.Name)) { <span class="session-favorite-star" aria-hidden="true">★</span> }</button><small>@Silver(column.SilverPerHour) / h</small></th>
+                                var column = lootColumns[columnIndex];
+                                <th class="session-loot-column" scope="col" title="@ColumnPriceTooltip(column.Name)" data-loot-name="@column.Name" @key="column.Name"><button type="button" class="session-favorite-button @(IsFavorite(column.Name) ? "is-favorite" : "")" aria-label="@(ItemLabel(column.Name) + $" · Lootspalte {columnIndex + 1} von {lootColumns.Count}" + (IsFavorite(column.Name) ? " – Favorit entfernen" : " – als Favorit markieren"))" aria-pressed="@(IsFavorite(column.Name) ? "true" : "false")" aria-keyshortcuts="Alt+ArrowLeft Alt+ArrowRight" aria-describedby="session-column-help" disabled="@(Acting || State.IsBusy)" @onclick="e => KeyboardFavorite(e, column.Name)"><AssetImage Src="@ItemIcon(column.Name)" Alt="" Class="session-loot-icon" Fallback="loot" />@if (IsFavorite(column.Name)) { <span class="session-favorite-star" aria-hidden="true">★</span> }</button><small>@Silver(column.SilverPerHour) / h</small></th>
                             }
                             <th class="session-actions-column" scope="col">AKTIONEN</th>
                         </tr></thead>
                         <tbody>
                         @foreach (var session in sessions.Skip((_page - 1) * PageSize).Take(PageSize))
                         {
-                            <tr @key="session.SessionId" class="@(_expanded == session.SessionId ? "selected" : "")">
+                            <tr @key="session.SessionId" class="@(_expanded == session.SessionId ? "selected" : "")" aria-label="@(session.GarmothLocallyModified ? "Lokal korrigiert; Garmoth unverändert" : null)">
                                 <td class="session-fixed session-class-column"><AssetImage Src="@ClassIcon(session.CharacterClass)" Alt="" Class="session-class-icon" Fallback="shield" /><span class="sr-only">@(session.CharacterClass ?? "Klasse nicht erkannt")</span></td>
-                                <td class="session-fixed session-age-column" title="@session.StartedAt.ToLocalTime().ToString("g", German)">@HistoryPresentation.FormatTimeAgo(session.StartedAt, DateTimeOffset.Now)</td>
+                                <td class="session-fixed session-age-column" title="@session.StartedAt.ToLocalTime().ToString("g", German)">@HistoryPresentation.FormatTimeAgo(session.StartedAt, DateTimeOffset.Now)@if (session.GarmothLocallyModified) { <small class="session-local-correction" title="Lokal korrigiert; Garmoth unverändert">Lokal korrigiert; Garmoth unverändert</small> }</td>
                                 <td class="session-fixed session-duration-column">@CompactDuration(session.Duration)</td>
                                 <td class="session-fixed session-silver-column numeric gold">@Silver(Hourly(session.SilverAfterTax, session.Duration))@(!session.SilverIsComplete ? " *" : "")</td>
                                 @foreach (var column in lootColumns)
@@ -121,26 +133,26 @@
                                     var quantity = SessionTotals(session).GetValueOrDefault(column.Name);
                                     <td class="session-loot-quantity numeric" @key="column.Name"><LootQuantityEditor SessionId="session.SessionId" ItemName="@column.Name" Quantity="quantity" DisplayQuantity="@(quantity > 0 ? Number(quantity) : "—")" /></td>
                                 }
-                                <td class="session-actions-column"><details class="session-action-menu"><summary aria-label="Aktionen für diese Session" title="Aktionen"><AppIcon Name="more" /></summary><div><button @onclick="() => Edit(session)" disabled="@(Acting || State.IsBusy || IsCurrent(session))"><AppIcon Name="edit" />Bearbeiten</button><button class="danger" @onclick="() => AskDelete(session)" disabled="@(Acting || State.IsBusy || IsCurrent(session))"><AppIcon Name="delete" />Löschen</button></div></details></td>
+                                <td class="session-actions-column"><button type="button" class="icon-button session-edit-button" aria-label="Session bearbeiten" title="Klasse und Loot der Session bearbeiten" @onclick="() => Edit(session)" disabled="@(Acting || State.IsBusy || IsCurrent(session))"><AppIcon Name="edit" /></button><button type="button" class="icon-button session-delete-button" aria-label="Session löschen" title="Session löschen" @onclick="() => AskDelete(session)" disabled="@(Acting || State.IsBusy || IsCurrent(session))"><AppIcon Name="delete" /></button></td>
                             </tr>
                         }
                         </tbody>
                     </table>
                 </div>
-                <div class="pagination"><span>@(((_page - 1) * PageSize) + 1)–@Math.Min(_page * PageSize, sessions.Length) von @sessions.Length Sessions</span><div><button class="icon-button" aria-label="Vorherige Seite" @onclick="() => ChangePage(_page - 1)" disabled="@(_page <= 1)"><AppIcon Name="back" /></button><span>Seite @_page von @PageCount</span><button class="icon-button" aria-label="Nächste Seite" @onclick="() => ChangePage(_page + 1)" disabled="@(_page >= PageCount)"><AppIcon Name="arrow" /></button></div></div>
+                <div class="pagination"><span>@(((_page - 1) * PageSize) + 1)–@Math.Min(_page * PageSize, sessions.Length) von @sessions.Length Sessions</span><div><button class="icon-button" aria-label="Vorherige Seite" @onclick="() => ChangePage(_page - 1)" disabled="@(_page <= 1)"><AppIcon Name="back" /></button><span>Seite @_page von @pageCount</span><button class="icon-button" aria-label="Nächste Seite" @onclick="() => ChangePage(_page + 1)" disabled="@(_page >= pageCount)"><AppIcon Name="arrow" /></button></div></div>
             }
         </section>
-        @if (sessions.Length > 0) { <LootTable Totals="AggregateTotals(sessions)" DurationTicks="sessions.Sum(session => session.Duration.Ticks)" TrashName="profile.TrashItemName" Title="Gesamter Loot am Spot" Subtitle="Alle gefilterten Sessions · Einzelwerte mit den aktuellen Preiseinstellungen" /> }
+        @if (sessions.Length > 0) { <LootTable Totals="AggregateTotals(sessions)" DurationTicks="sessions.Sum(session => session.Duration.Ticks)" TrashName="@profile.TrashItemName" Title="Gesamter Loot am Spot" Subtitle="Alle gefilterten Sessions · Einzelwerte mit den aktuellen Preiseinstellungen" /> }
     }
 </div>
 
-<dialog id="history-edit" class="modal edit-modal" @oncancel="CloseDialogs"><div class="modal-heading"><div><span class="eyebrow">SESSION BEARBEITEN</span><h2>Lootmengen korrigieren</h2></div><button class="icon-button" @onclick="CloseDialogs" aria-label="Dialog schließen"><AppIcon Name="close" /></button></div><p>Trage die tatsächlichen Gesamtmengen ein. Mit 0 setzt du die Menge eines Gegenstands zurück.</p>
+<dialog id="history-edit" class="modal edit-modal" aria-labelledby="history-edit-title" @oncancel="CloseDialogs"><div class="modal-heading"><div><span class="eyebrow">SESSION BEARBEITEN</span><h2 id="history-edit-title">Lootmengen korrigieren</h2></div><button class="icon-button" @onclick="CloseDialogs" aria-label="Dialog schließen"><AppIcon Name="close" /></button></div><p>Trage die tatsächlichen Gesamtmengen ein. Mit 0 setzt du die Menge eines Gegenstands zurück.</p>
     @if (_target?.GarmothUploadedAt is not null || _target?.GarmothUploadBlocked == true) { <div class="notice warning-notice"><AppIcon Name="info" />Bereits übertragene Garmoth-Einträge werden dadurch nicht geändert.</div> }
     @if (_dialogError is not null) { <div class="notice error-notice" role="alert">@_dialogError</div> }
     <form @onsubmit="SaveEdit" @onsubmit:preventDefault><label class="field history-class-edit"><span>Klasse dieser Session</span><select @bind="_editClass"><option value="">Klasse nicht erkannt</option>@foreach (var characterClass in CompanionCharacterClassCatalog.Classes) { <option value="@characterClass.DisplayName">@characterClass.DisplayName</option> }</select></label><div class="edit-loot-list">@foreach (var row in _editRows) { <label class="edit-loot-row"><span><AssetImage Src="@ItemIcon(row.Name)" Alt="" Class="item-image" />@ItemLabel(row.Name)</span><input type="number" min="0" max="9223372036854775807" step="1" required @bind="row.Quantity" aria-label="@("Menge " + ItemLabel(row.Name))" /></label> }</div><div class="modal-actions"><button type="button" class="button secondary" @onclick="CloseDialogs">Abbrechen</button><button type="submit" class="button primary" disabled="@Acting"><AppIcon Name="check" />Session speichern</button></div></form>
 </dialog>
-<dialog id="history-confirm" class="modal confirm-modal" @oncancel="CloseDialogs">
-    <div class="modal-heading"><div><span class="eyebrow">VERLAUF</span><h2>Session löschen?</h2></div><button class="icon-button" @onclick="CloseDialogs" aria-label="Dialog schließen"><AppIcon Name="close" /></button></div>
+<dialog id="history-confirm" class="modal confirm-modal" aria-labelledby="history-confirm-title" @oncancel="CloseDialogs">
+    <div class="modal-heading"><div><span class="eyebrow">VERLAUF</span><h2 id="history-confirm-title">Session löschen?</h2></div><button class="icon-button" @onclick="CloseDialogs" aria-label="Dialog schließen"><AppIcon Name="close" /></button></div>
     <p>Diese Session wird dauerhaft aus deinem lokalen Verlauf entfernt. Bereits hochgeladene Garmoth-Einträge bleiben bestehen.</p>
     @if (_target is { } selected) { <div class="confirm-summary"><strong>@SpotName(selected.SpotId)</strong><span>@selected.StartedAt.ToLocalTime().ToString("g", German) · @ShortDuration(selected.Duration)</span></div> }
     <div class="modal-actions"><button class="button secondary" @onclick="CloseDialogs">Abbrechen</button><button class="button danger" @onclick="ConfirmDelete" disabled="@Acting">Session löschen</button></div>
@@ -155,6 +167,7 @@
     [SupplyParameterFromQuery(Name = "class")] public string? QueryClass { get; set; }
     [SupplyParameterFromQuery(Name = "page")] public string? QueryPage { get; set; }
     [SupplyParameterFromQuery(Name = "hourly")] public string? QueryHourly { get; set; }
+    [SupplyParameterFromQuery(Name = "edit")] public string? QueryEdit { get; set; }
     private const int PageSize = 8;
     private string? _spotId;
     private string _query = "", _class = "";
@@ -166,17 +179,24 @@
     private string _editClass = "";
     private List<EditRow> _editRows = [];
     private string? _routeWarning;
+    private string? _columnStatus;
     private RouteParameters? _lastRouteParameters;
     private sealed record RouteParameters(string? SpotId, Guid? SessionId, string? View, string? Search,
-        string? Days, string? CharacterClass, string? Page, string? Hourly);
+        string? Days, string? CharacterClass, string? Page, string? Hourly, string? Edit);
     private bool _closeDialogsAfterRender;
+    private bool _showEditAfterRender;
     private sealed class EditRow { public required string Name { get; init; } public string Quantity { get; set; } = "0"; }
     private sealed record LootColumn(string Name, decimal SilverPerHour);
     private IEnumerable<string> HistoryClasses => Tracker.History.Select(session => session.CharacterClass).Where(name => !string.IsNullOrWhiteSpace(name)).Cast<string>().Distinct().Order();
-    private IEnumerable<LootHistoryEntry> Filtered => Tracker.History.Select(ValueAtCurrentPrices).Where(session => (_days == 0 || session.StartedAt >= DateTimeOffset.Now.AddDays(-_days)) && (_class.Length == 0 || session.CharacterClass == _class));
-    private IEnumerable<LootSpotPresentation> VisibleProfiles => LootSpotPresentationCatalog.Profiles.Where(profile => SpotName(profile.SpotId).Contains(_query, StringComparison.OrdinalIgnoreCase));
+    private IEnumerable<LootHistoryEntry> Filtered => Tracker.History
+        .Where(session => (_days == 0 || session.StartedAt >= DateTimeOffset.Now.AddDays(-_days))
+            && (_class.Length == 0 || session.CharacterClass == _class)
+            && (_spotId is not null || MatchesSearch(session.SpotId)))
+        .Select(ValueAtCurrentPrices);
+    private bool MatchesSearch(string spotId) => SpotName(spotId).Contains(_query.Trim(), StringComparison.OrdinalIgnoreCase);
+    private IEnumerable<LootSpotPresentation> VisibleProfiles => LootSpotPresentationCatalog.Profiles.Where(profile => MatchesSearch(profile.SpotId));
     private IEnumerable<LootHistoryEntry> SpotSessions => Filtered.Where(session => session.SpotId == _spotId).OrderByDescending(session => session.StartedAt);
-    private IEnumerable<LootHistoryEntry> AllSessions => Filtered.Where(session => SpotName(session.SpotId).Contains(_query, StringComparison.OrdinalIgnoreCase)).OrderByDescending(session => session.StartedAt);
+    private IEnumerable<LootHistoryEntry> AllSessions => Filtered.OrderByDescending(session => session.StartedAt);
     private int PageCount => Math.Max(1, (SpotSessions.Count() + PageSize - 1) / PageSize);
     private int AllPageCount => Math.Max(1, (AllSessions.Count() + PageSize - 1) / PageSize);
     private LootHistoryEntry ValueAtCurrentPrices(LootHistoryEntry entry)
@@ -192,12 +212,14 @@
         // Compare the received values so an early render cannot consume a URI
         // change and then discard its actual parameters on the next render.
         var parameters = new RouteParameters(SpotId, SessionId, QueryView, QuerySearch,
-            QueryDays, QueryClass, QueryPage, QueryHourly);
+            QueryDays, QueryClass, QueryPage, QueryHourly, QueryEdit);
         if (_lastRouteParameters == parameters) return;
         _closeDialogsAfterRender = _lastRouteParameters is not null;
         _lastRouteParameters = parameters;
         _target = null; _dialogError = null; _editRows = [];
+        _showEditAfterRender = false;
         _routeWarning = null;
+        _columnStatus = null;
         _spotId = Profile(SpotId) is not null ? SpotId : null;
         if (SpotId is not null && _spotId is null) _routeWarning = "Dieser Grindspot ist nicht verfügbar. Hier findest du alle unterstützten Spots.";
         _allSessions = string.Equals(QueryView, "all", StringComparison.Ordinal);
@@ -210,8 +232,17 @@
         _expanded = null;
         if (_spotId is not null && SessionId is { } sessionId)
         {
-            var index = Array.FindIndex(SpotSessions.ToArray(), session => session.SessionId == sessionId);
-            if (index >= 0) { _expanded = sessionId; _page = index / PageSize + 1; }
+            var sessions = SpotSessions.ToArray();
+            var index = Array.FindIndex(sessions, session => session.SessionId == sessionId);
+            if (index >= 0)
+            {
+                _expanded = sessionId; _page = index / PageSize + 1;
+                if (QueryEdit == "1" && !IsCurrent(sessions[index]) && !State.IsBusy)
+                {
+                    PrepareEdit(sessions[index]);
+                    _showEditAfterRender = true;
+                }
+            }
             else _routeWarning = "Diese Session ist nicht mehr vorhanden oder passt nicht zu den gewählten Filtern.";
         }
     }
@@ -221,6 +252,11 @@
         {
             _closeDialogsAfterRender = false;
             await CloseDialogs();
+        }
+        if (_showEditAfterRender)
+        {
+            _showEditAfterRender = false;
+            await JS.InvokeVoidAsync("grindcrest.showDialog", "history-edit");
         }
         if (_spotId is not null)
             {
@@ -268,12 +304,16 @@
         IsCurrent(session) ? State.Loot.Totals : session.Totals;
     private async Task Edit(LootHistoryEntry session)
     {
+        PrepareEdit(session);
+        await JS.InvokeVoidAsync("grindcrest.showDialog", "history-edit");
+    }
+    private void PrepareEdit(LootHistoryEntry session)
+    {
         _target = session; _dialogError = null;
         _editClass = session.CharacterClass ?? "";
         _editRows = session.Totals.Keys.Concat(LootSpotCatalog.GetRequired(session.SpotId).AllowedItems).Distinct(StringComparer.Ordinal)
             .OrderByDescending(name => session.Totals.GetValueOrDefault(name)).ThenBy(name => name)
             .Select(name => new EditRow { Name = name, Quantity = session.Totals.GetValueOrDefault(name).ToString(CultureInfo.InvariantCulture) }).ToList();
-        await JS.InvokeVoidAsync("grindcrest.showDialog", "history-edit");
     }
     private async Task AskDelete(LootHistoryEntry session) { _target = session; await JS.InvokeVoidAsync("grindcrest.showDialog", "history-confirm"); }
     private async Task CloseDialogs() { await JS.InvokeVoidAsync("grindcrest.closeDialog", "history-edit"); await JS.InvokeVoidAsync("grindcrest.closeDialog", "history-confirm"); _dialogError = null; }
@@ -293,7 +333,7 @@
         if (_target is null) return;
         var target = _target.SessionId;
         await CloseDialogs();
-        if (await Act(() => Tracker.DeleteHistoryAsync(target))) { _page = Math.Min(_page, PageCount); NavigateHistory(_spotId, null, replace: true); }
+        if (await Act(() => Tracker.DeleteHistoryAsync(target))) { _page = Math.Min(_page, _spotId is null ? AllPageCount : PageCount); NavigateHistory(_spotId, null, replace: true); }
     }
     private IReadOnlyList<LootColumn> BuildLootColumns(LootSpotPresentation profile, IReadOnlyList<LootHistoryEntry> sessions)
     {
@@ -337,7 +377,9 @@
         if (order.Length != current.Length || order.Distinct(StringComparer.Ordinal).Count() != current.Length || current.Except(order, StringComparer.Ordinal).Any()) return;
         var orders = Tracker.Preferences.LootColumnOrders.ToDictionary(pair => pair.Key, pair => pair.Value);
         orders[spotId] = order;
-        await SavePreferenceChange(p => p with { LootColumnOrders = orders });
+        _columnStatus = null;
+        if (await SavePreferenceChange(p => p with { LootColumnOrders = orders }))
+            _columnStatus = "Spaltenreihenfolge gespeichert.";
         StateHasChanged();
     }
     private IEnumerable<KeyValuePair<string, long>> ChronologicalLoot(LootHistoryEntry session)
@@ -354,7 +396,7 @@
         var price = Tracker.Prices.TryGetQuote(name, out var quote)
             ? Number(quote.UnitPrice) + " Silber / Stück vor Steuer" + (quote.IsStale ? " (Cache, veraltet)" : "")
             : "Stückpreis fehlt";
-        return ItemLabel(name) + " · " + price + " · Unter dem Icon: Netto-Ertrag / h aus den gefilterten Sessions. Klicken für Favorit, ziehen zum Verschieben.";
+        return ItemLabel(name) + " · " + price + " · Unter dem Icon: Netto-Ertrag / h aus den gefilterten Sessions. Klicken für Favorit; ziehen oder Alt + Pfeil links/rechts zum Verschieben.";
     }
     private bool IsFavorite(string name) => Tracker.Preferences.FavoriteItems.Contains(name, StringComparer.Ordinal);
     private Task KeyboardFavorite(MouseEventArgs e, string name) => e.Detail == 0

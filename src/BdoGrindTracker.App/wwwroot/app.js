@@ -8,6 +8,11 @@ window.grindcrest = {
             if (focus) focus.focus();
         }
     },
+    focusIfUnclaimed: function (element) {
+        const current = document.activeElement;
+        if (element?.isConnected && (!current || !current.isConnected || current === document.body || current === document.documentElement))
+            element.focus({ preventScroll: true });
+    },
     closeDialog: function (id) { const dialog = document.getElementById(id); if (dialog && dialog.open) dialog.close(); },
     scrollTop: function (smooth = true) { document.querySelector('main')?.scrollTo({ top: 0, behavior: smooth ? 'smooth' : 'auto' }); },
     enableHorizontalWheel: function (id) {
@@ -17,18 +22,16 @@ window.grindcrest = {
         viewport.addEventListener('wheel', function (event) {
             if (viewport.columnDragging) { event.preventDefault(); return; }
             if (event.ctrlKey) return;
-            if (!event.target.closest('.session-loot-column, .session-loot-quantity')) {
-                if (event.deltaX) {
-                    document.querySelector('main')?.scrollBy({ top: event.deltaY || event.deltaX });
-                    event.preventDefault();
-                }
-                return;
-            }
-            if (viewport.scrollWidth <= viewport.clientWidth) return;
-            const movement = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+            // Preserve normal vertical scrolling and native trackpad gestures.
+            // Shift is the explicit request to turn a vertical wheel horizontally.
+            if (!event.shiftKey || Math.abs(event.deltaX) >= Math.abs(event.deltaY)) return;
+            const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? viewport.clientWidth : 1;
+            const movement = event.deltaY * unit;
             if (!movement) return;
+            const previous = viewport.scrollLeft;
             viewport.scrollLeft += movement;
-            event.preventDefault();
+            // At an edge, leave the event available for the outer scroll area.
+            if (viewport.scrollLeft !== previous) event.preventDefault();
         }, { passive: false });
     }
 };
@@ -40,6 +43,35 @@ window.grindcrest.enableColumnDrag = function (id, receiver, spotId) {
     viewport.columnDragSpot = spotId;
     if (viewport.dataset.columnDrag) return;
     viewport.dataset.columnDrag = 'true';
+    viewport.addEventListener('keydown', async event => {
+        const button = event.target.closest('.session-favorite-button');
+        if (!button || button.disabled || !event.altKey || event.ctrlKey || event.metaKey ||
+            (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')) return;
+        event.preventDefault();
+        if (viewport.columnDragging || viewport.columnKeyboardReordering) return;
+        const header = button.closest('.session-loot-column');
+        const order = [...viewport.querySelectorAll('.session-loot-column')].map(item => item.dataset.lootName);
+        const source = order.indexOf(header.dataset.lootName);
+        const destination = source + (event.key === 'ArrowLeft' ? -1 : 1);
+        if (source < 0 || destination < 0 || destination >= order.length) return;
+        order.splice(source, 1);
+        order.splice(destination, 0, header.dataset.lootName);
+        const activeSpot = viewport.columnDragSpot;
+        viewport.columnKeyboardReordering = true;
+        try {
+            await viewport.columnDragReceiver.invokeMethodAsync('SaveColumnOrder', activeSpot, order);
+            // Razor keys preserve the moved control. Focus follows the item,
+            // unless the user already moved on while the preference was saving.
+            if (viewport.isConnected && viewport.columnDragSpot === activeSpot &&
+                (document.activeElement === button || document.activeElement === document.body)) {
+                const moved = [...viewport.querySelectorAll('.session-loot-column')]
+                    .find(item => item.dataset.lootName === header.dataset.lootName)?.querySelector('.session-favorite-button');
+                moved?.focus({ preventScroll: true });
+                moved?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+            }
+        } catch (error) { console.error('Spaltenreihenfolge konnte nicht gespeichert werden.', error); }
+        finally { viewport.columnKeyboardReordering = false; }
+    });
     viewport.addEventListener('dragstart', e => {
         if (e.target.closest('.session-loot-column')) e.preventDefault();
     });

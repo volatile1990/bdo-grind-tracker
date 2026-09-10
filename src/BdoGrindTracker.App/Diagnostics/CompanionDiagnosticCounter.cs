@@ -43,7 +43,8 @@ internal sealed class CompanionDiagnosticCounter(IReadOnlyList<CompanionRareCata
             .OrderByDescending(static observation => observation.NativeY)
             .Select(observation => new CompanionRecognizedEntry(
                 observation.ItemName!, unchecked((uint)(observation.Quantity ?? -1)), observation.NativeY!.Value)
-                { QuantityBounds = observation.QuantityBounds, Slot = trackRows ? observation.Slot : null })
+                { QuantityBounds = observation.QuantityBounds, Slot = trackRows ? observation.Slot : null,
+                    IsAlignmentAnchor = observation.IsAlignmentAnchor, AlignmentPreviousSlot = observation.AlignmentPreviousSlot })
             .ToArray();
         var rareRows = accepted.Where(static observation => observation.Source == LootSource.Rare)
             .OrderBy(static observation => observation.NativeY)
@@ -53,14 +54,15 @@ internal sealed class CompanionDiagnosticCounter(IReadOnlyList<CompanionRareCata
                 observation.NativeY!.Value) { QuantityBounds = observation.QuantityBounds })
             .ToArray();
 
-        var (events, decisions) = AddNormal(timestamp, normal.ProcessFrame(normalRows));
+        var (events, decisions) = AddNormal(timestamp, normal.ProcessFrame(normalRows, timestamp));
         if (rare is not null)
         {
             // Native rare reconciliation sees the same ledger as the normal path.
             AddRare(timestamp, rare.ProcessFrame(rareRows), events);
         }
 
-        return new TrackerFrameResult(events, decisions);
+        return new TrackerFrameResult(events, decisions)
+            { NormalCaptureIndex = trackRows ? normal.CaptureIndex : null, NormalReconciliation = normal.LastTrace };
     }
 
     public TrackerFrameResult CompleteSession(DateTimeOffset timestamp)
@@ -71,7 +73,8 @@ internal sealed class CompanionDiagnosticCounter(IReadOnlyList<CompanionRareCata
             AddRare(timestamp, rare.Complete(), events);
         }
 
-        return new TrackerFrameResult(events, decisions);
+        return new TrackerFrameResult(events, decisions)
+            { NormalCaptureIndex = trackRows ? normal.CaptureIndex : null, NormalReconciliation = normal.LastTrace };
     }
 
     private (List<TrackedLootEvent> Events, List<LootTrackingDecision> Decisions) AddNormal(

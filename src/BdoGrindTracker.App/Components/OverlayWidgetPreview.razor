@@ -1,0 +1,111 @@
+@using BdoGrindTracker.App.Overlay
+
+<div class="overlay-widget-preview overlay-widget-@Widget.Kind @(IsLoot ? "is-loot-widget" : "")" style="@PreviewStyle" title="@(IsLoot ? Loot.Detail : Metric.Detail)">
+    @if (Widget.ShowLabel)
+    {
+        <div class="overlay-widget-label">
+            @if (Widget.ShowIcon) { <AppIcon Name="@(OverlayCatalog.Find(Widget.Kind)?.Icon ?? "live")" /> }
+            <span>@(IsLoot ? Loot.Label : Metric.Label)</span>
+        </div>
+    }
+    @if (IsLoot)
+    {
+        @if (Loot.Items.Count == 0)
+        {
+            <div class="overlay-widget-empty">@(Widget.ItemFilter == "selected" || Widget.Kind == "drop-item" ? "Items im Editor auswählen" : Widget.ItemFilter == "rare" || Widget.Kind == "rare-drops" ? "Noch keine seltenen Drops" : "Noch keine Drops")</div>
+        }
+        else
+        {
+            <div class="overlay-widget-items is-@(Widget.Kind == "drop-item" ? "card" : Widget.ItemView) @(Widget.ShowIcon ? "" : "without-icons") @(Loot.CellHeight < 45 * Widget.FontScale ? "is-short-card" : "")">
+                @foreach (var item in Loot.VisibleItems)
+                {
+                    <div class="overlay-widget-item @(item.IsRare ? "is-rare" : "")" style="@ItemStyle(item)" title="@(item.Name + " · " + item.QuantityText)" @key="item.CanonicalName">
+                        @if (Widget.ShowIcon) { <AssetImage Src="@item.IconPath" Alt="" Class="overlay-item-icon" /> }
+                        <span class="overlay-item-name">@item.Name</span>
+                        <strong class="overlay-item-quantity">@item.QuantityText</strong>
+                    </div>
+                }
+            </div>
+            @if (Loot.HiddenCount > 0) { <span class="overlay-widget-more" title="Modul vergrößern, Icons verkleinern oder maximale Items erhöhen">+ @Loot.HiddenCount weitere</span> }
+        }
+    }
+    else if (Widget.Kind == "controls")
+    {
+        <button type="button" class="overlay-tracking-button" disabled="@(!Interactive || !Snapshot.CanToggleTracking)"
+                @onclick="OnToggleTracking" @onclick:stopPropagation @onpointerdown:stopPropagation>
+            @if (Widget.ShowIcon) { <AppIcon Name="@(Snapshot.IsRunning ? "pause" : "play")" /> }
+            <span>@Snapshot.TrackingButtonLabel</span>
+        </button>
+    }
+    else if (Widget.Kind == "chart")
+    {
+        <strong class="overlay-widget-value">
+            @if (!Widget.ShowLabel && Widget.ShowIcon) { <AppIcon Name="trend" /> }
+            <span class="overlay-value-text">@Metric.Value</span>
+        </strong>
+        @if (Snapshot.SilverHistory.Count >= 2)
+        {
+            <svg class="overlay-widget-chart" viewBox="0 0 300 72" preserveAspectRatio="none" role="img" aria-label="Verlauf des durchschnittlichen Silberwerts pro Stunde">
+                <path d="M 0 71 H 300" class="overlay-chart-baseline" />
+                <polygon points="@("0,72 " + ChartPoints + " 300,72")" class="overlay-chart-area" />
+                <polyline points="@ChartPoints" class="overlay-chart-line" />
+            </svg>
+            <span class="overlay-widget-detail">@Metric.Detail</span>
+        }
+        else
+        {
+            <div class="overlay-widget-empty">Verlauf entsteht während des Grindens</div>
+        }
+    }
+    else
+    {
+        <strong class="overlay-widget-value @(Widget.Kind == "status" ? "overlay-status-value" : "")">
+            @if (!Widget.ShowLabel && Widget.ShowIcon) { <AppIcon Name="@(OverlayCatalog.Find(Widget.Kind)?.Icon ?? "live")" /> }
+            @if (Widget.Kind == "status") { <span class="overlay-status-dot @(Snapshot.IsRunning ? "is-running" : "")"></span> }
+            <span class="overlay-value-text">@Metric.Value</span>
+        </strong>
+        @if (Widget.ShowLabel && Metric.Detail is not null && Widget.Kind is not "status")
+        {
+            <span class="overlay-widget-detail">@Metric.Detail</span>
+        }
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public OverlayWidget Widget { get; set; } = new();
+    [Parameter, EditorRequired] public OverlaySnapshot Snapshot { get; set; } = new();
+    [Parameter] public bool Interactive { get; set; }
+    [Parameter] public EventCallback OnToggleTracking { get; set; }
+
+    private OverlayMetric Metric => Snapshot.Metrics.GetValueOrDefault(Widget.Kind) ?? new(OverlayCatalog.Find(Widget.Kind)?.Label ?? "Modul", "—");
+    private bool IsLoot => OverlayCatalog.IsLootWidget(Widget.Kind);
+    private OverlayLootView? _loot;
+    private OverlayLootView Loot => _loot ??= OverlayLootPresentation.Create(Widget, Snapshot);
+    protected override void OnParametersSet() => _loot = null;
+    private string PreviewStyle => $"--widget-font-scale:{FontScale};--loot-item-size:{Css(Widget.ItemSize)}px" +
+        (IsLoot ? $";--loot-columns:{Math.Max(1, Loot.Columns)};--loot-cell-width:{Css(Loot.CellWidth)}px;--loot-cell-height:{Css(Loot.CellHeight)}px;--loot-header-height:{Css(Loot.HeaderHeight)}px;--loot-footer-height:{Css(Loot.FooterHeight)}px" : "");
+    private string ItemStyle(OverlayLootItem item)
+    {
+        var iconSize = Widget.ShowIcon ? Math.Max(0, Math.Min(Widget.ItemSize, Math.Min(Loot.CellWidth * .35, Loot.CellHeight))) : 0;
+        var textWidth = Math.Max(1, Loot.CellWidth - iconSize - (Widget.ShowIcon ? 12 : 0));
+        var textHeight = Loot.CellHeight < 45 * Widget.FontScale ? Loot.CellHeight : Loot.CellHeight - 26 * Widget.FontScale;
+        var fontSize = Math.Max(4, Math.Min(30 * Widget.FontScale,
+            Math.Min(textWidth / Math.Max(1, item.QuantityText.Length * .65), Math.Max(1, textHeight) / 1.2)));
+        var countWidth = Widget.ItemView == "list" ? Loot.CellWidth * .5 : Loot.CellWidth - 6;
+        var countSize = Math.Max(1, Math.Min(13 * Widget.FontScale, Math.Max(1, countWidth) / Math.Max(1, item.QuantityText.Length * .65)));
+        return $"--loot-card-icon-size:{Css(iconSize)}px;--loot-card-count-size:{Css(fontSize)}px;--loot-count-size:{Css(countSize)}px";
+    }
+    private static string Css(double value) => value.ToString("0.##", CultureInfo.InvariantCulture);
+    private string FontScale => (double.IsFinite(Widget.FontScale) ? Math.Clamp(Widget.FontScale, .7, 2) : 1).ToString(CultureInfo.InvariantCulture);
+    private string ChartPoints
+    {
+        get
+        {
+            var values = Snapshot.SilverHistory;
+            var maximum = values.Count == 0 ? 1m : Math.Max(1m, values.Max());
+            return string.Join(" ", values.Select((value, index) =>
+                (300m * index / Math.Max(1, values.Count - 1)).ToString("0.##", CultureInfo.InvariantCulture) + "," +
+                (70m - Math.Clamp(value / maximum, 0, 1) * 64m).ToString("0.##", CultureInfo.InvariantCulture)));
+        }
+    }
+}

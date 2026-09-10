@@ -1,0 +1,12 @@
+{
+  "before": {
+    "main": 584,
+    "left": 1651.3333740234375,
+    "scrollMax": 1651
+  },
+  "after": {
+    "main": 584,
+    "left": 1651.3333740234375
+  },
+  "defaultPrevented": true
+}

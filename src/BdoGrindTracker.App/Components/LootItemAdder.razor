@@ -1,0 +1,95 @@
+@inherits TrackerComponentBase
+@inject IJSRuntime JS
+
+<div class="loot-add-control">
+    <button type="button" class="text-button" @onclick="Open" disabled="@(!CanAdd)" title="@UnavailableReason"><AppIcon Name="plus" />Gegenstand ergänzen</button>
+</div>
+
+<dialog id="@_dialogId" class="modal confirm-modal loot-add-dialog" aria-labelledby="@(_dialogId + "-title")" @oncancel="Close" @oncancel:preventDefault>
+    <div class="modal-heading"><div><span class="eyebrow">LOOT ERGÄNZEN</span><h2 id="@(_dialogId + "-title")">Fehlenden Gegenstand ergänzen</h2></div><button type="button" class="icon-button" @onclick="Close" aria-label="Dialog schließen" disabled="@Acting"><AppIcon Name="close" /></button></div>
+    <p>Wähle einen Gegenstand aus dem Lootpool dieses Spots. Automatisch erkannte Drops während der Bearbeitung bleiben erhalten.</p>
+    <form class="loot-add-form" @onsubmit="Save" @onsubmit:preventDefault>
+        <label class="search-field"><AppIcon Name="search" /><input autofocus aria-label="Spotkatalog durchsuchen" placeholder="Gegenstand suchen …" @bind="_query" @bind:event="oninput" /></label>
+        <label><span>Gegenstand</span><select aria-label="Fehlenden Gegenstand auswählen" size="6" @bind="_selectedItem" disabled="@Acting">
+            <option value="" disabled>Gegenstand wählen</option>
+            @foreach (var item in FilteredItems) { <option value="@item">@ItemLabel(item)</option> }
+        </select></label>
+        @if (!FilteredItems.Any()) { <p class="inline-empty">Kein Gegenstand passt zu „@_query“.</p> }
+        <label><span>Menge ergänzen</span><input type="text" inputmode="numeric" autocomplete="off" aria-label="Fehlende Menge" @bind="_quantity" @bind:event="oninput" disabled="@Acting" /></label>
+        @if (_selectedItem.Length > 0) { <small>Ausgewählt: @ItemLabel(_selectedItem)</small> }
+        @if (HasGarmothUpload) { <div class="notice warning-notice"><AppIcon Name="info" />Bereits übertragene Garmoth-Einträge bleiben unverändert.</div> }
+        @if (_error is not null) { <div class="notice error-notice" role="alert">@_error</div> }
+        <div class="modal-actions"><button type="button" class="button secondary" @onclick="Close" disabled="@Acting">Abbrechen</button><button type="submit" class="button primary" disabled="@(Acting || !State.CanEditLoot || _selectedItem.Length == 0)">Menge ergänzen</button></div>
+    </form>
+</dialog>
+
+@code {
+    [Parameter] public Guid? SessionId { get; set; }
+    [Parameter] public string? SpotId { get; set; }
+    [Parameter] public IReadOnlyDictionary<string, long> Totals { get; set; } = new Dictionary<string, long>();
+    private readonly string _dialogId = "loot-add-" + Guid.NewGuid().ToString("N");
+    private string[] _items = [];
+    private string _query = "";
+    private string _selectedItem = "";
+    private string _quantity = "1";
+    private string? _error;
+    private Guid _editingSessionId;
+    private bool _open;
+    private bool _closePending;
+    private bool CanAdd => State.CanEditLoot && SessionId.HasValue && SpotId is not null && MissingItems.Any();
+    private string? UnavailableReason => !State.CanEditLoot ? "Ein Vorgang wird gerade ausgeführt." :
+        SpotId is null ? "Sobald der Spot erkannt wurde, kannst du fehlende Gegenstände ergänzen." :
+        !MissingItems.Any() ? "Alle Gegenstände des Spotkatalogs sind bereits erfasst. Nutze die Mengenbearbeitung." : null;
+    private IEnumerable<string> MissingItems => SpotId is null ? [] : LootSpotCatalog.GetRequired(SpotId).AllowedItems
+        .Where(name => Totals.GetValueOrDefault(name) == 0).OrderBy(ItemLabel);
+    private IEnumerable<string> FilteredItems => _items.Where(name =>
+        name.Contains(_query, StringComparison.OrdinalIgnoreCase) || ItemLabel(name).Contains(_query, StringComparison.OrdinalIgnoreCase) ||
+        ItemLocalizationCatalog.GermanNames.GetValueOrDefault(name, name).Contains(_query, StringComparison.OrdinalIgnoreCase));
+    private bool HasGarmothUpload => Tracker.History.Any(entry => entry.SessionId == SessionId &&
+        (entry.GarmothUploadedAt is not null || entry.GarmothUploadBlocked)) || SessionId == State.SessionId && State.UploadBlocked;
+
+    protected override void OnParametersSet()
+    {
+        if (_open && SessionId != _editingSessionId) { _open = false; _closePending = true; }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_closePending) { _closePending = false; await JS.InvokeVoidAsync("grindcrest.closeDialog", _dialogId); }
+    }
+
+    private async Task Open()
+    {
+        if (!CanAdd) return;
+        _editingSessionId = SessionId!.Value;
+        _items = MissingItems.ToArray();
+        _query = "";
+        _selectedItem = "";
+        _quantity = "1";
+        _error = null;
+        _open = true;
+        await JS.InvokeVoidAsync("grindcrest.showDialog", _dialogId);
+    }
+
+    private async Task Close()
+    {
+        if (Acting) return;
+        _open = false;
+        await JS.InvokeVoidAsync("grindcrest.closeDialog", _dialogId);
+    }
+
+    private async Task Save()
+    {
+        if (!_open || Acting || !State.CanEditLoot || SessionId != _editingSessionId) return;
+        if (!_items.Contains(_selectedItem, StringComparer.OrdinalIgnoreCase)) { _error = "Wähle einen Gegenstand aus dem Spotkatalog."; return; }
+        if (!long.TryParse(_quantity, NumberStyles.None, CultureInfo.InvariantCulture, out var quantity) || quantity <= 0)
+        {
+            _error = "Bitte eine ganze Menge größer als 0 eingeben.";
+            return;
+        }
+        // The catalog only offered missing quantities when opened; a zero
+        // baseline preserves every automatic drop received in the meantime.
+        if (await Act(() => Tracker.UpdateLootQuantityAsync(_editingSessionId, _selectedItem, quantity, 0))) await Close();
+        else _error = ActionError ?? "Die Menge konnte nicht gespeichert werden.";
+    }
+}

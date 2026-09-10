@@ -21,10 +21,10 @@ Der Produktlink ist erst nach der Veröffentlichung öffentlich verfügbar. Für
 Windows, PowerShell 7.2+, .NET SDK 9 und das Windows SDK ab 10.0.19041.0 mit `MakeAppx.exe` sind erforderlich.
 
 ```powershell
-./scripts/Build-StoreRelease.ps1 -Version 1.0.1
+./scripts/Build-StoreRelease.ps1 -Version 1.1.0
 ```
 
-Das Skript führt alle Tests aus, veröffentlicht .NET samt Desktop-/Blazor-Laufzeit, erzeugt Logos aus der bestehenden Marke, erstellt das MSIX mit der Manifestprüfung des Windows SDK und prüft Identität, Inhalt und Logos. Das Ergebnis liegt unter `artifacts/store/1.0.1/Grindcrest-1.0.1.0-x64.msix`, zusammen mit SHA-256-Prüfsumme und MakeAppx-Protokoll. Das Ausgabeverzeichnis muss leer sein; zum Wiederholen einen neuen `-OutputDirectory` angeben. `-SkipTests` ist nur für lokale Paketierungsdiagnosen gedacht.
+Das Skript führt alle Tests aus, veröffentlicht .NET samt Desktop-/Blazor-Laufzeit, erzeugt Logos aus der bestehenden Marke, erstellt das MSIX mit der Manifestprüfung des Windows SDK und prüft Identität, Inhalt und Logos. Das Ergebnis liegt unter `artifacts/store/1.1.0/Grindcrest-1.1.0.0-x64.msix`, zusammen mit SHA-256-Prüfsumme und MakeAppx-Protokoll. Das Ausgabeverzeichnis muss leer sein; zum Wiederholen einen neuen `-OutputDirectory` angeben. `-SkipTests` ist nur für lokale Paketierungsdiagnosen gedacht.
 
 Alternativ nach dem Push auf GitHub: **Actions → Build Grindcrest for Microsoft Store → Run workflow**. Das Artefakt `grindcrest-store-package` enthält das fertige MSIX. Der Workflow lädt nichts zu Microsoft hoch und veröffentlicht keinen GitHub-Release.
 

@@ -10,6 +10,69 @@ namespace BdoGrindTracker.App.Tests;
 public sealed class BackgroundLootRowReviewIntegrationTests
 {
     [Fact]
+    public async Task MissingAnchorIsAwaitedBeforeCountingAndSurvivesDiagnosticReplay()
+    {
+        var rows = new Rows(new(250, "Black Stone", 6), new(200, "Caphras Stone", 1));
+        var review = new AnchorReview();
+        using var analyzer = Create(rows, review, new CompanionReconciliationAdapter(trackRows: true));
+        using var frame = new Bitmap(800, 600);
+        using (var graphics = Graphics.FromImage(frame))
+            graphics.Clear(Color.FromArgb(11, 22, 33));
+        var start = DateTimeOffset.UnixEpoch;
+        var first = await analyzer.AnalyzeAsync(frame, start, CancellationToken.None);
+        rows.Inputs = [new(250, "Black Stone", 6), new(200, "Black Stone", 6), new(150, "Caphras Stone", 1)];
+        var second = await analyzer.AnalyzeAsync(frame, start.AddMilliseconds(450), CancellationToken.None);
+        rows.Inputs = [new(250, "Black Stone", 4), new(200, "Black Stone", 6), new(150, "Black Stone", 6)];
+        var pending = analyzer.AnalyzeAsync(frame, start.AddMilliseconds(900), CancellationToken.None);
+        Assert.False(pending.IsCompleted);
+        Assert.Equal([3, 4], review.Anchors.Select(a => a.Slot));
+        Assert.Equal([100, 50], review.Anchors.Select(a => a.NativeY));
+        Assert.All(review.BandSizes, size => Assert.Equal(new OpenCvSharp.Size(385, 50), size));
+        Assert.All(review.Pixels, pixel => Assert.Equal(new Vec3b(33, 22, 11), pixel));
+        var input = review.Anchors[0];
+        var anchor = new LootObservation(LootSource.Normal, input.Slot, "Black Stone x 6", "Black Stone", 6,
+            1, .99, null, null) { NativeY = input.NativeY, IsAlignmentAnchor = true };
+        review.Completion.SetResult(new(anchor,
+            new(LootSource.Normal, input.NativeY, "missing-alignment-anchor", "test", "en-US", "observation-revised",
+                10, null, anchor, [new("original", anchor.RawText, .99, anchor.ItemName, 6),
+                    new("grayscale", anchor.RawText, .99, anchor.ItemName, 6)], 0)));
+        var third = await pending.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.True(Assert.Single(third.Observations, r => r.Slot == 3).IsAlignmentAnchor);
+        Assert.Equal("alignment-anchor-retained", Assert.Single(third.RowReviews).Outcome);
+        var end = analyzer.CompleteSession(start.AddSeconds(2));
+        var events = first.NewEvents.Concat(second.NewEvents).Concat(third.NewEvents).Concat(end.NewEvents).ToArray();
+        Assert.Equal(22, events.Where(e => e.ItemName == "Black Stone").Sum(e => e.Quantity));
+        Assert.Equal(5, events.Select(e => e.EventId).Distinct().Count());
+        Assert.Contains(end.TrackingResult.NormalReconciliation.SelectMany(t => t.Rows), r => r.Outcome == "alignment-anchor" && r.QuantityDelta == 0);
+
+        var counter = new CompanionDiagnosticCounter(new CompanionItemMatcher(LootSpotCatalog.SharedGlobalItems).CatalogEntries, trackRows: true);
+        foreach (var result in new[] { first, second, third })
+        {
+            var serialized = JsonSerializer.Serialize(result.Observations, LootDiagnosticFormat.JsonOptions);
+            var restored = JsonSerializer.Deserialize<LootObservation[]>(serialized, LootDiagnosticFormat.JsonOptions)!;
+            counter.ProcessFrame(start, restored, false);
+        }
+        Assert.Equal(22, counter.CompleteSession(start).NewEvents.Where(e => e.ItemName == "Black Stone").Sum(e => e.Quantity));
+        Assert.All(rows.Prepared, row => Assert.True(row.Disposed));
+    }
+
+    private sealed class AnchorReview : ILootRowReview
+    {
+        public List<LootRowReviewInput> Anchors { get; } = [];
+        public List<OpenCvSharp.Size> BandSizes { get; } = [];
+        public List<Vec3b> Pixels { get; } = [];
+        public TaskCompletionSource<LootRowReviewResult> Completion { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public void ConfigureLanguage(string languageTag) { }
+        public Task<LootRowReviewResult> ReviewAsync(Mat band, LootRowReviewInput input, CancellationToken token)
+        {
+            if (!input.ReviewMissingAlignmentAnchor) return Task.FromResult(new LootRowReviewResult(input.Baseline, null));
+            Anchors.Add(input); BandSizes.Add(band.Size()); Pixels.Add(band.At<Vec3b>(0, 0));
+            return input.Slot == 3 ? Completion.Task : Task.FromResult(new LootRowReviewResult(null, null));
+        }
+        public void Dispose() { }
+    }
+
+    [Fact]
     public async Task OutOfOrderReviewsWaitForEveryRowAndReplaceOnlyOriginalSourcePositionAndSlot()
     {
         var rows = new Rows(new(200, "BON Origin Shard", 3), new(250, "BON Origin Shard", 4));

@@ -139,6 +139,7 @@ public sealed class SettingsStoreTests
             {
                 File.Delete(Path);
             }
+            if (File.Exists(Path + ".bak")) File.Delete(Path + ".bak");
             Directory.Delete(_directory);
         }
     }

@@ -14,6 +14,8 @@ public sealed record CompanionRecognizedEntry
     /// <summary>Calibrated row index, newest first; optional for legacy callers.</summary>
     public int? Slot { get; init; }
     public bool IsPlaceholder { get; init; }
+    public bool IsAlignmentAnchor { get; init; }
+    public int? AlignmentPreviousSlot { get; init; }
     public Guid? EventId { get; init; }
     public int Revision { get; init; }
     public int? QuantityDelta { get; init; }

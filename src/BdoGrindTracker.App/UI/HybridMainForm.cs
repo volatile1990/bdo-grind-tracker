@@ -6,6 +6,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Web.WebView2.Core;
 using BdoGrindTracker.App.Updates;
 using BdoGrindTracker.App.Persistence;
+using BdoGrindTracker.App.Overlay;
+using BdoGrindTracker.App.Overlay.Native;
 
 namespace BdoGrindTracker.App.UI;
 
@@ -18,6 +20,8 @@ internal sealed class HybridMainForm : Form
     private readonly BlazorWebView _web = new() { Dock = DockStyle.Fill };
     private readonly ServiceProvider _services;
     private readonly IAppUpdates _updates;
+    private readonly OverlayService _overlay;
+    private readonly NativeOverlayHost _nativeOverlay;
     private readonly System.Windows.Forms.Timer _timer = new() { Interval = 500 };
     private readonly bool _smokeTest;
     private readonly bool _hidden;
@@ -60,6 +64,9 @@ internal sealed class HybridMainForm : Form
         var services = new ServiceCollection();
         services.AddWindowsFormsBlazorWebView();
         services.AddSingleton<ITrackerSession>(session);
+        _overlay = new OverlayService(session, preview || smokeTest ? null : new OverlaySettingsStore());
+        services.AddSingleton<IOverlayService>(_overlay);
+        _nativeOverlay = new NativeOverlayHost(_overlay, session, this, validationMode: preview || smokeTest);
         _updates = AppUpdateService.Create(!preview && !smokeTest,
             () => session.State.IsRunning, () => session.State.IsBusy, PrepareUpdateRestartAsync,
             () => new StoreAppUpdateService(new StoreUpdateBackend(() => IsDisposed ? 0 : Handle, RunOnUiThreadAsync),
@@ -173,6 +180,7 @@ internal sealed class HybridMainForm : Form
                 if (!_renderReady) return;
             }
             await _session.TickAsync();
+            _nativeOverlay.Tick();
             if (_updates.State.UsesStore && DateTimeOffset.UtcNow >= _nextStoreCheck && !_updates.State.IsBusy)
             {
                 _nextStoreCheck = DateTimeOffset.UtcNow.AddHours(6);
@@ -207,9 +215,28 @@ internal sealed class HybridMainForm : Form
         SaveWindowPlacement();
         _timer.Stop();
         Enabled = false;
-        try { await _session.ShutdownAsync(); await _session.DisposeAsync(); }
-        catch (Exception error) { ExitCode = 1; Console.Error.WriteLine(error.Message); }
-        finally { _closed = true; Close(); }
+        try
+        {
+            await _session.ShutdownAsync();
+            if (_session.State.ShutdownFailed)
+                throw new IOException(_session.State.PersistenceError ?? _session.State.Status);
+            await _session.DisposeAsync();
+            _closed = true;
+            Close();
+        }
+        catch (Exception error)
+        {
+            // Nothing has been disposed when the durable save fails. Keep the
+            // paused session and its retry action available.
+            _closing = false;
+            Enabled = true;
+            _timer.Start();
+            if (_hidden) Console.Error.WriteLine(error.Message);
+            else MessageBox.Show(this,
+                "Die Session konnte nicht vollständig gespeichert werden. Grindcrest bleibt geöffnet. " +
+                "Prüfe den freien Speicherplatz oder die Dateisperre und wähle „Erneut sichern“.\n\n" + error.Message,
+                "Session noch nicht gespeichert", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
     }
 
     private Task<bool> PrepareUpdateRestartAsync(Action scheduleApply)
@@ -249,12 +276,26 @@ internal sealed class HybridMainForm : Form
                 "Session noch nicht gespeichert", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return false;
         }
+        var closeAfterShutdown = true;
         try
         {
             await _session.ShutdownAsync();
-            await _session.DisposeAsync();
             if (_session.State.ShutdownFailed)
-                throw new IOException("Die Session konnte nicht vollständig gespeichert werden.");
+            {
+                // A save can fail after the preflight succeeded. Shutdown keeps
+                // its resources alive in that case, so preserve the retry path.
+                closeAfterShutdown = false;
+                _closing = false;
+                Enabled = true;
+                _timer.Start();
+                MessageBox.Show(this,
+                    "Deine Session konnte nicht vollständig gespeichert werden. Grindcrest bleibt geöffnet und das Update wartet. " +
+                    "Prüfe den freien Speicherplatz oder die Dateisperre und wähle „Erneut sichern“.\n\n" +
+                    (_session.State.PersistenceError ?? _session.State.Status),
+                    "Session noch nicht gespeichert", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return false;
+            }
+            await _session.DisposeAsync();
             // Start the updater's bounded exit wait only after all saves finish.
             scheduleApply();
             return true;
@@ -270,8 +311,11 @@ internal sealed class HybridMainForm : Form
         }
         finally
         {
-            _closed = true;
-            Close();
+            if (closeAfterShutdown)
+            {
+                _closed = true;
+                Close();
+            }
         }
     }
 
@@ -338,6 +382,8 @@ internal sealed class HybridMainForm : Form
         {
             _resourcesDisposed = true;
             _timer.Dispose();
+            _nativeOverlay.Dispose();
+            _overlay.Dispose();
             _web.Dispose();
             _services.Dispose();
             Icon?.Dispose();

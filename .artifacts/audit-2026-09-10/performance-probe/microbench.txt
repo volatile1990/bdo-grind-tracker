@@ -1,0 +1,6 @@
+Synthetic, local CPU microbenchmarks; no live capture, UI presentation or game running required. Release build, 5 warmups + 100 samples. No isolated-machine control.
+Full frame BGRA-to-BGR decode 1920x1080: meanMs=0,685, p95Ms=0,737, bufferMiB=5,93
+Full frame BGRA-to-BGR decode 3840x2160: meanMs=1,136, p95Ms=1,318, bufferMiB=23,73
+Offscreen native overlay preset compact 360x260: meanMs=0,557, p95Ms=0,686
+Offscreen native overlay preset dashboard 536x384: meanMs=1,058, p95Ms=1,173
+Offscreen native overlay preset loot 360x424: meanMs=0,830, p95Ms=0,929
