@@ -4,7 +4,7 @@
 erfasst jetzt alle Items je Spot. Die [neue vollständige Recherche](DROP_QUANTITIES_RESEARCH.md)
 ergänzt unter anderem die Event-Horizon-Teilwerte vom 3. September. Alle aktuellen
 Min-/Max-Grenzen sind inzwischen aus der ausgefüllten Nutzerdatei übernommen:
-Aphrodon 4/1000, Hermesia 4/1000, Magaia 4/1000, Aresion 2/1000,
+Aphrodon 4/1000, Hermesia 4/1000, Magaia 2/1000, Aresion 2/1000,
 Scales of Judgment 2/2000 und Event Horizon 2/1000. Diese Werte werden über
 `DropQuantityCatalog` pro Beobachtung verwendet. Der folgende historische Abschnitt
 dokumentiert den bisherigen Trash-Fallback und das weiterhin unterstützte v4-Replay.

@@ -38,8 +38,11 @@ public sealed partial class CompanionLootFrameAnalyzerTests
     [InlineData("Black Crystal Fragment", -1, 4)]
     [InlineData("Black Crystal Fragment", 1, 4)]
     [InlineData("Black Crystal Fragment", 4000, 1000)]
-    [InlineData("Elion Follower's Helmet", -1, 4)]
-    [InlineData("Elion Follower's Helmet", 1, 4)]
+    [InlineData("Elion Follower's Helmet", -1, 2)]
+    [InlineData("Elion Follower's Helmet", 1, 2)]
+    [InlineData("Elion Follower's Helmet", 2, 2)]
+    [InlineData("Elion Follower's Helmet", 4, 4)]
+    [InlineData("Elion Follower's Helmet", 338, 338)]
     [InlineData("Elion Follower's Mark", 1, 2)]
     [InlineData("Elion Follower's Mark", -1, 2)]
     [InlineData("Elion Follower's Mark", 4000, 2000)]
@@ -154,6 +157,43 @@ public sealed partial class CompanionLootFrameAnalyzerTests
 public sealed class DropQuantityDiagnosticTests : IDisposable
 {
     private readonly string directory = Path.Combine(Path.GetTempPath(), "Grindcrest-drop-bounds-" + Guid.NewGuid().ToString("N"));
+
+    [Fact]
+    public void V7TrackedRecordingRetainsItsCapturedMinimumWhenTheLiveCatalogChanges()
+    {
+        Directory.CreateDirectory(directory);
+        var start = DateTimeOffset.UnixEpoch;
+        const string item = "Elion Follower's Helmet";
+        var header = new LootDiagnosticHeader("header", LootDiagnosticFormat.Version,
+            LootDiagnosticFormat.PreviousRowTracksEngineVersion, start, null, "counter-only")
+        {
+            Catalog = [new(item)],
+            MinimumTrashQuantities = new Dictionary<string, uint> { [item] = 4 },
+        };
+        var observation = new LootObservation(LootSource.Normal, 0, item + " x2", item, 2, 1, 0, null, null)
+        {
+            NativeY = 250, QuantityBounds = new(4, 1000),
+        };
+        var path = Path.Combine(directory, "v7.jsonl");
+        File.WriteAllLines(path,
+        [
+            JsonSerializer.Serialize(header, LootDiagnosticFormat.JsonOptions),
+            JsonSerializer.Serialize(new LootDiagnosticEntry("frame", 1, start,
+                [observation], [], [], []) { RecognitionVariant = "companion-0.7.4+row-tracks-v1" },
+                LootDiagnosticFormat.JsonOptions),
+            JsonSerializer.Serialize(new LootDiagnosticEntry("complete", 2, start.AddSeconds(1), [],
+                [new(Guid.NewGuid(), start.AddSeconds(1), item, 4)], [], []), LootDiagnosticFormat.JsonOptions),
+        ]);
+
+        var replay = LootDiagnosticReplay.Run(path);
+
+        Assert.Equal(2u, DropQuantityCatalog.GetBounds(LootSpotCatalog.MagaiaId, item)!.Minimum);
+        Assert.False(replay.UsesCurrentEngine);
+        Assert.Equal(4, replay.Totals[item]);
+        Assert.True(replay.TotalsMatch);
+        Assert.True(replay.EventTimelineMatches);
+        Assert.Contains("Versionsvergleich", replay.ToDisplayText());
+    }
 
     [Fact]
     public void V5RecordingCanBeComparedWithTheCurrentMinimumClamp()

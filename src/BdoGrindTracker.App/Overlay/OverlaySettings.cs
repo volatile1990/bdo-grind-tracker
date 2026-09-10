@@ -8,6 +8,10 @@ public sealed record OverlayWidget
     public double Y { get; init; }
     public double Width { get; init; } = 160;
     public double Height { get; init; } = 72;
+    // Capture the original layout on the first resize. Null keeps existing
+    // templates at their saved appearance until the user changes their size.
+    public double? ContentWidth { get; init; }
+    public double? ContentHeight { get; init; }
     public bool ShowLabel { get; init; } = true;
     public bool ShowIcon { get; init; } = true;
     public double FontScale { get; init; } = 1;
@@ -67,6 +71,7 @@ public static class OverlayCatalog
         new OverlayWidgetDefinition("controls", "Tracking-Steuerung", "Grind starten, pausieren und fortsetzen", "play", 168, 56),
         new OverlayWidgetDefinition("status", "Tracking-Status", "Aktiv, pausiert oder Fehler", "live", 168, 56),
         new OverlayWidgetDefinition("loot-scroll", "Loot-Scroll", "Aktivstatus und erkannte Stufe", "loot", 168, 72),
+        new OverlayWidgetDefinition("grind-rating", "Grind-Bewertung", "Trash / Stunde im Spotvergleich", "trend", 168, 72),
     });
 
     public static OverlayWidgetDefinition? Find(string kind) => Widgets.FirstOrDefault(value => value.Kind == kind);
@@ -110,16 +115,16 @@ public static class OverlayCatalog
         },
         "loot" => new()
         {
-            Width = 504, Height = 960,
+            Width = 336, Height = 640,
             Widgets = Array.AsReadOnly(new[]
             {
-                CreateWidget("spot", 12, 12) with { Width = 480, Height = 108, FontScale = 1.5 },
-                CreateWidget("duration", 12, 132) with { Width = 252, Height = 108, ShowLabel = false, FontScale = 1.5 },
-                CreateWidget("silver", 276, 132) with { Width = 216, Height = 108, FontScale = 1.5 },
-                CreateWidget("chart", 12, 252) with { Width = 480, Height = 216, ShowLabel = false, FontScale = 1.5 },
-                CreateWidget("controls", 12, 480) with { Width = 252, Height = 108, ShowLabel = false, FontScale = 1.5 },
-                CreateWidget("trash-hour", 276, 480) with { Width = 216, Height = 108, FontScale = 1.5 },
-                CreateWidget("drop-grid", 12, 600) with { Width = 480, Height = 348, ItemLimit = 24, ItemSize = 84, ShowLabel = false, FontScale = 1.5 },
+                CreateWidget("spot", 8, 8) with { Width = 320, Height = 72 },
+                CreateWidget("duration", 8, 88) with { Width = 168, Height = 72, ShowLabel = false },
+                CreateWidget("silver", 184, 88) with { Width = 144, Height = 72 },
+                CreateWidget("chart", 8, 168) with { Width = 320, Height = 144, ShowLabel = false },
+                CreateWidget("controls", 8, 320) with { Width = 168, Height = 72, ShowLabel = false },
+                CreateWidget("trash-hour", 184, 320) with { Width = 144, Height = 72 },
+                CreateWidget("drop-grid", 8, 400) with { Width = 320, Height = 232, ItemLimit = 24, ItemSize = 56, ShowLabel = false },
             })
         },
         "loot-strip" => new()
@@ -139,6 +144,38 @@ public static class OverlayCatalog
 
 public static class OverlayLayout
 {
+    public static OverlaySettings ResizeCanvas(OverlaySettings settings, double width, double height)
+    {
+        var current = Normalize(settings);
+        var targetWidth = Finite(width, current.Width, 160, 1600);
+        var targetHeight = Finite(height, current.Height, 64, 1200);
+        if (targetWidth == current.Width && targetHeight == current.Height) return current;
+
+        var scaleX = targetWidth / current.Width;
+        var scaleY = targetHeight / current.Height;
+        // Keep one stable content reference through every resize. Font and item
+        // preferences remain multipliers within that proportionally scaled layout.
+        return Normalize(current with
+        {
+            Width = targetWidth,
+            Height = targetHeight,
+            Widgets = Array.AsReadOnly(current.Widgets.Select(widget => ResizeWidget(widget,
+                widget.Width * scaleX, widget.Height * scaleY) with
+            {
+                X = widget.X * scaleX,
+                Y = widget.Y * scaleY,
+            }).ToArray()),
+        });
+    }
+
+    public static OverlayWidget ResizeWidget(OverlayWidget widget, double width, double height) => widget with
+    {
+        ContentWidth = Reference(widget.ContentWidth) ?? Math.Max(1, widget.Width),
+        ContentHeight = Reference(widget.ContentHeight) ?? Math.Max(1, widget.Height),
+        Width = double.IsFinite(width) ? Math.Max(1, width) : widget.Width,
+        Height = double.IsFinite(height) ? Math.Max(1, height) : widget.Height,
+    };
+
     public static OverlaySettings Normalize(OverlaySettings? settings)
     {
         settings ??= new();
@@ -158,11 +195,14 @@ public static class OverlayLayout
             if (widget is null || OverlayCatalog.Find(widget.Kind) is not { } definition) continue;
             var id = Guid.TryParse(widget.Id, out var parsed) ? parsed.ToString("N") : Guid.NewGuid().ToString("N");
             if (!ids.Add(id)) continue;
-            var w = Finite(widget.Width, definition.Width, 80, width);
-            var h = Finite(widget.Height, definition.Height, 40, height);
+            // A whole-canvas resize can intentionally make modules smaller
+            // than the editor's defaults for individual module resizing.
+            var w = Finite(widget.Width, definition.Width, 1, width);
+            var h = Finite(widget.Height, definition.Height, 1, height);
             widgets.Add(widget with
             {
                 Id = id, Width = w, Height = h,
+                ContentWidth = Reference(widget.ContentWidth), ContentHeight = Reference(widget.ContentHeight),
                 X = Finite(widget.X, 0, 0, width - w), Y = Finite(widget.Y, 0, 0, height - h),
                 FontScale = Finite(widget.FontScale, 1, .7, 2),
                 ItemLimit = Math.Clamp(widget.ItemLimit, 1, 24),
@@ -192,6 +232,9 @@ public static class OverlayLayout
 
     private static double Finite(double value, double fallback, double minimum, double maximum) =>
         Math.Clamp(double.IsFinite(value) ? value : fallback, minimum, maximum);
+
+    private static double? Reference(double? value) => value is > 0 && double.IsFinite(value.Value)
+        ? Math.Clamp(value.Value, 1, 1600) : null;
 
     private static IReadOnlyList<string> NormalizeNames(OverlayWidget widget)
     {

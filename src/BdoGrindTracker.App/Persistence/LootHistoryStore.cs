@@ -9,6 +9,13 @@ internal sealed record LootHistoryEntry
     public required DateTimeOffset StartedAt { get; init; }
     public required DateTimeOffset UpdatedAt { get; init; }
     public required TimeSpan Duration { get; init; }
+    // null marks sessions saved before Agris observations were recorded.
+    public TimeSpan? AgrisActiveDuration { get; init; }
+    public TimeSpan? AgrisObservedDuration { get; init; }
+    public decimal? ExperienceGainedPercentagePoints { get; init; }
+    public TimeSpan? ExperienceObservedDuration { get; init; }
+    public int? ExperienceStartLevel { get; init; }
+    public int? ExperienceEndLevel { get; init; }
     public required string SpotId { get; init; }
     public string? CharacterClass { get; init; }
     public required Dictionary<string, long> Totals { get; init; }
@@ -117,11 +124,39 @@ internal sealed class LootHistoryStore
                 GarmothPendingCorrectionIntervals = (entry.GarmothPendingCorrectionIntervals ?? [])
                     .Where(id => id != Guid.Empty).Distinct().ToArray(),
             })
+            .Select(NormalizeAgrisDurations)
+            .Select(NormalizeExperience)
             .Where(static entry => entry.Totals.Count > 0)
             .OrderByDescending(static entry => entry.UpdatedAt)
             .DistinctBy(static entry => entry.SessionId)
             .Take(MaximumEntries)
             .ToArray();
+    }
+
+    private static LootHistoryEntry NormalizeAgrisDurations(LootHistoryEntry entry)
+    {
+        if (entry.AgrisActiveDuration is not { } active || entry.AgrisObservedDuration is not { } observed)
+            return entry with { AgrisActiveDuration = null, AgrisObservedDuration = null };
+        observed = TimeSpan.FromTicks(Math.Clamp(observed.Ticks, 0, entry.Duration.Ticks));
+        active = TimeSpan.FromTicks(Math.Clamp(active.Ticks, 0, observed.Ticks));
+        return entry with { AgrisActiveDuration = active, AgrisObservedDuration = observed };
+    }
+
+    private static LootHistoryEntry NormalizeExperience(LootHistoryEntry entry)
+    {
+        var observed = entry.ExperienceObservedDuration is { } duration
+            ? TimeSpan.FromTicks(Math.Clamp(duration.Ticks, 0, entry.Duration.Ticks))
+            : (TimeSpan?)null;
+        if (entry.ExperienceGainedPercentagePoints is null || observed is null || observed <= TimeSpan.Zero ||
+            entry.ExperienceStartLevel is not (>= 1 and <= 100) || entry.ExperienceEndLevel is not (>= 1 and <= 100))
+            return entry with
+            {
+                ExperienceGainedPercentagePoints = null,
+                ExperienceObservedDuration = observed is null ? null : TimeSpan.Zero,
+                ExperienceStartLevel = null,
+                ExperienceEndLevel = null,
+            };
+        return entry with { ExperienceObservedDuration = observed };
     }
 
     private sealed class LootHistoryDocument

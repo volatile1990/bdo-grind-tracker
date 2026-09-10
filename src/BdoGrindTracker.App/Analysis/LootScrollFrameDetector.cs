@@ -1,6 +1,6 @@
 namespace BdoGrindTracker.App.Analysis;
 
-/// <summary>Locates the gauge visually and reads its adjacent countdown in the same frame.</summary>
+/// <summary>Uses the gauge only to locate its countdown; the monitor classifies the measured timer change.</summary>
 internal sealed class LootScrollFrameDetector : ILootScrollFrameDetector
 {
     private readonly LootScrollGaugeDetector _gauge = new();
@@ -15,11 +15,11 @@ internal sealed class LootScrollFrameDetector : ILootScrollFrameDetector
         try
         {
             if (_timer.Read(frame, match.Bounds, cancellationToken) is { } time)
-                return match.Reading with { RemainingTime = time.RemainingTime, TimerResolution = time.Resolution };
+                return LootScrollReading.Unknown with { RemainingTime = time.RemainingTime, TimerResolution = time.Resolution };
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
-        catch (Exception) { /* Optional timer OCR cannot discard a reliable visible symbol. */ }
-        return match.Reading;
+        catch (Exception) { /* A visible symbol cannot substitute for an unreadable countdown. */ }
+        return LootScrollReading.Unknown;
     }
 
     public void Dispose()

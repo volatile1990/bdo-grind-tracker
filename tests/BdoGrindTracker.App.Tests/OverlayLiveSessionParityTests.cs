@@ -18,6 +18,48 @@ namespace BdoGrindTracker.App.Tests;
 public sealed class OverlayLiveSessionParityTests
 {
     [Theory]
+    [InlineData(13000, "Unter Average", OverlayMetricTone.Muted)]
+    [InlineData(13946, "Average Tier", OverlayMetricTone.Default)]
+    [InlineData(16300, "High Tier", OverlayMetricTone.Positive)]
+    [InlineData(18500, "Top Tier", OverlayMetricTone.Accent)]
+    public async Task GrindRatingUsesIdenticalActiveSessionTotalsInLiveAndLateOpenedOverlay(
+        long trash, string expected, OverlayMetricTone tone)
+    {
+        var state = ActiveState() with
+        {
+            SpotId = LootSpotCatalog.MagaiaId, Elapsed = TimeSpan.FromHours(1),
+            Loot = new(new Dictionary<string, long> { ["Elion Follower's Helmet"] = trash, ["Caphras Stone"] = 90000 }, trash + 90000, 100),
+            GrindBenchmark = new(LootSpotCatalog.MagaiaId, 13946, 16300, 18500,
+                new(2026, 9, 10, 0, 0, 0, TimeSpan.Zero), "https://garmoth.com/grind-tracker/best-grind-spots/215", "Loot-Scroll Lv.2 · ohne Agris"),
+        };
+        await using var tracker = new SnapshotSession(state);
+        using var overlay = new OverlayService(tracker);
+        var metric = overlay.Snapshot.Metrics["grind-rating"];
+        var markup = await RenderDashboardAsync(tracker);
+        var label = Regex.Match(markup, "<span class=\"grind-rating-label\">(?<value>.*?)</span>");
+
+        Assert.True(label.Success);
+        Assert.Equal(expected, PlainText(label.Groups["value"].Value));
+        Assert.Equal(expected, metric.Value);
+        Assert.Equal(tone, metric.Tone);
+        Assert.False(metric.IsWarning);
+        Assert.Null(metric.Detail);
+        Assert.Equal(new LiveSessionPresentation(state).GrindRating.Description, metric.Tooltip);
+        Assert.Contains("Average ab 13.946 · High ab 16.300 · Top ab 18.500", metric.Tooltip);
+        Assert.Contains("Loot-Scroll Lv.2 · ohne Agris", WebUtility.HtmlDecode(markup));
+
+        tracker.SetState(state with { IsRunning = false, CanPause = false });
+        Assert.Equal(metric, overlay.Snapshot.Metrics["grind-rating"]);
+        using var reopened = new OverlayService(tracker);
+        Assert.Equal(metric, reopened.Snapshot.Metrics["grind-rating"]);
+
+        tracker.SetState(state with { Loot = new(new Dictionary<string, long> { ["Elion Follower's Helmet"] = 18500 }, 18500, 100) });
+        Assert.Equal("Top Tier", overlay.Snapshot.Metrics["grind-rating"].Value);
+        Assert.Equal("Top Tier", reopened.Snapshot.Metrics["grind-rating"].Value);
+        Assert.Equal(0, tracker.CommandCalls);
+    }
+
+    [Theory]
     [InlineData(LootScrollStatus.Unknown, null, true, false, "Nicht erkannt", false)]
     [InlineData(LootScrollStatus.Active, null, true, false, "Aktiv", false)]
     [InlineData(LootScrollStatus.Active, 1, true, false, "Aktiv · Lvl. 1", false)]

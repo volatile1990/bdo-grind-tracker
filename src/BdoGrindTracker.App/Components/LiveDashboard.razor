@@ -95,9 +95,12 @@
                 <dl class="detail-list">
                     <div><dt>Bestätigte Drops</dt><dd>@Number(State.Loot.ConfirmedEventCount)</dd></div>
                     <div><dt>Verschiedene Items</dt><dd>@State.Loot.ItemTypeCount</dd></div>
+                    <div><dt>Grind-Bewertung</dt><dd class="grind-rating-value @SessionMetrics.GrindRating.ToneClass" title="@SessionMetrics.GrindRating.Description"><span class="grind-rating-label">@SessionMetrics.GrindRating.Label</span>@if (SessionMetrics.GrindRating.Detail is { } detail) { <small>@detail</small> }</dd></div>
                     <div><dt>Bruttowert</dt><dd>@(CanShowSilver ? Silver(State.Silver.BeforeTax) : "—")@(!State.Silver.IsComplete ? " *" : "")</dd></div>
                     <div><dt>Markterlös</dt><dd>@Tracker.Preferences.Tax.MarketReturnRate.ToString("P2", German)</dd></div>
                     <div><dt>Loot-Scroll</dt><dd class="@(SessionMetrics.LootScrollWarning ? "gold" : null)">@SessionMetrics.LootScroll</dd></div>
+                    <div><dt>Agris</dt><dd class="agris-live-value"><span>@SessionMetrics.Agris</span>@if (SessionMetrics.AgrisTime.HasObservation) { <small title="@SessionMetrics.AgrisTime.Description" aria-label="@SessionMetrics.AgrisTime.Description">@SessionMetrics.AgrisTime.Duration aktiv</small> }</dd></div>
+                    <div><dt>Erfahrung</dt><dd class="experience-live-value @(SessionMetrics.Experience.IsLoss ? "is-loss" : "")" title="@SessionMetrics.Experience.Description"><span class="experience-gain">@SessionMetrics.Experience.Gain</span>@if (SessionMetrics.Experience.HasObservation) { <small class="experience-hourly">@SessionMetrics.Experience.Hourly / h</small> }</dd></div>
                     <div><dt>Automatische Pause</dt><dd>@Tracker.Preferences.AutoPauseMinutes Min.</dd></div>
                 </dl>
                 <div class="subtle-box"><AppIcon Name="shield" /><span>Die automatische Pause greift, wenn kein neuer Loot erkannt wird.</span></div>

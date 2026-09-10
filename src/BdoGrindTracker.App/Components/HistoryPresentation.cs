@@ -29,6 +29,12 @@ internal static class HistoryPresentation
 {
     private const decimal ValuableDropThreshold = 200_000_000m;
 
+    internal static AgrisPresentation AgrisTime(LootHistoryEntry session) =>
+        new(session.AgrisActiveDuration, session.AgrisObservedDuration, session.Duration);
+    internal static ExperiencePresentation Experience(LootHistoryEntry session) =>
+        new(session.ExperienceGainedPercentagePoints, session.ExperienceObservedDuration, session.Duration,
+            session.ExperienceStartLevel, session.ExperienceEndLevel);
+
     internal static string CreateClassIconFileName(string className)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(className);

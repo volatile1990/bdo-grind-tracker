@@ -13,6 +13,9 @@ public sealed class LootScrollCountdownRegressionTests(ITestOutputHelper output)
     [InlineData("inactive-zero-user-20260910.png", 0f)]
     [InlineData("inactive-zero-user-20260910.png", 2.5f)]
     [InlineData("inactive-zero-user-20260910.png", 5f)]
+    [InlineData("inactive-eight-hours-user-20260910.png", 0f)]
+    [InlineData("inactive-eight-hours-user-20260910.png", 2.5f)]
+    [InlineData("inactive-eight-hours-user-20260910.png", 5f)]
     [InlineData("active-2-user-20260910.png", 0f)]
     public async Task RepeatedStationaryUserScreenshotWarnsThroughTheRealRecognitionPipeline(string name, float whiteLevel)
     {
@@ -33,18 +36,19 @@ public sealed class LootScrollCountdownRegressionTests(ITestOutputHelper output)
             return text;
         })));
         var start = DateTimeOffset.UnixEpoch;
-        for (var sample = 0; sample < 3; sample++)
+        for (var sample = 0; sample < 4; sample++)
         {
-            var at = start.AddMinutes(sample);
+            var at = start.AddSeconds(sample * 30);
             monitor.Observe(frame, at);
             await monitor.CurrentAnalysis.WaitAsync(TimeSpan.FromSeconds(10));
             var state = monitor.Snapshot(at);
-            output.WriteLine($"Minute {sample}: {state.Status}");
+            output.WriteLine($"Second {sample * 30}: {state.Status}");
             Assert.NotEqual(LootScrollStatus.Active, state.Status);
             if (sample == 0) Assert.Equal(LootScrollState.Unknown, state);
-            // The active-looking reference only displays minutes, so it needs
-            // more than sixty seconds to prove that its shown time is stopped.
-            if (sample == 2) Assert.True(state.ShouldWarn);
+            // Seconds displays warn on the second sample. The active-looking
+            // minute-only reference needs more than sixty seconds of equality.
+            if (sample > 0 && (name != "active-2-user-20260910.png" || sample == 3))
+                Assert.True(state.ShouldWarn);
         }
     }
 }

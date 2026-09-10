@@ -1242,7 +1242,8 @@ public sealed partial class TrackerSessionServiceTests
         private long _sequence;
         public Fixture(bool autoUpload = true, bool saveKey = true, AppSettings? initialSettings = null,
             SyntheticAnalyzer? analyzer = null, Func<BdoGrindTracker.Ocr.GameLanguageDetection>? languageDetector = null,
-            LootScrollMonitor? lootScrollMonitor = null, Func<Rectangle, bool>? lootScrollVisible = null)
+            LootScrollMonitor? lootScrollMonitor = null, Func<Rectangle, bool>? lootScrollVisible = null,
+            AgrisMonitor? agrisMonitor = null, ExperienceMonitor? experienceMonitor = null)
         {
             Analyzer = analyzer ?? new();
             Directory.CreateDirectory(DirectoryPath);
@@ -1273,7 +1274,8 @@ public sealed partial class TrackerSessionServiceTests
                 new("synthetic-secondary", "Bildschirm 2", new Rectangle(1920, 0, 1920, 1080), false)
             ], Clock, Activity, () => ClassDetection, Prices, client, KeyStore, HistoryStore,
                 languageDetector ?? (() => new("en", "Erkannt: Englisch")),
-                lootScrollMonitor: lootScrollMonitor, isLootScrollCaptureVisible: lootScrollVisible ?? (_ => false));
+                lootScrollMonitor: lootScrollMonitor, isLootScrollCaptureVisible: lootScrollVisible ?? (_ => false),
+                agrisMonitor: agrisMonitor, experienceMonitor: experienceMonitor);
         }
 
         public string DirectoryPath { get; } = Path.Combine(Path.GetTempPath(), "BdoGrindTracker.Tests", Guid.NewGuid().ToString("N"));

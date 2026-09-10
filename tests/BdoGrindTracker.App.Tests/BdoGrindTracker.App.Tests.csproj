@@ -25,5 +25,9 @@
              CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\fixtures\loot-scroll\*.png" Link="fixtures\loot-scroll\%(Filename)%(Extension)"
              CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\fixtures\agris\*.png" Link="fixtures\agris\%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\fixtures\experience\*.png" Link="fixtures\experience\%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

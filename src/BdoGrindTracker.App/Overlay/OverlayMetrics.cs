@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using BdoGrindTracker.App.Components;
+using BdoGrindTracker.App.Integrations.Garmoth;
 using BdoGrindTracker.App.Pricing;
 using BdoGrindTracker.App.Services;
 using BdoGrindTracker.App.UI;
@@ -68,6 +69,7 @@ internal sealed class OverlayMetrics
             .ToArray();
 
         var rateText = session.SilverPerHour + (session.PartialSilverHourly ? " *" : "");
+        var grindRating = session.GrindRating;
         var metrics = new Dictionary<string, OverlayMetric>(StringComparer.Ordinal)
         {
             ["duration"] = new("Aktive Zeit", session.Duration, "Ohne Pausenzeiten"),
@@ -84,6 +86,8 @@ internal sealed class OverlayMetrics
             ["controls"] = new("Tracking", session.Status),
             ["status"] = new("Session", session.Status, state.Status),
             ["loot-scroll"] = new("Loot-Scroll", session.LootScroll, IsWarning: session.LootScrollWarning),
+            ["grind-rating"] = new("Grind-Bewertung", grindRating.Label, grindRating.Detail,
+                Tone: grindRating.Tone, Tooltip: grindRating.Description),
         };
 
         return new()
@@ -117,6 +121,7 @@ internal sealed class OverlayMetrics
             SpotId = LootSpotCatalog.HermesiaId, CharacterLabel = "Agent", DetectedGameLanguage = "de",
             Status = "Beispieldaten · keine echte Session",
             LootScroll = new(LootScrollStatus.Active, Level: 2),
+            GrindBenchmark = GarmothGrindBenchmarks.Find(LootSpotCatalog.HermesiaId),
             Loot = new LootSessionSnapshot(new Dictionary<string, long>(StringComparer.Ordinal)
             {
                 ["Black Crystal Fragment"] = 2387,

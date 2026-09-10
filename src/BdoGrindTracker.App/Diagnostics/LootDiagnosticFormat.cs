@@ -9,7 +9,8 @@ namespace BdoGrindTracker.App.Diagnostics;
 internal static class LootDiagnosticFormat
 {
     public const int Version = 2;
-    public const string EngineVersion = "companion-0.7.4-row-tracks-v7";
+    public const string EngineVersion = "companion-0.7.4-row-tracks-v8";
+    public const string PreviousRowTracksEngineVersion = "companion-0.7.4-row-tracks-v7";
     public const string ClampedQuantityEngineVersion = "companion-0.7.4-drop-quantity-v6";
     public const string MaximumQuantityEngineVersion = "companion-0.7.4-drop-quantity-v5";
     public const string MinimumQuantityEngineVersion = "companion-0.7.4-minimum-quantity-v4";

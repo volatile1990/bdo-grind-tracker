@@ -322,6 +322,26 @@ public sealed class CompanionFrameReconciler
                         next.MatchedPreviousSlot = left.Entries[j].Slot;
                         next.Track = track;
                     }
+                if (HasUnchangedObservedRows(left, right))
+                {
+                    // A different row's cyclic tag may reject the whole overlap.
+                    // Keep only an unambiguous neighbor whose OWN tag still advances;
+                    // ambiguous repeated rows retain the original renewal decisions.
+                    for (var j = 0; j < offset; j++)
+                    {
+                        var previous = left.Entries[j];
+                        var next = right.Entries[j];
+                        if (previous.Frame is not (1 or 2) || next.Frame != previous.Frame + 1 ||
+                            left.Entries.Count(entry => entry.Name == previous.Name) != 1 ||
+                            right.Entries.Count(entry => entry.Name == next.Name) != 1)
+                            continue;
+                        next.Track = previous.Track;
+                        next.Duplicate = true;
+                        next.MatchedPreviousTrackId = previous.Track!.Id;
+                        next.MatchedPreviousSlot = previous.Slot;
+                        next.AlignmentReason = "verified-stable-neighbor";
+                    }
+                }
                 foreach (var anchor in right.Entries.Where(entry => entry.IsAlignmentAnchor))
                 {
                     var previous = left.Entries.FirstOrDefault(entry => anchor.AlignmentPreviousSlot is not null &&
@@ -338,6 +358,29 @@ public sealed class CompanionFrameReconciler
                 }
             }
         }
+    }
+
+    private static bool HasUnchangedObservedRows(Frame left, Frame right)
+    {
+        // Sparse captures or an incomplete/changed panel cannot prove continuity.
+        // This is deliberately narrower than accepting a geometric overlap alone.
+        if (left.CapturedAt is not { } before || right.CapturedAt is not { } after ||
+            after <= before || after - before > TimeSpan.FromSeconds(1) ||
+            left.Entries.Count < 2 || left.Entries.Count != right.Entries.Count)
+            return false;
+        for (var i = 0; i < left.Entries.Count; i++)
+        {
+            var previous = left.Entries[i];
+            var next = right.Entries[i];
+            if (previous.IsPlaceholder || next.IsPlaceholder || previous.IsAlignmentAnchor || next.IsAlignmentAnchor ||
+                previous.EstimatedCount || next.EstimatedCount || previous.Count is 0 or InvalidCount ||
+                previous.InputQuantity is not (> 0 and < InvalidCount) ||
+                next.InputQuantity != previous.InputQuantity ||
+                previous.Slot is not (>= 0 and < 6) || next.Slot != previous.Slot ||
+                next.Y != previous.Y || !SameIdentity(previous, next))
+                return false;
+        }
+        return true;
     }
 
     private void RepairInvalidCounts(int repairStart)

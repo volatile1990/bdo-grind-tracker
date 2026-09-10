@@ -61,16 +61,16 @@ public sealed class OverlaySettingsTests
     public void LootInventoryPresetStacksSessionMetricsAboveAFullWidthInventory()
     {
         var settings = OverlayCatalog.Preset("loot");
-        Assert.Equal(504, settings.Width);
-        Assert.Equal(960, settings.Height);
+        Assert.Equal(336, settings.Width);
+        Assert.Equal(640, settings.Height);
         Assert.Equal(new[] { "spot", "duration", "silver", "chart", "controls", "trash-hour", "drop-grid" },
             settings.Widgets.Select(widget => widget.Kind));
 
         var widgets = settings.Widgets.ToDictionary(widget => widget.Kind);
         Assert.All(new[] { "spot", "chart", "drop-grid" }, kind =>
         {
-            Assert.Equal(12, widgets[kind].X);
-            Assert.Equal(settings.Width - 24, widgets[kind].Width);
+            Assert.Equal(8, widgets[kind].X);
+            Assert.Equal(settings.Width - 16, widgets[kind].Width);
         });
         Assert.All(new[] { ("duration", "silver"), ("controls", "trash-hour") }, pair =>
         {
@@ -78,20 +78,20 @@ public sealed class OverlaySettingsTests
             var right = widgets[pair.Item2];
             Assert.Equal(left.Y, right.Y);
             Assert.Equal(left.Height, right.Height);
-            Assert.Equal(left.X + left.Width + 12, right.X);
-            Assert.Equal(settings.Width - 12, right.X + right.Width);
+            Assert.Equal(left.X + left.Width + 8, right.X);
+            Assert.Equal(settings.Width - 8, right.X + right.Width);
         });
         Assert.All(new[] { ("spot", "duration"), ("duration", "chart"), ("chart", "controls"), ("controls", "drop-grid") }, pair =>
         {
             var above = widgets[pair.Item1];
-            Assert.Equal(above.Y + above.Height + 12, widgets[pair.Item2].Y);
+            Assert.Equal(above.Y + above.Height + 8, widgets[pair.Item2].Y);
         });
 
         var inventory = widgets["drop-grid"];
-        Assert.Equal(settings.Height - 12, inventory.Y + inventory.Height);
+        Assert.Equal(settings.Height - 8, inventory.Y + inventory.Height);
         Assert.False(inventory.ShowLabel);
         Assert.Equal(24, inventory.ItemLimit);
-        Assert.Equal(5, OverlayLootPresentation.Create(inventory, new()).Columns);
+        Assert.Equal(5, OverlayLootPresentation.Create(inventory, OverlaySnapshot.Demo).Columns);
         Assert.False(widgets["duration"].ShowLabel);
         Assert.False(widgets["chart"].ShowLabel);
         Assert.False(widgets["controls"].ShowLabel);

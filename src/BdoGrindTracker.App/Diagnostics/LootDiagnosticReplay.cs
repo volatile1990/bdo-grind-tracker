@@ -81,6 +81,7 @@ internal static class LootDiagnosticReplay
         var header = Deserialize<LootDiagnosticHeader>(ReadBoundedLine(reader), 1);
         if (header.Kind != "header" || header.FormatVersion != LootDiagnosticFormat.Version ||
             (header.EngineVersion != LootDiagnosticFormat.EngineVersion &&
+             header.EngineVersion != LootDiagnosticFormat.PreviousRowTracksEngineVersion &&
              header.EngineVersion != LootDiagnosticFormat.ClampedQuantityEngineVersion &&
              header.EngineVersion != LootDiagnosticFormat.MaximumQuantityEngineVersion &&
              header.EngineVersion != LootDiagnosticFormat.MinimumQuantityEngineVersion &&
@@ -97,6 +98,7 @@ internal static class LootDiagnosticReplay
         }
 
         if (header.EngineVersion != LootDiagnosticFormat.EngineVersion &&
+            header.EngineVersion != LootDiagnosticFormat.PreviousRowTracksEngineVersion &&
             header.EngineVersion != LootDiagnosticFormat.ClampedQuantityEngineVersion &&
             header.EngineVersion != LootDiagnosticFormat.MaximumQuantityEngineVersion &&
             header.EngineVersion != LootDiagnosticFormat.MinimumQuantityEngineVersion && header.MinimumTrashQuantities.Count != 0)
@@ -125,6 +127,7 @@ internal static class LootDiagnosticReplay
 
             DiagnosticRecordingSession.ValidateObservations(entry.Observations);
             if (header.EngineVersion != LootDiagnosticFormat.EngineVersion &&
+                header.EngineVersion != LootDiagnosticFormat.PreviousRowTracksEngineVersion &&
                 header.EngineVersion != LootDiagnosticFormat.ClampedQuantityEngineVersion &&
                 header.EngineVersion != LootDiagnosticFormat.MaximumQuantityEngineVersion &&
                 entry.Observations.Any(row => row.QuantityBounds is not null || row.UsesImplicitUnitQuantity || row.UsesFixedUnitQuantity))

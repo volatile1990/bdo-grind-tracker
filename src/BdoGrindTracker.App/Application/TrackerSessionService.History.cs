@@ -77,12 +77,23 @@ internal sealed partial class TrackerSessionService
             .ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.OrdinalIgnoreCase);
         if (totals.Count == 0) return;
         var valuation = SilverValuation.Calculate(totals, Prices, Preferences.Tax);
+        UpdateAgrisSession();
+        UpdateExperienceSession();
+        var duration = _sessionClock.Elapsed;
+        var agris = _agrisSessionTracker.Snapshot(duration);
+        var experience = _experienceSessionTracker.Snapshot(duration);
         var entry = new LootHistoryEntry
         {
             SessionId = _sessionId,
             StartedAt = _sessionStartedAt ?? updatedAt - _sessionClock.Elapsed,
             UpdatedAt = updatedAt,
-            Duration = _sessionClock.Elapsed,
+            Duration = duration,
+            AgrisActiveDuration = agris.ActiveDuration,
+            AgrisObservedDuration = agris.ObservedDuration,
+            ExperienceGainedPercentagePoints = experience.GainedPercentagePoints,
+            ExperienceObservedDuration = experience.ObservedDuration,
+            ExperienceStartLevel = experience.StartLevel,
+            ExperienceEndLevel = experience.EndLevel,
             SpotId = _sessionSpotId,
             CharacterClass = (_sessionClass ?? SelectedCharacterClass)?.DisplayName,
             Totals = totals,

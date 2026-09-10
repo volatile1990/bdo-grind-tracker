@@ -83,14 +83,194 @@ public sealed class OverlayLootPresentationTests
         {
             var widget = OverlayCatalog.CreateWidget("drop-grid") with { Width = width, Height = height, ItemView = mode, ItemLimit = 24, FontScale = font };
             var view = OverlayLootPresentation.Create(widget, snapshot);
+            Assert.Equal(mode == "card" ? 1 : 17, view.VisibleItems.Count);
+            Assert.Equal(mode == "card" ? 16 : 0, view.HiddenCount);
             Assert.Equal(17, view.VisibleItems.Count + view.HiddenCount);
-            Assert.InRange(view.HeaderHeight + view.FooterHeight, 0, height - 16);
-            if (view.VisibleItems.Count == 0) continue;
-            Assert.True(view.Columns >= 1);
-            var rows = (view.VisibleItems.Count + view.Columns - 1) / view.Columns;
-            Assert.True(rows * view.CellHeight + (rows - 1) * OverlayLootPresentation.Gap <= height - 16 - view.HeaderHeight - view.FooterHeight + .001);
-            Assert.True(view.Columns * view.CellWidth + (view.Columns - 1) * OverlayLootPresentation.Gap <= width - 20 + .001);
+            AssertFitted(widget, view);
         }
+    }
+
+    [Theory]
+    [InlineData("grid")]
+    [InlineData("strip")]
+    [InlineData("list")]
+    [InlineData("card")]
+    public void SmallModuleKeepsEveryItemUpToTheConfiguredLimitAndReportsOnlyItsExcess(string mode)
+    {
+        var snapshot = Items(31);
+        var widget = OverlayCatalog.CreateWidget("drop-grid") with
+        {
+            Width = 80, Height = 40, ItemView = mode, ItemLimit = 6,
+            ItemSize = 112, FontScale = 2, ItemSort = "quantity",
+        };
+
+        var view = OverlayLootPresentation.Create(widget, snapshot);
+
+        var count = mode == "card" ? 1 : 6;
+        Assert.Equal(count, view.VisibleItems.Count);
+        Assert.Equal(31 - count, view.HiddenCount);
+        Assert.Equal(snapshot.Drops.OrderByDescending(item => item.Quantity).Take(count), view.VisibleItems);
+        Assert.True(view.ItemSize < widget.ItemSize);
+        Assert.True(view.FontScale < widget.FontScale);
+        Assert.Equal(18 * view.FontScale, view.HeaderHeight, 10);
+        Assert.Equal(18 * view.FontScale, view.FooterHeight, 10);
+        AssertFitted(widget, view);
+    }
+
+    [Theory]
+    [InlineData("grid")]
+    [InlineData("strip")]
+    [InlineData("list")]
+    [InlineData("card")]
+    public void SufficientSpacePreservesRequestedItemAndFontSizes(string mode)
+    {
+        var widget = OverlayCatalog.CreateWidget("drop-grid") with
+        {
+            Width = 1600, Height = 1200, ItemView = mode, ItemSize = 80, FontScale = 1.25,
+        };
+
+        var view = OverlayLootPresentation.Create(widget, Items(3));
+
+        Assert.Equal(widget.ItemSize, view.ItemSize);
+        Assert.Equal(widget.FontScale, view.FontScale);
+        Assert.Equal(OverlayLootPresentation.Gap, view.Gap);
+        AssertFitted(widget, view);
+    }
+
+    [Fact]
+    public void GridReflowsToLargerCellsWhenThePreferredColumnsCannotFitAllItems()
+    {
+        var widget = OverlayCatalog.CreateWidget("drop-grid") with
+        {
+            Width = 200, Height = 200, ItemLimit = 12,
+        };
+
+        var view = OverlayLootPresentation.Create(widget, Items(12));
+
+        // Four columns use the available square more efficiently than shrinking
+        // the original three-column grid enough to fit its four rows.
+        Assert.Equal(4, view.Columns);
+        Assert.Equal(56 * 180d / 236, view.CellWidth, 10);
+        Assert.Equal(12, view.VisibleItems.Count);
+        Assert.Equal(0, view.HiddenCount);
+        AssertFitted(widget, view);
+    }
+
+    [Fact]
+    public void StripMayShrinkBelowUsualEditingMinimumsToKeepAllTwentyFourItems()
+    {
+        var widget = OverlayCatalog.CreateWidget("drop-strip") with
+        {
+            Width = 80, Height = 40, ItemLimit = 24, ItemSize = 112, FontScale = 2,
+        };
+
+        var view = OverlayLootPresentation.Create(widget, Items(24));
+
+        Assert.Equal(24, view.VisibleItems.Count);
+        Assert.Equal(24, view.Columns);
+        Assert.Equal(0, view.HiddenCount);
+        Assert.InRange(view.ItemSize, double.Epsilon, 3);
+        Assert.InRange(view.FontScale, double.Epsilon, .05);
+        AssertFitted(widget, view);
+    }
+
+    [Theory]
+    [InlineData("grid")]
+    [InlineData("strip")]
+    [InlineData("list")]
+    [InlineData("card")]
+    public void UniformPhysicalResizeKeepsVirtualLootLayoutAndSelectionStable(string mode)
+    {
+        var snapshot = Items(24);
+        var original = OverlayCatalog.CreateWidget("drop-grid") with
+        {
+            Width = 520, Height = 224, ItemView = mode, ItemLimit = 24,
+            ContentWidth = 520, ContentHeight = 224,
+        };
+        var baseline = OverlayLootPresentation.Create(OverlayContentLayout.Create(original, snapshot).LayoutWidget, snapshot);
+        foreach (var factor in new[] { .01, .1, .5, 1, 2 })
+        {
+            var physical = original with { Width = original.Width * factor, Height = original.Height * factor };
+            var content = OverlayContentLayout.Create(physical, snapshot);
+            var resized = OverlayLootPresentation.Create(content.LayoutWidget, snapshot);
+
+            Assert.Equal(factor, content.Scale, 10);
+            Assert.Equal(baseline.VisibleItems, resized.VisibleItems);
+            Assert.Equal(baseline.HiddenCount, resized.HiddenCount);
+            Assert.Equal(baseline.Columns, resized.Columns);
+            Assert.Equal(baseline.CellWidth, resized.CellWidth, 10);
+            Assert.Equal(baseline.CellHeight, resized.CellHeight, 10);
+            Assert.Equal(baseline.ItemSize, resized.ItemSize, 10);
+            Assert.Equal(baseline.FontScale, resized.FontScale, 10);
+            Assert.Equal(baseline.Gap, resized.Gap, 10);
+            AssertFitted(content.LayoutWidget, resized);
+        }
+    }
+
+    [Theory]
+    [InlineData("grid")]
+    [InlineData("strip")]
+    [InlineData("list")]
+    [InlineData("card")]
+    public void ExtremePhysicalAspectRatiosStillFitTheCompleteLogicalSelection(string mode)
+    {
+        var snapshot = Items(31);
+        foreach (var (width, height) in new[] { (1d, 1d), (1d, 1200d), (1600d, 1d), (1d, 64d) })
+        {
+            var physical = OverlayCatalog.CreateWidget("drop-grid") with
+            {
+                Width = width, Height = height, ItemView = mode, ItemLimit = 24,
+                ItemSize = 112, FontScale = 2,
+            };
+            var content = OverlayContentLayout.Create(physical, snapshot);
+            var view = OverlayLootPresentation.Create(content.LayoutWidget, snapshot);
+
+            Assert.Equal(mode == "card" ? 1 : 24, view.VisibleItems.Count);
+            Assert.Equal(mode == "card" ? 30 : 7, view.HiddenCount);
+            AssertFitted(content.LayoutWidget, view);
+        }
+    }
+
+    [Theory]
+    [InlineData("grid")]
+    [InlineData("strip")]
+    [InlineData("list")]
+    [InlineData("card")]
+    public void EmptyLootAndDisabledLabelsDoNotReserveAnOverflowFooter(string mode)
+    {
+        var widget = OverlayCatalog.CreateWidget("drop-grid") with { ItemView = mode, ShowLabel = false };
+
+        var view = OverlayLootPresentation.Create(widget, new());
+
+        Assert.Empty(view.Items);
+        Assert.Empty(view.VisibleItems);
+        Assert.Equal(0, view.HiddenCount);
+        Assert.Equal(0, view.HeaderHeight);
+        Assert.Equal(0, view.FooterHeight);
+        AssertFitted(widget, view);
+    }
+
+    private static OverlaySnapshot Items(int count) => new()
+    {
+        Drops = Enumerable.Range(1, count)
+            .Select(index => new OverlayLootItem(index.ToString(), "Item " + index, index.ToString(), Quantity: index))
+            .ToArray(),
+    };
+
+    private static void AssertFitted(OverlayWidget widget, OverlayLootView view)
+    {
+        var width = widget.Width - OverlayLootPresentation.PaddingX * 2;
+        var height = widget.Height - OverlayLootPresentation.PaddingY * 2;
+        Assert.InRange(view.HeaderHeight + view.FooterHeight, 0, height + .001);
+        Assert.InRange(view.ItemSize, double.Epsilon, widget.ItemSize);
+        Assert.InRange(view.FontScale, double.Epsilon, widget.FontScale);
+        Assert.InRange(view.Gap, double.Epsilon, OverlayLootPresentation.Gap);
+        Assert.Equal(view.ItemSize / widget.ItemSize, view.FontScale / widget.FontScale, 10);
+        Assert.Equal(view.ItemSize / widget.ItemSize, view.Gap / OverlayLootPresentation.Gap, 10);
+        Assert.True(view.Columns >= 1);
+        var rows = Math.Max(1, (view.VisibleItems.Count + view.Columns - 1) / view.Columns);
+        Assert.True(rows * view.CellHeight + (rows - 1) * view.Gap <= height - view.HeaderHeight - view.FooterHeight + .001);
+        Assert.True(view.Columns * view.CellWidth + (view.Columns - 1) * view.Gap <= width + .001);
     }
 
     [Fact]

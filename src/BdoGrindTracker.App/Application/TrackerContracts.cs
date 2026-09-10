@@ -61,6 +61,15 @@ internal sealed record TrackerState
     public TimeSpan Elapsed { get; init; }
     public LootSessionSnapshot Loot { get; init; } = LootSessionSnapshot.Empty;
     public LootScrollState LootScroll { get; init; } = LootScrollState.Unknown;
+    public AgrisState Agris { get; init; } = AgrisState.Unknown;
+    public TimeSpan AgrisActiveDuration { get; init; }
+    public TimeSpan AgrisObservedDuration { get; init; }
+    public ExperienceState Experience { get; init; } = ExperienceState.Unknown;
+    public decimal? ExperienceGainedPercentagePoints { get; init; }
+    public TimeSpan ExperienceObservedDuration { get; init; }
+    public int? ExperienceStartLevel { get; init; }
+    public int? ExperienceEndLevel { get; init; }
+    public GrindBenchmark? GrindBenchmark { get; init; }
     public IReadOnlyList<string> ManualLootItems { get; init; } = [];
     public SilverValuationResult Silver { get; init; } = new(0, 0, 0, [], [], false);
     public IReadOnlyList<SessionSilverSample> SilverHistory { get; init; } = [];

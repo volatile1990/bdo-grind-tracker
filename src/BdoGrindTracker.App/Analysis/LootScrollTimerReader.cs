@@ -45,9 +45,10 @@ internal sealed partial class LootScrollTimerReader : ILootScrollTimerReader
         Cv2.Resize(normalized, large, new CvSize((int)Math.Round(gray.Width * scale),
             (int)Math.Round(gray.Height * scale)), interpolation: InterpolationFlags.Cubic);
 
-        // Compare both small preparations of the once-per-minute label. A valid
+        // Compare both small preparations of the infrequently sampled label. A valid
         // misread must not win merely because that preparation happened to run first.
         LootScrollTimerReading? accepted = null;
+        LootScrollTimerReading? conflicting = null;
         for (var variant = 0; variant < 2; variant++)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -58,10 +59,27 @@ internal sealed partial class LootScrollTimerReader : ILootScrollTimerReader
             Cv2.CopyMakeBorder(prepared, padded, 12, 12, 12, 12, BorderTypes.Constant, Scalar.All(255));
             var text = _recognize?.Invoke(padded, cancellationToken) ?? _engine!.Recognize(padded, cancellationToken).Text;
             if (TryParse(text) is not { } result) continue;
-            if (accepted is not null && accepted != result) return null;
-            accepted = result;
+            if (accepted is not null && accepted != result) conflicting = result;
+            else accepted = result;
         }
-        return accepted;
+        if (conflicting is null) return accepted;
+
+        // A thresholded HDR label can lose the leading hour digits while its
+        // suffix still parses as another valid time. One differently scaled raw
+        // grayscale preparation may corroborate either result; without exact
+        // agreement of both time and precision, preserve the ambiguity.
+        cancellationToken.ThrowIfCancellationRequested();
+        using var corroboration = new Mat();
+        var corroborationScale = Math.Clamp(scale * 1.25, 1, 5);
+        Cv2.Resize(gray, corroboration, new CvSize((int)Math.Round(gray.Width * corroborationScale),
+            (int)Math.Round(gray.Height * corroborationScale)), interpolation: InterpolationFlags.Cubic);
+        Cv2.BitwiseNot(corroboration, corroboration);
+        using var corroborationPadded = new Mat();
+        Cv2.CopyMakeBorder(corroboration, corroborationPadded, 12, 12, 12, 12, BorderTypes.Constant, Scalar.All(255));
+        var corroboratedText = _recognize?.Invoke(corroborationPadded, cancellationToken)
+            ?? _engine!.Recognize(corroborationPadded, cancellationToken).Text;
+        var corroborated = TryParse(corroboratedText);
+        return corroborated == accepted || corroborated == conflicting ? corroborated : null;
     }
 
     internal static Rectangle TimerRegion(System.Drawing.Size frame, Rectangle gauge)
@@ -81,7 +99,13 @@ internal sealed partial class LootScrollTimerReader : ILootScrollTimerReader
         var match = TimeLabel().Match(text);
         if (!match.Success || !match.Groups["h"].Success && !match.Groups["m"].Success && !match.Groups["s"].Success)
             return null;
-        static int Value(Group group) => group.Success ? int.Parse(group.Value, CultureInfo.InvariantCulture) : 0;
+        // Windows OCR reads the narrow gold HUD digits 1/0 as uppercase I/O at
+        // some scales. Correct only numeric tokens in an otherwise complete time
+        // label, with at least one unambiguous digit. Never rewrite surrounding
+        // words, the units or multiple labels into a plausible countdown.
+        if (!text.Any(char.IsAsciiDigit)) return null;
+        static int Value(Group group) => group.Success
+            ? int.Parse(group.Value.Replace('I', '1').Replace('O', '0'), CultureInfo.InvariantCulture) : 0;
         var hours = Value(match.Groups["h"]);
         var minutes = Value(match.Groups["m"]);
         var seconds = Value(match.Groups["s"]);
@@ -91,7 +115,7 @@ internal sealed partial class LootScrollTimerReader : ILootScrollTimerReader
         return new(TimeSpan.FromHours(hours) + TimeSpan.FromMinutes(minutes) + TimeSpan.FromSeconds(seconds), resolution);
     }
 
-    [GeneratedRegex(@"^\s*(?:(?<h>[0-9]{1,2})\s*(?:h|Std\.?)\s*)?(?:(?<m>[0-9]{1,2})\s*(?:m|Min\.?)\s*)?(?:(?<s>[0-9]{1,2})\s*(?:s|Sek\.?)\s*)?\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"^\s*(?:(?<h>(?-i:[0-9IO]{1,2}))\s*(?:h|Std\.?)\s*)?(?:(?<m>(?-i:[0-9IO]{1,2}))\s*(?:m|Min\.?)\s*)?(?:(?<s>(?-i:[0-9IO]{1,2}))\s*(?:s|Sek\.?)\s*)?\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex TimeLabel();
 
     public void Dispose() { _disposed = true; _engine = null; }

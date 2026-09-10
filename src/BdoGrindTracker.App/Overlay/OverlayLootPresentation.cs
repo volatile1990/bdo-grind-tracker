@@ -5,7 +5,8 @@ public sealed record OverlayLootView(
     string Label, string Detail,
     IReadOnlyList<OverlayLootItem> Items, IReadOnlyList<OverlayLootItem> VisibleItems,
     int HiddenCount, int Columns, double CellWidth, double CellHeight,
-    double HeaderHeight, double FooterHeight);
+    double HeaderHeight, double FooterHeight,
+    double ItemSize, double FontScale, double Gap);
 
 public static class OverlayLootPresentation
 {
@@ -41,29 +42,61 @@ public static class OverlayLootPresentation
             _ => selection,
         };
         var items = Array.AsReadOnly(selection.ToArray());
+        var view = widget.Kind == "drop-item" ? "card" : widget.ItemView;
+        var count = Math.Min(items.Count, view == "card" ? 1 : Math.Clamp(widget.ItemLimit, 1, 24));
+        var visible = Array.AsReadOnly(items.Take(count).ToArray());
+        var hiddenCount = items.Count - count;
         var width = Math.Max(0, widget.Width - PaddingX * 2);
         var innerHeight = Math.Max(0, widget.Height - PaddingY * 2);
-        var header = widget.ShowLabel ? Math.Min(innerHeight, 18 * widget.FontScale) : 0;
-        var height = Math.Max(0, innerHeight - header);
-        var view = widget.Kind == "drop-item" ? "card" : widget.ItemView;
-        var cellWidth = view is "list" or "card" ? width : widget.ItemSize;
-        var cellHeight = view == "list" ? Math.Max(24, Math.Max(widget.ItemSize * .55, 20 * widget.FontScale)) : widget.ItemSize;
-        var columns = view is "list" or "card" ? 1 : Math.Max(0, (int)((width + Gap) / (cellWidth + Gap)));
-        int Capacity(double availableHeight)
+        var itemSize = widget.ItemSize;
+        var fontScale = widget.FontScale;
+        var header = widget.ShowLabel ? 18 * fontScale : 0;
+        var footer = hiddenCount > 0 ? 18 * fontScale : 0;
+        var cellHeight = view switch
         {
-            if (width <= 0 || availableHeight <= 0) return 0;
-            if (view == "card") return availableHeight >= 20 ? 1 : 0;
-            var rows = Math.Max(0, (int)((availableHeight + Gap) / (cellHeight + Gap)));
-            if (view == "strip") rows = Math.Min(1, rows);
-            return columns * rows;
+            "list" => Math.Max(24, Math.Max(itemSize * .55, 20 * fontScale)),
+            "card" => Math.Max(widget.ShowIcon ? itemSize : 0, 62 * fontScale),
+            _ => itemSize,
+        };
+        // Lists/cards need room beside the icon for the name and quantity. The
+        // renderers fit the actual text; this reserves a useful shared layout.
+        var preferredWidth = view switch
+        {
+            "list" => (widget.ShowIcon ? itemSize * .55 + 6 : 0) + 80 * fontScale,
+            "card" => (widget.ShowIcon ? itemSize + 12 : 0) + 64 * fontScale,
+            _ => itemSize,
+        };
+        var layoutCount = Math.Max(1, count);
+        var columns = view switch
+        {
+            "list" or "card" => 1,
+            "strip" => layoutCount,
+            _ => Math.Clamp((int)Math.Floor((width + Gap) / (itemSize + Gap)), 1, layoutCount),
+        };
+        double Fit(int candidateColumns)
+        {
+            var rows = (layoutCount + candidateColumns - 1) / candidateColumns;
+            var requiredWidth = candidateColumns * preferredWidth + (candidateColumns - 1) * Gap;
+            var requiredHeight = header + footer + rows * cellHeight + (rows - 1) * Gap;
+            return Math.Min(1, Math.Min(width / requiredWidth, innerHeight / requiredHeight));
         }
-        var count = Math.Min(Math.Clamp(widget.ItemLimit, 1, 24), Capacity(height));
-        var footer = items.Count > count ? Math.Min(18, innerHeight) : 0d;
-        header = Math.Min(header, Math.Max(0, innerHeight - footer));
-        height = Math.Max(0, innerHeight - header);
-        if (footer > 0) count = Math.Min(count, Capacity(Math.Max(0, height - footer)));
-        if (view == "card") cellHeight = Math.Max(0, height - footer);
-        var visible = Array.AsReadOnly(items.Take(count).ToArray());
+        var scale = Fit(columns);
+        if (view is not ("list" or "card" or "strip") && scale < 1)
+        {
+            // Keep the preferred grid when it fits. Otherwise select the grid
+            // with the largest uniformly scaled cells, retaining every slot.
+            for (var candidate = 1; candidate <= layoutCount; candidate++)
+            {
+                var candidateScale = Fit(candidate);
+                if (candidateScale <= scale) continue;
+                columns = candidate;
+                scale = candidateScale;
+            }
+        }
+        header *= scale;
+        footer *= scale;
+        var cellWidth = view is "list" or "card" ? width : itemSize * scale;
+        cellHeight = view == "card" ? Math.Max(0, innerHeight - header - footer) : cellHeight * scale;
         var label = filter switch
         {
             "rare" => "Seltene Drops · Live-Session",
@@ -72,6 +105,7 @@ public static class OverlayLootPresentation
             _ => "Drops · Live-Session",
         };
         return new(label, "Gesammelte Mengen der Live-Session, einschließlich manueller Korrekturen.",
-            items, visible, items.Count - visible.Count, columns, cellWidth, cellHeight, header, footer);
+            items, visible, hiddenCount, columns, cellWidth, cellHeight, header, footer,
+            itemSize * scale, fontScale * scale, Gap * scale);
     }
 }

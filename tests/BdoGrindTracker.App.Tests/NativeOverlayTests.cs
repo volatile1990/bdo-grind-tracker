@@ -6,6 +6,73 @@ namespace BdoGrindTracker.App.Tests;
 
 public sealed class NativeOverlayTests
 {
+    public static IEnumerable<object[]> CatalogWidgets() => OverlayCatalog.Widgets.Select(widget => new object[] { widget.Kind });
+
+    [Theory]
+    [MemberData(nameof(CatalogWidgets))]
+    public void EveryCatalogModuleRendersAtItsDefaultSizeIncludingOptionalModules(string kind)
+    {
+        var widget = OverlayCatalog.CreateWidget(kind, 0, 0);
+        var settings = new OverlaySettings
+        {
+            Width = widget.Width, Height = widget.Height, Widgets = [widget],
+            ShowBorder = false, BackgroundOpacity = 0, Interaction = "passthrough",
+        };
+        using var renderer = new NativeOverlayRenderer();
+        using var image = renderer.Render(new((int)widget.Width, (int)widget.Height), settings, OverlaySnapshot.Demo, out var actions);
+
+        Assert.Equal(PixelFormat.Format32bppPArgb, image.PixelFormat);
+        Assert.Contains(Enumerable.Range(0, image.Height), y =>
+            Enumerable.Range(0, image.Width).Any(x => image.GetPixel(x, y).A > 0));
+        Assert.Equal(new RectangleF(0, 0, (float)widget.Width, (float)widget.Height), actions["widget:" + widget.Id]);
+    }
+
+    [Theory]
+    [InlineData(OverlayMetricTone.Default, 237, 241, 245)]
+    [InlineData(OverlayMetricTone.Muted, 154, 175, 190)]
+    [InlineData(OverlayMetricTone.Positive, 125, 211, 181)]
+    [InlineData(OverlayMetricTone.Accent, 242, 199, 108)]
+    public void GrindRatingNativeTextUsesTheProjectedToneWithoutAWarningBackground(OverlayMetricTone tone, int red, int green, int blue)
+    {
+        var widget = OverlayCatalog.CreateWidget("grind-rating", 0, 0) with { ShowLabel = false, ShowIcon = false };
+        var settings = new OverlaySettings
+        {
+            Width = widget.Width, Height = widget.Height, Widgets = [widget],
+            ShowBorder = false, BackgroundOpacity = 0, Interaction = "passthrough",
+        };
+        var snapshot = new OverlaySnapshot { Metrics = new Dictionary<string, OverlayMetric>
+            { ["grind-rating"] = new("Grind-Bewertung", "High Tier", Tone: tone) } };
+        using var renderer = new NativeOverlayRenderer();
+        using var image = renderer.Render(new((int)widget.Width, (int)widget.Height), settings, snapshot, out _);
+        var expected = Color.FromArgb(red, green, blue).ToArgb();
+
+        Assert.Equal(0, image.GetPixel(2, 2).A);
+        Assert.Contains(Enumerable.Range(0, image.Height), y =>
+            Enumerable.Range(0, image.Width).Any(x => image.GetPixel(x, y).ToArgb() == expected));
+    }
+
+    [Theory]
+    [InlineData("compact")]
+    [InlineData("dashboard")]
+    [InlineData("loot")]
+    [InlineData("loot-strip")]
+    public void ProportionallyShrunkCanvasRendersWithoutInvalidDrawingOrHitRegions(string preset)
+    {
+        using var renderer = new NativeOverlayRenderer();
+        var layout = OverlayLayout.ResizeCanvas(OverlayCatalog.Preset(preset), 160, 64);
+        using var image = renderer.Render(new Size(160, 64), layout,
+            OverlaySnapshot.Demo with { CanToggleTracking = true }, out var actions);
+        Assert.Equal(new Size(160, 64), image.Size);
+        Assert.All(actions.Values, bounds =>
+        {
+            Assert.True(bounds.Width > 0 && bounds.Height > 0);
+            Assert.InRange(bounds.Left, 0, 160);
+            Assert.InRange(bounds.Top, 0, 64);
+            Assert.InRange(bounds.Right, 0, 160.001f);
+            Assert.InRange(bounds.Bottom, 0, 64.001f);
+        });
+    }
+
     [Fact]
     public void RelativePositionSurvivesMonitorOriginResolutionAndDpiChanges()
     {

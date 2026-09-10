@@ -24,12 +24,20 @@ not presented as Grindcrest artwork or exposed by the web frontend.
   crop supplied in the same user conversation. The bag and both arrows are visible;
   the outer rim and plus button are cropped. These excluded pixels are not required
   by recognition, while a clipped bag/level glyph remains insufficient evidence.
+* `tests/fixtures/loot-scroll/inactive-eight-hours-user-20260910.png`: user-provided
+  original-resolution HUD crop from the same conversation, showing the level-0 menu
+  and remaining time `8h 12m 10s`. Used only for locator and native timer OCR regression
+  tests, including relocated Full HD, 1440p and 4K frames, UI scaling and HDR mapping.
+  It is not a public publisher reference or an embedded detector template.
 
 The active gauge has a bright bag and one/two upward chevrons. The inactive gauge
 has a dim bag and a cross. The level menu's fill is cumulative (0; 0+1; 0+1+2),
 and can be collapsed, so recognition uses the central symbol instead. A mask
 excludes the surrounding world, remaining-time text, level buttons, and plus button.
 Tooltips, scroll inventory items, and missing pixels are not status evidence.
+At runtime, the visual gauge match only locates the adjacent timer. The composite
+frame reader does not forward the symbol's status or level. Scroll activity and
+level are inferred from the countdown's change across timed observations.
 
 Original-resolution frames live under `tests/fixtures/loot-scroll`. Tests also
 exercise resizing, relocation, missing/cropped symbols and contradictory gauges.

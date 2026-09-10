@@ -570,6 +570,7 @@ public sealed class LootDiagnosticRecordingTests : IDisposable
 
     [Theory]
     [InlineData(LootDiagnosticFormat.EngineVersion, 4, true)]
+    [InlineData(LootDiagnosticFormat.PreviousRowTracksEngineVersion, 4, false)]
     [InlineData(LootDiagnosticFormat.PreviousEngineVersion, 4, false)]
     [InlineData(LootDiagnosticFormat.ExperimentalEngineVersion, 1, false)]
     public void ReplayDistinguishesCurrentRecordingsFromPreviousCounterComparisons(

@@ -147,6 +147,18 @@ eine vollständige Beseitigung von Doppelzählungen behauptet. Mengenwechsel von
 geschätzt zu gelesen allein lösen auch am Tag-Überlauf keine neue Buchung aus.
 Der separate Rare-Zähler behält seine bisherige Abgleichlogik.
 
+Eine eng begrenzte Ausnahme schützt seit Engine v8 einen eindeutig erkannten
+Nachbareintrag, wenn der zyklische Tag einer anderen Zeile die gesamte Zuordnung
+verwirft. Dafür müssen zwei höchstens eine Sekunde auseinanderliegende Frames
+dieselben vollständig gelesenen Zeilen an denselben Positionen enthalten. Der
+geschützte Itemname muss jeweils eindeutig sein und sein eigener Tag regulär
+von 1 auf 2 oder von 2 auf 3 fortschreiten. Nur diese einzelne Track-ID wird
+übernommen (`verified-stable-neighbor`); mehrdeutige gleiche Zeilen behalten die
+bisherige Erneuerungsentscheidung. Verschiebungen, geänderte Mengen, fehlende
+Lesungen, ein eigener Tag-Umbruch oder längere Aufnahmelücken lösen diese Ausnahme
+nicht aus. Eine vollständig identische Ersetzung zwischen zwei Aufnahmen bleibt
+anhand von Text und Position allein grundsätzlich nicht sicher unterscheidbar.
+
 ## Sprache, Diagnose und Prüfung
 
 Die eingestellte beziehungsweise aus der BDO-Konfiguration bestimmte Spielsprache
@@ -155,12 +167,15 @@ auf dieselben kanonischen Itemschlüssel abgebildet. Das zusätzliche Modell ist
 mehrsprachig; weitere Spielsprachen erfordern weiterhin passende Katalogaliase
 und Unterstützung im primären Erkennungsweg.
 
-Diagnose-Engine: `companion-0.7.4-row-tracks-v7`. `rowReviews` protokolliert Backend,
+Diagnose-Engine: `companion-0.7.4-row-tracks-v8`. `rowReviews` protokolliert Backend,
 Sprache, Anlass, beide Lesungen, Laufzeit, Entscheidung und Fehler. Normale
 Mengenrevisionen enthalten dieselbe `eventId`, eine steigende `revision`, die
 absolute `totalDropQuantity` und das signierte `quantity`-Delta. Der Variantenmarker
 `+row-tracks-v1` wählt den passenden Replay-Zählmodus. Historische Aufnahmen ohne
 Marker bleiben im bisherigen Modus; Replay liest keine Screenshots erneut.
+Aufnahmen der Engine v7 bleiben als Versionsvergleich lesbar. Die darin
+gespeicherten Mengengrenzen werden beibehalten, auch wenn sich der aktuelle
+Katalog geändert hat; ein Replay ändert keine gespeicherte Session.
 
 Der C#-ONNX-Wrapper liefert auf allen 305 Prüfausschnitten denselben Text wie der
 vorherige Python-ONNX-Versuch. Der produktive Zusatzpfad löst 35 der 42 zuvor

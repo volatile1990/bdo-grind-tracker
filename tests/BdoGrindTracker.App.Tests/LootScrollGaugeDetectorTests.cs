@@ -17,6 +17,7 @@ public sealed class LootScrollGaugeDetectorTests(ITestOutputHelper output)
     [InlineData("inactive-user-20260910.png", LootScrollStatus.Inactive, null)]
     [InlineData("inactive-expanded-user-20260910.png", LootScrollStatus.Inactive, null)]
     [InlineData("inactive-zero-user-20260910.png", LootScrollStatus.Inactive, null)]
+    [InlineData("inactive-eight-hours-user-20260910.png", LootScrollStatus.Inactive, null)]
     [InlineData("active-1.png", LootScrollStatus.Active, 1)]
     [InlineData("active-1-collapsed.png", LootScrollStatus.Active, 1)]
     [InlineData("active-2.png", LootScrollStatus.Active, 2)]

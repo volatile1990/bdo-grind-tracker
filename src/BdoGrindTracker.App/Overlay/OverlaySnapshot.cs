@@ -20,7 +20,10 @@ public sealed record OverlaySnapshot
     public static OverlaySnapshot Demo => OverlayMetrics.Demo;
 }
 
-public sealed record OverlayMetric(string Label, string Value, string? Detail = null, bool IsWarning = false);
+public enum OverlayMetricTone { Default, Muted, Positive, Accent }
+
+public sealed record OverlayMetric(string Label, string Value, string? Detail = null, bool IsWarning = false,
+    OverlayMetricTone Tone = OverlayMetricTone.Default, string? Tooltip = null);
 
 /// <param name="CanonicalName">The original ledger key, independent of the display language.</param>
 /// <param name="Name">Localized display name.</param>

@@ -98,11 +98,15 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         IWindowsOcrLanguageInstaller? ocrLanguageInstaller = null,
         Func<string, ILootFrameAnalyzer>? analyzerFactory = null,
         LootScrollMonitor? lootScrollMonitor = null,
-        Func<Rectangle, bool>? isLootScrollCaptureVisible = null)
+        Func<Rectangle, bool>? isLootScrollCaptureVisible = null,
+        AgrisMonitor? agrisMonitor = null,
+        ExperienceMonitor? experienceMonitor = null)
     {
         _captureSession = capture ?? throw new ArgumentNullException(nameof(capture));
         _analyzer = analyzer ?? throw new ArgumentNullException(nameof(analyzer));
         _lootScrollMonitor = lootScrollMonitor ?? new LootScrollMonitor(new LootScrollFrameDetector());
+        _agrisMonitor = agrisMonitor ?? new AgrisMonitor(new AgrisFrameDetector());
+        _experienceMonitor = experienceMonitor ?? new ExperienceMonitor(new ExperienceFrameReader());
         _isLootScrollCaptureVisible = isLootScrollCaptureVisible ?? CreateLootScrollVisibilityCheck();
         _ocrLanguageInstaller = ocrLanguageInstaller ?? new WindowsOcrLanguageInstaller();
         _analyzerFactory = analyzerFactory ?? (language => FrameAnalyzerFactory.Create(language));
@@ -187,6 +191,10 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         SavePendingHistory();
         _analyzer.Reset();
         _lootScrollMonitor.Reset();
+        _agrisMonitor.Reset();
+        _agrisSessionTracker.Reset();
+        _experienceMonitor.Reset();
+        _experienceSessionTracker.Reset();
         _recording?.Dispose();
         _recording = null;
         _hasSession = false;
@@ -241,6 +249,10 @@ internal sealed partial class TrackerSessionService : ITrackerSession
 
     private void ClearDemo()
     {
+        _agrisMonitor.Reset();
+        _agrisSessionTracker.Reset();
+        _experienceMonitor.Reset();
+        _experienceSessionTracker.Reset();
         _demoMode = false;
         _sessionSpotId = null;
         _sessionClass = null;
@@ -283,6 +295,10 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             if (!_hasSession) _sessionStartedAt = DateTimeOffset.UtcNow;
             _hasSession = true;
             _lootScrollMonitor.Reset();
+            _agrisMonitor.Reset();
+            _agrisSessionTracker.Pause(_sessionClock.Elapsed);
+            _experienceMonitor.Reset();
+            _experienceSessionTracker.Pause(_sessionClock.Elapsed);
             _uiRunning = true;
             _inactivityTimer.Start();
             _sessionClock.Start();
@@ -299,6 +315,10 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         {
             _uiRunning = false;
             _sessionClock.Pause();
+            _agrisMonitor.Reset();
+            _agrisSessionTracker.Pause(_sessionClock.Elapsed);
+            _experienceMonitor.Reset();
+            _experienceSessionTracker.Pause(_sessionClock.Elapsed);
             _inactivityTimer.Pause();
             await _captureSession.StopAsync();
             CompleteCaptureSegment(DateTimeOffset.UtcNow);
@@ -308,6 +328,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
 
     private async Task StopTrackingAsync(bool automatic = false)
     {
+        UpdateAgrisSession();
+        UpdateExperienceSession();
         if (!automatic)
         {
             _sessionClock.Pause();
@@ -320,6 +342,10 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         CompleteCaptureSegment(DateTimeOffset.UtcNow);
         _uiRunning = false;
         _lootScrollMonitor.Reset();
+        _agrisMonitor.Reset();
+        _agrisSessionTracker.Pause(_sessionClock.Elapsed);
+        _experienceMonitor.Reset();
+        _experienceSessionTracker.Pause(_sessionClock.Elapsed);
         PersistCurrentSession(DateTimeOffset.UtcNow, throwOnError: true);
         var failure = Interlocked.CompareExchange(ref _lastCaptureStopError, null, null);
         SetStatus(failure is not null ? "Tracking gestoppt: " + failure.Message
@@ -342,7 +368,16 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             recognitionVariant: analysis.VariantName);
         _uiMailbox.Publish(analysis, onPublished: ObserveGarmothTotals);
         if (_uiRunning && metadata.CanObserveHud)
+        {
             _lootScrollMonitor.Observe(frame, metadata.CapturedAtUtc);
+            _agrisMonitor.Observe(frame, metadata.CapturedAtUtc);
+            _experienceMonitor.Observe(frame, metadata.CapturedAtUtc);
+        }
+        else
+        {
+            _agrisMonitor.Reset();
+            _experienceMonitor.Reset();
+        }
     }
 
     private static Func<Rectangle, bool> CreateLootScrollVisibilityCheck()
@@ -489,6 +524,10 @@ internal sealed partial class TrackerSessionService : ITrackerSession
     private void PublishState()
     {
         if (_disposed) return;
+        var agris = UpdateAgrisSession();
+        var agrisDuration = _agrisSessionTracker.Snapshot(_sessionClock.Elapsed);
+        var experience = UpdateExperienceSession();
+        var experienceProgress = _experienceSessionTracker.Snapshot(_sessionClock.Elapsed);
         var character = _hasSession || _demoMode ? _sessionClass : SelectedCharacterClass;
         var trackingBlockedReason = _demoMode ? null : _ocrLanguageError ?? (!_analyzer.IsAvailable ? _analyzer.Status :
             (Interlocked.CompareExchange(ref _lastCaptureStopError, null, null) as LootPanelUnavailableException)?.Message);
@@ -516,6 +555,15 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             Elapsed = _demoMode ? TimeSpan.FromHours(1) : _sessionClock.Elapsed,
             LootScroll = !_demoMode && _uiRunning
                 ? _lootScrollMonitor.Snapshot(DateTimeOffset.UtcNow) : LootScrollState.Unknown,
+            Agris = agris,
+            AgrisActiveDuration = agrisDuration.ActiveDuration,
+            AgrisObservedDuration = agrisDuration.ObservedDuration,
+            Experience = experience,
+            ExperienceGainedPercentagePoints = experienceProgress.GainedPercentagePoints,
+            ExperienceObservedDuration = experienceProgress.ObservedDuration,
+            ExperienceStartLevel = experienceProgress.StartLevel,
+            ExperienceEndLevel = experienceProgress.EndLevel,
+            GrindBenchmark = GarmothGrindBenchmarks.Find(_sessionSpotId),
             Loot = new(totals, _sessionSummary.TotalQuantity, _sessionSummary.ConfirmedEventCount),
             ManualLootItems = Array.AsReadOnly(_sessionManualLootItems.ToArray()),
             Silver = SilverValuation.Calculate(totals, Prices, Preferences.Tax),
@@ -581,6 +629,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         if (_disposed) return;
         _shutdownStarted = true;
         _shutdownFailed = false;
+        UpdateAgrisSession();
+        UpdateExperienceSession();
         _sessionClock.Pause();
         _inactivityTimer.Pause();
         try
@@ -619,6 +669,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             _disposed = true;
             _analyzer.Dispose();
             _lootScrollMonitor.Dispose();
+            _agrisMonitor.Dispose();
+            _experienceMonitor.Dispose();
             _priceProvider.Dispose();
             _garmothClient.Dispose();
             _uiMailbox.Dispose();

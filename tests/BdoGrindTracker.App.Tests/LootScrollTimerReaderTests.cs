@@ -15,6 +15,12 @@ public sealed class LootScrollTimerReaderTests(ITestOutputHelper output)
     [InlineData("6 Std. 29 Min. 38 Sek.", 23378, 1)]
     [InlineData("0s", 0, 1)]
     [InlineData("10h", 36000, 3600)]
+    [InlineData("8h 12m IO s", 29530, 1)]
+    [InlineData("8h 12m IOS", 29530, 1)]
+    [InlineData("8h12mI0s", 29530, 1)]
+    [InlineData("8h12m1Os", 29530, 1)]
+    [InlineData("6h 29m 3Os", 23370, 1)]
+    [InlineData("I0h 2m", 36120, 60)]
     public void ParsesRemainingTimeAndItsActualPrecision(string text, int seconds, int resolution)
     {
         Assert.Equal(new LootScrollTimerReading(TimeSpan.FromSeconds(seconds), TimeSpan.FromSeconds(resolution)),
@@ -27,7 +33,18 @@ public sealed class LootScrollTimerReaderTests(ITestOutputHelper output)
     [InlineData("25h")]
     [InlineData("38")]
     [InlineData("Loot Scroll Level 2")]
-    [InlineData("6h 29m 3Os")]
+    [InlineData("IOs")]
+    [InlineData("Ih Om")]
+    [InlineData("L 8h 12m IO s")]
+    [InlineData("8h 12m l0s")]
+    [InlineData("8h 12m iOs")]
+    [InlineData("8h 12m S0s")]
+    [InlineData("8h 12m OIOs")]
+    [InlineData("8h 12m IO seconds")]
+    [InlineData("8O 12m 10s")]
+    [InlineData("3Oh 12m IOs")]
+    [InlineData("8h 6Om IOs")]
+    [InlineData("8h 12m 6Os")]
     [InlineData("-1s")]
     [InlineData("6h 29m 38s cooldown")]
     [InlineData("6h 29m 38s 7h 14m")]
@@ -58,13 +75,49 @@ public sealed class LootScrollTimerReaderTests(ITestOutputHelper output)
     [InlineData("5h 40m 16s", "5h 40m")]
     [InlineData("5h 40m 0s", "5h 40m")]
     [InlineData("5h 40m", "5h 40m 0s")]
+    [InlineData("8h 12m IO s", "8h 12m 11s")]
     public void ConflictingValidPreparationsDoNotInventATimerChange(string first, string second)
     {
         using var frame = new Bitmap(400, 150);
         var calls = 0;
-        using var reader = new LootScrollTimerReader((_, _) => ++calls == 1 ? first : second);
+        using var reader = new LootScrollTimerReader((_, _) => ++calls switch { 1 => first, 2 => second, _ => "ambiguous" });
         Assert.Null(reader.Read(frame, new(300, 30, 83, 83), CancellationToken.None));
-        Assert.Equal(2, calls);
+        Assert.Equal(3, calls);
+    }
+
+    [Theory]
+    [InlineData("8h 12m 10s", "2m 10s", "8h 12m IO s", 29530)]
+    [InlineData("2m 10s", "8h 12m 10s", "8h 12m IO s", 29530)]
+    [InlineData("8h 12m 10s", "2m 10s", "2m 10s", 130)]
+    public void AThirdSmallPreparationResolvesOnlyAnExactMajority(string first, string second, string third, int seconds)
+    {
+        using var frame = new Bitmap(400, 150);
+        var calls = 0;
+        using var reader = new LootScrollTimerReader((image, _) =>
+        {
+            Assert.InRange(image.Width, 20, 1000);
+            Assert.InRange(image.Height, 20, 180);
+            return ++calls switch { 1 => first, 2 => second, _ => third };
+        });
+        Assert.Equal(new LootScrollTimerReading(TimeSpan.FromSeconds(seconds), TimeSpan.FromSeconds(1)),
+            reader.Read(frame, new(300, 30, 83, 83), CancellationToken.None));
+        Assert.Equal(3, calls);
+    }
+
+    [Theory]
+    [InlineData("8h 12m 11s")]
+    [InlineData("8h 12m")]
+    [InlineData("unreadable")]
+    public void AThirdUncorroboratedResultDoesNotResolveTheConflict(string third)
+    {
+        using var frame = new Bitmap(400, 150);
+        var calls = 0;
+        using var reader = new LootScrollTimerReader((_, _) => ++calls switch
+        {
+            1 => "8h 12m 10s", 2 => "2m 10s", _ => third
+        });
+        Assert.Null(reader.Read(frame, new(300, 30, 83, 83), CancellationToken.None));
+        Assert.Equal(3, calls);
     }
 
     [Theory]
@@ -82,6 +135,20 @@ public sealed class LootScrollTimerReaderTests(ITestOutputHelper output)
     }
 
     [Theory]
+    [InlineData("8h 12m IO s", "8h12m10s")]
+    [InlineData("L 8h 12m IO s", "8h 12m IOS")]
+    [InlineData("8h 12m IOS", "unreadable")]
+    public void NumericOcrCorrectionsAgreeWithTheSecondSmallPreparation(string first, string second)
+    {
+        using var frame = new Bitmap(400, 150);
+        var calls = 0;
+        using var reader = new LootScrollTimerReader((_, _) => ++calls == 1 ? first : second);
+        Assert.Equal(new LootScrollTimerReading(TimeSpan.FromSeconds(29530), TimeSpan.FromSeconds(1)),
+            reader.Read(frame, new(300, 30, 83, 83), CancellationToken.None));
+        Assert.Equal(2, calls);
+    }
+
+    [Theory]
     [InlineData("inactive-user-20260910.png", 23378, 1, 0f)]
     [InlineData("inactive-expanded-user-20260910.png", 23378, 1, 0f)]
     [InlineData("active-2-user-20260910.png", 23040, 60, 0f)]
@@ -91,6 +158,9 @@ public sealed class LootScrollTimerReaderTests(ITestOutputHelper output)
     [InlineData("inactive-zero-user-20260910.png", 20416, 1, 0f)]
     [InlineData("inactive-zero-user-20260910.png", 20416, 1, 2.5f)]
     [InlineData("inactive-zero-user-20260910.png", 20416, 1, 5f)]
+    [InlineData("inactive-eight-hours-user-20260910.png", 29530, 1, 0f)]
+    [InlineData("inactive-eight-hours-user-20260910.png", 29530, 1, 2.5f)]
+    [InlineData("inactive-eight-hours-user-20260910.png", 29530, 1, 5f)]
     public void ReadsTimerNextToTheActualUserHud(string name, int expectedSeconds, int expectedResolution, float whiteLevel)
     {
         var engine = CompanionWindowsOcrRecognizer.TryCreate();
@@ -109,12 +179,37 @@ public sealed class LootScrollTimerReaderTests(ITestOutputHelper output)
             reader.Read(frame, gauge.Bounds, CancellationToken.None));
     }
 
-    [Fact]
-    public void TimerOcrFailurePreservesTheVisibleSymbol()
+    [Theory]
+    [InlineData("inactive-user-20260910.png")]
+    [InlineData("active-2-user-20260910.png")]
+    public void TimerOcrFailureCannotClassifyFromTheVisibleSymbol(string name)
     {
         using var detector = new LootScrollFrameDetector(new BrokenTimer());
-        using var frame = Load("inactive-user-20260910.png");
-        Assert.Equal(new LootScrollReading(LootScrollStatus.Inactive), detector.Analyze(frame, CancellationToken.None));
+        using var frame = Load(name);
+        Assert.Equal(LootScrollReading.Unknown, detector.Analyze(frame, CancellationToken.None));
+    }
+
+    [Theory]
+    [InlineData("inactive-user-20260910.png")]
+    [InlineData("active-2-user-20260910.png")]
+    public void AReadableTimerCarriesNoSymbolDerivedStatusOrLevel(string name)
+    {
+        using var detector = new LootScrollFrameDetector(new LootScrollTimerReader((_, _) => "8h12m10s"));
+        using var frame = Load(name);
+        Assert.Equal(LootScrollReading.Unknown with
+        {
+            RemainingTime = TimeSpan.FromSeconds(29530), TimerResolution = TimeSpan.FromSeconds(1)
+        }, detector.Analyze(frame, CancellationToken.None));
+    }
+
+    [Theory]
+    [InlineData("inactive-user-20260910.png")]
+    [InlineData("active-2-user-20260910.png")]
+    public void UnreadableTimerCannotClassifyFromTheVisibleSymbol(string name)
+    {
+        using var detector = new LootScrollFrameDetector(new LootScrollTimerReader((_, _) => "ambiguous"));
+        using var frame = Load(name);
+        Assert.Equal(LootScrollReading.Unknown, detector.Analyze(frame, CancellationToken.None));
     }
 
     [Theory]
@@ -150,7 +245,8 @@ public sealed class LootScrollTimerReaderTests(ITestOutputHelper output)
         {
             var reading = detector.Analyze(frame, CancellationToken.None);
             output.WriteLine($"Read {attempt}: {reading}");
-            Assert.Equal(LootScrollStatus.Inactive, reading.Status);
+            Assert.Equal(LootScrollStatus.Unknown, reading.Status);
+            Assert.Null(reading.Level);
             Assert.Equal(TimeSpan.FromSeconds(20416), reading.RemainingTime);
             Assert.Equal(TimeSpan.FromSeconds(1), reading.TimerResolution);
         }
@@ -193,9 +289,53 @@ public sealed class LootScrollTimerReaderTests(ITestOutputHelper output)
         });
         var reading = reader.Read(frame, gauge.Bounds, CancellationToken.None);
         output.WriteLine($"Accepted timer: {reading?.ToString() ?? "Unknown"}");
-        Assert.Equal(2, calls);
+        Assert.InRange(calls, 2, 3);
         if (reading is not null)
             Assert.Equal(new LootScrollTimerReading(TimeSpan.FromSeconds(expectedSeconds), TimeSpan.FromSeconds(expectedResolution)), reading);
+    }
+
+    [Theory]
+    [InlineData(1920, 1080, .75, 0f)]
+    [InlineData(1920, 1080, 1, 0f)]
+    [InlineData(1920, 1080, 1.01, 2.5f)]
+    [InlineData(2560, 1440, .99, 0f)]
+    [InlineData(2560, 1440, 1.25, 0f)]
+    [InlineData(2560, 1440, 1, 5f)]
+    [InlineData(3840, 2160, .75, 0f)]
+    [InlineData(3840, 2160, 1, 0f)]
+    [InlineData(3840, 2160, 1.25, 2.5f)]
+    public void ReadsNewUserEightHourTimerOnMonitor(int width, int height, double uiScale, float whiteLevel)
+    {
+        var engine = CompanionWindowsOcrRecognizer.TryCreate();
+        if (engine is null) { output.WriteLine("Native OCR unavailable; parser and bounded reader have independent tests."); return; }
+        using var original = Load("inactive-eight-hours-user-20260910.png");
+        using var source = whiteLevel == 0 ? (Bitmap)original.Clone() : LootScrollGaugeDetectorTests.ToneMapHdr(original, whiteLevel);
+        using var frame = new Bitmap(width, height, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
+        var scaledWidth = (int)Math.Round(source.Width * uiScale);
+        var scaledHeight = (int)Math.Round(source.Height * uiScale);
+        using (var graphics = Graphics.FromImage(frame))
+        {
+            graphics.Clear(Color.FromArgb(37, 49, 61));
+            graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+            graphics.DrawImage(source, new Rectangle(width - scaledWidth - 173, height - scaledHeight - 89, scaledWidth, scaledHeight));
+        }
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        using var gaugeDetector = new LootScrollGaugeDetector();
+        var gauge = Assert.IsType<LootScrollGaugeMatch>(gaugeDetector.FindGauge(frame, CancellationToken.None));
+        output.WriteLine($"{width}x{height}, UI {uiScale}, HDR {whiteLevel}; gauge {gauge.Bounds}; search {watch.ElapsedMilliseconds}ms");
+        var calls = 0;
+        using var reader = new LootScrollTimerReader((image, token) =>
+        {
+            Assert.InRange(image.Width, 20, 1000);
+            Assert.InRange(image.Height, 20, 180);
+            var text = engine.Recognize(image, token).Text;
+            output.WriteLine($"Preparation {++calls}: {text}");
+            return text;
+        });
+        Assert.Equal(new LootScrollTimerReading(TimeSpan.FromSeconds(29530), TimeSpan.FromSeconds(1)),
+            reader.Read(frame, gauge.Bounds, CancellationToken.None));
+        Assert.InRange(calls, 2, 3);
+        output.WriteLine($"Gauge and {calls} small OCR preparations: {watch.ElapsedMilliseconds}ms");
     }
 
     private static Bitmap Load(string name) => new(Path.Combine(AppContext.BaseDirectory, "fixtures", "loot-scroll", name));

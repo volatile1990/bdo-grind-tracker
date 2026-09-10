@@ -36,6 +36,7 @@
   <ItemGroup>
     <EmbeddedResource Include="..\..\data\branding\grindcrest-header.png" LogicalName="BdoGrindTracker.App.Branding.grindcrest-header.png" />
     <EmbeddedResource Include="..\..\data\ocr\loot-scroll\*.png" LogicalName="BdoGrindTracker.App.LootScroll.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="..\..\data\ocr\agris\*.png" LogicalName="BdoGrindTracker.App.Agris.%(Filename)%(Extension)" />
     <EmbeddedResource Include="..\..\data\branding\grindcrest.ico" LogicalName="BdoGrindTracker.App.Branding.grindcrest.ico" />
     <Content Include="..\..\data\branding\*" Link="data\branding\%(Filename)%(Extension)">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -111,6 +112,7 @@
   <ItemGroup>
     <Content Include="..\..\docs\BLAZOR_HYBRID.md" Link="docs\BLAZOR_HYBRID.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="..\..\docs\OVERLAY.md" Link="docs\OVERLAY.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\docs\GRIND_RATING.md" Link="docs\GRIND_RATING.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="..\..\licenses\*" Link="licenses\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="..\..\README.md" Link="README.md">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

@@ -29,6 +29,20 @@ internal sealed class LiveSessionPresentation(TrackerState state)
         _ => "Nicht erkannt",
     };
     internal bool LootScrollWarning => state.IsRunning && !state.IsDemo && state.LootScroll.ShouldWarn;
+    internal string Agris => state.Agris.Status switch
+    {
+        AgrisStatus.Active => "Aktiv",
+        AgrisStatus.Inactive => "Inaktiv",
+        _ => "Nicht erkannt",
+    };
+    internal AgrisPresentation AgrisTime => new(state.AgrisActiveDuration, state.AgrisObservedDuration, Elapsed);
+    internal ExperiencePresentation Experience => new(state.ExperienceGainedPercentagePoints, state.ExperienceObservedDuration,
+        Elapsed, state.ExperienceStartLevel, state.ExperienceEndLevel, state.Experience.Level, state.Experience.Percent);
+    internal GrindRatingPresentation GrindRating => new(GrindRatingEvaluator.Evaluate(state.SpotId,
+        Presentation.Trash(state.Loot.Totals, state.SpotId), Elapsed, state.GrindBenchmark),
+        state.Agris.Status == AgrisStatus.Active || state.AgrisActiveDuration > TimeSpan.Zero ||
+        state.LootScroll.Status == LootScrollStatus.Inactive ||
+        state.LootScroll.Status == LootScrollStatus.Active && state.LootScroll.Level == 1);
 
     internal static decimal? Hourly(decimal amount, TimeSpan elapsed)
     {

@@ -9,8 +9,8 @@ teilweise frühere Stände; aktuelle Regeln und Aufnahmenergebnisse stehen in
 
 ## Passiver Loot-Scroll-Hinweis
 
-`LootScrollMonitor` prüft das HUD während einer laufenden Session einmal pro
-Minute in einem eigenen Hintergrundtask. `LootScrollGaugeDetector` vergleicht
+`LootScrollMonitor` prüft das HUD während einer laufenden Session alle
+30 Sekunden in einem eigenen Hintergrundtask. `LootScrollGaugeDetector` vergleicht
 die sichtbaren Beutel-, Kreuz- und Pfeilsymbole mit Bildvorlagen. Helligkeit und
 Kontrast werden beim Vergleich angeglichen, damit die interne HDR-Tonemapping-
 Darstellung dieselben Symbole wie ein SDR-Screenshot erkennt. Die Bildvorlagen
@@ -19,11 +19,16 @@ und ihre Quellen liegen unter `data/ocr/loot-scroll`.
 `LootScrollFrameDetector` ergänzt die Restzeit aus der kleinen Beschriftung links
 neben dem erkannten Symbol. `LootScrollTimerReader` verwendet dafür eine eigene,
 verzögert angelegte Windows-OCR-Instanz mit zwei kleinen Aufbereitungsvarianten je
-Minutenprüfung. Es gibt keine zusätzliche Vollbild-OCR und keinen Eingriff in
-die Loot-OCR. Widersprechen sich zwei lesbare Ergebnisse, wird die Probe verworfen.
+Prüfung. Widersprechen sich zwei lesbare Ergebnisse, wird einmalig eine dritte
+kleine Variante ausgewertet. Nur eine exakte Übereinstimmung mit einem der ersten
+Werte löst den Konflikt auf; sonst wird die Probe verworfen. Es gibt keine
+zusätzliche Vollbild-OCR und keinen Eingriff in die Loot-OCR.
+Die typischen OCR-Verwechslungen `I`/`O` mit `1`/`0` werden nur in den
+Zifferngruppen einer vollständigen Zeitangabe korrigiert. Begleittext,
+widersprüchliche Werte und ungültige Zeitbereiche bleiben ausgeschlossen.
 
 Die Prüfung übernimmt höchstens ein eigenes Frame und wartet nicht im
-Loot-Auswertungspfad. Fehler lassen den Status unbekannt und verändern weder
+Loot-Auswertungspfad. Fehler verändern weder
 Loot, Grindzeit noch die Tracking-Verfügbarkeit. Es werden nur Aufnahmen des
 eingestellten Monitors berücksichtigt, wenn Black Desert dort im Vordergrund
 ist. Die Sichtbarkeit wird vor und nach der Aufnahme geprüft und mit dem Frame
@@ -31,22 +36,89 @@ weitergereicht, damit eine verzögerte OCR keinen späteren Fensterwechsel als
 Beleg verwendet. Die Erkennung benötigt eine sichtbare, passende Spielanzeige; ihre
 Abwesenheit ist kein Nachweis einer inaktiven Scroll.
 
-Nur die Änderung der Restzeit bestimmt den Status. Zwei aufeinanderfolgende,
-plausible Abnahmen bestätigen Aktivität (bei Minutenprüfungen nach etwa zwei
-Minuten). Der Verbrauch muss zur Zeit zwischen den Aufnahmen passen: etwa
-ein- bis zweifache Geschwindigkeit mit Toleranz für Rundung und Teilintervalle.
-Kleine OCR-Schwankungen und unplausible Zeitsprünge bestätigen keine Aktivität.
-Eine wiederholt unveränderte Restzeit bestätigt Inaktivität; bei einer Anzeige
-ohne Sekunden muss sie mindestens 62 Sekunden unverändert bleiben. Aufladen,
-wechselnde Zeitgenauigkeit und unterbrochene Messungen beginnen den Vergleich
-neu. Ohne lesbare Restzeit bleibt der Status unbekannt. Symbole dienen nur zum
-Auffinden der Anzeige und zum Ablesen der Stufe, niemals als Ersatz für den
-Zeitvergleich. Unbekannte Messwerte brechen die
-Bestätigungsfolge ab; nach 90 Sekunden ohne frische Beobachtung verfällt der
-Status. Beim Fensterwechsel bleibt ein frischer Hinweis deshalb kurz lesbar.
+Nur die Änderung der Restzeit bestimmt Status und Stufe. Der erste lesbare Wert
+ist der Ausgangspunkt; die nächste eindeutige Probe (normal nach 30 Sekunden)
+bestätigt das Ergebnis. Rund 30 verbrauchte Sekunden in 30 realen Sekunden
+bedeuten **Level 1**, rund 60 bedeuten **Level 2**, eine unveränderte Restzeit
+bedeutet **inaktiv**. Die Berechnung verwendet die tatsächlichen Aufnahmezeiten,
+auch wenn eine Probe später kommt oder eine OCR-Prüfung ausfällt. Getrennte
+Toleranzbereiche berücksichtigen Rundung und kleine Leseschwankungen; gemischte
+oder unplausible Geschwindigkeiten werden keiner Stufe zugeordnet.
+
+Eine einzelne fehlende oder mehrdeutige Lesung behält den letzten bestätigten
+Status und eine noch brauchbare Vergleichsprobe, verlängert deren Gültigkeit
+aber nicht. Nach 120 Sekunden ohne Bestätigung verfällt der Status auf unbekannt.
+Ein Anstieg der Restzeit (Aufladen) beginnt den Vergleich neu. Bei Anzeigen
+ohne Sekunden ist gegebenenfalls ein längerer Vergleich nötig, bevor die
+Geschwindigkeit eindeutig ist. Symbole dienen ausschließlich zum Auffinden der
+Anzeige; ihre Farbe, Ziffern und Pfeile bestimmen weder Aktivität noch Stufe.
+Beim Fensterwechsel bleibt ein frischer Hinweis kurz lesbar.
 Neue Sessions, Tracking-Start und Pause verwerfen vorherige Ergebnisse,
 einschließlich noch laufender Hintergrundarbeit. `TrackerState.LootScroll` ist
 die einzige Statusquelle für Live-Session und Overlay.
+
+## Agris-Erkennung und Sessionzeit
+
+`AgrisMonitor` prüft das sichtbare BDO-HUD alle fünf Sekunden in einem eigenen
+asynchronen Bildtask, ohne OCR und ohne auf die Loot-Auswertung zu warten.
+`AgrisFrameDetector` erkennt die Agris-Glyphe und prüft ihre goldene Farbe sowie
+den äußeren Aktivierungsring unabhängig von dessen aktueller Drehposition.
+Eine sicher erkannte graue Glyphe oder eine goldene Glyphe ohne Ring gilt als
+inaktiv. Fehlende oder mehrdeutige Treffer bleiben unbekannt; nach 15 Sekunden
+ohne frische Beobachtung verfällt der Status. Nur Aufnahmen mit sichtbarem BDO
+im Vordergrund liefern Belege. Fensterwechsel und unterbrochene Beobachtungen
+beginnen einen neuen Vergleich, auch wenn die UI die Unterbrechung erst später
+übernimmt. Fehler der optionalen Prüfung blockieren das Tracking nicht.
+
+`AgrisSessionTracker` sammelt ausschließlich Intervalle zwischen zwei frischen
+Beobachtungen in der aktiven Sessionzeit. Beide bekannten Endpunkte ergeben
+erkannte Zeit; nur zwei aktive Endpunkte ergeben aktive Agris-Zeit. Wiederholte
+UI-Snapshots erzeugen keine zusätzliche Zeit, und der Zeitraum nach der letzten
+Probe wird nicht hochgerechnet. Pausen, unbekannte Lücken und Probenabstände
+über 15 Sekunden werden ausgeschlossen. Automatische Pausen schneiden die
+tatsächlich entfernten Idle-Intervalle rückwirkend ab; neue Sessions beginnen
+bei null. Aktive Agris-Zeit bleibt dadurch höchstens so groß wie die erkannte
+Zeit und diese höchstens so groß wie die aktive Grindzeit.
+
+Der Verlauf speichert `AgrisActiveDuration` und `AgrisObservedDuration` als
+nullable `TimeSpan`. Bestehende Sessions ohne Agris-Daten behalten `null`;
+bei neuen, noch unbeobachteten Sessions stehen beide Werte auf null Sekunden.
+Loot-Korrekturen erhalten die Werte, der Garmoth-Payload bleibt unverändert.
+Die UI kennzeichnet Agris-Zeit als Schätzung (`≈`) und unvollständige Abdeckung
+zusätzlich mit `*`; die Beschreibung nennt die nicht erkannte Sessionzeit.
+Fehlende Beobachtungen werden nicht als bewiesene Inaktivität dargestellt.
+
+## Erfahrungsfortschritt pro Session
+
+`ExperienceMonitor` liest während des Trackings einmal pro Minute Level und
+Erfahrungsprozent mit drei Nachkommastellen. `ExperienceFrameReader` beschränkt
+Windows OCR auf den kleinen HUD-Bereich oben links. Die Wortpositionen müssen
+eine große Levelzahl mit einer kleineren Prozentanzeige direkt darunter ergeben;
+widersprüchliche Aufbereitungen liefern keinen Messwert. Es gibt keine weitere
+Vollbild-OCR. Die Arbeit läuft unabhängig von der Loot-Auswertung und übernimmt
+höchstens ein eigenes Frame; ein OCR-Fehler blockiert das Tracking nicht.
+
+`ExperienceSessionTracker` summiert Nettoänderungen in **Prozentpunkten der
+Levelanzeige**, nicht absolute Erfahrungspunkte. Ein Rückgang auf demselben
+Level bleibt ein negativer Wert (zum Beispiel bei einem Erfahrungsverlust).
+Ein Aufstieg um ein Level benötigt eine weitere bestätigende Levelprobe; erst
+dann wird `100 - alter Prozentwert + neuer Prozentwert` ergänzt. Größere oder
+rückläufige Levelsprünge trennen die Messfolge ohne einen Zuwachs zu erfinden.
+
+Nur bekannte, höchstens 150 Sekunden auseinanderliegende Beobachtungen während
+der aktiven Session zählen. Wiederholte UI-Aktualisierungen zählen nicht erneut.
+Pausen, verdecktes Spiel-HUD und Erkennungslücken trennen die Messfolge, auch wenn
+die UI die kurze Unterbrechung nicht gerendert hat. Entfernt die automatische
+Pause die Endprobe eines Intervalls, wird dessen gesamte XP-Änderung verworfen;
+ihr genauer Zeitpunkt innerhalb des Intervalls ist unbekannt.
+
+Die Live-Session und beide Verlaufsansichten verwenden denselben erfassten
+Zuwachs. Die Stundenrate teilt ihn durch die gesamte aktive Grindzeit. Fehlende
+Beobachtungszeit bleibt als unvollständige Messung erkennbar; vor zwei passenden
+Proben und bei älteren Sessions ohne XP-Daten steht kein erfundener Nullwert.
+Gespeichert werden Nettozuwachs, beobachtete Dauer sowie erstes und letztes Level
+der gezählten Intervalle. Lootkorrekturen erhalten diese Werte; das bestehende
+Garmoth-Uploadformat bleibt unverändert.
 
 ## Positionsänderungen des Droplogs
 

@@ -118,8 +118,8 @@ public partial class OverlayEditor
     }
 
     private Task CanvasDimension(ChangeEventArgs e, bool width) => width
-        ? ChangeNumber(e, 160, 1600, (s, value) => s with { Width = value })
-        : ChangeNumber(e, 64, 1200, (s, value) => s with { Height = value });
+        ? ChangeNumber(e, 160, 1600, (s, value) => OverlayLayout.ResizeCanvas(s, value, s.Height))
+        : ChangeNumber(e, 64, 1200, (s, value) => OverlayLayout.ResizeCanvas(s, s.Width, value));
 
     private Task ChangeWidget(Func<OverlayWidget, OverlayWidget> update)
     {
@@ -133,7 +133,7 @@ public partial class OverlayEditor
         var (minimum, maximum) = field switch
         {
             "x" => (0d, _settings.Width - widget.Width), "y" => (0d, _settings.Height - widget.Height),
-            "width" => (80d, _settings.Width - widget.X), "height" => (40d, _settings.Height - widget.Y),
+            "width" => (Math.Min(80, widget.Width), _settings.Width - widget.X), "height" => (Math.Min(40, widget.Height), _settings.Height - widget.Y),
             "fontScale" => (.7, 2d), "itemLimit" => (1d, 24d), "itemSize" => (32d, 112d), _ => (0d, 0d),
         };
         if (!TryNumber(e, minimum, maximum, out var value)) return Task.CompletedTask;
@@ -145,7 +145,7 @@ public partial class OverlayEditor
         return ChangeWidget(w => field switch
         {
             "x" => w with { X = value }, "y" => w with { Y = value },
-            "width" => w with { Width = value }, "height" => w with { Height = value },
+            "width" => OverlayLayout.ResizeWidget(w, value, w.Height), "height" => OverlayLayout.ResizeWidget(w, w.Width, value),
             "fontScale" => w with { FontScale = value }, "itemLimit" => w with { ItemLimit = (int)value },
             "itemSize" => w with { ItemSize = value }, _ => w,
         });
@@ -239,7 +239,8 @@ public partial class OverlayEditor
     {
         if (_disposed || !new[] { x, y, width, height }.All(double.IsFinite)) return;
         _selectedId = id;
-        await ChangeWidget(w => w with { X = x, Y = y, Width = width, Height = height });
+        await ChangeWidget(w => width == w.Width && height == w.Height ? w with { X = x, Y = y } :
+            OverlayLayout.ResizeWidget(w, width, height) with { X = x, Y = y });
         StateHasChanged();
     }
 
@@ -247,7 +248,7 @@ public partial class OverlayEditor
     public async Task CommitCanvasSize(double width, double height)
     {
         if (_disposed || !double.IsFinite(width) || !double.IsFinite(height)) return;
-        await Change(s => s with { Width = width, Height = height });
+        await Change(s => OverlayLayout.ResizeCanvas(s, width, height));
         StateHasChanged();
     }
 

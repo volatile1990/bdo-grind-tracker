@@ -20,9 +20,9 @@ internal interface ILootScrollFrameDetector : IDisposable
 /// </summary>
 internal sealed class LootScrollMonitor : IDisposable
 {
-    internal static readonly TimeSpan DefaultSamplingInterval = TimeSpan.FromMinutes(1);
+    internal static readonly TimeSpan DefaultSamplingInterval = TimeSpan.FromSeconds(30);
     internal static readonly TimeSpan InactiveConfirmationDuration = TimeSpan.FromSeconds(6);
-    internal static readonly TimeSpan MaximumObservationAge = TimeSpan.FromSeconds(90);
+    internal static readonly TimeSpan MaximumObservationAge = TimeSpan.FromSeconds(120);
     private readonly object _sync = new();
     private readonly ILootScrollFrameDetector _detector;
     private readonly TimeSpan _samplingInterval;
@@ -35,8 +35,8 @@ internal sealed class LootScrollMonitor : IDisposable
     private TimeSpan? _previousRemainingTime;
     private TimeSpan? _previousTimerResolution;
     private DateTimeOffset _previousTimerAt;
-    private DateTimeOffset _timerStableSince;
-    private (TimeSpan Consumed, TimeSpan Elapsed)? _previousCountdown;
+    private DateTimeOffset? _lastValidTimerAt;
+    private (TimeSpan Remaining, TimeSpan Resolution, DateTimeOffset At)? _comparisonCandidate;
     private long _epoch;
     private bool _workerRunning;
     private bool _disposed;
@@ -48,7 +48,7 @@ internal sealed class LootScrollMonitor : IDisposable
         _samplingInterval = samplingInterval ?? DefaultSamplingInterval;
         if (_samplingInterval <= TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(samplingInterval));
-        _maximumObservationAge = _samplingInterval > DefaultSamplingInterval
+        _maximumObservationAge = _samplingInterval + TimeSpan.FromSeconds(30) > MaximumObservationAge
             ? _samplingInterval + TimeSpan.FromSeconds(30) : MaximumObservationAge;
     }
 
@@ -84,7 +84,7 @@ internal sealed class LootScrollMonitor : IDisposable
                 cancellation?.Dispose();
                 _workerCancellation = null;
                 _workerRunning = false;
-                ClearObservation();
+                Apply(LootScrollReading.Unknown, capturedAt);
             }
         }
     }
@@ -162,11 +162,7 @@ internal sealed class LootScrollMonitor : IDisposable
 
     private void Apply(LootScrollReading reading, DateTimeOffset capturedAt)
     {
-        if (_lastAppliedAt is { } previous)
-        {
-            if (capturedAt <= previous) return;
-            if (capturedAt - previous >= _maximumObservationAge) ClearObservation();
-        }
+        if (_lastAppliedAt is { } previous && capturedAt <= previous) return;
         _lastAppliedAt = capturedAt;
 
         // Only the countdown establishes activity. The selected level and bag
@@ -174,73 +170,123 @@ internal sealed class LootScrollMonitor : IDisposable
         if (reading.RemainingTime is { } remaining && remaining >= TimeSpan.Zero &&
             reading.TimerResolution is { } resolution && resolution > TimeSpan.Zero)
         {
-            ApplyTimer(reading, remaining, resolution, capturedAt);
+            if (_lastValidTimerAt is { } lastValid && capturedAt - lastValid > _maximumObservationAge)
+                ClearObservation();
+            ApplyTimer(remaining, resolution, capturedAt);
             return;
         }
 
-        ClearObservation();
+        // An unreadable sample does not contradict a confirmed countdown. Its
+        // timestamp must not extend either the observation or baseline lifetime.
+        if (_lastValidTimerAt is { } validAt && capturedAt - validAt >= _maximumObservationAge)
+            ClearObservation();
     }
 
-    private void ApplyTimer(LootScrollReading reading, TimeSpan remaining,
+    private void ApplyTimer(TimeSpan remaining,
         TimeSpan resolution, DateTimeOffset capturedAt)
     {
-        var previousRemaining = _previousRemainingTime;
-        var samePrecision = _previousTimerResolution == resolution;
         var elapsed = capturedAt - _previousTimerAt;
+        _lastValidTimerAt = capturedAt;
+        if (_previousRemainingTime is not { } previous)
+        {
+            SetTimerBaseline(remaining, resolution, capturedAt);
+            _state = LootScrollState.Unknown;
+            return;
+        }
+
+        // A coarse display needs two precision units plus sampling jitter for a
+        // useful pair. This does not extend the confirmed state's freshness or
+        // bridge a gap without readable timer samples.
+        var comparisonAgeSeconds = Math.Max(_maximumObservationAge.TotalSeconds,
+            resolution.TotalSeconds * 2 + _samplingInterval.TotalSeconds * 2);
+        if (elapsed.TotalSeconds > comparisonAgeSeconds)
+        {
+            if (_comparisonCandidate is { } candidate && candidate.Resolution == resolution &&
+                capturedAt - candidate.At <= _maximumObservationAge)
+            {
+                previous = candidate.Remaining;
+                elapsed = capturedAt - candidate.At;
+                SetTimerBaseline(candidate.Remaining, candidate.Resolution, candidate.At);
+            }
+            else
+            {
+                SetTimerBaseline(remaining, resolution, capturedAt);
+                _state = LootScrollState.Unknown;
+                return;
+            }
+        }
+
+        if (_previousTimerResolution != resolution)
+        {
+            // Different displayed precision is not a reliable consumption pair.
+            SetTimerBaseline(remaining, resolution, capturedAt);
+            return;
+        }
+
+        if (remaining > previous)
+        {
+            // A recharge changes the timer independently of consumption. Start a
+            // new comparison here; no previous status survives the transition.
+            SetTimerBaseline(remaining, resolution, capturedAt);
+            _state = LootScrollState.Unknown;
+            return;
+        }
+
+        if (remaining == TimeSpan.Zero && remaining != previous)
+        {
+            SetTimerBaseline(remaining, resolution, capturedAt);
+            _state = LootScrollState.Unknown;
+            return;
+        }
+
+        var level = ComparisonLevel(previous, remaining, elapsed, resolution);
+        if (level is null && _comparisonCandidate is { } recent && recent.Resolution == resolution &&
+            capturedAt - recent.At <= _maximumObservationAge)
+            level = ComparisonLevel(recent.Remaining, remaining, capturedAt - recent.At, resolution);
+        if (level is { } confirmed)
+        {
+            _state = confirmed == 0 ? new(LootScrollStatus.Inactive, null, capturedAt)
+                : new(LootScrollStatus.Active, confirmed, capturedAt);
+            SetTimerBaseline(remaining, resolution, capturedAt);
+        }
+        else if ((previous - remaining).TotalSeconds <= elapsed.TotalSeconds * 2 + resolution.TotalSeconds + 2)
+        {
+            // A switch halfway between samples can yield e.g. 1.5x. Retain that
+            // plausible endpoint as an alternative for the next pure interval,
+            // while an impossible OCR drop never replaces the trusted baseline.
+            _comparisonCandidate = (remaining, resolution, capturedAt);
+        }
+        // Keep a usable baseline and the existing observation after one bad or
+        // ambiguous OCR value. Neither becomes newer until a comparison succeeds.
+    }
+
+    private static int? ComparisonLevel(TimeSpan previous, TimeSpan remaining, TimeSpan elapsed, TimeSpan resolution)
+    {
+        if (remaining > previous) return null;
+        if (remaining == previous)
+            return elapsed >= InactiveConfirmationDuration && elapsed.TotalSeconds >= resolution.TotalSeconds + 2
+                ? 0 : null;
+        return remaining > TimeSpan.Zero ? ConsumptionLevel(previous - remaining, elapsed, resolution) : null;
+    }
+
+    private static int? ConsumptionLevel(TimeSpan consumed, TimeSpan elapsed, TimeSpan resolution)
+    {
+        // Seconds rounding plus a small OCR margin. Coarse displays need a longer
+        // window so their rounding cannot disguise a 3x drop as level two.
+        if (elapsed < InactiveConfirmationDuration || elapsed.TotalSeconds < resolution.TotalSeconds * 2)
+            return null;
+        var tolerance = resolution.TotalSeconds + 2;
+        var levelOne = Math.Abs(consumed.TotalSeconds - elapsed.TotalSeconds) <= tolerance;
+        var levelTwo = Math.Abs(consumed.TotalSeconds - elapsed.TotalSeconds * 2) <= tolerance;
+        return levelOne == levelTwo ? null : levelOne ? 1 : 2;
+    }
+
+    private void SetTimerBaseline(TimeSpan remaining, TimeSpan resolution, DateTimeOffset capturedAt)
+    {
         _previousRemainingTime = remaining;
         _previousTimerResolution = resolution;
         _previousTimerAt = capturedAt;
-        _state = LootScrollState.Unknown;
-
-        if (previousRemaining is not { } previous || !samePrecision || remaining > previous)
-        {
-            // Recharging or changing visible precision cannot prove that a timer
-            // stopped, and an old warning must not survive a new baseline.
-            _timerStableSince = capturedAt;
-            _previousCountdown = null;
-            return;
-        }
-
-        if (remaining < previous)
-        {
-            _timerStableSince = capturedAt;
-            // OCR digit errors must not turn a stationary timer into activity.
-            // Accept consumption near 1x/2x wall time with a rounding margin;
-            // require two successive plausible decreases before confirming it.
-            var consumed = previous - remaining;
-            var plausible = remaining > TimeSpan.Zero && IsPlausibleCountdown(consumed, elapsed, resolution);
-            if (_previousCountdown is { } preceding)
-            {
-                // Rounding uncertainty belongs to the endpoints, not to each
-                // interval independently. Check the complete confirmation window.
-                plausible &= IsPlausibleCountdown(consumed + preceding.Consumed,
-                    elapsed + preceding.Elapsed, resolution);
-                if (plausible)
-                    _state = new(LootScrollStatus.Active,
-                        reading.Level is 1 or 2 ? reading.Level : null, capturedAt);
-            }
-            _previousCountdown = plausible ? (consumed, elapsed) : null;
-            return;
-        }
-
-        _previousCountdown = null;
-        // A minute-only display may legitimately stay unchanged for almost a
-        // minute. Preserve the first equal value across samples, and allow a
-        // small margin beyond its precision before treating equality as stopped.
-        var stableDuration = capturedAt - _timerStableSince;
-        if (stableDuration >= InactiveConfirmationDuration &&
-            stableDuration >= resolution && stableDuration - resolution >= TimeSpan.FromSeconds(2))
-        {
-            _state = new(LootScrollStatus.Inactive, null, capturedAt);
-        }
-    }
-
-    private static bool IsPlausibleCountdown(TimeSpan consumed, TimeSpan elapsed, TimeSpan resolution)
-    {
-        var tolerance = resolution.TotalSeconds + 3;
-        return elapsed >= InactiveConfirmationDuration && resolution <= elapsed &&
-            consumed.TotalSeconds >= Math.Max(1, elapsed.TotalSeconds * .5 - tolerance) &&
-            consumed.TotalSeconds <= elapsed.TotalSeconds * 2 + tolerance;
+        _comparisonCandidate = null;
     }
 
     private void ClearTimer()
@@ -248,8 +294,8 @@ internal sealed class LootScrollMonitor : IDisposable
         _previousRemainingTime = null;
         _previousTimerResolution = null;
         _previousTimerAt = default;
-        _timerStableSince = default;
-        _previousCountdown = null;
+        _lastValidTimerAt = null;
+        _comparisonCandidate = null;
     }
 
     private void ClearObservation()

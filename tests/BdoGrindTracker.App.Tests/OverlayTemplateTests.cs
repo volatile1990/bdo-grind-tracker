@@ -102,7 +102,7 @@ public sealed class OverlayTemplateTests
         var replaced = Assert.Single(service.Templates);
         Assert.Equal(original.Id, replaced.Id);
         Assert.Equal("MEIN LOOT", replaced.Name);
-        Assert.Equal(504, replaced.Layout.Width);
+        Assert.Equal(336, replaced.Layout.Width);
         Assert.Null(service.TemplateError);
         Assert.True((await service.SaveTemplateAsync("Andere Vorlage", new())).Succeeded);
         Assert.False((await service.SaveTemplateAsync("Andere Vorlage", new(), original.Id)).Succeeded);

@@ -50,7 +50,8 @@
                                     <span class="chronological-loot-badge" title="@ItemLabel(item.Key)"><AssetImage Src="@ItemIcon(item.Key)" Alt="@ItemLabel(item.Key)" Class="item-image" /><small>@Number(item.Value)</small></span>
                                 }
                             </span>
-                            <span class="chronological-session-duration"><small>GRINDZEIT</small><strong>@ShortDuration(session.Duration)</strong></span>
+                            <span class="chronological-session-duration"><small>GRINDZEIT</small><strong>@ShortDuration(session.Duration)</strong><small class="session-agris-time" title="@HistoryPresentation.AgrisTime(session).Description" aria-label="@HistoryPresentation.AgrisTime(session).Description">Agris @HistoryPresentation.AgrisTime(session).Duration</small></span>
+                            <span class="chronological-session-experience @(HistoryPresentation.Experience(session).IsLoss ? "is-loss" : "")" title="@HistoryPresentation.Experience(session).Description"><small>ERFAHRUNG</small><strong class="experience-gain">@HistoryPresentation.Experience(session).Gain</strong>@if (HistoryPresentation.Experience(session).HasObservation) { <small class="experience-hourly">@HistoryPresentation.Experience(session).Hourly / h</small> }</span>
                             <span class="chronological-session-silver"><strong>@Silver(session.SilverAfterTax)@(!session.SilverIsComplete ? " *" : "")</strong><small>@Silver(Hourly(session.SilverAfterTax, session.Duration)) / h</small></span>
                             <span class="chronological-expand" aria-hidden="true"><AppIcon Name="chevron" /></span>
                         </summary>
@@ -113,6 +114,7 @@
                             <th class="session-fixed session-age-column" scope="col">WIE LANG HER</th>
                             <th class="session-fixed session-duration-column" scope="col">GRINDZEIT</th>
                             <th class="session-fixed session-silver-column numeric" scope="col">SILBER / H</th>
+                            <th class="session-experience-column" scope="col">ERFAHRUNG</th>
                             @for (var columnIndex = 0; columnIndex < lootColumns.Count; columnIndex++)
                             {
                                 var column = lootColumns[columnIndex];
@@ -126,8 +128,9 @@
                             <tr @key="session.SessionId" class="@(_expanded == session.SessionId ? "selected" : "")" aria-label="@(session.GarmothLocallyModified ? "Lokal korrigiert; Garmoth unverändert" : null)">
                                 <td class="session-fixed session-class-column"><AssetImage Src="@ClassIcon(session.CharacterClass)" Alt="" Class="session-class-icon" Fallback="shield" /><span class="sr-only">@(session.CharacterClass ?? "Klasse nicht erkannt")</span></td>
                                 <td class="session-fixed session-age-column" title="@session.StartedAt.ToLocalTime().ToString("g", German)">@HistoryPresentation.FormatTimeAgo(session.StartedAt, DateTimeOffset.Now)@if (session.GarmothLocallyModified) { <small class="session-local-correction" title="Lokal korrigiert; Garmoth unverändert">Lokal korrigiert; Garmoth unverändert</small> }</td>
-                                <td class="session-fixed session-duration-column">@CompactDuration(session.Duration)</td>
+                                <td class="session-fixed session-duration-column">@CompactDuration(session.Duration)<small class="session-agris-time" title="@HistoryPresentation.AgrisTime(session).Description" aria-label="@HistoryPresentation.AgrisTime(session).Description">Agris @HistoryPresentation.AgrisTime(session).Duration</small></td>
                                 <td class="session-fixed session-silver-column numeric gold">@Silver(Hourly(session.SilverAfterTax, session.Duration))@(!session.SilverIsComplete ? " *" : "")</td>
+                                <td class="session-experience-column @(HistoryPresentation.Experience(session).IsLoss ? "is-loss" : "")" title="@HistoryPresentation.Experience(session).Description"><strong class="experience-gain">@HistoryPresentation.Experience(session).Gain</strong>@if (HistoryPresentation.Experience(session).HasObservation) { <small class="experience-hourly">@HistoryPresentation.Experience(session).Hourly / h</small> }</td>
                                 @foreach (var column in lootColumns)
                                 {
                                     var quantity = SessionTotals(session).GetValueOrDefault(column.Name);
@@ -414,5 +417,5 @@
         StateHasChanged();
     }
     private static string SessionTableWidth(int lootColumnCount) =>
-        $"min-width:{418 + Math.Max(1, lootColumnCount) * 88}px";
+        $"min-width:{586 + Math.Max(1, lootColumnCount) * 88}px";
 }

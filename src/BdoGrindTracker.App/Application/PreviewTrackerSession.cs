@@ -1,4 +1,5 @@
 using BdoGrindTracker.App.Persistence;
+using BdoGrindTracker.App.Integrations.Garmoth;
 using BdoGrindTracker.App.Pricing;
 using BdoGrindTracker.App.UI;
 using BdoGrindTracker.Core;
@@ -40,6 +41,11 @@ internal sealed class PreviewTrackerSession : ITrackerSession
                     SessionId = Guid.NewGuid(), SpotId = profile.SpotId, CharacterClass = "Warrior · Awakening",
                     StartedAt = DateTimeOffset.Now.AddDays(-i).AddHours(-2), UpdatedAt = DateTimeOffset.Now.AddDays(-i).AddHours(-1),
                     Duration = TimeSpan.FromMinutes(60 + i * 15), Totals = totals,
+                    AgrisActiveDuration = i == 0 ? TimeSpan.FromMinutes(12) : i == 1 ? TimeSpan.FromMinutes(8) : null,
+                    AgrisObservedDuration = i == 0 ? TimeSpan.FromHours(1) : i == 1 ? TimeSpan.FromMinutes(30) : null,
+                    ExperienceGainedPercentagePoints = i == 0 ? .123m : i == 1 ? .082m : null,
+                    ExperienceObservedDuration = i == 0 ? TimeSpan.FromHours(1) : i == 1 ? TimeSpan.FromMinutes(30) : null,
+                    ExperienceStartLevel = i < 2 ? 61 : null, ExperienceEndLevel = i < 2 ? 61 : null,
                     SilverBeforeTax = value.BeforeTax, SilverAfterTax = value.AfterTax, SilverIsComplete = value.IsComplete
                 });
             }
@@ -57,6 +63,9 @@ internal sealed class PreviewTrackerSession : ITrackerSession
             SessionId = Guid.NewGuid(), AnalyzerAvailable = true, IsDemo = true, HasApiKey = State.HasApiKey,
             SpotId = LootSpotCatalog.AphrodonId,
             CharacterLabel = "Warrior · Awakening", CharacterClassId = "warrior-awakening", Elapsed = TimeSpan.FromMinutes(60),
+            Agris = new(AgrisStatus.Active), AgrisActiveDuration = TimeSpan.FromMinutes(12), AgrisObservedDuration = TimeSpan.FromHours(1),
+            Experience = new(61, .579m), ExperienceGainedPercentagePoints = .123m, ExperienceObservedDuration = TimeSpan.FromHours(1),
+            ExperienceStartLevel = 61, ExperienceEndLevel = 61,
             Loot = new(totals, totals.Values.Sum(), 147), Silver = SilverValuation.Calculate(totals, Prices, Preferences.Tax),
             Status = "Vorschau · Beispieldaten werden weder aufgezeichnet noch hochgeladen.", PriceStatus = "EU · NPC- und Festwerte"
         });
@@ -64,6 +73,7 @@ internal sealed class PreviewTrackerSession : ITrackerSession
     private void Change(TrackerState state)
     {
         State = state with { CanPause = state.IsRunning, DetectedGameLanguage = "en",
+            GrindBenchmark = GarmothGrindBenchmarks.Find(state.SpotId),
             GameLanguageStatus = "Vorschau: Englisch · keine BDO-Konfiguration gelesen" };
         State = State with { SilverHistory = _silverHistory.Update(State) };
         Changed?.Invoke();

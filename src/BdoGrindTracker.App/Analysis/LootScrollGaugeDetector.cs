@@ -103,7 +103,9 @@ internal sealed class LootScrollGaugeDetector : ILootScrollFrameDetector
             return best.Reading.Status == LootScrollStatus.Active
                 && competing.Reading.Status == LootScrollStatus.Active
                 ? new LootScrollGaugeMatch(new LootScrollReading(LootScrollStatus.Active), best.Bounds)
-                : null;
+                // Both strict matches locate the same gauge even when its changing
+                // symbol cannot identify a state. Keep the timer region available.
+                : new LootScrollGaugeMatch(LootScrollReading.Unknown, best.Bounds);
         }
         return new LootScrollGaugeMatch(best.Reading, best.Bounds);
     }
