@@ -155,15 +155,35 @@ public sealed class GrindRatingEvaluatorTests
     [Theory]
     [InlineData(0, 16300, 18500)]
     [InlineData(-1, 16300, 18500)]
-    [InlineData(13946, 13946, 18500)]
+    [InlineData(13946, 0, 18500)]
+    [InlineData(13946, -1, 18500)]
     [InlineData(13946, 13945, 18500)]
-    [InlineData(13946, 16300, 16300)]
+    [InlineData(13946, 16300, 0)]
+    [InlineData(13946, 16300, -1)]
     [InlineData(13946, 16300, 16299)]
-    public void ThresholdsMustBeStrictlyIncreasingAndPositive(int average, int high, int top)
+    public void ThresholdsMustBeNondecreasingAndPositive(int average, int high, int top)
     {
         var benchmark = Magaia() with { AverageTrashPerHour = average, HighTrashPerHour = high, TopTrashPerHour = top };
 
         AssertUnavailable(GrindRatingEvaluator.Evaluate(benchmark.SpotId, 20_000, TimeSpan.FromHours(1), benchmark));
+    }
+
+    [Theory]
+    [InlineData(13946, 18500, 13946, GrindRatingTier.High)]
+    [InlineData(16300, 16300, 16300, GrindRatingTier.Top)]
+    [InlineData(13946, 13946, 13946, GrindRatingTier.Top)]
+    [InlineData(13946, null, 13946, GrindRatingTier.High)]
+    [InlineData(null, 13946, 13946, GrindRatingTier.Top)]
+    public void EqualGarmothThresholdsUseTheHighestAvailableTier(int? high, int? top, long quantity,
+        GrindRatingTier expectedTier)
+    {
+        var benchmark = Magaia() with { HighTrashPerHour = high, TopTrashPerHour = top };
+
+        var result = GrindRatingEvaluator.Evaluate(benchmark.SpotId, quantity, TimeSpan.FromHours(1), benchmark);
+
+        Assert.Equal(expectedTier, result.Tier);
+        Assert.Same(benchmark, result.Benchmark);
+        Assert.Equal((decimal)quantity, result.TrashPerHour);
     }
 
     [Fact]
@@ -226,11 +246,13 @@ public sealed class GrindRatingEvaluatorTests
     }
 
     [Theory]
-    [InlineData(13946, null)]
+    [InlineData(13945, null)]
     [InlineData(0, null)]
-    [InlineData(null, 13946)]
+    [InlineData(-1, null)]
+    [InlineData(null, 13945)]
     [InlineData(null, 0)]
-    public void PresentOptionalThresholdsMustStillExceedThePrecedingKnownThreshold(int? high, int? top)
+    [InlineData(null, -1)]
+    public void PresentOptionalThresholdsCannotBeBelowThePrecedingKnownThreshold(int? high, int? top)
     {
         var benchmark = Magaia() with { HighTrashPerHour = high, TopTrashPerHour = top };
 

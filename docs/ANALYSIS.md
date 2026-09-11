@@ -96,8 +96,29 @@ Fehlende Beobachtungen werden nicht als bewiesene Inaktivität dargestellt.
 `ExperienceMonitor` liest während des Trackings einmal pro Minute Level und
 Erfahrungsprozent mit drei Nachkommastellen. `ExperienceFrameReader` beschränkt
 Windows OCR auf den kleinen HUD-Bereich oben links. Die Wortpositionen müssen
-eine große Levelzahl mit einer kleineren Prozentanzeige direkt darunter ergeben;
-widersprüchliche Aufbereitungen liefern keinen Messwert. Es gibt keine weitere
+eine große Levelzahl mit einer kleineren Prozentanzeige direkt darunter ergeben.
+`ExperienceHudConfigurationReader` liest vor jeder XP-Messung die gespeicherten
+`Resolution`- und `UiScale`-Werte aus dem aktiven `GameOptionGlobal`-Abschnitt
+der profilweiten `gameVariable.xml`. Fehlende Werte werden aus `width`, `height`
+und `uiScale` in `GameOption.txt` ergänzt. Gespeicherte Presets und Charakterdateien
+werden dafür nicht herangezogen. Dateien werden nur gelesen, nicht geändert.
+
+Stimmt die gespeicherte Auflösung mit dem aufgenommenen Spielbild überein,
+wird der Ausschnitt in BDO-HUD-Einheiten berechnet: 110 × 90 multipliziert mit
+der UI-Skalierung. Die anfängliche OCR-Vergrößerung ist umgekehrt proportional
+zur UI-Skalierung (2,5 / UiScale). Dadurch bleiben Suchbereich und Schriftgröße
+bei unterschiedlichen Auflösungen, Seitenverhältnissen und Windows-DPI passend.
+Die letzte Aufbereitung richtet sich zusätzlich nach der erkannten Schrifthöhe.
+Die Konfiguration liefert keine XP-Werte und keine belegte verschiebbare
+XP-Panelposition; gelesen wird weiterhin die sichtbare Levelanzeige oben links.
+
+Bei fehlenden, veralteten oder nicht lesbaren Einstellungen bleibt die bisherige
+Bildsuche als Rückfallweg verfügbar: die auflösungsabhängige Region und bei Bedarf
+320 × 200 Pixel oben links. Ungültige Konfigurationswerte werden nicht erraten.
+Auch ein gültig konfigurierter, aber unlesbarer Ausschnitt darf diesen Rückfallweg
+nutzen. Eine komplett verdeckte Anzeige liefert keinen Messwert.
+Widersprüchliche oder mehrdeutige Ergebnisse werden dadurch nicht überschrieben;
+sie liefern weiterhin keinen Messwert. Es gibt keine weitere
 Vollbild-OCR. Die Arbeit läuft unabhängig von der Loot-Auswertung und übernimmt
 höchstens ein eigenes Frame; ein OCR-Fehler blockiert das Tracking nicht.
 
@@ -184,10 +205,14 @@ wird keine vollständige Binär- oder Produktparität mit BDO Companion behaupte
 
 ## Bildaufbereitung und Namensauflösung
 
-`CompanionCalibrationReader` liest ausschließlich GameOption.txt und die sichtbaren
-UI-Anker 159/161 im aktiven gamevariable.xml. Daraus folgen Auflösung, Skalierung,
-Schriftprofil und feste Lootausschnitte. Ein optionaler Rare-Anker aktiviert dessen
-mittleres 20-%-Band. Es gibt keine Vollbildsuche.
+`CompanionCalibrationReader` liest GameOption.txt und wählt das numerische Profil
+nach dem Speicherzeitpunkt seiner gamevariable.xml. Der aktive UI-Anker 159 bleibt
+für den Hauptfeed verbindlich. Beim optionalen Rare-Anker 161 haben gültige aktive
+Werte Vorrang; für unklare Koordinaten kann ein eindeutig passendes gespeichertes
+UI-Preset desselben Profils verwendet werden. Regeln und Diagnose stehen in
+[CALIBRATION_RECOVERY.md](CALIBRATION_RECOVERY.md). Daraus folgen Auflösung,
+Skalierung, Schriftprofil und feste Lootausschnitte. Ein optionaler Rare-Anker
+aktiviert dessen mittleres 20-%-Band. Es gibt keine Vollbildsuche.
 
 DXGI Desktop Duplication erfasst den ausgewählten Monitor. Der tatsächliche
 HDR-Zustand wird je Frame an die getrennten Normal-/Rare-Zeilenworker weitergereicht.
@@ -282,6 +307,19 @@ Loot-Kartenliste zeichnet nur sichtbare Zeilen und verwendet keine Controls pro 
 setzt fort, Pause schließt Wartezeit aus, Reset löscht und stoppt die Uhr. Der
 UI-Timer aktualisiert die Zeit auch ohne neue Frames. Bildschirmaufnahme, OCR,
 Matcher, Spotfilter und Zählledger wurden für diesen UI-Umbau nicht verändert.
+
+`CurrentSessionStore` hält die ausdrücklich aktuelle Session atomar in
+`current-session-v1.json` fest, einschließlich leerer gestarteter Sessions.
+Regelmäßige Checkpoints sowie Pause, manuelle Korrektur und Beenden sichern
+Loot, aktive Zeit, Klasse, Spot, XP/Agris-Aggregate und Garmoth-Abschnittsstände.
+Beim Öffnen wird dieselbe Session-ID pausiert wiederhergestellt. Geschlossene
+Zeit und Änderungen der HUD-Werte während dieser Lücke werden nicht angerechnet.
+Vorherige Lootsummen bilden eine feste Basis für neue Analyzer-Projektionen;
+alte OCR-Beobachtungen und Live-HUD-Baselines werden nicht rekonstruiert.
+**Neue Session** schreibt vor dem Zurücksetzen einen leeren aktuellen Marker.
+Verlaufseinträge werden nie anhand ihres Datums als aktuelle Session geraten.
+Unlesbare Checkpoints bleiben erhalten und zeigen einen Speicherfehler an.
+Die Diagnoseaufzeichnung ist auch nach einer Wiederherstellung ausgeschaltet.
 
 Seit 0.8.0 setzt `FrameUiMailbox.Publish` nur bei neu angewendeten positiven
 Buchungen ein Aktivitätssignal. `GrindInactivityTimer` speichert dessen monotonen

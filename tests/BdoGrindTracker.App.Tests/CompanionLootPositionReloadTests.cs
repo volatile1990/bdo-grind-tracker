@@ -93,8 +93,13 @@ public sealed partial class CompanionLootFrameAnalyzerTests
             HasRareLootAnchor = true,
             RareLootAnchorX = 500,
             RareLootAnchorY = 300,
+            RareLootResolution = new(RareLootAnchorStatus.PresetFallback, "UISettingPreset0", "unique matching position"),
         };
-        var moved = initial with { RareLootAnchorX = 440, RareLootAnchorY = 350 };
+        var moved = initial with
+        {
+            RareLootAnchorX = 440, RareLootAnchorY = 350,
+            RareLootResolution = new(RareLootAnchorStatus.Active, "active-ui", "valid active position"),
+        };
         var current = initial;
         var rows = new Rows(new Input(250, "Black Crystal Fragment x17", 17))
         {
@@ -125,6 +130,7 @@ public sealed partial class CompanionLootFrameAnalyzerTests
             var expected = sample < 15 ? initial : moved;
             Assert.Equal(CompanionNormalLootGeometry.CalculateRarePanelBounds(expected), result.RarePanelRegion);
             Assert.Equal(CompanionNormalLootGeometry.CalculateRareBandCrop(expected), result.RareBandRegion);
+            Assert.Equal(expected.RareLootResolution, result.CaptureCalibration!.RareResolution);
             Assert.Equal(LootSpotCatalog.HermesiaId, result.SpotId);
         }
         events.AddRange(analyzer.CompleteSession(DateTimeOffset.UnixEpoch.AddSeconds(10)).NewEvents);

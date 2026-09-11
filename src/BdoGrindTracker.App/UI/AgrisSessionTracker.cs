@@ -14,6 +14,7 @@ internal sealed class AgrisSessionTracker
     private TimeSpan _activeDuration;
     private TimeSpan _observedDuration;
     private TimeSpan _lastElapsed;
+    private TimeSpan _restoredElapsed;
     private DateTimeOffset? _lastObservedAt;
     private Sample? _previous;
 
@@ -37,6 +38,11 @@ internal sealed class AgrisSessionTracker
         _lastObservedAt = observedAt;
         var age = now - observedAt;
         var sampleElapsed = elapsed > age ? elapsed - age : TimeSpan.Zero;
+        if (sampleElapsed < _restoredElapsed)
+        {
+            _previous = null;
+            return Duration;
+        }
         if (_previous is { } previous)
         {
             var wallGap = observedAt - previous.ObservedAt;
@@ -70,9 +76,21 @@ internal sealed class AgrisSessionTracker
     internal void Reset()
     {
         _intervals.Clear();
-        _activeDuration = _observedDuration = _lastElapsed = TimeSpan.Zero;
+        _activeDuration = _observedDuration = _lastElapsed = _restoredElapsed = TimeSpan.Zero;
         _lastObservedAt = null;
         _previous = null;
+    }
+
+    internal void Restore(TimeSpan elapsed, AgrisSessionDuration duration)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(elapsed, TimeSpan.Zero);
+        if (duration.ActiveDuration < TimeSpan.Zero || duration.ObservedDuration < duration.ActiveDuration ||
+            duration.ObservedDuration > elapsed)
+            throw new ArgumentException("Restored Agris durations must fit the elapsed session time.", nameof(duration));
+        Reset();
+        _activeDuration = duration.ActiveDuration;
+        _observedDuration = duration.ObservedDuration;
+        _lastElapsed = _restoredElapsed = elapsed;
     }
 
     private AgrisSessionDuration Duration => new(_activeDuration, _observedDuration);

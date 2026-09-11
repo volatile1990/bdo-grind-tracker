@@ -185,6 +185,31 @@ public sealed partial class TrackerSessionServiceTests
         Assert.Equal(isToneMapped, fixture.Analyzer.LastToneMapped);
     }
 
+    [Theory]
+    [InlineData(BdoGrindTracker.Ocr.RareLootAnchorStatus.Invalid)]
+    [InlineData(BdoGrindTracker.Ocr.RareLootAnchorStatus.Ambiguous)]
+    public async Task OptionalRareWarningIsVisibleWithoutBlockingNormalDrops(BdoGrindTracker.Ocr.RareLootAnchorStatus rareStatus)
+    {
+        await using var fixture = new Fixture(autoUpload: false);
+        fixture.Begin();
+        fixture.Analyzer.NextResult = Analysis(("Black Crystal Fragment", 5)) with
+        {
+            PanelRegion = new Rectangle(0, 0, 2, 2),
+            CaptureCalibration = new("42", "gamevariable-last-write", 1920, 1080, 1f,
+                960, 540, null, null, new(rareStatus, "presets", "no unique position")),
+        };
+        using var frame = new Bitmap(2, 2);
+        await fixture.Service.ProcessFrameAsync(frame,
+            new CapturedFrameMetadata(1, fixture.Time.GetUtcNow()), CancellationToken.None);
+        fixture.Service.RefreshPendingState();
+
+        Assert.True(fixture.Service.State.IsRunning);
+        Assert.False(fixture.Service.State.IsError);
+        Assert.Null(fixture.Service.State.TrackingBlockedReason);
+        Assert.Equal(5, fixture.Service.State.Loot.TotalQuantity);
+        Assert.Contains("Rare-Droplog nicht verfügbar", fixture.Service.State.Status);
+    }
+
     [Fact]
     public async Task LiveCorrectionPersistsAndKeepsDropsReceivedWhileEditorWasOpen()
     {
@@ -1244,7 +1269,8 @@ public sealed partial class TrackerSessionServiceTests
             SyntheticAnalyzer? analyzer = null, Func<BdoGrindTracker.Ocr.GameLanguageDetection>? languageDetector = null,
             LootScrollMonitor? lootScrollMonitor = null, Func<Rectangle, bool>? lootScrollVisible = null,
             AgrisMonitor? agrisMonitor = null, ExperienceMonitor? experienceMonitor = null,
-            PassiveCaptureSession? suppliedCapture = null)
+            PassiveCaptureSession? suppliedCapture = null, IGarmothGrindBenchmarkProvider? benchmarkProvider = null,
+            CurrentSessionSnapshot? restoredSession = null)
         {
             Analyzer = analyzer ?? new();
             Directory.CreateDirectory(DirectoryPath);
@@ -1253,6 +1279,8 @@ public sealed partial class TrackerSessionServiceTests
             HistoryStore = new LootHistoryStore(Path.Combine(DirectoryPath, "loot-history-v1.json"));
             if (autoUpload) Settings.Save(new AppSettings { GarmothAutoUploadEnabled = true });
             if (initialSettings is not null) Settings.Save(initialSettings);
+            if (restoredSession is not null)
+                new CurrentSessionStore(Path.Combine(DirectoryPath, CurrentSessionStore.FileName)).Save(restoredSession);
             if (saveKey) KeyStore.Save("synthetic-auto-upload-key");
             Clock = new GrindSessionClock(Time);
             Activity = new GrindInactivityTimer(Time);
@@ -1276,7 +1304,7 @@ public sealed partial class TrackerSessionServiceTests
             ], Clock, Activity, () => ClassDetection, Prices, client, KeyStore, HistoryStore,
                 languageDetector ?? (() => new("en", "Erkannt: Englisch")),
                 lootScrollMonitor: lootScrollMonitor, isLootScrollCaptureVisible: lootScrollVisible ?? (_ => false),
-                agrisMonitor: agrisMonitor, experienceMonitor: experienceMonitor);
+                agrisMonitor: agrisMonitor, experienceMonitor: experienceMonitor, benchmarkProvider: benchmarkProvider);
         }
 
         public string DirectoryPath { get; } = Path.Combine(Path.GetTempPath(), "BdoGrindTracker.Tests", Guid.NewGuid().ToString("N"));

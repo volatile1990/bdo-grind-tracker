@@ -13,7 +13,7 @@ internal sealed record GarmothUploadInterval(
 /// are cumulative local counters; only positive differences from already sent
 /// quantities can leave the ledger. All methods may run concurrently with capture.
 /// </summary>
-internal sealed class GarmothUploadIntervals
+internal sealed partial class GarmothUploadIntervals
 {
     private static readonly TimeSpan Hour = TimeSpan.FromHours(1);
     private static readonly IReadOnlyDictionary<string, long> EmptyTotals =

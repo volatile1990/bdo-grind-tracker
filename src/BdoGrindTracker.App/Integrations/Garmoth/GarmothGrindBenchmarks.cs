@@ -5,7 +5,7 @@ namespace BdoGrindTracker.App.Integrations.Garmoth;
 
 /// <summary>
 /// Public Garmoth display values verified on 2026-09-10. These are a dated
-/// reference, not a live feed. Average values use Garmoth's displayed rounding;
+/// fallback when no fetched reference is available. Average values use Garmoth's displayed rounding;
 /// High/Top are moderator benchmarks and are absent for some spots.
 /// </summary>
 internal static class GarmothGrindBenchmarks

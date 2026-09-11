@@ -42,7 +42,8 @@ internal sealed class LiveSessionPresentation(TrackerState state)
         Presentation.Trash(state.Loot.Totals, state.SpotId), Elapsed, state.GrindBenchmark),
         state.Agris.Status == AgrisStatus.Active || state.AgrisActiveDuration > TimeSpan.Zero ||
         state.LootScroll.Status == LootScrollStatus.Inactive ||
-        state.LootScroll.Status == LootScrollStatus.Active && state.LootScroll.Level == 1);
+        state.LootScroll.Status == LootScrollStatus.Active && state.LootScroll.Level == 1,
+        state.GrindBenchmarkStatus);
 
     internal static decimal? Hourly(decimal amount, TimeSpan elapsed)
     {

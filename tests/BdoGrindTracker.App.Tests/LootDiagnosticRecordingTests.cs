@@ -3,6 +3,7 @@ using System.Text.Json;
 using BdoGrindTracker.App.Analysis;
 using BdoGrindTracker.App.Diagnostics;
 using BdoGrindTracker.Core;
+using BdoGrindTracker.Ocr;
 
 namespace BdoGrindTracker.App.Tests;
 
@@ -12,6 +13,37 @@ public sealed class LootDiagnosticRecordingTests : IDisposable
         Path.GetTempPath(), "BdoGrindTracker-DiagnosticTests-" + Guid.NewGuid().ToString("N"));
 
     private static DateTimeOffset StartTime => new(2026, 9, 4, 20, 0, 0, TimeSpan.Zero);
+
+    [Fact]
+    public void CaptureCalibrationIsRecordedInitiallyAndOnChangeWithoutChangingReplay()
+    {
+        using var source = new Bitmap(4, 4);
+        using var recording = DiagnosticRecordingSession.Start(temporaryDirectory, "hermesia");
+        var initial = new LootCalibrationDiagnostics("993113", "gamevariable-last-write", 2560, 1440,
+            0.89f, 816, 898, 1741, 905,
+            new(RareLootAnchorStatus.PresetFallback, "UISettingPreset0", "unique matching position"));
+        var current = initial with
+        {
+            RareResolution = new(RareLootAnchorStatus.Active, "active-ui", "valid active position"),
+        };
+        foreach (var (calibration, index) in new[] { initial, initial, current }.Select((value, index) => (value, index)))
+            recording.RecordFrame(StartTime.AddSeconds(index), [], new TrackerFrameResult([], []), source,
+                null, null, captureCalibration: calibration);
+        recording.RecordCompletion(StartTime.AddSeconds(3), new TrackerFrameResult([], []));
+        recording.Dispose();
+
+        Assert.Null(recording.LastError);
+        var lines = File.ReadAllLines(recording.RecordingPath!);
+        var entries = lines.Skip(1).Select(line =>
+            JsonSerializer.Deserialize<LootDiagnosticEntry>(line, LootDiagnosticFormat.JsonOptions)!).ToArray();
+        Assert.Equal(initial, entries[0].CaptureCalibration);
+        Assert.Null(entries[1].CaptureCalibration);
+        Assert.DoesNotContain("\"captureCalibration\"", lines[2], StringComparison.Ordinal);
+        Assert.Equal(current, entries[2].CaptureCalibration);
+        var replay = LootDiagnosticReplay.Run(recording.RecordingPath!);
+        Assert.True(replay.TotalsMatch);
+        Assert.True(replay.EventTimelineMatches);
+    }
 
     [Fact]
     public void RowTrackingReplayPreservesQuantityCorrectionsAcrossCompletionBoundaries()
@@ -554,18 +586,27 @@ public sealed class LootDiagnosticRecordingTests : IDisposable
     }
 
     [Fact]
-    public void ReplayRejectsRareModeChangesAndObsoletePersistentEngine()
+    public void ReplayRejectsObsoletePersistentEngine()
     {
         Directory.CreateDirectory(temporaryDirectory);
         var path = Path.Combine(temporaryDirectory, "wrong-engine.jsonl");
         File.WriteAllLines(path, [Serialize(Header() with { EngineVersion = "persistent-events-v2" })]);
         Assert.Throws<InvalidDataException>(() => LootDiagnosticReplay.Run(path));
+    }
 
+    [Fact]
+    public void ReplayAcceptsOptionalRareModeChangesWithoutInventingDrops()
+    {
+        Directory.CreateDirectory(temporaryDirectory);
+        var path = Path.Combine(temporaryDirectory, "rare-disabled.jsonl");
         File.WriteAllLines(path, [Serialize(Header()),
             Serialize(new LootDiagnosticEntry("frame", 1, StartTime, [], [], [], []) { RareEnabled = true }),
             Serialize(new LootDiagnosticEntry("frame", 2, StartTime.AddSeconds(1), [], [], [], [])),
         ]);
-        Assert.Throws<InvalidDataException>(() => LootDiagnosticReplay.Run(path));
+        var replay = LootDiagnosticReplay.Run(path);
+        Assert.True(replay.TotalsMatch);
+        Assert.True(replay.EventTimelineMatches);
+        Assert.Empty(replay.Totals);
     }
 
     [Theory]

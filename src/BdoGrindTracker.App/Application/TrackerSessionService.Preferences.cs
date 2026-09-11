@@ -15,7 +15,7 @@ internal sealed partial class TrackerSessionService
             return new("Die Einstellungen konnten nicht gespeichert werden, weil Grindcrest beendet wird.");
         if (IsBusy)
             return new("Die Einstellungen konnten noch nicht gespeichert werden. Bitte warte, bis der laufende Vorgang abgeschlossen ist.");
-        var result = await RunOperationAsync(() =>
+        var result = await RunOperationAsync(async () =>
         {
             ArgumentNullException.ThrowIfNull(preferences);
             if (_hasSession && (preferences.MonitorDeviceName != Preferences.MonitorDeviceName ||
@@ -40,6 +40,11 @@ internal sealed partial class TrackerSessionService
             var nextKey = apiKey?.Trim() ?? _garmothApiKey;
             if (nextKey.Length > 4096 || nextKey.Any(static c => c < 0x21 || c > 0x7e))
                 throw new ArgumentException("Der Garmoth-Key darf keine Leerzeichen enthalten und muss ein gültiger API-Key sein.");
+            if (classChanged && preferences.CharacterClassId is null)
+            {
+                await RefreshClassDetectionAsync();
+                if (_shutdownStarted || _disposed) return;
+            }
             if (apiKey is not null)
             {
                 try { _garmothKeyStore.Save(nextKey); }
@@ -48,7 +53,7 @@ internal sealed partial class TrackerSessionService
                 {
                     // Never put a key or exception carrying key material into state.
                     SetStatus("Der Garmoth-Key konnte nicht sicher gespeichert werden.", true);
-                    return Task.CompletedTask;
+                    return;
                 }
             }
             _garmothApiKey = nextKey;
@@ -64,8 +69,9 @@ internal sealed partial class TrackerSessionService
                 _priceStatus = FormatPriceStatus(Prices);
                 _nextPriceRefreshAt = DateTimeOffset.MinValue;
             }
-            if (!TrySaveSettings()) return Task.CompletedTask;
+            if (!TrySaveSettings()) return;
             if (resumeAutomaticUpload) _garmothIntervals.ResumeAutomatic();
+            PersistCurrentSession(DateTimeOffset.UtcNow, throwOnError: true);
             SetStatus(_garmothIntervals.IsBlocked
                 ? "Einstellungen gespeichert. Das unklare Upload-Ergebnis muss in Garmoth geprüft werden; diese Sitzung bleibt für Uploads gesperrt."
                 : Preferences.AutoUpload && _garmothIntervals.AutomaticSuspended
@@ -76,7 +82,6 @@ internal sealed partial class TrackerSessionService
             // Valuation refresh must not keep the command gate occupied while
             // waiting for HTTP and delay the normal inactivity pause.
             if (regionChanged) _ = RefreshPricesAsync();
-            return Task.CompletedTask;
         });
         // A blocked capture has its own persistent error. It does not turn a
         // successfully persisted setting into a failed save.
@@ -111,8 +116,9 @@ internal sealed partial class TrackerSessionService
 
     private Task RefreshClassDetectionAsync()
     {
-        if (_shutdownStarted) return Task.CompletedTask;
+        if (_shutdownStarted || _disposed) return Task.CompletedTask;
         if (_classDetectionTask is { IsCompleted: false } pending) return pending;
+        _nextClassDetectionAt = DateTimeOffset.UtcNow.AddSeconds(30);
         return _classDetectionTask = RefreshClassDetectionCoreAsync();
     }
 
@@ -121,13 +127,18 @@ internal sealed partial class TrackerSessionService
         try
         {
             var detected = await Task.Run(_detectCharacterClass);
-            if (_shutdownStarted) return;
+            if (_shutdownStarted || _disposed) return;
             _classDetection = detected;
-            if (!_hasSession || _sessionClass is null) _sessionClass = SelectedCharacterClass;
+            if (!_sessionSubmitted && (!_hasSession || _sessionClass is null))
+            {
+                _sessionClass = SelectedCharacterClass;
+                if (_hasSession) PersistCurrentSessionCheckpoint(DateTimeOffset.UtcNow);
+            }
             PublishState();
         }
         catch
         {
+            if (_shutdownStarted || _disposed) return;
             // The detector can observe account-specific paths. Its failure text
             // is intentionally not exposed; manual class selection remains usable.
             _classDetection = CharacterClassDetection.Unavailable;

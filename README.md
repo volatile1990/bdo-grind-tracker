@@ -154,7 +154,7 @@ anschließend prüft Grindcrest die Verfügbarkeit erneut. [Details](docs/GAME_L
 Installierte Versionen suchen beim Start nach Updates. Unter **Einstellungen →
 App-Updates** lassen sich Updates herunterladen und mit **Installieren und neu starten**
 anwenden. Dazu muss die Session pausiert sein. Vor dem Neustart wird sie im Verlauf
-gespeichert; nach dem Neustart beginnt eine neue Session. Es gibt keinen erzwungenen
+gespeichert; nach dem Neustart wird dieselbe Session pausiert geladen. Es gibt keinen erzwungenen
 Neustart während eines Grinds. Beta-Updates lassen sich dort ein- und ausschalten;
 beim Wechsel zurück zu stabil wartet die App auf die nächste höhere stabile Version.
 
@@ -200,6 +200,13 @@ verfügbar ist. [Store-Paket erstellen und einreichen](docs/MICROSOFT_STORE.md).
 4. **Pausieren** erhält die Session und stoppt die Sitzungsuhr. **Fortsetzen** zählt
    aktive Grindzeit weiter; Pausen zählen nicht mit. **Neue Session** setzt Uhr,
    Summen, Zählzustand und Spot zurück. Vor einem Spotwechsel eine neue Sitzung anlegen.
+
+Beim erneuten Öffnen wird die letzte aktuelle Session pausiert geladen. Lootmengen,
+manuelle Korrekturen, aktive Spielzeit, Klasse sowie erfasste XP- und Agris-Werte
+bleiben erhalten. Die geschlossene Zeit zählt nicht mit; **Fortsetzen** startet
+die Aufnahme wieder. Erst **Neue Session** verwirft den aktuellen Stand zugunsten
+einer neuen Session. Das gilt für Sessions, die mit dieser Funktion gespeichert
+wurden; ältere Verlaufseinträge werden nicht automatisch zur aktuellen Session.
 
 Beim Pausieren, beim Anlegen einer neuen Sitzung und beim Beenden wird der aktuelle
 Stand im Bereich **Verlauf** aktualisiert. Dort lässt sich zwischen **Alle Sessions**
@@ -303,7 +310,9 @@ bisher gegen erneutes Hochladen/Fortsetzen gesperrt; danach **Neue Sitzung** wä
 Spätere Mengenkorrekturen werden mit neuem Loot verrechnet, damit gesunkene und wieder
 steigende Zähler keinen Doppelupload verursachen. Bereits angelegte Garmoth-Einträge
 werden nicht nachträglich geändert. Stundenabschnitte und Doppelupload-Schutz gelten
-für die aktuelle lokale Sitzung; Sitzungen werden nach einem Neustart nicht wiederhergestellt.
+auch nach der Wiederherstellung der aktuellen Sitzung. Der bestehende Neustartschutz
+sperrt weitere Uploads, wenn das Journal bereits erfolgreiche oder möglicherweise
+erfolgte Übertragungen verzeichnet. Allein das Öffnen startet keinen Upload.
 Der Vertrag ist statisch nachgewiesen und mit Mock-HTTP geprüft; ein echter Upload
 mit deinem Konto wurde nicht durchgeführt. [Details](docs/GARMOTH_INTEGRATION.md).
 

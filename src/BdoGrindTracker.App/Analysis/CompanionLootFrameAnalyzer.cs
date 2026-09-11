@@ -89,7 +89,9 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
     public bool RequiresLootPanel => true;
     public string Status => _disposed ? "BDO-Companion-Erkennung wurde beendet."
         : _captureGuard?.Error ?? (_spotLock.Spot is { } spot ? $"Bereit: Companion · {spot.DisplayName} (Lootfilter)."
-        : "Bereit: Companion · Spot wird aus Trashloot erkannt.");
+        : "Bereit: Companion · Spot wird aus Trashloot erkannt.") +
+            (_calibration.RareLootResolution?.Status is RareLootAnchorStatus.Invalid or RareLootAnchorStatus.Ambiguous
+                ? " · Rare-Droplog nicht verfügbar; normales Droplog bleibt aktiv." : string.Empty);
 
     public void ValidateCaptureSetup(System.Drawing.Size frameSize) =>
         RefreshCapturePosition(frameSize, DateTimeOffset.UtcNow, force: true);
@@ -114,15 +116,19 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
                 new CompanionRareFrameReconciler(_itemMatcher.CatalogEntries, _ledger));
         }
 
+        var normalMoved = _panelBounds != panel || !_slotBounds.SequenceEqual(slots);
         _calibration = current;
         _panelBounds = panel;
         _slotBounds = slots;
         _rarePanelBounds = rarePanel;
         _rareBandBounds = rareBand;
-        _alignmentReview.Reset();
-        _appearanceTracker.Reset();
-        _recoveryCursor = 0;
-        _occupancyTracker.Reset();
+        if (normalMoved)
+        {
+            _alignmentReview.Reset();
+            _appearanceTracker.Reset();
+            _recoveryCursor = 0;
+            _occupancyTracker.Reset();
+        }
         // Preserve pending drops, event IDs, spot lock and the shared ledger.
         // Resetting reconciliation would count the still-visible log again.
     }
@@ -640,6 +646,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
             SlotRegions = _slotBounds,
             RarePanelRegion = _rarePanelBounds,
             RareBandRegion = _rareBandBounds,
+            CaptureCalibration = LootCalibrationDiagnostics.From(_calibration),
             TextRecognitionBackend = _nameRecognizer.BackendName,
             TextRecognitionLanguage = _nameRecognizer.LanguageTag,
             Observations = observations,

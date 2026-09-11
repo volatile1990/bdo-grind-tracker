@@ -105,9 +105,12 @@ gesperrt. Ein nicht lesbares Journal wird nie als leer behandelt.
 Beim Neustart sperren erfolgreiche, unklare und unvollständige Versuche den
 Gesamt-Upload der jeweiligen Session, auch wenn ihr Verlaufsvermerk vorher nicht
 gespeichert werden konnte. Eindeutige Ablehnungen erlauben einen neuen Versuch.
-Die während des laufenden Prozesses verwendeten Stundenstände und Mengenabzüge
-werden weiterhin im Speicher geführt; ein Rest nach einem vollständigen Neustart
-wird konservativ nicht erneut gesendet. Die Notiz-ID ist kein serverseitiger
+Stundenstände, gesendete Mengen und verbrauchte Zeit werden zusammen mit der
+aktuellen Session lokal gespeichert und beim Öffnen wiederhergestellt. Ein
+pausierter Wiederherstellungsstand startet keinen automatischen Upload. Der
+bestehende Journalschutz bleibt maßgeblich: Ein Rest nach einem bereits erfolgreichen
+oder möglicherweise erfolgten Upload wird nach dem Neustart konservativ nicht
+erneut gesendet. Die Notiz-ID ist kein serverseitiger
 Idempotency-Key. Eine garantierte Einmalverarbeitung wird damit nicht behauptet;
 unklare Ergebnisse werden nicht automatisch wiederholt.
 

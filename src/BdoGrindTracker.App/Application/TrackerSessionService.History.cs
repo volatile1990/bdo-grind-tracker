@@ -1,5 +1,6 @@
 using BdoGrindTracker.App.Persistence;
 using BdoGrindTracker.App.Pricing;
+using BdoGrindTracker.App.UI;
 using BdoGrindTracker.Core;
 
 namespace BdoGrindTracker.App.Services;
@@ -68,7 +69,14 @@ internal sealed partial class TrackerSessionService
     }
 
     private void PersistCurrentSession(DateTimeOffset updatedAt, bool throwOnError = false,
-        Guid? pendingGarmothCorrectionInterval = null)
+        Guid? pendingGarmothCorrectionInterval = null, LootSessionSnapshot? proposedSnapshot = null)
+    {
+        PersistCurrentHistory(updatedAt, throwOnError, pendingGarmothCorrectionInterval);
+        if (_historyPersistenceError is null) PersistCurrentSessionCheckpoint(updatedAt, throwOnError, proposedSnapshot);
+    }
+
+    private void PersistCurrentHistory(DateTimeOffset updatedAt, bool throwOnError,
+        Guid? pendingGarmothCorrectionInterval)
     {
         if (!_hasSession || _demoMode || _sessionSpotId is null ||
             _sessionClock.Elapsed <= TimeSpan.Zero || _sessionSummary.Totals.Count == 0)
@@ -119,7 +127,6 @@ internal sealed partial class TrackerSessionService
         try
         {
             SaveHistoryEntries();
-            _lastCheckpointDuration = _sessionClock.Elapsed;
             _recording?.SaveCountSummary(entry.SessionId, updatedAt, entry.Duration, totals);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
@@ -274,7 +281,7 @@ internal sealed partial class TrackerSessionService
                         var pendingCorrection = snapshot.Totals.GetValueOrDefault(canonicalName) != previousSummary.Totals.GetValueOrDefault(canonicalName)
                             ? _garmothIntervals.PreparedIntervalId : null;
                         try { PersistCurrentSession(DateTimeOffset.UtcNow, throwOnError: true,
-                            pendingGarmothCorrectionInterval: pendingCorrection); }
+                            pendingGarmothCorrectionInterval: pendingCorrection, proposedSnapshot: snapshot); }
                         catch
                         {
                             _sessionSummary = previousSummary;
@@ -284,6 +291,11 @@ internal sealed partial class TrackerSessionService
                             _sessionManualLootItems.UnionWith(previousManual);
                             _sessionGarmothLocallyModified = previousModified;
                             _historyChanged = true;
+                            // The history write may have completed before the
+                            // current-session checkpoint failed. Keep the disk
+                            // history aligned with the rejected edit as well.
+                            try { SaveHistoryEntries(); }
+                            catch (Exception error) when (error is IOException or UnauthorizedAccessException) { }
                             throw;
                         }
                     }, ObserveGarmothTotals);

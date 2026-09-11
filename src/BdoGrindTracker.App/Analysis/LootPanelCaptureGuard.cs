@@ -14,6 +14,7 @@ internal sealed class LootPanelCaptureGuard(
     private static readonly TimeSpan CheckInterval = TimeSpan.FromSeconds(2);
     private DateTimeOffset _nextCheck;
     private (DateTime Variables, DateTime Options)? _lastReadVersion;
+    private bool _rareLayoutRequiresRestart;
     private string? _error;
     public string? Error => Volatile.Read(ref _error);
 
@@ -25,14 +26,7 @@ internal sealed class LootPanelCaptureGuard(
             // Fail during initialization, before creating OCR resources.
             if (CompanionNormalLootGeometry.CalculateSlotCrops(result).Count == 0)
                 throw new InvalidDataException("The normal loot panel contains no usable rows.");
-            if (result.HasRareLootAnchor)
-            {
-                var band = CompanionNormalLootGeometry.CalculateRareBandCrop(result);
-                if (band.Width <= 0 || band.Height <= 0 ||
-                    !new Rectangle(0, 0, result.ScreenWidth, result.ScreenHeight).Contains(band))
-                    throw new InvalidDataException("The rare loot panel contains no usable band.");
-            }
-            return result;
+            return ValidateOptionalRarePanel(result);
         }
         catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException or
             System.Xml.XmlException or ArgumentException or OverflowException)
@@ -75,6 +69,15 @@ internal sealed class LootPanelCaptureGuard(
                     "Platziere das Droplog vollständig im Spielbild, speichere die BDO-UI-Einstellungen " +
                     "und starte Grindcrest neu.");
 
+            // A clipped optional band must not stop the normal feed. Do not
+            // repeatedly re-enable a changed band in this session: it could
+            // expose an old message as a new drop in the rare counter.
+            if (_rareLayoutRequiresRestart || !HasCompatibleRareBand(calibration, current))
+            {
+                _rareLayoutRequiresRestart = true;
+                current = DisableRare(current, "rare-band-shape-changed-restart-required");
+            }
+
             // The fresh configuration already contains the corrected position.
             // Keep font/scale-dependent OCR resources and session reconciliation;
             // the analyzer adopts these coordinates before reading the next rows.
@@ -85,6 +88,7 @@ internal sealed class LootPanelCaptureGuard(
                 HasRareLootAnchor = current.HasRareLootAnchor,
                 RareLootAnchorX = current.RareLootAnchorX,
                 RareLootAnchorY = current.RareLootAnchorY,
+                RareLootResolution = current.RareLootResolution,
             };
             _nextCheck = now + CheckInterval;
             _lastReadVersion = version;
@@ -123,6 +127,11 @@ internal sealed class LootPanelCaptureGuard(
             !previousRows.Select(row => (row.Top - previousPanel.Top, row.Height))
                 .SequenceEqual(currentRows.Select(row => (row.Top - currentPanel.Top, row.Height))))
             return false;
+        return true;
+    }
+
+    private static bool HasCompatibleRareBand(CompanionCalibration previous, CompanionCalibration current)
+    {
         if (previous.HasRareLootAnchor && current.HasRareLootAnchor)
         {
             var previousBand = CompanionNormalLootGeometry.CalculateRareBandCrop(previous);
@@ -132,6 +141,32 @@ internal sealed class LootPanelCaptureGuard(
         }
         return true;
     }
+
+    private static CompanionCalibration ValidateOptionalRarePanel(CompanionCalibration current)
+    {
+        if (!current.HasRareLootAnchor) return current;
+        try
+        {
+            var band = CompanionNormalLootGeometry.CalculateRareBandCrop(current);
+            if (band.Width > 0 && band.Height > 0 &&
+                new Rectangle(0, 0, current.ScreenWidth, current.ScreenHeight).Contains(band)) return current;
+        }
+        catch (Exception error) when (error is ArgumentException or OverflowException)
+        {
+            // Only the optional rare geometry is unavailable; the main panel
+            // has already passed its independent validation.
+        }
+        return DisableRare(current, "rare-band-outside-frame");
+    }
+
+    private static CompanionCalibration DisableRare(CompanionCalibration current, string reason) => current with
+    {
+        HasRareLootAnchor = false,
+        RareLootAnchorX = 0,
+        RareLootAnchorY = 0,
+        RareLootResolution = new(RareLootAnchorStatus.Invalid,
+            current.RareLootResolution?.Source ?? "active", reason),
+    };
 }
 
 internal sealed class LootPanelUnavailableException(string message, Exception? inner = null)

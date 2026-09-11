@@ -11,6 +11,8 @@ internal sealed class ExperienceSessionTracker
     private readonly List<Interval> _intervals = [];
     private TimeSpan _observedDuration;
     private TimeSpan _lastElapsed;
+    private TimeSpan _restoredElapsed;
+    private ExperienceSessionProgress _restoredProgress;
     private decimal _gainedPercentagePoints;
     private DateTimeOffset? _lastObservedAt;
     private Sample? _previous;
@@ -35,6 +37,11 @@ internal sealed class ExperienceSessionTracker
         var age = now - observedAt;
         var current = new Sample(elapsed > age ? elapsed - age : TimeSpan.Zero,
             observedAt, state.Level!.Value, state.Percent!.Value);
+        if (current.Elapsed < _restoredElapsed)
+        {
+            ClearBaseline();
+            return Progress;
+        }
         if (_previous is not { } previous)
         {
             _previous = current;
@@ -91,15 +98,33 @@ internal sealed class ExperienceSessionTracker
     internal void Reset()
     {
         _intervals.Clear();
-        _observedDuration = _lastElapsed = TimeSpan.Zero;
+        _observedDuration = _lastElapsed = _restoredElapsed = TimeSpan.Zero;
+        _restoredProgress = default;
         _gainedPercentagePoints = 0;
         _lastObservedAt = null;
         ClearBaseline();
     }
 
+    internal void Restore(TimeSpan elapsed, ExperienceSessionProgress progress)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(elapsed, TimeSpan.Zero);
+        if (progress.ObservedDuration < TimeSpan.Zero || progress.ObservedDuration > elapsed ||
+            (progress.GainedPercentagePoints is null
+                ? progress.ObservedDuration != TimeSpan.Zero || progress.StartLevel is not null || progress.EndLevel is not null
+                : progress.ObservedDuration == TimeSpan.Zero || progress.StartLevel is not (>= 1 and <= 100) ||
+                  progress.EndLevel is not (>= 1 and <= 100)))
+            throw new ArgumentException("Restored experience progress must contain consistent observations.", nameof(progress));
+        Reset();
+        _restoredProgress = progress;
+        _observedDuration = progress.ObservedDuration;
+        _gainedPercentagePoints = progress.GainedPercentagePoints ?? 0;
+        _lastElapsed = _restoredElapsed = elapsed;
+    }
+
     private ExperienceSessionProgress Progress => _intervals.Count == 0
-        ? new(null, TimeSpan.Zero, null, null)
-        : new(_gainedPercentagePoints, _observedDuration, _intervals[0].StartLevel, _intervals[^1].EndLevel);
+        ? _restoredProgress
+        : new(_gainedPercentagePoints, _observedDuration,
+            _restoredProgress.StartLevel ?? _intervals[0].StartLevel, _intervals[^1].EndLevel);
 
     private static bool CanConnect(Sample previous, Sample current)
     {

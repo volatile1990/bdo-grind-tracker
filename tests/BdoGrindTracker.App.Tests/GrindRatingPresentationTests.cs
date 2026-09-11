@@ -35,6 +35,43 @@ public sealed class GrindRatingPresentationTests
     }
 
     [Theory]
+    [InlineData("Garmoth-Referenzen werden aktualisiert.")]
+    [InlineData("Garmoth ist nicht erreichbar. Gespeicherte Referenzen werden verwendet.")]
+    public async Task RefreshStatusPreservesTheReferenceDateAndProvisionalDetail(string status)
+    {
+        var state = State() with
+        {
+            Elapsed = TimeSpan.FromMinutes(3), Loot = Loot(815), GrindBenchmarkStatus = status,
+        };
+        var presentation = new LiveSessionPresentation(state).GrindRating;
+        var metric = new OverlayMetrics().Update(state, new()).Metrics["grind-rating"];
+        var markup = await Render(state, OverlayCatalog.CreateWidget("grind-rating"));
+
+        Assert.Contains(status, presentation.Description);
+        Assert.Contains("Stand 10.09.2026", presentation.Description);
+        Assert.Equal("Vorläufig", presentation.Detail);
+        Assert.Equal(presentation.Description, metric.Tooltip);
+        Assert.Contains(status, markup);
+        Assert.Contains("Stand 10.09.2026", markup);
+    }
+
+    [Theory]
+    [InlineData("Garmoth-Referenzen werden aktualisiert.")]
+    [InlineData("Garmoth ist nicht erreichbar. Keine gespeicherte Referenz verfügbar.")]
+    public void UnavailableRatingStillDisclosesRefreshStatus(string status)
+    {
+        var state = State() with { GrindBenchmark = null, GrindBenchmarkStatus = status };
+        var presentation = new LiveSessionPresentation(state).GrindRating;
+        var metric = new OverlayMetrics().Update(state, new()).Metrics["grind-rating"];
+
+        Assert.Equal("—", presentation.Label);
+        Assert.Equal("Keine Bewertung verfügbar. " + status, presentation.Description);
+        Assert.Equal(presentation.Description, metric.Tooltip);
+        Assert.Null(presentation.Detail);
+        Assert.Null(metric.Detail);
+    }
+
+    [Theory]
     [InlineData("agris-active", true)]
     [InlineData("agris-earlier", true)]
     [InlineData("scroll-one", true)]

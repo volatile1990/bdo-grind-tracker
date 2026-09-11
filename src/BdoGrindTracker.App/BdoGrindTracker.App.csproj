@@ -13,7 +13,7 @@
     <Description>Passive Black Desert loot and grind-session tracker</Description>
     <ApplicationIcon>..\..\data\branding\grindcrest.ico</ApplicationIcon>
     <RootNamespace>BdoGrindTracker.App</RootNamespace>
-    <Version>1.2.1</Version>
+    <Version>1.2.2</Version>
     <InformationalVersion>$(Version)</InformationalVersion>
     <UpdateRepositoryUrl Condition="'$(UpdateRepositoryUrl)' == ''">https://github.com/volatile1990/bdo-grind-tracker</UpdateRepositoryUrl>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -126,6 +126,7 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
+    <Content Include="..\..\docs\CALIBRATION_RECOVERY.md" Link="docs\CALIBRATION_RECOVERY.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="..\..\docs\LOOT_POOLS.md" Link="docs\LOOT_POOLS.md">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>

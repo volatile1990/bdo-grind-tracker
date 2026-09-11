@@ -29,6 +29,7 @@ internal sealed class DiagnosticRecordingSession : IDisposable
     private readonly LootCountAudit countAudit = new();
     private long summaryBytes;
     private LifetimeParsingContext? lastParsingContext;
+    private LootCalibrationDiagnostics? lastCaptureCalibration;
 
     private DiagnosticRecordingSession(long? maximumBytes, int? maximumFrames)
     {
@@ -116,7 +117,8 @@ internal sealed class DiagnosticRecordingSession : IDisposable
         bool? isToneMapped = null,
         IReadOnlyList<LootRowReviewDiagnostics>? rowReviews = null,
         string? recognitionVariant = null,
-        LootCaptureTiming? captureTiming = null)
+        LootCaptureTiming? captureTiming = null,
+        LootCalibrationDiagnostics? captureCalibration = null)
     {
         lock (sync)
         {
@@ -174,6 +176,7 @@ internal sealed class DiagnosticRecordingSession : IDisposable
                     IsToneMapped = isToneMapped,
                     RecognitionVariant = recognitionVariant,
                     CaptureTiming = captureTiming,
+                    CaptureCalibration = captureCalibration != lastCaptureCalibration ? captureCalibration : null,
                     RowReviews = rowReviews is { Count: > 0 } ? rowReviews : null,
                     NormalCaptureIndex = result.NormalCaptureIndex,
                     NormalReconciliation = reconciliation,
@@ -191,6 +194,7 @@ internal sealed class DiagnosticRecordingSession : IDisposable
 
                 WriteBytes(jsonBytes);
                 lastParsingContext = result.LifetimeParsingContext ?? lastParsingContext;
+                lastCaptureCalibration = captureCalibration ?? lastCaptureCalibration;
                 entrySequence = sequence;
                 frameCount++;
                 countAudit.Observe(result, reconciliation);

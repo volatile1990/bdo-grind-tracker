@@ -31,13 +31,40 @@ Moderatoren gepflegte Leistungsreferenzen, keine statistischen Perzentile.
 Die Zeiträume gelten je Spot seit dessen Datenreset; siehe die Quellenlinks und
 die FAQ auf [Garmoth Best Grind Spots](https://garmoth.com/grind-tracker/best-grind-spots).
 
-Die Werte sind ein fest hinterlegter, datierter Referenzstand. Die öffentlichen
-Clients nennen `/api/grind-tracker/collective/all` auf `api.garmoth.com` und
-`/api/trpc/grindMeta.list` auf `garmoth.com`; beide direkten anonymen Abrufe
-lieferten bei der Prüfung HTTP 403. Die App verspricht deshalb keine automatische
-Aktualisierung und benötigt für die Bewertung weder Verbindung noch API-Key.
-Künftige Referenzänderungen müssen anhand der Quelle geprüft und in
-`GarmothGrindBenchmarks` aktualisiert werden.
+Beim Start der ersten aktiven Grindstunde und jeder weiteren aktiven Stunde
+fragt die App aktuelle Garmoth-Referenzen an. Pausen zählen nicht mit;
+Fortsetzen innerhalb derselben aktiven Stunde löst keinen erneuten Abruf aus.
+Der Abruf läuft im Hintergrund und blockiert weder den Start noch die
+Loot-Erkennung. Ein Garmoth-API-Key ist dafür nicht erforderlich.
+
+Während des Abrufs und bei fehlender Verbindung bleiben zuletzt gespeicherte
+Referenzen nutzbar. Ohne gespeicherte Daten dient die obige, mitgelieferte
+Referenz als Rückfall. Ihr ursprüngliches Referenzdatum bleibt dabei erhalten;
+ein fehlgeschlagener Abruf macht alte Werte nicht zu aktuellen Werten.
+Der Tooltip zeigt den Aktualisierungsstatus zusammen mit Quelle und Stand.
+
+Die App liest anonym `https://api.garmoth.com/api/grind-tracker/collective/all`
+und `https://garmoth.com/api/trpc/grindMeta.list`. Average wird aus der
+Trash-Stundenrate und Garmoths spotabhängigem Lv.2-Multiplikator berechnet;
+High und Top kommen aus den Moderatorenreferenzen. Beide Antworten müssen
+gültig sein, bevor ein Spot einen neuen Stand erhält. Fehlende High-/Top-Werte
+bleiben leer. Garmoth begrenzt vorhandene höhere Tiers mindestens auf Average;
+bei identischen Schwellen gilt die höchste verfügbare Stufe.
+
+Erfolgreiche Spotwerte werden atomar unter `garmoth-benchmarks-v1.json` im
+App-Datenordner gespeichert. Fehlende oder ungültige Spots behalten ihren
+bisherigen Stand. Neue Quellenlinks übernehmen den von Garmoth gelieferten
+Zeitraum. Der angezeigte Stand ist bei abgerufenen Daten der Abrufzeitpunkt;
+der Zeitraum der zugrunde liegenden Sessions steht im Quellenlink.
+
+Die Endpunkte und Berechnungen wurden am 11.09.2026 anhand des öffentlichen
+[Statistik-Clients](https://assets.garmoth.com/_static/_nuxt/B_Q4n5nK.js) und der
+[Spot-Seite](https://assets.garmoth.com/_static/_nuxt/Ft2pq8LN.js) geprüft.
+Die direkten Live-Abrufe lieferten dabei HTTP 403; die öffentliche Spot-Seite
+zeigte außerdem einen Statistikfehler. Ein erfolgreicher Live-JSON-Abruf konnte
+deshalb noch nicht verifiziert werden. Automatisierte Tests verwenden
+synthetische Antworten nach dem beobachteten Client-Vertrag. Die App umgeht
+keine Zugriffssperren und zeigt bei einem Fehler den letzten verfügbaren Stand.
 
 ## Vergleichbarkeit
 

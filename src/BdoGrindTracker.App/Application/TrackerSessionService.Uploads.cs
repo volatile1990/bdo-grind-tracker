@@ -128,7 +128,7 @@ internal sealed partial class TrackerSessionService
 
     private async Task UploadHourlyCoreAsync()
     {
-        if (!Preferences.AutoUpload || !_hasSession || IsBusy || _sessionSubmitted || _shutdownStarted ||
+        if (!Preferences.AutoUpload || !_hasSession || _restoredSessionNeedsCaptureSetup || IsBusy || _sessionSubmitted || _shutdownStarted ||
             _garmothIntervals.IsBlocked || _garmothIntervals.AutomaticSuspended || _garmothPersistenceError is not null ||
             _garmothRestartBlocks.Contains(_sessionId)) return;
         var interval = _garmothIntervals.PrepareAutomatic();

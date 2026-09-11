@@ -69,6 +69,17 @@ internal sealed class GrindSessionClock(TimeProvider? timeProvider = null)
         }
     }
 
+    public void RestorePaused(TimeSpan elapsed)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(elapsed, TimeSpan.Zero);
+        lock (_sync)
+        {
+            _accumulated = elapsed;
+            _startedAt = 0;
+            _isRunning = false;
+        }
+    }
+
     public static string FormatElapsed(TimeSpan elapsed)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(elapsed, TimeSpan.Zero);

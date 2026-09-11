@@ -1,0 +1,8 @@
+Neu in Grindcrest 1.2.2:
+
+• Die Erfahrungserkennung berücksichtigt jetzt die in Black Desert gespeicherte Auflösung und UI-Skalierung. Die Levelanzeige oben links muss sichtbar sein.
+• Verbesserte automatische Klassenerkennung: zuverlässigere Auswahl der gespeicherten Charakterdatei und erneute Prüfung unbekannter Klassen. Nach einem Charakterwechsel gegebenenfalls die UI-Einstellungen im Spiel speichern.
+• Die aktuelle Session bleibt beim Schließen erhalten und wird beim nächsten Öffnen pausiert geladen – einschließlich Loot, manueller Korrekturen, aktiver Zeit sowie Erfahrungs- und Agris-Werten. Fortsetzen startet die Aufnahme wieder; Neue Session beginnt einen neuen Grind.
+• Die Diagnoseaufzeichnung bleibt nach dem Neustart aus. Der bestehende Schutz vor doppelten Garmoth-Uploads bleibt aktiv.
+
+Die Sitzungswiederherstellung gilt für mit diesem Funktionsstand gespeicherte Sessions. Ältere Verlaufseinträge werden nicht automatisch zur aktuellen Session.

@@ -35,6 +35,8 @@ internal sealed record FrameAnalysisResult(
 
     public Rectangle? RareBandRegion { get; init; }
 
+    public LootCalibrationDiagnostics? CaptureCalibration { get; init; }
+
     public string TextRecognitionBackend { get; init; } = "unknown";
 
     public string? TextRecognitionLanguage { get; init; }

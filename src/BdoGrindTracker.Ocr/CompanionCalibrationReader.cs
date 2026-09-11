@@ -32,11 +32,14 @@ public sealed record CompanionCalibration(
     string? ActiveCharacterGameVariablePath = null,
     bool HasRareLootAnchor = false,
     int RareLootAnchorX = 0,
-    int RareLootAnchorY = 0);
+    int RareLootAnchorY = 0)
+{
+    public RareLootAnchorResolution? RareLootResolution { get; init; }
+}
 
 /// <summary>
-/// Reads the normal-loot calibration inputs with the selection and precedence rules
-/// used by BDO Companion 0.7.4. The caller supplies the Black Desert documents
+/// Reads Companion-compatible normal-loot calibration, selecting the most recently
+/// saved profile configuration and resolving optional rare-loot presets. The caller supplies the Black Desert documents
 /// directory so the reader has no dependency on a particular Windows user profile.
 /// </summary>
 public sealed partial class CompanionCalibrationReader
@@ -99,9 +102,7 @@ public sealed partial class CompanionCalibrationReader
             LootUiDataIndex);
         var lootAnchorX = ScaleRelativeCoordinate(relativeX, screenWidth);
         var lootAnchorY = ScaleRelativeCoordinate(relativeY, screenHeight);
-        var rarePosition = ReadOptionalVisibleUiPosition(variableElements, 161);
-
-        return new CompanionCalibration(
+        var calibration = new CompanionCalibration(
             profilePath,
             gameVariablePath,
             gameOptionPath,
@@ -113,14 +114,8 @@ public sealed partial class CompanionCalibrationReader
             ReadFontType(optionText),
             ReadWindowedMode(optionText),
             ReadCustomHp(variableElements),
-            SelectActiveCharacterGameVariablePath(profilePath),
-            rarePosition is not null,
-            rarePosition is null
-                ? 0
-                : ScaleRelativeCoordinate(rarePosition.Value.X, screenWidth),
-            rarePosition is null
-                ? 0
-                : ScaleRelativeCoordinate(rarePosition.Value.Y, screenHeight));
+            SelectActiveCharacterGameVariablePath(profilePath));
+        return ResolveRareCalibration(variableElements, calibration);
     }
 
     internal static string SelectActiveProfileDirectory(string userCachePath)
@@ -142,8 +137,14 @@ public sealed partial class CompanionCalibrationReader
                 continue;
             }
 
-            var lastWrite = Directory.GetLastWriteTimeUtc(candidate).ToFileTimeUtc();
-            if (selected is null || lastWrite >= selectedLastWrite)
+            var variables = Path.Combine(candidate, "gameVariable.xml");
+            if (!File.Exists(variables)) continue;
+
+            // Saving an existing XML does not update its parent directory's timestamp.
+            // Rank the actual configuration, and never select a cache without one.
+            var lastWrite = File.GetLastWriteTimeUtc(variables).ToFileTimeUtc();
+            if (selected is null || lastWrite > selectedLastWrite ||
+                lastWrite == selectedLastWrite && StringComparer.OrdinalIgnoreCase.Compare(candidate, selected) > 0)
             {
                 selected = candidate;
                 selectedLastWrite = lastWrite;
@@ -151,7 +152,7 @@ public sealed partial class CompanionCalibrationReader
         }
 
         return selected ?? throw new InvalidDataException(
-            "UserCache contains no non-zero, unsigned 32-bit numeric profile directory.");
+            "UserCache contains no non-zero, unsigned 32-bit numeric profile directory with gamevariable.xml.");
     }
 
     internal static bool TryParseNonZeroProfileId(string value, out uint profileId)

@@ -16,6 +16,9 @@ internal sealed class LootSessionAggregate
         new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, long> _manualOffsets =
         new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, long> _restoredTotals =
+        new(StringComparer.OrdinalIgnoreCase);
+    private int _restoredEventCount;
     private Dictionary<string, long>? _projectionTotals;
     private long? _projectionRevision;
 
@@ -46,6 +49,9 @@ internal sealed class LootSessionAggregate
             if (!automaticTotals.TryAdd(itemName, quantity))
                 throw new ArgumentException("A projection contains duplicate item names.", nameof(projection));
         }
+        foreach (var (itemName, quantity) in _restoredTotals)
+            automaticTotals[itemName] = checked(automaticTotals.GetValueOrDefault(itemName) + quantity);
+        var eventCount = checked(_restoredEventCount + projection.ConfirmedDropCount);
 
         var totals = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
         long totalQuantity = 0;
@@ -58,7 +64,7 @@ internal sealed class LootSessionAggregate
                 totals.Add(itemName, quantity);
         }
 
-        var totalsChanged = ConfirmedEventCount != projection.ConfirmedDropCount ||
+        var totalsChanged = ConfirmedEventCount != eventCount ||
             totals.Count != _totals.Count || totals.Any(pair =>
                 !_totals.TryGetValue(pair.Key, out var quantity) || quantity != pair.Value);
         var hasNewArrival = projection.LatestArrivalAt is { } arrival &&
@@ -72,7 +78,7 @@ internal sealed class LootSessionAggregate
         _projectionTotals = automaticTotals;
         _projectionRevision = projection.Revision;
         TotalQuantity = totalQuantity;
-        ConfirmedEventCount = projection.ConfirmedDropCount;
+        ConfirmedEventCount = eventCount;
         if (hasNewArrival)
             LatestArrivalAt = projection.LatestArrivalAt;
         return (totalsChanged, hasNewArrival);
@@ -156,10 +162,52 @@ internal sealed class LootSessionAggregate
         _appliedEvents.Clear();
         _manuallyEditedItems.Clear();
         _manualOffsets.Clear();
+        _restoredTotals.Clear();
+        _restoredEventCount = 0;
         _projectionTotals = null;
         _projectionRevision = null;
         LatestArrivalAt = null;
         TotalQuantity = 0;
         ConfirmedEventCount = 0;
+    }
+
+    public void Restore(LootSessionSnapshot snapshot, IEnumerable<string> manualItems)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        ArgumentNullException.ThrowIfNull(snapshot.Totals);
+        ArgumentNullException.ThrowIfNull(manualItems);
+        ArgumentOutOfRangeException.ThrowIfNegative(snapshot.ConfirmedEventCount);
+        var totals = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+        long totalQuantity = 0;
+        foreach (var (itemName, quantity) in snapshot.Totals)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(itemName);
+            ArgumentOutOfRangeException.ThrowIfNegative(quantity);
+            if (!totals.TryAdd(itemName, quantity))
+                throw new ArgumentException("A restored snapshot contains duplicate item names.", nameof(snapshot));
+            totalQuantity = checked(totalQuantity + quantity);
+        }
+        if (snapshot.TotalQuantity != totalQuantity)
+            throw new ArgumentException("A restored snapshot has an inconsistent total quantity.", nameof(snapshot));
+        var manual = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var itemName in manualItems)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(itemName);
+            if (!totals.ContainsKey(itemName))
+                throw new ArgumentException("A restored manual item is missing from the totals.", nameof(manualItems));
+            manual.Add(itemName);
+        }
+
+        // Old projections and event IDs belong to the previous analyzer. Only
+        // its earned totals survive as the baseline for the new analyzer run.
+        Reset();
+        foreach (var pair in totals)
+        {
+            _totals.Add(pair.Key, pair.Value);
+            _restoredTotals.Add(pair.Key, pair.Value);
+        }
+        _manuallyEditedItems.UnionWith(manual);
+        TotalQuantity = totalQuantity;
+        ConfirmedEventCount = _restoredEventCount = snapshot.ConfirmedEventCount;
     }
 }

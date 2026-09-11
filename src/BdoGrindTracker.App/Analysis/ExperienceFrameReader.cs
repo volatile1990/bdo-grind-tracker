@@ -17,11 +17,16 @@ internal interface IExperienceFrameReader : IDisposable
 internal sealed partial class ExperienceFrameReader : IExperienceFrameReader
 {
     private readonly Func<Mat, CancellationToken, CompanionOcrResult>? _recognize;
+    private readonly Func<ExperienceHudConfiguration?>? _readConfiguration;
     private CompanionWindowsOcrRecognizer? _engine;
     private bool _disposed;
 
-    internal ExperienceFrameReader(Func<Mat, CancellationToken, CompanionOcrResult>? recognize = null)
-        => _recognize = recognize;
+    internal ExperienceFrameReader(Func<Mat, CancellationToken, CompanionOcrResult>? recognize = null,
+        Func<ExperienceHudConfiguration?>? readConfiguration = null)
+    {
+        _recognize = recognize;
+        _readConfiguration = readConfiguration;
+    }
 
     public ExperienceReading? Read(Bitmap frame, CancellationToken cancellationToken)
     {
@@ -35,11 +40,37 @@ internal sealed partial class ExperienceFrameReader : IExperienceFrameReader
             _engine ??= CompanionWindowsOcrRecognizer.TryCreate();
             if (_engine is null) return null;
         }
+        // BDO saves UI scale independently of resolution or Windows DPI. Refresh
+        // it for each (minute-spaced) observation, including after profile changes.
+        var configuration = _readConfiguration?.Invoke();
+        if (configuration is { } hud && hud.ScreenWidth == frame.Width && hud.ScreenHeight == frame.Height
+            && double.IsFinite(hud.UiScale) && hud.UiScale is >= .5 and <= 3)
+        {
+            var calibrated = CalibratedHudRegion(frame.Size, hud.UiScale);
+            var calibratedReading = ReadRegion(frame, calibrated, cancellationToken, out var calibratedRejected,
+                2.5 / hud.UiScale);
+            if (calibratedReading is not null || calibratedRejected) return calibratedReading;
+        }
+        var reading = ReadRegion(frame, region, cancellationToken, out var rejected);
+        // BDO's HUD scale is independent of the display resolution. On a 4K
+        // screen the actual level panel can still be only ~130 pixels wide;
+        // the wider search then includes enough icons to confuse Windows OCR.
+        // Retry the normal 1080p search size only when no pair was found. Never
+        // crop away a conflicting or ambiguous reading to manufacture a value.
+        var compact = Rectangle.Intersect(region, new Rectangle(0, 0, 320, 200));
+        return reading is not null || rejected || compact == region
+            ? reading : ReadRegion(frame, compact, cancellationToken, out _);
+    }
+
+    private ExperienceReading? ReadRegion(Bitmap frame, Rectangle region, CancellationToken cancellationToken,
+        out bool rejected, double? initialScale = null)
+    {
+        rejected = false;
         using var crop = frame.Clone(region, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
         using var bgr = CompanionFrameDecoder.Decode(crop);
         using var gray = new Mat();
         Cv2.CvtColor(bgr, gray, ColorConversionCodes.BGR2GRAY);
-        var scale = Math.Clamp(400d / region.Height, 1, 2);
+        var scale = initialScale ?? Math.Clamp(400d / region.Height, 1, 2);
 
         ExperienceReading? accepted = null;
         double? observedPercentHeight = null;
@@ -61,7 +92,7 @@ internal sealed partial class ExperienceFrameReader : IExperienceFrameReader
                     (int)Math.Ceiling(percentBounds.Right + percentBounds.Width * .08),
                     (int)Math.Ceiling(percentBounds.Bottom + percentBounds.Height * .5)))
                 : new Rectangle(0, 0, gray.Width, gray.Height);
-            if (sourceBounds.Width < 4 || sourceBounds.Height < 4) return null;
+            if (sourceBounds.Width < 4 || sourceBounds.Height < 4) { rejected = true; return null; }
             using var source = new Mat(gray, new Rect(sourceBounds.X, sourceBounds.Y, sourceBounds.Width, sourceBounds.Height));
             Cv2.Resize(source, large, new CvSize((int)Math.Round(source.Width * variantScale),
                 (int)Math.Round(source.Height * variantScale)), interpolation: InterpolationFlags.Cubic);
@@ -84,9 +115,9 @@ internal sealed partial class ExperienceFrameReader : IExperienceFrameReader
                     sourceBounds.Y + (int)Math.Ceiling((bounds.Y + bounds.Height - 16) / variantScale));
             }
             var reading = Parse(result, out var ambiguous);
-            if (ambiguous) return null;
+            if (ambiguous) { rejected = true; return null; }
             if (reading is null) continue;
-            if (accepted is not null && accepted != reading) return null;
+            if (accepted is not null && accepted != reading) { rejected = true; return null; }
             accepted = reading;
         }
         return accepted;
@@ -97,6 +128,15 @@ internal sealed partial class ExperienceFrameReader : IExperienceFrameReader
         var scale = Math.Clamp(frame.Height / 1080d, 1, 2);
         return new Rectangle(0, 0, Math.Min(frame.Width, (int)Math.Ceiling(320 * scale)),
             Math.Min(frame.Height, (int)Math.Ceiling(200 * scale)));
+    }
+
+    internal static Rectangle CalibratedHudRegion(System.Drawing.Size frame, double uiScale)
+    {
+        // Nominal BDO HUD units, not screen pixels: the ~90 x 80 level panel
+        // plus a small margin, scaled exactly like the game. The OCR zoom uses
+        // the inverse UI scale so its text size stays comparable at any resolution.
+        return new Rectangle(0, 0, Math.Min(frame.Width, (int)Math.Ceiling(110 * uiScale)),
+            Math.Min(frame.Height, (int)Math.Ceiling(90 * uiScale)));
     }
 
     internal static ExperienceReading? Parse(CompanionOcrResult result)

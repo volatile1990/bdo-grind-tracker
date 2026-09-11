@@ -23,7 +23,6 @@ internal sealed class CompanionDiagnosticCounter(IReadOnlyList<CompanionRareCata
     private readonly CompanionLootLedger ledger = new();
     private readonly LifetimeLootProjectionComposer projectionComposer = new();
     private CompanionRareFrameReconciler? rare;
-    private bool? rareEnabled;
 
     public TrackerFrameResult ProcessFrame(
         DateTimeOffset timestamp,
@@ -35,17 +34,6 @@ internal sealed class CompanionDiagnosticCounter(IReadOnlyList<CompanionRareCata
             throw new InvalidDataException("Visuelle Zeilenevidenz gehört nicht zu diesem historischen Normalzähler.");
         if (!visualLifetime && observations.Any(observation => observation.OccupancyEvidence is not null))
             throw new InvalidDataException("Visuelle Belegung gehört ausschließlich zum Lebensdauer-Normalzähler v3.");
-        if (rareEnabled is { } configured && configured != enableRare)
-        {
-            throw new InvalidDataException("Rare-Loot-Konfiguration wechselt innerhalb der Diagnose-Aufnahme.");
-        }
-
-        if (rareEnabled is null)
-        {
-            rareEnabled = enableRare;
-            rare = enableRare ? new CompanionRareFrameReconciler(catalog, ledger) : null;
-        }
-
         var accepted = observations
             .Where(static observation => !string.IsNullOrWhiteSpace(observation.ItemName) &&
                 observation.RejectionReason is null)
@@ -54,6 +42,11 @@ internal sealed class CompanionDiagnosticCounter(IReadOnlyList<CompanionRareCata
         {
             throw new InvalidDataException("Rare-Loot-Eingabe trotz deaktiviertem Rare-Loot-Kanal.");
         }
+
+        // Match the live analyzer: create rare reconciliation on first enable,
+        // then preserve its pending batch and shared ledger across layout changes.
+        // Disabled captures still advance an existing counter with empty rows.
+        if (enableRare) rare ??= new CompanionRareFrameReconciler(catalog, ledger);
 
         var normalRows = accepted.Where(static observation => observation.Source == LootSource.Normal)
             .OrderByDescending(static observation => observation.NativeY)

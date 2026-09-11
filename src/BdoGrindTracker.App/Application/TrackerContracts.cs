@@ -70,6 +70,7 @@ internal sealed record TrackerState
     public int? ExperienceStartLevel { get; init; }
     public int? ExperienceEndLevel { get; init; }
     public GrindBenchmark? GrindBenchmark { get; init; }
+    public string? GrindBenchmarkStatus { get; init; }
     public IReadOnlyList<string> ManualLootItems { get; init; } = [];
     public SilverValuationResult Silver { get; init; } = new(0, 0, 0, [], [], false);
     public IReadOnlyList<SessionSilverSample> SilverHistory { get; init; } = [];

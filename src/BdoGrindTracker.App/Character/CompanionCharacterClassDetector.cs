@@ -27,7 +27,7 @@ internal sealed record CharacterClassDetection(
 /// Passive class/spec inference from the locally saved skill slots, following
 /// Companion 0.7.4 calibration. It never accesses a game process or screenshot,
 /// never changes a game file, and does not expose account/character paths.
-/// This identifies the most recently accessed saved character configuration;
+/// This identifies the most recently saved character configuration;
 /// unsaved character or specialization changes cannot be detected from it.
 /// </summary>
 internal sealed class CompanionCharacterClassDetector
@@ -43,21 +43,28 @@ internal sealed class CompanionCharacterClassDetector
         ArgumentException.ThrowIfNullOrWhiteSpace(blackDesertDirectoryPath);
         try
         {
-            var selectedPath = SelectCharacterConfiguration(blackDesertDirectoryPath);
-            if (selectedPath is null)
+            var selectedPaths = SelectCharacterConfigurations(blackDesertDirectoryPath);
+            if (selectedPaths.Count == 0)
             {
                 return CharacterClassDetection.Unavailable;
             }
-
-            using var stream = new FileStream(selectedPath, FileMode.Open,
-                FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-            if (stream.Length > MaxXmlCharacters * 2)
+            CharacterClassDetection? accepted = null;
+            foreach (var selectedPath in selectedPaths)
             {
-                return CharacterClassDetection.Unavailable;
+                using var stream = new FileStream(selectedPath, FileMode.Open,
+                    FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                if (stream.Length > MaxXmlCharacters * 2)
+                    return CharacterClassDetection.Unavailable;
+                using var reader = XmlReader.Create(stream, CreateReaderSettings());
+                var detected = ReadSkills(reader);
+                // A tied save time does not prove which character is active.
+                // Only identical class/spec evidence may resolve such a tie.
+                if (detected.Status != CharacterClassDetectionStatus.Detected) return detected;
+                if (accepted is not null && accepted.Class != detected.Class)
+                    return new(null, CharacterClassDetectionStatus.Ambiguous);
+                accepted = detected;
             }
-
-            using var reader = XmlReader.Create(stream, CreateReaderSettings());
-            return ReadSkills(reader);
+            return accepted ?? CharacterClassDetection.Unknown;
         }
         catch (Exception exception) when (exception is IOException or
             UnauthorizedAccessException or XmlException or ArgumentException or
@@ -153,14 +160,14 @@ internal sealed class CompanionCharacterClassDetector
             : new(bestClass, CharacterClassDetectionStatus.Detected, bestScore);
     }
 
-    private static string? SelectCharacterConfiguration(string blackDesertDirectoryPath)
+    private static IReadOnlyList<string> SelectCharacterConfigurations(string blackDesertDirectoryPath)
     {
-        // Same selection rules as CompanionCalibrationReader, but independent
-        // of screen resolution/loot-panel visibility needed only for OCR.
+        // Keep the account boundary used by Companion, but never rank character
+        // files by access time: our own reads would change the next selection.
         var userCachePath = Path.Combine(Path.GetFullPath(blackDesertDirectoryPath), "UserCache");
         if (!Directory.Exists(userCachePath))
         {
-            return null;
+            return [];
         }
 
         string? selectedProfile = null;
@@ -184,7 +191,7 @@ internal sealed class CompanionCharacterClassDetector
 
         if (selectedProfile is null)
         {
-            return null;
+            return [];
         }
 
         string? presetDirectory = null;
@@ -199,11 +206,10 @@ internal sealed class CompanionCharacterClassDetector
 
         if (presetDirectory is null)
         {
-            return null;
+            return [];
         }
 
-        var selectedFile = Path.Combine(presetDirectory, "gameVariable.xml");
-        var latestAccess = File.GetLastAccessTimeUtc(selectedFile);
+        var candidates = new List<(string Path, DateTime Saved)>();
         foreach (var directory in Directory.EnumerateDirectories(presetDirectory))
         {
             var candidate = Path.Combine(directory, "gameVariable.xml");
@@ -212,14 +218,13 @@ internal sealed class CompanionCharacterClassDetector
                 continue;
             }
 
-            var lastAccess = File.GetLastAccessTimeUtc(candidate);
-            if (lastAccess >= latestAccess)
-            {
-                selectedFile = candidate;
-                latestAccess = lastAccess;
-            }
+            candidates.Add((candidate, File.GetLastWriteTimeUtc(candidate)));
         }
-
-        return selectedFile;
+        // The preset's own file is a shared/default configuration when actual
+        // character files exist below it. Saving/reading it cannot make it active.
+        if (candidates.Count == 0) return [Path.Combine(presetDirectory, "gameVariable.xml")];
+        var latestSave = candidates.Max(candidate => candidate.Saved);
+        var latest = candidates.Where(candidate => candidate.Saved == latestSave).Select(candidate => candidate.Path).Take(17).ToArray();
+        return latest.Length > 16 ? [] : latest;
     }
 }

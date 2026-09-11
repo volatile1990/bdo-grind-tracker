@@ -3,6 +3,7 @@ using BdoGrindTracker.App.Capture;
 using BdoGrindTracker.App.Persistence;
 using BdoGrindTracker.App.UI;
 using BdoGrindTracker.App.Diagnostics;
+using BdoGrindTracker.App.Integrations.Garmoth;
 using BdoGrindTracker.App.Services;
 using BdoGrindTracker.App.Updates;
 using Microsoft.Web.WebView2.Core;
@@ -106,8 +107,10 @@ internal static class Program
                         screen.DeviceName,
                         $"Bildschirm {index + 1} · {screen.Bounds.Width} × {screen.Bounds.Height}" + (screen.Primary ? " · Hauptbildschirm" : ""),
                         screen.Bounds, screen.Primary)).OrderByDescending(screen => screen.IsPrimary).ToArray();
+                    var settingsStore = new SettingsStore();
                     session = new TrackerSessionService(new PassiveCaptureSession(new PassiveWindowCapture()),
-                        analyzer, new SettingsStore(), monitors);
+                        analyzer, settingsStore, monitors, benchmarkProvider: new GarmothGrindBenchmarkProvider(
+                            Path.Combine(settingsStore.BaseDirectory, GarmothGrindBenchmarkProvider.CacheFileName)));
                 }
             }
             var hidden = preview && args.Contains("--ui-hidden", StringComparer.OrdinalIgnoreCase);

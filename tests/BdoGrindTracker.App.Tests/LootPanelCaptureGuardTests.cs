@@ -86,6 +86,57 @@ public sealed class LootPanelCaptureGuardTests
         Assert.Null(guard.Error);
     }
 
+    [Fact]
+    public void InvalidOptionalRareGeometryDoesNotStopNormalTracking()
+    {
+        var initial = Calibration() with { HasRareLootAnchor = true, RareLootAnchorX = int.MaxValue };
+        var validated = LootPanelCaptureGuard.ReadCalibration(() => initial);
+        Assert.False(validated.HasRareLootAnchor);
+        Assert.Equal(RareLootAnchorStatus.Invalid, validated.RareLootResolution!.Status);
+        Assert.Equal(initial.LootAnchorX, validated.LootAnchorX);
+        var guard = new LootPanelCaptureGuard(validated);
+        Assert.Equal(validated, guard.Validate(new Size(1920, 1080), DateTimeOffset.UnixEpoch));
+        Assert.Null(guard.Error);
+    }
+
+    [Fact]
+    public void RareClippingChangeDisablesOnlyRareUntilRestartAndPreservesNormalPosition()
+    {
+        var initial = Calibration() with { HasRareLootAnchor = true, RareLootAnchorX = 500, RareLootAnchorY = 400 };
+        var current = initial;
+        var guard = new LootPanelCaptureGuard(initial, () => current);
+        guard.Validate(new Size(1920, 1080), DateTimeOffset.UnixEpoch);
+        current = current with { RareLootAnchorY = 0 };
+        for (var i = 1; i <= 3; i++)
+        {
+            var result = guard.Validate(new Size(1920, 1080), DateTimeOffset.UnixEpoch.AddSeconds(i * 2));
+            Assert.False(result.HasRareLootAnchor);
+            Assert.Equal(initial.LootAnchorX, result.LootAnchorX);
+            Assert.Equal(initial.LootAnchorY, result.LootAnchorY);
+            Assert.Equal("rare-band-shape-changed-restart-required", result.RareLootResolution!.Reason);
+            Assert.Null(guard.Error);
+        }
+    }
+
+    [Fact]
+    public void RareResolutionProvenanceFollowsReloadWithoutChangingNormalGeometry()
+    {
+        var initial = Calibration() with
+        {
+            RareLootResolution = new(RareLootAnchorStatus.Ambiguous, "presets", "conflicting positions"),
+        };
+        var current = initial;
+        var guard = new LootPanelCaptureGuard(initial, () => current);
+        guard.Validate(new Size(1920, 1080), DateTimeOffset.UnixEpoch);
+        current = initial with
+        {
+            HasRareLootAnchor = true, RareLootAnchorX = 1300, RareLootAnchorY = 700,
+            RareLootResolution = new(RareLootAnchorStatus.PresetFallback, "UISettingPreset0", "unique matching position"),
+        };
+        Assert.Equal(current, guard.Validate(new Size(1920, 1080), DateTimeOffset.UnixEpoch.AddSeconds(2)));
+        Assert.Null(guard.Error);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

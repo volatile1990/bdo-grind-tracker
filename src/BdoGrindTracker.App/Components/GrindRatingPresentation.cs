@@ -3,7 +3,8 @@ using BdoGrindTracker.App.UI;
 
 namespace BdoGrindTracker.App.Components;
 
-internal sealed class GrindRatingPresentation(GrindRatingResult result, bool differingLootBuffs = false)
+internal sealed class GrindRatingPresentation(GrindRatingResult result, bool differingLootBuffs = false,
+    string? benchmarkStatus = null)
 {
     internal GrindRatingResult Result => result;
     internal string Label => result.Tier switch
@@ -28,8 +29,9 @@ internal sealed class GrindRatingPresentation(GrindRatingResult result, bool dif
     {
         get
         {
+            var refreshStatus = string.IsNullOrWhiteSpace(benchmarkStatus) ? "" : $" {benchmarkStatus.Trim()}";
             if (result.Tier == GrindRatingTier.Unavailable || result.Benchmark is not { } benchmark)
-                return "Keine Bewertung verfügbar.";
+                return "Keine Bewertung verfügbar." + refreshStatus;
             var thresholds = $"Average ab {Presentation.Number(benchmark.AverageTrashPerHour)}";
             if (benchmark.HighTrashPerHour is { } high) thresholds += $" · High ab {Presentation.Number(high)}";
             if (benchmark.TopTrashPerHour is { } top) thresholds += $" · Top ab {Presentation.Number(top)}";
@@ -37,7 +39,8 @@ internal sealed class GrindRatingPresentation(GrindRatingResult result, bool dif
                 $"Referenz: {benchmark.Conditions} · Stand {benchmark.UpdatedAt.ToString("dd.MM.yyyy", Presentation.German)}. " +
                 $"Quelle: {benchmark.SourceUrl}" +
                 (result.IsProvisional ? " · Vorläufig: weniger als 5 Minuten aktive Grindzeit." : "") +
-                (differingLootBuffs ? " · Abweichende Loot-Buffs: Der Vergleich berücksichtigt keine Buff-Korrektur." : "");
+                (differingLootBuffs ? " · Abweichende Loot-Buffs: Der Vergleich berücksichtigt keine Buff-Korrektur." : "") +
+                refreshStatus;
         }
     }
 }

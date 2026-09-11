@@ -2,8 +2,11 @@
 
 Seit Version 0.8.0 erkennt der Tracker Klassen anhand der lokal gespeicherten
 Skill-Slots in `Documents/Black Desert/UserCache/.../gameVariable.xml`.
-Die Anwendung liest diese Datei beim Öffnen und vor dem Start/Fortsetzen;
-sie bedient das Spiel nicht und untersucht keinen Spielprozess.
+Die Anwendung liest diese Datei beim Öffnen und vor dem Start/Fortsetzen.
+Eine noch unbekannte automatisch gewählte Klasse wird alle 30 Sekunden erneut
+geprüft. Auch beim Wechsel von einer manuellen Klasse zurück auf Automatik wird
+frisch gelesen. Die Anwendung bedient das Spiel nicht und untersucht keinen
+Spielprozess.
 
 Die sichtbaren Spezialisierungsnamen sind überall **Awakening** und **Succession**,
 auch bei deutscher Oberfläche: zum Beispiel `Maegu · Awakening` oder
@@ -37,8 +40,25 @@ Größenlimits und die Auswahl der gespeicherten Charakterdatei.
 
 ## Grenzen und Korrektur
 
+Die aktuelle Dateiauswahl verwendet die letzte **Schreibzeit** der gespeicherten
+Charakterdateien. Zugriffszeiten sind dafür ungeeignet: Schon das Lesen durch
+Grindcrest, BDO oder ein Diagnoseprogramm kann sie ändern. Die allgemeine Datei
+des Preset-Verzeichnisses wird nicht als Charakter ausgewählt, wenn darunter
+echte Charakterdateien vorhanden sind. Bei gleichen jüngsten Schreibzeiten
+müssen die Dateien dieselbe Klasse/Spezialisierung belegen; ansonsten bleibt
+die Erkennung unbekannt oder mehrdeutig. Eine ältere bekannte Klasse wird nicht
+als Ersatz für einen unbekannten aktuellen Charakter gewählt.
+
+Die oben dokumentierte Companion-Auswahl nach Zugriffszeit ist damit eine
+historische Vergleichsbeschreibung, nicht mehr die aktuelle Grindcrest-Auswahl.
+Die 56 Skillprofile und deren Stimmenzählung bleiben unverändert.
+
 Die gespeicherten Slots können einem noch nicht gespeicherten Charakter- oder
-Spezialisierungswechsel hinterherhinken. Fehlende Slots oder unbekannte Skills
+Spezialisierungswechsel hinterherhinken. In diesem Fall die UI-Einstellungen
+im Spiel mit dem aktiven Charakter speichern, damit BDO seine aktuelle
+Charakterkonfiguration schreibt. Eine beliebige Änderung anderer Spieleinstellungen
+oder das Öffnen einer Datei ist kein Beleg für einen Charakterwechsel.
+Fehlende Slots oder unbekannte Skills
 liefern keine erfundene Klasse. Unbekannte/mehrdeutige Klassen verhindern das
 Loot-Tracking nicht. Vor Beginn oder während einer Pause kann unter **Optionen**
 eine Klasse korrigiert werden; beim Upload wird sie nochmals angezeigt.

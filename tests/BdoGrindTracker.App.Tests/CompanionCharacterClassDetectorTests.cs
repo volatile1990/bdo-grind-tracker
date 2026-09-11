@@ -4,7 +4,7 @@ using BdoGrindTracker.App.Character;
 
 namespace BdoGrindTracker.App.Tests;
 
-public sealed class CompanionCharacterClassDetectorTests
+public sealed partial class CompanionCharacterClassDetectorTests
 {
     public static IEnumerable<object[]> Profiles =>
         CompanionCharacterClassCatalog.Profiles.Select(value => new object[] { value.Class.Id });
@@ -185,7 +185,7 @@ public sealed class CompanionCharacterClassDetectorTests
     }
 
     [Fact]
-    public void SelectsNewestNonzeroNumericProfileAndLatestAccessCharacterFile()
+    public void SelectsNewestNonzeroNumericProfileAndLatestSavedCharacterFile()
     {
         using var fixture = new CharacterConfigurationFixture();
         fixture.Create("111", "preset", 1768, accessDays: -3);
@@ -258,6 +258,7 @@ public sealed class CompanionCharacterClassDetectorTests
             Directory.CreateDirectory(directory);
             var path = Path.Combine(directory, "gameVariable.xml");
             File.WriteAllText(path, $"<QuickSlotSkillData SkillNo=\"{skillId}\"/>");
+            File.SetLastWriteTimeUtc(path, Timestamp.AddDays(accessDays));
             File.SetLastAccessTimeUtc(path, Timestamp.AddDays(accessDays));
             return path;
         }

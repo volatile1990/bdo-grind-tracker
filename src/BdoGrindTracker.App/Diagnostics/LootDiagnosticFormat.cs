@@ -120,6 +120,10 @@ internal sealed record LootDiagnosticEntry(
 
     public bool RareEnabled { get; init; }
 
+    // Coordinate selection for the first frame and each subsequent config change.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public LootCalibrationDiagnostics? CaptureCalibration { get; init; }
+
     // Missing in older recordings: absence must not be interpreted as SDR.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public bool? IsHdr { get; init; }

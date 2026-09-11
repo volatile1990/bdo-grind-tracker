@@ -80,6 +80,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
     private Task _automaticUploadTask = Task.CompletedTask;
     private Task? _shutdownTask;
     private Task? _classDetectionTask;
+    private DateTimeOffset _nextClassDetectionAt = DateTimeOffset.MinValue;
     private Task? _priceRefreshTask;
     private string? _priceRefreshRegion;
     private DateTimeOffset _nextPriceRefreshAt = DateTimeOffset.MinValue;
@@ -102,13 +103,15 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         LootScrollMonitor? lootScrollMonitor = null,
         Func<Rectangle, bool>? isLootScrollCaptureVisible = null,
         AgrisMonitor? agrisMonitor = null,
-        ExperienceMonitor? experienceMonitor = null)
+        ExperienceMonitor? experienceMonitor = null,
+        IGarmothGrindBenchmarkProvider? benchmarkProvider = null)
     {
         _captureSession = capture ?? throw new ArgumentNullException(nameof(capture));
         _analyzer = analyzer ?? throw new ArgumentNullException(nameof(analyzer));
         _lootScrollMonitor = lootScrollMonitor ?? new LootScrollMonitor(new LootScrollFrameDetector());
         _agrisMonitor = agrisMonitor ?? new AgrisMonitor(new AgrisFrameDetector());
-        _experienceMonitor = experienceMonitor ?? new ExperienceMonitor(new ExperienceFrameReader());
+        _experienceMonitor = experienceMonitor ?? new ExperienceMonitor(new ExperienceFrameReader(
+            readConfiguration: new ExperienceHudConfigurationReader().ReadDefault));
         _isLootScrollCaptureVisible = isLootScrollCaptureVisible ?? CreateLootScrollVisibilityCheck();
         _ocrLanguageInstaller = ocrLanguageInstaller ?? new WindowsOcrLanguageInstaller();
         _analyzerFactory = analyzerFactory ?? (language => FrameAnalyzerFactory.Create(language));
@@ -123,6 +126,9 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         _gameLanguageDetection = _detectGameLanguage();
         _priceProvider = priceProvider ?? new ArshaLootPriceProvider();
         _garmothClient = garmothClient ?? new GarmothUploadClient();
+        _benchmarkProvider = benchmarkProvider;
+        _benchmarkSnapshot = benchmarkProvider?.GetCachedSnapshot() ?? GarmothBenchmarkSnapshot.Bundled;
+        _benchmarkStatus = _benchmarkSnapshot.Status;
         _garmothKeyStore = keyStore ?? new GarmothApiKeyStore();
         try { _garmothApiKey = _garmothKeyStore.Load(); }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or CryptographicException)
@@ -133,6 +139,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         }
         _historyStore = historyStore ?? new LootHistoryStore(
             Path.Combine(settingsStore.BaseDirectory, "loot-history-v1.json"));
+        _currentSessionStore = new CurrentSessionStore(Path.Combine(settingsStore.BaseDirectory, CurrentSessionStore.FileName));
         _historyEntries = _historyStore.Load().ToList();
         InitializeGarmothUploadJournal();
         Prices = _priceProvider.GetCachedSnapshot(_settings.MarketRegion);
@@ -154,6 +161,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         };
         _status = analyzer.IsAvailable ? "Bereit für deine nächste Session." : analyzer.Status;
         _isError = !analyzer.IsAvailable;
+        RestoreCurrentSession();
         RefreshMissingOcrLanguageOffer();
         _captureSession.Stopped += CaptureSessionStopped;
         PublishState();
@@ -192,6 +200,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         RefreshPendingState();
         PersistCurrentSession(DateTimeOffset.UtcNow, throwOnError: true);
         SavePendingHistory();
+        ClearCurrentSessionCheckpoint();
+        ResetGrindBenchmarkRefresh();
         _analyzer.Reset();
         _lootScrollMonitor.Reset();
         _agrisMonitor.Reset();
@@ -220,6 +230,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         _lastCaptureDesktopRegion = null;
         _lastProcessedCaptureAt = null;
         _captureSegmentCompleted = true;
+        _restoredSessionNeedsCaptureSetup = false;
         Interlocked.Exchange(ref _lastCaptureStopError, null);
         SetStatus("Neue Session angelegt. Die Diagnose-Aufzeichnung ist ausgeschaltet.");
         return Task.CompletedTask;
@@ -285,11 +296,11 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             await RefreshClassDetectionAsync();
             if (_shutdownStarted) return;
             _sessionClass ??= SelectedCharacterClass;
-            if (!continuesExistingSession || geometryChanged)
+            if (!continuesExistingSession || geometryChanged || _restoredSessionNeedsCaptureSetup)
             {
                 _analyzer.Reset();
                 _lastProcessedCaptureAt = null;
-                _sessionSpotId = null;
+                if (!continuesExistingSession) _sessionSpotId = null;
                 _recording?.Dispose();
                 _recording = Preferences.RecordLoot
                     ? DiagnosticRecordingSession.Start(Path.Combine(_settingsStore.BaseDirectory, "diagnostics"),
@@ -303,6 +314,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             _ocrInstallationStatus = null;
             if (!_hasSession) _sessionStartedAt = DateTimeOffset.UtcNow;
             _hasSession = true;
+            PersistCurrentSessionCheckpoint(DateTimeOffset.UtcNow, throwOnError: true);
             _lootScrollMonitor.Reset();
             _agrisMonitor.Reset();
             _agrisSessionTracker.Pause(_sessionClock.Elapsed);
@@ -314,7 +326,9 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             _lastCaptureDesktopRegion = captureRegion;
             _captureSession.StartCompanion(captureRegion, ProcessFrameAsync,
                 _captureSession.UsesWindowCapture ? null : () => _isLootScrollCaptureVisible(captureRegion));
+            _restoredSessionNeedsCaptureSetup = false;
             _priceRefreshEnabled = true;
+            RefreshGrindBenchmarksIfDue();
             SetStatus(_settingsSaveError is { } settingsError
                 ? "Tracking aktiv. " + settingsError
                 : "Tracking aktiv. Drops werden automatisch erkannt und gezählt.",
@@ -382,7 +396,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
                 ? new LootCaptureTiming(metadata.TargetFrameInterval.TotalMilliseconds,
                     metadata.CaptureDuration.TotalMilliseconds, metadata.CaptureInterval?.TotalMilliseconds,
                     metadata.BackpressureDuration.TotalMilliseconds, metadata.QueueDelay.TotalMilliseconds,
-                    analysisDuration.TotalMilliseconds) : null);
+                    analysisDuration.TotalMilliseconds) : null,
+            captureCalibration: analysis.CaptureCalibration);
         _uiMailbox.Publish(analysis, onPublished: ObserveGarmothTotals,
             capturedAt: metadata.CapturedAtUtc);
         if (_uiRunning && metadata.CanObserveHud)
@@ -422,7 +437,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         using var update = _uiMailbox.TakeLatest();
         if (update is not null)
         {
-            _sessionSpotId = update.Analysis.SpotId;
+            _sessionSpotId = update.Analysis.SpotId ?? _sessionSpotId;
             if (update.Totals is { } totals) _sessionSummary = totals;
             if (_uiRunning && !_operationInProgress && !_garmothUploadInProgress &&
                 !_garmothIntervals.IsBlocked && !_garmothIntervals.AutomaticSuspended &&
@@ -430,6 +445,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             {
                 _status = update.Analysis.PanelRegion is null
                     ? "Lootbereich nicht verfügbar. Companion-Kalibrierung prüfen."
+                    : update.Analysis.CaptureCalibration?.RareResolution?.Status is RareLootAnchorStatus.Invalid or RareLootAnchorStatus.Ambiguous
+                    ? "Tracking aktiv. Normales Droplog wird erkannt; Rare-Droplog nicht verfügbar. BDO-UI-Einstellungen prüfen."
                     : "Tracking aktiv. Drops werden automatisch erkannt und gezählt.";
                 _isError = false;
             }
@@ -480,7 +497,11 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         try
         {
             RefreshPendingState(publish: false);
-            if (_classDetectionTask is null) _ = RefreshClassDetectionAsync();
+            if (_classDetectionTask is null ||
+                (Preferences.CharacterClassId is null && !_demoMode && !_sessionSubmitted &&
+                 (_hasSession ? _sessionClass is null : _classDetection.Class is null) &&
+                 DateTimeOffset.UtcNow >= _nextClassDetectionAt))
+                _ = RefreshClassDetectionAsync();
             var failed = Interlocked.CompareExchange(ref _lastCaptureStopError, null, null) is not null;
             // An HTTP upload does not defer inactivity or capture-failure handling.
             if (_uiRunning && !_operationInProgress && (failed ||
@@ -491,6 +512,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
                 finally { _operationInProgress = false; }
             }
             if (_shutdownStarted) return;
+            RefreshGrindBenchmarksIfDue();
             // Never await hourly HTTP in the timer: the next tick must still be
             // able to pause, consume producer snapshots, and update the duration.
             if (_automaticUploadTask.IsCompleted)
@@ -562,7 +584,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             IsBusy = IsBusy, IsDemo = _demoMode, IsSubmitted = _sessionSubmitted,
             CanEditLoot = !_operationInProgress && !_shutdownStarted && !_disposed,
             CanPause = _uiRunning && !_operationInProgress && !_shutdownStarted && !_disposed,
-            PersistenceError = _historyPersistenceError ?? _historyStore.LoadError ?? _garmothPersistenceError ?? _settingsSaveError,
+            PersistenceError = _currentSessionPersistenceError ?? _historyPersistenceError ?? _historyStore.LoadError ?? _garmothPersistenceError ?? _settingsSaveError,
             CurrentGarmothUpload = CreateCurrentGarmothUploadPreview(),
             AnalyzerAvailable = _analyzer.IsAvailable, SpotId = _sessionSpotId,
             TrackingBlockedReason = trackingBlockedReason,
@@ -586,12 +608,13 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             ExperienceObservedDuration = experienceProgress.ObservedDuration,
             ExperienceStartLevel = experienceProgress.StartLevel,
             ExperienceEndLevel = experienceProgress.EndLevel,
-            GrindBenchmark = GarmothGrindBenchmarks.Find(_sessionSpotId),
+            GrindBenchmark = _benchmarkSnapshot.Find(_sessionSpotId),
+            GrindBenchmarkStatus = _benchmarkStatus,
             Loot = new(totals, _sessionSummary.TotalQuantity, _sessionSummary.ConfirmedEventCount),
             ManualLootItems = Array.AsReadOnly(_sessionManualLootItems.ToArray()),
             Silver = SilverValuation.Calculate(totals, Prices, Preferences.Tax),
             PriceStatus = _priceStatus, Status = _isInstallingOcrLanguage ? _ocrInstallationStatus! : trackingBlockedReason ?? _status,
-            IsError = _isError || trackingBlockedReason is not null || _historyPersistenceError is not null || _historyStore.LoadError is not null || _garmothPersistenceError is not null || _settingsSaveError is not null,
+            IsError = _isError || trackingBlockedReason is not null || _currentSessionPersistenceError is not null || _historyPersistenceError is not null || _historyStore.LoadError is not null || _garmothPersistenceError is not null || _settingsSaveError is not null,
             RecordingPath = _recording?.RecordingPath, IsRecording = _recording?.IsRecording ?? false,
             HasApiKey = _garmothApiKey.Length > 0, UploadBlocked = _sessionSubmitted || _garmothIntervals.IsBlocked ||
                 _garmothPersistenceError is not null || _garmothRestartBlocks.Contains(_sessionId),
@@ -652,6 +675,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         if (_disposed) return;
         _shutdownStarted = true;
         _shutdownFailed = false;
+        ResetGrindBenchmarkRefresh();
         UpdateAgrisSession();
         UpdateExperienceSession();
         _sessionClock.Pause();
@@ -664,6 +688,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             // A possibly committed HTTP request must settle before disposing its
             // client or forgetting its upload/history guard.
             await Task.WhenAll(_operationTask, _automaticUploadTask, _tickTask);
+            await Task.WhenAll(_benchmarkRefreshTasks);
             if (_priceRefreshTask is { } pricing) await pricing;
             if (_classDetectionTask is { } classes) await classes;
             RefreshPendingState();
@@ -695,6 +720,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             _agrisMonitor.Dispose();
             _experienceMonitor.Dispose();
             _priceProvider.Dispose();
+            _benchmarkProvider?.Dispose();
             _garmothClient.Dispose();
             _uiMailbox.Dispose();
             _priceLifetime.Dispose();

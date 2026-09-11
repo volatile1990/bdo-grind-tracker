@@ -76,6 +76,8 @@ public sealed class CompanionCalibrationReaderTests
             customHp: true);
         Directory.SetLastWriteTimeUtc(older, olderTime);
         Directory.SetLastWriteTimeUtc(selected, selectedTime);
+        File.SetLastWriteTimeUtc(Path.Combine(older, "gameVariable.xml"), olderTime);
+        File.SetLastWriteTimeUtc(Path.Combine(selected, "gameVariable.xml"), selectedTime);
         fixture.WriteOptions(
             "width = 1920\nheight = 1080\nuiScale =  1.00\nUIFontType = 0\nwindowed = 1\n");
 

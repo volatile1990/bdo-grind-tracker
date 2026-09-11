@@ -31,6 +31,7 @@ public sealed class OverlayLiveSessionParityTests
             Loot = new(new Dictionary<string, long> { ["Elion Follower's Helmet"] = trash, ["Caphras Stone"] = 90000 }, trash + 90000, 100),
             GrindBenchmark = new(LootSpotCatalog.MagaiaId, 13946, 16300, 18500,
                 new(2026, 9, 10, 0, 0, 0, TimeSpan.Zero), "https://garmoth.com/grind-tracker/best-grind-spots/215", "Loot-Scroll Lv.2 · ohne Agris"),
+            GrindBenchmarkStatus = "Garmoth ist nicht erreichbar. Gespeicherte Referenzen werden verwendet.",
         };
         await using var tracker = new SnapshotSession(state);
         using var overlay = new OverlayService(tracker);
@@ -47,6 +48,10 @@ public sealed class OverlayLiveSessionParityTests
         Assert.Equal(new LiveSessionPresentation(state).GrindRating.Description, metric.Tooltip);
         Assert.Contains("Average ab 13.946 · High ab 16.300 · Top ab 18.500", metric.Tooltip);
         Assert.Contains("Loot-Scroll Lv.2 · ohne Agris", WebUtility.HtmlDecode(markup));
+        Assert.Contains(state.GrindBenchmarkStatus, metric.Tooltip);
+        Assert.Contains(state.GrindBenchmarkStatus, WebUtility.HtmlDecode(markup));
+        Assert.Contains("Stand 10.09.2026", metric.Tooltip);
+        Assert.Contains("Stand 10.09.2026", WebUtility.HtmlDecode(markup));
 
         tracker.SetState(state with { IsRunning = false, CanPause = false });
         Assert.Equal(metric, overlay.Snapshot.Metrics["grind-rating"]);

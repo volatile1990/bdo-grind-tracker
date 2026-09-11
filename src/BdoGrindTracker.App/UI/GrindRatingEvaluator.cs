@@ -13,8 +13,8 @@ internal static class GrindRatingEvaluator
             benchmark is null || benchmark.SpotId != spotId || trashQuantity < 0 || elapsed <= TimeSpan.Zero ||
             !HasSource(benchmark.SourceUrl) ||
             benchmark.AverageTrashPerHour <= 0 ||
-            benchmark.HighTrashPerHour is { } high && high <= benchmark.AverageTrashPerHour ||
-            benchmark.TopTrashPerHour is { } top && top <= (benchmark.HighTrashPerHour ?? benchmark.AverageTrashPerHour))
+            benchmark.HighTrashPerHour is { } high && high < benchmark.AverageTrashPerHour ||
+            benchmark.TopTrashPerHour is { } top && top < (benchmark.HighTrashPerHour ?? benchmark.AverageTrashPerHour))
             return Unavailable;
 
         decimal rate;
@@ -29,6 +29,8 @@ internal static class GrindRatingEvaluator
             return Unavailable;
         }
 
+        // Garmoth can clamp moderator thresholds to Average, creating ties.
+        // At a shared boundary, the highest available tier applies.
         var tier = benchmark.TopTrashPerHour is { } topRate && rate >= topRate ? GrindRatingTier.Top :
             benchmark.HighTrashPerHour is { } highRate && rate >= highRate ? GrindRatingTier.High :
             rate >= benchmark.AverageTrashPerHour ? GrindRatingTier.Average : GrindRatingTier.BelowAverage;

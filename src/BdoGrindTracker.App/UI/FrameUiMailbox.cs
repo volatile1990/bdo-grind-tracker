@@ -122,6 +122,37 @@ internal sealed class FrameUiMailbox : IDisposable
         }
     }
 
+    public void Restore(LootSessionSnapshot snapshot, IEnumerable<string> manualItems)
+    {
+        lock (_sync)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            // Aggregate validation completes before any queued UI data is lost.
+            _aggregate.Restore(snapshot, manualItems);
+            _projectionBuffer.Reset();
+            _latestAnalysis = null;
+            _latestDebugSnapshot = null;
+            _latestThumbnail?.Dispose();
+            _latestThumbnail = null;
+            _totalsChanged = true;
+        }
+    }
+
+    internal T ReadSnapshot<T>(Func<LootSessionSnapshot, T> read)
+    {
+        ArgumentNullException.ThrowIfNull(read);
+        lock (_sync)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            var snapshot = new LootSessionSnapshot(
+                new Dictionary<string, long>(_aggregate.Totals, StringComparer.OrdinalIgnoreCase),
+                _aggregate.TotalQuantity, _aggregate.ConfirmedEventCount);
+            // The caller can pair these totals with another producer-owned
+            // checkpoint using the same lock order as Publish.
+            return read(snapshot);
+        }
+    }
+
     public void Dispose()
     {
         lock (_sync)
