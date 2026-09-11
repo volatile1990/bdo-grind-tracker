@@ -1,4 +1,4 @@
-# Lootpools – Prüfstand 2026-09-06
+# Lootpools – Prüfstand 2026-09-11
 
 Der Tracker unterstützt alle sechs Inner-Edania-Zonen: Aphrodon Temple, Hermesia
 Inner Castle, Magaia Temple, Aresion Temple, Scales of Judgment und Event Horizon.
@@ -25,6 +25,7 @@ Die OCR-, Matching- und Zählalgorithmen sind unverändert.
 | Ancient Spirit Dust | Vom Nutzer im unterstützten Grind beobachtet; zusätzlich als direkter Inner-Edania-Monsterdrop offiziell belegt. |
 | Black Stone | Offiziell als direkter Inner-Edania-Monsterdrop belegt; bewusst als gemeinsames Material zugelassen. |
 | Caphras Stone | Dieselbe Einordnung wie Black Stone. |
+| Empty Picture Frame | Auf Nutzervorgabe vom 11.09.2026 global zugelassen; Drop über Allan Serbins Landschaftsgemälde. Minimum 1 und Maximum 10 pro Drop gelten an allen sechs Spots. |
 | Laila's Petal | Pearl Abyss beschreibt Monsterbeute unabhängig von der Region. |
 | Pure Black Stone | Historisch als sehr seltener Worlddrop beschrieben; vorsorglich als theoretisch mögliche Beute zugelassen. Kein neuer offizieller Nachweis für jede der sechs Zonen. |
 
@@ -37,6 +38,12 @@ bewusst auf mögliche Beute ausgerichtete Produkteinstellung.
 
 Die [offizielle Fairy-GM-Note](https://blackdesert.pearlabyss.com/Asia/en-US/News/Notice/Detail?_boardNo=844)
 belegt den regionsübergreifenden Erwerb von Laila's Petal.
+
+Der [offizielle Guide zu Allan Serbins Landschaftsgemälde](https://blackdesert.pearlabyss.com/Console/th-TH/Game/Wiki?_masterWikiNo=577)
+beschreibt Empty Picture Frame als zusätzlichen Drop bei aktiviertem Gemälde.
+Die Aufnahme in den PC-Lootpool und die Grenzen 1–10 beruhen auf der direkten
+Nutzervorgabe; der Guide ist kein Beleg dieser Mengen. Der deutsche Itemname
+lautet [Leerer Rahmen](https://bdocodex.com/de/item/767249/).
 
 Pure Black Stone ist in einem
 [Reprint der damaligen NA/EU-Patchnotes](https://www.blackdesertfoundry.com/14092016-patch-notes-euna-sorc-awakening/)

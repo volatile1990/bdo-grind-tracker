@@ -1,6 +1,6 @@
 # Dropmengen: Recherche und bestätigte Nutzervorgaben
 
-Stand: **8. September 2026, PC-Version**. Umfang: alle sechs Spots und alle
+Stand: **11. September 2026, PC-Version**. Umfang: alle sechs Spots und alle
 potenziellen Items aus `LootSpotCatalog`, einschließlich des optionalen Eventitems.
 
 Gesucht sind das **kleinste positive Minimum** und das **höchste mögliche Maximum
@@ -11,7 +11,11 @@ keine solchen Grenzen.
 
 **Alle 207 Item/Spot-Paare wurden am 8. September 2026 vom Nutzer in
 `Dropmengen-Eingabe.xlsx` vollständig ausgefüllt.** Die Tabelle unten enthält
-genau diese Angaben. 175 Paare haben Minimum = Maximum = 1.
+diese Angaben und die folgende Ergänzung. 175 Paare haben Minimum = Maximum = 1.
+Am 11. September wurde auf direkte Nutzervorgabe **Empty Picture Frame** mit
+Minimum **1** und Maximum **10** an allen sechs Spots ergänzt. Insgesamt sind
+damit **213 Item/Spot-Paare** enthalten; die sechs Ergänzungen stammen aus der
+Chatvorgabe und haben keine Excel-Quellzellen.
 Die daneben verlinkten Itemseiten dokumentieren die Recherche; sie sind kein
 Beleg der vom Nutzer vorgegebenen Mengen. Die Quellenkritik weiter unten bleibt
 als Recherchehistorie erhalten.
@@ -34,6 +38,7 @@ keine aktuelle Aktivität dieses Events.
 | --- | --- | --- | --- | --- | --- | --- |
 | [\[Event\] Mysterious Ore](https://bdocodex.com/us/item/1000508/) | 1 / 5 | 1 / 5 | 1 / 1 | 1 / 1 | 1 / 1 | 1 / 1 |
 | [Ancient Spirit Dust](https://bdocodex.com/us/item/721002/) | 1 / 50 | 1 / 50 | 1 / 50 | 1 / 50 | 1 / 50 | 1 / 50 |
+| [Empty Picture Frame](https://bdocodex.com/us/item/767249/) (Nutzervorgabe 11.09.2026) | 1 / 10 | 1 / 10 | 1 / 10 | 1 / 10 | 1 / 10 | 1 / 10 |
 | [Apeiron Belt](https://bdocodex.com/us/item/12298/) | — | — | 1 / 1 | 1 / 1 | 1 / 1 | 1 / 1 |
 | [Apeiron Earring](https://bdocodex.com/us/item/11898/) | 1 / 1 | 1 / 1 | 1 / 1 | 1 / 1 | 1 / 1 | 1 / 1 |
 | [Apeiron Necklace](https://bdocodex.com/us/item/11733/) | — | — | — | 1 / 1 | 1 / 1 | 1 / 1 |

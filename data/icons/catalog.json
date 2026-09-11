@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedAtUtc": "2026-09-02T18:09:05.4827749+00:00",
-  "updatedAtUtc": "2026-09-06T15:48:01.9843857+00:00",
+  "updatedAtUtc": "2026-09-11T00:00:00+00:00",
   "items": [
     {
       "itemId": "11733",
@@ -606,6 +606,17 @@
       "sha256": "535d445caf2ccceefec7c41384a522765d85a1b547030d3c6674112ca574d77c",
       "width": 44,
       "height": 44
+    },
+    {
+      "itemId": "767249",
+      "name": "Empty Picture Frame",
+      "file": "empty-picture-frame.png",
+      "page": "https://bdocodex.com/us/item/767249/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/03_quest_item/00066292.webp",
+      "sha256": "3812c13555f5b78ce7da869171133d466b97dc513733c3357c47a4eb65b21bd2",
+      "width": 44,
+      "height": 44,
+      "addedAtUtc": "2026-09-11T00:00:00+00:00"
     }
   ]
 }

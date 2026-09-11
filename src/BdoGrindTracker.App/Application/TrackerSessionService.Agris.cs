@@ -16,7 +16,7 @@ internal sealed partial class TrackerSessionService
         var visible = false;
         if (running && _lastCaptureDesktopRegion is { } region)
         {
-            try { visible = _isLootScrollCaptureVisible(region); }
+            try { visible = _captureSession.UsesWindowCapture ? _captureSession.IsRunning : _isLootScrollCaptureVisible(region); }
             catch (Exception) { /* Missing HUD visibility never blocks loot tracking. */ }
         }
         var snapshot = _agrisMonitor.Snapshot(now, out var generation);

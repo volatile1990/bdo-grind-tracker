@@ -91,6 +91,7 @@ internal interface ITrackerSession : IAsyncDisposable
     TrackerState State { get; }
     TrackerPreferences Preferences { get; }
     IReadOnlyList<TrackerMonitor> Monitors { get; }
+    bool CapturesGameWindow => false;
     IReadOnlyList<LootHistoryEntry> History { get; }
     LootPriceSnapshot Prices { get; }
     Task<TrackerCommandResult> ToggleTrackingAsync();

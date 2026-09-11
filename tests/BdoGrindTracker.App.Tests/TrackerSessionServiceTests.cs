@@ -1243,7 +1243,8 @@ public sealed partial class TrackerSessionServiceTests
         public Fixture(bool autoUpload = true, bool saveKey = true, AppSettings? initialSettings = null,
             SyntheticAnalyzer? analyzer = null, Func<BdoGrindTracker.Ocr.GameLanguageDetection>? languageDetector = null,
             LootScrollMonitor? lootScrollMonitor = null, Func<Rectangle, bool>? lootScrollVisible = null,
-            AgrisMonitor? agrisMonitor = null, ExperienceMonitor? experienceMonitor = null)
+            AgrisMonitor? agrisMonitor = null, ExperienceMonitor? experienceMonitor = null,
+            PassiveCaptureSession? suppliedCapture = null)
         {
             Analyzer = analyzer ?? new();
             Directory.CreateDirectory(DirectoryPath);
@@ -1255,7 +1256,7 @@ public sealed partial class TrackerSessionServiceTests
             if (saveKey) KeyStore.Save("synthetic-auto-upload-key");
             Clock = new GrindSessionClock(Time);
             Activity = new GrindInactivityTimer(Time);
-            var capture = new PassiveCaptureSession(region =>
+            var capture = suppliedCapture ?? new PassiveCaptureSession(region =>
             {
                 LastCaptureRegion = region;
                 Captures++;
@@ -1383,6 +1384,7 @@ public sealed partial class TrackerSessionServiceTests
         public Func<Task<FrameAnalysisResult>>? Analyze { get; set; }
         public FrameAnalysisResult CompletionResult { get; set; } = Analysis();
         public int CompletionCalls { get; private set; }
+        public DateTimeOffset? LastCompletedAt { get; private set; }
         public bool Disposed { get; private set; }
         public int Calls { get; private set; }
         public bool? LastHdrOcr { get; private set; }
@@ -1410,6 +1412,7 @@ public sealed partial class TrackerSessionServiceTests
         public FrameAnalysisResult CompleteSession(DateTimeOffset completedAt)
         {
             CompletionCalls++;
+            LastCompletedAt = completedAt;
             return CompletionResult;
         }
         public void Reset() { }

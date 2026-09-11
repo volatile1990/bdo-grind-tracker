@@ -16,14 +16,14 @@ public sealed class GermanItemMatcherTests
             Assert.Equal(canonical, match!.CanonicalName);
             Assert.True(match.IsExact);
         }
-        Assert.Equal(57, matcher.CatalogEntries.Count);
+        Assert.Equal(58, matcher.CatalogEntries.Count);
         Assert.DoesNotContain(matcher.CatalogEntries, entry => entry.Name == german && german != canonical);
     }
 
     [Fact]
     public void EveryAllowedDropHasAGermanNameIncludingEvents()
     {
-        Assert.Equal(57, ItemLocalizationCatalog.GermanNames.Count);
+        Assert.Equal(58, ItemLocalizationCatalog.GermanNames.Count);
         foreach (var name in LootSpotCatalog.Spots.SelectMany(spot => spot.AllowedItems).Concat(LootSpotCatalog.EventItems))
             Assert.True(ItemLocalizationCatalog.GermanNames.ContainsKey(name), name);
     }

@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Independent user-confirmed helmet references and provenance for accepted-only fixtures. Historical replay expectations are reproducibility baselines, not accuracy targets.",
+  "inputPolicy": "Original Normal rows with a nonblank itemName and null rejectionReason; original row order, timestamps, slots, quantities and confidence values. No OCR rerun, inferred missing rows, quantity repair or target-total input. Missing quantity is represented by ?.",
+  "sessions": [
+    {
+      "fixture": "recording3.txt",
+      "sourceRecording": "loot-20260911-055049-89e1aaef40434c989e95447b88e08404",
+      "sourceJournalSha256": "328BC8F911DBD4DA2EE237D94C2A3C91190EC64BFDD4608C37825184326F009C",
+      "fixtureSha256": "72E295E87B4289408E6CF06A4D0460EDB43245D369BC2C1759AF406AF2E11C94",
+      "frames": 2499,
+      "acceptedNormalRows": 2343,
+      "firstFrameTimestamp": "2026-09-11T05:50:50.0073372+00:00",
+      "lastFrameTimestamp": "2026-09-11T05:59:17.0599417+00:00",
+      "independentReference": {
+        "itemName": "Elion Follower's Helmet",
+        "quantity": 2050,
+        "provenance": "User-confirmed in-game loot total, independent of OCR and replay output."
+      },
+      "historicalAcceptedOnlyReplay": {
+        "algorithm": "lifetime-v1",
+        "helmetQuantity": 2034,
+        "supportedDropCount": 385,
+        "selectedLifetimeMs": 1350,
+        "purpose": "Historical reproducibility only; the quantity differs from the independent accuracy reference."
+      }
+    },
+    {
+      "fixture": "recording4.txt",
+      "sourceRecording": "loot-20260911-062317-3ddc64191eea4b8986c37055a963a869",
+      "sourceJournalSha256": "AC14BAAA8E7B8AE9EFF33148D8CF03574FB8132AACFF481B46DE99A40FC62A6A",
+      "fixtureSha256": "8300CB14CD49CF965AA0F0B510784098715A698D03F9AC7C6B01D8C6547FF450",
+      "frames": 1341,
+      "acceptedNormalRows": 941,
+      "firstFrameTimestamp": "2026-09-11T06:23:18.0917745+00:00",
+      "lastFrameTimestamp": "2026-09-11T06:27:50.0215329+00:00",
+      "independentReference": {
+        "itemName": "Elion Follower's Helmet",
+        "quantity": 604,
+        "provenance": "User-confirmed in-game loot total, independent of OCR and replay output."
+      },
+      "historicalAcceptedOnlyReplay": {
+        "algorithm": "lifetime-v1",
+        "helmetQuantity": 600,
+        "supportedDropCount": 153,
+        "selectedLifetimeMs": 1450,
+        "purpose": "Historical reproducibility only; the quantity differs from the independent accuracy reference."
+      }
+    }
+  ]
+}

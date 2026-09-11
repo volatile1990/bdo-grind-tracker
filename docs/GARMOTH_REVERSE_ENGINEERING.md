@@ -6,6 +6,11 @@ Working Tree auf Basis von Commit `ffb1b4c`. Der Working Tree enthält bereits
 uncommittete OCR- und Mengenprüfungsänderungen. Aussagen darüber sind nicht
 automatisch Aussagen über ein installiertes Grindcrest-Release.
 
+Dieser Bericht bleibt die Bestandsaufnahme **vor** der anschließenden Umstellung
+des Grindcrest-Normalzählers. Den neuen Entwicklungsstand dokumentiert
+[Zeitliche Loot-Zählung](TEMPORAL_LOOT_TRACKING.md); die nachstehenden Vergleiche
+werden dadurch nicht nachträglich zu Messungen des neuen Algorithmus.
+
 **Ergebnis:** Garmoth verwendet lokale PaddleOCR-Modelle in einem eigenen
 Rust-Prozess. Der wesentliche Architekturunterschied liegt außerdem in einem
 zeitlichen Zeilenmodell namens `ledger-v2`: Es bewertet mehrere mögliche

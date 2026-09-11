@@ -4,7 +4,7 @@
 
 Die Produkt-App liest nur:
 
-- die sichtbaren Pixel des ausgewählten Monitors;
+- die von Windows Graphics Capture gelieferten Pixel des Black-Desert-Spielfensters;
 - `Documents/Black Desert/GameOption.txt`;
 - Windows-Deinstallationseinträge zur Lokalisierung der BDO-Installation und deren
   `Resource.ini` zur automatischen Erkennung der Textsprache;
@@ -12,8 +12,10 @@ Die Produkt-App liest nur:
   `Documents/Black Desert/UserCache`;
 - den lokalen Itemkatalog und optionale Darstellungsicons aus dem App-Verzeichnis.
 
-Das optionale Ingame-Overlay ordnet sichtbare Windows-Fenster anhand ihrer
-Prozessnamen Black Desert zu und liest deren Monitor und Vordergrundstatus. Es
+Aufnahme und optionales Ingame-Overlay ordnen Windows-Fenster anhand ihrer
+Prozessnamen Black Desert zu und lesen deren Fenstergeometrie, Monitor und Sichtbarkeitsstatus. Die Aufnahme
+bindet ein Fenster per HWND und Prozess-ID; sie fällt bei einem Fehler nicht auf
+eine Desktopaufnahme zurück. Die App
 liest dabei keine Spielprozess-Speicherbereiche oder geladenen Spielmodule.
 
 Für die passive Klassenerkennung werden aus derselben gespeicherten
@@ -49,8 +51,8 @@ Grindcrest setzt seine Fenster auf die normale Windows-Aufnahmefreigabe (`WDA_NO
 statt sie global aus Screenshots auszublenden. Das behebt ihr Verschwinden in der
 Snipping-Ansicht; es löst selbst keine Bildschirmaufnahme aus. Auch die beiden
 Optionsdialoge bleiben aufnehmbar. Der API-Key ist dort weiterhin maskiert.
-Während des Trackings dürfen die eigenen Fenster das kalibrierte Lootpanel nicht
-überdecken; es werden weiterhin ausschließlich tatsächlich sichtbare Pixel gelesen.
+Die Aufnahme des Spielfensters verarbeitet dessen eigene Bildoberfläche. Andere
+Desktopfenster gehören nicht zu dieser Oberfläche; spielinterne Meldungen schon.
 
 Für das separat aktivierbare Ingame-Overlay gilt standardmäßig
 `WDA_EXCLUDEFROMCAPTURE`, damit seine Metriken nicht selbst in der OCR landen.

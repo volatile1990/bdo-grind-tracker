@@ -5,9 +5,11 @@ public sealed class DropQuantityCatalogTests
     [Fact]
     public void CompletedWorkbookContainsAll207ConfirmedPairsAnd175FixedUnits()
     {
-        Assert.Equal(207, DropQuantityCatalog.Entries.Count);
-        Assert.Equal(175, DropQuantityCatalog.Entries.Count(entry => entry.Bounds!.IsFixedUnit));
-        Assert.All(DropQuantityCatalog.Entries, entry =>
+        var workbookEntries = DropQuantityCatalog.Entries
+            .Where(entry => entry.Source!.Contains("Eingabe!C", StringComparison.Ordinal)).ToArray();
+        Assert.Equal(207, workbookEntries.Length);
+        Assert.Equal(175, workbookEntries.Count(entry => entry.Bounds!.IsFixedUnit));
+        Assert.All(workbookEntries, entry =>
         {
             Assert.NotNull(entry.MinimumQuantity);
             Assert.NotNull(entry.MaximumQuantity);
@@ -38,7 +40,20 @@ public sealed class DropQuantityCatalogTests
     {
         Assert.Equal(new DropQuantityBounds(1, 50), DropQuantityCatalog.GetBounds(null, "Caphras Stone"));
         Assert.Equal(new DropQuantityBounds(1, 5), DropQuantityCatalog.GetBounds(null, "Laila's Petal"));
+        Assert.Equal(new DropQuantityBounds(1, 10), DropQuantityCatalog.GetBounds(null, "Empty Picture Frame"));
         Assert.True(DropQuantityCatalog.GetBounds(null, "BON Wandering Origin Crystal")!.IsFixedUnit);
+    }
+
+    [Fact]
+    public void EmptyPictureFrameUsesUserSpecifiedBoundsInEverySpot()
+    {
+        foreach (var spot in LootSpotCatalog.Spots)
+        {
+            Assert.True(spot.Allows("Empty Picture Frame"));
+            var entry = DropQuantityCatalog.GetRequired(spot.Id, "Empty Picture Frame");
+            Assert.Equal(new DropQuantityBounds(1, 10), entry.Bounds);
+            Assert.Contains("11.09.2026", entry.Source);
+        }
     }
 
     [Fact]

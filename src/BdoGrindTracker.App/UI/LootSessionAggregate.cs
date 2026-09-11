@@ -1,10 +1,11 @@
 using BdoGrindTracker.App.Analysis;
+using BdoGrindTracker.Core;
 
 namespace BdoGrindTracker.App.UI;
 
 /// <summary>
-/// Applies each output ID to user-visible totals at most once, including the
-/// signed rare-loot corrections emitted by Companion reconciliation.
+/// Applies authoritative loot projections with independent manual corrections,
+/// or individual outputs for historical reconciliation modes.
 /// </summary>
 internal sealed class LootSessionAggregate
 {
@@ -13,6 +14,10 @@ internal sealed class LootSessionAggregate
     private readonly HashSet<string> _manuallyEditedItems = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, long> _totals =
         new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, long> _manualOffsets =
+        new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, long>? _projectionTotals;
+    private long? _projectionRevision;
 
     public IReadOnlyDictionary<string, long> Totals => _totals;
 
@@ -21,6 +26,57 @@ internal sealed class LootSessionAggregate
     public int ConfirmedEventCount { get; private set; }
 
     public int ItemTypeCount => _totals.Count(pair => pair.Value != 0);
+
+    public DateTimeOffset? LatestArrivalAt { get; private set; }
+
+    public (bool TotalsChanged, bool HasNewArrival) ApplyProjection(LootTotalsProjection projection)
+    {
+        ArgumentNullException.ThrowIfNull(projection);
+        ArgumentOutOfRangeException.ThrowIfNegative(projection.Revision);
+        if (_projectionRevision is { } revision && projection.Revision <= revision)
+            return (false, false);
+
+        ArgumentNullException.ThrowIfNull(projection.Totals);
+        ArgumentOutOfRangeException.ThrowIfNegative(projection.ConfirmedDropCount);
+        var automaticTotals = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (itemName, quantity) in projection.Totals)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(itemName);
+            ArgumentOutOfRangeException.ThrowIfNegative(quantity);
+            if (!automaticTotals.TryAdd(itemName, quantity))
+                throw new ArgumentException("A projection contains duplicate item names.", nameof(projection));
+        }
+
+        var totals = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+        long totalQuantity = 0;
+        foreach (var itemName in automaticTotals.Keys.Concat(_manuallyEditedItems).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            var quantity = Math.Max(0, checked(automaticTotals.GetValueOrDefault(itemName) +
+                _manualOffsets.GetValueOrDefault(itemName)));
+            totalQuantity = checked(totalQuantity + quantity);
+            if (quantity != 0 || _manuallyEditedItems.Contains(itemName))
+                totals.Add(itemName, quantity);
+        }
+
+        var totalsChanged = ConfirmedEventCount != projection.ConfirmedDropCount ||
+            totals.Count != _totals.Count || totals.Any(pair =>
+                !_totals.TryGetValue(pair.Key, out var quantity) || quantity != pair.Value);
+        var hasNewArrival = projection.LatestArrivalAt is { } arrival &&
+            (LatestArrivalAt is null || arrival > LatestArrivalAt.Value);
+
+        // Validate and calculate every item first: a malformed snapshot must not
+        // partly replace the session or consume its revision.
+        _totals.Clear();
+        foreach (var pair in totals)
+            _totals.Add(pair.Key, pair.Value);
+        _projectionTotals = automaticTotals;
+        _projectionRevision = projection.Revision;
+        TotalQuantity = totalQuantity;
+        ConfirmedEventCount = projection.ConfirmedDropCount;
+        if (hasNewArrival)
+            LatestArrivalAt = projection.LatestArrivalAt;
+        return (totalsChanged, hasNewArrival);
+    }
 
     public void Apply(LootEventView lootEvent)
     {
@@ -79,6 +135,9 @@ internal sealed class LootSessionAggregate
         var correction = checked(quantity - originalQuantity);
         var updatedQuantity = Math.Max(0, checked(currentQuantity + correction));
         var totalQuantity = checked(TotalQuantity + checked(updatedQuantity - currentQuantity));
+        var manualOffset = _projectionTotals is not null
+            ? checked(updatedQuantity - _projectionTotals.GetValueOrDefault(itemName))
+            : checked(_manualOffsets.GetValueOrDefault(itemName) + correction);
         var totals = new Dictionary<string, long>(_totals, StringComparer.OrdinalIgnoreCase)
         {
             [itemName] = updatedQuantity,
@@ -87,6 +146,7 @@ internal sealed class LootSessionAggregate
         beforeCommit?.Invoke(new(totals, totalQuantity, ConfirmedEventCount));
         _totals[itemName] = updatedQuantity;
         _manuallyEditedItems.Add(itemName);
+        _manualOffsets[itemName] = manualOffset;
         TotalQuantity = totalQuantity;
     }
 
@@ -95,6 +155,10 @@ internal sealed class LootSessionAggregate
         _totals.Clear();
         _appliedEvents.Clear();
         _manuallyEditedItems.Clear();
+        _manualOffsets.Clear();
+        _projectionTotals = null;
+        _projectionRevision = null;
+        LatestArrivalAt = null;
         TotalQuantity = 0;
         ConfirmedEventCount = 0;
     }

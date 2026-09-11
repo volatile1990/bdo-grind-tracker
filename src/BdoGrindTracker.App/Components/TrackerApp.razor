@@ -3,6 +3,7 @@
 @inject IJSRuntime JS
 @inject NavigationManager Navigation
 
+<CascadingValue Name="ShowStoreUpdateDialog" Value="@EventCallback.Factory.Create(this, ShowStoreUpdateDialog)">
 <div class="app-shell" data-app-ready="true">
     <aside class="sidebar" aria-label="Hauptnavigation">
         <a class="brand" href="#" aria-label="Grindcrest · Live-Session" @onclick="() => Navigate(Page.Live)" @onclick:preventDefault>
@@ -52,9 +53,13 @@
         </footer>
     </div>
 </div>
+<StoreUpdateDialog @ref="_storeUpdateDialog" />
+</CascadingValue>
 
 @code {
     private enum Page { Live, History, Garmoth, Overlay, Settings }
+    private StoreUpdateDialog? _storeUpdateDialog;
+    private Task ShowStoreUpdateDialog() => _storeUpdateDialog?.OpenAsync() ?? Task.CompletedTask;
     private bool _scrollPending;
     private string _scrollKey = "";
     private Page _page

@@ -43,6 +43,9 @@ internal sealed record FrameAnalysisResult(
 
     public IReadOnlyList<LootObservation> Observations { get; init; } = [];
 
+    public LootTotalsProjection? LootProjection { get; init; }
+    public LifetimeParsingContext? LifetimeParsingContext { get; init; }
+
     public TrackerFrameResult TrackingResult { get; init; } = new([], []);
 
     public NormalLootRecoveryDiagnostics Recovery { get; init; } = NormalLootRecoveryDiagnostics.Empty;

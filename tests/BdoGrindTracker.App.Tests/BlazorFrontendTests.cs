@@ -546,13 +546,15 @@ public sealed class BlazorFrontendTests
     }
 
     [Fact]
-    public async Task ActiveStoreUpdatesOfferDownloadWithoutBetaOrExternalStoreNavigation()
+    public async Task ActiveStoreUpdatesOfferDirectInstallationWithoutBetaOrExternalStoreNavigation()
     {
         var updates = new StaticUpdates(new(true, false, "1.0.1", null,
             UpdatePhase.Available, 0, "Eine neue Version von Grindcrest ist verfügbar.") { UsesStore = true });
         var session = new SnapshotSession { State = ActiveState() };
         var markup = WebUtility.HtmlDecode(await RenderAsync<AppUpdates>(session, updates: updates));
-        Assert.Contains("Update herunterladen", markup);
+        Assert.Contains("Jetzt aktualisieren", markup);
+        Assert.DoesNotContain("Update herunterladen", markup);
+        Assert.Contains("Session zuerst pausieren", markup);
         Assert.Contains("Nach Updates suchen", markup);
         Assert.DoesNotContain("Beta-Updates", markup);
         Assert.DoesNotContain("Öffne den Microsoft Store", markup);

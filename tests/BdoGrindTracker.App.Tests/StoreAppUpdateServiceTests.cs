@@ -21,8 +21,6 @@ public sealed class StoreAppUpdateServiceTests
         Assert.True(service.State.UsesStore);
         Assert.True(service.State.CanDownload);
         Assert.Null(service.State.AvailableVersion); // Store does not expose the target version here.
-        await service.RequestRestartAsync();
-        Assert.Empty(steps);
         await service.DownloadAsync();
         Assert.True(service.State.IsReady);
         Assert.Equal(100, service.State.DownloadPercent);
@@ -91,13 +89,12 @@ public sealed class StoreAppUpdateServiceTests
     [InlineData((int)StoreUpdateResult.LowBattery)]
     [InlineData((int)StoreUpdateResult.NetworkRequired)]
     [InlineData((int)StoreUpdateResult.Failed)]
-    public async Task IncompleteDownloadNeverEnablesInstallation(int result)
+    public async Task IncompleteDownloadRemainsAvailableForAnotherAttempt(int result)
     {
         var backend = new Backend { DownloadResult = (StoreUpdateResult)result };
         var service = Create(backend);
         await service.CheckAsync();
         await service.DownloadAsync();
-        await service.RequestRestartAsync();
         Assert.True(service.State.CanDownload);
         Assert.False(service.State.IsReady);
         Assert.Equal(0, backend.Installs);
@@ -163,6 +160,94 @@ public sealed class StoreAppUpdateServiceTests
     }
 
     [Fact]
+    public async Task AvailableUpdateInstallsWithOneClickAfterDurableSaveWithoutSeparateDownload()
+    {
+        var steps = new List<string>();
+        var backend = new Backend { Installing = () => steps.Add("install") };
+        var service = Create(backend, prepare: async install =>
+        {
+            steps.Add("save");
+            await install();
+            await install(); // Host retries cannot start another Store operation.
+            return true;
+        });
+        await service.CheckAsync();
+        await service.RequestRestartAsync();
+        Assert.Equal(["save", "install"], steps);
+        Assert.Equal(0, backend.Downloads);
+        Assert.Equal(1, backend.Installs);
+        Assert.Equal(UpdatePhase.Installed, service.State.Phase);
+        Assert.Equal(100, service.State.DownloadPercent);
+    }
+
+    [Fact]
+    public async Task DirectInstallCannotInterruptTrackingOrRunWithoutSuccessfulCheck()
+    {
+        var blocked = true;
+        var backend = new Backend();
+        var service = Create(backend, () => blocked);
+        await service.RequestRestartAsync();
+        Assert.Equal(0, backend.Installs);
+        await service.CheckAsync();
+        await service.RequestRestartAsync();
+        Assert.Equal(UpdatePhase.Available, service.State.Phase);
+        Assert.Equal(0, backend.Installs);
+        blocked = false;
+        await service.RequestRestartAsync();
+        Assert.Equal(1, backend.Installs);
+    }
+
+    [Theory]
+    [InlineData("save")]
+    [InlineData("host-refused")]
+    [InlineData("installer")]
+    [InlineData("canceled")]
+    public async Task FailedDirectInstallDoesNotClaimStagedPackagesAndCanRetry(string failure)
+    {
+        var fail = true;
+        var backend = new Backend { ThrowInstall = failure == "installer",
+            InstallResult = failure == "canceled" ? StoreUpdateResult.Canceled : StoreUpdateResult.Completed };
+        var service = Create(backend, prepare: async install =>
+        {
+            if (fail && failure == "save") throw new IOException("disk full");
+            if (fail && failure == "host-refused") return false;
+            await install();
+            return true;
+        });
+        await service.CheckAsync();
+        await service.RequestRestartAsync();
+        Assert.Equal(UpdatePhase.Available, service.State.Phase);
+        Assert.Equal(0, service.State.DownloadPercent);
+        Assert.False(service.State.IsReady);
+        if (failure is "save" or "host-refused") Assert.Equal(0, backend.Installs);
+        fail = false;
+        backend.ThrowInstall = false;
+        backend.InstallResult = StoreUpdateResult.Completed;
+        await service.RequestRestartAsync();
+        Assert.Equal(UpdatePhase.Installed, service.State.Phase);
+    }
+
+    [Fact]
+    public async Task DirectInstallSerializesRepeatedClicksAndChecksWhileStoreOwnsTheOperation()
+    {
+        var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var backend = new Backend { InstallGate = gate.Task };
+        var service = Create(backend);
+        await service.CheckAsync();
+        var install = service.RequestRestartAsync();
+        await service.RequestRestartAsync();
+        await service.CheckAsync();
+        await service.DownloadAsync();
+        Assert.Equal(UpdatePhase.Restarting, service.State.Phase);
+        Assert.Equal(1, backend.Installs);
+        Assert.Equal(1, backend.Checks);
+        Assert.Equal(0, backend.Downloads);
+        gate.SetResult();
+        await install;
+        Assert.Equal(UpdatePhase.Installed, service.State.Phase);
+    }
+
+    [Fact]
     public void NonCompletedWindowsStatesNeverCountAsSuccess()
     {
         foreach (var state in Enum.GetValues<StorePackageUpdateState>())
@@ -180,6 +265,7 @@ public sealed class StoreAppUpdateServiceTests
         public int Checks, Downloads, Installs;
         public StoreUpdateResult DownloadResult = StoreUpdateResult.Completed, InstallResult = StoreUpdateResult.Completed;
         public Task DownloadGate = Task.CompletedTask;
+        public Task InstallGate = Task.CompletedTask;
         public Action? Installing;
         public Task<bool> CheckAsync()
         {
@@ -195,12 +281,13 @@ public sealed class StoreAppUpdateServiceTests
             progress(100);
             return DownloadResult;
         }
-        public Task<StoreUpdateResult> InstallAsync(Action<int> progress)
+        public async Task<StoreUpdateResult> InstallAsync(Action<int> progress)
         {
             Installs++;
             Installing?.Invoke();
             if (ThrowInstall) throw new IOException("Store unavailable");
-            return Task.FromResult(InstallResult);
+            await InstallGate;
+            return InstallResult;
         }
     }
 }

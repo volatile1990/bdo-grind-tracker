@@ -79,13 +79,13 @@ public sealed class IconCoverageTests
         var catalog = ReadCatalog();
         var names = LootSpotCatalog.Spots.SelectMany(static spot => spot.AllowedItems)
             .Distinct(StringComparer.Ordinal).ToArray();
-        Assert.Equal(55, names.Length);
+        Assert.Equal(56, names.Length);
         Assert.DoesNotContain(names, name => !catalog.ContainsKey(name));
-        Assert.Equal(57, catalog.Count);
-        Assert.Equal(57, Directory.GetFiles(IconDirectory, "*.png").Length);
+        Assert.Equal(58, catalog.Count);
+        Assert.Equal(58, Directory.GetFiles(IconDirectory, "*.png").Length);
         Assert.True(catalog.ContainsKey("Pure Black Stone"));
         Assert.Equal("assets/icons/pure-black-stone.png", Presentation.ItemIcon("Pure Black Stone"));
-        Assert.Equal(34, catalog.Values.Count(static entry => entry.TryGetProperty("addedAtUtc", out _)));
+        Assert.Equal(35, catalog.Values.Count(static entry => entry.TryGetProperty("addedAtUtc", out _)));
     }
 
     private static Dictionary<string, JsonElement> ReadCatalog()

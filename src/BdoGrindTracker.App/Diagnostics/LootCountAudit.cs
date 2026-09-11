@@ -16,12 +16,31 @@ internal sealed class LootCountAudit
     private long _newDrops;
     private long _quantityRevisions;
     private long _candidateCount;
+    private long? _projectionRevision;
+    private int? _projectionConfirmedDropCount;
+    private long _projectionUpdates;
 
     public void Observe(TrackerFrameResult result, IReadOnlyList<RecordedNormalReconciliation>? traces)
     {
+        var priorCapture = _lastCapture;
         _lastCapture = Math.Max(_lastCapture, result.NormalCaptureIndex ?? 0);
-        foreach (var change in result.NewEvents)
-            _recordedTotals[change.ItemName] = checked(_recordedTotals.GetValueOrDefault(change.ItemName) + change.Quantity);
+        if (result.LootProjection is { } projection)
+        {
+            DiagnosticRecordingSession.ValidateProjection(projection);
+            if (_projectionRevision is { } revision && projection.Revision < revision)
+                throw new InvalidDataException("Rückläufige Loot-Projektion in der Zähldiagnose.");
+            if (_projectionRevision != projection.Revision) _projectionUpdates++;
+            _projectionRevision = projection.Revision;
+            _projectionConfirmedDropCount = projection.ConfirmedDropCount;
+            _recordedTotals.Clear();
+            foreach (var (name, amount) in projection.Totals)
+                if (amount != 0) _recordedTotals[name] = amount;
+            _lastFinalizedCapture = _lastCapture;
+            if (traces is not { Count: > 0 } && _lastCapture > priorCapture) _traceFrames++;
+        }
+        else
+            foreach (var change in result.NewEvents)
+                _recordedTotals[change.ItemName] = checked(_recordedTotals.GetValueOrDefault(change.ItemName) + change.Quantity);
         foreach (var recorded in traces ?? [])
         {
             var trace = recorded.Trace;
@@ -50,9 +69,14 @@ internal sealed class LootCountAudit
     public object Snapshot(Guid sessionId, DateTimeOffset savedAt, TimeSpan activeTime,
         IReadOnlyDictionary<string, long> savedTotals) => new
     {
-        FormatVersion = 1, SessionId = sessionId, SavedAt = savedAt, ActiveSeconds = activeTime.TotalSeconds,
+        FormatVersion = _projectionRevision is null ? 1 : 2,
+        SessionId = sessionId, SavedAt = savedAt, ActiveSeconds = activeTime.TotalSeconds,
         Description = "Verdachtsstellen zur Prüfung, keine nachgewiesenen Doppelzählungen. Die vollständigen Zeilenabgleiche stehen in observations.jsonl. Mengen und Zählregeln wurden durch die Diagnose nicht verändert.",
-        Scope = "Zeilenabgleich: normaler Droplog. RecordedTotals: alle aufgezeichneten Normal-/Rare-Deltas einschließlich Mengenrevisionen. SavedTotals: gespeicherte Session einschließlich manueller Änderungen und ggf. früherer Aufzeichnungsabschnitte.",
+        Scope = _projectionRevision is null
+            ? "Zeilenabgleich: normaler Droplog. RecordedTotals: alle aufgezeichneten Normal-/Rare-Deltas einschließlich Mengenrevisionen. SavedTotals: gespeicherte Session einschließlich manueller Änderungen und ggf. früherer Aufzeichnungsabschnitte."
+            : "RecordedTotals: letzte vollständige Loot-Projektion einschließlich Normal-/Rare-Zusammenführung. ProjectionConfirmedDropCount: aktueller projizierter Dropzähler; NewNormalDrops beschreibt nur historische Zeilen-Traces. SavedTotals: gespeicherte Session einschließlich manueller Änderungen und ggf. früherer Aufzeichnungsabschnitte.",
+        ProjectionRevision = _projectionRevision, ProjectionConfirmedDropCount = _projectionConfirmedDropCount,
+        ProjectionUpdates = _projectionUpdates,
         NormalTraceFrames = _traceFrames, PendingNormalFrames = Math.Max(0, _lastCapture - _lastFinalizedCapture),
         NewNormalDrops = _newDrops, NormalQuantityRevisions = _quantityRevisions,
         RowOutcomes = _outcomes, CandidateCount = _candidateCount, CandidateReasons = _candidateReasons,

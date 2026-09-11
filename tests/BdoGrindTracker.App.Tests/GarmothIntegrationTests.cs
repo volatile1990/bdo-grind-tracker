@@ -73,10 +73,11 @@ public sealed class GarmothIntegrationTests
     }
 
     [Fact]
-    public void AllSupportedSpotItemsHaveVerifiedMappingExceptExplicitlyUnmappedWorldDrop()
+    public void AllSupportedSpotItemsHaveVerifiedMappingExceptExplicitlyUnmappedWorldDrops()
     {
         foreach (var item in LootSpotCatalog.Spots.SelectMany(static spot => spot.AllowedItems).Distinct())
-            Assert.Equal(item != "Pure Black Stone", GarmothCatalog.TryGetDropKey(item, out _));
+            Assert.Equal(item is not ("Pure Black Stone" or "Empty Picture Frame"),
+                GarmothCatalog.TryGetDropKey(item, out _));
         Assert.False(GarmothCatalog.TryGetDropKey("[Event] Mysterious Ore", out _));
     }
 
@@ -139,11 +140,12 @@ public sealed class GarmothIntegrationTests
         var totals = names.ToDictionary(static name => name, static _ => 1L);
         var drops = GarmothSessionPayload.GetUploadableDrops(spotId, totals);
         Assert.Equal(count, drops.Count);
-        Assert.Equal(["Laila's Petal", "Pure Black Stone"], GarmothSessionPayload.GetOmittedItems(spotId, totals));
+        Assert.Equal(["Empty Picture Frame", "Laila's Petal", "Pure Black Stone"], GarmothSessionPayload.GetOmittedItems(spotId, totals));
     }
 
     [Theory]
     [InlineData("Pure Black Stone")]
+    [InlineData("Empty Picture Frame")]
     [InlineData("Laila's Petal")]
     [InlineData("Branch of Abundance")]
     public void SessionWithNoSupportedDropsIsNotUploadedAsEmptySession(string name)

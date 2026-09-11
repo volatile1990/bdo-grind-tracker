@@ -1,0 +1,107 @@
+@inherits TrackerComponentBase
+@using BdoGrindTracker.App.Updates
+@inject IAppUpdates Updates
+@inject IJSRuntime JS
+
+<dialog id="store-update-dialog" class="modal confirm-modal store-update-dialog" aria-labelledby="store-update-title" aria-describedby="store-update-message" @oncancel="CloseAsync" @oncancel:preventDefault>
+    <div class="modal-heading"><div><span class="eyebrow">APP-UPDATE</span><h2 id="store-update-title">@Title</h2></div><button type="button" class="icon-button" @onclick="CloseAsync" aria-label="Update-Hinweis schließen"><AppIcon Name="close" /></button></div>
+    @if (Update.AvailableVersion is { Length: > 0 } version)
+    {
+        <p>Grindcrest @version</p>
+    }
+    <p id="store-update-message" class="update-message" role="status" aria-live="polite">@Update.Message</p>
+    @if (Update.Phase is UpdatePhase.Downloading or UpdatePhase.Restarting)
+    {
+        <div class="update-progress"><progress max="100" value="@Update.DownloadPercent" aria-label="Update installieren"></progress><span>@Update.DownloadPercent %</span></div>
+    }
+    @if (CanInstall)
+    {
+        <div class="subtle-box"><AppIcon Name="shield" /><span>@(State.IsRunning ? "Session zuerst pausieren, um das Update zu installieren." : State.IsBusy ? "Warte, bis der aktuelle Vorgang abgeschlossen ist." : "Windows kann Grindcrest für die Installation schließen. Deine Session wird vorher gespeichert.")</span></div>
+    }
+    @if (ActionError is not null) { <div class="notice error-notice" role="alert">@ActionError</div> }
+    <div class="modal-actions">
+        <button type="button" class="button secondary" @onclick="CloseAsync" autofocus>@(CanInstall ? "Später" : "Schließen")</button>
+        @if (CanInstall)
+        {
+            <button type="button" class="button primary" @onclick="InstallAsync" disabled="@(State.IsRunning || State.IsBusy || Acting)">@(Update.Phase == UpdatePhase.ReadyToRestart ? "Update installieren" : "Jetzt aktualisieren")</button>
+        }
+        @if (Update.UsesStore && Update.Enabled && Update.Phase == UpdatePhase.Error)
+        {
+            <button type="button" class="button primary" @onclick="Updates.CheckAsync">Erneut prüfen</button>
+        }
+    </div>
+</dialog>
+
+@code {
+    private readonly HashSet<string> _announcedVersions = new(StringComparer.Ordinal);
+    private bool _open;
+    private bool _disposed;
+    private UpdateState Update => Updates.State;
+    private bool CanInstall => Update.UsesStore && Update.Enabled && Update.Phase is UpdatePhase.Available or UpdatePhase.ReadyToRestart;
+    private string Title => Update.Phase switch
+    {
+        UpdatePhase.Checking => "Updates werden geprüft",
+        UpdatePhase.Idle => "Grindcrest ist aktuell",
+        UpdatePhase.Disabled or UpdatePhase.StoreManaged => "App-Updates",
+        UpdatePhase.Downloading or UpdatePhase.Restarting => "Grindcrest wird aktualisiert",
+        UpdatePhase.Installed => "Update installiert",
+        UpdatePhase.Error => "Update konnte nicht abgeschlossen werden",
+        _ => "Update verfügbar",
+    };
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        Updates.Changed += UpdateChanged;
+    }
+
+    private void UpdateChanged()
+    {
+        if (!_disposed) _ = InvokeAsync(() => { if (!_disposed) StateHasChanged(); });
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_disposed || _open || !Update.UsesStore || !Update.Enabled || Update.Phase != UpdatePhase.Available) return;
+        // Store APIs do not expose the target version. Treat an unknown offer as
+        // one announcement per app session, including rechecks and retries.
+        var key = Update.AvailableVersion ?? string.Empty;
+        if (_announcedVersions.Contains(key)) return;
+        await OpenAsync();
+    }
+
+    public async Task OpenAsync()
+    {
+        if (_disposed || _open || !Update.UsesStore || !Update.Enabled || Update.Phase is UpdatePhase.Disabled or UpdatePhase.StoreManaged or UpdatePhase.Idle) return;
+        _open = true;
+        var key = Update.AvailableVersion ?? string.Empty;
+        ClearActionError();
+        StateHasChanged();
+        try
+        {
+            await JS.InvokeVoidAsync("grindcrest.showDialog", "store-update-dialog");
+            _announcedVersions.Add(key);
+        }
+        catch { _open = false; throw; }
+    }
+
+    private async Task CloseAsync()
+    {
+        _open = false;
+        if (!_disposed) await JS.InvokeVoidAsync("grindcrest.closeDialog", "store-update-dialog");
+    }
+
+    private async Task InstallAsync()
+    {
+        if (_disposed || !_open || !CanInstall || State.IsRunning || State.IsBusy) return;
+        await Act(Updates.RequestRestartAsync);
+    }
+
+    public override void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        Updates.Changed -= UpdateChanged;
+        base.Dispose();
+    }
+}

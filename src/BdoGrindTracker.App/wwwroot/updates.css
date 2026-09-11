@@ -8,4 +8,5 @@
 .update-progress progress { flex:1; min-width:0; height:8px; accent-color:#d6b56d; }
 .update-progress > span { min-width:44px; font-variant-numeric:tabular-nums; }
 .update-panel .subtle-box { margin-bottom:14px; }
+.store-update-dialog .subtle-box { margin:18px 0; }
 @media (max-width:900px) { .update-banner { margin:12px 18px 0; flex-wrap:wrap; } }

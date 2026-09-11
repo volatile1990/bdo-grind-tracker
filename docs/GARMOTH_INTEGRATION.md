@@ -199,6 +199,11 @@ haben `Pure Black Stone` und `[Event] Mysterious Ore` im untersuchten Metadatenc
 keine bestätigte Garmoth-Zuordnung. Das beeinflusst **nicht** die lokale
 Erkennung oder die vorhandenen Spot-Lootpools.
 
+Seit 11.09.2026 ist `Empty Picture Frame` lokal im globalen Pool enthalten.
+Für dieses Item wurde keine Garmoth-Spotzuordnung übernommen; es bleibt beim
+Upload als ausgelassenes Item sichtbar, während lokale Menge und NPC-Wert
+erhalten bleiben.
+
 `Laila's Petal` hat einen bestätigten allgemeinen Item-Key `54031_0`, fehlt jedoch
 in Garmoths untersuchten Spotlisten und wird daher nur beim Upload ausgelassen.
 Die konfigurierten Uploadlisten enthalten 25/27/29/35/35/38 Itemkeys für

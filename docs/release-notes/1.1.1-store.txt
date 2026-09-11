@@ -1,0 +1,9 @@
+Neu in Grindcrest 1.1.1 (vorbereiteter Store-Build):
+
+• Automatischer Hinweis bei verfügbaren Store-Updates. „Jetzt aktualisieren“ startet Download und Installation direkt in Grindcrest; „Später“ verschiebt den Vorgang.
+• Vor einem Update werden die pausierte Session und Einstellungen gespeichert. Windows kann eine Bestätigung anzeigen und Grindcrest neu starten.
+• Verbesserte Zuordnung belegter Lootzeilen im Zeitmodell; verzögerte Anzeige reduziert kurzfristige Mengenkorrekturen. Über- und Unterzählungen bleiben möglich.
+• Direkte Aufnahme des Black-Desert-Spielfensters mit 200-ms-Zielintervall und Unterstützung für die Aufnahme ohne gelben Rahmen.
+• Empty Picture Frame / Leerer Rahmen ist global mit 1–10 Stück pro Drop enthalten.
+
+Hinweis: Installierte 1.0.0-Ausgaben müssen zuerst über den regulären Store-Updateweg aktualisiert werden. Das neue Popup ist erst in dieser Version enthalten.

@@ -68,6 +68,7 @@ public static class LootSpotCatalog
         "Ancient Spirit Dust",
         "Black Stone",
         "Caphras Stone",
+        "Empty Picture Frame",
         "Laila's Petal",
         // Historically documented world drop; included for possible loot rather
         // than assuming an incomplete Main Loot table proves it impossible.

@@ -60,10 +60,6 @@ internal sealed class NativeOverlayHost(IOverlayService service, ITrackerSession
             var monitorLabel = tracker.Monitors.FirstOrDefault(value => value.DeviceName == screen.DeviceName)?.Label ?? screen.DeviceName;
             _dpi = NativeOverlayGameWindow.Dpi(screen);
             _window.MonitorBounds = screen.Bounds;
-            _window.MinimumInteractionSize = NativeOverlayGeometry.Place(screen.Bounds, settings.Width,
-                settings.Height, 0, 0, .5, _dpi).Size;
-            _window.MaximumInteractionSize = NativeOverlayGeometry.Place(screen.Bounds, settings.Width,
-                settings.Height, 0, 0, 2, _dpi).Size;
             var visible = NativeOverlayGeometry.ShouldShow(settings.Enabled, preview, settings.Visibility,
                 foreground, tracker.State.HasSession);
             if (visible)
@@ -93,9 +89,10 @@ internal sealed class NativeOverlayHost(IOverlayService service, ITrackerSession
         if (_window is not null) return;
         _window = new NativeOverlayForm();
         _window.HandleCreated += (_, _) => _captureExcluded = null;
+        _window.CreateResize = bounds => new NativeOverlayResize(service.Settings, bounds, _window.MonitorBounds, _dpi);
         _window.RenderBitmap = size =>
         {
-            var settings = service.Settings;
+            var settings = _window.ResizePreview ?? service.Settings;
             var bitmap = _renderer.Render(size, settings, service.Snapshot, out var actions);
             _window!.SetActions(actions);
             return bitmap;
@@ -103,15 +100,9 @@ internal sealed class NativeOverlayHost(IOverlayService service, ITrackerSession
         _window.GeometryCommitted += (bounds, resized) => _ = RunCommandAsync(async () =>
         {
             var position = NativeOverlayGeometry.RelativePosition(bounds, _window.MonitorBounds);
-            var settings = service.Settings;
-            // In-game resizing changes the whole overlay's scale. Its logical
-            // canvas and widget geometry remain stable, avoiding a release jump.
-            var result = resized
-                ? await service.SaveAsync(settings with
-                {
-                    PositionX = position.X, PositionY = position.Y,
-                    Scale = Math.Clamp(bounds.Width / (settings.Width * _dpi / 96), .5, 2),
-                })
+            // Commit exactly the layout already shown during the corner drag.
+            var result = resized is not null
+                ? await service.SaveAsync(resized)
                 : await service.SavePositionAsync(position.X, position.Y);
             if (!result.Succeeded) throw new InvalidOperationException(result.Error);
         });

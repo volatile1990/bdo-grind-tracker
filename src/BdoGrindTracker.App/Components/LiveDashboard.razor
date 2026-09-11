@@ -138,7 +138,7 @@
     private LiveSessionPresentation SessionMetrics => new(State);
     private bool CanShowSilver => SessionMetrics.CanShowSilver;
     private string HeroStyle => $"background-image:url('assets/spot-backgrounds/{CurrentProfile?.BackgroundFileName ?? "aphrodon.jpg"}')";
-    private string MonitorLabel => Tracker.Monitors.FirstOrDefault(monitor => monitor.DeviceName == Tracker.Preferences.MonitorDeviceName)?.Label ?? Tracker.Monitors.FirstOrDefault()?.Label ?? "Kein Bildschirm";
+    private string MonitorLabel => Tracker.CapturesGameWindow ? "Black Desert · Spielfenster" : Tracker.Monitors.FirstOrDefault(monitor => monitor.DeviceName == Tracker.Preferences.MonitorDeviceName)?.Label ?? Tracker.Monitors.FirstOrDefault()?.Label ?? "Kein Bildschirm";
     private string ShortMonitorLabel => MonitorLabel.Split('·')[0].Trim();
     private string SessionStatus => SessionMetrics.Status;
     private async Task RequestNew()

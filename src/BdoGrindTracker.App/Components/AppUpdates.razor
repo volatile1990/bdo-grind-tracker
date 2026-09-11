@@ -5,12 +5,12 @@
 
 @if (Compact)
 {
-    @if (Update.Phase is UpdatePhase.Available or UpdatePhase.Downloading or UpdatePhase.ReadyToRestart or UpdatePhase.Installed)
+    @if (Update.Phase is UpdatePhase.Available or UpdatePhase.Downloading or UpdatePhase.ReadyToRestart or UpdatePhase.Installed || Update.UsesStore && Update.Phase == UpdatePhase.Restarting)
     {
         <div class="update-banner" role="status">
             <AppIcon Name="refresh" />
             <span>@Update.Message</span>
-            <button type="button" class="button secondary" @onclick="OpenSettings">Update ansehen</button>
+            <button type="button" class="button secondary" @onclick="ViewUpdate">Update ansehen</button>
         </div>
     }
 }
@@ -31,32 +31,38 @@ else
         {
             <div class="update-actions">
                 <button type="button" class="button secondary" @onclick="Updates.CheckAsync" disabled="@(!Update.Enabled || Update.IsBusy || Update.Phase is UpdatePhase.ReadyToRestart or UpdatePhase.Installed)"><AppIcon Name="refresh" />Nach Updates suchen</button>
-                @if (Update.CanDownload)
+                @if (Update.UsesStore && Update.Enabled && Update.Phase == UpdatePhase.Available)
+                {
+                    <button type="button" class="button primary" @onclick="InstallStoreUpdate" disabled="@(State.IsRunning || State.IsBusy || Acting)">Jetzt aktualisieren</button>
+                }
+                @if (!Update.UsesStore && Update.CanDownload)
                 {
                     <button type="button" class="button primary" @onclick="Updates.DownloadAsync">Update herunterladen</button>
                 }
                 @if (Update.Phase == UpdatePhase.ReadyToRestart)
                 {
-                    <button type="button" class="button primary" @onclick="Updates.RequestRestartAsync" disabled="@(State.IsRunning || State.IsBusy)">@(Update.UsesStore ? "Update installieren" : "Installieren und neu starten")</button>
+                    <button type="button" class="button primary" @onclick="InstallReadyUpdate" disabled="@(State.IsRunning || State.IsBusy || Acting)">@(Update.UsesStore ? "Update installieren" : "Installieren und neu starten")</button>
                 }
             </div>
         }
         @if (Update.Enabled)
         {
-            @if (Update.Phase == UpdatePhase.ReadyToRestart && (State.IsRunning || Update.UsesStore))
+            @if ((Update.Phase == UpdatePhase.ReadyToRestart || Update.UsesStore && Update.Phase == UpdatePhase.Available) && (State.IsRunning || State.IsBusy || Update.UsesStore))
             {
-                <div class="subtle-box"><AppIcon Name="shield" /><span>@(State.IsRunning ? "Pausiere zuerst deine Grind-Session, um das Update zu installieren." : "Windows kann Grindcrest für die Installation schließen.")</span></div>
+                <div class="subtle-box"><AppIcon Name="shield" /><span>@(State.IsRunning ? "Session zuerst pausieren, um das Update zu installieren." : State.IsBusy ? "Warte, bis der aktuelle Vorgang abgeschlossen ist." : "Windows kann Grindcrest für die Installation schließen.")</span></div>
             }
             @if (!Update.UsesStore)
             {
                 <label class="toggle-row"><span><strong>Beta-Updates erhalten</strong><small>Nach dem Ausschalten erhältst du die nächste höhere stabile Version.</small></span><input type="checkbox" class="switch" checked="@Update.IsBeta" @onchange="ChangeBeta" disabled="@Update.IsBusy" /></label>
             }
         }
+        @if (ActionError is not null) { <div class="notice error-notice" role="alert">@ActionError</div> }
     </section>
 }
 
 @code {
     [Parameter] public bool Compact { get; set; }
+    [CascadingParameter(Name = "ShowStoreUpdateDialog")] public EventCallback ShowStoreUpdateDialog { get; set; }
     private UpdateState Update => Updates.State;
     private bool _disposed;
     protected override void OnInitialized()
@@ -68,7 +74,18 @@ else
     {
         if (!_disposed) _ = InvokeAsync(() => { if (!_disposed) StateHasChanged(); });
     }
-    private void OpenSettings() => Navigation.NavigateTo("/settings");
+    private Task ViewUpdate()
+    {
+        if (Update.UsesStore && ShowStoreUpdateDialog.HasDelegate) return ShowStoreUpdateDialog.InvokeAsync();
+        Navigation.NavigateTo("/settings");
+        return Task.CompletedTask;
+    }
+    private async Task InstallStoreUpdate()
+    {
+        if (!Update.UsesStore || !Update.Enabled || Update.Phase is not (UpdatePhase.Available or UpdatePhase.ReadyToRestart) || State.IsRunning || State.IsBusy) return;
+        await Act(Updates.RequestRestartAsync);
+    }
+    private Task InstallReadyUpdate() => Update.UsesStore ? InstallStoreUpdate() : Updates.RequestRestartAsync();
     private Task ChangeBeta(ChangeEventArgs args) => Updates.SetBetaAsync(args.Value is true);
     public override void Dispose()
     {
