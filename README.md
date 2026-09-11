@@ -1,6 +1,6 @@
 # Grindcrest
 
-Lokaler, passiver Loot-Tracker für Black Desert, Version **1.1.0** (bisher BDO
+Lokaler, passiver Loot-Tracker für Black Desert, Version **1.2.0** (bisher BDO
 Grind Tracker), mit vollständig neuem **Blazor-Hybrid-Frontend** für Windows.
 Live-Session, Verlauf, Garmoth, Lootkorrekturen, Bestätigungsdialoge und Einstellungen werden
 als lokale Razor-Komponenten in WebView2 dargestellt. Das Dashboard bietet eine
@@ -8,16 +8,18 @@ responsive dunkle Oberfläche, Spotbilder, Silber- und Trash-Kennzahlen, durchsu
 Loot-Tabellen, Stundenwerte und Tastaturbedienung. Die Sitzungssteuerung ist von der
 Darstellung getrennt; es wird kein Webserver gestartet und keine UI aus dem Netz geladen.
 
-**Aktueller Entwicklungsstand:** Die normale Live-Zählung verwendet einen eigenen
-zeitlichen Zeilenzähler (`temporal-v1`). Er verfolgt Zeilenbewegungen über mehrere
-Aufnahmen und sammelt wiederholte Mengenlesungen. Der Ziel-Aufnahmetakt beträgt
-**200 ms**; eine begrenzte Warteschlange hält höchstens vier wartende Bilder.
-Diagnose-Aufnahmen enthalten den tatsächlich beobachteten Takt und die Wartezeiten.
-Eine höhere Zählgenauigkeit im echten Grind ist damit noch nicht nachgewiesen.
-[Verfahren, Messwerte und Prüfgrenzen](docs/TEMPORAL_LOOT_TRACKING.md).
+**Aktueller Stand:** Die normale Live-Zählung verwendet das eigene
+Lebensdauermodell `lifetime-v3`. Es verbindet wiederholte Rohlesungen mit einer
+Bildbestätigung belegter Lootzeilen. Unvollständige Texte können bestehende
+Zeilen stützen; offene Lesungen werden mit neuen Erkenntnissen erneut eingeordnet.
+Ein zweisekündiger Bestätigungspuffer reduziert kurzfristige Rückzählungen.
+Der Ziel-Aufnahmetakt beträgt **200 ms**; eine begrenzte Warteschlange hält
+höchstens vier wartende Bilder. Diagnose-Aufnahmen enthalten den tatsächlich
+beobachteten Takt und die Wartezeiten.
+[Verfahren, Messwerte und Prüfgrenzen](docs/LIFETIME_LOOT_TRACKING.md).
 
-Die Live-Factory aktiviert den neuen Normalzähler. Der ältere Companion-Zähler
-bleibt für historische Replays und Vergleichstests verfügbar. Die
+Die Live-Factory aktiviert diesen Normalzähler. Ältere Companion-, Temporal-
+und Lifetime-Varianten bleiben für ihre historischen Replays verfügbar. Die
 [Garmoth-Analyse vom 10. September 2026](docs/GARMOTH_REVERSE_ENGINEERING.md)
 dokumentiert den Vergleichsstand vor dieser Umstellung.
 
@@ -34,31 +36,34 @@ Die [gezielte Mengenprüfung](docs/TRASH_QUANTITY_ANOMALIES.md) lernt die üblic
 Trashmenge aus gebuchten Drops. Eine Korrektur benötigt zwei übereinstimmende,
 plausible Paddle-Lesungen desselben Items. Bestätigte große Drops bleiben erhalten.
 
-Mengenberichtigungen verwenden dieselbe Drop-ID mit einer neuen Revision.
-Nicht gelesene innere Zeilen behalten beim Abgleich ihren Platz. Geprüfte
-Minima und Maxima gelten weiterhin pro Drop; Magaia-Trash hat Minimum 2.
-Fertige Ergebnisse werden während der Sitzung übernommen; Pause und Beenden
-verarbeiten noch wartende Bilder.
-[Verhalten, Diagnose und Grenzen](docs/BACKGROUND_OCR_REVIEW.md).
+Der Zähler darf noch offene Ereignisgeschichten und deren Summen korrigieren.
+Dashboard, Overlay, Speicherung und Upload verwenden dieselben gepufferten
+Summen; manuelle Änderungen bleiben als getrennte Korrekturen erhalten.
+Geprüfte Minima und Maxima gelten weiterhin pro Drop; Magaia-Trash hat Minimum 2.
+Pause und Beenden verarbeiten noch wartende Bilder und übernehmen den
+vollständigen letzten Zählstand. Späte sichtbare Rücknahmen bleiben möglich.
 
 Der erste OCR-Erkennungspfad basiert weiterhin auf dem Companion-Stand.
 Die zeitliche Zuordnung normaler Drops ist eine neue Implementierung; sie
 reaktiviert weder den früheren Lebensdauer-Tracker aus 0.6.0/0.6.1 noch die
 experimentelle dauerhafte Zuordnung aus 0.9.6-test.1.
 
-0.9.6-test.2 nimmt die Zähleränderung aus test.1 zurück. Im Live-Test wurden dort nur
+Historisch nahm 0.9.6-test.2 die Zähleränderung aus test.1 zurück. Im Live-Test wurden dort nur
 etwa 1.500 von 5.000 Trashloot gezählt: Gleiche OCR-Zeilen können neue gleiche Drops
 darstellen und dürfen nicht dauerhaft zu einem einzigen Drop zusammengefasst werden.
 Der ursprüngliche Drei-Bilder-Zyklus wurde damals wieder aktiviert. Dieser Stand
 bleibt als historische Referenz erhalten; die aktuelle Live-Factory verwendet
 den oben beschriebenen zeitlichen Normalzähler.
 
-Erhalten bleibt ausschließlich die getrennte Mengenübernahme beim Nachlesen eines
-zuvor nicht erkannten Itemnamens: Eine vollständig gelesene OCR-Endmenge hat Vorrang
+Erhalten bleibt die getrennte Mengenübernahme beim Nachlesen eines zuvor nicht
+erkannten Itemnamens: Eine vollständig gelesene OCR-Endmenge hat Vorrang
 vor einer widersprüchlichen Template-Menge (etwa Text `x8`, Template `1`). Bereits
-erfolgreich erkannte Zeilen bleiben erhalten. Bitte mit einer neuen Sitzung und
-Inventarmengen vor/nach einem kurzen Grind vergleichen. Der ursprüngliche Zähler
-bleibt eine Heuristik; eine vollständige Beseitigung aller Zählfehler ist nicht belegt.
+erfolgreich erkannte Zeilen bleiben erhalten. Auf vier vollständig ausgewerteten
+Referenzaufnahmen erreicht das aktuelle Modell **576 / 264 / 2.038 / 604 Helme**
+bei bekannten Sollwerten von **576 / 324 / 2.050 / 604**. Zwei Endmengen stimmen
+exakt, zwei Aufnahmen unterzählen weiterhin. Bitte neue Sessions ebenfalls mit
+Inventarmengen vergleichen; eine generell fehlerfreie Zählung ist nicht belegt.
+[Änderungen in 1.2.0](docs/release-notes/1.2.0.md).
 
 Der aktuelle Entwicklungsstand unterstützt alle sechs Inner-Edania-Zonen. Zu den
 bisherigen Spots kommen Aresion Temple, Scales of Judgment und Event Horizon mit
@@ -164,20 +169,24 @@ weiterverwendet. Vorschau und Prüfmodi rufen keine Updates ab.
 
 [Neue Version über GitHub veröffentlichen und lokal bauen](docs/RELEASING.md).
 
-Für die Microsoft-Store-Ausgabe ist ab **1.0.1** ein eigener Updateablauf vorbereitet:
-Grindcrest sucht beim Start und alle sechs Stunden nach freigegebenen Updates und
-zeigt einen Hinweis in der App. **Einstellungen → App-Updates** bietet Download
-und **Update installieren**, ohne die Store-App öffnen zu müssen. Vor der Installation
-muss das Tracking pausiert sein; die Session wird gespeichert. Windows kann eine
+Die Microsoft-Store-Ausgabe sucht beim Start und alle sechs Stunden nach
+freigegebenen Updates. Ein Popup meldet **Update verfügbar**;
+**Jetzt aktualisieren** startet Download und Installation in einem Schritt,
+ohne die Store-App zu öffnen. **Später** schließt den Hinweis; er lässt sich
+anschließend wieder öffnen. Die Aktion steht auch unter
+**Einstellungen → App-Updates** bereit. Vor der Installation muss das Tracking
+pausiert sein; Session und Einstellungen werden gespeichert. Windows kann eine
 Bestätigung anzeigen und Grindcrest schließen. Die Freigabe neuer Pakete erfolgt
-weiterhin über Microsoft. [Store-Paket erstellen und einreichen](docs/MICROSOFT_STORE.md).
+weiterhin über Microsoft. Installierte **1.0.0**-Versionen müssen zuerst über ihren
+bisherigen Store-Updateweg aktualisiert werden, bevor die neue Benachrichtigung
+verfügbar ist. [Store-Paket erstellen und einreichen](docs/MICROSOFT_STORE.md).
 
 ### Tracking starten
 
-1. `Grindcrest.exe` starten und unter **Einstellungen** den Spielbildschirm prüfen.
+1. Black Desert geöffnet und nicht minimiert lassen; `Grindcrest.exe` starten.
 2. Optional unter **Loot-Diagnose → Diese Session aufzeichnen** die Diagnose aktivieren.
    Änderungen werden automatisch übernommen. Unter **Live-Session** auf **Tracking starten** klicken.
-3. Der Spot wird aus dem ersten passenden Trashloot automatisch erkannt und angezeigt:
+3. Der Spot wird nach ausreichend bestätigtem Trashloot automatisch erkannt und angezeigt:
 
    | Erkannter Trashloot | Spot |
    |---|---|
@@ -322,23 +331,33 @@ eine Teilsumme, **—** einen noch nicht bewertbaren Lootstand. Details per Maus
   Leseversuche auf den Originalpixeln. Pro Zeilenplatz entsteht höchstens eine
   Beobachtung; erfolgreiche Namen/Mengen werden nicht überschrieben. Rare-Loot
   verwendet weiterhin ausschließlich seinen bisherigen Erkennungsweg.
-- Der normale Live-Zähler ordnet zeitgestempelte Beobachtungen den sechs kalibrierten
-  Zeilenplätzen zu. Bis zu 24 mögliche Verläufe berücksichtigen Nachrücken, fehlende
-  Lesungen und wiederholte gleiche Drops. Zeilenalter ist ein weicher Hinweis und
-  erneuert eine weiterhin sichtbare Zeile nicht allein durch Zeitablauf.
-- Wiederholte Item- und Mengenlesungen bestimmen die Buchung. Veröffentlichte
-  Drop-IDs bleiben erhalten; Mengenberichtigungen verwenden dieselbe ID mit neuer
-  Revision und nur der Mengendifferenz. Mehrdeutige Beobachtungen können zunächst
-  offenbleiben. [Konkrete Regeln und Grenzen](docs/TEMPORAL_LOOT_TRACKING.md).
+- Der normale Live-Zähler verarbeitet fünf Feedpositionen mit vier
+  Lebensdauervarianten und jeweils bis zu 24 möglichen Verläufen. Alle sechs
+  OCR-Ausschnitte bleiben erhalten; die zusätzliche Diagnosezeile zählt nicht.
+  Wiederholte gleiche Drops, fehlende Lesungen und nachrückende Zeilen werden
+  gemeinsam eingeordnet. Die zusätzliche Bildbestätigung prüft belegte Plätze;
+  sie liefert weder eine Menge noch eine eindeutige Drop-ID.
+- Unvollständige Namen können bereits erkannte Items stützen. Offene Rohlesungen
+  werden bei jeder Projektion erneut gegen den aktuellen Parsing-Kontext geprüft.
+  Der Zähler kann dadurch Mengen und Zuordnungen berichtigen und liefert jeweils
+  die vollständigen Summen. Die Anzeige bestätigt Mengen über zwei Sekunden;
+  späte Korrekturen bleiben möglich.
+  [Konkrete Regeln und Grenzen](docs/LIFETIME_LOOT_TRACKING.md).
 - Rare-Loot behält seinen bestehenden Erkennungs- und Abgleichsweg. Der ältere
   Normalzähler mit Frame-Tags bleibt für historische Diagnose-Varianten und
   Vergleichstests verfügbar.
+- Normal und Rare werden je Item zusammengeführt: Eine positive Normalsumme hat
+  Vorrang, andernfalls gilt die Rare-Summe. Dieselben Mengen aus beiden Anzeigen
+  werden nicht doppelt addiert.
 - Nach der Namensauflösung wird der automatisch erkannte Spotpool angewendet.
   Er umfasst den Spot-Hauptloot, den gemeinsamen HighestTier-Pool und die
   gemeinsamen Standard-/Worlddrops; letztere benötigen keinen Event-Schalter.
   Ein fremdes Item wird nicht in den nächstähnlichen erlaubten Namen umgedeutet.
   `Black Gem Fragment` gehört nicht zu den sechs Inner-Edania-Pools und wird nach
   Erkennung eines dieser Spots ausgefiltert.
+- `Empty Picture Frame` / `Leerer Rahmen` gehört zum globalen Lootpool mit
+  1–10 Stück pro Drop und einem NPC-Wert von 15.348 Silber. Mangels bestätigter
+  Garmoth-Spotzuordnung wird dieses Item beim Upload als ausgelassen angezeigt.
 - Negative Rare-Korrekturen ändern die Summen, zählen aber nicht als neue
   Logeinträge. Auf null korrigierte Itemarten verschwinden aus der Summenliste.
 
@@ -356,12 +375,17 @@ wartet die nächste Aufnahme. Langsame Erkennung kann deshalb den tatsächlichen
 Aufnahmetakt verlängern. Aufnahmeabstand, Rückstau und Analysedauer werden in der
 optionalen Diagnose gemessen. Pause und Beenden verarbeiten bereits aufgenommene
 Bilder fertig. Alle ausgegebenen Buchungen und Korrekturen werden in der
-Sitzungssumme übernommen; die UI erhält nur den neuesten Anzeigezustand.
+Sitzungssumme übernommen; die UI erhält den neuesten gepufferten Anzeigezustand.
 
 Das Dashboard zeigt aktive Sitzungsdauer (HH:MM:SS), Trashloot, Netto-Silber und
 Silber pro Stunde. **Dein Loot** zeigt Itemicons, Mengen und Silberwerte als
 durchsuchbare Tabelle. Sortierung nach Silber, Menge oder Name und der Wechsel
 zwischen Gesamtmengen und Stundenwerten verändern nur die Darstellung.
+
+Im Modus **Verschiebbar** lässt sich das Ingame-Overlay am Griff unten rechts
+unabhängig in Breite und Höhe verändern. Module, Texte und Icons passen sich
+live wie im Overlay-Editor an; beim Loslassen wird das sichtbare Layout
+gespeichert. [Bedienung und Optionen](docs/OVERLAY.md).
 
 Die Sitzungsuhr läuft unabhängig von neuen Frames und benutzt monotone Zeitmessung,
 damit Änderungen der Systemuhr die Dauer nicht verfälschen. UI-Screenshot-Thumbnails,
@@ -380,6 +404,9 @@ Das Spiel muss geöffnet und darf nicht minimiert sein. Nach einer Größenände
 die Kalibrierung prüfen und das Tracking erneut starten. Der gewählte Monitor dient
 als Ersatzposition für das Overlay. Details zur Rohtext-Auswertung und den
 Testgrenzen stehen in [LIFETIME_LOOT_TRACKING.md](docs/LIFETIME_LOOT_TRACKING.md).
+Grindcrest fordert die Aufnahme ohne gelben Windows-Rahmen an; das Store-Paket
+enthält die erforderliche Berechtigung. Windows kann den Rahmen bei verweigertem
+Zugriff oder durch Anforderungen anderer Aufnahmeprogramme weiterhin anzeigen.
 
 Die zusätzlichen Referenzen mit 2.050 und 604 echten Helmen sowie vollständige
 Windows-, Paddle- und native Garmoth-Vergleiche sind in
@@ -421,19 +448,22 @@ OCR-/Matching-Ergebnisse; **es führt OCR nicht erneut aus**. Die PNGs dienen
 zur visuellen Prüfung. Eine Übereinstimmung mit der Aufnahme ist kein Abgleich
 mit dem tatsächlichen Inventarloot; dafür werden manuell überprüfte Sollwerte benötigt.
 
-Neue Aufnahmen verwenden Formatversion 2 und die Enginekennung
-`grindcrest-temporal-v1`. Der Header enthält die aktive Mindestmengen-Tabelle,
-den konfigurierten Aufnahmetakt und die Queue-Grenze. Frames kennzeichnen den
-Normalzähler in `recognitionVariant`; historische Aufnahmen mit Zeilen-IDs oder
-Companion-Abgleich bleiben getrennt auswertbar. Fehlende Zeitmesswerte älterer
-Aufnahmen gelten als unbekannt. Historische Kennungen bedeuten keine vollständige
-Emulation jeder früheren EXE; frühere experimentelle Lebensdauer-Aufnahmen bleiben
-inkompatibel. [Diagnosefelder und Vergleichsgrenzen](docs/TEMPORAL_LOOT_TRACKING.md).
+Neue Aufnahmen verwenden Formatversion **3** und die Enginekennung
+`grindcrest-lifetime-v3`. Der Header enthält unter anderem die App-Version,
+die aktive Mindestmengen-Tabelle, den Aufnahmetakt und die Queue-Grenze.
+Frames kennzeichnen den Normalzähler in `recognitionVariant` mit `lifetime-v3`
+und dem Messungsmarker `visual-occupancy-v1`. Rohlesungen, Parsing-Kontext,
+Belegungsdaten und vollständige Rohprojektionen machen die Zählung reproduzierbar;
+das Replay berechnet weder OCR noch Bildbelegung erneut. Historische unterstützte
+Lifetime-, Temporal- und Companion-Aufnahmen verwenden ihren eigenen Zählpfad.
+Fehlende Zeitmesswerte älterer Aufnahmen gelten als unbekannt. Historische
+Kennungen bedeuten keine vollständige Emulation jeder früheren EXE.
+[Diagnosefelder und Vergleichsgrenzen](docs/LIFETIME_LOOT_TRACKING.md).
 
 ## Grenzen und Sicherheit
 
-Sehr kurz sichtbare, überdeckte oder falsch gelesene Drops können fehlen. Auch der
-wiederhergestellte Abgleich kann zu viel zählen. Insbesondere ersetzt ein erfolgreicher
+Sehr kurz sichtbare, überdeckte oder falsch gelesene Drops können fehlen. Auch das
+aktuelle Zählmodell kann zu viel zählen. Insbesondere ersetzt ein erfolgreicher
 automatisierter Test keinen gemessenen Vorher-/Nachher-Vergleich im Grind.
 
 Der Tracker verarbeitet sichtbare Pixel und liest BDO-UI-Konfigurationsdateien.

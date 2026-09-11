@@ -1,0 +1,9 @@
+Neu in Grindcrest 1.2.0:
+
+• Überarbeitete Loot-Zählung: Wiederholte Lesungen, unvollständige Namen und die sichtbare Belegung des Lootfeeds helfen, aufeinanderfolgende Drops besser zuzuordnen. Eine kurze Bestätigungszeit reduziert vorübergehende Mengenkorrekturen.
+• Direkte Aufnahme des Black-Desert-Spielfensters mit 200-ms-Zielintervall, HDR-Unterstützung und Aufnahme ohne gelben Rahmen, sofern Windows dies erlaubt.
+• Das Ingame-Overlay lässt sich im Modus „Verschiebbar“ direkt an der Ecke unabhängig breiter, schmaler, höher und flacher ziehen. Module, Texte und Icons passen sich live wie im Editor an.
+• Ein Popup informiert über verfügbare Store-Updates. „Jetzt aktualisieren“ startet Download und Installation direkt aus Grindcrest; „Später“ verschiebt den Vorgang. Vor der Installation muss das Tracking pausiert sein; Session und Einstellungen werden gespeichert.
+• Empty Picture Frame / Leerer Rahmen ist im globalen Lootpool enthalten, mit 1–10 Stück pro Drop und NPC-Verkaufswert.
+
+Loot-Erkennung kann weiterhin über- oder unterzählen, insbesondere bei verdeckten Lootzeilen. Die neue Update-Benachrichtigung steht nach Installation dieser Version zur Verfügung.
