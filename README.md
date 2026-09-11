@@ -1,6 +1,6 @@
 # Grindcrest
 
-Lokaler, passiver Loot-Tracker für Black Desert, Version **1.2.0** (bisher BDO
+Lokaler, passiver Loot-Tracker für Black Desert, Version **1.2.1** (bisher BDO
 Grind Tracker), mit vollständig neuem **Blazor-Hybrid-Frontend** für Windows.
 Live-Session, Verlauf, Garmoth, Lootkorrekturen, Bestätigungsdialoge und Einstellungen werden
 als lokale Razor-Komponenten in WebView2 dargestellt. Das Dashboard bietet eine
@@ -63,7 +63,7 @@ Referenzaufnahmen erreicht das aktuelle Modell **576 / 264 / 2.038 / 604 Helme**
 bei bekannten Sollwerten von **576 / 324 / 2.050 / 604**. Zwei Endmengen stimmen
 exakt, zwei Aufnahmen unterzählen weiterhin. Bitte neue Sessions ebenfalls mit
 Inventarmengen vergleichen; eine generell fehlerfreie Zählung ist nicht belegt.
-[Änderungen in 1.2.0](docs/release-notes/1.2.0.md).
+[Änderungen in 1.2.1](docs/release-notes/1.2.1.md).
 
 Der aktuelle Entwicklungsstand unterstützt alle sechs Inner-Edania-Zonen. Zu den
 bisherigen Spots kommen Aresion Temple, Scales of Judgment und Event Horizon mit

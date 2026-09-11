@@ -33,7 +33,7 @@ public sealed class OverlayPersonalizationInteractionTests
     {
         var before = overlay.Settings;
         await Invoke(editor, "OpenHotkeyEditor");
-        Set(editor, "_toggleOverlayDraft", new OverlayHotkey { Modifiers = OverlayHotkeyModifiers.None, Key = "F8" });
+        Set(editor, "_toggleOverlayDraft", new OverlayHotkey { Modifiers = OverlayHotkeyModifiers.Control, Key = "F8" });
         await Invoke(editor, "CloseHotkeyEditor");
         await Invoke(editor, "SaveHotkeys");
         Assert.Same(before, overlay.Settings);
@@ -64,6 +64,54 @@ public sealed class OverlayPersonalizationInteractionTests
         await Invoke(editor, "SaveHotkeys");
         Assert.False(overlay.Settings.HotkeysEnabled);
         Assert.Contains("Deaktiviert", markup());
+    });
+
+    [Fact]
+    public Task ShortcutEditorOffersOnlyControlAndAlt() => Render(async (editor, overlay, markup, js) =>
+    {
+        await Invoke(editor, "OpenHotkeyEditor");
+        var html = markup();
+        Assert.Contains("<span>Strg</span>", html);
+        Assert.Contains("<span>Alt</span>", html);
+        Assert.DoesNotContain("<span>Umschalt</span>", html);
+        Assert.DoesNotContain("<span>Win</span>", html);
+        Assert.Contains("Für jedes Tastenkürzel ist Strg, Alt oder Strg+Alt erforderlich", html);
+    });
+
+    [Theory]
+    [InlineData(0, false)]
+    [InlineData(0, true)]
+    [InlineData(4, false)]
+    [InlineData(8, true)]
+    [InlineData(6, false)]
+    [InlineData(9, true)]
+    public Task InvalidFunctionKeyModifiersCannotBeSaved(int modifiers, bool interaction) => Render(async (editor, overlay, markup, js) =>
+    {
+        var before = overlay.Settings;
+        await Invoke(editor, "OpenHotkeyEditor");
+        Set(editor, interaction ? "_toggleInteractionDraft" : "_toggleOverlayDraft",
+            new OverlayHotkey { Modifiers = (OverlayHotkeyModifiers)modifiers, Key = "F11" });
+        await Invoke(editor, "SaveHotkeys");
+        Assert.Same(before, overlay.Settings);
+        Assert.Contains("Wähle eine Taste zusammen mit Strg, Alt oder Strg+Alt.", markup());
+        Assert.DoesNotContain(js.Calls, call => call == ("grindcrest.closeDialog", "overlay-hotkeys-edit"));
+    });
+
+    [Theory]
+    [InlineData(OverlayHotkeyModifiers.Control)]
+    [InlineData(OverlayHotkeyModifiers.Alt)]
+    [InlineData(OverlayHotkeyModifiers.Control | OverlayHotkeyModifiers.Alt)]
+    public Task FunctionKeyShortcutsCanBeSavedWithControlAltOrBoth(OverlayHotkeyModifiers modifiers) => Render(async (editor, overlay, markup, js) =>
+    {
+        await Invoke(editor, "OpenHotkeyEditor");
+        var toggle = new OverlayHotkey { Modifiers = modifiers, Key = "F11" };
+        var interaction = new OverlayHotkey { Modifiers = modifiers, Key = "F10" };
+        Set(editor, "_toggleOverlayDraft", toggle);
+        Set(editor, "_toggleInteractionDraft", interaction);
+        await Invoke(editor, "SaveHotkeys");
+        Assert.Equal(toggle, overlay.Settings.ToggleOverlayHotkey);
+        Assert.Equal(interaction, overlay.Settings.ToggleInteractionHotkey);
+        Assert.Contains(js.Calls, call => call == ("grindcrest.closeDialog", "overlay-hotkeys-edit"));
     });
 
     [Fact]
@@ -107,8 +155,8 @@ public sealed class OverlayPersonalizationInteractionTests
         await Invoke(editor, "Change", new Func<OverlaySettings, OverlaySettings>(s => s with
         {
             Enabled = true, Interaction = "passthrough", Visibility = "always", CaptureExcluded = false,
-            ToggleOverlayHotkey = new() { Modifiers = OverlayHotkeyModifiers.None, Key = "F8" },
-            ToggleInteractionHotkey = new() { Modifiers = OverlayHotkeyModifiers.None, Key = "F9" },
+            ToggleOverlayHotkey = new() { Modifiers = OverlayHotkeyModifiers.Control, Key = "F8" },
+            ToggleInteractionHotkey = new() { Modifiers = OverlayHotkeyModifiers.Alt, Key = "F9" },
         }));
         await overlay.SavePositionAsync(.7, .4);
         var before = overlay.Settings;

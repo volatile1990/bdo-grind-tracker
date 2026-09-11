@@ -68,7 +68,7 @@ public sealed class OverlayCanvasResizeTests
             PositionX = .63, PositionY = .79, Scale = 1.4,
             BackgroundOpacity = .42, ShowBorder = false, SnapToGrid = false,
             CaptureExcluded = false, HotkeysEnabled = false,
-            ToggleOverlayHotkey = new() { Modifiers = OverlayHotkeyModifiers.Shift, Key = "F8" },
+            ToggleOverlayHotkey = new() { Modifiers = OverlayHotkeyModifiers.Alt, Key = "F8" },
             ToggleInteractionHotkey = new() { Modifiers = OverlayHotkeyModifiers.Control, Key = "F9" },
             Widgets =
             [

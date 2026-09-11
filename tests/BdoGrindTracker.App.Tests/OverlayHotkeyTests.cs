@@ -20,12 +20,12 @@ public sealed class OverlayHotkeyTests
     }
 
     [Theory]
-    [InlineData(" q ", OverlayHotkeyModifiers.Control | OverlayHotkeyModifiers.Shift, "Q", "Strg+Umschalt+Q", 0x51u)]
-    [InlineData("f11", OverlayHotkeyModifiers.None, "F11", "F11", 0x7au)]
+    [InlineData(" q ", OverlayHotkeyModifiers.Control | OverlayHotkeyModifiers.Alt, "Q", "Strg+Alt+Q", 0x51u)]
+    [InlineData("f11", OverlayHotkeyModifiers.Control, "F11", "Strg+F11", 0x7au)]
     [InlineData("7", OverlayHotkeyModifiers.Alt, "7", "Alt+7", 0x37u)]
     [InlineData("pageup", OverlayHotkeyModifiers.Control, "PageUp", "Strg+Bild ↑", 0x21u)]
     [InlineData("numpad0", OverlayHotkeyModifiers.Control, "Numpad0", "Strg+Num 0", 0x60u)]
-    [InlineData("Space", OverlayHotkeyModifiers.Windows, "Space", "Win+Leertaste", 0x20u)]
+    [InlineData("Space", OverlayHotkeyModifiers.Alt, "Space", "Alt+Leertaste", 0x20u)]
     public void KeysNormalizeToTheirCanonicalNameAndWindowsCode(string key, OverlayHotkeyModifiers modifiers,
         string canonical, string display, uint virtualKey)
     {
@@ -55,6 +55,50 @@ public sealed class OverlayHotkeyTests
             OverlayHotkey.Normalize(shortcut, OverlayHotkey.DefaultToggleInteraction));
     }
 
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void EverySupportedKeyAllowsOnlyAltControlOrTheirCombination(int modifiers)
+    {
+        Assert.All(OverlayHotkey.SupportedKeys, key =>
+        {
+            var shortcut = new OverlayHotkey { Key = key, Modifiers = (OverlayHotkeyModifiers)modifiers };
+            Assert.True(shortcut.IsValid);
+            Assert.Equal(shortcut, OverlayHotkey.Normalize(shortcut, OverlayHotkey.DefaultToggleOverlay));
+        });
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(4)]
+    [InlineData(5)]
+    [InlineData(6)]
+    [InlineData(7)]
+    [InlineData(8)]
+    [InlineData(9)]
+    [InlineData(10)]
+    [InlineData(11)]
+    [InlineData(12)]
+    [InlineData(13)]
+    [InlineData(14)]
+    [InlineData(15)]
+    [InlineData(16)]
+    [InlineData(0x4003)]
+    [InlineData(-1)]
+    public void BareKeysAndRemovedOrUnknownModifiersAreInvalidForEverySupportedKey(int modifiers)
+    {
+        Assert.All(OverlayHotkey.SupportedKeys, key =>
+        {
+            var shortcut = new OverlayHotkey { Key = key, Modifiers = (OverlayHotkeyModifiers)modifiers };
+            Assert.False(shortcut.IsValid);
+            Assert.Equal(OverlayHotkey.DefaultToggleOverlay,
+                OverlayHotkey.Normalize(shortcut, OverlayHotkey.DefaultToggleOverlay));
+            Assert.Equal(OverlayHotkey.DefaultToggleInteraction,
+                OverlayHotkey.Normalize(shortcut, OverlayHotkey.DefaultToggleInteraction));
+        });
+    }
+
     [Fact]
     public void SupportedChoicesAreUniqueImmutableAndHaveDisplayLabels()
     {
@@ -72,7 +116,7 @@ public sealed class OverlayHotkeyTests
     [Fact]
     public void CorruptDuplicateBindingsRecoverToDistinctDefaultsWithoutEnablingAnExplicitDisable()
     {
-        var same = new OverlayHotkey { Key = "F8", Modifiers = OverlayHotkeyModifiers.None };
+        var same = new OverlayHotkey { Key = "F8", Modifiers = OverlayHotkeyModifiers.Control };
         var normalized = OverlayLayout.Normalize(new()
         {
             HotkeysEnabled = false, ToggleOverlayHotkey = same, ToggleInteractionHotkey = same,
@@ -87,7 +131,7 @@ public sealed class OverlayHotkeyTests
     {
         var settings = new OverlaySettings
         {
-            ToggleOverlayHotkey = new() { Key = "F8", Modifiers = OverlayHotkeyModifiers.None },
+            ToggleOverlayHotkey = new() { Key = "F8", Modifiers = OverlayHotkeyModifiers.Alt },
             ToggleInteractionHotkey = new() { Key = "Home", Modifiers = OverlayHotkeyModifiers.Control },
         };
         var json = JsonSerializer.Serialize(settings);
@@ -123,7 +167,7 @@ public sealed class OverlayHotkeyMigrationTests
             Assert.Equal(OverlaySettings.CurrentHotkeySettingsVersion,
                 saved.RootElement.GetProperty("HotkeySettingsVersion").GetInt32());
         }
-        var custom = new OverlayHotkey { Key = "F8", Modifiers = OverlayHotkeyModifiers.None };
+        var custom = new OverlayHotkey { Key = "F8", Modifiers = OverlayHotkeyModifiers.Control };
         store.Save(migrated with { HotkeysEnabled = false, ToggleOverlayHotkey = custom });
         var disabled = new OverlaySettingsStore(folder.Path).Load();
         Assert.False(disabled.HotkeysEnabled);
@@ -137,6 +181,53 @@ public sealed class OverlayHotkeyMigrationTests
         using var folder = new HotkeyTestFolder();
         File.WriteAllText(folder.SettingsPath, "{\"hotkeysEnabled\":false,\"hotkeySettingsVersion\":1}");
         Assert.False(new OverlaySettingsStore(folder.Path).Load().HotkeysEnabled);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(4)]
+    [InlineData(6)]
+    [InlineData(8)]
+    [InlineData(9)]
+    [InlineData(15)]
+    public void PersistedUnsupportedModifiersRecoverToDistinctActionDefaults(int modifiers)
+    {
+        using var folder = new HotkeyTestFolder();
+        var settings = new OverlaySettings
+        {
+            HotkeysEnabled = false,
+            Width = 540,
+            ToggleOverlayHotkey = new() { Key = "F11", Modifiers = (OverlayHotkeyModifiers)modifiers },
+            ToggleInteractionHotkey = new() { Key = "F10", Modifiers = (OverlayHotkeyModifiers)modifiers },
+        };
+        File.WriteAllText(folder.SettingsPath, JsonSerializer.Serialize(settings));
+
+        var loaded = new OverlaySettingsStore(folder.Path).Load();
+
+        Assert.False(loaded.HotkeysEnabled);
+        Assert.Equal(540, loaded.Width);
+        Assert.Equal(OverlayHotkey.DefaultToggleOverlay, loaded.ToggleOverlayHotkey);
+        Assert.Equal(OverlayHotkey.DefaultToggleInteraction, loaded.ToggleInteractionHotkey);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void PersistedControlAndAltFunctionKeysArePreserved(int modifiers)
+    {
+        using var folder = new HotkeyTestFolder();
+        var settings = new OverlaySettings
+        {
+            ToggleOverlayHotkey = new() { Key = "F11", Modifiers = (OverlayHotkeyModifiers)modifiers },
+            ToggleInteractionHotkey = new() { Key = "F10", Modifiers = (OverlayHotkeyModifiers)modifiers },
+        };
+        File.WriteAllText(folder.SettingsPath, JsonSerializer.Serialize(settings));
+
+        var loaded = new OverlaySettingsStore(folder.Path).Load();
+
+        Assert.Equal(settings.ToggleOverlayHotkey, loaded.ToggleOverlayHotkey);
+        Assert.Equal(settings.ToggleInteractionHotkey, loaded.ToggleInteractionHotkey);
     }
 
     [Fact]
@@ -204,7 +295,7 @@ public sealed class NativeOverlayHotkeyRegistrationTests
         var api = new RegistrationApi();
         var registrations = new NativeOverlayHotkeyRegistration(api.Register, api.Unregister);
         registrations.Apply(true, Toggle, Interaction);
-        var custom = new OverlayHotkey { Key = "F8", Modifiers = OverlayHotkeyModifiers.None };
+        var custom = new OverlayHotkey { Key = "F8", Modifiers = OverlayHotkeyModifiers.Control };
         Assert.Null(registrations.Apply(false, custom, Interaction));
         Assert.Empty(api.Owned);
         Assert.False(registrations.Matches(1, 3, 0x4f));
@@ -212,7 +303,7 @@ public sealed class NativeOverlayHotkeyRegistrationTests
 
         Assert.Null(registrations.Apply(true, custom, Interaction));
 
-        Assert.True(registrations.Matches(1, 0, 0x77));
+        Assert.True(registrations.Matches(1, 2, 0x77));
         Assert.Equal(4, api.Registrations.Count);
     }
 
@@ -222,22 +313,22 @@ public sealed class NativeOverlayHotkeyRegistrationTests
         var api = new RegistrationApi();
         var registrations = new NativeOverlayHotkeyRegistration(api.Register, api.Unregister);
         registrations.Apply(true, Toggle, Interaction);
-        var custom = new OverlayHotkey { Key = "F2", Modifiers = OverlayHotkeyModifiers.Shift };
-        api.Blocked.Add((4, 0x71));
+        var custom = new OverlayHotkey { Key = "F2", Modifiers = OverlayHotkeyModifiers.Alt };
+        api.Blocked.Add((1, 0x71));
 
         var error = registrations.Apply(true, Toggle, custom);
 
-        Assert.Contains("Umschalt+F2", error);
+        Assert.Contains("Alt+F2", error);
         Assert.True(registrations.Matches(1, 3, 0x4f));
         Assert.False(registrations.Matches(2, 3, 0x4c));
-        Assert.False(registrations.Matches(2, 4, 0x71));
+        Assert.False(registrations.Matches(2, 1, 0x71));
         Assert.Equal(error, registrations.Apply(true, Toggle, custom));
         Assert.Equal(4, api.Registrations.Count);
 
         registrations.Apply(false, Toggle, custom);
         api.Blocked.Clear();
         Assert.Null(registrations.Apply(true, Toggle, custom));
-        Assert.True(registrations.Matches(2, 4, 0x71));
+        Assert.True(registrations.Matches(2, 1, 0x71));
     }
 
     [Fact]

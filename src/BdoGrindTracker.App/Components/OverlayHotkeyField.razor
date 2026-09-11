@@ -22,7 +22,6 @@
     private static readonly (OverlayHotkeyModifiers Value, string Label)[] Modifiers =
     [
         (OverlayHotkeyModifiers.Control, "Strg"), (OverlayHotkeyModifiers.Alt, "Alt"),
-        (OverlayHotkeyModifiers.Shift, "Umschalt"), (OverlayHotkeyModifiers.Windows, "Win"),
     ];
     private Task ToggleModifier(OverlayHotkeyModifiers modifier, bool enabled) => ValueChanged.InvokeAsync(Value with
     {

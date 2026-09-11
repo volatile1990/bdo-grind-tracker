@@ -21,10 +21,10 @@ Der Produktlink ist erst nach der Veröffentlichung öffentlich verfügbar. Für
 Windows, PowerShell 7.2+, .NET SDK 9 und das Windows SDK ab 10.0.19041.0 mit `MakeAppx.exe` und `MakePri.exe` sind erforderlich.
 
 ```powershell
-./scripts/Build-StoreRelease.ps1 -Version 1.2.0
+./scripts/Build-StoreRelease.ps1 -Version 1.2.1
 ```
 
-Das Skript führt alle Tests aus, veröffentlicht .NET samt Desktop-/Blazor-Laufzeit, erzeugt Logos aus der bestehenden Marke, erstellt den Shell-Ressourcenindex mit MakePri und das MSIX mit der Manifestprüfung des Windows SDK. Anschließend prüft es Identität, Inhalt, Icontransparenz und Ressourcen-Zuordnungen. Das Ergebnis liegt unter `artifacts/store/1.2.0/Grindcrest-1.2.0.0-x64.msix`, zusammen mit SHA-256-Prüfsumme sowie MakePri- und MakeAppx-Protokollen. Das Ausgabeverzeichnis muss leer sein; zum Wiederholen einen neuen `-OutputDirectory` angeben. `-SkipTests` ist nur für lokale Paketierungsdiagnosen gedacht.
+Das Skript führt alle Tests aus, veröffentlicht .NET samt Desktop-/Blazor-Laufzeit, erzeugt Logos aus der bestehenden Marke, erstellt den Shell-Ressourcenindex mit MakePri und das MSIX mit der Manifestprüfung des Windows SDK. Anschließend prüft es Identität, Inhalt, Icontransparenz und Ressourcen-Zuordnungen. Das Ergebnis liegt unter `artifacts/store/1.2.1/Grindcrest-1.2.1.0-x64.msix`, zusammen mit SHA-256-Prüfsumme sowie MakePri- und MakeAppx-Protokollen. Das Ausgabeverzeichnis muss leer sein; zum Wiederholen einen neuen `-OutputDirectory` angeben. `-SkipTests` ist nur für lokale Paketierungsdiagnosen gedacht.
 
 Für Taskleiste, Start und Alt+Tab enthält das Paket transparente `Square44x44Logo.targetsize-*`-Icons in 15 Größen, jeweils als Standard-, `altform-unplated`- und `altform-lightunplated`-Variante. MakePri ordnet diese im mitgelieferten `resources.pri` dem Manifestlogo zu. `BackgroundColor="transparent"` allein verhindert die von Windows ergänzte farbige Hintergrundfläche nicht. Der PNG-Master und das EXE-Icon bleiben unverändert.
 

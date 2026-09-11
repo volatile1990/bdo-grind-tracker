@@ -119,11 +119,14 @@ Verschieben und Mausdurchlässigkeit. Beide funktionieren auch bei ausgeblendete
 Overlay. Gedrückthalten löst die Aktion nur einmal aus.
 
 Die Leiste **Tastenkürzel** zeigt die aktuellen Kombinationen. Über **Anpassen**
-lassen sich die Haupttaste sowie Strg, Alt, Umschalt und Win wählen. Buchstaben,
-Ziffern, Navigationstasten und der Nummernblock benötigen mindestens eine dieser
-Zusatztasten. **F1–F11** können auch allein verwendet werden; F12 ist von Windows
-für Debugger reserviert. Beide Aktionen müssen unterschiedliche Kombinationen
-verwenden. Der Dialog bietet außerdem **Standard wiederherstellen** und einen
+lassen sich die Haupttaste sowie **Strg**, **Alt** oder **Strg+Alt** wählen.
+Mindestens eine dieser Zusatztasten ist für jedes Tastenkürzel Pflicht, auch für
+**F1–F11**. Umschalt und Win werden nicht angeboten. F12 ist von Windows für
+Debugger reserviert. Beide Aktionen müssen unterschiedliche Kombinationen
+verwenden. Ältere Belegungen ohne Strg/Alt oder mit Umschalt/Win fallen beim Laden
+auf die Standardkombinationen der jeweiligen Aktion zurück. Bereits gültige
+Strg-/Alt-Belegungen bleiben erhalten.
+Der Dialog bietet außerdem **Standard wiederherstellen** und einen
 Schalter zum vollständigen Deaktivieren der globalen Tastenkürzel.
 
 Nach dem Speichern werden die alten Kombinationen freigegeben und die neuen bei

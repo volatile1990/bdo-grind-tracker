@@ -194,6 +194,7 @@
 
 <dialog id="overlay-hotkeys-edit" class="modal oe-hotkey-modal" aria-labelledby="overlay-hotkeys-title" @oncancel="CloseHotkeyEditor" @oncancel:preventDefault>
     <div class="modal-heading"><h2 id="overlay-hotkeys-title">Tastenkürzel anpassen</h2><button type="button" class="icon-button" aria-label="Tastenkürzel-Dialog schließen" @onclick="CloseHotkeyEditor" disabled="@_hotkeyBusy"><AppIcon Name="close" /></button></div>
+    <p>Für jedes Tastenkürzel ist Strg, Alt oder Strg+Alt erforderlich, auch bei Funktionstasten.</p>
     <label class="oe-check oe-hotkeys-toggle"><input type="checkbox" @bind="_hotkeysEnabledDraft" disabled="@_hotkeyBusy" /><span>Globale Tastenkürzel aktiv</span></label>
     <OverlayHotkeyField Label="Overlay ein / aus" @bind-Value="_toggleOverlayDraft" Disabled="@_hotkeyBusy" />
     <OverlayHotkeyField Label="Verschieben / Klicks ans Spiel" @bind-Value="_toggleInteractionDraft" Disabled="@_hotkeyBusy" />

@@ -8,15 +8,12 @@ public enum OverlayHotkeyModifiers
     None = 0,
     Alt = 1,
     Control = 2,
-    Shift = 4,
-    Windows = 8,
 }
 
 /// <summary>A global shortcut registered with Windows; no input is sent to the game.</summary>
 public sealed record OverlayHotkey
 {
-    private const OverlayHotkeyModifiers AllModifiers = OverlayHotkeyModifiers.Control |
-        OverlayHotkeyModifiers.Alt | OverlayHotkeyModifiers.Shift | OverlayHotkeyModifiers.Windows;
+    private const OverlayHotkeyModifiers AllModifiers = OverlayHotkeyModifiers.Control | OverlayHotkeyModifiers.Alt;
     private static readonly IReadOnlyList<KeyDefinition> Definitions = CreateDefinitions();
     private static readonly IReadOnlyDictionary<string, KeyDefinition> ByName =
         Definitions.ToDictionary(key => key.Name, StringComparer.OrdinalIgnoreCase);
@@ -29,8 +26,8 @@ public sealed record OverlayHotkey
     public static IReadOnlyList<string> SupportedKeys { get; } = Array.AsReadOnly(Definitions.Select(key => key.Name).ToArray());
 
     [JsonIgnore]
-    public bool IsValid => (Modifiers & ~AllModifiers) == 0 && Find(Key) is { } key &&
-        (Modifiers != OverlayHotkeyModifiers.None || key.VirtualKey is >= 0x70 and <= 0x7a);
+    public bool IsValid => Modifiers != OverlayHotkeyModifiers.None &&
+        (Modifiers & ~AllModifiers) == 0 && Find(Key) is not null;
 
     [JsonIgnore]
     public string DisplayText
@@ -40,8 +37,6 @@ public sealed record OverlayHotkey
             var parts = new List<string>();
             if (Modifiers.HasFlag(OverlayHotkeyModifiers.Control)) parts.Add("Strg");
             if (Modifiers.HasFlag(OverlayHotkeyModifiers.Alt)) parts.Add("Alt");
-            if (Modifiers.HasFlag(OverlayHotkeyModifiers.Shift)) parts.Add("Umschalt");
-            if (Modifiers.HasFlag(OverlayHotkeyModifiers.Windows)) parts.Add("Win");
             parts.Add(KeyDisplayText(Key));
             return string.Join("+", parts);
         }

@@ -1,0 +1,5 @@
+Neu in Grindcrest 1.2.1:
+
+• Overlay-Tastenkürzel benötigen jetzt Strg, Alt oder Strg+Alt – auch bei F10/F11.
+• Umschalt und Win wurden aus der Auswahl entfernt. Der Einstellungsdialog zeigt die erforderlichen Zusatztasten an und verhindert ungültige Belegungen.
+• Vorhandene gültige Strg-/Alt-Belegungen bleiben erhalten. Nicht mehr unterstützte Belegungen werden auf die Standardkürzel Strg+Alt+O und Strg+Alt+L zurückgesetzt.
