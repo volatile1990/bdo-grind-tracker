@@ -1,7 +1,14 @@
 {
-  "source": "Nutzervorgabe vom 08.09.2026, Dropmengen-Eingabe.xlsx",
+  "source": "Nutzervorgaben: Dropmengen-Eingabe.xlsx vom 08.09.2026; Empty Picture Frame ergänzt am 11.09.2026",
   "sourceSha256": "a5ba8409909fd7be454d1bbf085e1a9ecf2dcd5cc3781980d405ca461adf02ae",
   "entries": [
+    {
+      "spotId": "aphrodon",
+      "itemName": "Empty Picture Frame",
+      "minimumQuantity": 1,
+      "maximumQuantity": 10,
+      "source": "Nutzervorgabe vom 11.09.2026: globaler Lootpool, Minimum 1, Maximum 10"
+    },
     {
       "spotId": "aphrodon",
       "itemName": "[Event] Mysterious Ore",
@@ -197,6 +204,13 @@
       "minimumQuantity": 1,
       "maximumQuantity": 1,
       "source": "Eingabe!C37:D37"
+    },
+    {
+      "spotId": "hermesia",
+      "itemName": "Empty Picture Frame",
+      "minimumQuantity": 1,
+      "maximumQuantity": 10,
+      "source": "Nutzervorgabe vom 11.09.2026: globaler Lootpool, Minimum 1, Maximum 10"
     },
     {
       "spotId": "hermesia",
@@ -407,6 +421,13 @@
       "minimumQuantity": 1,
       "maximumQuantity": 1,
       "source": "Eingabe!C67:D67"
+    },
+    {
+      "spotId": "magaia",
+      "itemName": "Empty Picture Frame",
+      "minimumQuantity": 1,
+      "maximumQuantity": 10,
+      "source": "Nutzervorgabe vom 11.09.2026: globaler Lootpool, Minimum 1, Maximum 10"
     },
     {
       "spotId": "magaia",
@@ -631,6 +652,13 @@
       "minimumQuantity": 1,
       "maximumQuantity": 1,
       "source": "Eingabe!C99:D99"
+    },
+    {
+      "spotId": "aresion",
+      "itemName": "Empty Picture Frame",
+      "minimumQuantity": 1,
+      "maximumQuantity": 10,
+      "source": "Nutzervorgabe vom 11.09.2026: globaler Lootpool, Minimum 1, Maximum 10"
     },
     {
       "spotId": "aresion",
@@ -900,6 +928,13 @@
     },
     {
       "spotId": "scales-of-judgment",
+      "itemName": "Empty Picture Frame",
+      "minimumQuantity": 1,
+      "maximumQuantity": 10,
+      "source": "Nutzervorgabe vom 11.09.2026: globaler Lootpool, Minimum 1, Maximum 10"
+    },
+    {
+      "spotId": "scales-of-judgment",
       "itemName": "[Event] Mysterious Ore",
       "minimumQuantity": 1,
       "maximumQuantity": 1,
@@ -1163,6 +1198,13 @@
       "minimumQuantity": 1,
       "maximumQuantity": 1,
       "source": "Eingabe!C175:D175"
+    },
+    {
+      "spotId": "event-horizon",
+      "itemName": "Empty Picture Frame",
+      "minimumQuantity": 1,
+      "maximumQuantity": 10,
+      "source": "Nutzervorgabe vom 11.09.2026: globaler Lootpool, Minimum 1, Maximum 10"
     },
     {
       "spotId": "event-horizon",

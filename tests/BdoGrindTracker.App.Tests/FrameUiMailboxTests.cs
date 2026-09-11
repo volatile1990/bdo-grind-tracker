@@ -1,12 +1,145 @@
 using System.Diagnostics;
 using BdoGrindTracker.App.Analysis;
 using BdoGrindTracker.App.UI;
+using BdoGrindTracker.Core;
 using Xunit.Abstractions;
 
 namespace BdoGrindTracker.App.Tests;
 
 public sealed class FrameUiMailboxTests(ITestOutputHelper output)
 {
+    [Fact]
+    public void ProjectionIsAuthoritativeAndAuditDeltasAreNotAppliedAgain()
+    {
+        using var mailbox = new FrameUiMailbox();
+        var frame = ProjectedFrame(1, 1, "Helmet", 4) with
+        {
+            NewEvents = [new(Guid.NewGuid(), DateTimeOffset.UnixEpoch, "Helmet", 4),
+                new(Guid.Empty, DateTimeOffset.UnixEpoch, "Audit retraction", 0)],
+        };
+        Assert.True(mailbox.Publish(frame));
+        using var update = mailbox.TakeLatest();
+        Assert.Equal(4, update!.Totals!.TotalQuantity);
+        Assert.Equal(1, update.Totals.ConfirmedEventCount);
+        Assert.Equal("Helmet", Assert.Single(update.Totals.Totals).Key);
+    }
+
+    [Fact]
+    public void EqualSumProjectionReplacementRefreshesUiAndUploadWithoutActivity()
+    {
+        using var mailbox = new FrameUiMailbox();
+        mailbox.Publish(ProjectedFrame(1, 1, "Helmet", 4));
+        using var first = mailbox.TakeLatest();
+        Dictionary<string, long>? published = null;
+        bool? activity = null;
+        Assert.False(mailbox.Publish(ProjectedFrame(2, 1, "Dust", 4), onPublished: (totals, hasArrival) =>
+        {
+            published = new(totals);
+            activity = hasArrival;
+        }));
+        using var update = mailbox.TakeLatest();
+        Assert.NotNull(update!.Totals);
+        Assert.Equal(4, update.Totals.TotalQuantity);
+        Assert.Equal("Dust", Assert.Single(update.Totals.Totals).Key);
+        Assert.Equal(4, published!["Dust"]);
+        Assert.False(activity);
+        Assert.Equal("Helmet", Assert.Single(first!.Totals!.Totals).Key);
+    }
+
+    [Fact]
+    public void ProjectionRetractionAndCountRecoveryDoNotRestartActivityClock()
+    {
+        using var mailbox = new FrameUiMailbox();
+        var start = ProjectedFrame(1, 2, "Helmet", 8);
+        Assert.True(mailbox.Publish(start));
+        using var first = mailbox.TakeLatest();
+        Assert.False(mailbox.Publish(ProjectedFrame(2, 1, "Helmet", 4)));
+        using var retracted = mailbox.TakeLatest();
+        Assert.Equal(1, retracted!.Totals!.ConfirmedEventCount);
+        Assert.False(mailbox.Publish(ProjectedFrame(3, 2, "Helmet", 8)));
+        using var restored = mailbox.TakeLatest();
+        Assert.Equal(2, restored!.Totals!.ConfirmedEventCount);
+        Assert.True(mailbox.Publish(start with
+        {
+            LootProjection = new(4, start.LootProjection!.Totals, 2,
+                DateTimeOffset.UnixEpoch.AddSeconds(1)),
+        }));
+        using var arrivalOnly = mailbox.TakeLatest();
+        Assert.Null(arrivalOnly!.Totals);
+    }
+
+    [Fact]
+    public void DuplicateStaleAndUnchangedProjectionsDoNotRefreshTotals()
+    {
+        using var mailbox = new FrameUiMailbox();
+        var frame = ProjectedFrame(2, 1, "Helmet", 4);
+        mailbox.Publish(frame);
+        using var first = mailbox.TakeLatest();
+        Assert.False(mailbox.Publish(frame));
+        using var duplicate = mailbox.TakeLatest();
+        Assert.Null(duplicate!.Totals);
+        Assert.False(mailbox.Publish(ProjectedFrame(1, 5, "Dust", 50)));
+        using var stale = mailbox.TakeLatest();
+        Assert.Null(stale!.Totals);
+        Assert.False(mailbox.Publish(ProjectedFrame(3, 1, "Helmet", 4)));
+        using var unchanged = mailbox.TakeLatest();
+        Assert.Null(unchanged!.Totals);
+    }
+
+    [Fact]
+    public void CoalescedProjectionKeepsFinalSnapshotAndManualCorrection()
+    {
+        using var mailbox = new FrameUiMailbox();
+        mailbox.Publish(ProjectedFrame(1, 1, "Helmet", 4));
+        mailbox.AdjustQuantity("Helmet", 10, 4, _ => { });
+        mailbox.Publish(ProjectedFrame(2, 2, "Helmet", 8));
+        var last = ProjectedFrame(3, 1, "Dust", 4);
+        mailbox.Publish(last);
+        using var update = mailbox.TakeLatest();
+        Assert.Same(last, update!.Analysis);
+        Assert.Equal(10, update.Totals!.TotalQuantity);
+        Assert.Equal(6, update.Totals.Totals["Helmet"]);
+        Assert.Equal(4, update.Totals.Totals["Dust"]);
+        Assert.Equal(1, update.Totals.ConfirmedEventCount);
+        Assert.Null(mailbox.TakeLatest());
+    }
+
+    [Fact]
+    public void InvalidProjectionPreservesPendingUiSnapshotAndCanBeRetried()
+    {
+        using var mailbox = new FrameUiMailbox();
+        var first = ProjectedFrame(1, 1, "Helmet", 4);
+        mailbox.Publish(first);
+        Assert.Throws<ArgumentException>(() => mailbox.Publish(Frame() with
+        {
+            LootProjection = new(2, new Dictionary<string, long> { ["Dust"] = 4, ["dust"] = 4 },
+                2, DateTimeOffset.UnixEpoch),
+        }));
+        using var update = mailbox.TakeLatest();
+        Assert.Same(first, update!.Analysis);
+        Assert.Equal(4, update.Totals!.TotalQuantity);
+        mailbox.Publish(ProjectedFrame(2, 2, "Dust", 8));
+        using var corrected = mailbox.TakeLatest();
+        Assert.Equal(8, corrected!.Totals!.TotalQuantity);
+    }
+
+    [Fact]
+    public void ResetAllowsProjectionRevisionAndArrivalTimeToStartAgain()
+    {
+        using var mailbox = new FrameUiMailbox();
+        var frame = ProjectedFrame(0, 1, "Helmet", 4);
+        mailbox.Publish(frame);
+        mailbox.AdjustQuantity("Helmet", 10, 4, _ => { });
+        mailbox.Reset();
+        Assert.True(mailbox.Publish(frame));
+        using var update = mailbox.TakeLatest();
+        Assert.Equal(4, update!.Totals!.TotalQuantity);
+    }
+
+    private static FrameAnalysisResult ProjectedFrame(long revision, int drops, string item, long quantity) =>
+        Frame() with { LootProjection = new LootTotalsProjection(revision,
+            new Dictionary<string, long> { [item] = quantity }, drops, DateTimeOffset.UnixEpoch) };
+
     [Fact]
     public void AStalledUiCannotDropEventsOrQueueFrameUpdates()
     {

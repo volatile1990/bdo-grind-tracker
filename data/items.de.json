@@ -339,6 +339,13 @@
       "source": "https://bdocodex.com/de/item/767343/"
     },
     {
+      "canonicalName": "Empty Picture Frame",
+      "itemId": 767249,
+      "germanName": "Leerer Rahmen",
+      "source": "https://bdocodex.com/de/item/767249/",
+      "verifiedOn": "2026-09-11"
+    },
+    {
       "canonicalName": "[Event] Mysterious Ore",
       "itemId": 1000508,
       "germanName": "[Event] Mysteriöses Erz",

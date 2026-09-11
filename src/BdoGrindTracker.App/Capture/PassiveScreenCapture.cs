@@ -52,6 +52,10 @@ internal sealed unsafe class PassiveScreenCapture : IDisposable
         18 or // YCBCR_STUDIO_GHLG_TOPLEFT_P2020
         19;   // YCBCR_FULL_GHLG_TOPLEFT_P2020
 
+    // Output metadata only; the window backend never creates desktop duplication.
+    internal static bool ReadOutputHdrState(Rectangle outputBounds) =>
+        CompanionDesktopDuplication.ReadOutputHdrState(outputBounds);
+
     public void Dispose()
     {
         lock (_sync)
@@ -203,6 +207,24 @@ internal sealed unsafe class PassiveScreenCapture : IDisposable
                 Release(ref context);
                 Release(ref device);
                 Release(ref output1);
+                Release(ref output);
+                Release(ref adapter);
+                Release(ref factory);
+            }
+        }
+
+        internal static bool ReadOutputHdrState(Rectangle outputBounds)
+        {
+            nint factory = 0, adapter = 0, output = 0;
+            try
+            {
+                var factoryId = IdxgiFactory1;
+                ThrowIfFailed(CreateDXGIFactory1(&factoryId, &factory));
+                (adapter, output, _, var isHdr) = FindOutput(factory, outputBounds);
+                return isHdr;
+            }
+            finally
+            {
                 Release(ref output);
                 Release(ref adapter);
                 Release(ref factory);
@@ -831,4 +853,9 @@ internal sealed unsafe class PassiveScreenCapture : IDisposable
     private sealed class DesktopDuplicationAccessLostException : Exception;
 }
 
-internal readonly record struct CapturedDesktopBitmap(Bitmap Bitmap, bool IsHdr, bool IsToneMapped = false);
+internal readonly record struct CapturedDesktopBitmap(Bitmap Bitmap, bool IsHdr, bool IsToneMapped = false)
+{
+    // WGC supplies its real QPC frame timestamp, before GPU readback/CPU copying.
+    // Desktop duplication and injected test captures retain acquisition-end timing.
+    internal long? AcquiredAtTimestamp { get; init; }
+}

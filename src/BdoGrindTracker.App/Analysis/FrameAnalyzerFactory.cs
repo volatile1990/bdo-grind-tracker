@@ -60,7 +60,12 @@ internal static class FrameAnalyzerFactory
                 matcher,
                 rowPipeline,
                 nameRecognizer,
-                reconciliation: new TemporalNormalReconciliationAdapter(TrashLootMinimumCatalog.MinimumQuantities),
+                reconciliation: new LifetimeNormalReconciliationAdapter(new LifetimeParsingContext(0,
+                    catalog.Select(item => new LifetimeParsingCatalogEntry(item.Name,
+                        ItemLocalizationCatalog.GermanNames.TryGetValue(item.Name, out var germanName)
+                            ? new[] { germanName } : Array.Empty<string>(),
+                        DropQuantityCatalog.GetBounds(null, item.Name)?.IsFixedUnit == true)).ToArray()),
+                    useVisualSlotCoverage: true),
                 normalRecovery: new NormalLootRecovery(matcher, nameRecognizer),
                 captureGuard: new LootPanelCaptureGuard(calibration, ReadCalibration),
                 configureGameLanguage: ConfigureLanguage,

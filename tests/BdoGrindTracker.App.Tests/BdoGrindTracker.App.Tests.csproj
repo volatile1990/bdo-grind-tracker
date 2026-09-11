@@ -21,6 +21,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="..\fixtures\lifetime\*.txt" Link="fixtures\lifetime\%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\fixtures\companion-counter-v1.jsonl" Link="fixtures\companion-counter-v1.jsonl"
              CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\fixtures\loot-scroll\*.png" Link="fixtures\loot-scroll\%(Filename)%(Extension)"
@@ -28,6 +30,8 @@
     <Content Include="..\fixtures\agris\*.png" Link="fixtures\agris\%(Filename)%(Extension)"
              CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\fixtures\experience\*.png" Link="fixtures\experience\%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\fixtures\normal-appearance\*.png" Link="fixtures\normal-appearance\%(Filename)%(Extension)"
              CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

@@ -80,6 +80,12 @@ The six untaxed NPC trash prices are independently supported by the
 | Elion Follower's Mark | 186,458 |
 | Broken Gloves of the Void | 196,501 |
 
+Added on 2026-09-11: **Empty Picture Frame** has a fixed NPC sell value of
+**15,348 silver**, verified against the [English item record](https://bdocodex.com/us/item/767249/)
+and [German item record](https://bdocodex.com/de/item/767249/). This addition does
+not introduce a market-price request. Five frames are worth 76,740 silver,
+consistent with the user's rounded 77K screenshot.
+
 Other untaxed **Companion appraisals** retained from that metadata are:
 
 | Items | Silver per item |

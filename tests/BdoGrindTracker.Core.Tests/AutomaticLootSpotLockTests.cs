@@ -31,6 +31,7 @@ public sealed class AutomaticLootSpotLockTests
         Assert.Contains("Ancient Spirit Dust", LootSpotCatalog.SharedGlobalItems);
         Assert.Contains("Black Stone", LootSpotCatalog.SharedGlobalItems);
         Assert.Contains("Caphras Stone", LootSpotCatalog.SharedGlobalItems);
+        Assert.Contains("Empty Picture Frame", LootSpotCatalog.SharedGlobalItems);
         Assert.Contains("Laila's Petal", LootSpotCatalog.SharedGlobalItems);
         Assert.Empty(LootSpotCatalog.SharedGlobalItems.Intersect(LootSpotCatalog.SharedHighestTierItems));
         Assert.Empty(LootSpotCatalog.SharedGlobalItems.Intersect(LootSpotCatalog.EventItems));

@@ -38,6 +38,12 @@ public sealed record LootObservation(
     public bool IsAlignmentAnchor { get; init; }
     public int? AlignmentPreviousSlot { get; init; }
 
+    /// <summary>Optional pixel evidence of a faded row being replaced by a fresh rendering.</summary>
+    public NormalLootAppearanceEvidence? AppearanceEvidence { get; init; }
+
+    /// <summary>Physical glyph evidence only; cannot supply an item, amount, or event identity.</summary>
+    public NormalLootOccupancyEvidence? OccupancyEvidence { get; init; }
+
 }
 
 /// <summary>A native loot delta, including signed rare corrections.</summary>
@@ -80,6 +86,9 @@ public sealed record TrackerFrameResult(
     IReadOnlyList<TrackedLootEvent> NewEvents,
     IReadOnlyList<LootTrackingDecision> Decisions)
 {
+    /// <summary>Complete fused estimate for counters with reversible event histories.</summary>
+    public LootTotalsProjection? LootProjection { get; init; }
+    public LifetimeParsingContext? LifetimeParsingContext { get; init; }
     public long? NormalCaptureIndex { get; init; }
     public IReadOnlyList<NormalLootReconciliationTrace> NormalReconciliation { get; init; } = [];
 }

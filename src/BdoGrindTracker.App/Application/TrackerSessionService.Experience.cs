@@ -16,7 +16,7 @@ internal sealed partial class TrackerSessionService
         var visible = false;
         if (running && _lastCaptureDesktopRegion is { } region)
         {
-            try { visible = _isLootScrollCaptureVisible(region); }
+            try { visible = _captureSession.UsesWindowCapture ? _captureSession.IsRunning : _isLootScrollCaptureVisible(region); }
             catch (Exception) { /* Missing game visibility never blocks loot tracking. */ }
         }
         var snapshot = _experienceMonitor.Snapshot(now, out var generation);

@@ -48,8 +48,8 @@ internal sealed class LootPanelCaptureGuard(
         {
             if (frameSize.Width != calibration.ScreenWidth || frameSize.Height != calibration.ScreenHeight)
                 throw new LootPanelUnavailableException(
-                    "Die gespeicherte Droplog-Position passt nicht zum gewählten Bildschirm. " +
-                    "Wähle in den Einstellungen den Spielmonitor und prüfe die BDO-Auflösung. " +
+                    "Die gespeicherte Droplog-Position passt nicht zur Größe des aufgenommenen Spielbilds. " +
+                    "Prüfe die BDO-Auflösung und speichere die UI-Einstellungen im Spiel. " +
                     "Starte Grindcrest danach neu.");
             if (readCurrent is null) return calibration;
             // A cheap file-version check catches a saved move before the next

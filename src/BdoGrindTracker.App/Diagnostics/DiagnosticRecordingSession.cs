@@ -28,6 +28,7 @@ internal sealed class DiagnosticRecordingSession : IDisposable
     private readonly Dictionary<long, (int Sequence, string? Crop)> normalFrameReferences = [];
     private readonly LootCountAudit countAudit = new();
     private long summaryBytes;
+    private LifetimeParsingContext? lastParsingContext;
 
     private DiagnosticRecordingSession(long? maximumBytes, int? maximumFrames)
     {
@@ -82,7 +83,7 @@ internal sealed class DiagnosticRecordingSession : IDisposable
                 LootDiagnosticFormat.EngineVersion,
                 DateTimeOffset.UtcNow,
                 spotId,
-                "matched-loot-counter-only; recorded recognition variant selects the counter; OCR and spot matching are recorded inputs")
+                "recorded-loot-counter-inputs; recognition variant selects the counter; lifetime-v2 reparses raw text with its recorded catalog; OCR is not repeated")
             {
                 TargetFrameIntervalMilliseconds = targetFrameInterval?.TotalMilliseconds,
                 MaximumQueuedFrames = maximumQueuedFrames,
@@ -133,7 +134,23 @@ internal sealed class DiagnosticRecordingSession : IDisposable
                 }
 
                 ValidateObservations(observations);
+                if ((recognitionVariant?.Split('+').Any(marker =>
+                        marker == LifetimeLootReconciler.VisualSlotAlgorithmName ||
+                        marker.StartsWith("visual-occupancy-", StringComparison.Ordinal)) ?? false) &&
+                    !HasVisualOccupancyMode(recognitionVariant))
+                    throw new InvalidDataException("Widersprüchliche Kennung für den Lebensdauer-Normalzähler v3.");
+                if (observations.Any(observation => observation.AppearanceEvidence is not null) &&
+                    !HasVisualAppearanceMode(recognitionVariant))
+                    throw new InvalidDataException("Visuelle Zeilenevidenz benötigt den zeitlichen Normalzähler v2.");
+                if (observations.Any(observation => observation.OccupancyEvidence is not null) &&
+                    !HasVisualOccupancyMode(recognitionVariant))
+                    throw new InvalidDataException("Visuelle Belegung benötigt den Lebensdauer-Normalzähler v3.");
                 ValidateResult(result);
+                if (result.LootProjection is not null && !HasLifetimeMode(recognitionVariant))
+                    throw new InvalidDataException("Eine Loot-Projektion benötigt den Lebensdauer-Normalzähler.");
+                if (HasRawLifetimeMode(recognitionVariant) != (result.LifetimeParsingContext is not null))
+                    throw new InvalidDataException("Rohtext-Normalzähler und Parsing-Kontext passen nicht zusammen.");
+                var parsingContext = ContextChange(result.LifetimeParsingContext);
                 captureTiming?.Validate();
                 var sequence = entrySequence + 1;
                 var crops = new List<LootDiagnosticCrop>(2);
@@ -160,6 +177,8 @@ internal sealed class DiagnosticRecordingSession : IDisposable
                     RowReviews = rowReviews is { Count: > 0 } ? rowReviews : null,
                     NormalCaptureIndex = result.NormalCaptureIndex,
                     NormalReconciliation = reconciliation,
+                    LootProjection = result.LootProjection,
+                    LifetimeParsingContext = parsingContext,
                 };
                 var jsonBytes = SerializeLine(entry);
                 EnsureBudget(jsonBytes.LongLength + encodedCrops.Sum(static crop => crop.Bytes.LongLength));
@@ -171,6 +190,7 @@ internal sealed class DiagnosticRecordingSession : IDisposable
                 }
 
                 WriteBytes(jsonBytes);
+                lastParsingContext = result.LifetimeParsingContext ?? lastParsingContext;
                 entrySequence = sequence;
                 frameCount++;
                 countAudit.Observe(result, reconciliation);
@@ -194,10 +214,15 @@ internal sealed class DiagnosticRecordingSession : IDisposable
             try
             {
                 ValidateResult(result);
+                if (result.LifetimeParsingContext is not null && lastParsingContext is null)
+                    throw new InvalidDataException("Parsing-Kontext ohne vorausgehenden Rohtext-Frame.");
+                var parsingContext = ContextChange(result.LifetimeParsingContext);
                 var reconciliation = LinkTraces(result.NormalReconciliation);
                 WriteJson(new LootDiagnosticEntry(
                     "complete", entrySequence + 1, completedAt, [], result.NewEvents, result.Decisions, [])
-                    { NormalCaptureIndex = result.NormalCaptureIndex, NormalReconciliation = reconciliation });
+                    { NormalCaptureIndex = result.NormalCaptureIndex, NormalReconciliation = reconciliation,
+                        LootProjection = result.LootProjection, LifetimeParsingContext = parsingContext });
+                lastParsingContext = result.LifetimeParsingContext ?? lastParsingContext;
                 entrySequence++;
                 countAudit.Observe(result, reconciliation);
             }
@@ -374,12 +399,95 @@ internal sealed class DiagnosticRecordingSession : IDisposable
             {
                 throw new InvalidDataException("Ungültige Diagnose-Beobachtung.");
             }
+            if (observation.AppearanceEvidence is { } appearance)
+            {
+                if (observation.Source != LootSource.Normal || observation.Slot > 5 ||
+                    observation.IsAlignmentAnchor || observation.RejectionReason is not null ||
+                    string.IsNullOrWhiteSpace(observation.ItemName))
+                    throw new InvalidDataException("Visuelle Zeilenevidenz benötigt eine akzeptierte Normal-Loot-Zeile.");
+                try { appearance.Validate(); }
+                catch (Exception exception) when (exception is ArgumentException or NullReferenceException)
+                {
+                    throw new InvalidDataException("Ungültige visuelle Zeilenevidenz.", exception);
+                }
+            }
+            if (observation.OccupancyEvidence is { } occupancy)
+            {
+                if (observation.Source != LootSource.Normal || observation.Slot > 5 ||
+                    observation.IsAlignmentAnchor || observation.RejectionReason is not null ||
+                    string.IsNullOrWhiteSpace(observation.ItemName) || observation.AppearanceEvidence is not null)
+                    throw new InvalidDataException("Visuelle Belegung benötigt eine akzeptierte kalibrierte Normal-Loot-Zeile.");
+                try { occupancy.Validate(); }
+                catch (Exception exception) when (exception is ArgumentException or NullReferenceException)
+                {
+                    throw new InvalidDataException("Ungültige visuelle Belegung.", exception);
+                }
+            }
         }
+    }
+
+    internal static bool HasVisualAppearanceMode(string? recognitionVariant)
+    {
+        var markers = recognitionVariant?.Split('+') ?? [];
+        return markers.Where(marker => marker.StartsWith("temporal-", StringComparison.Ordinal))
+                .Distinct(StringComparer.Ordinal).SequenceEqual([TemporalLootReconciler.AlgorithmName]) &&
+            markers.Contains(LootDiagnosticFormat.VisualAppearanceVariantName, StringComparer.Ordinal) &&
+            !markers.Contains("row-tracks-v1", StringComparer.Ordinal) &&
+            !markers.Contains(LootDiagnosticFormat.VisualOccupancyVariantName, StringComparer.Ordinal);
+    }
+
+    internal static bool HasLifetimeMode(string? recognitionVariant)
+    {
+        var markers = recognitionVariant?.Split('+') ?? [];
+        var algorithms = markers.Where(marker => marker.StartsWith("lifetime-", StringComparison.Ordinal) ||
+                marker.StartsWith("temporal-", StringComparison.Ordinal) || marker == "row-tracks-v1")
+            .Distinct(StringComparer.Ordinal).ToArray();
+        var occupancyMarkers = markers.Where(marker => marker.StartsWith("visual-occupancy-", StringComparison.Ordinal))
+            .Distinct(StringComparer.Ordinal).ToArray();
+        return algorithms.Length == 1 &&
+            algorithms[0] is LifetimeLootReconciler.AlgorithmName or LifetimeLootReconciler.RawTextAlgorithmName or LifetimeLootReconciler.VisualSlotAlgorithmName &&
+            !markers.Contains(LootDiagnosticFormat.VisualAppearanceVariantName, StringComparer.Ordinal) &&
+            (algorithms[0] == LifetimeLootReconciler.VisualSlotAlgorithmName
+                ? occupancyMarkers.SequenceEqual([LootDiagnosticFormat.VisualOccupancyVariantName])
+                : occupancyMarkers.Length == 0);
+    }
+
+    internal static bool HasRawLifetimeMode(string? recognitionVariant) => HasLifetimeMode(recognitionVariant) &&
+        recognitionVariant!.Split('+').Any(marker => marker is LifetimeLootReconciler.RawTextAlgorithmName or LifetimeLootReconciler.VisualSlotAlgorithmName);
+
+    internal static bool HasVisualOccupancyMode(string? recognitionVariant) => HasLifetimeMode(recognitionVariant) &&
+        recognitionVariant!.Split('+').Contains(LifetimeLootReconciler.VisualSlotAlgorithmName, StringComparer.Ordinal);
+
+    private LifetimeParsingContext? ContextChange(LifetimeParsingContext? context)
+    {
+        if (context is null) return null;
+        ValidateContextChange(lastParsingContext, context);
+        return lastParsingContext?.Revision == context.Revision ? null : context;
+    }
+
+    internal static void ValidateContextChange(LifetimeParsingContext? previous, LifetimeParsingContext current)
+    {
+        if (previous is not null && (current.Revision < previous.Revision ||
+            current.Revision == previous.Revision && !current.HasSameCatalog(previous)))
+            throw new InvalidDataException("Widersprüchlicher oder rückläufiger Parsing-Kontext.");
+    }
+
+    internal static void ValidateProjection(LootTotalsProjection? projection)
+    {
+        if (projection is null) return;
+        try { projection.Validate(); }
+        catch (Exception exception) when (exception is ArgumentException or NullReferenceException or OverflowException)
+        {
+            throw new InvalidDataException("Ungültige Loot-Projektion in der Diagnose-Aufnahme.", exception);
+        }
+        if (projection.Totals.Count > 1024 || projection.Totals.Keys.Any(name => name.Length > LootDiagnosticFormat.MaximumTextLength))
+            throw new InvalidDataException("Loot-Projektion überschreitet die zulässige Größe.");
     }
 
     private static void ValidateResult(TrackerFrameResult result)
     {
         ArgumentNullException.ThrowIfNull(result);
+        ValidateProjection(result.LootProjection);
         if (result.NewEvents is null || result.NewEvents.Count > 256 ||
             result.Decisions is null || result.Decisions.Count > 256 || result.NormalReconciliation is null ||
             result.NormalReconciliation.Count > CompanionFrameReconciler.BatchSize ||

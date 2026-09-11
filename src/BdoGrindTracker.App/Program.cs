@@ -106,7 +106,7 @@ internal static class Program
                         screen.DeviceName,
                         $"Bildschirm {index + 1} · {screen.Bounds.Width} × {screen.Bounds.Height}" + (screen.Primary ? " · Hauptbildschirm" : ""),
                         screen.Bounds, screen.Primary)).OrderByDescending(screen => screen.IsPrimary).ToArray();
-                    session = new TrackerSessionService(new PassiveCaptureSession(new PassiveScreenCapture()),
+                    session = new TrackerSessionService(new PassiveCaptureSession(new PassiveWindowCapture()),
                         analyzer, new SettingsStore(), monitors);
                 }
             }

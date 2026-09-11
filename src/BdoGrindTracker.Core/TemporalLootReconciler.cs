@@ -11,7 +11,8 @@ namespace BdoGrindTracker.Core;
 /// </summary>
 public sealed class TemporalLootReconciler
 {
-    public const string AlgorithmName = "temporal-v1";
+    public const string AlgorithmName = "temporal-v2";
+    public const string LegacyAlgorithmName = "temporal-v1";
     public const int SlotCount = 6;
     public const int MaximumHypotheses = 24;
     private const int MaximumReads = 32;
@@ -20,6 +21,7 @@ public sealed class TemporalLootReconciler
     private static readonly TimeSpan SettlementDelay = TimeSpan.FromMilliseconds(400);
     private static readonly TimeSpan CaptureGap = TimeSpan.FromMilliseconds(1800);
     private readonly Dictionary<string, uint> minimumQuantities;
+    private readonly bool legacyMode;
     private readonly Dictionary<Guid, Publication> published = [];
     private List<Hypothesis> beam = [];
     private DateTimeOffset? previousAt;
@@ -27,8 +29,9 @@ public sealed class TemporalLootReconciler
     public long CaptureIndex { get; private set; }
     public IReadOnlyList<NormalLootReconciliationTrace> LastTrace { get; private set; } = [];
 
-    public TemporalLootReconciler(IReadOnlyDictionary<string, uint>? minimumQuantities = null)
+    public TemporalLootReconciler(IReadOnlyDictionary<string, uint>? minimumQuantities = null, bool legacyMode = false)
     {
+        this.legacyMode = legacyMode;
         this.minimumQuantities = new(StringComparer.Ordinal);
         if (minimumQuantities is not null)
             foreach (var (name, amount) in minimumQuantities)
@@ -64,6 +67,7 @@ public sealed class TemporalLootReconciler
                 // A positive shift must contain a real newly visible bottom row.
                 // Empty frames and alignment-only evidence must not invent arrivals.
                 if (shift > 0 && !observations.Take(shift).Any(IsReadable) &&
+                    (legacyMode || !observations.Any(row => row?.AppearanceEvidence?.FadedPreviousSlots > 0)) &&
                     !observations.Select((row, slot) => (row, slot)).Any(pair =>
                         pair.row is { IsAlignmentAnchor: true, AlignmentPreviousSlot: { } source } &&
                         pair.slot - source == shift)) continue;
@@ -132,6 +136,7 @@ public sealed class TemporalLootReconciler
                 throw new ArgumentException("Slots must be unique and between zero and five.", nameof(entries));
             if (!double.IsFinite(row.NameConfidence) || row.NameConfidence is < 0 or > 1)
                 throw new ArgumentException("Name confidence must be between zero and one.", nameof(entries));
+            row.AppearanceEvidence?.Validate();
             rows[slot] = row;
         }
         return rows;
@@ -158,6 +163,10 @@ public sealed class TemporalLootReconciler
         {
             var observation = observations[slot];
             var old = state.Rows[slot];
+            if (!legacyMode && old is not null && slot >= shift && IsReadable(observation) &&
+                observation!.AppearanceEvidence is { } appearance &&
+                (appearance.FadedPreviousSlots & (1 << (slot - shift))) != 0)
+                return null;
             if (observation is { IsAlignmentAnchor: true })
             {
                 // Alignment is evidence of an older row, never an additional OCR vote.
@@ -194,7 +203,9 @@ public sealed class TemporalLootReconciler
                 state.Score -= 1.2;
                 // Growth above the previous top is usually scrolling, whereas a
                 // recovered interior OCR hole has a previously visible older anchor.
-                if (slot > 0 && prior.Rows.Take(slot).Any(row => row is not null) &&
+                // Slots vacated by this candidate's scroll are real new-arrival
+                // positions, not suspicious growth above the old top row.
+                if ((legacyMode || slot >= shift) && slot > 0 && prior.Rows.Take(slot).Any(row => row is not null) &&
                     !prior.Rows.Skip(slot + 1).Any(row => row is not null)) state.Score -= 1.5;
                 continue;
             }
@@ -206,7 +217,14 @@ public sealed class TemporalLootReconciler
                 if (quantity is { } count && old.Quantity is { } previousQuantity && count != previousQuantity)
                     state.Score -= .4; // A quantity disagreement is weak identity evidence.
             }
-            else state.Score -= gap ? 4 : 1.5;
+            else
+            {
+                // A published item's name cannot change. Continuing to attach
+                // another item to that ID would silently discard all its votes.
+                // Keep a competing OCR-error explanation, but let repeated reads
+                // of a new item overcome the older path's accumulated score.
+                state.Score -= !legacyMode && booking is not null ? 6 : gap ? 4 : 1.5;
+            }
             state.Rows[slot] = old.Observe(observation, at, slot);
         }
         return state;
@@ -322,7 +340,9 @@ public sealed class TemporalLootReconciler
             rows.Add(new(slot, observation?.Y, observation?.Name, observation is null ? null : Limit(observation.Count, null),
                 track?.Quantity, observation?.QuantityBounds, false, observation is { IsPlaceholder: true },
                 0, track?.Id, track?.Id, track is null ? null : slot - state.Shift,
-                gap ? "temporal-capture-gap" : state.Shift == 0 ? "temporal-held" : "temporal-scroll",
+                gap ? "temporal-capture-gap" : state.Shift == 0 ? "temporal-held" :
+                    !legacyMode && observations.Any(row => row?.AppearanceEvidence?.FadedPreviousSlots > 0)
+                        ? "temporal-visual-scroll" : "temporal-scroll",
                 observation is { IsAlignmentAnchor: true } ? "alignment-anchor" :
                 track is not null && published.ContainsKey(track.Id) ? "matched-existing" : "temporal-pending",
                 track is not null && published.TryGetValue(track.Id, out var book) ? book.Revision : 0, 0)

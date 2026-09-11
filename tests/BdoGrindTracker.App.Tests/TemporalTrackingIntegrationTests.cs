@@ -10,7 +10,7 @@ namespace BdoGrindTracker.App.Tests;
 public sealed class TemporalTrackingIntegrationTests : IDisposable
 {
     private const string Helmet = "Elion Follower's Helmet";
-    private const string Variant = "test+temporal-v1";
+    private const string Variant = "test+temporal-v2+visual-appearance-v1";
     private static readonly DateTimeOffset Start = new(2026, 9, 10, 18, 0, 0, TimeSpan.Zero);
     private readonly string directory = Path.Combine(Path.GetTempPath(), "Grindcrest-TemporalTests-" + Guid.NewGuid().ToString("N"));
 
@@ -28,7 +28,7 @@ public sealed class TemporalTrackingIntegrationTests : IDisposable
             rows.Quantity = quantity;
             var at = Start.AddMilliseconds(index * 200);
             var result = await analyzer.AnalyzeAsync(bitmap, at, CancellationToken.None);
-            Assert.Contains("+temporal-v1", result.VariantName);
+            Assert.Contains("+temporal-v2+visual-appearance-v1", result.VariantName);
             Assert.Null(result.SpotId); // Multiple sightings of one drop cannot establish three independent drops.
             events.AddRange(result.NewEvents);
             recording.RecordFrame(at, result.Observations, result.TrackingResult, bitmap, result.PanelRegion, null,
@@ -169,6 +169,190 @@ public sealed class TemporalTrackingIntegrationTests : IDisposable
     }
 
     [Fact]
+    public void LegacyTemporalV1RecordingKeepsItsCounterAndExactEventMetadata()
+    {
+        using var bitmap = new Bitmap(4, 4);
+        using var recording = DiagnosticRecordingSession.Start(directory);
+        var counter = new CompanionDiagnosticCounter([new(Helmet)], temporal: true, legacyTemporal: true);
+        for (var index = 0; index < 8; index++)
+        {
+            var at = Start.AddMilliseconds(index * 200);
+            var observation = Observation(4);
+            recording.RecordFrame(at, [observation], counter.ProcessFrame(at, [observation], false),
+                bitmap, null, null, recognitionVariant: "test+temporal-v1");
+        }
+        recording.RecordCompletion(Start.AddSeconds(2), counter.CompleteSession(Start.AddSeconds(2)));
+        recording.Dispose();
+        var lines = File.ReadAllLines(recording.RecordingPath!);
+        lines[0] = Serialize(Deserialize<LootDiagnosticHeader>(lines[0]) with
+            { EngineVersion = LootDiagnosticFormat.LegacyTemporalEngineVersion });
+        File.WriteAllLines(recording.RecordingPath!, lines);
+
+        var only = Assert.Single(Entries(recording.RecordingPath!).SelectMany(entry => entry.Events));
+        Assert.Equal(4, only.Quantity);
+        Assert.Equal(Start, only.DetectedAt);
+        Assert.Equal(0, only.Revision);
+        var replay = LootDiagnosticReplay.Run(recording.RecordingPath!);
+        Assert.Equal(TemporalLootReconciler.LegacyAlgorithmName, replay.NormalTrackingAlgorithm);
+        Assert.Equal(4, replay.Totals[Helmet]);
+        Assert.True(replay.TotalsMatch);
+        Assert.True(replay.EventTimelineMatches);
+        Assert.False(replay.UsesCurrentEngine);
+    }
+
+    [Fact]
+    public void VisualEvidenceRoundTripsAndChangesTheVisibleRowIdentity()
+    {
+        using var bitmap = new Bitmap(4, 4);
+        using var recording = DiagnosticRecordingSession.Start(directory);
+        var counter = Counter();
+        var oldCounter = new CompanionDiagnosticCounter([new(Helmet)], temporal: true, legacyTemporal: true);
+        var oldEvents = new List<TrackedLootEvent>();
+        var evidence = new NormalLootAppearanceEvidence(1, [new(0, 1, .4)]);
+        for (var index = 0; index < 4; index++)
+        {
+            var at = Start.AddMilliseconds(index * 200);
+            var row = Observation(4) with { AppearanceEvidence = index == 2 ? evidence : null };
+            recording.RecordFrame(at, [row], counter.ProcessFrame(at, [row], false),
+                bitmap, null, null, recognitionVariant: Variant);
+            oldEvents.AddRange(oldCounter.ProcessFrame(at, [row with { AppearanceEvidence = null }], false).NewEvents);
+        }
+        recording.RecordCompletion(Start.AddSeconds(1), counter.CompleteSession(Start.AddSeconds(1)));
+        oldEvents.AddRange(oldCounter.CompleteSession(Start.AddSeconds(1)).NewEvents);
+        recording.Dispose();
+
+        Assert.Null(recording.LastError);
+        var saved = Assert.Single(Entries(recording.RecordingPath!).SelectMany(entry => entry.Observations),
+            row => row.AppearanceEvidence is not null).AppearanceEvidence!;
+        Assert.Equal(evidence.FadedPreviousSlots, saved.FadedPreviousSlots);
+        Assert.Equal(evidence.Matches, saved.Matches);
+        var events = Entries(recording.RecordingPath!).SelectMany(entry => entry.Events).ToArray();
+        Assert.Equal(8, events.Sum(entry => entry.Quantity));
+        Assert.Equal(2, events.Select(entry => entry.EventId).Distinct().Count());
+        Assert.Equal(4, oldEvents.Sum(entry => entry.Quantity));
+        var replay = LootDiagnosticReplay.Run(recording.RecordingPath!);
+        Assert.Equal(TemporalLootReconciler.AlgorithmName, replay.NormalTrackingAlgorithm);
+        Assert.True(replay.TotalsMatch, replay.ToDisplayText());
+        Assert.True(replay.EventTimelineMatches, replay.ToDisplayText());
+    }
+
+    [Theory]
+    [InlineData("none")]
+    [InlineData("hdr")]
+    [InlineData("tone-mapping")]
+    [InlineData("language")]
+    [InlineData("session")]
+    [InlineData("pause")]
+    public async Task AnalyzerRetainsPixelsAcrossEmptyOcrAndResetsIncompatibleRepresentations(string transition)
+    {
+        var rows = new Rows { Quantity = 4, Present = false };
+        var receiver = new AppearanceReceiver();
+        using var analyzer = Analyzer(rows, receiver);
+        using var faded = AppearanceFrame(90);
+        using var fresh = AppearanceFrame(225);
+        var first = await analyzer.AnalyzeAsync(faded, Start, CancellationToken.None);
+        Assert.Empty(first.Observations);
+        if (transition == "language") analyzer.ConfigureGameLanguage("de-DE");
+        if (transition == "session") analyzer.Reset();
+        if (transition == "pause") analyzer.CompleteSession(Start.AddMilliseconds(100));
+        rows.Present = true;
+        var next = await analyzer.AnalyzeAsync(fresh, Start.AddMilliseconds(200),
+            transition == "hdr", transition == "tone-mapping", CancellationToken.None);
+        var observation = Assert.Single(next.Observations);
+        var forwarded = Assert.Single(receiver.Entries);
+        if (transition == "none")
+        {
+            Assert.Equal(1, observation.AppearanceEvidence!.FadedPreviousSlots);
+            Assert.Same(observation.AppearanceEvidence, forwarded.AppearanceEvidence);
+        }
+        else
+        {
+            Assert.Null(observation.AppearanceEvidence);
+            Assert.Null(forwarded.AppearanceEvidence);
+        }
+    }
+
+    [Fact]
+    public async Task LegacyTemporalAnalyzerKeepsItsMarkerAndDoesNotMeasureAppearance()
+    {
+        var rows = new Rows { Quantity = 4 };
+        using var analyzer = Analyzer(rows, new TemporalNormalReconciliationAdapter(legacyMode: true));
+        using var faded = AppearanceFrame(90);
+        using var fresh = AppearanceFrame(225);
+        await analyzer.AnalyzeAsync(faded, Start, CancellationToken.None);
+        var next = await analyzer.AnalyzeAsync(fresh, Start.AddMilliseconds(200), CancellationToken.None);
+        Assert.Contains("+temporal-v1", next.VariantName);
+        Assert.DoesNotContain("visual-appearance-v1", next.VariantName);
+        Assert.Null(Assert.Single(next.Observations).AppearanceEvidence);
+    }
+
+    [Theory]
+    [InlineData("test+temporal-v1")]
+    [InlineData("test+row-tracks-v1")]
+    [InlineData("test+temporal-v2")]
+    [InlineData("test+temporal-v2+visual-appearance-v1+temporal-v1")]
+    [InlineData("test+temporal-v2+visual-appearance-v1+temporal-v3")]
+    public void RecorderRejectsAppearanceWithoutItsVersionedMode(string variant)
+    {
+        using var bitmap = new Bitmap(4, 4);
+        using var recording = DiagnosticRecordingSession.Start(directory);
+        recording.RecordFrame(Start, [Observation(4) with
+            { AppearanceEvidence = new(1, [new(0, 1, .4)]) }], new([], []),
+            bitmap, null, null, recognitionVariant: variant);
+        Assert.NotNull(recording.LastError);
+        Assert.False(recording.IsRecording);
+    }
+
+    [Theory]
+    [InlineData("test+temporal-v1")]
+    [InlineData("test+row-tracks-v1")]
+    [InlineData("test+temporal-v2")]
+    [InlineData("test+temporal-v3+visual-appearance-v1")]
+    [InlineData("test+temporal-v2+visual-appearance-v1+temporal-v1")]
+    public void ReplayRejectsAppearanceInHistoricalOrMismatchedModes(string variant)
+    {
+        using var bitmap = new Bitmap(4, 4);
+        using var recording = DiagnosticRecordingSession.Start(directory);
+        recording.RecordFrame(Start, [Observation(4) with
+            { AppearanceEvidence = new(1, [new(0, 1, .4)]) }], new([], []),
+            bitmap, null, null, recognitionVariant: Variant);
+        recording.Dispose();
+        var lines = File.ReadAllLines(recording.RecordingPath!);
+        lines[1] = Serialize(Deserialize<LootDiagnosticEntry>(lines[1]) with { RecognitionVariant = variant });
+        File.WriteAllLines(recording.RecordingPath!, lines);
+        Assert.Throws<InvalidDataException>(() => LootDiagnosticReplay.Run(recording.RecordingPath!));
+    }
+
+    [Fact]
+    public void HistoricalHeaderCannotSelectVisualTemporalMode()
+    {
+        using var bitmap = new Bitmap(4, 4);
+        using var recording = DiagnosticRecordingSession.Start(directory);
+        recording.RecordFrame(Start, [], new([], []), bitmap, null, null, recognitionVariant: Variant);
+        recording.Dispose();
+        var lines = File.ReadAllLines(recording.RecordingPath!);
+        lines[0] = Serialize(Deserialize<LootDiagnosticHeader>(lines[0]) with
+            { EngineVersion = LootDiagnosticFormat.LegacyTemporalEngineVersion });
+        File.WriteAllLines(recording.RecordingPath!, lines);
+        Assert.Throws<InvalidDataException>(() => LootDiagnosticReplay.Run(recording.RecordingPath!));
+    }
+
+    [Theory]
+    [InlineData(-1, 0, 1, .4)]
+    [InlineData(64, 0, 1, .4)]
+    [InlineData(1, 6, 1, .4)]
+    [InlineData(1, 0, 1.1, .4)]
+    [InlineData(1, 0, double.NaN, .4)]
+    [InlineData(1, 0, 1, -1)]
+    [InlineData(1, 0, 1, double.PositiveInfinity)]
+    public void AppearanceValidationRejectsMalformedFields(int mask, int slot, double correlation, double ratio)
+    {
+        var observation = Observation(4) with
+            { AppearanceEvidence = new(mask, [new(slot, correlation, ratio)]) };
+        Assert.Throws<InvalidDataException>(() => DiagnosticRecordingSession.ValidateObservations([observation]));
+    }
+
+    [Fact]
     public void CaptureTimingAndActualSettingsRoundTripWithoutChangingCounting()
     {
         using var bitmap = new Bitmap(4, 4);
@@ -215,12 +399,40 @@ public sealed class TemporalTrackingIntegrationTests : IDisposable
     private static LootDiagnosticEntry[] Entries(string path) => File.ReadAllLines(path).Skip(1)
         .Select(Deserialize<LootDiagnosticEntry>).ToArray();
 
-    private static CompanionLootFrameAnalyzer Analyzer(Rows rows) => new(
-        new("profile", "gamevariable.xml", "GameOption.txt", 400, 300, 800, 600, 1,
-            CompanionFontType.StrongSword, 0, false),
+    private static CompanionCalibration Calibration() => new("profile", "gamevariable.xml", "GameOption.txt",
+        400, 300, 800, 600, 1, CompanionFontType.StrongSword, 0, false);
+
+    private static CompanionLootFrameAnalyzer Analyzer(Rows rows, ICompanionReconciliation? reconciliation = null) => new(
+        Calibration(),
         new CompanionItemMatcher([Helmet]), rows, new Names(rows),
-        reconciliation: new TemporalNormalReconciliationAdapter(),
+        reconciliation: reconciliation ?? new TemporalNormalReconciliationAdapter(),
         quantityBoundsResolver: (_, _) => new(1, 1000));
+
+    private static Bitmap AppearanceFrame(int strength)
+    {
+        var bitmap = new Bitmap(800, 600);
+        var slot = CompanionNormalLootGeometry.CalculateSlotCrops(Calibration())[0];
+        using var graphics = Graphics.FromImage(bitmap);
+        graphics.Clear(Color.Black);
+        using var brush = new SolidBrush(Color.FromArgb(strength, strength, strength));
+        using var font = new Font("Arial", 15, FontStyle.Bold, GraphicsUnit.Pixel);
+        graphics.DrawString(Helmet, font, brush, slot.Left + 10, slot.Top + 12);
+        return bitmap;
+    }
+
+    private sealed class AppearanceReceiver : ICompanionReconciliation
+    {
+        public string AlgorithmName => TemporalLootReconciler.AlgorithmName;
+        public bool TracksRows => true;
+        public IReadOnlyList<CompanionRecognizedEntry> Entries { get; private set; } = [];
+        public IReadOnlyList<CompanionRecognizedEntry> ProcessFrame(IReadOnlyList<CompanionRecognizedEntry> entries)
+        {
+            Entries = entries;
+            return [];
+        }
+        public IReadOnlyList<CompanionRecognizedEntry> Complete() => [];
+        public void Reset() => Entries = [];
+    }
 
     private sealed class Rows : ICompanionNormalRowPipeline
     {

@@ -39,8 +39,8 @@
             <label class="oe-check"><input type="checkbox" checked="@_settings.ShowBorder" @onchange="e => Change(s => s with { ShowBorder = Checked(e) })" /><span>Rahmen anzeigen</span></label>
             <label class="oe-check"><input type="checkbox" checked="@_settings.CaptureExcluded" @onchange="e => Change(s => s with { CaptureExcluded = Checked(e) })" /><span>Aus Bildschirmaufnahmen ausblenden</span></label>
             <button class="text-button oe-reset-position" @onclick="ResetPosition"><AppIcon Name="pin" />Bildschirmposition zurücksetzen</button>
-            <p class="oe-wide oe-help">Fenstermodus oder randloses Vollbild verwenden. Der Monitor wird über Black Desert erkannt. Ohne erkanntes Spiel wird der eingestellte Tracking-Monitor verwendet.</p>
-            <p class="oe-wide oe-help">@( _settings.CaptureExcluded ? "Das Ausblenden aus Aufnahmen verhindert, dass Overlay-Zahlen in der Loot-Erkennung auftauchen." : "Das Overlay ist in Bildschirmaufnahmen sichtbar. Halte das Droplog frei, damit die Erkennung zuverlässig bleibt." )</p>
+            <p class="oe-wide oe-help">Fenstermodus oder randloses Vollbild verwenden. Der Monitor wird über Black Desert erkannt. Ohne erkanntes Spiel wird der eingestellte Ersatzbildschirm verwendet.</p>
+            <p class="oe-wide oe-help">@( _settings.CaptureExcluded ? "Das Overlay wird aus unterstützten Bildschirmaufnahmen ausgeblendet." : "Das Overlay ist in Bildschirmaufnahmen sichtbar." )</p>
         </div>
     </details>
 

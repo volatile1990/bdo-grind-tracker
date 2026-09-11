@@ -372,10 +372,18 @@ Zählung nicht. Die zusätzlichen OCR-Leseversuche aus 0.9.4 sind oben beschrieb
 
 Das Trackerfenster und seine Optionen sind normale, aufnehmbare Fenster. Der frühere
 Windows-Schalter `WDA_EXCLUDEFROMCAPTURE` ließ sie aus der eingefrorenen Ansicht des
-Snipping Tools verschwinden; die App verwendet jetzt `WDA_NONE`. Beim aktiven Tracking
-den Tracker nicht über das kalibrierte Lootpanel legen, idealerweise auf einem zweiten
-Monitor verwenden: Die Aufnahme sieht auch überlagernde Fenster, nicht verdeckte
-Spielpixel. Es wurden keine zusätzlichen Erkennungsfilter oder Verwerfungsregeln eingeführt.
+Snipping Tools verschwinden; die App verwendet jetzt `WDA_NONE`. Der aktuelle
+Featurestand nimmt über Windows Graphics Capture direkt das Black-Desert-Spielfenster
+auf. Andere Desktopfenster verdecken die aufgenommenen Spielpixel dadurch nicht.
+Spielinterne Meldungen bleiben sichtbar und können den Lootfeed überdecken.
+Das Spiel muss geöffnet und darf nicht minimiert sein. Nach einer Größenänderung
+die Kalibrierung prüfen und das Tracking erneut starten. Der gewählte Monitor dient
+als Ersatzposition für das Overlay. Details zur Rohtext-Auswertung und den
+Testgrenzen stehen in [LIFETIME_LOOT_TRACKING.md](docs/LIFETIME_LOOT_TRACKING.md).
+
+Die zusätzlichen Referenzen mit 2.050 und 604 echten Helmen sowie vollständige
+Windows-, Paddle- und native Garmoth-Vergleiche sind in
+[OCR_COMPARISON_20260911.md](docs/OCR_COMPARISON_20260911.md) dokumentiert.
 
 ## Lokale Diagnose und Replay
 

@@ -1,5 +1,23 @@
 # HDR-Aufnahme für OCR
 
+## Aktueller Featurestand: Lifetime-Test 5
+
+Die Live-App verwendet Windows Graphics Capture für das Black-Desert-Fenster.
+Die Beschreibung der Monitorduplizierung unten dokumentiert den vorherigen
+Aufnahmeweg, der für bestehende Tests erhalten bleibt. Der neue Weg wählt FP16
+bei HDR und BGRA8 bei SDR, verwendet dieselbe FP16-Tonemapping-Funktion und
+schneidet die Bildoberfläche auf den Spielbereich ohne Fensterrahmen zu.
+Eine Änderung des HDR-Modus erfordert einen Neustart des Trackings. Ein Fehler
+führt nicht zu einem automatischen Wechsel auf Monitoraufnahme.
+
+Native Tests mit einem eigenen Fenster außerhalb des Desktops haben beide
+Formate, Farbänderungen, Fensterbewegungen und die Ablehnung minimierter Fenster
+geprüft. Je zehn frische Frames erreichten bei 200 ms Zielintervall im Mittel
+206 ms beziehungsweise 204 ms. Eine Live-Messung mit Black Desert selbst steht
+noch aus. Die Nachweise liegen unter `artifacts/window-capture-qa`.
+
+## Bisherige Monitorduplizierung
+
 Bei aktivem HDR wird der ausgewählte Monitor über `IDXGIOutput5::DuplicateOutput1`
 aufgenommen. Die angebotenen Texturformate sind `R16G16B16A16_FLOAT` (10) und
 `B8G8R8A8_UNORM` (87). Das tatsächlich gelieferte Format bestimmt die Verarbeitung.

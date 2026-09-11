@@ -1,5 +1,14 @@
 # Zeitliche Loot-Zählung und Capture-Messwerte
 
+Diese Datei beschreibt den historischen Temporal-Zähler. Ab Testbuild 3 läuft
+der [Lifetime-Zähler mit bisheriger OCR](LIFETIME_LOOT_TRACKING.md) im Live-Pfad.
+
+**Nachtrag nach den realen Tests vom 10.09.2026:** Die unten beschriebene
+v1-Architektur unterzählt. Insbesondere die bloße Altersstrafe und irreversible
+Veröffentlichung sind keine Anforderungen an einen Nachfolger. Die Prüfung
+beider Aufnahmen, des visuellen v2-Zwischenstands und des tatsächlichen
+Garmoth-Modells steht in [Unterzählung: Befunde und Ersatz](LOOT_UNDERCOUNT_20260910.md).
+
 Entwicklungsstand: 10. September 2026. Diese Beschreibung gilt für den aktuellen
 Quellcode, nicht automatisch für bereits installierte Releases. Ausgangspunkt
 war die [Garmoth-Analyse vom selben Datum](GARMOTH_REVERSE_ENGINEERING.md), deren

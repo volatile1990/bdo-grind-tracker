@@ -202,12 +202,12 @@ public sealed class LootPanelCaptureGuardTests
     }
 
     [Fact]
-    public void WrongMonitorSizeCannotUseCoordinatesFromAnotherResolution()
+    public void WrongCaptureSizeCannotUseCoordinatesFromAnotherResolution()
     {
         var guard = new LootPanelCaptureGuard(Calibration());
         var error = Assert.Throws<LootPanelUnavailableException>(() =>
             guard.Validate(new Size(3840, 2160), DateTimeOffset.UnixEpoch));
-        Assert.Contains("Spielmonitor", error.Message);
+        Assert.Contains("Spielbilds", error.Message);
         Assert.NotNull(guard.Error);
     }
 }

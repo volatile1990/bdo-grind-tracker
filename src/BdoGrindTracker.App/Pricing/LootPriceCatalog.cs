@@ -4,6 +4,7 @@ namespace BdoGrindTracker.App.Pricing;
 /// Item classification and fixed values from Companion 0.7.4's metadata cache.
 /// Market prices are deliberately not bundled. NPC junk prices were additionally
 /// checked against the publisher's 2026-08-13 patch notes. See pricing documentation.
+/// Empty Picture Frame's NPC value was verified in BDO Codex on 2026-09-11.
 /// </summary>
 internal static class LootPriceCatalog
 {
@@ -38,6 +39,7 @@ internal static class LootPriceCatalog
         Fixed("Embers of Ynix - Gloves", 0),
         Fixed("Embers of Ynix - Helmet", 0),
         Fixed("Embers of Ynix - Shoes", 0),
+        Fixed("Empty Picture Frame", 15_348),
         new LootPriceDefinition("[Event] Mysterious Ore", LootPriceKind.Unknown),
         Market("Fusion Shard", 821471),
         Fixed("HAN Origin Shard", 20_000_000),

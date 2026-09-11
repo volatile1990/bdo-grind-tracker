@@ -41,6 +41,16 @@ internal sealed class PassiveCaptureSession : IAsyncDisposable
     {
     }
 
+    public PassiveCaptureSession(PassiveWindowCapture capture, TimeSpan? frameInterval = null)
+        : this(capture.Capture, TimeProvider.System, frameInterval,
+            DefaultMaximumQueuedFrames, capture) { }
+
+    internal bool UsesWindowCapture => _captureOwner is PassiveWindowCapture;
+
+    internal Rectangle ResolveCaptureRegion(Rectangle fallbackDesktopRegion) =>
+        _captureOwner is PassiveWindowCapture windowCapture
+            ? windowCapture.PrepareCapture() : fallbackDesktopRegion;
+
     internal PassiveCaptureSession(
         Func<Rectangle, Bitmap> captureFrame,
         TimeProvider? timeProvider = null,
@@ -222,6 +232,7 @@ internal sealed class PassiveCaptureSession : IAsyncDisposable
     {
         long? lastCaptureTimestamp = null;
         long sequence = 0;
+        Exception? failure = null;
 
         try
         {
@@ -234,17 +245,18 @@ internal sealed class PassiveCaptureSession : IAsyncDisposable
                 // Include capture work in the deadline: a 60 ms acquisition
                 // leaves 140 ms at the nominal 200 ms cadence, not another 200.
                 var frameDeadlineStart = _timeProvider.GetTimestamp();
-                var hudVisible = TryObserveHud(canObserveHud);
+                var hudVisible = UsesWindowCapture || TryObserveHud(canObserveHud);
                 var capturedFrame = _captureFrame(desktopRegion, cancellationToken);
-                var captureTimestamp = _timeProvider.GetTimestamp();
+                var captureCompletedTimestamp = _timeProvider.GetTimestamp();
+                var captureTimestamp = capturedFrame.AcquiredAtTimestamp ?? captureCompletedTimestamp;
                 // Capture succeeded: even a stop arriving now must drain this
                 // bitmap. The single producer already reserved a queue slot.
                 using var pending = new PendingCapture(capturedFrame.Bitmap);
-                hudVisible = hudVisible && TryObserveHud(canObserveHud);
+                hudVisible = hudVisible && (UsesWindowCapture || TryObserveHud(canObserveHud));
                 if (_captureEpochUtc is null)
                 {
                     _captureEpochUtc = _timeProvider.GetUtcNow();
-                    _captureEpochTimestamp = captureTimestamp;
+                    _captureEpochTimestamp = captureCompletedTimestamp;
                 }
                 // The temporal counter needs real elapsed capture time, even
                 // when Windows corrects its wall clock while paused. Keep one
@@ -264,7 +276,7 @@ internal sealed class PassiveCaptureSession : IAsyncDisposable
                 {
                     CanObserveHud = hudVisible,
                     TargetFrameInterval = _frameInterval,
-                    CaptureDuration = _timeProvider.GetElapsedTime(frameDeadlineStart, captureTimestamp),
+                    CaptureDuration = _timeProvider.GetElapsedTime(frameDeadlineStart, captureCompletedTimestamp),
                     CaptureInterval = lastCaptureTimestamp is { } previousCapture
                         ? _timeProvider.GetElapsedTime(previousCapture, captureTimestamp)
                         : null,
@@ -293,13 +305,18 @@ internal sealed class PassiveCaptureSession : IAsyncDisposable
         }
         catch (Exception exception)
         {
-            return exception;
+            failure = exception;
         }
         finally
         {
+            try
+            {
+                if (_captureOwner is PassiveWindowCapture windowCapture) windowCapture.StopCapture();
+            }
+            catch (Exception exception) { failure ??= exception; }
             frames.TryComplete();
         }
-        return null;
+        return failure;
     }
 
     private readonly record struct QueuedCapture(

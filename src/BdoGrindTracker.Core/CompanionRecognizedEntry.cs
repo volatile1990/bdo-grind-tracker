@@ -24,6 +24,7 @@ public sealed record CompanionRecognizedEntry
     /// <summary>Optional evidence used by the temporal counter; legacy counting ignores it.</summary>
     public double NameConfidence { get; init; } = 1;
     public string? RawText { get; init; }
+    public NormalLootAppearanceEvidence? AppearanceEvidence { get; init; }
     /// <summary>First actual observation of this drop, retained on quantity revisions.</summary>
     public DateTimeOffset? DetectedAt { get; init; }
 

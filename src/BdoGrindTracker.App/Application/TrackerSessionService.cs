@@ -163,6 +163,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
     public TrackerState State { get; private set; } = new();
     public TrackerPreferences Preferences { get; private set; }
     public IReadOnlyList<TrackerMonitor> Monitors { get; }
+    public bool CapturesGameWindow => _captureSession.UsesWindowCapture;
     public IReadOnlyList<LootHistoryEntry> History { get; private set; } = [];
     public LootPriceSnapshot Prices { get; private set; } = LootPriceCatalog.FixedSnapshot("eu");
     private bool IsBusy => _operationInProgress || _garmothUploadInProgress;
@@ -268,14 +269,16 @@ internal sealed partial class TrackerSessionService : ITrackerSession
     {
         if (_sessionSubmitted) return;
         var monitor = Monitors.FirstOrDefault(m => m.DeviceName == Preferences.MonitorDeviceName);
-        if (monitor is null) throw new InvalidOperationException("Kein Spielmonitor verfügbar.");
+        if (monitor is null && !_captureSession.UsesWindowCapture)
+            throw new InvalidOperationException("Kein Spielmonitor verfügbar.");
         var gameLanguage = ResolveGameLanguage();
         EnsureOcrLanguage(gameLanguage);
         if (Interlocked.CompareExchange(ref _lastCaptureStopError, null, null) is LootPanelUnavailableException panelError)
             throw panelError;
-        _analyzer.ValidateCaptureSetup(monitor.Bounds.Size);
+        var captureRegion = _captureSession.ResolveCaptureRegion(monitor?.Bounds ?? Rectangle.Empty);
+        _analyzer.ValidateCaptureSetup(captureRegion.Size);
         var continuesExistingSession = _hasSession;
-        var geometryChanged = _lastCaptureDesktopRegion is { } previous && previous != monitor.Bounds;
+        var geometryChanged = _lastCaptureDesktopRegion is { } previous && previous != captureRegion;
         try
         {
             TrySaveSettings();
@@ -308,9 +311,9 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             _uiRunning = true;
             _inactivityTimer.Start();
             _sessionClock.Start();
-            _lastCaptureDesktopRegion = monitor.Bounds;
-            _captureSession.StartCompanion(monitor.Bounds, ProcessFrameAsync,
-                () => _isLootScrollCaptureVisible(monitor.Bounds));
+            _lastCaptureDesktopRegion = captureRegion;
+            _captureSession.StartCompanion(captureRegion, ProcessFrameAsync,
+                _captureSession.UsesWindowCapture ? null : () => _isLootScrollCaptureVisible(captureRegion));
             _priceRefreshEnabled = true;
             SetStatus(_settingsSaveError is { } settingsError
                 ? "Tracking aktiv. " + settingsError
@@ -380,7 +383,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
                     metadata.CaptureDuration.TotalMilliseconds, metadata.CaptureInterval?.TotalMilliseconds,
                     metadata.BackpressureDuration.TotalMilliseconds, metadata.QueueDelay.TotalMilliseconds,
                     analysisDuration.TotalMilliseconds) : null);
-        _uiMailbox.Publish(analysis, onPublished: ObserveGarmothTotals);
+        _uiMailbox.Publish(analysis, onPublished: ObserveGarmothTotals,
+            capturedAt: metadata.CapturedAtUtc);
         if (_uiRunning && metadata.CanObserveHud)
         {
             _lootScrollMonitor.Observe(frame, metadata.CapturedAtUtc);
@@ -448,7 +452,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         var completed = _analyzer.CompleteSession(completedAt);
         _captureSegmentCompleted = true;
         _recording?.RecordCompletion(completedAt, completed.TrackingResult);
-        _uiMailbox.Publish(completed, onPublished: ObserveGarmothTotals);
+        _uiMailbox.Publish(completed, onPublished: ObserveGarmothTotals,
+            capturedAt: completedAt, flushProjection: true);
         RefreshPendingState();
     }
 

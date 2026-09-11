@@ -3,25 +3,28 @@ using BdoGrindTracker.App.Analysis;
 namespace BdoGrindTracker.App.UI;
 
 /// <summary>
-/// Applies every event on the producer thread, but retains only the latest visual
+/// Applies each projection or legacy event on the producer thread, but retains only the latest visual
 /// state. A busy UI cannot queue captures, events, or full-resolution bitmaps.
 /// </summary>
 internal sealed class FrameUiMailbox : IDisposable
 {
     private readonly object _sync = new();
     private readonly LootSessionAggregate _aggregate = new();
+    private readonly LootProjectionBuffer _projectionBuffer = new();
     private FrameAnalysisResult? _latestAnalysis;
     private LiveDetectionDebugSnapshot? _latestDebugSnapshot;
     private Bitmap? _latestThumbnail;
     private bool _totalsChanged;
     private bool _disposed;
 
-    // Reports newly applied positive outputs, not repeated OCR rows or signed corrections.
+    // Projection activity follows new arrival times; historical modes use new positive outputs.
     public bool Publish(
         FrameAnalysisResult analysis,
         LiveDetectionDebugSnapshot? debugSnapshot = null,
         Bitmap? thumbnail = null,
-        Action<IReadOnlyDictionary<string, long>, bool>? onPublished = null)
+        Action<IReadOnlyDictionary<string, long>, bool>? onPublished = null,
+        DateTimeOffset? capturedAt = null,
+        bool flushProjection = false)
     {
         lock (_sync)
         {
@@ -31,15 +34,28 @@ internal sealed class FrameUiMailbox : IDisposable
                 return false;
             }
 
-            var previousEventCount = _aggregate.ConfirmedEventCount;
-            var previousQuantity = _aggregate.TotalQuantity;
-            foreach (var lootEvent in analysis.NewEvents)
-                _aggregate.Apply(lootEvent);
-            _totalsChanged |= _aggregate.ConfirmedEventCount != previousEventCount ||
-                _aggregate.TotalQuantity != previousQuantity;
+            bool hasNewArrival;
+            if (analysis.LootProjection is { } projection)
+            {
+                if (capturedAt is { } at)
+                    projection = _projectionBuffer.Observe(projection, at, flushProjection);
+                var applied = _aggregate.ApplyProjection(projection);
+                _totalsChanged |= applied.TotalsChanged;
+                hasNewArrival = applied.HasNewArrival;
+            }
+            else
+            {
+                var previousEventCount = _aggregate.ConfirmedEventCount;
+                var previousQuantity = _aggregate.TotalQuantity;
+                foreach (var lootEvent in analysis.NewEvents)
+                    _aggregate.Apply(lootEvent);
+                _totalsChanged |= _aggregate.ConfirmedEventCount != previousEventCount ||
+                    _aggregate.TotalQuantity != previousQuantity;
+                hasNewArrival = _aggregate.ConfirmedEventCount > previousEventCount;
+            }
             // Observe the same cumulative state before the UI can consume it.
             // The callback must copy any values retained beyond this call.
-            onPublished?.Invoke(_aggregate.Totals, _aggregate.ConfirmedEventCount > previousEventCount);
+            onPublished?.Invoke(_aggregate.Totals, hasNewArrival);
             _latestAnalysis = analysis;
             if (debugSnapshot is not null && thumbnail is not null)
             {
@@ -51,7 +67,7 @@ internal sealed class FrameUiMailbox : IDisposable
             {
                 thumbnail?.Dispose();
             }
-            return _aggregate.ConfirmedEventCount > previousEventCount;
+            return hasNewArrival;
         }
     }
 
@@ -97,6 +113,7 @@ internal sealed class FrameUiMailbox : IDisposable
         lock (_sync)
         {
             _aggregate.Reset();
+            _projectionBuffer.Reset();
             _latestAnalysis = null;
             _latestDebugSnapshot = null;
             _latestThumbnail?.Dispose();

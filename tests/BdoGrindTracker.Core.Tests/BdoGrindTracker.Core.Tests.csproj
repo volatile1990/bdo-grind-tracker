@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/BdoGrindTracker.Core/BdoGrindTracker.Core.csproj" />
+    <Content Include="../fixtures/lifetime/*.txt" Link="fixtures/lifetime/%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
-

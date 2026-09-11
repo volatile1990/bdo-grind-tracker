@@ -125,3 +125,9 @@ use a filtered `-ItemsFile` and separate output/catalog paths, then merge only
 the verified new metadata; do not replace this catalog with a partial refresh.
 
 2026-09-08: Pure Black Stone uses the AP variant icon from https://bdocodex.com/us/item/13/ as representative for the shared item name.
+
+2026-09-11: Empty Picture Frame (item 767249, German name Leerer Rahmen) was
+added from https://bdocodex.com/us/item/767249/. The page's exact icon
+https://bdocodex.com/items/new_icon/03_etc/03_quest_item/00066292.webp was converted
+to PNG without changing its 44×44 pixels. The icon's filename refers to a reused
+game asset and is not the new item's ID. The current catalog contains 58 icons.

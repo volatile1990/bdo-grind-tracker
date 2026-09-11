@@ -8,8 +8,15 @@ namespace BdoGrindTracker.App.Diagnostics;
 
 internal static class LootDiagnosticFormat
 {
-    public const int Version = 2;
-    public const string EngineVersion = "grindcrest-temporal-v1";
+    public const int Version = 3;
+    public const int HistoricalVersion = 2;
+    public const string EngineVersion = "grindcrest-lifetime-v3";
+    public const string LegacyRawLifetimeEngineVersion = "grindcrest-lifetime-v2";
+    public const string LegacyLifetimeEngineVersion = "grindcrest-lifetime-v1";
+    public const string LegacyVisualTemporalEngineVersion = "grindcrest-temporal-v2";
+    public const string LegacyTemporalEngineVersion = "grindcrest-temporal-v1";
+    public const string VisualAppearanceVariantName = "visual-appearance-v1";
+    public const string VisualOccupancyVariantName = "visual-occupancy-v1";
     public const string LegacyRowTracksEngineVersion = "companion-0.7.4-row-tracks-v8";
     public const string PreviousRowTracksEngineVersion = "companion-0.7.4-row-tracks-v7";
     public const string ClampedQuantityEngineVersion = "companion-0.7.4-drop-quantity-v6";
@@ -100,6 +107,14 @@ internal sealed record LootDiagnosticEntry(
     IReadOnlyList<LootTrackingDecision> Decisions,
     IReadOnlyList<LootDiagnosticCrop> Crops)
 {
+    // Included on the first raw-text frame and whenever the permitted catalog changes.
+    // Subsequent frames reuse the last snapshot; replay never loads installed aliases.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public LifetimeParsingContext? LifetimeParsingContext { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public LootTotalsProjection? LootProjection { get; init; }
+
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public LootCaptureTiming? CaptureTiming { get; init; }
 
