@@ -12,20 +12,20 @@ internal sealed class NativeOverlayForm : Form
     private Point _dragStart;
     private Rectangle _dragBounds;
     private bool _dragging, _resizing;
+    private NativeOverlayResize? _resize;
     private string? _pressedAction;
     private IReadOnlyDictionary<string, RectangleF> _actions = new Dictionary<string, RectangleF>();
     private readonly NativeOverlayHotkeyRegistration _hotkeys;
 
-    internal event Action<Rectangle, bool>? GeometryCommitted;
+    internal event Action<Rectangle, OverlaySettings?>? GeometryCommitted;
     internal event Action<string>? ActionClicked;
     internal event Action<int>? HotkeyPressed;
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     internal Rectangle MonitorBounds { get; set; }
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-    internal Size MinimumInteractionSize { get; set; } = new(180, 130);
-    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-    internal Size MaximumInteractionSize { get; set; } = new(720, 520);
+    internal Func<Rectangle, NativeOverlayResize>? CreateResize { get; set; }
     internal bool IsManipulating => _dragging || _resizing;
+    internal OverlaySettings? ResizePreview => _resize?.Current.Settings;
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     internal Func<Size, Bitmap>? RenderBitmap { get; set; }
 
@@ -140,13 +140,23 @@ internal sealed class NativeOverlayForm : Form
     {
         base.OnMouseDown(e);
         if (e.Button != MouseButtons.Left || _interaction == "passthrough") return;
+        // The grip is drawn above the modules, so it also wins hit testing over
+        // a tracking button placed in that corner.
+        if (IsResizeGrip(e.Location) && CreateResize is not null)
+        {
+            _dragStart = PointToScreen(e.Location);
+            _dragBounds = Bounds;
+            _resize = CreateResize(Bounds);
+            _resizing = true;
+            Capture = true;
+            return;
+        }
         _pressedAction = ActionAt(e.Location);
         if (_pressedAction is not null) { Capture = true; return; }
         if (_interaction != "move") return;
-        _dragStart = Cursor.Position;
+        _dragStart = PointToScreen(e.Location);
         _dragBounds = Bounds;
-        _resizing = e.X >= Width - ResizeGrip && e.Y >= Height - ResizeGrip;
-        _dragging = !_resizing;
+        _dragging = true;
         Capture = true;
     }
 
@@ -155,24 +165,24 @@ internal sealed class NativeOverlayForm : Form
         base.OnMouseMove(e);
         if (IsManipulating)
         {
-            var delta = Size.Subtract(new Size(Cursor.Position), new Size(_dragStart));
-            var proposed = _resizing ? new Rectangle(_dragBounds.Location, ResizedSize(delta)) :
+            var delta = Size.Subtract(new Size(PointToScreen(e.Location)), new Size(_dragStart));
+            var proposed = _resize is not null ? _resize.Update(delta).Bounds :
                 new Rectangle(Point.Add(_dragBounds.Location, delta), _dragBounds.Size);
             Bounds = NativeOverlayGeometry.Clamp(proposed, MonitorBounds);
             Render();
         }
-        Cursor = _interaction == "passthrough" ? Cursors.Default : ActionAt(e.Location) is not null ? Cursors.Hand :
-            _interaction == "move" ? e.X >= Width - ResizeGrip && e.Y >= Height - ResizeGrip ? Cursors.SizeNWSE : Cursors.SizeAll : Cursors.Default;
+        Cursor = _interaction == "passthrough" ? Cursors.Default : IsResizeGrip(e.Location) ? Cursors.SizeNWSE :
+            ActionAt(e.Location) is not null ? Cursors.Hand : _interaction == "move" ? Cursors.SizeAll : Cursors.Default;
     }
 
     protected override void OnMouseUp(MouseEventArgs e)
     {
         if (e.Button != MouseButtons.Left) return;
-        var moved = IsManipulating;
-        var resized = _resizing;
+        var moved = IsManipulating && Bounds != _dragBounds;
+        var resized = ResizePreview;
         var action = _pressedAction is not null && ActionAt(e.Location) == _pressedAction ? _pressedAction : null;
         base.OnMouseUp(e);
-        CancelManipulation();
+        CancelManipulation(restore: false);
         if (moved) GeometryCommitted?.Invoke(Bounds, resized);
         if (action is not null) ActionClicked?.Invoke(action);
     }
@@ -180,23 +190,12 @@ internal sealed class NativeOverlayForm : Form
     protected override void OnMouseCaptureChanged(EventArgs e)
     {
         base.OnMouseCaptureChanged(e);
-        if (!Capture) { _dragging = false; _resizing = false; _pressedAction = null; }
+        if (!Capture) CancelManipulation();
     }
 
     private int ResizeGrip => Math.Max(14, DeviceDpi / 6);
-    private Size ResizedSize(Size delta)
-    {
-        var horizontal = (double)delta.Width / _dragBounds.Width;
-        var vertical = (double)delta.Height / _dragBounds.Height;
-        var desired = 1 + (Math.Abs(horizontal) > Math.Abs(vertical) ? horizontal : vertical);
-        var minimum = Math.Max((double)MinimumInteractionSize.Width / _dragBounds.Width,
-            (double)MinimumInteractionSize.Height / _dragBounds.Height);
-        var maximum = Math.Min((double)MaximumInteractionSize.Width / _dragBounds.Width,
-            (double)MaximumInteractionSize.Height / _dragBounds.Height);
-        var factor = Math.Clamp(desired, Math.Min(minimum, maximum), maximum);
-        return new Size(Math.Max(1, (int)Math.Round(_dragBounds.Width * factor)),
-            Math.Max(1, (int)Math.Round(_dragBounds.Height * factor)));
-    }
+    private bool IsResizeGrip(Point point) => _interaction == "move" &&
+        point.X >= Width - ResizeGrip && point.Y >= Height - ResizeGrip;
     private string? ActionAt(Point point)
     {
         // Match drawing order: a later module covers controls beneath it.
@@ -204,11 +203,18 @@ internal sealed class NativeOverlayForm : Form
             if (pair.Value.Contains(point)) return pair.Key.StartsWith("toggle-tracking:", StringComparison.Ordinal) ? pair.Key : null;
         return null;
     }
-    private void CancelManipulation()
+    private void CancelManipulation(bool restore = true)
     {
+        var reset = restore && IsManipulating;
         _dragging = _resizing = false;
+        _resize = null;
         _pressedAction = null;
         Capture = false;
+        if (reset)
+        {
+            Bounds = _dragBounds;
+            Render();
+        }
     }
 
     protected override void Dispose(bool disposing)

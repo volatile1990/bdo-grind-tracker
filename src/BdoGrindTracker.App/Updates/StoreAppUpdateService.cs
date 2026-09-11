@@ -63,14 +63,18 @@ internal sealed class StoreAppUpdateService(
         if (!await _operation.WaitAsync(0)) return;
         try
         {
-            if (State.Phase != UpdatePhase.ReadyToRestart) return;
+            if (State.Phase is not (UpdatePhase.Available or UpdatePhase.ReadyToRestart)) return;
+            // Store can download and install in one operation. Retain whether a
+            // package was already staged so cancellation never claims a download.
+            var retryPhase = State.Phase;
+            var retryPercent = retryPhase == UpdatePhase.ReadyToRestart ? 100 : 0;
             if (sessionBlocked())
             {
                 Publish(State with { Message = "Bitte zuerst die Session pausieren und laufende Vorgänge abwarten." });
                 return;
             }
             Publish(State with { Phase = UpdatePhase.Restarting, DownloadPercent = 0,
-                Message = "Session wird gespeichert. Anschließend wird das Update installiert …" });
+                Message = "Session wird gespeichert. Anschließend wird das Update heruntergeladen und installiert …" });
             try
             {
                 StoreUpdateResult? result = null;
@@ -81,15 +85,15 @@ internal sealed class StoreAppUpdateService(
                     started = true;
                     result = await backend.InstallAsync(ProgressFor(UpdatePhase.Restarting));
                 });
-                Publish(State with { Phase = accepted && result == StoreUpdateResult.Completed ? UpdatePhase.Installed : UpdatePhase.ReadyToRestart,
-                    DownloadPercent = 100,
+                Publish(State with { Phase = accepted && result == StoreUpdateResult.Completed ? UpdatePhase.Installed : retryPhase,
+                    DownloadPercent = accepted && result == StoreUpdateResult.Completed ? 100 : retryPercent,
                     Message = accepted && result == StoreUpdateResult.Completed
                         ? "Die Installation ist abgeschlossen. Falls Grindcrest nicht automatisch neu startet, öffne die App erneut."
-                        : result is null ? "Die Installation wurde nicht gestartet. Das Update bleibt bereit." : FailureMessage(result.Value) });
+                        : result is null ? "Die Installation wurde nicht gestartet. Du kannst das Update erneut starten." : FailureMessage(result.Value) });
             }
             catch (Exception)
             {
-                Publish(State with { Phase = UpdatePhase.ReadyToRestart, DownloadPercent = 100,
+                Publish(State with { Phase = retryPhase, DownloadPercent = retryPercent,
                     Message = "Speichern oder Installation fehlgeschlagen. Grindcrest bleibt geöffnet. Bitte erneut versuchen." });
             }
         }

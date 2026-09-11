@@ -13,7 +13,13 @@ verfügbar. Windows kann die Markierung weiterhin erzwingen, wenn die Berechtigu
 verweigert wird oder eine andere Aufnahme-App denselben Rahmen verlangt.
 Siehe [Microsoft: IsBorderRequired](https://learn.microsoft.com/en-us/uwp/api/windows.graphics.capture.graphicscapturesession.isborderrequired).
 
-Der native Test unter `artifacts/lifetime-test-7-qa/native` bestätigt erlaubten
+Das MSIX-Manifest deklariert zusätzlich `uap11:graphicsCaptureWithoutBorder`.
+Diese Paketberechtigung ist für die Borderless-Anfrage erforderlich; `runFullTrust`
+allein reicht dafür nicht aus. Der Paketvalidator prüft beide Berechtigungen samt
+XML-Namespace. Die Zustimmung und die tatsächliche Rahmenanzeige bleiben bei
+Windows. Siehe [Microsoft: uap11:Capability](https://learn.microsoft.com/en-us/uwp/schemas/appxpackage/uapmanifestschema/element-uap11-capability).
+
+Der native Test der ungepackten EXE unter `artifacts/lifetime-test-7-qa/native` bestätigt erlaubten
 Borderless-Zugriff und das abgeschaltete Session-Flag auf diesem Rechner für
 HDR und BGRA8. Beide Pfade liefern weiter frische Bilder, korrekte Ausschnitte,
 200-ms-Takt und den erwarteten Fehler bei Minimierung. Das Hilfsfenster gehört

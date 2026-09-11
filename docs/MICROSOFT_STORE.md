@@ -21,10 +21,10 @@ Der Produktlink ist erst nach der Veröffentlichung öffentlich verfügbar. Für
 Windows, PowerShell 7.2+, .NET SDK 9 und das Windows SDK ab 10.0.19041.0 mit `MakeAppx.exe` und `MakePri.exe` sind erforderlich.
 
 ```powershell
-./scripts/Build-StoreRelease.ps1 -Version 1.1.0
+./scripts/Build-StoreRelease.ps1 -Version 1.1.1
 ```
 
-Das Skript führt alle Tests aus, veröffentlicht .NET samt Desktop-/Blazor-Laufzeit, erzeugt Logos aus der bestehenden Marke, erstellt den Shell-Ressourcenindex mit MakePri und das MSIX mit der Manifestprüfung des Windows SDK. Anschließend prüft es Identität, Inhalt, Icontransparenz und Ressourcen-Zuordnungen. Das Ergebnis liegt unter `artifacts/store/1.1.0/Grindcrest-1.1.0.0-x64.msix`, zusammen mit SHA-256-Prüfsumme sowie MakePri- und MakeAppx-Protokollen. Das Ausgabeverzeichnis muss leer sein; zum Wiederholen einen neuen `-OutputDirectory` angeben. `-SkipTests` ist nur für lokale Paketierungsdiagnosen gedacht.
+Das Skript führt alle Tests aus, veröffentlicht .NET samt Desktop-/Blazor-Laufzeit, erzeugt Logos aus der bestehenden Marke, erstellt den Shell-Ressourcenindex mit MakePri und das MSIX mit der Manifestprüfung des Windows SDK. Anschließend prüft es Identität, Inhalt, Icontransparenz und Ressourcen-Zuordnungen. Das Ergebnis liegt unter `artifacts/store/1.1.1/Grindcrest-1.1.1.0-x64.msix`, zusammen mit SHA-256-Prüfsumme sowie MakePri- und MakeAppx-Protokollen. Das Ausgabeverzeichnis muss leer sein; zum Wiederholen einen neuen `-OutputDirectory` angeben. `-SkipTests` ist nur für lokale Paketierungsdiagnosen gedacht.
 
 Für Taskleiste, Start und Alt+Tab enthält das Paket transparente `Square44x44Logo.targetsize-*`-Icons in 15 Größen, jeweils als Standard-, `altform-unplated`- und `altform-lightunplated`-Variante. MakePri ordnet diese im mitgelieferten `resources.pri` dem Manifestlogo zu. `BackgroundColor="transparent"` allein verhindert die von Windows ergänzte farbige Hintergrundfläche nicht. Der PNG-Master und das EXE-Icon bleiben unverändert.
 
@@ -50,17 +50,27 @@ Neue Store-Versionen haben vier Komponenten: `1.0.1` wird zu `1.0.1.0`; die letz
 
 Die Angaben sollten vor dem Absenden zusammen mit Store-Beschreibung, Datenschutzangaben und Rechten an mitgelieferten Fremdassets geprüft werden. Microsoft entscheidet über die Freigabe.
 
+Das Manifest deklariert außerdem `uap11:Capability` mit
+`graphicsCaptureWithoutBorder`, damit auch die gepackte App die vom Nutzer
+gewünschte Fensteraufnahme ohne gelben Rahmen anfordern kann. Die Zustimmung
+erteilt Windows; die Deklaration schaltet keine globale Sicherheitsvorgabe aus.
+Der Paketvalidator erlaubt ausschließlich diese Capability und `runFullTrust`.
+
 ## Installation, Daten und Updates
 
-Die App erkennt ihre tatsächliche Windows-Paketidentität. Nur eine unverpackte Installation darf Velopack starten und das GitHub-Update-Backend verwenden. Ab Version 1.0.1 verwendet die Store-Ausgabe `Windows.Services.Store.StoreContext` mit dem HWND des App-Fensters. Sie prüft beim Start, nach jeweils sechs Stunden weiterer Nutzung und auf Knopfdruck auf verfügbare Updates. Hinweise erscheinen direkt in Grindcrest; unter **Einstellungen → App-Updates** lassen sich Pakete herunterladen und installieren. Beta-Umschalter und GitHub-Installationsaktionen werden dort nicht angeboten.
+Die App erkennt ihre tatsächliche Windows-Paketidentität. Nur eine unverpackte Installation darf Velopack starten und das GitHub-Update-Backend verwenden. Ab Version 1.0.1 verwendet die Store-Ausgabe `Windows.Services.Store.StoreContext` mit dem HWND des App-Fensters. Sie prüft beim Start, nach jeweils sechs Stunden weiterer Nutzung und auf Knopfdruck auf verfügbare Updates. Beta-Umschalter und GitHub-Installationsaktionen werden dort nicht angeboten.
 
-Der Download darf während des Trackings laufen. **Update installieren** setzt eine pausierte Session ohne laufende Vorgänge voraus. Zuerst werden Verlauf, Einstellungen und Fensterposition gespeichert; während der Installation sind Session-Aktionen gesperrt. Microsoft übernimmt Paketprüfung und Installation. Ein Windows-Bestätigungsdialog ist möglich, die Microsoft-Store-App muss nicht geöffnet werden. Bei Abbruch oder Fehler kann der Nutzer weiterarbeiten und erneut versuchen. Windows kann Grindcrest schließen und nach dem Update neu starten; falls kein Neustart erfolgt, die App erneut öffnen.
+Für die nächste Store-Version **1.1.1** erscheint bei einer verfügbaren Aktualisierung automatisch ein Popup **Update verfügbar**. **Jetzt aktualisieren** startet Download und Installation über `RequestDownloadAndInstallStorePackageUpdatesAsync` in einem Schritt. **Später** schließt nur den Hinweis. Er öffnet sich bei Fortschrittsmeldungen und Seitenwechseln nicht erneut; über den Update-Banner bleibt er erreichbar. Unter **Einstellungen → App-Updates** steht derselbe direkte Update-Button zur Verfügung. Es wird weder ein Browser noch die Store-App geöffnet.
 
-Die Store-Schnittstelle liefert keine verlässliche Zielversionsnummer für diese Abfrage; der Hinweis nennt deshalb keine erfundene Versionsnummer. Verfügbar sind nur bereits freigegebene Updates, die der Store diesem Nutzer anbietet. Neue Pakete müssen weiterhin über Partner Center eingereicht und zertifiziert werden. Bereits installierte 1.0.0-Ausgaben erhalten diese Funktion erst durch ein normales Store-Update auf mindestens 1.0.1, automatisch sofern Windows-Store-Updates aktiviert sind.
+Die Installation setzt eine pausierte Session ohne laufende Vorgänge voraus; der Button zeigt andernfalls **Session zuerst pausieren**. Zuerst werden Verlauf, Einstellungen und Fensterposition gespeichert; während der Store-Operation sind Session-Aktionen gesperrt. Microsoft übernimmt Paketprüfung und Installation und kann einen eigenen Bestätigungsdialog anzeigen. Bei Abbruch, fehlender Verbindung oder Speicherfehlern kann der Nutzer weiterarbeiten und erneut versuchen. Ein fehlgeschlagener direkter Versuch wird nicht als bereits heruntergeladenes Paket angezeigt. Windows kann Grindcrest schließen und nach dem Update neu starten; falls kein Neustart erfolgt, die App erneut öffnen.
+
+Die Store-Schnittstelle liefert keine verlässliche Zielversionsnummer für diese Abfrage; der Hinweis nennt deshalb keine erfundene Versionsnummer. Verfügbar sind nur bereits freigegebene Updates, die der Store diesem Nutzer anbietet. Microsoft kann die Verfügbarkeit nach Veröffentlichung verzögert melden und begrenzt erneute Prüfungen (aktuell höchstens einmal pro 30 Minuten und zehnmal pro 24 Stunden). Neue Pakete müssen weiterhin über Partner Center eingereicht und zertifiziert werden. Ein lokaler Build veröffentlicht nichts.
+
+Bereits installierte **1.0.0**-Ausgaben enthalten ausschließlich den Store-Verweis. Sie müssen zuerst auf normalem Store-Weg aktualisiert werden, automatisch sofern Store-Updates aktiviert sind. Die veröffentlichte **1.1.0** enthält bereits Download-/Installationsaktionen in den Einstellungen; das neue automatische Popup samt Ein-Klick-Ablauf benötigt die hier vorbereitete nächste Version. Es lässt sich nicht nachträglich in die installierte 1.0.0 einblenden.
 
 ### Prüfung eines echten Store-Upgrades
 
-Die automatisierten Tests prüfen Kanalwahl, Download-/Installationszustände, parallele Klicks, Abbruch, Netzwerk-/Speicherfehler sowie den Schutz der Session. Sie verwenden ein simuliertes Store-Backend. Für den vollständigen Integrationstest müssen zwei höhere, freigegebene Paketversionen über das echte Store-Produkt verfügbar sein: eine ältere Ausgabe ab 1.0.1 installieren, anschließend in Grindcrest die neuere Ausgabe prüfen, herunterladen und installieren. Dabei gespeicherten Verlauf, Abbruch und tatsächliche neue Paketversion nach dem Neustart prüfen. Ein lokal entpackter oder lediglich selbst signierter Build ersetzt diesen Test nicht.
+Die automatisierten Tests prüfen Kanalwahl, direkte und bereits vorbereitete Installation, parallele Klicks, Abbruch, Netzwerk-/Speicherfehler sowie den Schutz der Session. UI-Tests prüfen Popup, Aufschieben, Wiederöffnen, Fortschritt und die gesperrte Aktion während des Trackings. Sie verwenden ein simuliertes Store-Backend. Für den vollständigen Integrationstest müssen zwei passende, freigegebene Paketversionen über das echte Store-Produkt verfügbar sein: eine Ausgabe mit diesem Popup installieren, anschließend eine höhere Version veröffentlichen und **Jetzt aktualisieren** ausführen. Dabei gespeicherten Verlauf, Abbruch und tatsächliche neue Paketversion nach dem Neustart prüfen. Ein lokal entpackter oder lediglich selbst signierter Build ersetzt diesen Test nicht.
 
 Die Store-Ausgabe nutzt den eigenen `LocalState`-Datenordner. Beim ersten regulären Start werden vorhandene Tracker-Daten aus `%LOCALAPPDATA%\BdoGrindTracker` übernommen; die Originale bleiben erhalten. Danach entwickeln sich GitHub- und Store-Daten getrennt weiter. Vor einem Wechsel oder der Deinstallation sollten wichtige Sessions zusätzlich exportiert werden. Details der tatsächlich ausgeführten Übernahme und Prüfungen stehen in der Implementierung und den zugehörigen Tests.
 
@@ -76,3 +86,4 @@ MSIX enthält die .NET-Laufzeit. Die aktuellen OpenCV- und WebView2-Loader-Binä
 - [Microsoft: eingeschränkte App-Berechtigungen](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/app-capability-declarations#restricted-capabilities)
 - [Microsoft: lokale Paketprüfung und Status des WACK](https://learn.microsoft.com/en-us/windows/msix/package/packaging-uwp-apps#validate-your-app-package-locally)
 - [Microsoft: Store-Updates aus der App heraus herunterladen und installieren](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/package-updates-from-store)
+- [Microsoft: Verfügbarkeit und Abrufgrenzen der Updateprüfung](https://learn.microsoft.com/en-us/uwp/api/windows.services.store.storecontext.getappandoptionalstorepackageupdatesasync)

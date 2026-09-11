@@ -52,8 +52,18 @@ try {
         throw 'Expected the packaged full-trust desktop launcher.'
     }
     $capabilities = @($manifest.Package.Capabilities.ChildNodes | Where-Object { $_.NodeType -eq 'Element' })
-    if ($capabilities.Count -ne 1 -or $capabilities[0].Name -cne 'runFullTrust') {
-        throw 'Expected only the runFullTrust restricted capability.'
+    $fullTrust = @($capabilities | Where-Object {
+        $_.LocalName -ceq 'Capability' -and
+        $_.NamespaceURI -ceq 'http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities' -and
+        $_.GetAttribute('Name') -ceq 'runFullTrust'
+    })
+    $borderlessCapture = @($capabilities | Where-Object {
+        $_.LocalName -ceq 'Capability' -and
+        $_.NamespaceURI -ceq 'http://schemas.microsoft.com/appx/manifest/uap/windows10/11' -and
+        $_.GetAttribute('Name') -ceq 'graphicsCaptureWithoutBorder'
+    })
+    if ($capabilities.Count -ne 2 -or $fullTrust.Count -ne 1 -or $borderlessCapture.Count -ne 1) {
+        throw 'Expected exactly rescap:runFullTrust and uap11:graphicsCaptureWithoutBorder capabilities.'
     }
     Add-Type -AssemblyName System.Drawing
     $targetSizes = @(16, 20, 24, 30, 32, 36, 40, 44, 48, 60, 64, 72, 80, 96, 256)

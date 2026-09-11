@@ -90,8 +90,12 @@ bleibt erhalten.
 ## Verhalten
 
 - **Verschiebbar:** Das Overlay kann am Hintergrund mit der linken Maustaste
-  gezogen und am Griff unten rechts in der Größe geändert werden. Die
-  Tracking-Steuerung bleibt klickbar.
+  gezogen und am Griff unten rechts in der Größe geändert werden. Breite und
+  Höhe lassen sich unabhängig vergrößern und verkleinern, auch gleichzeitig in
+  entgegengesetzte Richtungen. Module und Inhalte passen sich bereits während
+  des Ziehens wie im Editor an. Beim Loslassen werden die sichtbaren Maße und
+  das Layout gespeichert; der eingestellte Zoomfaktor bleibt erhalten. Das
+  optionale 8-Pixel-Raster gilt auch hier. Die Tracking-Steuerung bleibt klickbar.
 - **Position gesperrt:** Die Position bleibt fest, enthaltene Steuerungen sind
   weiterhin bedienbar.
 - **Mausdurchlässig:** Sämtliche Mausklicks erreichen das darunterliegende Spiel.
