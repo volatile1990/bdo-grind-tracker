@@ -40,6 +40,7 @@ internal sealed record TrackerState
     public Guid SessionId { get; init; }
     public bool HasSession { get; init; }
     public bool IsRunning { get; init; }
+    public bool IsWaitingForFirstDrop { get; init; }
     public bool IsBusy { get; init; }
     public bool CanEditLoot { get; init; } = true;
     public bool CanPause { get; init; }

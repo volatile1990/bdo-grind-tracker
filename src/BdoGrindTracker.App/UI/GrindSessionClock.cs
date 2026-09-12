@@ -13,8 +13,10 @@ internal sealed class GrindSessionClock(TimeProvider? timeProvider = null)
     private TimeSpan _accumulated;
     private long _startedAt;
     private bool _isRunning;
+    private bool _isWaitingForFirstDrop;
 
     public bool IsRunning { get { lock (_sync) return _isRunning; } }
+    public bool IsWaitingForFirstDrop { get { lock (_sync) return _isWaitingForFirstDrop; } }
 
     public TimeSpan Elapsed => GetElapsedExcludingTrailingIdle(TimeSpan.Zero);
 
@@ -25,19 +27,34 @@ internal sealed class GrindSessionClock(TimeProvider? timeProvider = null)
         ArgumentOutOfRangeException.ThrowIfLessThan(idleDuration, TimeSpan.Zero);
         lock (_sync)
         {
-            if (!_isRunning) return _accumulated;
+            if (!_isRunning || _isWaitingForFirstDrop) return _accumulated;
             var segment = _timeProvider.GetElapsedTime(_startedAt);
             return _accumulated + (segment > idleDuration ? segment - idleDuration : TimeSpan.Zero);
         }
     }
 
-    public void Start()
+    public void Start(bool waitForFirstDrop = false)
     {
         lock (_sync)
         {
             if (_isRunning) return;
             _startedAt = _timeProvider.GetTimestamp();
+            _isWaitingForFirstDrop = waitForFirstDrop;
             _isRunning = true;
+        }
+    }
+
+    /// <summary>Starts an armed segment on its first new drop; later drops do not reset it.</summary>
+    public bool RecordDrop()
+    {
+        lock (_sync)
+        {
+            // Final capture frames may still publish drops after Pause. They can
+            // update loot totals, but must never restart a disarmed clock.
+            if (!_isRunning || !_isWaitingForFirstDrop) return false;
+            _startedAt = _timeProvider.GetTimestamp();
+            _isWaitingForFirstDrop = false;
+            return true;
         }
     }
 
@@ -51,11 +68,12 @@ internal sealed class GrindSessionClock(TimeProvider? timeProvider = null)
         lock (_sync)
         {
             if (!_isRunning) return;
-            var segmentDuration = _timeProvider.GetElapsedTime(_startedAt);
+            var segmentDuration = _isWaitingForFirstDrop ? TimeSpan.Zero : _timeProvider.GetElapsedTime(_startedAt);
             _accumulated += segmentDuration > excludedTrailingDuration
                 ? segmentDuration - excludedTrailingDuration
                 : TimeSpan.Zero;
             _isRunning = false;
+            _isWaitingForFirstDrop = false;
         }
     }
 
@@ -64,6 +82,7 @@ internal sealed class GrindSessionClock(TimeProvider? timeProvider = null)
         lock (_sync)
         {
             _isRunning = false;
+            _isWaitingForFirstDrop = false;
             _accumulated = TimeSpan.Zero;
             _startedAt = 0;
         }
@@ -77,6 +96,7 @@ internal sealed class GrindSessionClock(TimeProvider? timeProvider = null)
             _accumulated = elapsed;
             _startedAt = 0;
             _isRunning = false;
+            _isWaitingForFirstDrop = false;
         }
     }
 

@@ -1,18 +1,19 @@
 @inherits TrackerComponentBase
 
 <section class="panel loot-panel" aria-label="@Title">
-    <div class="panel-heading">
-        <div><h2>@Title <span class="count-pill">@Totals.Count</span></h2>@if (!string.IsNullOrWhiteSpace(Subtitle)) { <p>@Subtitle</p> }</div>
+    <div class="loot-table-header @(Totals.Count > 0 ? "has-loot" : "") @(AllowAddingItems ? "can-add-loot" : "")">
+        <div class="loot-table-title"><h2>@Title <span class="count-pill">@Totals.Count</span></h2>@if (!string.IsNullOrWhiteSpace(Subtitle)) { <p>@Subtitle</p> }</div>
+        @if (Totals.Count > 0)
+        {
+            <label class="search-field"><AppIcon Name="search" /><input aria-label="Loot durchsuchen" placeholder="Loot durchsuchen …" @bind="_query" @bind:event="oninput" /></label>
+            <label class="sort-field"><span class="sr-only">Loot sortieren</span><select @bind="_sort" aria-label="Loot sortieren"><option value="value">Nach Silberwert</option><option value="quantity">Nach Menge</option><option value="name">Nach Name</option></select></label>
+        }
         <div class="segmented" aria-label="Mengenanzeige"><button class="@(!_hourly ? "selected" : "")" @onclick="() => _hourly = false" aria-pressed="@(!_hourly ? "true" : "false")">Gesamt</button><button class="@(_hourly ? "selected" : "")" @onclick="() => _hourly = true" aria-pressed="@(_hourly ? "true" : "false")" disabled="@(DurationTicks <= 0)">Pro Stunde</button></div>
+        @if (AllowAddingItems) { <LootItemAdder SessionId="EditableSessionId" SpotId="@SpotId" Totals="Totals" /> }
     </div>
-    @if (AllowAddingItems) { <LootItemAdder SessionId="EditableSessionId" SpotId="@SpotId" Totals="Totals" /> }
     @if (SessionEntry?.GarmothLocallyModified == true) { <div class="notice warning-notice"><AppIcon Name="info" />Lokal korrigiert; Garmoth unverändert.</div> }
     @if (Totals.Count > 0)
     {
-        <div class="table-toolbar">
-            <label class="search-field"><AppIcon Name="search" /><input aria-label="Loot durchsuchen" placeholder="Loot durchsuchen …" @bind="_query" @bind:event="oninput" /></label>
-            <label class="sort-field"><span class="sr-only">Loot sortieren</span><select @bind="_sort" aria-label="Loot sortieren"><option value="value">Nach Silberwert</option><option value="quantity">Nach Menge</option><option value="name">Nach Name</option></select></label>
-        </div>
         <div class="table-scroll">
             <table class="loot-table">
                 <thead><tr><th scope="col">Gegenstand</th><th scope="col" class="numeric">@(_hourly ? "Menge / h" : "Menge")</th><th scope="col" class="numeric">@(_hourly ? "Netto / h" : "Wert netto")</th></tr></thead>

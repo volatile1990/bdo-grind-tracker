@@ -110,8 +110,21 @@ small,.item-cell small,.panel-heading p,.page-heading p,.field small,.toggle-row
 .live-page .metric-note{display:block;font-size:13px;line-height:1.5}
 .live-page .valuation-note{margin:0;padding:0 4px;align-items:flex-start}
 .live-page .valuation-note .icon{margin-top:3px;flex-shrink:0}
-.live-page .loot-panel>.panel-heading{padding:13px 18px}
-.live-page .loot-panel>.table-toolbar{padding:0 18px 12px}
+.loot-panel{container:loot-table / inline-size}
+.loot-table-header{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"title display" "search sort";align-items:center;gap:8px 12px;padding:12px 18px}
+.loot-table-header.can-add-loot{grid-template-columns:minmax(0,1fr) auto auto;grid-template-areas:"title display add" "search search sort"}
+.loot-table-header:not(.has-loot){grid-template-areas:"title display"}
+.loot-table-header.can-add-loot:not(.has-loot){grid-template-areas:"title display add"}
+.loot-table-title{grid-area:title;min-width:0}
+.loot-table-title h2{display:flex;align-items:center;gap:8px;font-size:15px;overflow-wrap:anywhere}
+.loot-table-title p{font-size:13px;line-height:1.5;margin-top:4px}
+.loot-table-header>.search-field{grid-area:search;min-width:0;max-width:none;width:100%}
+.loot-table-header>.sort-field{grid-area:sort;justify-self:end;min-width:0}
+.loot-table-header>.segmented{grid-area:display;justify-self:end}
+.loot-table-header>.loot-add-control{grid-area:add;padding:0;min-width:0}
+@container loot-table (min-width:760px){.loot-table-header.has-loot.can-add-loot{grid-template-columns:auto minmax(160px,1fr) auto auto auto;grid-template-areas:"title search sort display add"}}
+@container loot-table (min-width:900px){.loot-table-header.has-loot:not(.can-add-loot){grid-template-columns:auto minmax(160px,1fr) auto auto;grid-template-areas:"title search sort display"}}
+@container loot-table (max-width:460px){.loot-table-header{padding:10px 14px;gap:8px}.loot-table-header.can-add-loot{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"title add" "search sort" "display display"}.loot-table-header.can-add-loot:not(.has-loot){grid-template-areas:"title add" "display display"}.loot-table-header>.segmented{justify-self:start}}
 .live-page .live-demo-notice{padding:7px 13px;margin-bottom:14px}
 .live-demo-notice>div{display:flex;align-items:baseline;flex-wrap:wrap;gap:2px 10px}
 .live-demo-notice strong{margin:0}

@@ -80,6 +80,7 @@ public sealed partial class TrackerSessionServiceTests
         await using var fixture = new Fixture(autoUpload: false, benchmarkProvider: provider);
         Assert.True((await fixture.Service.ToggleTrackingAsync()).Succeeded);
         Assert.Single(provider.Tokens);
+        await fixture.ProcessAfter(TimeSpan.Zero, ("Black Crystal Fragment", 1));
         await fixture.ProcessAfter(TimeSpan.FromMinutes(59) + TimeSpan.FromSeconds(59), ("Black Crystal Fragment", 1));
         await fixture.Service.TickAsync();
         Assert.Single(provider.Tokens);
@@ -94,6 +95,7 @@ public sealed partial class TrackerSessionServiceTests
         Assert.Equal(2, provider.Tokens.Count);
         Assert.True((await fixture.Service.ToggleTrackingAsync()).Succeeded);
         Assert.Equal(2, provider.Tokens.Count);
+        await fixture.ProcessAfter(TimeSpan.Zero, ("Black Crystal Fragment", 1));
         await fixture.ProcessAfter(TimeSpan.FromHours(1), ("Black Crystal Fragment", 1));
         await fixture.Service.TickAsync();
         Assert.Equal(3, provider.Tokens.Count);
@@ -121,6 +123,7 @@ public sealed partial class TrackerSessionServiceTests
         var provider = new SyntheticBenchmarks();
         await using var fixture = new Fixture(autoUpload: false, benchmarkProvider: provider);
         await fixture.Service.ToggleTrackingAsync();
+        await fixture.ProcessAfter(TimeSpan.Zero, ("Black Crystal Fragment", 1));
         await fixture.ProcessAfter(TimeSpan.FromMinutes(59) + TimeSpan.FromSeconds(59), ("Black Crystal Fragment", 1));
         fixture.Time.Advance(TimeSpan.FromSeconds(1));
         await fixture.Service.TickAsync();
@@ -130,6 +133,7 @@ public sealed partial class TrackerSessionServiceTests
         Assert.False(fixture.Service.State.IsRunning);
         Assert.True(fixture.Service.State.Elapsed < TimeSpan.FromHours(1));
         await fixture.Service.ToggleTrackingAsync();
+        await fixture.ProcessAfter(TimeSpan.Zero, ("Black Crystal Fragment", 1));
         await fixture.ProcessAfter(TimeSpan.FromSeconds(1), ("Black Crystal Fragment", 1));
         await fixture.Service.TickAsync();
         Assert.Equal(2, provider.Tokens.Count);
@@ -186,6 +190,7 @@ public sealed partial class TrackerSessionServiceTests
             }
             else
             {
+                await fixture.ProcessAfter(TimeSpan.Zero, ("Black Crystal Fragment", 1));
                 await fixture.ProcessAfter(TimeSpan.FromHours(1), ("Black Crystal Fragment", 100));
                 await fixture.Service.TickAsync();
                 Assert.Equal(oldId, fixture.Service.State.SessionId);

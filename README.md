@@ -1,12 +1,16 @@
 # Grindcrest
 
-Lokaler, passiver Loot-Tracker für Black Desert, Version **1.2.1** (bisher BDO
+Lokaler, passiver Loot-Tracker für Black Desert, Version **1.2.3** (bisher BDO
 Grind Tracker), mit vollständig neuem **Blazor-Hybrid-Frontend** für Windows.
 Live-Session, Verlauf, Garmoth, Lootkorrekturen, Bestätigungsdialoge und Einstellungen werden
 als lokale Razor-Komponenten in WebView2 dargestellt. Das Dashboard bietet eine
 responsive dunkle Oberfläche, Spotbilder, Silber- und Trash-Kennzahlen, durchsuchbare
 Loot-Tabellen, Stundenwerte und Tastaturbedienung. Die Sitzungssteuerung ist von der
 Darstellung getrennt; es wird kein Webserver gestartet und keine UI aus dem Netz geladen.
+
+[Änderungen in 1.2.3](docs/release-notes/1.2.3.md): automatische Abfrage der
+Garmoth-Vergleichswerte pro aktiver Grindstunde mit lokalem Ersatzstand bei
+fehlender Erreichbarkeit sowie verbesserte Auswahl der Loot-Kalibrierung.
 
 **Aktueller Stand:** Die normale Live-Zählung verwendet das eigene
 Lebensdauermodell `lifetime-v3`. Es verbindet wiederholte Rohlesungen mit einer
@@ -198,7 +202,10 @@ verfügbar ist. [Store-Paket erstellen und einreichen](docs/MICROSOFT_STORE.md).
    | Broken Gloves of the Void | Event Horizon |
 
 4. **Pausieren** erhält die Session und stoppt die Sitzungsuhr. **Fortsetzen** zählt
-   aktive Grindzeit weiter; Pausen zählen nicht mit. **Neue Session** setzt Uhr,
+   aktive Grindzeit ab dem nächsten neu erkannten Drop weiter. Auch beim ersten
+   Start beginnt die Uhr erst mit dem ersten Drop; Wartezeit und Pausen zählen
+   nicht mit. Der Hinweis bei **Aktive Zeit** zeigt diese Wartephase an.
+   **Neue Session** setzt Uhr,
    Summen, Zählzustand und Spot zurück. Vor einem Spotwechsel eine neue Sitzung anlegen.
 
 Beim erneuten Öffnen wird die letzte aktuelle Session pausiert geladen. Lootmengen,
@@ -396,7 +403,7 @@ unabhängig in Breite und Höhe verändern. Module, Texte und Icons passen sich
 live wie im Overlay-Editor an; beim Loslassen wird das sichtbare Layout
 gespeichert. [Bedienung und Optionen](docs/OVERLAY.md).
 
-Die Sitzungsuhr läuft unabhängig von neuen Frames und benutzt monotone Zeitmessung,
+Ab dem ersten neu erkannten Drop läuft die Sitzungsuhr unabhängig von neuen Frames und benutzt monotone Zeitmessung,
 damit Änderungen der Systemuhr die Dauer nicht verfälschen. UI-Screenshot-Thumbnails,
 OCR-Debuganzeigen und das Entscheidungslog werden im laufenden Dashboard nicht mehr
 erzeugt. Die optionale lokale Diagnose bleibt unter **Einstellungen** verfügbar und ist
@@ -416,6 +423,11 @@ Testgrenzen stehen in [LIFETIME_LOOT_TRACKING.md](docs/LIFETIME_LOOT_TRACKING.md
 Grindcrest fordert die Aufnahme ohne gelben Windows-Rahmen an; das Store-Paket
 enthält die erforderliche Berechtigung. Windows kann den Rahmen bei verweigertem
 Zugriff oder durch Anforderungen anderer Aufnahmeprogramme weiterhin anzeigen.
+Vor einer nötigen Windows-Abfrage erklärt Grindcrest, dass die Freigabe den gelben
+Aufnahmerahmen ausblendet. Bei vorhandener Freigabe entfällt dieser Hinweis.
+**Weiter zur Windows-Abfrage** öffnet die eigentliche Berechtigungsanfrage;
+**Abbrechen** lässt die Session unverändert. Die Aufnahme beginnt erst nach diesem
+Schritt; die aktive Zeit beginnt mit dem ersten neu erkannten Drop.
 
 Die zusätzlichen Referenzen mit 2.050 und 604 echten Helmen sowie vollständige
 Windows-, Paddle- und native Garmoth-Vergleiche sind in

@@ -81,6 +81,7 @@ internal static class Program
                     throw new ArgumentException("Ungültiger UI-Debug-Port.");
                 debugPort = port;
             }
+            HybridMainForm? capturePromptOwner = null;
             ITrackerSession session;
             if (preview)
             {
@@ -110,11 +111,13 @@ internal static class Program
                     var settingsStore = new SettingsStore();
                     session = new TrackerSessionService(new PassiveCaptureSession(new PassiveWindowCapture()),
                         analyzer, settingsStore, monitors, benchmarkProvider: new GarmothGrindBenchmarkProvider(
-                            Path.Combine(settingsStore.BaseDirectory, GarmothGrindBenchmarkProvider.CacheFileName)));
+                            Path.Combine(settingsStore.BaseDirectory, GarmothGrindBenchmarkProvider.CacheFileName)),
+                        prepareWindowCapture: () => capturePromptOwner?.PrepareWindowCaptureAsync() ?? Task.FromResult(false));
                 }
             }
             var hidden = preview && args.Contains("--ui-hidden", StringComparer.OrdinalIgnoreCase);
             using var form = new HybridMainForm(session, smokeTest, debugPort, preview, hidden);
+            capturePromptOwner = form;
             Application.Run(form);
             return form.ExitCode;
         }

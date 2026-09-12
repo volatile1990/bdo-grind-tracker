@@ -79,7 +79,7 @@ internal sealed partial class TrackerSessionService
         Guid? pendingGarmothCorrectionInterval)
     {
         if (!_hasSession || _demoMode || _sessionSpotId is null ||
-            _sessionClock.Elapsed <= TimeSpan.Zero || _sessionSummary.Totals.Count == 0)
+            _sessionClock.Elapsed < TimeSpan.Zero || _sessionSummary.Totals.Count == 0)
             return;
         var totals = _sessionSummary.Totals.Where(static pair => pair.Value >= 0)
             .ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.OrdinalIgnoreCase);

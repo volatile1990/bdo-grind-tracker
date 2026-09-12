@@ -115,16 +115,28 @@ internal sealed unsafe class WindowCaptureDevice : IDisposable
     private uint _stagingFormat;
     internal IDirect3DDevice ProjectedDevice { get; }
 
+    internal static bool SupportsBorderSuppression =>
+        ApiInformation.IsPropertyPresent("Windows.Graphics.Capture.GraphicsCaptureSession", "IsBorderRequired");
+
+    internal static AppCapabilityAccessStatus? CheckBorderlessAccess()
+    {
+        try { return AppCapability.Create("graphicsCaptureWithoutBorder").CheckAccess(); }
+        catch (Exception error) when (error is COMException or UnauthorizedAccessException or NotSupportedException)
+        {
+            Trace.TraceWarning("Windows capture permission could not be checked: {0}", error.Message);
+            return null;
+        }
+    }
+
     internal static bool TryDisableCaptureBorder(GraphicsCaptureSession session)
     {
         // UniversalApiContract v12 is newer than our Windows 10 SDK target.
         // Use its documented ABI without raising the minimum supported OS.
-        if (!ApiInformation.IsPropertyPresent("Windows.Graphics.Capture.GraphicsCaptureSession", "IsBorderRequired"))
+        if (!SupportsBorderSuppression)
             return false;
         nint borderSession = 0;
         try
         {
-            var access = RequestBorderlessAccess();
             using var reference = WinRT.MarshalInspectable<GraphicsCaptureSession>.CreateMarshaler(session);
             Marshal.ThrowExceptionForHR(QueryInterface(reference.ThisPtr,
                 new Guid("f2cdd966-22ae-5ea1-9596-3a289344c3be"), out borderSession));
@@ -135,7 +147,9 @@ internal sealed unsafe class WindowCaptureDevice : IDisposable
             Marshal.ThrowExceptionForHR(getBorder(borderSession, &required));
             // Windows retains the border if access is denied, or another capture
             // application still requires it. Never change the global OS policy.
-            return access == AppCapabilityAccessStatus.Allowed && required == 0;
+            // Consent was prepared by the UI before the session clock/capture began.
+            // The capture worker must never open an unexplained permission dialog.
+            return CheckBorderlessAccess() == AppCapabilityAccessStatus.Allowed && required == 0;
         }
         catch (Exception error) when (error is COMException or UnauthorizedAccessException or NotSupportedException)
         {
@@ -145,8 +159,13 @@ internal sealed unsafe class WindowCaptureDevice : IDisposable
         finally { Release(ref borderSession); }
     }
 
-    private static AppCapabilityAccessStatus RequestBorderlessAccess()
+    internal static AppCapabilityAccessStatus RequestBorderlessAccess()
     {
+        // Preparation now runs before any projected capture object exists on this
+        // worker. Initialize WinRT explicitly for the raw activation-factory call.
+        var initialization = RoInitialize(1);
+        if (initialization != unchecked((int)0x80010106)) // RPC_E_CHANGED_MODE: already STA.
+            Marshal.ThrowExceptionForHR(initialization);
         nint className = 0, factory = 0, operation = 0;
         const string runtimeClass = "Windows.Graphics.Capture.GraphicsCaptureAccess";
         var accessId = new Guid("743ed370-06ec-5040-a58a-901f0f757095");
@@ -155,7 +174,8 @@ internal sealed unsafe class WindowCaptureDevice : IDisposable
             Marshal.ThrowExceptionForHR(WindowsCreateString(runtimeClass, runtimeClass.Length, &className));
             Marshal.ThrowExceptionForHR(RoGetActivationFactory(className, &accessId, &factory));
             var request = (delegate* unmanaged[Stdcall]<nint, int, nint*, int>)Method(factory, 6);
-            // GraphicsCaptureAccessKind.Borderless = 0. This runs on the capture worker.
+            // GraphicsCaptureAccessKind.Borderless = 0. Called by the UI's preparation
+            // task, before capture begins and after any required explanation.
             Marshal.ThrowExceptionForHR(request(factory, 0, &operation));
             var pending = WinRT.MarshalInterface<Windows.Foundation.IAsyncOperation<AppCapabilityAccessStatus>>.FromAbi(operation);
             try { return pending.AsTask().GetAwaiter().GetResult(); }
@@ -166,6 +186,7 @@ internal sealed unsafe class WindowCaptureDevice : IDisposable
             Release(ref operation);
             Release(ref factory);
             if (className != 0) WindowsDeleteString(className);
+            if (initialization >= 0) RoUninitialize();
         }
     }
 
@@ -300,4 +321,8 @@ internal sealed unsafe class WindowCaptureDevice : IDisposable
     private static extern int WindowsDeleteString(nint value);
     [DllImport("combase.dll", ExactSpelling = true)] [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     private static extern int RoGetActivationFactory(nint className, Guid* interfaceId, nint* factory);
+    [DllImport("combase.dll", ExactSpelling = true)] [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    private static extern int RoInitialize(uint initializationType);
+    [DllImport("combase.dll", ExactSpelling = true)] [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    private static extern void RoUninitialize();
 }

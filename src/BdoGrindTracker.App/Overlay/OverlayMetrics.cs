@@ -72,7 +72,7 @@ internal sealed class OverlayMetrics
         var grindRating = session.GrindRating;
         var metrics = new Dictionary<string, OverlayMetric>(StringComparer.Ordinal)
         {
-            ["duration"] = new("Aktive Zeit", session.Duration, "Ohne Pausenzeiten"),
+            ["duration"] = new("Aktive Zeit", session.Duration, session.DurationNote, Tooltip: session.DurationDescription),
             ["spot"] = new("Grindspot", Presentation.SpotName(state.SpotId), state.CharacterLabel),
             ["silver"] = new("Silber netto", session.Silver + (session.PartialSilver ? " *" : ""), valuationDetail),
             ["silver-hour"] = new("Silber / Stunde", rateText, incomplete ? valuationDetail : "Ø aktive Grindzeit"),

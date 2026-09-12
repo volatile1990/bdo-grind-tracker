@@ -878,7 +878,8 @@ public sealed partial class TrackerSessionServiceTests
         Assert.False(fixture.Service.State.IsRunning);
         Assert.Equal(10, fixture.Service.State.Loot.TotalQuantity);
         var saved = Assert.Single(fixture.HistoryStore.Load());
-        Assert.Equal(TimeSpan.FromMinutes(2), saved.Duration);
+        // Both first drops finished after shutdown froze the waiting clock.
+        Assert.Equal(TimeSpan.Zero, saved.Duration);
         Assert.Equal(10, saved.Totals["Black Crystal Fragment"]);
         Assert.Empty(fixture.Requests);
         await fixture.Service.ShutdownAsync();
@@ -1270,7 +1271,7 @@ public sealed partial class TrackerSessionServiceTests
             LootScrollMonitor? lootScrollMonitor = null, Func<Rectangle, bool>? lootScrollVisible = null,
             AgrisMonitor? agrisMonitor = null, ExperienceMonitor? experienceMonitor = null,
             PassiveCaptureSession? suppliedCapture = null, IGarmothGrindBenchmarkProvider? benchmarkProvider = null,
-            CurrentSessionSnapshot? restoredSession = null)
+            CurrentSessionSnapshot? restoredSession = null, Func<Task<bool>>? prepareWindowCapture = null)
         {
             Analyzer = analyzer ?? new();
             Directory.CreateDirectory(DirectoryPath);
@@ -1304,7 +1305,8 @@ public sealed partial class TrackerSessionServiceTests
             ], Clock, Activity, () => ClassDetection, Prices, client, KeyStore, HistoryStore,
                 languageDetector ?? (() => new("en", "Erkannt: Englisch")),
                 lootScrollMonitor: lootScrollMonitor, isLootScrollCaptureVisible: lootScrollVisible ?? (_ => false),
-                agrisMonitor: agrisMonitor, experienceMonitor: experienceMonitor, benchmarkProvider: benchmarkProvider);
+                agrisMonitor: agrisMonitor, experienceMonitor: experienceMonitor, benchmarkProvider: benchmarkProvider,
+                prepareWindowCapture: prepareWindowCapture);
         }
 
         public string DirectoryPath { get; } = Path.Combine(Path.GetTempPath(), "BdoGrindTracker.Tests", Guid.NewGuid().ToString("N"));

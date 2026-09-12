@@ -7,7 +7,7 @@
          IgnorableNamespaces="uap uap10 uap11 rescap">
   <!-- Identity supplied by the owner from Partner Center. Version is set by Build-StoreRelease.ps1. -->
   <Identity Name="Grindcrest.Grindcrest" Publisher="CN=BA212178-044A-478D-B577-2DC7A6D66CB9"
-            Version="1.2.2.0" ProcessorArchitecture="x64" />
+            Version="1.2.3.0" ProcessorArchitecture="x64" />
   <Properties>
     <DisplayName>Grindcrest</DisplayName>
     <PublisherDisplayName>Grindcrest</PublisherDisplayName>

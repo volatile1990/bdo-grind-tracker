@@ -27,7 +27,7 @@ internal sealed partial class TrackerSessionService
             _experienceObservationGeneration = generation;
         }
         var state = visible ? snapshot : ExperienceState.Unknown;
-        _experienceSessionTracker.Update(elapsed, state, running, now);
+        _experienceSessionTracker.Update(elapsed, state, running && !_sessionClock.IsWaitingForFirstDrop, now);
         return state;
     }
 }

@@ -155,6 +155,50 @@ public sealed class HistoryPresentationTests
         Assert.Equal([30_000m, 20_000m, 10_000m], charts.BestFiveTrashPerHour);
     }
 
+    [Fact]
+    public void ZeroDurationLootContributesToTotalsWithoutInventingAnHourlySessionRate()
+    {
+        var profile = LootSpotPresentationCatalog.GetRequired(LootSpotCatalog.AphrodonId);
+        var now = DateTimeOffset.UtcNow;
+        var instant = CreateEntry(profile.SpotId, profile.TrashItemName, 5, now,
+            TimeSpan.Zero, 500m, new Dictionary<string, long> { [profile.TrashItemName] = 5 });
+        var metrics = HistoryPresentation.CalculateMetrics(profile, [instant]);
+        Assert.Equal(500m, metrics.TotalSilver);
+        Assert.Equal(0m, metrics.TotalHours);
+        Assert.Equal(0m, metrics.AverageSilverPerHour);
+        Assert.Equal(0m, metrics.TrashPerHour);
+        Assert.Equal(0m, metrics.RecentFiveHourTrashPerHour);
+        Assert.Equal(0m, metrics.BestFiveHourTrashPerHour);
+        Assert.Equal(0m, metrics.BestFiveHourAverageSilverPerHour);
+
+        var charts = HistoryPresentation.BuildChartData(profile, [instant]);
+        Assert.Equal([500m], charts.CumulativeSilver);
+        Assert.Equal([0m], charts.SilverPerHour);
+        Assert.Equal([0m], charts.TrashPerHour);
+        Assert.Empty(charts.RecentFiveTrashPerHour);
+        Assert.Empty(charts.BestFiveTrashPerHour);
+        var columns = HistoryPresentation.BuildLootColumns(profile, [instant],
+            LootPriceCatalog.FixedSnapshot("eu"), SilverTaxOptions.Default);
+        Assert.Equal(5, Assert.Single(columns, column => column.ItemName == profile.TrashItemName).TotalQuantity);
+        Assert.All(columns, column => Assert.Equal(0m, column.SilverPerHour));
+        Assert.Equal(0m, Presentation.Hourly(instant.SilverAfterTax, instant.Duration));
+
+        var timed = CreateEntry(profile.SpotId, profile.TrashItemName, 10, now.AddMinutes(1),
+            TimeSpan.FromHours(1), 1_000m);
+        metrics = HistoryPresentation.CalculateMetrics(profile, [instant, timed]);
+        Assert.Equal(1_500m, metrics.TotalSilver);
+        Assert.Equal(1_500m, metrics.AverageSilverPerHour);
+        Assert.Equal(15m, metrics.TrashPerHour);
+        Assert.Equal(10m, metrics.RecentFiveHourTrashPerHour);
+        Assert.Equal(10m, metrics.BestFiveHourTrashPerHour);
+        Assert.Equal(1_000m, metrics.BestFiveHourAverageSilverPerHour);
+        charts = HistoryPresentation.BuildChartData(profile, [instant, timed]);
+        Assert.Equal([500m, 1_500m], charts.CumulativeSilver);
+        Assert.Equal([0m, 1_000m], charts.SilverPerHour);
+        Assert.Equal([10m], charts.RecentFiveTrashPerHour);
+        Assert.Equal([10m], charts.BestFiveTrashPerHour);
+    }
+
 
     [Theory]
     [InlineData(0, 0, 30, "gerade eben")]

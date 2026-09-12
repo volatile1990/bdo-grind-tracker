@@ -23,6 +23,7 @@ namespace BdoGrindTracker.App.Services;
 internal sealed partial class TrackerSessionService : ITrackerSession
 {
     private readonly PassiveCaptureSession _captureSession;
+    private readonly Func<Task<bool>>? _prepareWindowCapture;
     private ILootFrameAnalyzer _analyzer;
     private readonly LootScrollMonitor _lootScrollMonitor;
     private readonly Func<Rectangle, bool> _isLootScrollCaptureVisible;
@@ -104,9 +105,11 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         Func<Rectangle, bool>? isLootScrollCaptureVisible = null,
         AgrisMonitor? agrisMonitor = null,
         ExperienceMonitor? experienceMonitor = null,
-        IGarmothGrindBenchmarkProvider? benchmarkProvider = null)
+        IGarmothGrindBenchmarkProvider? benchmarkProvider = null,
+        Func<Task<bool>>? prepareWindowCapture = null)
     {
         _captureSession = capture ?? throw new ArgumentNullException(nameof(capture));
+        _prepareWindowCapture = prepareWindowCapture;
         _analyzer = analyzer ?? throw new ArgumentNullException(nameof(analyzer));
         _lootScrollMonitor = lootScrollMonitor ?? new LootScrollMonitor(new LootScrollFrameDetector());
         _agrisMonitor = agrisMonitor ?? new AgrisMonitor(new AgrisFrameDetector());
@@ -288,6 +291,16 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             throw panelError;
         var captureRegion = _captureSession.ResolveCaptureRegion(monitor?.Bounds ?? Rectangle.Empty);
         _analyzer.ValidateCaptureSetup(captureRegion.Size);
+        if (_captureSession.UsesWindowCapture && _prepareWindowCapture is not null)
+        {
+            var proceed = await _prepareWindowCapture();
+            if (_shutdownStarted) return;
+            if (!proceed)
+            {
+                SetStatus("Tracking-Start abgebrochen. Deine Session bleibt unverändert.", false);
+                return;
+            }
+        }
         var continuesExistingSession = _hasSession;
         var geometryChanged = _lastCaptureDesktopRegion is { } previous && previous != captureRegion;
         try
@@ -322,7 +335,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             _experienceSessionTracker.Pause(_sessionClock.Elapsed);
             _uiRunning = true;
             _inactivityTimer.Start();
-            _sessionClock.Start();
+            _sessionClock.Start(waitForFirstDrop: true);
             _lastCaptureDesktopRegion = captureRegion;
             _captureSession.StartCompanion(captureRegion, ProcessFrameAsync,
                 _captureSession.UsesWindowCapture ? null : () => _isLootScrollCaptureVisible(captureRegion));
@@ -426,7 +439,17 @@ internal sealed partial class TrackerSessionService : ITrackerSession
 
     internal void ObserveGarmothTotals(IReadOnlyDictionary<string, long> totals, bool hasNewDrop)
     {
-        if (hasNewDrop) _inactivityTimer.RecordDrop();
+        if (hasNewDrop)
+        {
+            if (_sessionClock.RecordDrop())
+            {
+                // Fresh HUD baselines start with this drop's frame. A cached XP
+                // sample from the waiting phase must not contribute earlier gains.
+                _agrisMonitor.Reset();
+                _experienceMonitor.Reset();
+            }
+            _inactivityTimer.RecordDrop();
+        }
         var duration = _sessionClock.GetElapsedExcludingTrailingIdle(_inactivityTimer.IdleDuration);
         _garmothIntervals.Observe(duration, totals, DateTimeOffset.UtcNow);
     }
@@ -598,6 +621,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             CharacterLabel = character?.DisplayName ?? (_classDetection.Status == CharacterClassDetectionStatus.Ambiguous
                 ? "Klasse mehrdeutig – bitte auswählen" : "Klasse unbekannt – automatische Erkennung"),
             Elapsed = _demoMode ? TimeSpan.FromHours(1) : _sessionClock.Elapsed,
+            IsWaitingForFirstDrop = !_demoMode && _uiRunning && _sessionClock.IsWaitingForFirstDrop,
             LootScroll = !_demoMode && _uiRunning
                 ? _lootScrollMonitor.Snapshot(DateTimeOffset.UtcNow) : LootScrollState.Unknown,
             Agris = agris,

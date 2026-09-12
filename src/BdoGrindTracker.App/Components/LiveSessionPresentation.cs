@@ -12,6 +12,12 @@ internal sealed class LiveSessionPresentation(TrackerState state)
     internal bool PartialSilver => CanShowSilver && !state.Silver.IsComplete;
     internal bool PartialSilverHourly => PartialSilver && SilverHourly is not null;
     internal string Duration => Presentation.Duration(Elapsed);
+    internal string DurationNote => state.IsDemo ? "Beispielsession" :
+        state.IsRunning && state.IsWaitingForFirstDrop
+            ? Elapsed == TimeSpan.Zero ? "Wartet auf den ersten Drop" : "Wartet auf den nächsten Drop"
+            : "Ab erstem Drop · ohne Pausen";
+    internal string DurationDescription => "Nach jedem Start oder Fortsetzen beginnt die aktive Zeit erst mit dem ersten neu erkannten Drop. " +
+        "Die Wartezeit bis dahin und Pausen zählen nicht mit. Bereits erfasste aktive Zeit bleibt erhalten.";
     internal string Trash => Presentation.Number(Presentation.Trash(state.Loot.Totals, state.SpotId));
     internal string TrashHourly => Elapsed == TimeSpan.Zero ? "0" :
         Hourly(Presentation.Trash(state.Loot.Totals, state.SpotId), Elapsed) is { } rate ? Presentation.Number(rate) : "—";

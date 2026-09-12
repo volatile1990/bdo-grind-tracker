@@ -18,6 +18,41 @@ namespace BdoGrindTracker.App.Tests;
 public sealed class OverlayLiveSessionParityTests
 {
     [Theory]
+    [InlineData(0, true, true, false, "Wartet auf den ersten Drop")]
+    [InlineData(1800, true, true, false, "Wartet auf den nächsten Drop")]
+    [InlineData(1800, true, false, false, "Ab erstem Drop · ohne Pausen")]
+    [InlineData(1800, false, true, false, "Ab erstem Drop · ohne Pausen")]
+    [InlineData(0, false, false, false, "Ab erstem Drop · ohne Pausen")]
+    [InlineData(1800, true, true, true, "Beispielsession")]
+    public async Task ActiveTimeExplainsWaitingWithoutResettingTheDisplayedDuration(
+        int elapsedSeconds, bool running, bool waiting, bool demo, string expected)
+    {
+        var state = ActiveState() with
+        {
+            Elapsed = TimeSpan.FromSeconds(elapsedSeconds), IsRunning = running,
+            IsWaitingForFirstDrop = waiting, IsDemo = demo,
+        };
+        await using var tracker = new SnapshotSession(state);
+        using var overlay = new OverlayService(tracker);
+        var markup = await RenderDashboardAsync(tracker);
+        var note = Regex.Match(markup, "<span id=\"active-time-note\"[^>]*>(?<value>.*?)</span>");
+        var metric = overlay.Snapshot.Metrics["duration"];
+
+        Assert.True(note.Success);
+        Assert.Equal(expected, PlainText(note.Groups["value"].Value));
+        Assert.Equal(expected, metric.Detail);
+        Assert.Equal(elapsedSeconds == 0 ? "00:00:00" : "00:30:00", metric.Value);
+        Assert.Contains("Nach jedem Start oder Fortsetzen", metric.Tooltip);
+        Assert.Contains("ersten neu erkannten Drop", metric.Tooltip);
+        Assert.Contains("Die Wartezeit bis dahin und Pausen zählen nicht mit.", metric.Tooltip);
+        Assert.Contains("Bereits erfasste aktive Zeit bleibt erhalten.", metric.Tooltip);
+        Assert.Contains(metric.Tooltip!, WebUtility.HtmlDecode(markup));
+        Assert.Contains("aria-describedby=\"active-time-note active-time-help\"", markup);
+        await AssertDashboardParityAsync(tracker, overlay.Snapshot);
+        Assert.Equal(0, tracker.CommandCalls);
+    }
+
+    [Theory]
     [InlineData(13000, "Unter Average", OverlayMetricTone.Muted)]
     [InlineData(13946, "Average Tier", OverlayMetricTone.Default)]
     [InlineData(16300, "High Tier", OverlayMetricTone.Positive)]
@@ -227,13 +262,13 @@ public sealed class OverlayLiveSessionParityTests
     private static async Task AssertDashboardParityAsync(ITrackerSession tracker, OverlaySnapshot overlay)
     {
         var markup = await RenderDashboardAsync(tracker);
-        var cards = Regex.Matches(markup, "<article class=\"metric-card[^\"]*\">(?<content>.*?)</article>", RegexOptions.Singleline)
+        var cards = Regex.Matches(markup, "<article class=\"metric-card[^\"]*\"[^>]*>(?<content>.*?)</article>", RegexOptions.Singleline)
             .Select(match => match.Groups["content"].Value).ToArray();
         Assert.Equal(4, cards.Length);
         var kinds = new[] { "duration", "trash", "silver", "silver-hour" };
         for (var index = 0; index < cards.Length; index++)
         {
-            var value = Regex.Match(cards[index], "<strong class=\"metric-value[^\"]*\">(?<value>.*?)</strong>", RegexOptions.Singleline);
+            var value = Regex.Match(cards[index], "<strong class=\"metric-value[^\"]*\"[^>]*>(?<value>.*?)</strong>", RegexOptions.Singleline);
             Assert.True(value.Success, $"Missing live-session metric: {kinds[index]}");
             Assert.Equal(PlainText(value.Groups["value"].Value), overlay.Metrics[kinds[index]].Value);
         }

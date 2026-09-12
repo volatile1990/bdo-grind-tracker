@@ -179,10 +179,11 @@ internal sealed class AgrisFrameDetector : IAgrisFrameDetector
 
     private static bool IsGold(Vec3b pixel)
         // HDR compresses warm highlights towards white. Measure chroma against
-        // the remaining blue-channel headroom while keeping a quantization floor;
-        // neutral gray stays neutral regardless of its captured brightness.
-        => pixel.Item2 >= 70 && pixel.Item2 - pixel.Item0 >= Math.Max(4, (255 - pixel.Item0) * .12)
-            && pixel.Item1 - pixel.Item0 >= Math.Max(2, (255 - pixel.Item0) * .04)
+        // the remaining blue-channel headroom. Real WGC highlights reach RGB
+        // (245, 243, 242), so retain their 3/1 channel differences after 8-bit
+        // quantization; neutral gray still cannot pass either chroma check.
+        => pixel.Item2 >= 70 && pixel.Item2 - pixel.Item0 >= Math.Max(3, (255 - pixel.Item0) * .12)
+            && pixel.Item1 - pixel.Item0 >= Math.Max(1, (255 - pixel.Item0) * .04)
             && pixel.Item2 >= pixel.Item1;
 
     private static double Brightness(Vec3b pixel)

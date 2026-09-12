@@ -107,7 +107,7 @@ internal sealed class LootHistoryStore
         return entries
             .Where(entry => entry is not null &&
                 entry.SessionId != Guid.Empty &&
-                entry.Duration > TimeSpan.Zero &&
+                entry.Duration >= TimeSpan.Zero &&
                 validSpotIds.Contains(entry.SpotId))
             .Select(static entry => entry with
             {

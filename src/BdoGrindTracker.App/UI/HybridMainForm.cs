@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
+using BdoGrindTracker.App.Capture;
 using BdoGrindTracker.App.Components;
 using BdoGrindTracker.App.Services;
 using Microsoft.AspNetCore.Components.WebView.WindowsForms;
@@ -8,6 +10,7 @@ using BdoGrindTracker.App.Updates;
 using BdoGrindTracker.App.Persistence;
 using BdoGrindTracker.App.Overlay;
 using BdoGrindTracker.App.Overlay.Native;
+using Windows.Security.Authorization.AppCapabilityAccess;
 
 namespace BdoGrindTracker.App.UI;
 
@@ -34,6 +37,7 @@ internal sealed class HybridMainForm : Form
     private bool _resourcesDisposed;
     private bool _storePreparing;
     private bool _storeInstalling;
+    private bool _capturePermissionExplained;
     private DateTimeOffset _nextStoreCheck;
 
     public int ExitCode { get; private set; }
@@ -326,6 +330,42 @@ internal sealed class HybridMainForm : Form
         var bounds = WindowState == FormWindowState.Normal ? Bounds : RestoreBounds;
         if (bounds.Width > 0 && bounds.Height > 0)
             _placementStore.Save(new(bounds.X, bounds.Y, bounds.Width, bounds.Height, WindowState == FormWindowState.Maximized));
+    }
+
+    internal async Task<bool> PrepareWindowCaptureAsync()
+    {
+        if (_closing || _closed || IsDisposed || !IsHandleCreated) return false;
+        var prepared = false;
+        await RunOnUiThreadAsync(async () =>
+        {
+            if (_closing || _closed || IsDisposed) return;
+            if (!WindowCaptureDevice.SupportsBorderSuppression)
+            {
+                prepared = true;
+                return;
+            }
+
+            var access = WindowCaptureDevice.CheckBorderlessAccess();
+            if (access == AppCapabilityAccessStatus.UserPromptRequired ||
+                (access is null && !_capturePermissionExplained))
+            {
+                if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
+                if (!CapturePermissionExplanation.Show(this)) return;
+                // Unpackaged installations may not expose the current status.
+                // Explain that case once per host, but allow another try after cancel.
+                _capturePermissionExplained = true;
+            }
+            if (_closing || _closed || IsDisposed) return;
+
+            try { await Task.Run(WindowCaptureDevice.RequestBorderlessAccess); }
+            catch (Exception error) when (error is COMException or UnauthorizedAccessException or NotSupportedException)
+            {
+                Trace.TraceWarning("Windows could not prepare borderless capture: {0}", error.Message);
+            }
+            if (_closing || _closed || IsDisposed) return;
+            prepared = true;
+        });
+        return prepared && !_closing && !_closed && !IsDisposed;
     }
 
     private Task RunOnUiThreadAsync(Func<Task> action)

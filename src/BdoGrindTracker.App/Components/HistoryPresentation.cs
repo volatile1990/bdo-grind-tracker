@@ -110,16 +110,17 @@ internal static class HistoryPresentation
     {
         ArgumentNullException.ThrowIfNull(profile);
         ArgumentNullException.ThrowIfNull(sessions);
-        var valid = sessions.Where(static session => session.Duration > TimeSpan.Zero).ToArray();
+        var valid = sessions.Where(static session => session.Duration >= TimeSpan.Zero).ToArray();
+        var timed = valid.Where(static session => session.Duration > TimeSpan.Zero).ToArray();
         var totalHours = valid.Sum(static session => (decimal)session.Duration.Ticks / TimeSpan.TicksPerHour);
         var totalSilver = valid.Sum(static session => session.SilverAfterTax);
         var totalTrash = valid.Sum(session => (decimal)session.Totals.GetValueOrDefault(profile.TrashItemName));
         var recent = CalculateTrashWindow(
-            valid.OrderByDescending(static session => session.UpdatedAt), profile.TrashItemName, 5m);
+            timed.OrderByDescending(static session => session.UpdatedAt), profile.TrashItemName, 5m);
         var best = CalculateTrashWindow(
-            valid.OrderByDescending(session => TrashPerHour(session, profile.TrashItemName)),
+            timed.OrderByDescending(session => TrashPerHour(session, profile.TrashItemName)),
             profile.TrashItemName, 5m);
-        var bestFive = valid
+        var bestFive = timed
             .OrderByDescending(session => TrashPerHour(session, profile.TrashItemName))
             .Take(5)
             .ToArray();
@@ -143,7 +144,7 @@ internal static class HistoryPresentation
         ArgumentNullException.ThrowIfNull(profile);
         ArgumentNullException.ThrowIfNull(sessions);
         var chronological = sessions
-            .Where(static session => session.Duration > TimeSpan.Zero)
+            .Where(static session => session.Duration >= TimeSpan.Zero)
             .OrderBy(static session => session.UpdatedAt)
             .ToArray();
         var cumulativeSilver = new decimal[chronological.Length];
@@ -163,8 +164,10 @@ internal static class HistoryPresentation
             cumulativeSilver,
             silverPerHour,
             trashPerHour,
-            trashPerHour.TakeLast(5).ToArray(),
+            chronological.Where(static session => session.Duration > TimeSpan.Zero)
+                .TakeLast(5).Select(session => TrashPerHour(session, profile.TrashItemName)).ToArray(),
             chronological
+                .Where(static session => session.Duration > TimeSpan.Zero)
                 .OrderByDescending(session => TrashPerHour(session, profile.TrashItemName))
                 .Take(5)
                 .Select(session => TrashPerHour(session, profile.TrashItemName))

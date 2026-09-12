@@ -1,0 +1,8 @@
+Neu in Grindcrest 1.2.3:
+
+• Die App fragt Garmoth-Referenzen für Average, High und Top beim Grindstart und zu jeder weiteren aktiven Grindstunde im Hintergrund an. Pausen zählen nicht mit.
+• Die letzten verfügbaren Referenzen bleiben bei Verbindungs- oder Abruffehlern nutzbar. Der Tooltip zeigt Aktualisierungsstatus, Quelle und Datenstand.
+• Verbesserte Tier-Zuordnung: Bei gleichen Schwellen gilt die höchste verfügbare Stufe; fehlende High- und Top-Werte bleiben leer.
+• Zuverlässigere Auswahl gespeicherter BDO-Lootpositionen. Probleme mit der Position des Rare-Logs unterbrechen den normalen Lootfeed nicht mehr; der Status zeigt eine eingeschränkte Rare-Erfassung an.
+
+Hinweis: Der Garmoth-Abruf war bei der Veröffentlichungsvorbereitung durch HTTP 403 blockiert. Ein erfolgreicher Live-Abruf konnte noch nicht bestätigt werden. Solange keine gültigen Daten verfügbar sind, nutzt die App den letzten verfügbaren Referenzstand.

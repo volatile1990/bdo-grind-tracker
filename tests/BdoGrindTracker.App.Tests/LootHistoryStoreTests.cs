@@ -156,17 +156,52 @@ public sealed class LootHistoryStoreTests
         Assert.Null(store.LoadError);
     }
 
-    [Fact]
-    public void AnExplicitZeroCorrectionRemainsEditableAfterRestart()
+    [Theory]
+    [InlineData(0)]
+    [InlineData(60)]
+    public void AnExplicitZeroCorrectionRemainsEditableAfterRestart(int durationMinutes)
     {
         using var directory = new TemporaryDirectory();
         var store = new LootHistoryStore(Path.Combine(directory.Path, "loot-history-v1.json"));
-        var entry = CreateEntry(Guid.NewGuid(), DateTimeOffset.UtcNow, 0) with { GarmothUploadBlocked = true };
+        var entry = CreateEntry(Guid.NewGuid(), DateTimeOffset.UtcNow, 0) with
+        {
+            GarmothUploadBlocked = true,
+            Duration = TimeSpan.FromMinutes(durationMinutes),
+            ManualLootItems = ["Branch of Abundance"],
+        };
         store.Save([entry]);
         var saved = Assert.Single(store.Load());
         Assert.Equal(0, saved.Totals["Branch of Abundance"]);
         Assert.Equal(entry.SessionId, saved.SessionId);
         Assert.True(saved.GarmothUploadBlocked);
+        Assert.Equal(entry.Duration, saved.Duration);
+        Assert.Equal(entry.ManualLootItems, saved.ManualLootItems);
+    }
+
+    [Fact]
+    public void ZeroDurationLootSurvivesRestartWhileEmptyAndNegativeDurationSessionsAreDiscarded()
+    {
+        using var directory = new TemporaryDirectory();
+        var path = Path.Combine(directory.Path, "loot-history-v1.json");
+        var entry = CreateEntry(Guid.NewGuid(), DateTimeOffset.UtcNow, 5) with
+        {
+            Duration = TimeSpan.Zero,
+            AgrisActiveDuration = TimeSpan.FromSeconds(5),
+            AgrisObservedDuration = TimeSpan.FromSeconds(10),
+        };
+        new LootHistoryStore(path).Save([
+            entry,
+            entry with { SessionId = Guid.NewGuid(), Totals = [] },
+            entry with { SessionId = Guid.NewGuid(), Duration = TimeSpan.FromTicks(-1) },
+        ]);
+
+        var restored = Assert.Single(new LootHistoryStore(path).Load());
+        Assert.Equal(entry.SessionId, restored.SessionId);
+        Assert.Equal(TimeSpan.Zero, restored.Duration);
+        Assert.Equal(5, restored.Totals["Branch of Abundance"]);
+        Assert.Equal(entry.SilverAfterTax, restored.SilverAfterTax);
+        Assert.Equal(TimeSpan.Zero, restored.AgrisActiveDuration);
+        Assert.Equal(TimeSpan.Zero, restored.AgrisObservedDuration);
     }
 
     [Fact]

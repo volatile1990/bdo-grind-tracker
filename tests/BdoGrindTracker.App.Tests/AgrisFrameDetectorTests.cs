@@ -15,6 +15,10 @@ public sealed class AgrisFrameDetectorTests(ITestOutputHelper output)
     [InlineData("inactive-gray-ring.png", AgrisStatus.Inactive)]
     [InlineData("inactive-gray-ring-rotated.png", AgrisStatus.Inactive)]
     [InlineData("active-gold-ring.png", AgrisStatus.Active)]
+    [InlineData("active-gold-ring-user-20260912.png", AgrisStatus.Active)]
+    [InlineData("active-gold-ring-hdr-20260912.png", AgrisStatus.Active)]
+    [InlineData("active-gold-ring-hdr-20260912-rotated.png", AgrisStatus.Active)]
+    [InlineData("active-gold-ring-hdr-20260912-rotated-2.png", AgrisStatus.Active)]
     public void RecognizesActualUserFrames(string name, AgrisStatus status)
     {
         using var frame = Load(name);
@@ -29,12 +33,32 @@ public sealed class AgrisFrameDetectorTests(ITestOutputHelper output)
     [InlineData("active-gold-ring.png", .6, AgrisStatus.Active)]
     [InlineData("active-gold-ring.png", 1.49, AgrisStatus.Active)]
     [InlineData("active-gold-ring.png", 2, AgrisStatus.Active)]
+    [InlineData("active-gold-ring-user-20260912.png", .6, AgrisStatus.Active)]
+    [InlineData("active-gold-ring-user-20260912.png", 1.49, AgrisStatus.Active)]
+    [InlineData("active-gold-ring-user-20260912.png", 2, AgrisStatus.Active)]
     public void FindsScaledRelocatedHud(string name, double scale, AgrisStatus status)
     {
         using var original = Load(name);
         using var frame = Place(original, 480, 360, 171, 101, scale);
         using var detector = new AgrisFrameDetector();
         Assert.Equal(new AgrisReading(status), detector.Analyze(frame, CancellationToken.None));
+    }
+
+    public static IEnumerable<object[]> LiveHdrScales()
+    {
+        foreach (var name in new[] { "active-gold-ring-hdr-20260912.png", "active-gold-ring-hdr-20260912-rotated.png", "active-gold-ring-hdr-20260912-rotated-2.png" })
+        foreach (var scale in new[] { .6, .75, 1, 1.25, 1.49, 2 })
+            yield return [name, scale];
+    }
+
+    [Theory]
+    [MemberData(nameof(LiveHdrScales))]
+    public void HdrHighlightsRemainActiveAcrossHudScales(string name, double scale)
+    {
+        using var original = Load(name);
+        using var frame = Place(original, 480, 360, 171, 101, scale);
+        using var detector = new AgrisFrameDetector();
+        Assert.Equal(AgrisStatus.Active, detector.Analyze(frame, CancellationToken.None).Status);
     }
 
     [Fact]
@@ -47,6 +71,44 @@ public sealed class AgrisFrameDetectorTests(ITestOutputHelper output)
                 frame.SetPixel(x, y, Color.FromArgb(47, 47, 47));
         using var detector = new AgrisFrameDetector();
         Assert.Equal(new AgrisReading(AgrisStatus.Inactive), detector.Analyze(frame, CancellationToken.None));
+    }
+
+    [Theory]
+    [InlineData("active-gold-ring-hdr-20260912.png")]
+    [InlineData("active-gold-ring-hdr-20260912-rotated.png")]
+    [InlineData("active-gold-ring-hdr-20260912-rotated-2.png")]
+    public void HdrGoldenGlyphStillRequiresOuterRing(string name)
+    {
+        using var frame = Load(name);
+        for (var y = 0; y < frame.Height; y++)
+        for (var x = 0; x < frame.Width; x++)
+            if (Math.Pow(x - 35.5, 2) + Math.Pow(y - 35.5, 2) >= 23 * 23)
+                frame.SetPixel(x, y, Color.FromArgb(85, 85, 85));
+        using var detector = new AgrisFrameDetector();
+        Assert.Equal(AgrisStatus.Inactive, detector.Analyze(frame, CancellationToken.None).Status);
+    }
+
+    [Theory]
+    [InlineData("active-gold-ring-hdr-20260912.png", false)]
+    [InlineData("active-gold-ring-hdr-20260912-rotated.png", false)]
+    [InlineData("active-gold-ring-hdr-20260912-rotated-2.png", false)]
+    [InlineData("active-gold-ring-hdr-20260912.png", true)]
+    [InlineData("active-gold-ring-hdr-20260912-rotated.png", true)]
+    [InlineData("active-gold-ring-hdr-20260912-rotated-2.png", true)]
+    public void HdrRingWithNeutralGlyphIsInactive(string name, bool addColorNoise)
+    {
+        using var frame = Load(name);
+        for (var y = 0; y < frame.Height; y++)
+        for (var x = 0; x < frame.Width; x++)
+        {
+            if (Math.Pow(x - 35.5, 2) + Math.Pow(y - 35.5, 2) >= 23 * 23) continue;
+            var color = frame.GetPixel(x, y);
+            var gray = (int)Math.Round(.299 * color.R + .587 * color.G + .114 * color.B);
+            frame.SetPixel(x, y, Color.FromArgb(Math.Min(255, gray + (addColorNoise ? 2 : 0)),
+                Math.Min(255, gray + (addColorNoise ? 1 : 0)), gray));
+        }
+        using var detector = new AgrisFrameDetector();
+        Assert.Equal(AgrisStatus.Inactive, detector.Analyze(frame, CancellationToken.None).Status);
     }
 
     [Theory]
@@ -155,16 +217,17 @@ public sealed class AgrisFrameDetectorTests(ITestOutputHelper output)
 
     public static IEnumerable<object[]> MonitorScales()
     {
+        foreach (var name in new[] { "active-gold-ring.png", "active-gold-ring-user-20260912.png", "active-gold-ring-hdr-20260912.png" })
         foreach (var (width, height) in new[] { (1920, 1080), (2560, 1440), (3840, 2160) })
         foreach (var scale in new[] { .75, 1, 1.25, 1.5, 2 })
-            yield return [width, height, scale];
+            yield return [name, width, height, scale];
     }
 
     [Theory]
     [MemberData(nameof(MonitorScales))]
-    public void ResolvesEveryRequestedMonitorAndScale(int width, int height, double scale)
+    public void ResolvesEveryRequestedMonitorAndScale(string name, int width, int height, double scale)
     {
-        using var original = Load("active-gold-ring.png");
+        using var original = Load(name);
         using var frame = Place(original, width, height, width - 233, height - 177, scale);
         using var detector = new AgrisFrameDetector();
         Assert.Equal(AgrisStatus.Active, detector.Analyze(frame, CancellationToken.None).Status);
@@ -174,9 +237,14 @@ public sealed class AgrisFrameDetectorTests(ITestOutputHelper output)
     [InlineData("active-gold-ring.png", 1f, AgrisStatus.Active)]
     [InlineData("active-gold-ring.png", 2.5f, AgrisStatus.Active)]
     [InlineData("active-gold-ring.png", 5f, AgrisStatus.Active)]
+    [InlineData("active-gold-ring-user-20260912.png", 1f, AgrisStatus.Active)]
+    [InlineData("active-gold-ring-user-20260912.png", 2.5f, AgrisStatus.Active)]
+    [InlineData("active-gold-ring-user-20260912.png", 5f, AgrisStatus.Active)]
+    [InlineData("active-gold-ring-user-20260912.png", 7.5f, AgrisStatus.Active)]
     [InlineData("inactive-gray-ring.png", 1f, AgrisStatus.Inactive)]
     [InlineData("inactive-gray-ring.png", 2.5f, AgrisStatus.Inactive)]
     [InlineData("inactive-gray-ring.png", 5f, AgrisStatus.Inactive)]
+    [InlineData("inactive-gray-ring.png", 7.5f, AgrisStatus.Inactive)]
     public void ToneMappedHdrPreservesColorAndRingDecision(string name, float whiteLevel, AgrisStatus expected)
     {
         using var original = Load(name);
