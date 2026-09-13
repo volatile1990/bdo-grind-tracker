@@ -7,7 +7,7 @@ namespace BdoGrindTracker.App.Overlay.Native;
 /// <summary>A separate, non-activating desktop window. It never attaches to the game.</summary>
 internal sealed class NativeOverlayForm : Form
 {
-    private const int WmMouseActivate = 0x21, MaNoActivate = 3, WmHotkey = 0x312;
+    private const int WmMouseActivate = 0x21, MaNoActivate = 3;
     private string _interaction = "move";
     private Point _dragStart;
     private Rectangle _dragBounds;
@@ -15,11 +15,9 @@ internal sealed class NativeOverlayForm : Form
     private NativeOverlayResize? _resize;
     private string? _pressedAction;
     private IReadOnlyDictionary<string, RectangleF> _actions = new Dictionary<string, RectangleF>();
-    private readonly NativeOverlayHotkeyRegistration _hotkeys;
 
     internal event Action<Rectangle, OverlaySettings?>? GeometryCommitted;
     internal event Action<string>? ActionClicked;
-    internal event Action<int>? HotkeyPressed;
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     internal Rectangle MonitorBounds { get; set; }
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
@@ -31,9 +29,6 @@ internal sealed class NativeOverlayForm : Form
 
     internal NativeOverlayForm()
     {
-        _hotkeys = new NativeOverlayHotkeyRegistration(
-            (id, modifiers, key) => NativeOverlayApi.RegisterHotKey(Handle, id, modifiers, key),
-            id => { if (IsHandleCreated) NativeOverlayApi.UnregisterHotKey(Handle, id); });
         Text = "Grindcrest Overlay";
         FormBorderStyle = FormBorderStyle.None;
         ShowInTaskbar = false;
@@ -74,11 +69,12 @@ internal sealed class NativeOverlayForm : Form
 
     internal void SetActions(IReadOnlyDictionary<string, RectangleF> actions) => _actions = actions;
 
-    internal void Present(Rectangle bounds)
+    internal void Present(Rectangle bounds, bool repaint = true)
     {
         if (IsDisposed) return;
+        var sizeChanged = Size != bounds.Size;
         if (!IsManipulating && Bounds != bounds) Bounds = bounds;
-        Render();
+        if (repaint || sizeChanged || !Visible || !IsHandleCreated) Render();
         if (!Visible) Show();
         NativeOverlayApi.SetWindowPos(Handle, NativeOverlayApi.TopMost, 0, 0, 0, 0,
             NativeOverlayApi.SwpNoActivate | NativeOverlayApi.SwpNoMove | NativeOverlayApi.SwpNoSize);
@@ -114,23 +110,11 @@ internal sealed class NativeOverlayForm : Form
         }
     }
 
-    internal string? SetHotkeys(bool enabled, OverlayHotkey? toggleOverlay = null, OverlayHotkey? toggleInteraction = null) =>
-        _hotkeys.Apply(enabled,
-            OverlayHotkey.Normalize(toggleOverlay, OverlayHotkey.DefaultToggleOverlay),
-            OverlayHotkey.Normalize(toggleInteraction, OverlayHotkey.DefaultToggleInteraction));
-
     protected override void WndProc(ref Message message)
     {
         if (message.Msg == WmMouseActivate)
         {
             message.Result = MaNoActivate;
-            return;
-        }
-        if (message.Msg == WmHotkey)
-        {
-            var packed = unchecked((uint)message.LParam.ToInt64());
-            if (_hotkeys.Matches((int)message.WParam, packed & 0xffff, packed >> 16))
-                HotkeyPressed?.Invoke((int)message.WParam);
             return;
         }
         base.WndProc(ref message);
@@ -217,34 +201,32 @@ internal sealed class NativeOverlayForm : Form
         }
     }
 
-    protected override void Dispose(bool disposing)
-    {
-        if (disposing) _hotkeys.Clear();
-        base.Dispose(disposing);
-    }
-
-    protected override void OnHandleDestroyed(EventArgs e)
-    {
-        _hotkeys.Clear();
-        base.OnHandleDestroyed(e);
-    }
 }
 
-/// <summary>Owns only this window's registrations and replaces both bindings as one update.</summary>
-internal sealed class NativeOverlayHotkeyRegistration(Func<int, uint, uint, bool> register, Action<int> unregister)
+/// <summary>Owns the shared window's registrations and replaces both bindings as one update.</summary>
+internal sealed class NativeOverlayHotkeyRegistration(Func<int, uint, uint, bool> register, Action<int> unregister,
+    Func<long>? timestamp = null)
 {
     private const uint NoRepeat = 0x4000;
     private readonly HashSet<int> _registered = [];
     private Bindings? _bindings;
     private string? _error;
+    private long _retryAt;
 
     internal string? Apply(bool enabled, OverlayHotkey toggleOverlay, OverlayHotkey toggleInteraction)
     {
         var requested = new Bindings(enabled, toggleOverlay, toggleInteraction);
-        if (requested == _bindings) return _error;
-        // Release both old combinations first, including when the user swaps them.
-        Clear();
-        _bindings = requested;
+        var now = timestamp?.Invoke() ?? Environment.TickCount64;
+        if (requested == _bindings)
+        {
+            if (_error is null || now < _retryAt) return _error;
+        }
+        else
+        {
+            // Release both old combinations first, including when the user swaps them.
+            Clear();
+            _bindings = requested;
+        }
         if (!enabled) return null;
 
         var failures = new List<string>();
@@ -252,11 +234,12 @@ internal sealed class NativeOverlayHotkeyRegistration(Func<int, uint, uint, bool
         foreach (var (id, shortcut) in new[] { (1, toggleOverlay), (2, toggleInteraction) })
         {
             if (!shortcut.IsValid || !combinations.Add(shortcut) ||
-                !register(id, (uint)shortcut.Modifiers | NoRepeat, shortcut.VirtualKey))
+                !_registered.Contains(id) && !register(id, (uint)shortcut.Modifiers | NoRepeat, shortcut.VirtualKey))
                 failures.Add(shortcut.DisplayText);
             else _registered.Add(id);
         }
         _error = failures.Count == 0 ? null : "Tastenkürzel bereits belegt: " + string.Join(", ", failures) + ".";
+        _retryAt = now + 5_000;
         return _error;
     }
 

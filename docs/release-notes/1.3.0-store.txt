@@ -1,0 +1,7 @@
+Neu in Grindcrest 1.3.0:
+
+• Die aktive Grindzeit beginnt nach Start oder Fortsetzen erst mit dem ersten neu erkannten Drop. Ein Hinweis bei der Zeit zeigt an, solange die App darauf wartet. Bereits erfasste Zeit bleibt erhalten.
+• XP- und Agris-Ausgangswerte werden zum Beginn des aktiven Abschnitts neu erfasst. Auch sehr kurze Sessions mit erfasstem Loot bleiben im Verlauf erhalten.
+• Verbesserte Agris-Erkennung für helle, beinahe weiße aktive Symbole in HDR-Aufnahmen.
+• Ein flacherer Header mit Suche, Sortierung, Ansichtswechsel und „Gegenstand ergänzen“ lässt mehr Platz für die Drop-Liste und passt sich schmaleren Fenstern an.
+• Vor einer noch erforderlichen Windows-Freigabe erklärt die App, weshalb nach dem Aufnahmerahmen gefragt wird und was die Auswahl bedeutet.

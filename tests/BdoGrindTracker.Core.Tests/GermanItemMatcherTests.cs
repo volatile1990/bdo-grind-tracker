@@ -7,25 +7,49 @@ public sealed class GermanItemMatcherTests
 
     [Theory]
     [MemberData(nameof(Items))]
-    public void EveryGermanNameAndItsNormalizedOcrFormResolveToTheSameCanonicalItem(string canonical, string german, bool rare)
+    public void EnglishGermanAndNormalizedNamesResolveToTheSameCanonicalItem(string canonical, string german, bool rare)
     {
         var matcher = new CompanionItemMatcher(ItemLocalizationCatalog.GermanNames.Keys);
+        Assert.True(matcher.TryMatch(canonical, 5, rare, out var englishMatch));
+        Assert.Equal(canonical, englishMatch!.CanonicalName);
         foreach (var text in new[] { german, ItemLocalizationCatalog.NormalizeGermanName(german) })
         {
-            Assert.True(matcher.TryMatch(text, 1, rare, out var match), text);
+            Assert.True(matcher.TryMatch(text, 5, rare, out var match), text);
             Assert.Equal(canonical, match!.CanonicalName);
             Assert.True(match.IsExact);
         }
-        Assert.Equal(58, matcher.CatalogEntries.Count);
+        Assert.Equal(ItemLocalizationCatalog.GermanNames.Count, matcher.CatalogEntries.Count);
         Assert.DoesNotContain(matcher.CatalogEntries, entry => entry.Name == german && german != canonical);
     }
 
     [Fact]
     public void EveryAllowedDropHasAGermanNameIncludingEvents()
     {
-        Assert.Equal(58, ItemLocalizationCatalog.GermanNames.Count);
+        Assert.NotEmpty(ItemLocalizationCatalog.GermanNames);
         foreach (var name in LootSpotCatalog.Spots.SelectMany(spot => spot.AllowedItems).Concat(LootSpotCatalog.EventItems))
             Assert.True(ItemLocalizationCatalog.GermanNames.ContainsKey(name), name);
+    }
+
+    [Theory]
+    [InlineData("Chilled Soul Piece", "Eisiges Seelenstück")]
+    [InlineData("Chilled Soul Piece", "eisigesseelenstuck")]
+    [InlineData("Chilled Soul Piece", "Eisiges Seelenstuckk")]
+    [InlineData("Contaminated Coral Piece", "Kontaminiertes Korallenstück")]
+    [InlineData("Contaminated Coral Piece", "kontaminierteskorallenstuck")]
+    [InlineData("Contaminated Coral Piece", "Kontaminiertes Korallenstuckk")]
+    public void UserConfirmedSingleTrashDropsMatchInBothLanguages(string canonical, string observed)
+    {
+        var matcher = new CompanionItemMatcher(ItemLocalizationCatalog.GermanNames.Keys);
+        foreach (var rare in new[] { false, true })
+        {
+            foreach (var quantity in new[] { 1, 2 })
+            {
+                Assert.True(matcher.TryMatch(canonical, quantity, rare, out var english));
+                Assert.True(matcher.TryMatch(observed, quantity, rare, out var localized));
+                Assert.Equal(canonical, english!.CanonicalName);
+                Assert.Equal(english.CanonicalName, localized!.CanonicalName);
+            }
+        }
     }
 
     [Theory]

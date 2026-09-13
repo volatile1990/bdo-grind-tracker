@@ -521,13 +521,14 @@ public sealed class NormalLootRecoveryTests(Xunit.Abstractions.ITestOutputHelper
         Assert.Equal(0, names.Calls);
     }
 
-    [Fact]
+    [WindowsOcrFact]
+    [Trait("Category", "WindowsOcr")]
     public void AvailableWindowsOcrReadsTheRealSyntheticQuantityCropOffline()
     {
         // This uses generated pixels only: no desktop, game, window capture or input.
         var recognizer = CompanionWindowsOcrRecognizer.TryCreate("en-US");
         output.WriteLine($"Installed OCR engine: {recognizer?.LanguageTag ?? "unavailable"}");
-        if (recognizer is null) return;
+        Assert.NotNull(recognizer);
         using var source = SyntheticBand();
         using var images = NormalLootRecoveryPreprocessor.Prepare(source, NormalLootRecoveryVariant.Grayscale);
 
@@ -539,14 +540,15 @@ public sealed class NormalLootRecoveryTests(Xunit.Abstractions.ITestOutputHelper
         Assert.Equal(42, quantity);
     }
 
-    [Fact]
+    [WindowsOcrFact]
+    [Trait("Category", "WindowsOcr")]
     public void AvailableWindowsOcrRecoversAWholeDimBandRejectedByTheBaselineOffline()
     {
         // Exercise both actual OCR reads and their real first-word geometry. The
         // fixture is generated here, never sampled from a desktop or game window.
         var engine = CompanionWindowsOcrRecognizer.TryCreate("en-US");
         output.WriteLine($"Installed OCR engine: {engine?.LanguageTag ?? "unavailable"}");
-        if (engine is null) return;
+        Assert.NotNull(engine);
         using var source = new Mat(100, 700, MatType.CV_8UC3, new Scalar(35, 35, 35));
         Cv2.PutText(source, "Black Crystal Fragment", new OpenCvSharp.Point(20, 55),
             HersheyFonts.HersheySimplex, 0.7, new Scalar(140, 140, 140), 2, LineTypes.AntiAlias);

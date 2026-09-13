@@ -17,12 +17,23 @@ public static class TrashLootMinimumCatalog
     // safe replacements. Leave entries null until that evidence is available.
     public static IReadOnlyList<TrashLootMinimum> Entries { get; } = Array.AsReadOnly<TrashLootMinimum>(
     [
+        new(LootSpotCatalog.AetherionId, "Chilled Soul Piece", null),
+        new(LootSpotCatalog.NymphamareId, "Contaminated Coral Piece", null),
+        new(LootSpotCatalog.OrbitaId, "Lightlost Core", null),
+        new(LootSpotCatalog.TenebraumId, "Ancient Soldier Fragment", null),
+        new(LootSpotCatalog.ZephyrosId, "Hardened Lava Chunk", null),
+        new(LootSpotCatalog.DarkEnergyFloodlandsId, "Tainted Armor Fragment", null),
+        new(LootSpotCatalog.DarkEnergyFloodlandsId, "Faded Dark Energy", null),
         new(LootSpotCatalog.AphrodonId, "Branch of Abundance", null),
         new(LootSpotCatalog.HermesiaId, "Black Crystal Fragment", null),
         new(LootSpotCatalog.MagaiaId, "Elion Follower's Helmet", null),
         new(LootSpotCatalog.AresionId, "Scorched Belt Ornament", null),
         new(LootSpotCatalog.ScalesOfJudgmentId, "Elion Follower's Mark", null),
         new(LootSpotCatalog.EventHorizonId, "Broken Gloves of the Void", null),
+        .. LootSpotCatalog.Spots.Where(spot => spot.PrimaryTrashItemName is not null)
+            .Select(spot => new TrashLootMinimum(spot.Id, spot.PrimaryTrashItemName!, null)),
+        .. LootSpotCatalog.VariantsFor(LootSpotCatalog.DarkEnergyFloodlandsId)
+            .Select(spot => new TrashLootMinimum(spot.Id, "Faded Dark Energy", null)),
     ]);
 
     /// <summary>Only verified values participate in the final estimate.</summary>

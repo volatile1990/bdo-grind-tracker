@@ -38,6 +38,7 @@ internal sealed partial class TrackerSessionService
 
     public Task<TrackerCommandResult> SaveSessionAsync() => RunOperationAsync(() =>
     {
+        RecoverSettingsIfNeeded();
         if (_historyStore.LoadError is not null)
         {
             var recovered = _historyStore.Load();
@@ -52,6 +53,7 @@ internal sealed partial class TrackerSessionService
             InitializeGarmothUploadJournal();
             if (_garmothPersistenceError is { } error) throw new IOException(error);
         }
+        RecoverCurrentSessionIfNeeded();
         RefreshPendingState();
         PersistCurrentSession(DateTimeOffset.UtcNow, throwOnError: true);
         SavePendingHistory();

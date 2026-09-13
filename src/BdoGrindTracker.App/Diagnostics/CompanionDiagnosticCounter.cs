@@ -10,18 +10,22 @@ namespace BdoGrindTracker.App.Diagnostics;
 internal sealed class CompanionDiagnosticCounter(IReadOnlyList<CompanionRareCatalogEntry> catalog,
     IReadOnlyDictionary<string, uint>? minimumQuantities = null, bool trackRows = false, bool temporal = false,
     bool legacyTemporal = false, bool lifetime = false, bool rawLifetime = false,
-    LifetimeParsingContext? parsingContext = null, bool visualLifetime = false)
+    LifetimeParsingContext? parsingContext = null, bool visualLifetime = false, bool independentSpecial = false)
 {
-    private readonly bool usesRawLifetime = rawLifetime || visualLifetime;
-    private readonly ICompanionReconciliation normal = lifetime || rawLifetime || visualLifetime
-        ? new LifetimeNormalReconciliationAdapter(rawLifetime || visualLifetime
+    private readonly bool usesRawLifetime = rawLifetime || visualLifetime || independentSpecial;
+    private readonly ICompanionReconciliation normal = lifetime || rawLifetime || visualLifetime || independentSpecial
+        ? new LifetimeNormalReconciliationAdapter(rawLifetime || visualLifetime || independentSpecial
             ? parsingContext ?? throw new InvalidDataException("Dem Rohtext-Normalzähler fehlt der Parsing-Kontext.") : null,
-            useVisualSlotCoverage: visualLifetime)
+            useVisualSlotCoverage: visualLifetime || independentSpecial)
         : temporal
         ? new TemporalNormalReconciliationAdapter(minimumQuantities, legacyTemporal)
         : new CompanionReconciliationAdapter(minimumQuantities, trackRows);
     private readonly CompanionLootLedger ledger = new();
     private readonly LifetimeLootProjectionComposer projectionComposer = new();
+    private readonly LifetimeNormalReconciliationAdapter? special = independentSpecial
+        ? new(parsingContext ?? throw new InvalidDataException("Dem Special-Loot-Zähler fehlt der Parsing-Kontext."),
+            false, source: LootSource.Rare, slotCount: 1)
+        : null;
     private CompanionRareFrameReconciler? rare;
 
     public TrackerFrameResult ProcessFrame(
@@ -32,7 +36,7 @@ internal sealed class CompanionDiagnosticCounter(IReadOnlyList<CompanionRareCata
     {
         if ((lifetime || usesRawLifetime || !temporal || legacyTemporal) && observations.Any(observation => observation.AppearanceEvidence is not null))
             throw new InvalidDataException("Visuelle Zeilenevidenz gehört nicht zu diesem historischen Normalzähler.");
-        if (!visualLifetime && observations.Any(observation => observation.OccupancyEvidence is not null))
+        if (!visualLifetime && !independentSpecial && observations.Any(observation => observation.OccupancyEvidence is not null))
             throw new InvalidDataException("Visuelle Belegung gehört ausschließlich zum Lebensdauer-Normalzähler v3.");
         var accepted = observations
             .Where(static observation => !string.IsNullOrWhiteSpace(observation.ItemName) &&
@@ -46,7 +50,7 @@ internal sealed class CompanionDiagnosticCounter(IReadOnlyList<CompanionRareCata
         // Match the live analyzer: create rare reconciliation on first enable,
         // then preserve its pending batch and shared ledger across layout changes.
         // Disabled captures still advance an existing counter with empty rows.
-        if (enableRare) rare ??= new CompanionRareFrameReconciler(catalog, ledger);
+        if (enableRare && !independentSpecial) rare ??= new CompanionRareFrameReconciler(catalog, ledger);
 
         var normalRows = accepted.Where(static observation => observation.Source == LootSource.Normal)
             .OrderByDescending(static observation => observation.NativeY)
@@ -71,6 +75,12 @@ internal sealed class CompanionDiagnosticCounter(IReadOnlyList<CompanionRareCata
             ? ((LifetimeNormalReconciliationAdapter)normal).ProcessObservations(
                 observations.Where(static row => row.Source == LootSource.Normal).ToArray(), timestamp)
             : normal.ProcessFrame(normalRows, timestamp);
+        if (special is not null)
+        {
+            if (enableRare)
+                special.ProcessObservations(observations.Where(static row => row.Source == LootSource.Rare).ToArray(), timestamp);
+            return ComposeProjection(timestamp, []);
+        }
         if (lifetime || usesRawLifetime)
             return ComposeProjection(timestamp, rare?.ProcessFrame(rareRows) ?? []);
         var (events, decisions) = AddNormal(timestamp, normalChanges);
@@ -88,6 +98,7 @@ internal sealed class CompanionDiagnosticCounter(IReadOnlyList<CompanionRareCata
     {
         ApplyParsingContext(parsingContext);
         var normalChanges = normal.Complete();
+        special?.Complete();
         if (lifetime || usesRawLifetime)
             return ComposeProjection(timestamp, rare?.Complete() ?? []);
         var (events, decisions) = AddNormal(timestamp, normalChanges);
@@ -105,6 +116,7 @@ internal sealed class CompanionDiagnosticCounter(IReadOnlyList<CompanionRareCata
         if (context is null) return;
         if (!usesRawLifetime) throw new InvalidDataException("Parsing-Kontext ohne Rohtext-Normalzähler.");
         ((LifetimeNormalReconciliationAdapter)normal).UpdateParsingContext(context);
+        special?.UpdateParsingContext(context);
     }
 
     private TrackerFrameResult ComposeProjection(DateTimeOffset timestamp,
@@ -112,7 +124,9 @@ internal sealed class CompanionDiagnosticCounter(IReadOnlyList<CompanionRareCata
     {
         if (normal.Projection is not { } snapshot)
             return new([], []) { NormalCaptureIndex = normal.CaptureIndex, NormalReconciliation = normal.LastTrace };
-        var combined = projectionComposer.Combine(snapshot, rareChanges, timestamp);
+        var combined = special?.Projection is { } specialSnapshot
+            ? projectionComposer.Combine(snapshot, specialSnapshot, timestamp)
+            : projectionComposer.Combine(snapshot, rareChanges, timestamp);
         return new(combined.Events, [])
         {
             NormalCaptureIndex = normal.CaptureIndex, NormalReconciliation = normal.LastTrace,

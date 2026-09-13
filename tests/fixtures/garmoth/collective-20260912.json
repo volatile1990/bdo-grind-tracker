@@ -1,0 +1,1504 @@
+{
+  "start_date": "2025-09-11",
+  "end_date": "2026-09-17",
+  "data": [
+    {
+      "grindspot_id": 213,
+      "name": "Aphrodon Temple",
+      "start_date": "2026-09-10",
+      "end_date": "2026-09-17",
+      "total_weeks": 1,
+      "total_sessions": 1739,
+      "total_minutes": 146136,
+      "drops": [
+        {
+          "item_key": "980127_0",
+          "main_key": 980127,
+          "sub_key": 0,
+          "name": "Branch of Abundance",
+          "is_trash": true,
+          "hourly_rate": 6235.8
+        },
+        {
+          "item_key": "721002_0",
+          "main_key": 721002,
+          "sub_key": 0,
+          "name": "Ancient Spirit Dust",
+          "is_trash": false,
+          "hourly_rate": 37.107
+        },
+        {
+          "item_key": "16001_0",
+          "main_key": 16001,
+          "sub_key": 0,
+          "name": "Black Stone (Weapon)",
+          "is_trash": false,
+          "hourly_rate": 23.316
+        },
+        {
+          "item_key": "721003_0",
+          "main_key": 721003,
+          "sub_key": 0,
+          "name": "Caphras Stone",
+          "is_trash": false,
+          "hourly_rate": 6.045435
+        },
+        {
+          "item_key": "768160_0",
+          "main_key": 768160,
+          "sub_key": 0,
+          "name": "Sealed Black Magic Crystals",
+          "is_trash": false,
+          "hourly_rate": 5.695735
+        },
+        {
+          "item_key": "821430_0",
+          "main_key": 821430,
+          "sub_key": 0,
+          "name": "WON Origin Shard",
+          "is_trash": false,
+          "hourly_rate": 2.114088
+        },
+        {
+          "item_key": "821318_0",
+          "main_key": 821318,
+          "sub_key": 0,
+          "name": "Silent Fragment of Origin",
+          "is_trash": false,
+          "hourly_rate": 0.43233016
+        },
+        {
+          "item_key": "821422_0",
+          "main_key": 821422,
+          "sub_key": 0,
+          "name": "Twilight of the End – Earring",
+          "is_trash": false,
+          "hourly_rate": 0.39501846
+        },
+        {
+          "item_key": "821460_0",
+          "main_key": 821460,
+          "sub_key": 0,
+          "name": "Nev’s Fragment",
+          "is_trash": false,
+          "hourly_rate": 0.29003269
+        },
+        {
+          "item_key": "821471_0",
+          "main_key": 821471,
+          "sub_key": 0,
+          "name": "Fusion Shard",
+          "is_trash": false,
+          "hourly_rate": 0.24169127
+        },
+        {
+          "item_key": "821462_0",
+          "main_key": 821462,
+          "sub_key": 0,
+          "name": "Embers of Ynix - Armor",
+          "is_trash": false,
+          "hourly_rate": 0.04190627
+        },
+        {
+          "item_key": "15294_0",
+          "main_key": 15294,
+          "sub_key": 0,
+          "name": "WON Wandering Origin Crystal",
+          "is_trash": false,
+          "hourly_rate": 0.00857638
+        },
+        {
+          "item_key": "980139_0",
+          "main_key": 980139,
+          "sub_key": 0,
+          "name": "Broken Vestige of Goldroot",
+          "is_trash": false,
+          "hourly_rate": 0.00524818
+        },
+        {
+          "item_key": "761803_0",
+          "main_key": 761803,
+          "sub_key": 0,
+          "name": "Silent Crystal of Origin",
+          "is_trash": false,
+          "hourly_rate": 0.0027624
+        },
+        {
+          "item_key": "11898_0",
+          "main_key": 11898,
+          "sub_key": 0,
+          "name": "Apeiron Earring",
+          "is_trash": false,
+          "hourly_rate": 0.00095301
+        }
+      ]
+    },
+    {
+      "grindspot_id": 214,
+      "name": "Hermesia Inner Castle",
+      "start_date": "2026-08-06",
+      "end_date": "2026-09-17",
+      "total_weeks": 6,
+      "total_sessions": 9013,
+      "total_minutes": 779408,
+      "drops": [
+        {
+          "item_key": "980128_0",
+          "main_key": 980128,
+          "sub_key": 0,
+          "name": "Black Crystal Fragment",
+          "is_trash": true,
+          "hourly_rate": 6446.6
+        },
+        {
+          "item_key": "721002_0",
+          "main_key": 721002,
+          "sub_key": 0,
+          "name": "Ancient Spirit Dust",
+          "is_trash": false,
+          "hourly_rate": 26.764
+        },
+        {
+          "item_key": "16001_0",
+          "main_key": 16001,
+          "sub_key": 0,
+          "name": "Black Stone (Weapon)",
+          "is_trash": false,
+          "hourly_rate": 16.272
+        },
+        {
+          "item_key": "721003_0",
+          "main_key": 721003,
+          "sub_key": 0,
+          "name": "Caphras Stone",
+          "is_trash": false,
+          "hourly_rate": 5.067678
+        },
+        {
+          "item_key": "821431_0",
+          "main_key": 821431,
+          "sub_key": 0,
+          "name": "BON Origin Shard",
+          "is_trash": false,
+          "hourly_rate": 1.357376
+        },
+        {
+          "item_key": "1178_0",
+          "main_key": 1178,
+          "sub_key": 0,
+          "name": "Corrupt Oil of Immortality",
+          "is_trash": false,
+          "hourly_rate": 0.37280357
+        },
+        {
+          "item_key": "821423_0",
+          "main_key": 821423,
+          "sub_key": 0,
+          "name": "Twilight of the End – Ring",
+          "is_trash": false,
+          "hourly_rate": 0.33892645
+        },
+        {
+          "item_key": "821460_0",
+          "main_key": 821460,
+          "sub_key": 0,
+          "name": "Nev’s Fragment",
+          "is_trash": false,
+          "hourly_rate": 0.25410766
+        },
+        {
+          "item_key": "821471_0",
+          "main_key": 821471,
+          "sub_key": 0,
+          "name": "Fusion Shard",
+          "is_trash": false,
+          "hourly_rate": 0.212571
+        },
+        {
+          "item_key": "821459_0",
+          "main_key": 821459,
+          "sub_key": 0,
+          "name": "Sunset Primordial Pigment - Edana",
+          "is_trash": false,
+          "hourly_rate": 0.14956869
+        },
+        {
+          "item_key": "821318_0",
+          "main_key": 821318,
+          "sub_key": 0,
+          "name": "Silent Fragment of Origin",
+          "is_trash": false,
+          "hourly_rate": 0.12166695
+        },
+        {
+          "item_key": "821422_0",
+          "main_key": 821422,
+          "sub_key": 0,
+          "name": "Twilight of the End – Earring",
+          "is_trash": false,
+          "hourly_rate": 0.08593152
+        },
+        {
+          "item_key": "821342_0",
+          "main_key": 821342,
+          "sub_key": 0,
+          "name": "Violet Primordial Luster - Sovereign",
+          "is_trash": false,
+          "hourly_rate": 0.07775809
+        },
+        {
+          "item_key": "821341_0",
+          "main_key": 821341,
+          "sub_key": 0,
+          "name": "Crimson Primordial Luster - Sovereign",
+          "is_trash": false,
+          "hourly_rate": 0.07762776
+        },
+        {
+          "item_key": "821343_0",
+          "main_key": 821343,
+          "sub_key": 0,
+          "name": "Violet Primordial Luster - Edana",
+          "is_trash": false,
+          "hourly_rate": 0.07317085
+        },
+        {
+          "item_key": "767338_0",
+          "main_key": 767338,
+          "sub_key": 0,
+          "name": "Refined Essence of Devouring",
+          "is_trash": false,
+          "hourly_rate": 0.0528911
+        },
+        {
+          "item_key": "821461_0",
+          "main_key": 821461,
+          "sub_key": 0,
+          "name": "Embers of Ynix - Helmet",
+          "is_trash": false,
+          "hourly_rate": 0.02534217
+        },
+        {
+          "item_key": "15295_0",
+          "main_key": 15295,
+          "sub_key": 0,
+          "name": "BON Wandering Origin Crystal",
+          "is_trash": false,
+          "hourly_rate": 0.00895546
+        },
+        {
+          "item_key": "767337_0",
+          "main_key": 767337,
+          "sub_key": 0,
+          "name": "Refined Origin of Hunger",
+          "is_trash": false,
+          "hourly_rate": 0.00595649
+        },
+        {
+          "item_key": "980140_0",
+          "main_key": 980140,
+          "sub_key": 0,
+          "name": "Broken Vestige of Ebonmere",
+          "is_trash": false,
+          "hourly_rate": 0.00491608
+        },
+        {
+          "item_key": "761803_0",
+          "main_key": 761803,
+          "sub_key": 0,
+          "name": "Silent Crystal of Origin",
+          "is_trash": false,
+          "hourly_rate": 0.00282827
+        },
+        {
+          "item_key": "767353_0",
+          "main_key": 767353,
+          "sub_key": 0,
+          "name": "Sunset Pigment of Creation - Edana",
+          "is_trash": false,
+          "hourly_rate": 0.00212999
+        },
+        {
+          "item_key": "767294_0",
+          "main_key": 767294,
+          "sub_key": 0,
+          "name": "Violet Primordial Pigment - Sovereign",
+          "is_trash": false,
+          "hourly_rate": 0.00102475
+        },
+        {
+          "item_key": "12144_0",
+          "main_key": 12144,
+          "sub_key": 0,
+          "name": "Apeiron Ring",
+          "is_trash": false,
+          "hourly_rate": 0.00094243
+        },
+        {
+          "item_key": "767293_0",
+          "main_key": 767293,
+          "sub_key": 0,
+          "name": "Crimson Primordial Pigment - Sovereign",
+          "is_trash": false,
+          "hourly_rate": 0.00083386
+        },
+        {
+          "item_key": "767296_0",
+          "main_key": 767296,
+          "sub_key": 0,
+          "name": "Violet Primordial Pigment - Edana",
+          "is_trash": false,
+          "hourly_rate": 0.0007114
+        },
+        {
+          "item_key": "11898_0",
+          "main_key": 11898,
+          "sub_key": 0,
+          "name": "Apeiron Earring",
+          "is_trash": false,
+          "hourly_rate": 0.00030703
+        }
+      ]
+    },
+    {
+      "grindspot_id": 215,
+      "name": "Magaia Temple",
+      "start_date": "2026-09-10",
+      "end_date": "2026-09-17",
+      "total_weeks": 1,
+      "total_sessions": 1190,
+      "total_minutes": 96769,
+      "drops": [
+        {
+          "item_key": "980129_0",
+          "main_key": 980129,
+          "sub_key": 0,
+          "name": "Elion Follower's Helmet",
+          "is_trash": true,
+          "hourly_rate": 6401.4
+        },
+        {
+          "item_key": "721002_0",
+          "main_key": 721002,
+          "sub_key": 0,
+          "name": "Ancient Spirit Dust",
+          "is_trash": false,
+          "hourly_rate": 44.937
+        },
+        {
+          "item_key": "16001_0",
+          "main_key": 16001,
+          "sub_key": 0,
+          "name": "Black Stone (Weapon)",
+          "is_trash": false,
+          "hourly_rate": 21.383
+        },
+        {
+          "item_key": "721003_0",
+          "main_key": 721003,
+          "sub_key": 0,
+          "name": "Caphras Stone",
+          "is_trash": false,
+          "hourly_rate": 8.290812
+        },
+        {
+          "item_key": "821432_0",
+          "main_key": 821432,
+          "sub_key": 0,
+          "name": "JIN Origin Shard",
+          "is_trash": false,
+          "hourly_rate": 1.558147
+        },
+        {
+          "item_key": "1178_0",
+          "main_key": 1178,
+          "sub_key": 0,
+          "name": "Corrupt Oil of Immortality",
+          "is_trash": false,
+          "hourly_rate": 0.4368852
+        },
+        {
+          "item_key": "821424_0",
+          "main_key": 821424,
+          "sub_key": 0,
+          "name": "Twilight of the End – Belt",
+          "is_trash": false,
+          "hourly_rate": 0.32954951
+        },
+        {
+          "item_key": "821460_0",
+          "main_key": 821460,
+          "sub_key": 0,
+          "name": "Nev’s Fragment",
+          "is_trash": false,
+          "hourly_rate": 0.31554946
+        },
+        {
+          "item_key": "821471_0",
+          "main_key": 821471,
+          "sub_key": 0,
+          "name": "Fusion Shard",
+          "is_trash": false,
+          "hourly_rate": 0.30868679
+        },
+        {
+          "item_key": "821459_0",
+          "main_key": 821459,
+          "sub_key": 0,
+          "name": "Sunset Primordial Pigment - Edana",
+          "is_trash": false,
+          "hourly_rate": 0.19332713
+        },
+        {
+          "item_key": "821318_0",
+          "main_key": 821318,
+          "sub_key": 0,
+          "name": "Silent Fragment of Origin",
+          "is_trash": false,
+          "hourly_rate": 0.14659121
+        },
+        {
+          "item_key": "821423_0",
+          "main_key": 821423,
+          "sub_key": 0,
+          "name": "Twilight of the End – Ring",
+          "is_trash": false,
+          "hourly_rate": 0.13333949
+        },
+        {
+          "item_key": "821422_0",
+          "main_key": 821422,
+          "sub_key": 0,
+          "name": "Twilight of the End – Earring",
+          "is_trash": false,
+          "hourly_rate": 0.12420994
+        },
+        {
+          "item_key": "821342_0",
+          "main_key": 821342,
+          "sub_key": 0,
+          "name": "Violet Primordial Luster - Sovereign",
+          "is_trash": false,
+          "hourly_rate": 0.11487498
+        },
+        {
+          "item_key": "821341_0",
+          "main_key": 821341,
+          "sub_key": 0,
+          "name": "Crimson Primordial Luster - Sovereign",
+          "is_trash": false,
+          "hourly_rate": 0.11324654
+        },
+        {
+          "item_key": "821343_0",
+          "main_key": 821343,
+          "sub_key": 0,
+          "name": "Violet Primordial Luster - Edana",
+          "is_trash": false,
+          "hourly_rate": 0.10659441
+        },
+        {
+          "item_key": "767338_0",
+          "main_key": 767338,
+          "sub_key": 0,
+          "name": "Refined Essence of Devouring",
+          "is_trash": false,
+          "hourly_rate": 0.03168804
+        },
+        {
+          "item_key": "821464_0",
+          "main_key": 821464,
+          "sub_key": 0,
+          "name": "Embers of Ynix - Shoes",
+          "is_trash": false,
+          "hourly_rate": 0.02351785
+        },
+        {
+          "item_key": "980141_0",
+          "main_key": 980141,
+          "sub_key": 0,
+          "name": "Broken Vestige of Everlight",
+          "is_trash": false,
+          "hourly_rate": 0.00598309
+        },
+        {
+          "item_key": "15296_0",
+          "main_key": 15296,
+          "sub_key": 0,
+          "name": "JIN Wandering Origin Crystal",
+          "is_trash": false,
+          "hourly_rate": 0.00573421
+        },
+        {
+          "item_key": "767337_0",
+          "main_key": 767337,
+          "sub_key": 0,
+          "name": "Refined Origin of Hunger",
+          "is_trash": false,
+          "hourly_rate": 0.00419951
+        },
+        {
+          "item_key": "767353_0",
+          "main_key": 767353,
+          "sub_key": 0,
+          "name": "Sunset Pigment of Creation - Edana",
+          "is_trash": false,
+          "hourly_rate": 0.00277062
+        },
+        {
+          "item_key": "761803_0",
+          "main_key": 761803,
+          "sub_key": 0,
+          "name": "Silent Crystal of Origin",
+          "is_trash": false,
+          "hourly_rate": 0.00155708
+        },
+        {
+          "item_key": "767293_0",
+          "main_key": 767293,
+          "sub_key": 0,
+          "name": "Crimson Primordial Pigment - Sovereign",
+          "is_trash": false,
+          "hourly_rate": 0.00103932
+        },
+        {
+          "item_key": "12144_0",
+          "main_key": 12144,
+          "sub_key": 0,
+          "name": "Apeiron Ring",
+          "is_trash": false,
+          "hourly_rate": 0.00081701
+        },
+        {
+          "item_key": "767294_0",
+          "main_key": 767294,
+          "sub_key": 0,
+          "name": "Violet Primordial Pigment - Sovereign",
+          "is_trash": false,
+          "hourly_rate": 0.00051001
+        },
+        {
+          "item_key": "12298_0",
+          "main_key": 12298,
+          "sub_key": 0,
+          "name": "Apeiron Belt",
+          "is_trash": false,
+          "hourly_rate": 0.00042161
+        },
+        {
+          "item_key": "11898_0",
+          "main_key": 11898,
+          "sub_key": 0,
+          "name": "Apeiron Earring",
+          "is_trash": false,
+          "hourly_rate": 0.0003689
+        },
+        {
+          "item_key": "767296_0",
+          "main_key": 767296,
+          "sub_key": 0,
+          "name": "Violet Primordial Pigment - Edana",
+          "is_trash": false,
+          "hourly_rate": 0.00036014
+        }
+      ]
+    },
+    {
+      "grindspot_id": 216,
+      "name": "Aresion Temple",
+      "start_date": "2026-09-10",
+      "end_date": "2026-09-17",
+      "total_weeks": 1,
+      "total_sessions": 400,
+      "total_minutes": 46991,
+      "drops": [
+        {
+          "item_key": "980131_0",
+          "main_key": 980131,
+          "sub_key": 0,
+          "name": "Scorched Belt Ornament",
+          "is_trash": true,
+          "hourly_rate": 6661.4
+        },
+        {
+          "item_key": "721002_0",
+          "main_key": 721002,
+          "sub_key": 0,
+          "name": "Ancient Spirit Dust",
+          "is_trash": false,
+          "hourly_rate": 47.598
+        },
+        {
+          "item_key": "16001_0",
+          "main_key": 16001,
+          "sub_key": 0,
+          "name": "Black Stone (Weapon)",
+          "is_trash": false,
+          "hourly_rate": 7.977626
+        },
+        {
+          "item_key": "721003_0",
+          "main_key": 721003,
+          "sub_key": 0,
+          "name": "Caphras Stone",
+          "is_trash": false,
+          "hourly_rate": 6.735267
+        },
+        {
+          "item_key": "821433_0",
+          "main_key": 821433,
+          "sub_key": 0,
+          "name": "HAN Origin Shard",
+          "is_trash": false,
+          "hourly_rate": 1.642701
+        },
+        {
+          "item_key": "1178_0",
+          "main_key": 1178,
+          "sub_key": 0,
+          "name": "Corrupt Oil of Immortality",
+          "is_trash": false,
+          "hourly_rate": 0.42959849
+        },
+        {
+          "item_key": "821460_0",
+          "main_key": 821460,
+          "sub_key": 0,
+          "name": "Nev’s Fragment",
+          "is_trash": false,
+          "hourly_rate": 0.36794727
+        },
+        {
+          "item_key": "821471_0",
+          "main_key": 821471,
+          "sub_key": 0,
+          "name": "Fusion Shard",
+          "is_trash": false,
+          "hourly_rate": 0.34685838
+        },
+        {
+          "item_key": "821421_0",
+          "main_key": 821421,
+          "sub_key": 0,
+          "name": "Twilight of the End – Necklace",
+          "is_trash": false,
+          "hourly_rate": 0.33820989
+        },
+        {
+          "item_key": "821424_0",
+          "main_key": 821424,
+          "sub_key": 0,
+          "name": "Twilight of the End – Belt",
+          "is_trash": false,
+          "hourly_rate": 0.15716008
+        },
+        {
+          "item_key": "821423_0",
+          "main_key": 821423,
+          "sub_key": 0,
+          "name": "Twilight of the End – Ring",
+          "is_trash": false,
+          "hourly_rate": 0.13355514
+        },
+        {
+          "item_key": "821422_0",
+          "main_key": 821422,
+          "sub_key": 0,
+          "name": "Twilight of the End – Earring",
+          "is_trash": false,
+          "hourly_rate": 0.11888882
+        },
+        {
+          "item_key": "821459_0",
+          "main_key": 821459,
+          "sub_key": 0,
+          "name": "Sunset Primordial Pigment - Edana",
+          "is_trash": false,
+          "hourly_rate": 0.1091412
+        },
+        {
+          "item_key": "821420_0",
+          "main_key": 821420,
+          "sub_key": 0,
+          "name": "White Primordial Pigment - Edana",
+          "is_trash": false,
+          "hourly_rate": 0.09373405
+        },
+        {
+          "item_key": "821419_0",
+          "main_key": 821419,
+          "sub_key": 0,
+          "name": "White Primordial Luster - Sovereign",
+          "is_trash": false,
+          "hourly_rate": 0.09095175
+        },
+        {
+          "item_key": "821342_0",
+          "main_key": 821342,
+          "sub_key": 0,
+          "name": "Violet Primordial Luster - Sovereign",
+          "is_trash": false,
+          "hourly_rate": 0.08043752
+        },
+        {
+          "item_key": "821341_0",
+          "main_key": 821341,
+          "sub_key": 0,
+          "name": "Crimson Primordial Luster - Sovereign",
+          "is_trash": false,
+          "hourly_rate": 0.07624862
+        },
+        {
+          "item_key": "821343_0",
+          "main_key": 821343,
+          "sub_key": 0,
+          "name": "Violet Primordial Luster - Edana",
+          "is_trash": false,
+          "hourly_rate": 0.06693352
+        },
+        {
+          "item_key": "821318_0",
+          "main_key": 821318,
+          "sub_key": 0,
+          "name": "Silent Fragment of Origin",
+          "is_trash": false,
+          "hourly_rate": 0.03412998
+        },
+        {
+          "item_key": "821463_0",
+          "main_key": 821463,
+          "sub_key": 0,
+          "name": "Embers of Ynix - Gloves",
+          "is_trash": false,
+          "hourly_rate": 0.03104223
+        },
+        {
+          "item_key": "767338_0",
+          "main_key": 767338,
+          "sub_key": 0,
+          "name": "Refined Essence of Devouring",
+          "is_trash": false,
+          "hourly_rate": 0.02736273
+        },
+        {
+          "item_key": "11733_0",
+          "main_key": 11733,
+          "sub_key": 0,
+          "name": "Apeiron Necklace",
+          "is_trash": false,
+          "hourly_rate": 0.00964017
+        },
+        {
+          "item_key": "767337_0",
+          "main_key": 767337,
+          "sub_key": 0,
+          "name": "Refined Origin of Hunger",
+          "is_trash": false,
+          "hourly_rate": 0.00627972
+        },
+        {
+          "item_key": "15297_0",
+          "main_key": 15297,
+          "sub_key": 0,
+          "name": "HAN Wandering Origin Crystal",
+          "is_trash": false,
+          "hourly_rate": 0.00591965
+        },
+        {
+          "item_key": "980142_0",
+          "main_key": 980142,
+          "sub_key": 0,
+          "name": "Broken Vestige of Crimsonflare",
+          "is_trash": false,
+          "hourly_rate": 0.00577087
+        },
+        {
+          "item_key": "12298_0",
+          "main_key": 12298,
+          "sub_key": 0,
+          "name": "Apeiron Belt",
+          "is_trash": false,
+          "hourly_rate": 0.0050742
+        },
+        {
+          "item_key": "12144_0",
+          "main_key": 12144,
+          "sub_key": 0,
+          "name": "Apeiron Ring",
+          "is_trash": false,
+          "hourly_rate": 0.00448184
+        },
+        {
+          "item_key": "11898_0",
+          "main_key": 11898,
+          "sub_key": 0,
+          "name": "Apeiron Earring",
+          "is_trash": false,
+          "hourly_rate": 0.00320889
+        },
+        {
+          "item_key": "761803_0",
+          "main_key": 761803,
+          "sub_key": 0,
+          "name": "Silent Crystal of Origin",
+          "is_trash": false,
+          "hourly_rate": 0.00297214
+        },
+        {
+          "item_key": "767353_0",
+          "main_key": 767353,
+          "sub_key": 0,
+          "name": "Sunset Pigment of Creation - Edana",
+          "is_trash": false,
+          "hourly_rate": 0.00027459
+        },
+        {
+          "item_key": "767344_0",
+          "main_key": 767344,
+          "sub_key": 0,
+          "name": "White Primordial Pigment - Edana",
+          "is_trash": false,
+          "hourly_rate": 0.00026881
+        },
+        {
+          "item_key": "767343_0",
+          "main_key": 767343,
+          "sub_key": 0,
+          "name": "White Primordial Pigment - Sovereign",
+          "is_trash": false,
+          "hourly_rate": 0.00024793
+        },
+        {
+          "item_key": "767293_0",
+          "main_key": 767293,
+          "sub_key": 0,
+          "name": "Crimson Primordial Pigment - Sovereign",
+          "is_trash": false,
+          "hourly_rate": 0
+        },
+        {
+          "item_key": "767294_0",
+          "main_key": 767294,
+          "sub_key": 0,
+          "name": "Violet Primordial Pigment - Sovereign",
+          "is_trash": false,
+          "hourly_rate": 0
+        },
+        {
+          "item_key": "767296_0",
+          "main_key": 767296,
+          "sub_key": 0,
+          "name": "Violet Primordial Pigment - Edana",
+          "is_trash": false,
+          "hourly_rate": 0
+        }
+      ]
+    },
+    {
+      "grindspot_id": 217,
+      "name": "Scales of Judgment",
+      "start_date": "2026-09-10",
+      "end_date": "2026-09-17",
+      "total_weeks": 1,
+      "total_sessions": 35,
+      "total_minutes": 2787,
+      "drops": [
+        {
+          "item_key": "980130_0",
+          "main_key": 980130,
+          "sub_key": 0,
+          "name": "Elion Follower's Mark",
+          "is_trash": true,
+          "hourly_rate": 7621.6
+        },
+        {
+          "item_key": "721002_0",
+          "main_key": 721002,
+          "sub_key": 0,
+          "name": "Ancient Spirit Dust",
+          "is_trash": false,
+          "hourly_rate": 43.726
+        },
+        {
+          "item_key": "16001_0",
+          "main_key": 16001,
+          "sub_key": 0,
+          "name": "Black Stone (Weapon)",
+          "is_trash": false,
+          "hourly_rate": 23.278
+        },
+        {
+          "item_key": "721003_0",
+          "main_key": 721003,
+          "sub_key": 0,
+          "name": "Caphras Stone",
+          "is_trash": false,
+          "hourly_rate": 8.228643
+        },
+        {
+          "item_key": "821433_0",
+          "main_key": 821433,
+          "sub_key": 0,
+          "name": "HAN Origin Shard",
+          "is_trash": false,
+          "hourly_rate": 1.614295
+        },
+        {
+          "item_key": "1178_0",
+          "main_key": 1178,
+          "sub_key": 0,
+          "name": "Corrupt Oil of Immortality",
+          "is_trash": false,
+          "hourly_rate": 0.5037941
+        },
+        {
+          "item_key": "821421_0",
+          "main_key": 821421,
+          "sub_key": 0,
+          "name": "Twilight of the End – Necklace",
+          "is_trash": false,
+          "hourly_rate": 0.36389139
+        },
+        {
+          "item_key": "821460_0",
+          "main_key": 821460,
+          "sub_key": 0,
+          "name": "Nev’s Fragment",
+          "is_trash": false,
+          "hourly_rate": 0.32662945
+        },
+        {
+          "item_key": "821471_0",
+          "main_key": 821471,
+          "sub_key": 0,
+          "name": "Fusion Shard",
+          "is_trash": false,
+          "hourly_rate": 0.2356152
+        },
+        {
+          "item_key": "821424_0",
+          "main_key": 821424,
+          "sub_key": 0,
+          "name": "Twilight of the End – Belt",
+          "is_trash": false,
+          "hourly_rate": 0.16547244
+        },
+        {
+          "item_key": "821423_0",
+          "main_key": 821423,
+          "sub_key": 0,
+          "name": "Twilight of the End – Ring",
+          "is_trash": false,
+          "hourly_rate": 0.14561244
+        },
+        {
+          "item_key": "821422_0",
+          "main_key": 821422,
+          "sub_key": 0,
+          "name": "Twilight of the End – Earring",
+          "is_trash": false,
+          "hourly_rate": 0.10785404
+        },
+        {
+          "item_key": "821419_0",
+          "main_key": 821419,
+          "sub_key": 0,
+          "name": "White Primordial Luster - Sovereign",
+          "is_trash": false,
+          "hourly_rate": 0.09613404
+        },
+        {
+          "item_key": "821420_0",
+          "main_key": 821420,
+          "sub_key": 0,
+          "name": "White Primordial Pigment - Edana",
+          "is_trash": false,
+          "hourly_rate": 0.08026499
+        },
+        {
+          "item_key": "821343_0",
+          "main_key": 821343,
+          "sub_key": 0,
+          "name": "Violet Primordial Luster - Edana",
+          "is_trash": false,
+          "hourly_rate": 0.05941748
+        },
+        {
+          "item_key": "821318_0",
+          "main_key": 821318,
+          "sub_key": 0,
+          "name": "Silent Fragment of Origin",
+          "is_trash": false,
+          "hourly_rate": 0.05904713
+        },
+        {
+          "item_key": "821459_0",
+          "main_key": 821459,
+          "sub_key": 0,
+          "name": "Sunset Primordial Pigment - Edana",
+          "is_trash": false,
+          "hourly_rate": 0.05463498
+        },
+        {
+          "item_key": "767338_0",
+          "main_key": 767338,
+          "sub_key": 0,
+          "name": "Refined Essence of Devouring",
+          "is_trash": false,
+          "hourly_rate": 0.04559005
+        },
+        {
+          "item_key": "821341_0",
+          "main_key": 821341,
+          "sub_key": 0,
+          "name": "Crimson Primordial Luster - Sovereign",
+          "is_trash": false,
+          "hourly_rate": 0.04466829
+        },
+        {
+          "item_key": "821342_0",
+          "main_key": 821342,
+          "sub_key": 0,
+          "name": "Violet Primordial Luster - Sovereign",
+          "is_trash": false,
+          "hourly_rate": 0.04390564
+        },
+        {
+          "item_key": "821463_0",
+          "main_key": 821463,
+          "sub_key": 0,
+          "name": "Embers of Ynix - Gloves",
+          "is_trash": false,
+          "hourly_rate": 0.01583735
+        },
+        {
+          "item_key": "980141_0",
+          "main_key": 980141,
+          "sub_key": 0,
+          "name": "Broken Vestige of Everlight",
+          "is_trash": false,
+          "hourly_rate": 0.007393
+        },
+        {
+          "item_key": "11733_0",
+          "main_key": 11733,
+          "sub_key": 0,
+          "name": "Apeiron Necklace",
+          "is_trash": false,
+          "hourly_rate": 0.00410067
+        },
+        {
+          "item_key": "12144_0",
+          "main_key": 12144,
+          "sub_key": 0,
+          "name": "Apeiron Ring",
+          "is_trash": false,
+          "hourly_rate": 0.00410067
+        },
+        {
+          "item_key": "11898_0",
+          "main_key": 11898,
+          "sub_key": 0,
+          "name": "Apeiron Earring",
+          "is_trash": false,
+          "hourly_rate": 0.00374409
+        },
+        {
+          "item_key": "767337_0",
+          "main_key": 767337,
+          "sub_key": 0,
+          "name": "Refined Origin of Hunger",
+          "is_trash": false,
+          "hourly_rate": 0.00374409
+        },
+        {
+          "item_key": "15297_0",
+          "main_key": 15297,
+          "sub_key": 0,
+          "name": "HAN Wandering Origin Crystal",
+          "is_trash": false,
+          "hourly_rate": 0.00344456
+        },
+        {
+          "item_key": "12298_0",
+          "main_key": 12298,
+          "sub_key": 0,
+          "name": "Apeiron Belt",
+          "is_trash": false,
+          "hourly_rate": 0
+        },
+        {
+          "item_key": "761803_0",
+          "main_key": 761803,
+          "sub_key": 0,
+          "name": "Silent Crystal of Origin",
+          "is_trash": false,
+          "hourly_rate": 0
+        },
+        {
+          "item_key": "767293_0",
+          "main_key": 767293,
+          "sub_key": 0,
+          "name": "Crimson Primordial Pigment - Sovereign",
+          "is_trash": false,
+          "hourly_rate": 0
+        },
+        {
+          "item_key": "767294_0",
+          "main_key": 767294,
+          "sub_key": 0,
+          "name": "Violet Primordial Pigment - Sovereign",
+          "is_trash": false,
+          "hourly_rate": 0
+        },
+        {
+          "item_key": "767296_0",
+          "main_key": 767296,
+          "sub_key": 0,
+          "name": "Violet Primordial Pigment - Edana",
+          "is_trash": false,
+          "hourly_rate": 0
+        },
+        {
+          "item_key": "767343_0",
+          "main_key": 767343,
+          "sub_key": 0,
+          "name": "White Primordial Pigment - Sovereign",
+          "is_trash": false,
+          "hourly_rate": 0
+        },
+        {
+          "item_key": "767344_0",
+          "main_key": 767344,
+          "sub_key": 0,
+          "name": "White Primordial Pigment - Edana",
+          "is_trash": false,
+          "hourly_rate": 0
+        },
+        {
+          "item_key": "767353_0",
+          "main_key": 767353,
+          "sub_key": 0,
+          "name": "Sunset Pigment of Creation - Edana",
+          "is_trash": false,
+          "hourly_rate": 0
+        }
+      ]
+    },
+    {
+      "grindspot_id": 218,
+      "name": "Event Horizon",
+      "start_date": "2026-09-03",
+      "end_date": "2026-09-17",
+      "total_weeks": 2,
+      "total_sessions": 361,
+      "total_minutes": 42122,
+      "drops": [
+        {
+          "item_key": "980132_0",
+          "main_key": 980132,
+          "sub_key": 0,
+          "name": "Broken Gloves of the Void",
+          "is_trash": true,
+          "hourly_rate": 6294.8
+        },
+        {
+          "item_key": "721002_0",
+          "main_key": 721002,
+          "sub_key": 0,
+          "name": "Ancient Spirit Dust",
+          "is_trash": false,
+          "hourly_rate": 14.862
+        },
+        {
+          "item_key": "16001_0",
+          "main_key": 16001,
+          "sub_key": 0,
+          "name": "Black Stone (Weapon)",
+          "is_trash": false,
+          "hourly_rate": 9.683708
+        },
+        {
+          "item_key": "721003_0",
+          "main_key": 721003,
+          "sub_key": 0,
+          "name": "Caphras Stone",
+          "is_trash": false,
+          "hourly_rate": 7.427489
+        },
+        {
+          "item_key": "821433_0",
+          "main_key": 821433,
+          "sub_key": 0,
+          "name": "HAN Origin Shard",
+          "is_trash": false,
+          "hourly_rate": 0.81217938
+        },
+        {
+          "item_key": "821460_0",
+          "main_key": 821460,
+          "sub_key": 0,
+          "name": "Nev’s Fragment",
+          "is_trash": false,
+          "hourly_rate": 0.6699333
+        },
+        {
+          "item_key": "821471_0",
+          "main_key": 821471,
+          "sub_key": 0,
+          "name": "Fusion Shard",
+          "is_trash": false,
+          "hourly_rate": 0.40197604
+        },
+        {
+          "item_key": "1178_0",
+          "main_key": 1178,
+          "sub_key": 0,
+          "name": "Corrupt Oil of Immortality",
+          "is_trash": false,
+          "hourly_rate": 0.37101076
+        },
+        {
+          "item_key": "821421_0",
+          "main_key": 821421,
+          "sub_key": 0,
+          "name": "Twilight of the End – Necklace",
+          "is_trash": false,
+          "hourly_rate": 0.30437103
+        },
+        {
+          "item_key": "821424_0",
+          "main_key": 821424,
+          "sub_key": 0,
+          "name": "Twilight of the End – Belt",
+          "is_trash": false,
+          "hourly_rate": 0.28927241
+        },
+        {
+          "item_key": "821318_0",
+          "main_key": 821318,
+          "sub_key": 0,
+          "name": "Silent Fragment of Origin",
+          "is_trash": false,
+          "hourly_rate": 0.23678902
+        },
+        {
+          "item_key": "821420_0",
+          "main_key": 821420,
+          "sub_key": 0,
+          "name": "White Primordial Pigment - Edana",
+          "is_trash": false,
+          "hourly_rate": 0.21082476
+        },
+        {
+          "item_key": "821419_0",
+          "main_key": 821419,
+          "sub_key": 0,
+          "name": "White Primordial Luster - Sovereign",
+          "is_trash": false,
+          "hourly_rate": 0.18190081
+        },
+        {
+          "item_key": "821423_0",
+          "main_key": 821423,
+          "sub_key": 0,
+          "name": "Twilight of the End – Ring",
+          "is_trash": false,
+          "hourly_rate": 0.17224612
+        },
+        {
+          "item_key": "821422_0",
+          "main_key": 821422,
+          "sub_key": 0,
+          "name": "Twilight of the End – Earring",
+          "is_trash": false,
+          "hourly_rate": 0.13478919
+        },
+        {
+          "item_key": "821461_0",
+          "main_key": 821461,
+          "sub_key": 0,
+          "name": "Embers of Ynix - Helmet",
+          "is_trash": false,
+          "hourly_rate": 0.05265932
+        },
+        {
+          "item_key": "821462_0",
+          "main_key": 821462,
+          "sub_key": 0,
+          "name": "Embers of Ynix - Armor",
+          "is_trash": false,
+          "hourly_rate": 0.05115028
+        },
+        {
+          "item_key": "767338_0",
+          "main_key": 767338,
+          "sub_key": 0,
+          "name": "Refined Essence of Devouring",
+          "is_trash": false,
+          "hourly_rate": 0.04855096
+        },
+        {
+          "item_key": "821463_0",
+          "main_key": 821463,
+          "sub_key": 0,
+          "name": "Embers of Ynix - Gloves",
+          "is_trash": false,
+          "hourly_rate": 0.04801882
+        },
+        {
+          "item_key": "821464_0",
+          "main_key": 821464,
+          "sub_key": 0,
+          "name": "Embers of Ynix - Shoes",
+          "is_trash": false,
+          "hourly_rate": 0.04585216
+        },
+        {
+          "item_key": "821342_0",
+          "main_key": 821342,
+          "sub_key": 0,
+          "name": "Violet Primordial Luster - Sovereign",
+          "is_trash": false,
+          "hourly_rate": 0.02537525
+        },
+        {
+          "item_key": "821341_0",
+          "main_key": 821341,
+          "sub_key": 0,
+          "name": "Crimson Primordial Luster - Sovereign",
+          "is_trash": false,
+          "hourly_rate": 0.02128427
+        },
+        {
+          "item_key": "821459_0",
+          "main_key": 821459,
+          "sub_key": 0,
+          "name": "Sunset Primordial Pigment - Edana",
+          "is_trash": false,
+          "hourly_rate": 0.0208889
+        },
+        {
+          "item_key": "821343_0",
+          "main_key": 821343,
+          "sub_key": 0,
+          "name": "Violet Primordial Luster - Edana",
+          "is_trash": false,
+          "hourly_rate": 0.02083419
+        },
+        {
+          "item_key": "15297_0",
+          "main_key": 15297,
+          "sub_key": 0,
+          "name": "HAN Wandering Origin Crystal",
+          "is_trash": false,
+          "hourly_rate": 0.01491178
+        },
+        {
+          "item_key": "980143_0",
+          "main_key": 980143,
+          "sub_key": 0,
+          "name": "Broken Vestige of Voidreach",
+          "is_trash": false,
+          "hourly_rate": 0.0093452
+        },
+        {
+          "item_key": "11898_0",
+          "main_key": 11898,
+          "sub_key": 0,
+          "name": "Apeiron Earring",
+          "is_trash": false,
+          "hourly_rate": 0.00515155
+        },
+        {
+          "item_key": "12298_0",
+          "main_key": 12298,
+          "sub_key": 0,
+          "name": "Apeiron Belt",
+          "is_trash": false,
+          "hourly_rate": 0.00450685
+        },
+        {
+          "item_key": "767337_0",
+          "main_key": 767337,
+          "sub_key": 0,
+          "name": "Refined Origin of Hunger",
+          "is_trash": false,
+          "hourly_rate": 0.00400659
+        },
+        {
+          "item_key": "761803_0",
+          "main_key": 761803,
+          "sub_key": 0,
+          "name": "Silent Crystal of Origin",
+          "is_trash": false,
+          "hourly_rate": 0.0025665
+        },
+        {
+          "item_key": "11733_0",
+          "main_key": 11733,
+          "sub_key": 0,
+          "name": "Apeiron Necklace",
+          "is_trash": false,
+          "hourly_rate": 0.00242971
+        },
+        {
+          "item_key": "12144_0",
+          "main_key": 12144,
+          "sub_key": 0,
+          "name": "Apeiron Ring",
+          "is_trash": false,
+          "hourly_rate": 0.00182071
+        },
+        {
+          "item_key": "767344_0",
+          "main_key": 767344,
+          "sub_key": 0,
+          "name": "White Primordial Pigment - Edana",
+          "is_trash": false,
+          "hourly_rate": 0.0006353
+        },
+        {
+          "item_key": "767296_0",
+          "main_key": 767296,
+          "sub_key": 0,
+          "name": "Violet Primordial Pigment - Edana",
+          "is_trash": false,
+          "hourly_rate": 0.00032897
+        },
+        {
+          "item_key": "767293_0",
+          "main_key": 767293,
+          "sub_key": 0,
+          "name": "Crimson Primordial Pigment - Sovereign",
+          "is_trash": false,
+          "hourly_rate": 0
+        },
+        {
+          "item_key": "767294_0",
+          "main_key": 767294,
+          "sub_key": 0,
+          "name": "Violet Primordial Pigment - Sovereign",
+          "is_trash": false,
+          "hourly_rate": 0
+        },
+        {
+          "item_key": "767343_0",
+          "main_key": 767343,
+          "sub_key": 0,
+          "name": "White Primordial Pigment - Sovereign",
+          "is_trash": false,
+          "hourly_rate": 0
+        },
+        {
+          "item_key": "767353_0",
+          "main_key": 767353,
+          "sub_key": 0,
+          "name": "Sunset Pigment of Creation - Edana",
+          "is_trash": false,
+          "hourly_rate": 0
+        }
+      ]
+    }
+  ]
+}

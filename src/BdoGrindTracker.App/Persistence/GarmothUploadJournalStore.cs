@@ -30,6 +30,29 @@ internal sealed class GarmothUploadJournalStore
         lock (_gate) return Read();
     }
 
+    internal void ImportFrom(string sourcePath)
+    {
+        var imported = new GarmothUploadJournalStore(sourcePath).Load();
+        lock (_gate)
+        {
+            var entries = Read().ToList();
+            foreach (var incoming in imported)
+            {
+                var index = entries.FindIndex(entry => entry.AttemptId == incoming.AttemptId);
+                if (index < 0) { entries.Add(incoming); continue; }
+                var existing = entries[index];
+                if (existing.Draft.SourceSessionId != incoming.Draft.SourceSessionId ||
+                    existing.Draft.LocalSessionId != incoming.Draft.LocalSessionId)
+                    throw new InvalidDataException("Die Uploadjournale enthalten widersprüchliche Versuchskennungen.");
+                // A possibly committed attempt must stay blocked even when the
+                // other installation recorded a rejection for that attempt.
+                if (!existing.BlocksAfterRestart && incoming.BlocksAfterRestart)
+                    entries[index] = incoming;
+            }
+            Save(entries);
+        }
+    }
+
     public Guid Begin(GarmothSessionDraft draft)
     {
         _ = GarmothSessionPayload.Create(draft);

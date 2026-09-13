@@ -5,18 +5,23 @@ namespace BdoGrindTracker.App.Pricing;
 /// Market prices are deliberately not bundled. NPC junk prices were additionally
 /// checked against the publisher's 2026-08-13 patch notes. See pricing documentation.
 /// Empty Picture Frame's NPC value was verified in BDO Codex on 2026-09-11.
+/// Outer Edania's fixed values and market IDs were checked on 2026-09-13.
+/// See docs/OUTER_EDANIA_INTEGRATION_SOURCES.md for the corresponding sources.
 /// </summary>
-internal static class LootPriceCatalog
+internal static partial class LootPriceCatalog
 {
     public const string DefaultRegion = "eu";
     public static IReadOnlyList<string> SupportedRegions { get; } = Array.AsReadOnly(new[] { "eu", "na" });
     public static IReadOnlyList<LootPriceDefinition> Definitions { get; } = Array.AsReadOnly(new[]
     {
         new LootPriceDefinition("Ancient Spirit Dust", LootPriceKind.AncientSpiritDust),
+        Fixed("Ancient Soldier Fragment", 147_630),
         Market("Apeiron Belt", 12298),
         Market("Apeiron Earring", 11898),
         Market("Apeiron Necklace", 11733),
         Market("Apeiron Ring", 12144),
+        Fixed("BON Crystal of Dusky Ruin", 700_000_000),
+        Fixed("BON Crystal of Ruin", 7_000_000),
         Fixed("BON Origin Shard", 15_000_000),
         Fixed("BON Wandering Origin Crystal", 1_500_000_000),
         Fixed("Black Crystal Fragment", 160_539),
@@ -30,9 +35,18 @@ internal static class LootPriceCatalog
         Fixed("Broken Vestige of Goldroot", 3_000_000_000),
         Fixed("Broken Vestige of Voidreach", 4_000_000_000),
         Market("Caphras Stone", 721003),
+        Fixed("Chilled Soul Piece", 105_640),
+        Fixed("Contaminated Coral Piece", 116_200),
         Market("Corrupt Oil of Immortality", 1178),
         Market("Crimson Primordial Luster - Sovereign", 821341),
         Market("Crimson Primordial Pigment - Sovereign", 767293),
+        Market("Crystallized Energy of Endtimes", 821252),
+        Market("Deboreka Belt", 12276),
+        Market("Deboreka Earring", 11882),
+        Market("Deboreka Necklace", 11653),
+        Market("Deboreka Ring", 12094),
+        Market("Distorted Crystal of Origin", 761802),
+        Market("Distorted Fragment of Origin", 821317),
         Fixed("Elion Follower's Helmet", 181_042),
         Fixed("Elion Follower's Mark", 186_458),
         Fixed("Embers of Ynix - Armor", 0),
@@ -41,21 +55,33 @@ internal static class LootPriceCatalog
         Fixed("Embers of Ynix - Shoes", 0),
         Fixed("Empty Picture Frame", 15_348),
         new LootPriceDefinition("[Event] Mysterious Ore", LootPriceKind.Unknown),
+        Fixed("Faded Dark Energy", 597_680),
+        Market("Flawless Herald's Crystal", 821251),
         Market("Fusion Shard", 821471),
+        Fixed("HAN Crystal of Dusky Ruin", 1_000_000_000),
+        Fixed("HAN Crystal of Ruin", 10_000_000),
         Fixed("HAN Origin Shard", 20_000_000),
         Fixed("HAN Wandering Origin Crystal", 2_000_000_000),
+        Fixed("Hardened Lava Chunk", 126_980),
+        Market("Herald's Crystal", 821250),
+        Fixed("JIN Crystal of Dusky Ruin", 800_000_000),
+        Fixed("JIN Crystal of Ruin", 8_000_000),
         Fixed("JIN Origin Shard", 17_000_000),
         Fixed("JIN Wandering Origin Crystal", 1_700_000_000),
         Fixed("Laila's Petal", 500_000),
+        Fixed("Lightlost Core", 140_600),
         Market("Nev's Fragment", 821460),
+        Fixed("Primordial Fragment", 30_000_000),
         new LootPriceDefinition("Pure Black Stone", LootPriceKind.Unknown),
         Market("Refined Essence of Devouring", 767338),
         Market("Refined Origin of Hunger", 767337),
         Fixed("Scorched Belt Ornament", 182_049),
+        Market("Sealed Black Magic Crystal", 768160),
         Market("Silent Crystal of Origin", 761803),
         Market("Silent Fragment of Origin", 821318),
         Market("Sunset Primordial Luster - Edana", 821459),
         Market("Sunset Primordial Pigment - Edana", 767353),
+        Fixed("Tainted Armor Fragment", 100_507),
         Market("Twilight of the End - Belt", 821424),
         Market("Twilight of the End - Earring", 821422),
         Market("Twilight of the End - Necklace", 821421),
@@ -64,13 +90,15 @@ internal static class LootPriceCatalog
         Market("Violet Primordial Luster - Sovereign", 821342),
         Market("Violet Primordial Pigment - Edana", 767296),
         Market("Violet Primordial Pigment - Sovereign", 767294),
+        Fixed("WON Crystal of Dusky Ruin", 500_000_000),
+        Fixed("WON Crystal of Ruin", 5_000_000),
         Fixed("WON Origin Shard", 12_000_000),
         Fixed("WON Wandering Origin Crystal", 1_200_000_000),
         Market("White Primordial Luster - Edana", 821420),
         Market("White Primordial Luster - Sovereign", 821419),
         Market("White Primordial Pigment - Edana", 767344),
         Market("White Primordial Pigment - Sovereign", 767343),
-    });
+    }.Concat(ScreenshotDefinitions()).ToArray());
 
     public static IReadOnlyList<int> MarketItemIds { get; } = Array.AsReadOnly(Definitions
         .Where(static definition => definition.Kind == LootPriceKind.Market)

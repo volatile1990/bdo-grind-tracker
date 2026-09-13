@@ -9,6 +9,7 @@ internal interface ILootFrameAnalyzer : IDisposable
     string? MissingOcrLanguageTag => null;
 
     bool RequiresLootPanel => false;
+    BdoGrindTracker.Ocr.CompanionCalibration? CaptureCalibration => null;
 
     void ValidateCaptureSetup(Size frameSize) { }
     // Called before capture starts, while no frame analysis can be running.

@@ -13,10 +13,13 @@
     <Description>Passive Black Desert loot and grind-session tracker</Description>
     <ApplicationIcon>..\..\data\branding\grindcrest.ico</ApplicationIcon>
     <RootNamespace>BdoGrindTracker.App</RootNamespace>
-    <Version>1.2.3</Version>
+    <Version>1.4.1</Version>
     <InformationalVersion>$(Version)</InformationalVersion>
     <UpdateRepositoryUrl Condition="'$(UpdateRepositoryUrl)' == ''">https://github.com/volatile1990/bdo-grind-tracker</UpdateRepositoryUrl>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- Both release validators enforce this baseline for every packaged .NET framework.
+         RuntimeFrameworkVersion is deliberately not global: it also affects Windows SDK references. -->
+    <MinimumPackagedRuntimeVersion>9.0.20</MinimumPackagedRuntimeVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -25,7 +28,10 @@
     <AssemblyMetadata Include="UpdateRepositoryUrl" Value="$(UpdateRepositoryUrl)" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <Content Update="wwwroot\**\*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <WebUiAsset Include="..\..\data\**\*.png;..\..\data\**\*.jpg;..\..\data\**\*.json;..\..\data\**\*.ico" Exclude="..\..\data\ocr\**\*" />
+    <!-- Native overlays and Blazor share these assets, including in referenced test builds. -->
+    <Content Include="..\..\data\**\*.png;..\..\data\**\*.jpg" Exclude="..\..\data\ocr\**\*"
+             Link="wwwroot\assets\%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
@@ -38,7 +44,7 @@
     <EmbeddedResource Include="..\..\data\ocr\loot-scroll\*.png" LogicalName="BdoGrindTracker.App.LootScroll.%(Filename)%(Extension)" />
     <EmbeddedResource Include="..\..\data\ocr\agris\*.png" LogicalName="BdoGrindTracker.App.Agris.%(Filename)%(Extension)" />
     <EmbeddedResource Include="..\..\data\branding\grindcrest.ico" LogicalName="BdoGrindTracker.App.Branding.grindcrest.ico" />
-    <Content Include="..\..\data\branding\*" Link="data\branding\%(Filename)%(Extension)">
+    <Content Include="..\..\data\branding\*" Exclude="..\..\data\branding\*.png;..\..\data\branding\*.jpg" Link="data\branding\%(Filename)%(Extension)">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
@@ -52,10 +58,6 @@
   </ItemGroup>
 
   <ItemGroup Condition="Exists('..\..\data\icons')">
-    <Content Include="..\..\data\icons\**\*.png" Link="data\icons\%(RecursiveDir)%(Filename)%(Extension)">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </Content>
     <Content Include="..\..\data\icons\SOURCES.md" Link="data\icons\SOURCES.md">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
@@ -66,32 +68,7 @@
     </Content>
   </ItemGroup>
 
-  <ItemGroup Condition="Exists('..\..\data\spot-backgrounds')">
-    <Content Include="..\..\data\spot-backgrounds\**\*.jpg" Link="data\spot-backgrounds\%(RecursiveDir)%(Filename)%(Extension)">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </Content>
-  </ItemGroup>
-
-  <ItemGroup Condition="Exists('..\..\data\spot-icons')">
-    <Content Include="..\..\data\spot-icons\**\*.png" Link="data\spot-icons\%(RecursiveDir)%(Filename)%(Extension)">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </Content>
-  </ItemGroup>
-
-  <ItemGroup Condition="Exists('..\..\data\crystal-icons')">
-    <Content Include="..\..\data\crystal-icons\**\*.png" Link="data\crystal-icons\%(RecursiveDir)%(Filename)%(Extension)">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </Content>
-  </ItemGroup>
-
   <ItemGroup Condition="Exists('..\..\data\class-icons')">
-    <Content Include="..\..\data\class-icons\**\*.png" Link="data\class-icons\%(RecursiveDir)%(Filename)%(Extension)">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </Content>
     <Content Include="..\..\data\class-icons\SOURCES.md" Link="data\class-icons\SOURCES.md">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
@@ -99,10 +76,6 @@
   </ItemGroup>
 
   <ItemGroup Condition="Exists('..\..\data\ui-icons')">
-    <Content Include="..\..\data\ui-icons\**\*.png" Link="data\ui-icons\%(RecursiveDir)%(Filename)%(Extension)">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </Content>
     <Content Include="..\..\data\ui-icons\SOURCES.md" Link="data\ui-icons\SOURCES.md">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
@@ -164,11 +137,12 @@
           Condition="Exists('$(PublishDir)$(AssemblyName).exe')">
     <Copy SourceFiles="$(PublishDir)$(AssemblyName).exe" DestinationFiles="$(PublishDir)Grindcrest.exe" />
   </Target>
-  <Target Name="CopyWebUiAssetsToBuild" AfterTargets="Build">
-    <Copy SourceFiles="@(WebUiAsset)" DestinationFiles="@(WebUiAsset->'$(TargetDir)wwwroot\assets\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
-  </Target>
-  <Target Name="CopyWebUiAssetsToPublish" AfterTargets="Publish">
-    <Copy SourceFiles="@(WebUiAsset)" DestinationFiles="@(WebUiAsset->'$(PublishDir)wwwroot\assets\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  <Target Name="ExcludeUnusedOpenCvVideoPlugin" AfterTargets="ComputeFilesToPublish">
+    <ItemGroup>
+      <!-- Capture uses Windows Graphics Capture; OpenCV is used only for still images. -->
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
+          Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(ResolvedFileToPublish.Filename)', '^opencv_videoio_ffmpeg[0-9]+_64$'))" />
+    </ItemGroup>
   </Target>
   <ItemGroup Condition="'$(Configuration)' == 'Debug'">
     <EmbeddedResource Include="Development/Garmoth320.json" LogicalName="Development.Garmoth320.json" />

@@ -17,12 +17,13 @@ public sealed class ConfiguredExperienceReaderTests(ITestOutputHelper output)
             yield return [width, height, scale];
     }
 
-    [Theory]
+    [WindowsOcrTheory]
+    [Trait("Category", "WindowsOcr")]
     [MemberData(nameof(DisplayConfigurations))]
     public void ReadsIndependentResolutionAndUiScale(int width, int height, double scale)
     {
         var engine = CompanionWindowsOcrRecognizer.TryCreate();
-        if (engine is null) { output.WriteLine("Native OCR unavailable."); return; }
+        Assert.NotNull(engine);
         using var original = Load("level-61-0.579-user-20260910.png");
         using var frame = Compose(original, width, height, scale);
         using var reader = Create(engine, new(width, height, scale));
@@ -30,7 +31,8 @@ public sealed class ConfiguredExperienceReaderTests(ITestOutputHelper output)
         Assert.InRange(_ocrCalls, 1, 3); // The calibrated crop itself must work, without the legacy fallback.
     }
 
-    [Theory]
+    [WindowsOcrTheory]
+    [Trait("Category", "WindowsOcr")]
     [InlineData(1280, 720, 1)]
     [InlineData(1920, 1080, 1.25)]
     [InlineData(2560, 1440, 1.49)]
@@ -42,7 +44,7 @@ public sealed class ConfiguredExperienceReaderTests(ITestOutputHelper output)
     public void ReadsRealHudWithNeighbouringIcons(int width, int height, double scale)
     {
         var engine = CompanionWindowsOcrRecognizer.TryCreate();
-        if (engine is null) { output.WriteLine("Native OCR unavailable."); return; }
+        Assert.NotNull(engine);
         using var original = Load("level-65-38.907-hud-user-20260911.png");
         using var frame = Compose(original, width, height, scale / 1.49);
         using var reader = Create(engine, new(width, height, scale));
@@ -109,11 +111,12 @@ public sealed class ConfiguredExperienceReaderTests(ITestOutputHelper output)
         Assert.Equal(2, calls);
     }
 
-    [Fact]
+    [WindowsOcrFact]
+    [Trait("Category", "WindowsOcr")]
     public void HiddenHudProducesNoExperience()
     {
         var engine = CompanionWindowsOcrRecognizer.TryCreate();
-        if (engine is null) return;
+        Assert.NotNull(engine);
         using var frame = new Bitmap(1920, 1080);
         using var reader = Create(engine, new(1920, 1080, 1));
         Assert.Null(reader.Read(frame, CancellationToken.None));

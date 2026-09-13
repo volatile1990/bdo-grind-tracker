@@ -42,6 +42,9 @@ public sealed class CompanionWindowsOcrRecognizer
     private const int InvalidArgumentHResult = unchecked((int)0x80070057);
 
     private readonly OcrEngine _engine;
+    private readonly object _recognitionGate = new();
+    private Task? _pendingRecognition;
+    internal static readonly TimeSpan RecognitionTimeout = TimeSpan.FromSeconds(10);
 
     private CompanionWindowsOcrRecognizer(OcrEngine engine)
     {
@@ -148,17 +151,28 @@ public sealed class CompanionWindowsOcrRecognizer
         var gray = convertedGray ?? image;
         var pixels = CopyPixels(gray);
         var buffer = CryptographicBuffer.CreateFromByteArray(pixels);
-        using var bitmap = SoftwareBitmap.CreateCopyFromBuffer(
+        var bitmap = SoftwareBitmap.CreateCopyFromBuffer(
             buffer,
             BitmapPixelFormat.Gray8,
             gray.Width,
             gray.Height,
             BitmapAlphaMode.Ignore);
-        var result = _engine
-            .RecognizeAsync(bitmap)
-            .AsTask(cancellationToken)
-            .GetAwaiter()
-            .GetResult();
+        Task<OcrResult> operation;
+        try
+        {
+            lock (_recognitionGate)
+            {
+                if (_pendingRecognition is { IsCompleted: false })
+                    throw new InvalidOperationException("Eine vorherige Windows-Texterkennung wird noch beendet. Bitte Grindcrest neu starten, falls sie nicht reagiert.");
+                // Do not cancel the Task adapter: it could complete before the
+                // native operation relinquishes this SoftwareBitmap. The lease
+                // bounds our wait and keeps the independent copied input alive.
+                operation = _engine.RecognizeAsync(bitmap).AsTask();
+                _pendingRecognition = operation;
+            }
+        }
+        catch { bitmap.Dispose(); throw; }
+        var result = OcrOperationLease.Wait(operation, bitmap, RecognitionTimeout, cancellationToken);
 
         return new CompanionOcrResult(result.Text, ReadFirstWordGeometry(result)) { Words = ReadWords(result) };
     }

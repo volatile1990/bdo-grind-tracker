@@ -11,6 +11,10 @@ internal sealed class SettingsStore
     };
 
     private readonly string _settingsPath;
+    private bool _loaded;
+    private const int MaximumFileBytes = 4 * 1024 * 1024;
+
+    public string? LoadError { get; private set; }
 
     internal string BaseDirectory => Path.GetDirectoryName(_settingsPath)
         ?? throw new InvalidOperationException("Der Konfigurationsordner ist ungültig.");
@@ -22,28 +26,27 @@ internal sealed class SettingsStore
 
     public AppSettings Load()
     {
+        _loaded = true;
         try
         {
-            if (!File.Exists(_settingsPath))
-            {
-                return CreateCurrentDefaults();
-            }
-
-            var json = File.ReadAllText(_settingsPath);
-            var settings = JsonSerializer.Deserialize<AppSettings>(json, JsonOptions) ?? CreateCurrentDefaults();
+            // File.Exists hides access failures. Only actual absence permits defaults to be saved.
+            using var file = new FileStream(_settingsPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            if (file.Length > MaximumFileBytes) throw new InvalidDataException("Die Einstellungsdatei ist zu groß.");
+            var settings = JsonSerializer.Deserialize<AppSettings>(file, JsonOptions)
+                ?? throw new InvalidDataException("Die Einstellungsdatei enthält keine Einstellungen.");
             settings.UpgradeDefaults();
+            LoadError = null;
             return settings;
         }
-        catch (JsonException)
+        catch (Exception exception) when (exception is FileNotFoundException or DirectoryNotFoundException)
         {
+            LoadError = null;
             return CreateCurrentDefaults();
         }
-        catch (IOException)
+        catch (Exception exception) when (exception is JsonException or IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException)
         {
-            return CreateCurrentDefaults();
-        }
-        catch (UnauthorizedAccessException)
-        {
+            LoadError = "Die Einstellungen konnten nicht gelesen werden und werden nicht überschrieben. " +
+                "Bitte prüfe die Datei " + _settingsPath + " und versuche das erneute Laden und Sichern. " + exception.Message;
             return CreateCurrentDefaults();
         }
     }
@@ -51,6 +54,8 @@ internal sealed class SettingsStore
     public void Save(AppSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
+        if (!_loaded) Load();
+        if (LoadError is not null) throw new IOException(LoadError);
 
         var directory = BaseDirectory;
 

@@ -19,16 +19,13 @@
                 dotnet.invokeMethodAsync(name, ...args).catch(() => {});
             };
             const fit = () => {
+                if (drag && drag.overlayId !== stage.dataset.overlayId) cleanupDrag();
                 if (drag && drag.moved) {
                     // Live snapshots may replace text/styles while the pointer
                     // rests mid-drag. Reapply only the pending content geometry;
                     // the stage and unsaved widget rectangles must stay put.
                     stage.querySelectorAll(".oe-widget").forEach(element => {
-                        const original = drag.type === "canvas" ? drag.widgets.find(widget => widget.element === element) : null;
-                        if (original) resizeContent(element,
-                            original.width * (drag.newWidth ?? drag.canvas.width) / drag.canvas.width,
-                            original.height * (drag.newHeight ?? drag.canvas.height) / drag.canvas.height);
-                        else if (element === drag.element && drag.type === "resize")
+                        if (element === drag.element && drag.type === "resize")
                             resizeContent(element, drag.newWidth ?? drag.width, drag.newHeight ?? drag.height);
                         else resizeContent(element, number(element, "width"), number(element, "height"));
                     });
@@ -105,21 +102,19 @@
             };
             const snapshot = () => ({ width: number(stage, "width"), height: number(stage, "height"), rect: stage.getBoundingClientRect() });
             const grid = value => stage.dataset.snap === "true" ? Math.round(value / 8) * 8 : Math.round(value);
-            const widgetGeometry = element => ({ element, x: number(element, "x"), y: number(element, "y"), width: number(element, "width"), height: number(element, "height") });
-            const scaleWidget = (widget, scaleX = 1, scaleY = 1) => {
-                widget.element.style.left = `${widget.x * scaleX}px`;
-                widget.element.style.top = `${widget.y * scaleY}px`;
-                widget.element.style.width = `${widget.width * scaleX}px`;
-                widget.element.style.height = `${widget.height * scaleY}px`;
-                resizeContent(widget.element, widget.width * scaleX, widget.height * scaleY);
+            const restoreWidget = widget => {
+                widget.element.style.left = `${widget.x}px`;
+                widget.element.style.top = `${widget.y}px`;
+                widget.element.style.width = `${widget.width}px`;
+                widget.element.style.height = `${widget.height}px`;
+                resizeContent(widget.element, widget.width, widget.height);
             };
             const restore = current => {
                 if (current.element) {
-                    scaleWidget(current);
+                    restoreWidget(current);
                 } else if (current.type === "canvas") {
                     stage.style.width = `${current.canvas.width}px`;
                     stage.style.height = `${current.canvas.height}px`;
-                    current.widgets.forEach(widget => scaleWidget(widget));
                 }
             };
             const cleanupDrag = () => {
@@ -139,7 +134,7 @@
                 if (!capture || capture.disabled || !root.contains(capture)) return;
                 const canvas = snapshot();
                 const type = module ? "add" : grip ? "move" : resize ? "resize" : "canvas";
-                drag = { type, canvas, capture, pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, moved: false, scale: canvas.rect.width / canvas.width };
+                drag = { type, canvas, capture, overlayId: stage.dataset.overlayId, pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, moved: false, scale: canvas.rect.width / canvas.width };
                 if (module) {
                     drag.kind = module.dataset.moduleKind;
                     drag.label = module.querySelector("strong")?.textContent || "Modul";
@@ -153,7 +148,6 @@
                         widget.focus({ preventScroll: true });
                         invoke("SelectWidget", drag.id);
                     } else if (type === "canvas") {
-                        drag.widgets = Array.from(stage.querySelectorAll(".oe-widget"), widgetGeometry);
                         capture.focus({ preventScroll: true });
                     }
                 }
@@ -180,16 +174,15 @@
                     drag.newHeight = clamp(grid(drag.canvas.height + dy), 64, 1200);
                     stage.style.width = `${drag.newWidth}px`; stage.style.height = `${drag.newHeight}px`;
                     wrap.style.width = `${drag.newWidth * drag.scale}px`; wrap.style.height = `${drag.newHeight * drag.scale}px`;
-                    drag.widgets.forEach(widget => scaleWidget(widget, drag.newWidth / drag.canvas.width, drag.newHeight / drag.canvas.height));
                     return;
                 }
                 if (drag.type === "move") {
-                    drag.newX = clamp(grid(drag.x + dx), 0, drag.canvas.width - drag.width);
-                    drag.newY = clamp(grid(drag.y + dy), 0, drag.canvas.height - drag.height);
+                    drag.newX = clamp(grid(drag.x + dx), 0, 1600 - drag.width);
+                    drag.newY = clamp(grid(drag.y + dy), 0, 1200 - drag.height);
                     drag.element.style.left = `${drag.newX}px`; drag.element.style.top = `${drag.newY}px`;
                 } else {
-                    drag.newWidth = clamp(grid(drag.width + dx), Math.min(80, drag.width), drag.canvas.width - drag.x);
-                    drag.newHeight = clamp(grid(drag.height + dy), Math.min(40, drag.height), drag.canvas.height - drag.y);
+                    drag.newWidth = clamp(grid(drag.width + dx), Math.min(80, drag.width), 1600 - drag.x);
+                    drag.newHeight = clamp(grid(drag.height + dy), Math.min(40, drag.height), 1200 - drag.y);
                     drag.element.style.width = `${drag.newWidth}px`; drag.element.style.height = `${drag.newHeight}px`;
                     resizeContent(drag.element, drag.newWidth, drag.newHeight);
                 }
@@ -253,7 +246,7 @@
             const resizeObserver = new ResizeObserver(fit); resizeObserver.observe(viewport);
             const mutationObserver = new MutationObserver(fit);
             mutationObserver.observe(stage, { attributes: true, subtree: true, childList: true, characterData: true,
-                attributeFilter: ["data-width", "data-height", "data-content-width", "data-content-height", "data-min-content-width", "data-min-content-height", "data-content-layout"] });
+                attributeFilter: ["data-overlay-id", "data-width", "data-height", "data-content-width", "data-content-height", "data-min-content-width", "data-min-content-height", "data-content-layout"] });
             fit();
             editors.set(id, () => {
                 disposed = true;

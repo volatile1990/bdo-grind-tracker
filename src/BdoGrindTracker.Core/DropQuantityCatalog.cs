@@ -16,7 +16,8 @@ public sealed record ItemDropQuantity(
 
 public static class DropQuantityCatalog
 {
-    // The completed workbook is imported once into a bundled, validated snapshot.
+    // The completed workbook and later researched spots form a bundled snapshot.
+    // New spots may have unverified quantities; null must not impose a hard cap.
     // Tracking never needs Excel or access to the original user's file.
     public static IReadOnlyList<ItemDropQuantity> Entries { get; } = Load();
 
@@ -44,7 +45,7 @@ public static class DropQuantityCatalog
             .Select(item => (spot.Id, item))).ToHashSet();
         if (string.IsNullOrWhiteSpace(data.Source) || data.Entries is null || data.Entries.Length != expected.Count ||
             data.Entries.Any(entry => entry is null || !expected.Remove((entry.SpotId, entry.ItemName)) ||
-                string.IsNullOrWhiteSpace(entry.Source) || entry.MinimumQuantity is null || entry.MaximumQuantity is null))
+                string.IsNullOrWhiteSpace(entry.Source)))
             throw new InvalidDataException("Drop quantities must cover every item/spot pair exactly once.");
         foreach (var entry in data.Entries) _ = entry.Bounds; // Validate numerical ranges before tracking starts.
         return Array.AsReadOnly(data.Entries.Select(entry => entry with { Source = data.Source + "; " + entry.Source }).ToArray());

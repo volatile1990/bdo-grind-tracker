@@ -35,6 +35,7 @@ public sealed record CompanionCalibration(
     int RareLootAnchorY = 0)
 {
     public RareLootAnchorResolution? RareLootResolution { get; init; }
+    public string ProfileSelection { get; init; } = "gamevariable-last-write";
 }
 
 /// <summary>
@@ -60,6 +61,12 @@ public sealed partial class CompanionCalibrationReader
         // Companion joins this exact mixed-case filename. Windows resolves the
         // lower-case filename written by BDO without changing the stored path.
         var gameVariablePath = Path.Combine(profilePath, "gameVariable.xml");
+        return ReadConfiguration(root, profilePath, gameVariablePath, includeActiveCharacter: true);
+    }
+
+    private static CompanionCalibration ReadConfiguration(string root, string profilePath,
+        string gameVariablePath, bool includeActiveCharacter)
+    {
         var gameOptionPath = Path.Combine(root, "GameOption.txt");
 
         if (!File.Exists(gameVariablePath))
@@ -114,7 +121,7 @@ public sealed partial class CompanionCalibrationReader
             ReadFontType(optionText),
             ReadWindowedMode(optionText),
             ReadCustomHp(variableElements),
-            SelectActiveCharacterGameVariablePath(profilePath));
+            includeActiveCharacter ? SelectActiveCharacterGameVariablePath(profilePath) : null);
         return ResolveRareCalibration(variableElements, calibration);
     }
 

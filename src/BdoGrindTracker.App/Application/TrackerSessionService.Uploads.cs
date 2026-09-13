@@ -131,6 +131,13 @@ internal sealed partial class TrackerSessionService
         if (!Preferences.AutoUpload || !_hasSession || _restoredSessionNeedsCaptureSetup || IsBusy || _sessionSubmitted || _shutdownStarted ||
             _garmothIntervals.IsBlocked || _garmothIntervals.AutomaticSuspended || _garmothPersistenceError is not null ||
             _garmothRestartBlocks.Contains(_sessionId)) return;
+        // Shared trash needs an explicit area/tier before a safe upload. Keep
+        // complete hours queued so choosing the variant can resume next tick.
+        if (_sessionSpotId is { } spotId)
+        {
+            var variants = BdoGrindTracker.Core.LootSpotCatalog.VariantsFor(spotId);
+            if (variants.Count > 0 && !variants.Any(variant => variant.Id == spotId)) return;
+        }
         var interval = _garmothIntervals.PrepareAutomatic();
         if (interval is null) return;
         _garmothUploadInProgress = true;

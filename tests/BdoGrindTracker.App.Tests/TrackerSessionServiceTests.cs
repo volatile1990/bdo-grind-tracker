@@ -1408,6 +1408,7 @@ public sealed partial class TrackerSessionServiceTests
         public bool RequiresLootPanel { get; set; }
         public Action<Size>? ValidateSetup { get; set; }
         public Action<string>? ConfigureLanguage { get; set; }
+        public Action? OnReset { get; set; }
         public void ConfigureGameLanguage(string language) => ConfigureLanguage?.Invoke(language);
         public void ValidateCaptureSetup(Size frameSize) => ValidateSetup?.Invoke(frameSize);
         public FrameAnalysisResult? NextResult { get; set; }
@@ -1445,7 +1446,7 @@ public sealed partial class TrackerSessionServiceTests
             LastCompletedAt = completedAt;
             return CompletionResult;
         }
-        public void Reset() { }
+        public void Reset() => OnReset?.Invoke();
         public void Dispose() => Disposed = true;
     }
 

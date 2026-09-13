@@ -116,7 +116,7 @@ public static class NormalLootRecoveryPreprocessor
         }
     }
 
-    private static Mat CreateLocalForeground(Mat gray)
+    internal static Mat CreateLocalForeground(Mat gray)
     {
         // OpenCV applies source > localMean - C for Binary. Negative C requires
         // a small positive local contrast, keeping uniform/slowly varying dark

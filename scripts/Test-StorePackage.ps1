@@ -65,6 +65,9 @@ try {
     if ($capabilities.Count -ne 2 -or $fullTrust.Count -ne 1 -or $borderlessCapture.Count -ne 1) {
         throw 'Expected exactly rescap:runFullTrust and uap11:graphicsCaptureWithoutBorder capabilities.'
     }
+    $reader = [IO.StreamReader]::new($archive.GetEntry('BdoGrindTracker.runtimeconfig.json').Open())
+    try { & (Join-Path $PSScriptRoot 'Test-PackagedRuntime.ps1') -RuntimeConfigJson $reader.ReadToEnd() }
+    finally { $reader.Dispose() }
     Add-Type -AssemblyName System.Drawing
     $targetSizes = @(16, 20, 24, 30, 32, 36, 40, 44, 48, 60, 64, 72, 80, 96, 256)
     $logos = @(@('StoreLogo.png', 50), @('Square44x44Logo.png', 44), @('Square150x150Logo.png', 150))

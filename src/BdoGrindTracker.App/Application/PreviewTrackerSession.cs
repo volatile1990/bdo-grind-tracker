@@ -20,6 +20,7 @@ internal sealed class PreviewTrackerSession : ITrackerSession
          new("preview-secondary", "Bildschirm 2 · 2560 × 1440", new(3840, 0, 2560, 1440), false)];
     public IReadOnlyList<LootHistoryEntry> History => _history.ToArray();
     public LootPriceSnapshot Prices { get; private set; } = LootPriceCatalog.FixedSnapshot("eu");
+    public string DiagnosticsDirectory => Path.Combine(Path.GetTempPath(), "Grindcrest.UiPreview", "diagnostics");
 
     public PreviewTrackerSession(bool empty = false)
     {
@@ -33,7 +34,8 @@ internal sealed class PreviewTrackerSession : ITrackerSession
                     [profile.TrashItemName] = 18_420 + i * 630,
                     ["Ancient Spirit Dust"] = 76 + i * 9,
                     ["Black Stone"] = 51 + i * 11,
-                    ["Nev's Fragment"] = 8 + i
+                    [LootSpotCatalog.GetRequired(profile.SpotId).Allows("Nev's Fragment")
+                        ? "Nev's Fragment" : "Caphras Stone"] = 8 + i
                 };
                 var value = SilverValuation.Calculate(totals, Prices, Preferences.Tax);
                 _history.Add(new()

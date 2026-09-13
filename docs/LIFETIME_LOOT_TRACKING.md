@@ -1,8 +1,57 @@
-# Lifetime-Test 7: Globaler Rahmen-Drop und Fensteraufnahme ohne Markierung
+# Lebensdauerzählung für normales und Special-Droplog
+
+## Aktueller Stand: unabhängige Quellen
+
+Ein physischer Drop erscheint ausschließlich im normalen oder im Special-Droplog.
+Beide Quellen führen deshalb eigene vollständige, korrigierbare Zählstände.
+Ihre Itemmengen und unterstützten Dropanzahlen werden addiert, auch wenn derselbe
+Itemname in beiden Quellen vorkommt. Ein normaler Ring und drei Special-Ringe
+ergeben vier Ringe. Eine Mengenangabe von drei auf einer einzelnen Meldung bleibt
+dabei ein Drop mit drei Stück. Rücknahmen ändern nur die betreffende Quelle;
+die gemeinsame Projektion wird erst nach vollständiger Prüfung ersetzt.
+
+Die Special-Zeile verwendet dieselbe OCR-, Recovery- und Nachprüfungslogik wie
+normale Zeilen: HDR-/Tone-Mapping-Aufbereitung, zusätzliche begrenzte Lesungen
+aus den Originalpixeln, gezielte zweite OCR sowie Prüfungen von Geometrie,
+Itemidentität, Mengen und Spotpool. Die Recovery hat ein eigenes Budget, damit
+ein beschäftigtes normales Log die Special-Zeile nicht verdrängt. Auch eine
+fälschlich leere Farbmaske kann einen Recovery-Versuch erhalten. Alle Lesungen
+werden zu höchstens einer Beobachtung je Zeile verdichtet. Eine bloße
+Namenslesung erzeugt keine frei angenommene Menge; katalogisierte Einzelstücke
+behalten ihre ausdrückliche Mengenregel.
+
+Der gemeinsame `LifetimeLootReconciler` verarbeitet Normal mit fünf Positionen
+und Special in einer separaten Instanz mit genau einer Position. Wiederholte
+Lesungen, partielle Namen, fehlende Mengen und spätere Korrekturen verwenden
+dieselben Evidenzregeln. Beide Parser erhalten denselben versionierten Kontext;
+ungeklärte Rohtexte können damit später erneut zugeordnet werden. Wegen
+`ocr-geometry` oder des Spotfilters verworfene Special-Texte bleiben ausgeschlossen.
+Die Fünf-Slot-Belegungs- und Nachrückregeln des normalen Logs sind auf die einzelne
+Special-Meldung nicht anwendbar.
+
+Eine sichtbare Special-Meldung läuft nicht allein durch verstrichene Zeit ab.
+Kurze unlesbare Frames bleiben derselben Meldung zugeordnet; eine beobachtete
+Abwesenheit von mindestens **1.550 ms** schließt sie. Eine bloße Lücke zwischen
+Aufnahmen ersetzt diesen Abwesenheitsnachweis nicht. Ein neuer Itemname eröffnet
+eine konkurrierende Erklärung für einen Meldungswechsel. Weitere Lesungen
+entscheiden zwischen echtem Wechsel und OCR-Verwechslung, sodass etwa
+`Twilight Earring` gefolgt von `Twilight Ring` getrennt zählen kann, ein einmaliger
+falscher Name aber nicht sofort einen zweiten Drop festschreibt. Fortlaufend
+sichtbare gleiche Meldungen werden nicht periodisch nachgezählt. Ein weiterer
+identischer Drop ohne erkennbaren Wechsel oder Leerphase ist daraus nicht sicher
+ableitbar. Die offene Zeile hält höchstens 64 aktuelle Rohlesungen und bei Bedarf
+eine ältere Mengenlesung; dauerhaft sichtbare Meldungen speichern keine ganze
+Sitzung an Textbeobachtungen.
+
+Die folgenden Abschnitte dokumentieren außerdem die historischen Teststände
+und die weiterhin verwendete normale Zähllogik. Deren damalige Messwerte sind
+keine neue Abnahme des Special-Pfads.
+
+## Historischer Test 7: Globaler Rahmen-Drop und Fensteraufnahme ohne Markierung
 
 Test 7 ergänzt **Empty Picture Frame / Leerer Rahmen** im globalen Lootpool.
 An allen sechs unterstützten Spots gelten **1–10 Stück pro Drop**, auch ohne
-bereits erkannten Spot. Die bisherige `lifetime-v3`-Zähllogik bleibt erhalten.
+bereits erkannten Spot. Dieser Teststand ließ die damalige `lifetime-v3`-Zähllogik unverändert.
 
 Die Fensteraufnahme fordert vor dem Start `GraphicsCaptureAccessKind.Borderless`
 an und setzt `GraphicsCaptureSession.IsBorderRequired` auf `false`. Damit
@@ -167,12 +216,13 @@ aber keine Garantie gegen beliebig späte Korrekturen. Eine solche Korrektur wir
 weiter übernommen. Ein Maximum mit dem bisherigen Anzeigewert würde einen
 erkannten Fehler dauerhaft als Überzählung festhalten und wird nicht verwendet.
 
-Normal und Rare besitzen getrennte Konten. Wie im untersuchten Garmoth-Modell
-hat eine positive Normalsumme Vorrang vor der Rare-Summe desselben Items;
-ohne positive Normalsumme gilt die Rare-Summe. Eine Normalrücknahme kann daher
-den weiter vorhandenen Rare-Wert wieder sichtbar machen. Mengen aus beiden
-Anzeigen werden nicht doppelt addiert. Rare-Stapelmengen zählen bei der
-Dropzahl als Ankunft, nicht als ebenso viele Einzelereignisse.
+Normal und Special besitzen getrennte Konten, deren vollständige Mengen und
+Dropanzahlen addiert werden. Die gemeinsame letzte Ankunft ist die späteste
+aktuell unterstützte Ankunft beider Quellen; wird ein irrtümlicher Drop
+zurückgenommen, kann auch dieser Zeitpunkt zurückgehen. Der Zeitpunkt einer
+Mengenkorrektur wird nicht als neue Ankunft eingesetzt. Die frühere Regel,
+nach der eine positive Normalsumme die Rare-Summe desselben Items verdrängte,
+bleibt ausschließlich für historische Diagnose-Varianten erhalten.
 
 Spot- und Mengenprior verwenden die letzten maximal 64 Dropdatensätze der
 aktuell gewählten Ereignisgeschichte. Dadurch bleiben weder zurückgenommene
@@ -181,7 +231,15 @@ Spot ausreichend belegt feststeht, bleibt er wie bisher für die Sitzung fixiert
 
 ## Diagnose und Lebenszyklus
 
-Neue Aufnahmen verwenden Format 3 und die Engine `grindcrest-lifetime-v3`.
+Neue Aufnahmen verwenden Format 3 und die Engine `grindcrest-lifetime-v4`.
+Der Marker `independent-special-v1` kennzeichnet die getrennte Special-Instanz
+und additive Quellenprojektion. Er bleibt auch bei ausgeblendetem Special-Panel
+an jedem Frame erhalten; ein Wechsel innerhalb derselben Aufnahme, unbekannte
+Marker oder die Verwendung unter einer älteren Engine werden abgewiesen.
+`rareRecovery` speichert die Special-Leseversuche getrennt von der normalen
+`recovery`. Ausgeblendete Panels pausieren die Beobachtung der bestehenden
+Special-Instanz. Sie belegen keine leere Anzeige; erneutes Einblenden setzt
+den Zähler nicht zurück.
 Jeder Frame enthält die vollständige `lootProjection`; Trace-Metadaten zeigen
 die Lebensdauermodelle und die gewählte Variante. V3-Traces protokollieren
 zusätzlich `coverage-fallbacks:N`; die historischen V1-/V2-Trace-Texte bleiben
@@ -199,8 +257,9 @@ Wiederholte Abschlussaufrufe
 erzeugen keine erneute Buchung. Ein Stopp projiziert den bestehenden Zustand;
 eine neue Sitzung setzt ihn vollständig zurück.
 
-Aufnahmen mit `lifetime-v1` und `lifetime-v2`, einschließlich echter Header mit
-`grindcrest-lifetime-v2`, sowie Format-2-Aufnahmen mit `temporal-v1` und
+Aufnahmen mit `lifetime-v1`, `lifetime-v2` und dem bisherigen `lifetime-v3`,
+einschließlich echter Header mit `grindcrest-lifetime-v2` und
+`grindcrest-lifetime-v3`, sowie Format-2-Aufnahmen mit `temporal-v1` und
 `temporal-v2` bleiben mit ihrem ursprünglichen Algorithmus reproduzierbar.
 Ein neuer OCR-Lauf über alte PNGs
 ist ausdrücklich eine neue Messung und wird getrennt gespeichert.

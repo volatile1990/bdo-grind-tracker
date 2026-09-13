@@ -170,7 +170,7 @@ public sealed class InnerEdaniaCatalogTests
     {
         var catalog = LoadBundledCatalog();
 
-        Assert.Equal(6, LootSpotCatalog.Spots.Count);
+        Assert.Equal(6, LootSpotCatalog.Spots.Count(spot => SpotLoot.ContainsKey(spot.DisplayName)));
 
         foreach (var (spot, expectedLoot) in SpotLoot)
         {

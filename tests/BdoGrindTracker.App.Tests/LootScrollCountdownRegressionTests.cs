@@ -7,7 +7,8 @@ namespace BdoGrindTracker.App.Tests;
 
 public sealed class LootScrollCountdownRegressionTests(ITestOutputHelper output)
 {
-    [Theory]
+    [WindowsOcrTheory]
+    [Trait("Category", "WindowsOcr")]
     [InlineData("inactive-user-20260910.png", 0f)]
     [InlineData("inactive-expanded-user-20260910.png", 0f)]
     [InlineData("inactive-zero-user-20260910.png", 0f)]
@@ -20,11 +21,7 @@ public sealed class LootScrollCountdownRegressionTests(ITestOutputHelper output)
     public async Task RepeatedStationaryUserScreenshotWarnsThroughTheRealRecognitionPipeline(string name, float whiteLevel)
     {
         var engine = CompanionWindowsOcrRecognizer.TryCreate();
-        if (engine is null)
-        {
-            output.WriteLine("Native OCR unavailable; timer state transitions have independent tests.");
-            return;
-        }
+        Assert.NotNull(engine);
 
         using var original = new Bitmap(Path.Combine(AppContext.BaseDirectory, "fixtures", "loot-scroll", name));
         using var frame = whiteLevel == 0 ? (Bitmap)original.Clone()

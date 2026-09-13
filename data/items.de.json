@@ -350,6 +350,1196 @@
       "itemId": 1000508,
       "germanName": "[Event] Mysteriöses Erz",
       "source": "https://bdocodex.com/de/item/1000508/"
+    },
+    {
+      "canonicalName": "Ancient Soldier Fragment",
+      "itemId": 767246,
+      "germanName": "Fragment eines vorzeitlichen Soldaten",
+      "source": "https://bdocodex.com/de/item/767246/",
+      "verifiedOn": "2026-09-13"
+    },
+    {
+      "canonicalName": "BON Crystal of Dusky Ruin",
+      "itemId": 15287,
+      "germanName": "BON-Kristall des finsteren Ruins",
+      "source": "https://bdocodex.com/de/item/15287/",
+      "verifiedOn": "2026-09-13"
+    },
+    {
+      "canonicalName": "BON Crystal of Ruin",
+      "itemId": 821254,
+      "germanName": "BON-Kristall des Ruins",
+      "source": "https://bdocodex.com/de/item/821254/",
+      "verifiedOn": "2026-09-13"
+    },
+    {
+      "canonicalName": "Chilled Soul Piece",
+      "itemId": 767244,
+      "germanName": "Eisiges Seelenstück",
+      "source": "https://bdocodex.com/de/item/767244/",
+      "verifiedOn": "2026-09-13"
+    },
+    {
+      "canonicalName": "Contaminated Coral Piece",
+      "itemId": 767245,
+      "germanName": "Kontaminiertes Korallenstück",
+      "source": "https://bdocodex.com/de/item/767245/",
+      "verifiedOn": "2026-09-13"
+    },
+    {
+      "canonicalName": "Crystallized Energy of Endtimes",
+      "itemId": 821252,
+      "germanName": "Kristallisierte Energie des Untergangs",
+      "source": "https://bdocodex.com/de/item/821252/",
+      "verifiedOn": "2026-09-13"
+    },
+    {
+      "canonicalName": "Deboreka Belt",
+      "itemId": 12276,
+      "germanName": "Deborekas Gürtel",
+      "source": "https://bdocodex.com/de/item/12276/",
+      "verifiedOn": "2026-09-13"
+    },
+    {
+      "canonicalName": "Deboreka Earring",
+      "itemId": 11882,
+      "germanName": "Deborekas Ohrring",
+      "source": "https://bdocodex.com/de/item/11882/",
+      "verifiedOn": "2026-09-13"
+    },
+    {
+      "canonicalName": "Deboreka Necklace",
+      "itemId": 11653,
+      "germanName": "Deborekas Halskette",
+      "source": "https://bdocodex.com/de/item/11653/",
+      "verifiedOn": "2026-09-13"
+    },
+    {
+      "canonicalName": "Deboreka Ring",
+      "itemId": 12094,
+      "germanName": "Deborekas Ring",
+      "source": "https://bdocodex.com/de/item/12094/",
+      "verifiedOn": "2026-09-13"
+    },
+    {
+      "canonicalName": "Distorted Crystal of Origin",
+      "itemId": 761802,
+      "germanName": "Verzerrter Kristall der Vorzeit",
+      "source": "https://bdocodex.com/de/item/761802/",
+      "verifiedOn": "2026-09-13"
+    },
+    {
+      "canonicalName": "Distorted Fragment of Origin",
+      "itemId": 821317,
+      "germanName": "Verzerrter Splitter der Vorzeit",
+      "source": "https://bdocodex.com/de/item/821317/",
+      "verifiedOn": "2026-09-13"
+    },
+    {
+      "canonicalName": "Faded Dark Energy",
+      "itemId": 767349,
+      "germanName": "Verblasste dunkle Energie",
+      "source": "https://bdocodex.com/de/item/767349/",
+      "verifiedOn": "2026-09-13"
+    },
+    {
+      "canonicalName": "Flawless Herald's Crystal",
+      "itemId": 821251,
+      "germanName": "Makelloser Kristall des Wegweisers",
+      "source": "https://bdocodex.com/de/item/821251/",
+      "verifiedOn": "2026-09-13"
+    },
+    {
+      "canonicalName": "HAN Crystal of Dusky Ruin",
+      "itemId": 15291,
+      "germanName": "HAN-Kristall des finsteren Ruins",
+      "source": "https://bdocodex.com/de/item/15291/",
+      "verifiedOn": "2026-09-13"
+    },
+    {
+      "canonicalName": "HAN Crystal of Ruin",
+      "itemId": 821320,
+      "germanName": "HAN-Kristall des Ruins",
+      "source": "https://bdocodex.com/de/item/821320/",
+      "verifiedOn": "2026-09-13"
+    },
+    {
+      "canonicalName": "Hardened Lava Chunk",
+      "itemId": 767248,
+      "germanName": "Verhärteter Lavabrocken",
+      "source": "https://bdocodex.com/de/item/767248/",
+      "verifiedOn": "2026-09-13"
+    },
+    {
+      "canonicalName": "Herald's Crystal",
+      "itemId": 821250,
+      "germanName": "Kristall des Wegweisers",
+      "source": "https://bdocodex.com/de/item/821250/",
+      "verifiedOn": "2026-09-13"
+    },
+    {
+      "canonicalName": "JIN Crystal of Dusky Ruin",
+      "itemId": 15290,
+      "germanName": "JIN-Kristall des finsteren Ruins",
+      "source": "https://bdocodex.com/de/item/15290/",
+      "verifiedOn": "2026-09-13"
+    },
+    {
+      "canonicalName": "JIN Crystal of Ruin",
+      "itemId": 821319,
+      "germanName": "JIN-Kristall des Ruins",
+      "source": "https://bdocodex.com/de/item/821319/",
+      "verifiedOn": "2026-09-13"
+    },
+    {
+      "canonicalName": "Lightlost Core",
+      "itemId": 767247,
+      "germanName": "Lichtloser Kern",
+      "source": "https://bdocodex.com/de/item/767247/",
+      "verifiedOn": "2026-09-13"
+    },
+    {
+      "canonicalName": "Primordial Fragment",
+      "itemId": 821246,
+      "germanName": "Fragment der Urzeit",
+      "source": "https://bdocodex.com/de/item/821246/",
+      "verifiedOn": "2026-09-13"
+    },
+    {
+      "canonicalName": "Sealed Black Magic Crystal",
+      "itemId": 768160,
+      "germanName": "Versiegelter Schwarzmagiekristall",
+      "source": "https://bdocodex.com/de/item/768160/",
+      "verifiedOn": "2026-09-13"
+    },
+    {
+      "canonicalName": "Tainted Armor Fragment",
+      "itemId": 767348,
+      "germanName": "Besessenes Rüstungsfragment",
+      "source": "https://bdocodex.com/de/item/767348/",
+      "verifiedOn": "2026-09-13"
+    },
+    {
+      "canonicalName": "WON Crystal of Dusky Ruin",
+      "itemId": 15286,
+      "germanName": "WON-Kristall des finsteren Ruins",
+      "source": "https://bdocodex.com/de/item/15286/",
+      "verifiedOn": "2026-09-13"
+    },
+    {
+      "canonicalName": "WON Crystal of Ruin",
+      "itemId": 821253,
+      "germanName": "WON-Kristall des Ruins",
+      "source": "https://bdocodex.com/de/item/821253/",
+      "verifiedOn": "2026-09-13"
+    },
+    {
+      "canonicalName": "Abyssal Essence",
+      "itemId": 9774,
+      "germanName": "Essenz des Abgrunds",
+      "source": "https://bdocodex.com/de/item/9774/"
+    },
+    {
+      "canonicalName": "Ah'krad",
+      "itemId": 6399,
+      "germanName": "Ahkrad",
+      "source": "https://bdocodex.com/de/item/6399/"
+    },
+    {
+      "canonicalName": "Al Yurad's Ring Piece",
+      "itemId": 44271,
+      "germanName": "Stück des Ringes von Al Yurad",
+      "source": "https://bdocodex.com/de/item/44271/"
+    },
+    {
+      "canonicalName": "Ancient Magic Crystal - Addis",
+      "itemId": 15649,
+      "germanName": "Vorzeitlicher Magiekristall – Addis",
+      "source": "https://bdocodex.com/de/item/15649/"
+    },
+    {
+      "canonicalName": "Ancient Magic Crystal - Carmae",
+      "itemId": 15605,
+      "germanName": "Vorzeitlicher Magiekristall – Carmae",
+      "source": "https://bdocodex.com/de/item/15605/"
+    },
+    {
+      "canonicalName": "Ancient Magic Crystal of Nature - Adamantine",
+      "itemId": 15616,
+      "germanName": "Vorzeitlicher Magiekristall der Natur – Stahlhart",
+      "source": "https://bdocodex.com/de/item/15616/"
+    },
+    {
+      "canonicalName": "Ancient Magic Crystal of Nature - Fighting Spirit",
+      "itemId": 15712,
+      "germanName": "Vorzeitlicher Magiekristall der Natur – Kampfgeist",
+      "source": "https://bdocodex.com/de/item/15712/"
+    },
+    {
+      "canonicalName": "Ancient Magic Crystal of Nature - Giant",
+      "itemId": 15714,
+      "germanName": "Vorzeitlicher Magiekristall der Natur – Riese",
+      "source": "https://bdocodex.com/de/item/15714/"
+    },
+    {
+      "canonicalName": "Ancient Relic Crystal Shard",
+      "itemId": 40218,
+      "germanName": "Reliktkristallsplitter der Vorzeitlichen",
+      "source": "https://bdocodex.com/de/item/40218/"
+    },
+    {
+      "canonicalName": "Ancient Spirit Light",
+      "itemId": 56505,
+      "germanName": "Licht der Urgeister",
+      "source": "https://bdocodex.com/de/item/56505/"
+    },
+    {
+      "canonicalName": "Ash Forest Paint",
+      "itemId": 761720,
+      "germanName": "Farbe für Aschenwald",
+      "source": "https://bdocodex.com/de/item/761720/"
+    },
+    {
+      "canonicalName": "BON Dawn Crystal - Accuracy",
+      "itemId": 15268,
+      "germanName": "BON-Kristall des Morgengrauens – Präzision",
+      "source": "https://bdocodex.com/de/item/15268/"
+    },
+    {
+      "canonicalName": "BON Dawn Crystal - All AP",
+      "itemId": 15262,
+      "germanName": "BON-Kristall des Morgengrauens – Gesamte AK",
+      "source": "https://bdocodex.com/de/item/15262/"
+    },
+    {
+      "canonicalName": "BON Dawn Crystal - Black Spirit's Rage",
+      "itemId": 15265,
+      "germanName": "BON-Kristall des Morgengrauens – Groll des Schwarzgeistes",
+      "source": "https://bdocodex.com/de/item/15265/"
+    },
+    {
+      "canonicalName": "BON Dawn Crystal - Damage Reduction",
+      "itemId": 15271,
+      "germanName": "BON-Kristall des Morgengrauens – Schadensreduktion",
+      "source": "https://bdocodex.com/de/item/15271/"
+    },
+    {
+      "canonicalName": "BON Dawn Crystal - Evasion",
+      "itemId": 15274,
+      "germanName": "BON-Kristall des Morgengrauens – Ausweichen",
+      "source": "https://bdocodex.com/de/item/15274/"
+    },
+    {
+      "canonicalName": "Black Distortion Earring",
+      "itemId": 11853,
+      "germanName": "Ohrring der Schwarzen Verzerrung",
+      "source": "https://bdocodex.com/de/item/11853/"
+    },
+    {
+      "canonicalName": "Blessed Soul Fragment",
+      "itemId": 8421,
+      "germanName": "Gesegnetes Seelenstück",
+      "source": "https://bdocodex.com/de/item/8421/"
+    },
+    {
+      "canonicalName": "Broken Horn Fragment",
+      "itemId": 44454,
+      "germanName": "Fragment eines zerbrochenen Horns",
+      "source": "https://bdocodex.com/de/item/44454/"
+    },
+    {
+      "canonicalName": "City of the Dead Paint",
+      "itemId": 761723,
+      "germanName": "Farbe für Stadt der Toten",
+      "source": "https://bdocodex.com/de/item/761723/"
+    },
+    {
+      "canonicalName": "Clear Blackstar Crystal",
+      "itemId": 44405,
+      "germanName": "Klarer Schwarzstern-Kristall",
+      "source": "https://bdocodex.com/de/item/44405/"
+    },
+    {
+      "canonicalName": "Corrupt Power Source",
+      "itemId": 59880,
+      "germanName": "Verdorbener Antrieb",
+      "source": "https://bdocodex.com/de/item/59880/"
+    },
+    {
+      "canonicalName": "Corrupted Breath",
+      "itemId": 8427,
+      "germanName": "Verzehrender Atem",
+      "source": "https://bdocodex.com/de/item/8427/"
+    },
+    {
+      "canonicalName": "Corrupted Gargoyle Claw",
+      "itemId": 44523,
+      "germanName": "Klaue des besessenen Gargoyle",
+      "source": "https://bdocodex.com/de/item/44523/"
+    },
+    {
+      "canonicalName": "Corrupted Gluttony Crystal",
+      "itemId": 15741,
+      "germanName": "Verdorbener Kristall der Begierde",
+      "source": "https://bdocodex.com/de/item/15741/"
+    },
+    {
+      "canonicalName": "Corrupted Sanguine Crystal",
+      "itemId": 56339,
+      "germanName": "Korrumpierter Blutkristall",
+      "source": "https://bdocodex.com/de/item/56339/"
+    },
+    {
+      "canonicalName": "Crystal of Dogged Patience",
+      "itemId": 15259,
+      "germanName": "Konstanter Kristall der Geduld",
+      "source": "https://bdocodex.com/de/item/15259/"
+    },
+    {
+      "canonicalName": "Crystal of Precise Destruction",
+      "itemId": 15257,
+      "germanName": "Präziser Kristall der Zerstörung",
+      "source": "https://bdocodex.com/de/item/15257/"
+    },
+    {
+      "canonicalName": "Crystal of Stalwart Fortitude",
+      "itemId": 15258,
+      "germanName": "Robuster Kristall der Tapferkeit",
+      "source": "https://bdocodex.com/de/item/15258/"
+    },
+    {
+      "canonicalName": "Crystal of Unyielding Spirit",
+      "itemId": 15260,
+      "germanName": "Standhafter Kristall des Kampfgeistes",
+      "source": "https://bdocodex.com/de/item/15260/"
+    },
+    {
+      "canonicalName": "Crystallized Despair",
+      "itemId": 8411,
+      "germanName": "Kristallisierte Verzweiflung",
+      "source": "https://bdocodex.com/de/item/8411/"
+    },
+    {
+      "canonicalName": "Darkseekers' Retreat Paint",
+      "itemId": 761725,
+      "germanName": "Farbe für Nachtlager der Schattenanhänger",
+      "source": "https://bdocodex.com/de/item/761725/"
+    },
+    {
+      "canonicalName": "Dawn Earring",
+      "itemId": 11855,
+      "germanName": "Ohrring der Morgenröte",
+      "source": "https://bdocodex.com/de/item/11855/"
+    },
+    {
+      "canonicalName": "Decayed Cloth",
+      "itemId": 65330,
+      "germanName": "Verrotteter Stofffetzen",
+      "source": "https://bdocodex.com/de/item/65330/"
+    },
+    {
+      "canonicalName": "Dehkia's Artifact - All Damage Reduction",
+      "itemId": 748021,
+      "germanName": "Dehkias Relikt – Gesamte Schadensreduktion",
+      "source": "https://bdocodex.com/de/item/748021/"
+    },
+    {
+      "canonicalName": "Dehkia's Artifact - All Evasion",
+      "itemId": 748022,
+      "germanName": "Dehkias Relikt – Gesamtes Ausweichen",
+      "source": "https://bdocodex.com/de/item/748022/"
+    },
+    {
+      "canonicalName": "Dehkia's Fragment",
+      "itemId": 767091,
+      "germanName": "Fragment von Dehkia",
+      "source": "https://bdocodex.com/de/item/767091/"
+    },
+    {
+      "canonicalName": "Destruction Spirit Stone",
+      "itemId": 45298,
+      "germanName": "Seelenstein der Zerstörung",
+      "source": "https://bdocodex.com/de/item/45298/"
+    },
+    {
+      "canonicalName": "Discarded Kkebicap",
+      "itemId": 56327,
+      "germanName": "Zurückgelassene Kebi-Kappe",
+      "source": "https://bdocodex.com/de/item/56327/"
+    },
+    {
+      "canonicalName": "Dragon Scale Fossil",
+      "itemId": 44364,
+      "germanName": "Fossil: Drachenschuppen",
+      "source": "https://bdocodex.com/de/item/44364/"
+    },
+    {
+      "canonicalName": "Elkarr",
+      "itemId": 6393,
+      "germanName": "Elkarr",
+      "source": "https://bdocodex.com/de/item/6393/"
+    },
+    {
+      "canonicalName": "Embers of Despair",
+      "itemId": 44475,
+      "germanName": "Aufsteigende Glut der Verzweiflung",
+      "source": "https://bdocodex.com/de/item/44475/"
+    },
+    {
+      "canonicalName": "Embers of Frost",
+      "itemId": 44498,
+      "germanName": "Aufsteigende Glut des Frosts",
+      "source": "https://bdocodex.com/de/item/44498/"
+    },
+    {
+      "canonicalName": "Embers of Resonance",
+      "itemId": 65318,
+      "germanName": "Aufsteigende Glut des Grollens",
+      "source": "https://bdocodex.com/de/item/65318/"
+    },
+    {
+      "canonicalName": "Essence of Dawn",
+      "itemId": 820979,
+      "germanName": "Essenz des Morgengrauens",
+      "source": "https://bdocodex.com/de/item/820979/"
+    },
+    {
+      "canonicalName": "Essence of Devouring",
+      "itemId": 65323,
+      "germanName": "Essenz des Verschlingens",
+      "source": "https://bdocodex.com/de/item/65323/"
+    },
+    {
+      "canonicalName": "Essence of Insight",
+      "itemId": 9791,
+      "germanName": "Essenz der Einsicht",
+      "source": "https://bdocodex.com/de/item/9791/"
+    },
+    {
+      "canonicalName": "Faint Origin of Dark Hunger",
+      "itemId": 767102,
+      "germanName": "Vernebelte Quelle des Verschlingens",
+      "source": "https://bdocodex.com/de/item/767102/"
+    },
+    {
+      "canonicalName": "Faint Sycraia's Memory",
+      "itemId": 56345,
+      "germanName": "Verschwommene Erinnerungen von Sycraia",
+      "source": "https://bdocodex.com/de/item/56345/"
+    },
+    {
+      "canonicalName": "Fiery Troll Hide",
+      "itemId": 59798,
+      "germanName": "Brennende Trollhaut",
+      "source": "https://bdocodex.com/de/item/59798/"
+    },
+    {
+      "canonicalName": "Flame of Despair",
+      "itemId": 44462,
+      "germanName": "Flamme der Verzweiflung",
+      "source": "https://bdocodex.com/de/item/44462/"
+    },
+    {
+      "canonicalName": "Flame of Frost",
+      "itemId": 44497,
+      "germanName": "Flamme des Frosts",
+      "source": "https://bdocodex.com/de/item/44497/"
+    },
+    {
+      "canonicalName": "Flame of Resonance",
+      "itemId": 65317,
+      "germanName": "Flamme des Grollens",
+      "source": "https://bdocodex.com/de/item/65317/"
+    },
+    {
+      "canonicalName": "Forest Fury",
+      "itemId": 4917,
+      "germanName": "Zorn des Waldes",
+      "source": "https://bdocodex.com/de/item/4917/"
+    },
+    {
+      "canonicalName": "Forgotten Limbo Box",
+      "itemId": 56284,
+      "germanName": "Verlorene Kiste des Vergessens",
+      "source": "https://bdocodex.com/de/item/56284/"
+    },
+    {
+      "canonicalName": "Forgotten Witch's Token",
+      "itemId": 44799,
+      "germanName": "Marke der verschwundenen Hexe",
+      "source": "https://bdocodex.com/de/item/44799/"
+    },
+    {
+      "canonicalName": "Fortunate Golden Pig King Summon Scroll",
+      "itemId": 66945,
+      "germanName": "Von Glück erfüllte Beschwörungsrolle: König der Aurumschweine",
+      "source": "https://bdocodex.com/de/item/66945/"
+    },
+    {
+      "canonicalName": "Fortunate Golden Pig King's Treasure Chest",
+      "itemId": 761648,
+      "germanName": "Von Glück erfüllte Schatzkiste des Königs der Aurumschweine",
+      "source": "https://bdocodex.com/de/item/761648/"
+    },
+    {
+      "canonicalName": "Gavinya Coastal Cliff Paint",
+      "itemId": 761726,
+      "germanName": "Farbe für Küstenfelsen von Gavinya",
+      "source": "https://bdocodex.com/de/item/761726/"
+    },
+    {
+      "canonicalName": "Gem of Void",
+      "itemId": 821182,
+      "germanName": "Kristall der Leere",
+      "source": "https://bdocodex.com/de/item/821182/"
+    },
+    {
+      "canonicalName": "Gentle Sycraia's Memory",
+      "itemId": 56346,
+      "germanName": "Sanfte Erinnerungen von Sycraia",
+      "source": "https://bdocodex.com/de/item/56346/"
+    },
+    {
+      "canonicalName": "Gluttony Crystal",
+      "itemId": 821344,
+      "germanName": "Kristall der Begierde",
+      "source": "https://bdocodex.com/de/item/821344/"
+    },
+    {
+      "canonicalName": "Golden Pigs Subjugation Token",
+      "itemId": 56335,
+      "germanName": "Unterwerfungssiegel der Aurumschwein-Höhle",
+      "source": "https://bdocodex.com/de/item/56335/"
+    },
+    {
+      "canonicalName": "Guardian Spirit Stone",
+      "itemId": 45300,
+      "germanName": "Seelenstein des Schutzes",
+      "source": "https://bdocodex.com/de/item/45300/"
+    },
+    {
+      "canonicalName": "Howling Bone Fragment",
+      "itemId": 59800,
+      "germanName": "Kreischendes Knochenfragment",
+      "source": "https://bdocodex.com/de/item/59800/"
+    },
+    {
+      "canonicalName": "Hystria Ruins Paint",
+      "itemId": 761717,
+      "germanName": "Farbe für Hystria-Ruinen",
+      "source": "https://bdocodex.com/de/item/761717/"
+    },
+    {
+      "canonicalName": "Imperfect Lightstone of Earth",
+      "itemId": 766105,
+      "germanName": "Unvollkommener Lichtstein der Erde",
+      "source": "https://bdocodex.com/de/item/766105/"
+    },
+    {
+      "canonicalName": "Imperfect Lightstone of Fire",
+      "itemId": 766104,
+      "germanName": "Unvollkommener Lichtstein des Feuers",
+      "source": "https://bdocodex.com/de/item/766104/"
+    },
+    {
+      "canonicalName": "Imperfect Lightstone of Wind",
+      "itemId": 766106,
+      "germanName": "Unvollkommener Lichtstein des Windes",
+      "source": "https://bdocodex.com/de/item/766106/"
+    },
+    {
+      "canonicalName": "Intense Sycraia's Memory",
+      "itemId": 56347,
+      "germanName": "Intensive Erinnerungen von Sycraia",
+      "source": "https://bdocodex.com/de/item/56347/"
+    },
+    {
+      "canonicalName": "Iridescent Lightstone",
+      "itemId": 766101,
+      "germanName": "Bunter Lichtstein",
+      "source": "https://bdocodex.com/de/item/766101/"
+    },
+    {
+      "canonicalName": "Kabua's Artifact",
+      "itemId": 742269,
+      "germanName": "Kabuas Relikt",
+      "source": "https://bdocodex.com/de/item/742269/"
+    },
+    {
+      "canonicalName": "Kabua's Fragment",
+      "itemId": 59881,
+      "germanName": "Kabua-Fragment",
+      "source": "https://bdocodex.com/de/item/59881/"
+    },
+    {
+      "canonicalName": "Kehelle's Artifact - Black Spirit's Rage Max Increase",
+      "itemId": 735303,
+      "germanName": "Kehels Relikt – Erhöhter max. Groll des Schwarzgeistes",
+      "source": "https://bdocodex.com/de/item/735303/"
+    },
+    {
+      "canonicalName": "Kehelle's Artifact - Max HP",
+      "itemId": 735301,
+      "germanName": "Kehels Relikt – Max. LP",
+      "source": "https://bdocodex.com/de/item/735301/"
+    },
+    {
+      "canonicalName": "Kehelle's Artifact - Max Stamina",
+      "itemId": 735302,
+      "germanName": "Kehels Relikt – Max. Ausdauer",
+      "source": "https://bdocodex.com/de/item/735302/"
+    },
+    {
+      "canonicalName": "Krogdalo's Origin Stone",
+      "itemId": 50801,
+      "germanName": "Krogdalos Herkunftsstein",
+      "source": "https://bdocodex.com/de/item/50801/"
+    },
+    {
+      "canonicalName": "Kuadir Fragment",
+      "itemId": 820040,
+      "germanName": "Fragment von Kuadir",
+      "source": "https://bdocodex.com/de/item/820040/"
+    },
+    {
+      "canonicalName": "Lafi Bedmountain's Upgraded Compass Parts",
+      "itemId": 44277,
+      "germanName": "Lafi Bettbergs verbessertes Kompassteil",
+      "source": "https://bdocodex.com/de/item/44277/"
+    },
+    {
+      "canonicalName": "Lafi Bedmountain's Upgraded Telescope Parts",
+      "itemId": 65332,
+      "germanName": "Teil von Lafi Bettbergs verbessertem Teleskop",
+      "source": "https://bdocodex.com/de/item/65332/"
+    },
+    {
+      "canonicalName": "Lesha's Artifact - All Damage Reduction",
+      "itemId": 735257,
+      "germanName": "Leshas Relikt – Gesamte Schadensreduktion",
+      "source": "https://bdocodex.com/de/item/735257/"
+    },
+    {
+      "canonicalName": "Lesha's Artifact - All Evasion",
+      "itemId": 735258,
+      "germanName": "Leshas Relikt – Gesamtes Ausweichen",
+      "source": "https://bdocodex.com/de/item/735258/"
+    },
+    {
+      "canonicalName": "Lesha's Artifact - Magic Damage Reduction",
+      "itemId": 735255,
+      "germanName": "Leshas Relikt – Magieschadensreduktion",
+      "source": "https://bdocodex.com/de/item/735255/"
+    },
+    {
+      "canonicalName": "Lesha's Artifact - Magic Evasion",
+      "itemId": 735256,
+      "germanName": "Leshas Relikt – Magieausweichen",
+      "source": "https://bdocodex.com/de/item/735256/"
+    },
+    {
+      "canonicalName": "Lesha's Artifact - Melee Damage Reduction",
+      "itemId": 735251,
+      "germanName": "Leshas Relikt – Nahkampfschadensreduktion",
+      "source": "https://bdocodex.com/de/item/735251/"
+    },
+    {
+      "canonicalName": "Lesha's Artifact - Melee Evasion",
+      "itemId": 735252,
+      "germanName": "Leshas Relikt – Nahkampfausweichen",
+      "source": "https://bdocodex.com/de/item/735252/"
+    },
+    {
+      "canonicalName": "Lesha's Artifact - Monster Damage Reduction",
+      "itemId": 735259,
+      "germanName": "Leshas Relikt – Monsterschadensreduktion",
+      "source": "https://bdocodex.com/de/item/735259/"
+    },
+    {
+      "canonicalName": "Lesha's Artifact - Ranged Damage Reduction",
+      "itemId": 735253,
+      "germanName": "Leshas Relikt – Fernkampfschadensreduktion",
+      "source": "https://bdocodex.com/de/item/735253/"
+    },
+    {
+      "canonicalName": "Lesha's Artifact - Ranged Evasion",
+      "itemId": 735254,
+      "germanName": "Leshas Relikt – Fernkampfausweichen",
+      "source": "https://bdocodex.com/de/item/735254/"
+    },
+    {
+      "canonicalName": "Life Spirit Stone",
+      "itemId": 45302,
+      "germanName": "Seelenstein der Arbeit",
+      "source": "https://bdocodex.com/de/item/45302/"
+    },
+    {
+      "canonicalName": "Magic Crystal of Infinity - Max HP",
+      "itemId": 15136,
+      "germanName": "Magiekristall der Unendlichkeit – Max. LP",
+      "source": "https://bdocodex.com/de/item/15136/"
+    },
+    {
+      "canonicalName": "Manshaum Voodoo Doll",
+      "itemId": 40383,
+      "germanName": "Ritualgegenstand des Vorzeitlichen Manshaum",
+      "source": "https://bdocodex.com/de/item/40383/"
+    },
+    {
+      "canonicalName": "Mark of the Black Sands",
+      "itemId": 65329,
+      "germanName": "Marke des schwarzen Sandes",
+      "source": "https://bdocodex.com/de/item/65329/"
+    },
+    {
+      "canonicalName": "Marsh's Artifact - Extra AP Against Monsters",
+      "itemId": 735207,
+      "germanName": "Mashis Relikt – Bonus-AK gegen Monster",
+      "source": "https://bdocodex.com/de/item/735207/"
+    },
+    {
+      "canonicalName": "Marsh's Artifact - Magic AP",
+      "itemId": 735203,
+      "germanName": "Mashis Relikt – Magie-AK",
+      "source": "https://bdocodex.com/de/item/735203/"
+    },
+    {
+      "canonicalName": "Marsh's Artifact - Magic Accuracy",
+      "itemId": 735206,
+      "germanName": "Mashis Relikt – Magiepräzision",
+      "source": "https://bdocodex.com/de/item/735206/"
+    },
+    {
+      "canonicalName": "Marsh's Artifact - Melee AP",
+      "itemId": 735201,
+      "germanName": "Mashis Relikt – Nahkampf-AK",
+      "source": "https://bdocodex.com/de/item/735201/"
+    },
+    {
+      "canonicalName": "Marsh's Artifact - Melee Accuracy",
+      "itemId": 735204,
+      "germanName": "Mashis Relikt – Nahkampfpräzision",
+      "source": "https://bdocodex.com/de/item/735204/"
+    },
+    {
+      "canonicalName": "Marsh's Artifact - Ranged AP",
+      "itemId": 735202,
+      "germanName": "Mashis Relikt – Fernkampf-AK",
+      "source": "https://bdocodex.com/de/item/735202/"
+    },
+    {
+      "canonicalName": "Marsh's Artifact - Ranged Accuracy",
+      "itemId": 735205,
+      "germanName": "Mashis Relikt – Fernkampfpräzision",
+      "source": "https://bdocodex.com/de/item/735205/"
+    },
+    {
+      "canonicalName": "Mass of Pure Magic",
+      "itemId": 752023,
+      "germanName": "Reine Magiemasse",
+      "source": "https://bdocodex.com/de/item/752023/"
+    },
+    {
+      "canonicalName": "Moonlight Spirit Powder",
+      "itemId": 44451,
+      "germanName": "Mondlichtseelenpulver",
+      "source": "https://bdocodex.com/de/item/44451/"
+    },
+    {
+      "canonicalName": "Old Warrior's Horn Decoration",
+      "itemId": 44455,
+      "germanName": "Horn eines Kriegers mit Verzierung von früher",
+      "source": "https://bdocodex.com/de/item/44455/"
+    },
+    {
+      "canonicalName": "Olun's Valley Paint",
+      "itemId": 761722,
+      "germanName": "Farbe für Olluntal",
+      "source": "https://bdocodex.com/de/item/761722/"
+    },
+    {
+      "canonicalName": "Ominous Ring",
+      "itemId": 12068,
+      "germanName": "Unheilvoller Ring",
+      "source": "https://bdocodex.com/de/item/12068/"
+    },
+    {
+      "canonicalName": "Origin of Corruption",
+      "itemId": 56340,
+      "germanName": "Quelle der Korruption",
+      "source": "https://bdocodex.com/de/item/56340/"
+    },
+    {
+      "canonicalName": "Origin of Dark Hunger",
+      "itemId": 65319,
+      "germanName": "Quelle des Verschlingens",
+      "source": "https://bdocodex.com/de/item/65319/"
+    },
+    {
+      "canonicalName": "Ouk Pill of Time and Tide",
+      "itemId": 9070,
+      "germanName": "Ouk-Pille der Zeit",
+      "source": "https://bdocodex.com/de/item/9070/"
+    },
+    {
+      "canonicalName": "Quturan's Ashen Leaf",
+      "itemId": 45018,
+      "germanName": "Aschfarbenes Blatt von Quturan",
+      "source": "https://bdocodex.com/de/item/45018/"
+    },
+    {
+      "canonicalName": "Quturan's Black Leaf",
+      "itemId": 45017,
+      "germanName": "Schwarzes Blatt von Quturan",
+      "source": "https://bdocodex.com/de/item/45017/"
+    },
+    {
+      "canonicalName": "Quturan's Left Lung",
+      "itemId": 45013,
+      "germanName": "Quturans linker Lungenflügel",
+      "source": "https://bdocodex.com/de/item/45013/"
+    },
+    {
+      "canonicalName": "Quturan's Right Lung",
+      "itemId": 45014,
+      "germanName": "Quturans rechter Lungenflügel",
+      "source": "https://bdocodex.com/de/item/45014/"
+    },
+    {
+      "canonicalName": "Radiant Sycraia's Memory",
+      "itemId": 56348,
+      "germanName": "Strahlende Erinnerungen von Sycraia",
+      "source": "https://bdocodex.com/de/item/56348/"
+    },
+    {
+      "canonicalName": "Rare Treasure Chest",
+      "itemId": 761649,
+      "germanName": "Kiste gefüllt mit Schätzen",
+      "source": "https://bdocodex.com/de/item/761649/"
+    },
+    {
+      "canonicalName": "Rare Treasures",
+      "itemId": 56336,
+      "germanName": "Schätze",
+      "source": "https://bdocodex.com/de/item/56336/"
+    },
+    {
+      "canonicalName": "Ring of Cadry Guardian",
+      "itemId": 12032,
+      "germanName": "Ring des Cadry-Wächters",
+      "source": "https://bdocodex.com/de/item/12032/"
+    },
+    {
+      "canonicalName": "Ring of Crescent Guardian",
+      "itemId": 12031,
+      "germanName": "Ring des Halbmondwächters",
+      "source": "https://bdocodex.com/de/item/12031/"
+    },
+    {
+      "canonicalName": "Rumbling Earth Shard",
+      "itemId": 50803,
+      "germanName": "Rumpelnder Erdsplitter",
+      "source": "https://bdocodex.com/de/item/50803/"
+    },
+    {
+      "canonicalName": "Scroll Written in Ancient Language",
+      "itemId": 40228,
+      "germanName": "Schriftrolle in der Vorzeitlichen Sprache",
+      "source": "https://bdocodex.com/de/item/40228/"
+    },
+    {
+      "canonicalName": "Shattered Treasures",
+      "itemId": 56329,
+      "germanName": "Zersplitterte Schätze",
+      "source": "https://bdocodex.com/de/item/56329/"
+    },
+    {
+      "canonicalName": "Shiny Treasure",
+      "itemId": 56338,
+      "germanName": "Strahlende Schätze",
+      "source": "https://bdocodex.com/de/item/56338/"
+    },
+    {
+      "canonicalName": "Silver",
+      "itemId": 1,
+      "germanName": "Silber",
+      "source": "https://bdocodex.com/de/item/1/"
+    },
+    {
+      "canonicalName": "Specter's Energy",
+      "itemId": 721044,
+      "germanName": "Geistesenergie",
+      "source": "https://bdocodex.com/de/item/721044/"
+    },
+    {
+      "canonicalName": "Starlit Jade Powder",
+      "itemId": 44490,
+      "germanName": "Sternklares Jadepulver",
+      "source": "https://bdocodex.com/de/item/44490/"
+    },
+    {
+      "canonicalName": "Starlit Jade's Breath",
+      "itemId": 9792,
+      "germanName": "Atem der sternenklaren Jade",
+      "source": "https://bdocodex.com/de/item/9792/"
+    },
+    {
+      "canonicalName": "Sulfur Golem Fragment",
+      "itemId": 767350,
+      "germanName": "Fragment eines Schwefelgolems",
+      "source": "https://bdocodex.com/de/item/767350/"
+    },
+    {
+      "canonicalName": "Sulfur Golem Power Core",
+      "itemId": 980115,
+      "germanName": "Antriebskern eines Schwefelgolems",
+      "source": "https://bdocodex.com/de/item/980115/"
+    },
+    {
+      "canonicalName": "Sulfur Golem Power Core Fragment",
+      "itemId": 980116,
+      "germanName": "Antriebskernfragment eines Schwefelgolems",
+      "source": "https://bdocodex.com/de/item/980116/"
+    },
+    {
+      "canonicalName": "Swaying Wind Shard",
+      "itemId": 50802,
+      "germanName": "Wiegender Windsplitter",
+      "source": "https://bdocodex.com/de/item/50802/"
+    },
+    {
+      "canonicalName": "Sycraia Shard",
+      "itemId": 821347,
+      "germanName": "Sycraia-Kristall",
+      "source": "https://bdocodex.com/de/item/821347/"
+    },
+    {
+      "canonicalName": "Sycraia Underwater Ruins Paint",
+      "itemId": 761718,
+      "germanName": "Farbe für die Unterwasserruinen Sycraia",
+      "source": "https://bdocodex.com/de/item/761718/"
+    },
+    {
+      "canonicalName": "Tainted Broken Horn Fragment",
+      "itemId": 44521,
+      "germanName": "Besessenes Fragment eines zerbrochenen Horns",
+      "source": "https://bdocodex.com/de/item/44521/"
+    },
+    {
+      "canonicalName": "Tainted Bronze Fragment",
+      "itemId": 44526,
+      "germanName": "Korrumpiertes Bronzefragment",
+      "source": "https://bdocodex.com/de/item/44526/"
+    },
+    {
+      "canonicalName": "Tainted Cadry's Token",
+      "itemId": 44525,
+      "germanName": "Cadry-Marke der Besessenheit",
+      "source": "https://bdocodex.com/de/item/44525/"
+    },
+    {
+      "canonicalName": "Tainted Golem's Heart Fragment",
+      "itemId": 56323,
+      "germanName": "Besessenes Herzfragment eines Golems",
+      "source": "https://bdocodex.com/de/item/56323/"
+    },
+    {
+      "canonicalName": "Tainted Huge Spear",
+      "itemId": 44522,
+      "germanName": "Besessener langer Speer",
+      "source": "https://bdocodex.com/de/item/44522/"
+    },
+    {
+      "canonicalName": "Tainted Moonlight Spirit Powder",
+      "itemId": 44520,
+      "germanName": "Besessenes Mondlichtseelenpulver",
+      "source": "https://bdocodex.com/de/item/44520/"
+    },
+    {
+      "canonicalName": "Tainted Ruins Fragment",
+      "itemId": 65397,
+      "germanName": "Besessenes Ruinenfragment",
+      "source": "https://bdocodex.com/de/item/65397/"
+    },
+    {
+      "canonicalName": "Tainted Specter's Cloth",
+      "itemId": 56322,
+      "germanName": "Besessenes Gespenstertuch",
+      "source": "https://bdocodex.com/de/item/56322/"
+    },
+    {
+      "canonicalName": "Tainted Token of Crescent",
+      "itemId": 44524,
+      "germanName": "Halbmond-Marke der Besessenheit",
+      "source": "https://bdocodex.com/de/item/44524/"
+    },
+    {
+      "canonicalName": "Tainted Wood Fragment",
+      "itemId": 44527,
+      "germanName": "Korrumpiertes Holzstück",
+      "source": "https://bdocodex.com/de/item/44527/"
+    },
+    {
+      "canonicalName": "Tattered Shadow",
+      "itemId": 59802,
+      "germanName": "Zerrissener Schatten",
+      "source": "https://bdocodex.com/de/item/59802/"
+    },
+    {
+      "canonicalName": "Thick Turo Blood",
+      "itemId": 9778,
+      "germanName": "Dickes Turoblut",
+      "source": "https://bdocodex.com/de/item/9778/"
+    },
+    {
+      "canonicalName": "Thorn-Entwined Weapon Fragment",
+      "itemId": 56334,
+      "germanName": "Von Dornen umwickeltes Waffenfragment",
+      "source": "https://bdocodex.com/de/item/56334/"
+    },
+    {
+      "canonicalName": "Trace of Nature",
+      "itemId": 5960,
+      "germanName": "Spur der Natur",
+      "source": "https://bdocodex.com/de/item/5960/"
+    },
+    {
+      "canonicalName": "Traveler's Map",
+      "itemId": 16017,
+      "germanName": "Karte des Reisenden",
+      "source": "https://bdocodex.com/de/item/16017/"
+    },
+    {
+      "canonicalName": "Tungrad Belt",
+      "itemId": 12237,
+      "germanName": "Tungrad-Gürtel",
+      "source": "https://bdocodex.com/de/item/12237/"
+    },
+    {
+      "canonicalName": "Tungrad Earring",
+      "itemId": 11828,
+      "germanName": "Tungrad-Ohrring",
+      "source": "https://bdocodex.com/de/item/11828/"
+    },
+    {
+      "canonicalName": "Tungrad Necklace",
+      "itemId": 11629,
+      "germanName": "Tungrad-Halskette",
+      "source": "https://bdocodex.com/de/item/11629/"
+    },
+    {
+      "canonicalName": "Tungrad Ring",
+      "itemId": 12061,
+      "germanName": "Tungrad-Ring",
+      "source": "https://bdocodex.com/de/item/12061/"
+    },
+    {
+      "canonicalName": "Tungrad Ruins Fragment",
+      "itemId": 65328,
+      "germanName": "Fragment der Tungrad-Ruinen",
+      "source": "https://bdocodex.com/de/item/65328/"
+    },
+    {
+      "canonicalName": "Tungrad Ruins Paint",
+      "itemId": 761724,
+      "germanName": "Farbe für Tungrad-Ruinen",
+      "source": "https://bdocodex.com/de/item/761724/"
+    },
+    {
+      "canonicalName": "Turo Heart",
+      "itemId": 44461,
+      "germanName": "Turoherz",
+      "source": "https://bdocodex.com/de/item/44461/"
+    },
+    {
+      "canonicalName": "Turo's Belt",
+      "itemId": 12257,
+      "germanName": "Turo-Gürtel",
+      "source": "https://bdocodex.com/de/item/12257/"
+    },
+    {
+      "canonicalName": "Turquoise Primordial Luster - Edana",
+      "itemId": 821418,
+      "germanName": "Grüner Glanz der Urklasse – Edana",
+      "source": "https://bdocodex.com/de/item/821418/"
+    },
+    {
+      "canonicalName": "Turquoise Primordial Luster - Sovereign",
+      "itemId": 821417,
+      "germanName": "Grüner Glanz der Urklasse – Gebieter",
+      "source": "https://bdocodex.com/de/item/821417/"
+    },
+    {
+      "canonicalName": "Turquoise Primordial Pigment - Edana",
+      "itemId": 767342,
+      "germanName": "Grünes Farbmittel der Urklasse – Edana",
+      "source": "https://bdocodex.com/de/item/767342/"
+    },
+    {
+      "canonicalName": "Turquoise Primordial Pigment - Sovereign",
+      "itemId": 767341,
+      "germanName": "Grünes Farbmittel der Urklasse – Gebieter",
+      "source": "https://bdocodex.com/de/item/767341/"
+    },
+    {
+      "canonicalName": "Underwater Ancient Weapon Power Stone",
+      "itemId": 56341,
+      "germanName": "Unterwasser-Kraftstein: Vorzeitliche Waffe",
+      "source": "https://bdocodex.com/de/item/56341/"
+    },
+    {
+      "canonicalName": "Valtarra Eclipsed Belt",
+      "itemId": 12236,
+      "germanName": "Valtarra-Gürtel der Finsternis",
+      "source": "https://bdocodex.com/de/item/12236/"
+    },
+    {
+      "canonicalName": "Venomous Night Fang",
+      "itemId": 65770,
+      "germanName": "Nächtiger Giftzahn",
+      "source": "https://bdocodex.com/de/item/65770/"
+    },
+    {
+      "canonicalName": "Void Tainted Whispers",
+      "itemId": 790694,
+      "germanName": "Von Leere verzehrtes Flüstern",
+      "source": "https://bdocodex.com/de/item/790694/"
+    },
+    {
+      "canonicalName": "WON Dawn Crystal - Accuracy",
+      "itemId": 15269,
+      "germanName": "WON-Kristall des Morgengrauens – Präzision",
+      "source": "https://bdocodex.com/de/item/15269/"
+    },
+    {
+      "canonicalName": "WON Dawn Crystal - All AP",
+      "itemId": 15263,
+      "germanName": "WON-Kristall des Morgengrauens – Gesamte AK",
+      "source": "https://bdocodex.com/de/item/15263/"
+    },
+    {
+      "canonicalName": "WON Dawn Crystal - Black Spirit's Rage",
+      "itemId": 15266,
+      "germanName": "WON-Kristall des Morgengrauens – Groll des Schwarzgeistes",
+      "source": "https://bdocodex.com/de/item/15266/"
+    },
+    {
+      "canonicalName": "WON Dawn Crystal - Damage Reduction",
+      "itemId": 15272,
+      "germanName": "WON-Kristall des Morgengrauens – Schadensreduktion",
+      "source": "https://bdocodex.com/de/item/15272/"
+    },
+    {
+      "canonicalName": "WON Dawn Crystal - Evasion",
+      "itemId": 15275,
+      "germanName": "WON-Kristall des Morgengrauens – Ausweichen",
+      "source": "https://bdocodex.com/de/item/15275/"
+    },
+    {
+      "canonicalName": "Winter Tree Snow Crystal",
+      "itemId": 44496,
+      "germanName": "Winterbaumschneeflocke",
+      "source": "https://bdocodex.com/de/item/44496/"
     }
   ]
 }

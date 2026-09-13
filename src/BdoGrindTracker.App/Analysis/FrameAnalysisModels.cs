@@ -52,6 +52,8 @@ internal sealed record FrameAnalysisResult(
 
     public NormalLootRecoveryDiagnostics Recovery { get; init; } = NormalLootRecoveryDiagnostics.Empty;
 
+    public NormalLootRecoveryDiagnostics RareRecovery { get; init; } = NormalLootRecoveryDiagnostics.Empty;
+
     public IReadOnlyList<LootRowReviewDiagnostics> RowReviews { get; init; } = [];
 }
 

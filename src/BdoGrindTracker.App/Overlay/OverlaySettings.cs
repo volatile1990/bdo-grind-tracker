@@ -8,7 +8,7 @@ public sealed record OverlayWidget
     public double Y { get; init; }
     public double Width { get; init; } = 160;
     public double Height { get; init; } = 72;
-    // Capture the original layout on the first resize. Null keeps existing
+    // Capture the original layout on the first module resize. Null keeps existing
     // templates at their saved appearance until the user changes their size.
     public double? ContentWidth { get; init; }
     public double? ContentHeight { get; init; }
@@ -21,6 +21,12 @@ public sealed record OverlayWidget
     public IReadOnlyList<string> ItemNames { get; init; } = [];
     public double ItemSize { get; init; } = 56;
     public string ItemSort { get; init; } = "default";
+    public bool ShowRealTime { get; init; } = true;
+    public bool ShowGameTime { get; init; } = true;
+    public bool ShowDayNightCountdown { get; init; } = true;
+    public bool ClockShowSeconds { get; init; } = true;
+    // Real minutes added to the regular NA/EU cycle for server calibration.
+    public int ClockOffsetMinutes { get; init; }
 }
 
 public sealed record OverlaySettings
@@ -60,6 +66,7 @@ public static class OverlayCatalog
         new OverlayWidgetDefinition("drop-list", "Drop-Liste", "Itemnamen und Mengen untereinander", "loot", 344, 224),
         new OverlayWidgetDefinition("drop-item", "Einzelnes Item", "Ein gewähltes Item als eigene Kachel", "loot", 168, 104),
         new OverlayWidgetDefinition("duration", "Aktive Zeit", "Grindzeit ohne Pausen", "clock", 168, 72),
+        new OverlayWidgetDefinition("clock", "Uhrzeit & Tag/Nacht", "Lokale Uhrzeit, BDO-Zeit und Zeit bis zum Wechsel", "clock", 248, 128),
         new OverlayWidgetDefinition("spot", "Grindspot", "Automatisch erkannter Spot", "pin", 344, 64),
         new OverlayWidgetDefinition("silver", "Silber netto", "Wert nach Marktsteuern", "silver", 168, 72),
         new OverlayWidgetDefinition("silver-hour", "Silber / Stunde", "Durchschnitt der Session", "trend", 168, 72),
@@ -151,21 +158,13 @@ public static class OverlayLayout
         var targetHeight = Finite(height, current.Height, 64, 1200);
         if (targetWidth == current.Width && targetHeight == current.Height) return current;
 
-        var scaleX = targetWidth / current.Width;
-        var scaleY = targetHeight / current.Height;
-        // Keep one stable content reference through every resize. Font and item
-        // preferences remain multipliers within that proportionally scaled layout.
-        return Normalize(current with
+        // Window bounds are a viewport over the saved module layout. Cropping
+        // that viewport must not alter modules or their content reference sizes.
+        return current with
         {
             Width = targetWidth,
             Height = targetHeight,
-            Widgets = Array.AsReadOnly(current.Widgets.Select(widget => ResizeWidget(widget,
-                widget.Width * scaleX, widget.Height * scaleY) with
-            {
-                X = widget.X * scaleX,
-                Y = widget.Y * scaleY,
-            }).ToArray()),
-        });
+        };
     }
 
     public static OverlayWidget ResizeWidget(OverlayWidget widget, double width, double height) => widget with
@@ -195,15 +194,15 @@ public static class OverlayLayout
             if (widget is null || OverlayCatalog.Find(widget.Kind) is not { } definition) continue;
             var id = Guid.TryParse(widget.Id, out var parsed) ? parsed.ToString("N") : Guid.NewGuid().ToString("N");
             if (!ids.Add(id)) continue;
-            // A whole-canvas resize can intentionally make modules smaller
-            // than the editor's defaults for individual module resizing.
-            var w = Finite(widget.Width, definition.Width, 1, width);
-            var h = Finite(widget.Height, definition.Height, 1, height);
+            // Keep clipped modules intact when the window is made smaller.
+            // Bound corrupt geometry by the maximum supported layout instead.
+            var w = Finite(widget.Width, definition.Width, 1, 1600);
+            var h = Finite(widget.Height, definition.Height, 1, 1200);
             widgets.Add(widget with
             {
                 Id = id, Width = w, Height = h,
                 ContentWidth = Reference(widget.ContentWidth), ContentHeight = Reference(widget.ContentHeight),
-                X = Finite(widget.X, 0, 0, width - w), Y = Finite(widget.Y, 0, 0, height - h),
+                X = Finite(widget.X, 0, 0, 1600 - w), Y = Finite(widget.Y, 0, 0, 1200 - h),
                 FontScale = Finite(widget.FontScale, 1, .7, 2),
                 ItemLimit = Math.Clamp(widget.ItemLimit, 1, 24),
                 ItemView = widget.Kind == "drop-item" ? "card" :
@@ -213,6 +212,8 @@ public static class OverlayLayout
                     widget.ItemFilter is "rare" or "trash" or "selected" ? widget.ItemFilter : "all",
                 ItemSort = widget.ItemSort is "quantity" or "name" ? widget.ItemSort : "default",
                 ItemNames = NormalizeNames(widget),
+                ShowRealTime = widget.ShowRealTime || (!widget.ShowGameTime && !widget.ShowDayNightCountdown),
+                ClockOffsetMinutes = Math.Clamp(widget.ClockOffsetMinutes, -240, 240),
             });
         }
         return settings with

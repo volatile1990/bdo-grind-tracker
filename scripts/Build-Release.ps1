@@ -7,7 +7,8 @@ param(
     [string] $PreviousReleaseDirectory,
     [string] $ReleaseNotes,
     [string] $UpdateRepositoryUrl = 'https://github.com/volatile1990/bdo-grind-tracker',
-    [switch] $SkipTests
+    [switch] $SkipTests,
+    [switch] $RequireWindowsOcr
 )
 
 $ErrorActionPreference = 'Stop'
@@ -71,13 +72,20 @@ try {
     $versionProperties = @("-p:Version=$Version", "-p:InformationalVersion=$Version",
         '-p:IncludeSourceRevisionInInformationalVersion=false', "-p:UpdateRepositoryUrl=$UpdateRepositoryUrl")
     if (-not $SkipTests) {
-        Invoke-DotNet (@('test', 'BdoGrindTracker.slnx', '--configuration', 'Release', '--nologo',
-            '--logger', 'trx', '--results-directory', (Join-Path $workspaceRoot 'artifacts/test-results')) + $versionProperties)
+        & (Join-Path $PSScriptRoot 'Test-Ui.ps1')
+        $previousOcrRequirement = $env:GRINDCREST_REQUIRE_WINDOWS_OCR
+        try {
+            if ($RequireWindowsOcr) { $env:GRINDCREST_REQUIRE_WINDOWS_OCR = '1' }
+            Invoke-DotNet (@('test', 'BdoGrindTracker.slnx', '--configuration', 'Release', '--nologo',
+                '--logger', 'trx', '--results-directory', (Join-Path $workspaceRoot 'artifacts/test-results')) + $versionProperties)
+        } finally { $env:GRINDCREST_REQUIRE_WINDOWS_OCR = $previousOcrRequirement }
     }
     Invoke-DotNet (@('publish', $projectPath, '--configuration', 'Release', '--runtime', 'win-x64',
         '--self-contained', 'true', '--output', $publishDirectory, '--nologo',
         '-p:PublishSingleFile=false', '-p:PublishTrimmed=false') + $versionProperties)
 
+    & (Join-Path $PSScriptRoot 'Test-PackagedRuntime.ps1') -RuntimeConfigJson (
+        Get-Content -LiteralPath (Join-Path $publishDirectory 'BdoGrindTracker.runtimeconfig.json') -Raw)
     foreach ($required in @('Grindcrest.exe', 'BdoGrindTracker.dll', 'Velopack.dll', 'System.Private.CoreLib.dll',
             'wwwroot/index.html', 'data/items.en.txt', 'data/branding/grindcrest.ico', 'THIRD_PARTY_NOTICES.md',
             'Microsoft.ML.OnnxRuntime.dll', 'onnxruntime.dll', 'onnxruntime_providers_shared.dll',

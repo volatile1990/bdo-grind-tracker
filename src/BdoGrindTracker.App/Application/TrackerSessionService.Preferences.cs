@@ -8,6 +8,8 @@ namespace BdoGrindTracker.App.Services;
 
 internal sealed partial class TrackerSessionService
 {
+    private bool _settingsChangesPending;
+
     public async Task<PreferenceSaveResult> SavePreferencesAsync(TrackerPreferences preferences, string? apiKey = null,
         bool resumeAutomaticUpload = false)
     {
@@ -18,10 +20,21 @@ internal sealed partial class TrackerSessionService
         var result = await RunOperationAsync(async () =>
         {
             ArgumentNullException.ThrowIfNull(preferences);
+            // A form populated from fallback values must never overwrite an unread file.
+            if (_settingsStore.LoadError is { } loadError) throw new IOException(loadError);
+            var captureConfigurationChanged = !string.Equals(preferences.CaptureConfigurationPath,
+                Preferences.CaptureConfigurationPath, StringComparison.OrdinalIgnoreCase);
             if (_hasSession && (preferences.MonitorDeviceName != Preferences.MonitorDeviceName ||
+                captureConfigurationChanged ||
                 preferences.GameLanguage != Preferences.GameLanguage ||
                 preferences.RecordLoot != Preferences.RecordLoot))
-                throw new ArgumentException("Monitor, Spielsprache und Aufzeichnung können erst für eine neue Session geändert werden.");
+                throw new ArgumentException("Monitor, BDO-Konfiguration, Spielsprache und Aufzeichnung können erst für eine neue Session geändert werden.");
+            if (captureConfigurationChanged)
+            {
+                if (_captureSession.HasPendingAnalysis)
+                    throw new InvalidOperationException("Die vorherige Texterkennung wird noch beendet. Bitte erneut versuchen.");
+                _captureConfigurations.Read(preferences.CaptureConfigurationPath);
+            }
             if (preferences.GameLanguage is not ("auto" or "en" or "de"))
                 throw new ArgumentException("Unterstützte Spielsprachen sind Deutsch und Englisch.");
             var classChanged = preferences.CharacterClassId != Preferences.CharacterClassId;
@@ -58,6 +71,8 @@ internal sealed partial class TrackerSessionService
             }
             _garmothApiKey = nextKey;
             var regionChanged = region != Preferences.MarketRegion;
+            var previousCaptureConfiguration = Preferences.CaptureConfigurationPath;
+            _settingsChangesPending = true;
             Preferences = preferences with { MarketRegion = region, AutoUpload = preferences.AutoUpload && nextKey.Length > 0 };
             if (!_hasSession && Preferences.GameLanguage == "auto") _gameLanguageDetection = _detectGameLanguage();
             if (!_hasSession) RefreshMissingOcrLanguageOffer();
@@ -69,7 +84,14 @@ internal sealed partial class TrackerSessionService
                 _priceStatus = FormatPriceStatus(Prices);
                 _nextPriceRefreshAt = DateTimeOffset.MinValue;
             }
-            if (!TrySaveSettings()) return;
+            if (!TrySaveSettings())
+            {
+                // A failed save must not silently switch the capture source for this run.
+                Preferences = Preferences with { CaptureConfigurationPath = previousCaptureConfiguration };
+                _settings.CaptureConfigurationPath = previousCaptureConfiguration;
+                return;
+            }
+            if (captureConfigurationChanged) RebuildCaptureAnalyzer();
             if (resumeAutomaticUpload) _garmothIntervals.ResumeAutomatic();
             PersistCurrentSession(DateTimeOffset.UtcNow, throwOnError: true);
             SetStatus(_garmothIntervals.IsBlocked
@@ -90,7 +112,14 @@ internal sealed partial class TrackerSessionService
 
     private bool TrySaveSettings()
     {
+        if (_settingsStore.LoadError is { } loadError)
+        {
+            _settingsSaveError = loadError;
+            SetStatus(loadError, true);
+            return false;
+        }
         _settings.UpdateCapturePreferences(Preferences.MonitorDeviceName);
+        _settings.CaptureConfigurationPath = Preferences.CaptureConfigurationPath;
         _settings.AutoPauseMinutes = Preferences.AutoPauseMinutes;
         _settings.GameLanguage = Preferences.GameLanguage;
         _settings.FavoriteItems = Preferences.FavoriteItems.ToArray();
@@ -101,6 +130,7 @@ internal sealed partial class TrackerSessionService
         try
         {
             _settingsStore.Save(_settings);
+            _settingsChangesPending = false;
             _settingsSaveError = null;
             return true;
         }
@@ -112,6 +142,46 @@ internal sealed partial class TrackerSessionService
             SetStatus(_settingsSaveError, true);
             return false;
         }
+    }
+
+    private void RecoverSettingsIfNeeded()
+    {
+        if (_settingsStore.LoadError is null) return;
+        var previousCaptureConfiguration = Preferences.CaptureConfigurationPath;
+        var recovered = _settingsStore.Load();
+        if (_settingsStore.LoadError is { } error) throw new IOException(error);
+        _settings = recovered;
+        Preferences = Preferences with
+        {
+            MonitorDeviceName = _hasSession ? Preferences.MonitorDeviceName
+                : Monitors.FirstOrDefault(monitor => monitor.DeviceName == recovered.MonitorDeviceName)?.DeviceName
+                    ?? Monitors.FirstOrDefault(monitor => monitor.IsPrimary)?.DeviceName ?? Monitors.FirstOrDefault()?.DeviceName,
+            GameLanguage = _hasSession ? Preferences.GameLanguage : recovered.GameLanguage,
+            CaptureConfigurationPath = _hasSession ? Preferences.CaptureConfigurationPath : recovered.CaptureConfigurationPath,
+            AutoPauseMinutes = recovered.AutoPauseMinutes,
+            FavoriteItems = recovered.FavoriteItems ?? [],
+            LootColumnOrders = recovered.LootColumnOrders ?? new(),
+            CharacterClassId = _hasSession ? Preferences.CharacterClassId
+                : CompanionCharacterClassCatalog.FindById(recovered.CharacterClassId ?? "")?.Id,
+            AutoUpload = recovered.GarmothAutoUploadEnabled,
+            MarketRegion = recovered.MarketRegion,
+            ValuePack = recovered.SilverValuePack,
+            MerchantRing = recovered.SilverMerchantRing,
+            FamilyFame = recovered.SilverFamilyFame,
+        };
+        if (!_hasSession) _sessionClass = SelectedCharacterClass;
+        if (Preferences.AutoUpload) _garmothIntervals.SuspendAutomatic();
+        Prices = _priceProvider.GetCachedSnapshot(Preferences.MarketRegion);
+        _priceStatus = FormatPriceStatus(Prices);
+        _nextPriceRefreshAt = DateTimeOffset.MinValue;
+        _settingsSaveError = null;
+        if (!_hasSession && !string.Equals(previousCaptureConfiguration, Preferences.CaptureConfigurationPath,
+            StringComparison.OrdinalIgnoreCase))
+        {
+            _captureConfigurationReloadPending = true;
+            if (!_captureSession.HasPendingAnalysis) RebuildCaptureAnalyzer();
+        }
+        RefreshMissingOcrLanguageOffer();
     }
 
     private Task RefreshClassDetectionAsync()

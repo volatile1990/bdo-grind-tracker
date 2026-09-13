@@ -6,7 +6,7 @@ namespace BdoGrindTracker.App.Analysis;
 
 internal static class FrameAnalyzerFactory
 {
-    public static ILootFrameAnalyzer Create(string? gameLanguage = null)
+    public static ILootFrameAnalyzer Create(string? gameLanguage = null, string? captureConfigurationPath = null)
     {
         var vocabularyPath = Path.Combine(AppContext.BaseDirectory, "data", "items.en.txt");
         var iconCatalogPath = Path.Combine(AppContext.BaseDirectory, "data", "icons", "catalog.json");
@@ -19,10 +19,7 @@ internal static class FrameAnalyzerFactory
                 throw new InvalidDataException("Die Item-Liste des Grindspots fehlt oder ist leer.");
             }
 
-            var blackDesertPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                "Black Desert");
-            CompanionCalibration ReadCalibration() => new CompanionCalibrationReader().Read(blackDesertPath);
+            CompanionCalibration ReadCalibration() => new CaptureConfigurationCatalog().Read(captureConfigurationPath);
             var calibration = LootPanelCaptureGuard.ReadCalibration(ReadCalibration);
             var fontType = (CompanionUiFontType)(byte)calibration.FontType;
             var digitSources = CompanionDigitCatalog.CreateSources();
@@ -55,18 +52,21 @@ internal static class FrameAnalyzerFactory
                 nameRecognizer.SetRecognizer(recognizer);
                 configuredLanguage = language;
             }
+            var parsingContext = new LifetimeParsingContext(0,
+                catalog.Select(item => new LifetimeParsingCatalogEntry(item.Name,
+                    ItemLocalizationCatalog.GermanNames.TryGetValue(item.Name, out var germanName)
+                        ? new[] { germanName } : Array.Empty<string>(),
+                    DropQuantityCatalog.GetBounds(null, item.Name)?.IsFixedUnit == true)).ToArray());
             var analyzer = new CompanionLootFrameAnalyzer(
                 calibration,
                 matcher,
                 rowPipeline,
                 nameRecognizer,
-                reconciliation: new LifetimeNormalReconciliationAdapter(new LifetimeParsingContext(0,
-                    catalog.Select(item => new LifetimeParsingCatalogEntry(item.Name,
-                        ItemLocalizationCatalog.GermanNames.TryGetValue(item.Name, out var germanName)
-                            ? new[] { germanName } : Array.Empty<string>(),
-                        DropQuantityCatalog.GetBounds(null, item.Name)?.IsFixedUnit == true)).ToArray()),
-                    useVisualSlotCoverage: true),
+                reconciliation: new LifetimeNormalReconciliationAdapter(parsingContext, useVisualSlotCoverage: true),
                 normalRecovery: new NormalLootRecovery(matcher, nameRecognizer),
+                rareRecovery: new NormalLootRecovery(matcher, nameRecognizer, source: LootSource.Rare),
+                specialReconciliation: new LifetimeNormalReconciliationAdapter(parsingContext,
+                    useVisualSlotCoverage: false, source: LootSource.Rare, slotCount: 1),
                 captureGuard: new LootPanelCaptureGuard(calibration, ReadCalibration),
                 configureGameLanguage: ConfigureLanguage,
                 rowReview: new BackgroundLootRowReview(matcher, tag => PaddleLootOcrRecognizer.Create(tag)));

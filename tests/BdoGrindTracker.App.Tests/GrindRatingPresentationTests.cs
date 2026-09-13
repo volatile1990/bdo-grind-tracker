@@ -1,5 +1,6 @@
 using System.Net;
 using BdoGrindTracker.App.Components;
+using BdoGrindTracker.App.Integrations.Garmoth;
 using BdoGrindTracker.App.Overlay;
 using BdoGrindTracker.App.Services;
 using BdoGrindTracker.App.UI;
@@ -13,6 +14,29 @@ namespace BdoGrindTracker.App.Tests;
 
 public sealed class GrindRatingPresentationTests
 {
+    [Fact]
+    public async Task CorrectedMagaiaAverageAndItsSourceAreSharedByDashboardAndOverlay()
+    {
+        var state = State() with
+        {
+            Elapsed = TimeSpan.FromSeconds(20 * 60 + 44), Loot = Loot(4536),
+            GrindBenchmark = GarmothGrindBenchmarks.Find(LootSpotCatalog.MagaiaId),
+        };
+        var presentation = new LiveSessionPresentation(state).GrindRating;
+        var metric = new OverlayMetrics().Update(state, new()).Metrics["grind-rating"];
+        var markup = await Render(state, OverlayCatalog.CreateWidget("grind-rating"));
+
+        Assert.Equal("Average Tier", presentation.Label);
+        Assert.Equal(presentation.Label, metric.Value);
+        Assert.Equal(presentation.Description, metric.Tooltip);
+        Assert.Contains("Average ab 12.803", presentation.Description);
+        Assert.Contains("High ab 14.000", markup);
+        Assert.Contains("Top ab 15.200", markup);
+        Assert.Contains("Stand 12.09.2026", markup);
+        Assert.Contains("startDate=2026-09-10", markup);
+        Assert.Contains("endDate=2026-09-17", markup);
+    }
+
     [Fact]
     public async Task EarlyRatingDisclosesItsTimeAndReferenceWithoutCreatingALootScrollWarning()
     {

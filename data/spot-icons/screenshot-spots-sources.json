@@ -1,0 +1,210 @@
+[
+  {
+    "spotId": "city-of-the-dead",
+    "garmothId": 147,
+    "sourceUrl": "https://bdocodex.com/items/new_icon/03_etc/04_dropitem/00065329.webp",
+    "file": "data/spot-icons/city-of-the-dead.png",
+    "dimensions": "44x44",
+    "sha256": "b3502217e78227866063c73de57c33b076c94f5b07bc52ed5ae6e3ae3a4b9acc"
+  },
+  {
+    "spotId": "darkseekers-retreat",
+    "garmothId": 153,
+    "sourceUrl": "https://bdocodex.com/items/new_icon/03_etc/04_dropitem/00065330.webp",
+    "file": "data/spot-icons/darkseekers-retreat.png",
+    "dimensions": "44x44",
+    "sha256": "29278d7713554d2fdf27686e233a196d941eb71f78d49ad6e6dee25158aa41c3"
+  },
+  {
+    "spotId": "dehkia-ash-forest",
+    "garmothId": 143,
+    "sourceUrl": "https://bdocodex.com/items/new_icon/03_etc/04_dropitem/00044518.webp",
+    "file": "data/spot-icons/dehkia-ash-forest.png",
+    "dimensions": "44x44",
+    "sha256": "a40b1550fdc98b572c44587cfba9dddff562a02aa68b8716048549ece22fc394"
+  },
+  {
+    "spotId": "dehkia-cadry-ruins",
+    "garmothId": 163,
+    "sourceUrl": "https://bdocodex.com/items/new_icon/03_etc/04_dropitem/00044214_d.webp",
+    "file": "data/spot-icons/dehkia-cadry-ruins.png",
+    "dimensions": "42x42",
+    "sha256": "b9758dc591d670d433a13c228d283cc5ee1ee0e4039099e41eab12d8f418f05d"
+  },
+  {
+    "spotId": "dehkia-crescent-shrine",
+    "garmothId": 160,
+    "sourceUrl": "https://bdocodex.com/items/new_icon/03_etc/04_dropitem/00044218_d.webp",
+    "file": "data/spot-icons/dehkia-crescent-shrine.png",
+    "dimensions": "42x42",
+    "sha256": "d9e3fc28703bde7468891d552901fe19f7cdbf970f2354b103670621c78786a8"
+  },
+  {
+    "spotId": "dehkia-cyclops-land",
+    "garmothId": 151,
+    "sourceUrl": "https://bdocodex.com/items/new_icon/03_etc/04_dropitem/00044522.webp",
+    "file": "data/spot-icons/dehkia-cyclops-land.png",
+    "dimensions": "44x44",
+    "sha256": "c29449052b6cee9426d128a01bd5f2443c02f09b6519d9518cce5a2aab091bdd"
+  },
+  {
+    "spotId": "dehkia-gyfin-rhasia-temple-upper",
+    "garmothId": 198,
+    "sourceUrl": "https://bdocodex.com/items/new_icon/03_etc/04_dropitem/00044516_d.webp",
+    "file": "data/spot-icons/dehkia-gyfin-rhasia-temple-upper.png",
+    "dimensions": "44x44",
+    "sha256": "223e040740ccab64f31058338f2904a090025f3378aecc65dbcf6dbb905978d5"
+  },
+  {
+    "spotId": "dehkia-hystria-ruins",
+    "garmothId": 156,
+    "sourceUrl": "https://bdocodex.com/items/new_icon/03_etc/04_dropitem/00044267_d.webp",
+    "file": "data/spot-icons/dehkia-hystria-ruins.png",
+    "dimensions": "44x44",
+    "sha256": "3b9a065cfdaac4fc545ba537b349bbf752d67adb6b8899bb9a94d3e5ee9c1ead"
+  },
+  {
+    "spotId": "dehkia-ii-ash-forest",
+    "garmothId": 162,
+    "sourceUrl": "https://bdocodex.com/items/new_icon/03_etc/04_dropitem/00044518_2.webp",
+    "file": "data/spot-icons/dehkia-ii-ash-forest.png",
+    "dimensions": "44x44",
+    "sha256": "2ec645fdaa11693b66815b96c54e4c1dddd148dcdd721ae8b3892035b714b21c"
+  },
+  {
+    "spotId": "dehkia-ii-oluns-valley",
+    "garmothId": 161,
+    "sourceUrl": "https://bdocodex.com/items/new_icon/03_etc/04_dropitem/00044519_2.webp",
+    "file": "data/spot-icons/dehkia-ii-oluns-valley.png",
+    "dimensions": "44x44",
+    "sha256": "71f40294b21aaa8cf341de4134715e2671049f023505decb282e68a3e0290d17"
+  },
+  {
+    "spotId": "dehkia-mirumok-ruins",
+    "garmothId": 199,
+    "sourceUrl": "https://bdocodex.com/items/new_icon/03_etc/04_dropitem/00044527_d.webp",
+    "file": "data/spot-icons/dehkia-mirumok-ruins.png",
+    "dimensions": "44x44",
+    "sha256": "b5a80dcc9c257914a2b55542a29e24ec4516b04d136bc7a7ea949e1dc47b7dca"
+  },
+  {
+    "spotId": "dehkia-thornwood-forest",
+    "garmothId": 146,
+    "sourceUrl": "https://bdocodex.com/items/new_icon/03_etc/04_dropitem/00044520.webp",
+    "file": "data/spot-icons/dehkia-thornwood-forest.png",
+    "dimensions": "44x44",
+    "sha256": "7ae9fa7292f8a7d85d4117b7d35f9d4d264dde8e7fd40cfacb4469ed5e63b56d"
+  },
+  {
+    "spotId": "dehkia-tunkuta",
+    "garmothId": 145,
+    "sourceUrl": "https://bdocodex.com/items/new_icon/03_etc/04_dropitem/00044521.webp",
+    "file": "data/spot-icons/dehkia-tunkuta.png",
+    "dimensions": "44x44",
+    "sha256": "f172f0c237e7541eeaa37f3482a5e9d61f2d410762ab4d6dbed658cd6ab06523"
+  },
+  {
+    "spotId": "dokkebi-forest",
+    "garmothId": 166,
+    "sourceUrl": "https://bdocodex.com/items/new_icon/03_etc/04_dropitem/00065332.webp",
+    "file": "data/spot-icons/dokkebi-forest.png",
+    "dimensions": "44x44",
+    "sha256": "a6595f573e4767b01f58d33095bf2fc175307386528f45517eeb43dfe5e0a703"
+  },
+  {
+    "spotId": "elvia-hexe-sanctuary",
+    "garmothId": 124,
+    "sourceUrl": "https://bdocodex.com/items/new_icon/03_etc/04_dropitem/00059800.webp",
+    "file": "data/spot-icons/elvia-hexe-sanctuary.png",
+    "dimensions": "44x44",
+    "sha256": "ebbaf98a7336a23d3ddd985ecf099e51e7861a2670d4aa8f4cb35faa90daebbe"
+  },
+  {
+    "spotId": "elvia-orzekea",
+    "garmothId": 169,
+    "sourceUrl": "https://bdocodex.com/items/new_icon/03_etc/04_dropitem/00065335.webp",
+    "file": "data/spot-icons/elvia-orzekea.png",
+    "dimensions": "44x44",
+    "sha256": "e57a8b479e0b8347563773902dcdd81f9a160cd0575d31663920cfcab8f0cd53"
+  },
+  {
+    "spotId": "elvia-quint-hill",
+    "garmothId": 121,
+    "sourceUrl": "https://bdocodex.com/items/new_icon/03_etc/04_dropitem/00059798.webp",
+    "file": "data/spot-icons/elvia-quint-hill.png",
+    "dimensions": "44x44",
+    "sha256": "ee691edb636ebcc44849e9ea488a2587e35075585825a9cc625137ba7f9fe5b9"
+  },
+  {
+    "spotId": "fortunate-golden-pig-cave",
+    "garmothId": 167,
+    "sourceUrl": "https://bdocodex.com/items/new_icon/03_etc/04_dropitem/00065337.webp",
+    "file": "data/spot-icons/fortunate-golden-pig-cave.png",
+    "dimensions": "44x44",
+    "sha256": "f408621245a2e0be67ee230861ccaf95c829b873786adbd6f4a49747f832f761"
+  },
+  {
+    "spotId": "gavinya-coastal-cliff",
+    "garmothId": 212,
+    "sourceUrl": "https://bdocodex.com/items/new_icon/03_etc/04_dropitem/00767350.webp",
+    "file": "data/spot-icons/gavinya-coastal-cliff.png",
+    "dimensions": "44x44",
+    "sha256": "e174b659c13dc93bef938b25e6cfce8695734658d0e2b480b117cb856c27f4c5"
+  },
+  {
+    "spotId": "jade-starlight-forest",
+    "garmothId": 110,
+    "sourceUrl": "https://bdocodex.com/items/new_icon/03_etc/04_dropitem/00044490.webp",
+    "file": "data/spot-icons/jade-starlight-forest.png",
+    "dimensions": "44x44",
+    "sha256": "948ae0ede65a6fe72ec12fff93199b0b52c8e0c711e4acacdb9fe41595770e86"
+  },
+  {
+    "spotId": "stars-end",
+    "garmothId": 200,
+    "sourceUrl": "https://bdocodex.com/items/new_icon/03_etc/04_dropitem/00767251.webp",
+    "file": "data/spot-icons/stars-end.png",
+    "dimensions": "44x44",
+    "sha256": "0b5039af3f15733611c3122a4a58441486cb10420e8c0a8eb69a35d1951320b0"
+  },
+  {
+    "spotId": "sycraia-abyssal-ruins-lower",
+    "garmothId": 201,
+    "sourceUrl": "https://bdocodex.com/items/new_icon/03_etc/04_dropitem/00056341.webp",
+    "file": "data/spot-icons/sycraia-abyssal-ruins-lower.png",
+    "dimensions": "44x44",
+    "sha256": "95a38be630180548a12e96f392e8396ebd8be5e4a3b50d612717047d1d1edb06"
+  },
+  {
+    "spotId": "tungrad-ruins",
+    "garmothId": 148,
+    "sourceUrl": "https://bdocodex.com/items/new_icon/03_etc/04_dropitem/00065328.webp",
+    "file": "data/spot-icons/tungrad-ruins.png",
+    "dimensions": "44x44",
+    "sha256": "64831889a8b6f3eef5ce5f0422165c0b333ad929d950d9deafc760792262f930"
+  },
+  {
+    "spotId": "unlucky-golden-pig-cave",
+    "garmothId": 168,
+    "sourceUrl": "https://bdocodex.com/items/new_icon/03_etc/04_dropitem/00065331.webp",
+    "file": "data/spot-icons/unlucky-golden-pig-cave.png",
+    "dimensions": "44x44",
+    "sha256": "e2e9c883dc5780250b24048da6ce368bf14d0dda9e4a48d5c0d82ea93aa6e565"
+  },
+  {
+    "spotId": "winter-tree-fossil-280",
+    "garmothId": 149,
+    "sourceUrl": "https://bdocodex.com/items/new_icon/03_etc/04_dropitem/00044495.webp",
+    "file": "data/spot-icons/winter-tree-fossil-280.png",
+    "dimensions": "44x44",
+    "sha256": "aefd3b48c53993c395f611b626abd68e295c52747511a449a4f9fcf990a8ef75"
+  },
+  {
+    "spotId": "yzrahid-highlands",
+    "garmothId": 157,
+    "sourceUrl": "https://bdocodex.com/items/new_icon/03_etc/04_dropitem/00059880.webp",
+    "file": "data/spot-icons/yzrahid-highlands.png",
+    "dimensions": "44x44",
+    "sha256": "319765b914e19d2a1c24e4e7a0aa931a01b9a7c2d93a23629219798653bead58"
+  }
+]

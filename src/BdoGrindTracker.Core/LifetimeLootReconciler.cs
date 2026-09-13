@@ -21,7 +21,11 @@ public sealed class LifetimeLootReconciler
     private const double BirthStepMs = 100;
     private const double RetirementHorizonMs = 3000;
     private const int PolicyHistoryCapacity = 64;
-    private Model[] models = CreateModels();
+    private Model[] models;
+    private readonly LootSource source;
+    private readonly int trackedSlotCount;
+    private readonly bool persistentSingleRow;
+    private long? singleRowMissingSince;
     private long? previousMilliseconds;
     private long? lastCaptureMilliseconds;
     private long frameIndex;
@@ -45,17 +49,27 @@ public sealed class LifetimeLootReconciler
     }
 
     public LifetimeLootReconciler(Func<LootObservation, LifetimeParsedReading?>? rawParser,
-        Func<string, IReadOnlyList<string>>? nameAliases, bool useVisualSlotCoverage)
+        Func<string, IReadOnlyList<string>>? nameAliases, bool useVisualSlotCoverage,
+        LootSource source = LootSource.Normal, int slotCount = SlotCount)
     {
+        if (source is not (LootSource.Normal or LootSource.Rare))
+            throw new ArgumentOutOfRangeException(nameof(source));
+        if (slotCount is not (1 or SlotCount)) throw new ArgumentOutOfRangeException(nameof(slotCount));
         if (useVisualSlotCoverage && rawParser is null)
             throw new ArgumentException("Visual slot coverage requires a raw-text parser.", nameof(rawParser));
         this.rawParser = rawParser;
         this.nameAliases = nameAliases;
+        this.source = source;
+        trackedSlotCount = slotCount;
+        persistentSingleRow = slotCount == 1;
+        models = CreateModels();
         UsesVisualSlotCoverage = useVisualSlotCoverage;
     }
 
     public bool UsesRawText => rawParser is not null;
     public bool UsesVisualSlotCoverage { get; }
+    public LootSource Source => source;
+    public int TrackedSlotCount => trackedSlotCount;
     public int VisualCoverageFallbackCount { get; private set; }
 
     public LifetimeSnapshot ProcessFrame(IReadOnlyList<CompanionRecognizedEntry> acceptedRows, DateTimeOffset capturedAt)
@@ -82,11 +96,11 @@ public sealed class LifetimeLootReconciler
         if (lastCaptureMilliseconds is { } last && now <= last)
             return previousSnapshot! with { Deltas = FrozenDictionary<string, long>.Empty };
         interpretations.Clear();
-        var observations = new Observation?[SlotCount];
+        var observations = new Observation?[trackedSlotCount];
         var nextKnown = new HashSet<string>(knownNames, StringComparer.Ordinal);
         foreach (var source in rows)
         {
-            if (source.Source != LootSource.Normal || source.IsAlignmentAnchor || source.Slot >= SlotCount) continue;
+            if (source.Source != this.source || source.IsAlignmentAnchor || source.Slot >= trackedSlotCount) continue;
             var parsed = Interpret(source);
             if (parsed?.IsExcluded == true) continue;
             var name = parsed?.Name;
@@ -126,13 +140,25 @@ public sealed class LifetimeLootReconciler
             started = true;
         }
         var elapsed = previousMilliseconds is { } prior ? now - prior : BirthStepMs;
-        var maximumBirths = previousMilliseconds is null ? SlotCount :
-            Math.Max(1, (int)Math.Min(SlotCount, Math.Ceiling(elapsed / BirthStepMs)));
+        var maximumBirths = previousMilliseconds is null ? trackedSlotCount :
+            Math.Max(1, (int)Math.Min(trackedSlotCount, Math.Ceiling(elapsed / BirthStepMs)));
+        // A special notification can remain visible indefinitely. Only an
+        // observed absence can close it; elapsed capture time alone is not a
+        // second physical drop. Brief unreadable frames retain the same row.
+        if (persistentSingleRow && elapsed > 1550) singleRowMissingSince = null;
+        var closeSingleRow = persistentSingleRow && observations[0] is null &&
+            singleRowMissingSince is { } missing && now - missing >= 1550;
+        if (persistentSingleRow)
+        {
+            if (observations[0] is null) singleRowMissingSince ??= now;
+            else singleRowMissingSince = null;
+        }
         previousMilliseconds = now;
         frameIndex = checked(frameIndex + 1);
         foreach (var model in models)
         {
-            Advance(model, observations, now, elapsed, maximumBirths, minimumCoveredSlots);
+            if (persistentSingleRow) AdvanceSingleRow(model, observations[0], now, closeSingleRow);
+            else Advance(model, observations, now, elapsed, maximumBirths, minimumCoveredSlots);
             Learn(model);
             if (frameIndex == nextFit) model.Refit();
             if (frameIndex % 50 == 0) Settle(model, now);
@@ -166,20 +192,22 @@ public sealed class LifetimeLootReconciler
         earlierVisualSlots = null;
         previousVisualMilliseconds = null;
         VisualCoverageFallbackCount = 0;
+        singleRowMissingSince = null;
     }
 
-    private static Model[] CreateModels() => new[] { 1250, 1350, 1450, 1550 }
-        .Select(life => new Model(life, SlotCount)).ToArray();
+    private Model[] CreateModels() => (persistentSingleRow ? new[] { 1550 } : new[] { 1250, 1350, 1450, 1550 })
+        .Select(life => new Model(life, trackedSlotCount)).ToArray();
 
-    private static void ValidateRawRows(IReadOnlyList<LootObservation> rows, bool allowOccupancy)
+    private void ValidateRawRows(IReadOnlyList<LootObservation> rows, bool allowOccupancy)
     {
         ArgumentNullException.ThrowIfNull(rows);
-        if (rows.Count > SlotCount + 1 || rows.Any(row => row is null))
+        var inputSlotCount = trackedSlotCount == SlotCount ? SlotCount + 1 : trackedSlotCount;
+        if (rows.Count > inputSlotCount || rows.Any(row => row is null))
             throw new ArgumentException("At most six non-null calibrated input rows are supported.", nameof(rows));
         var slots = new HashSet<int>();
         foreach (var row in rows)
         {
-            if (row.Slot is < 0 or > SlotCount || !slots.Add(row.Slot) ||
+            if (row.Slot < 0 || row.Slot >= inputSlotCount || !slots.Add(row.Slot) ||
                 row.RawText is null || row.RawText.Length > 16384 ||
                 row.ItemName is { } name && (string.IsNullOrWhiteSpace(name) || name.Length > 4096) ||
                 row.Quantity is <= 0 || !double.IsFinite(row.NameConfidence) || row.NameConfidence is < 0 or > 1 ||
@@ -246,28 +274,119 @@ public sealed class LifetimeLootReconciler
         return interpretations[source] = parsed;
     }
 
-    private static Observation?[] Normalize(IReadOnlyList<CompanionRecognizedEntry> acceptedRows)
+    private Observation?[] Normalize(IReadOnlyList<CompanionRecognizedEntry> acceptedRows)
     {
         ArgumentNullException.ThrowIfNull(acceptedRows);
-        if (acceptedRows.Count > SlotCount + 1 || acceptedRows.Any(row => row is null))
+        var inputSlotCount = trackedSlotCount == SlotCount ? SlotCount + 1 : trackedSlotCount;
+        if (acceptedRows.Count > inputSlotCount || acceptedRows.Any(row => row is null))
             throw new ArgumentException("At most six non-null calibrated input rows are supported.", nameof(acceptedRows));
-        var observations = new Observation?[SlotCount];
+        var observations = new Observation?[trackedSlotCount];
         var slots = new HashSet<int>();
         var ordered = acceptedRows.OrderByDescending(row => row.Y).ToArray();
         for (var index = 0; index < ordered.Length; index++)
         {
             var row = ordered[index];
             var slot = row.Slot ?? index;
-            if (slot is < 0 or > SlotCount || !slots.Add(slot) ||
+            if (slot < 0 || slot >= inputSlotCount || !slots.Add(slot) ||
                 string.IsNullOrWhiteSpace(row.Name) || row.Name.Length > 4096 ||
                 !double.IsFinite(row.NameConfidence) || row.NameConfidence is < 0 or > 1)
                 throw new ArgumentException("Invalid accepted row or duplicate physical slot.", nameof(acceptedRows));
-            if (row.IsAlignmentAnchor || row.IsPlaceholder || slot == SlotCount) continue;
+            if (row.IsAlignmentAnchor || row.IsPlaceholder || slot >= trackedSlotCount) continue;
             observations[slot] = new(row.Name,
                 row.Count is 0 or uint.MaxValue || row.Count > int.MaxValue ? null : (int)row.Count,
                 row.NameConfidence);
         }
         return observations;
+    }
+
+    private void AdvanceSingleRow(Model model, Observation? observation, double now, bool closeRow)
+    {
+        var candidates = new Dictionary<string, State>(StringComparer.Ordinal);
+        foreach (var prior in model.Beam)
+        {
+            var row = prior.Live.FirstOrDefault();
+            var retired = prior.Done;
+            if (row is not null && closeRow)
+            {
+                retired = new(row, retired, now);
+                row = null;
+            }
+            if (row is null)
+            {
+                var occupied = observation is null ? 0 : 1;
+                Add(new([], retired, prior.Score + model.EmptyLogProbability[occupied], [-1 - occupied]));
+                if (observation is not null)
+                    AddNewRow(retired, prior.Score);
+                continue;
+            }
+
+            // Use the normal observation likelihoods and reversible name/amount
+            // votes. The notification stays in its readable age band while it
+            // remains on screen instead of aging into invented repeat drops.
+            const int age = 2;
+            var category = Category(observation, row);
+            // A quantity-less reading of the same persistent notification is
+            // association evidence, using the normal partial-text likelihood.
+            // It supplies no quantity vote and must not make an infinitely
+            // visible row progressively less likely than an empty panel.
+            if (category == 3 && observation?.Name == row.Name && observation?.Quantity is null && row.Quantity is not null)
+                category = 5;
+            var continued = observation is null ? row : Observe(row, observation);
+            Add(new([TrimSingleRowReadings(continued)], retired,
+                prior.Score + model.HeldLogProbability[age][category], [age * Categories + category]));
+            if (observation?.Name is { } name && row.Name is { } priorName && name != priorName)
+            {
+                // Keep both explanations until subsequent evidence chooses:
+                // a changed notification, or an OCR conflict in the old row.
+                // A replacement prior prevents a single wrong name followed by
+                // the original name from winning as two physical arrivals.
+                AddNewRow(new(row, retired, now), prior.Score + Math.Log(.5));
+            }
+        }
+        SelectCandidates(model, candidates);
+
+        void AddNewRow(Finished? retired, double score)
+        {
+            var born = new LifeRow(now, null, null, null);
+            var category = Category(observation, born);
+            Add(new([Observe(born, observation!)], retired,
+                score + model.HeldLogProbability[2][category], [2 * Categories + category]));
+        }
+
+        void Add(State state)
+        {
+            var key = state.Live.Length == 0 ? "empty" :
+                state.Live[0].BornAt.ToString("R", System.Globalization.CultureInfo.InvariantCulture);
+            if (!candidates.TryGetValue(key, out var current) || state.Score > current.Score)
+                candidates[key] = state;
+        }
+    }
+
+    private static LifeRow TrimSingleRowReadings(LifeRow row)
+    {
+        // Persistent notifications must not retain an entire session of bitmap
+        // text reads. Keep recent original evidence plus one older numeric read
+        // so a long partially readable tail cannot erase the known quantity.
+        var retained = new List<Observation>();
+        var node = row.Readings;
+        while (node is not null && retained.Count < 64)
+        {
+            retained.Add(node.Value);
+            node = node.Previous;
+        }
+        if (node is null) return row;
+        if (!retained.Any(value => value.Name is not null && value.Quantity is not null))
+        {
+            for (; node is not null; node = node.Previous)
+                if (node.Value.Name is not null && node.Value.Quantity is not null)
+                {
+                    retained.Add(node.Value);
+                    break;
+                }
+        }
+        Reading? readings = null;
+        for (var index = retained.Count - 1; index >= 0; index--) readings = new(retained[index], readings);
+        return row with { Readings = readings };
     }
 
     private void Advance(Model model, Observation?[] observations, double now, double elapsed, int maximumBirths,
@@ -326,6 +445,11 @@ public sealed class LifetimeLootReconciler
             Advance(model, observations, now, elapsed, maximumBirths, 0);
             return;
         }
+        SelectCandidates(model, candidates);
+    }
+
+    private static void SelectCandidates(Model model, Dictionary<string, State> candidates)
+    {
         model.Beam = candidates.Values.OrderByDescending(state => state.Score).Take(BeamCapacity).ToArray();
         var best = model.Beam[0].Score;
         model.Evidence += best;
@@ -404,7 +528,7 @@ public sealed class LifetimeLootReconciler
     {
         var oldestMutableBirth = now - model.Duration - RetirementHorizonMs;
         for (var node = model.Beam[0].Done; node is not null; node = node.Previous)
-            if (node.Row.BornAt < oldestMutableBirth && Decide(node.Row) is { } reading)
+            if ((node.RetiredAt ?? node.Row.BornAt) < oldestMutableBirth && Decide(node.Row) is { } reading)
             {
                 AddQuantity(model.Settled, reading.Name, reading.Quantity);
                 model.SettledDropCount = checked(model.SettledDropCount + 1);
@@ -426,11 +550,12 @@ public sealed class LifetimeLootReconciler
 
     private static Finished? RetainRecent(Finished? chain, double cutoff)
     {
-        var retained = new List<LifeRow>();
+        var retained = new List<Finished>();
         for (var node = chain; node is not null; node = node.Previous)
-            if (node.Row.BornAt >= cutoff) retained.Add(node.Row);
+            if ((node.RetiredAt ?? node.Row.BornAt) >= cutoff) retained.Add(node);
         Finished? result = null;
-        for (var index = retained.Count - 1; index >= 0; index--) result = new(retained[index], result);
+        for (var index = retained.Count - 1; index >= 0; index--)
+            result = new(retained[index].Row, result, retained[index].RetiredAt);
         return result;
     }
 
@@ -482,11 +607,12 @@ public sealed class LifetimeLootReconciler
         (long)Math.Clamp(Math.Round(bornAt, MidpointRounding.ToEven),
             DateTimeOffset.MinValue.ToUnixTimeMilliseconds(), DateTimeOffset.MaxValue.ToUnixTimeMilliseconds()));
 
-    private static Guid BirthIdentity(double bornAt)
+    private Guid BirthIdentity(double bornAt)
     {
         Span<byte> bytes = stackalloc byte[16];
         BinaryPrimitives.WriteInt64LittleEndian(bytes, BitConverter.DoubleToInt64Bits(bornAt));
         BinaryPrimitives.WriteInt64LittleEndian(bytes[8..], 0x4c69666574696d65);
+        if (source == LootSource.Rare) bytes[15] ^= 0x80;
         return new Guid(bytes);
     }
 
@@ -497,7 +623,7 @@ public sealed class LifetimeLootReconciler
     {
         public string Text { get; init; } = "";
     }
-    private sealed record Finished(LifeRow Row, Finished? Previous);
+    private sealed record Finished(LifeRow Row, Finished? Previous, double? RetiredAt = null);
     private sealed record State(LifeRow[] Live, Finished? Done, double Score, int[] Outcomes);
 
     private sealed class Model

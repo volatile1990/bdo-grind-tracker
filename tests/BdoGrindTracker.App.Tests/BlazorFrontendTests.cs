@@ -1,4 +1,5 @@
 using System.Net;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using BdoGrindTracker.App.Components;
 using BdoGrindTracker.App.Integrations.Garmoth;
@@ -18,6 +19,16 @@ namespace BdoGrindTracker.App.Tests;
 
 public sealed class BlazorFrontendTests
 {
+    [Fact]
+    public async Task SettingsShowTheResolvedRecordingFolderFromTheSession()
+    {
+        var session = new SnapshotSession { DiagnosticsDirectory = @"C:\Users\Example\AppData\Local\Packages\Grindcrest_family\LocalState\diagnostics" };
+        var markup = WebUtility.HtmlDecode(await RenderAsync<TrackerSettings>(session));
+        Assert.Contains(session.DiagnosticsDirectory, markup);
+        Assert.DoesNotContain("%LOCALAPPDATA%", markup);
+        Assert.Equal(0, session.CommandCalls);
+    }
+
     [Theory]
     [InlineData("auto")]
     [InlineData("de")]
@@ -109,13 +120,16 @@ public sealed class BlazorFrontendTests
         Assert.Equal(0, session.CommandCalls);
     }
 
-    [Fact]
-    public async Task OcrInstallationShowsIndeterminateProgressAndDisablesRepeatedActions()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task OcrInstallationShowsIndeterminateProgressAndAllowsRechecking(bool busy)
     {
         var session = new SnapshotSession { State = new()
         {
             AnalyzerAvailable = false, MissingOcrLanguageTag = "en-US", IsInstallingOcrLanguage = true,
             OcrInstallationStatus = "Windows lädt die Texterkennung herunter …",
+            IsOcrInstallerRunning = true, IsBusy = busy,
         } };
 
         var markup = WebUtility.HtmlDecode(await RenderAsync<LiveDashboard>(session));
@@ -128,8 +142,35 @@ public sealed class BlazorFrontendTests
         Assert.Contains("aria-label=\"OCR-Sprachpaket wird installiert\"", progress.Groups["attributes"].Value);
         Assert.DoesNotContain("value=", progress.Groups["attributes"].Value);
         Assert.True(IsDisabled(ButtonAttributes(markup, "Wird installiert …")));
-        Assert.True(IsDisabled(ButtonAttributes(markup, "Erneut prüfen")));
+        Assert.False(IsDisabled(ButtonAttributes(markup, "Erneut prüfen")));
         Assert.True(IsDisabled(ButtonAttributes(markup, "Einstellungen")));
+        Assert.Equal(0, session.CommandCalls);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(42)]
+    [InlineData(100)]
+    public async Task OcrInstallationRendersWindowsPercentageButKeepsTrackingBlockedUntilVerification(int percent)
+    {
+        var session = new SnapshotSession { State = new()
+        {
+            AnalyzerAvailable = false, MissingOcrLanguageTag = "en-US", IsInstallingOcrLanguage = true,
+            OcrInstallationPercent = percent,
+            IsOcrInstallerRunning = true, IsBusy = true,
+            OcrInstallationStatus = $"Windows-Installation: {percent} %",
+        } };
+
+        var markup = WebUtility.HtmlDecode(await RenderAsync<LiveDashboard>(session));
+        var progress = Regex.Match(markup, "<progress(?<attributes>[^>]*)>");
+
+        Assert.True(progress.Success);
+        Assert.Contains($"value=\"{percent}\"", progress.Groups["attributes"].Value);
+        Assert.Contains("max=\"100\"", progress.Groups["attributes"].Value);
+        Assert.Contains($"Windows-Installation: {percent} %", markup);
+        Assert.True(IsDisabled(ButtonAttributes(markup, "Tracking starten")));
+        Assert.True(IsDisabled(ButtonAttributes(markup, "Wird installiert …")));
+        Assert.False(IsDisabled(ButtonAttributes(markup, "Erneut prüfen")));
         Assert.Equal(0, session.CommandCalls);
     }
 
@@ -148,6 +189,78 @@ public sealed class BlazorFrontendTests
         Assert.True(IsDisabled(ButtonAttributes(markup, "OCR-Sprachpaket installieren")));
         Assert.True(IsDisabled(ButtonAttributes(markup, "Erneut prüfen")));
         Assert.Equal(0, session.CommandCalls);
+    }
+
+    [Fact]
+    public async Task OcrInstallerStillRunningAfterUiWaitKeepsAnotherInstallationDisabled()
+    {
+        var session = new SnapshotSession { State = new()
+        {
+            MissingOcrLanguageTag = "en-US", IsOcrInstallerRunning = true,
+            OcrInstallationStatus = "Windows arbeitet noch an der Installation. Du kannst erneut prüfen.",
+        } };
+
+        var markup = WebUtility.HtmlDecode(await RenderAsync<LiveDashboard>(session));
+
+        Assert.False(session.State.IsInstallingOcrLanguage);
+        Assert.DoesNotContain("<progress", markup);
+        Assert.True(IsDisabled(ButtonAttributes(markup, "OCR-Sprachpaket installieren")));
+        Assert.False(IsDisabled(ButtonAttributes(markup, "Erneut prüfen")));
+        Assert.True(IsDisabled(ButtonAttributes(markup, "Tracking starten")));
+        Assert.Equal(0, session.CommandCalls);
+    }
+
+    [Fact]
+    public async Task OcrRecheckReachesTheSessionWhileTheOriginalInstallActionIsStillPending()
+    {
+        var installation = new TaskCompletionSource<TrackerCommandResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var recheck = new TaskCompletionSource<TrackerCommandResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var session = new SnapshotSession
+        {
+            State = new()
+            {
+                MissingOcrLanguageTag = "en-US", IsInstallingOcrLanguage = true,
+                IsOcrInstallerRunning = true, IsBusy = true,
+            },
+            InstallResult = installation.Task, RecheckResult = recheck.Task,
+        };
+
+        await RenderInteractionAsync<LiveDashboard>(session, async (dashboard, markup) =>
+        {
+            // This is the same Act overload used by the install button. Keep it pending so
+            // the component's Acting guard is active when the recheck button is invoked.
+            var act = typeof(TrackerComponentBase).GetMethod("Act", BindingFlags.Instance | BindingFlags.NonPublic,
+                null, [typeof(Func<Task<TrackerCommandResult>>)], null)!;
+            var installAction = (Task<bool>)act.Invoke(dashboard,
+                [new Func<Task<TrackerCommandResult>>(session.InstallOcrLanguageAsync)])!;
+            var recheckHandler = typeof(LiveDashboard).GetMethod("RecheckOcrLanguage", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            try
+            {
+                Assert.False(installAction.IsCompleted);
+                Assert.True(IsDisabled(ButtonAttributes(markup(), "Wird installiert …")));
+                Assert.False(IsDisabled(ButtonAttributes(markup(), "Erneut prüfen")));
+
+                var recheckAction = (Task)recheckHandler.Invoke(dashboard, null)!;
+                Assert.Equal(1, session.RecheckCalls);
+                Assert.False(recheckAction.IsCompleted);
+                Assert.False(installAction.IsCompleted);
+                Assert.True(IsDisabled(ButtonAttributes(markup(), "Erneut prüfen")));
+
+                await (Task)recheckHandler.Invoke(dashboard, null)!;
+                Assert.Equal(1, session.RecheckCalls);
+
+                recheck.SetResult(TrackerCommandResult.Success);
+                await recheckAction;
+                Assert.False(installAction.IsCompleted);
+                Assert.False(IsDisabled(ButtonAttributes(markup(), "Erneut prüfen")));
+            }
+            finally
+            {
+                recheck.TrySetResult(TrackerCommandResult.Success);
+                installation.TrySetResult(TrackerCommandResult.Success);
+                await installAction;
+            }
+        });
     }
 
     [Fact]
@@ -622,6 +735,40 @@ public sealed class BlazorFrontendTests
         });
     }
 
+    private static async Task RenderInteractionAsync<TComponent>(ITrackerSession session,
+        Func<TComponent, Func<string>, Task> test) where TComponent : IComponent
+    {
+        var activator = new CapturingActivator();
+        var services = new ServiceCollection().AddLogging().AddSingleton(session)
+            .AddSingleton<IJSRuntime, NoJavaScript>().AddSingleton<NavigationManager, StaticNavigation>()
+            .AddSingleton<IComponentActivator>(activator);
+        await using var provider = services.BuildServiceProvider();
+        await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
+        await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            var root = await renderer.RenderComponentAsync<TComponent>(ParameterView.Empty);
+            var component = activator.Components.OfType<TComponent>().Single();
+            string Markup()
+            {
+                typeof(ComponentBase).GetMethod("StateHasChanged", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .Invoke(component, null);
+                return WebUtility.HtmlDecode(root.ToHtmlString());
+            }
+            await test(component, Markup);
+        });
+    }
+
+    private sealed class CapturingActivator : IComponentActivator
+    {
+        public List<IComponent> Components { get; } = [];
+        public IComponent CreateInstance(Type componentType)
+        {
+            var component = (IComponent)Activator.CreateInstance(componentType)!;
+            Components.Add(component);
+            return component;
+        }
+    }
+
     private sealed class StaticUpdates(UpdateState state) : IAppUpdates
     {
         public UpdateState State => state;
@@ -692,6 +839,7 @@ public sealed class BlazorFrontendTests
 
     private sealed class SnapshotSession : ITrackerSession
     {
+        public string DiagnosticsDirectory { get; init; } = @"C:\Synthetic\diagnostics";
         public event Action? Changed { add { } remove { } }
         public TrackerState State { get; init; } = new();
         public TrackerPreferences Preferences { get; init; } = new() { MonitorDeviceName = "synthetic" };
@@ -699,11 +847,18 @@ public sealed class BlazorFrontendTests
         public IReadOnlyList<LootHistoryEntry> History { get; init; } = [];
         public LootPriceSnapshot Prices { get; init; } = LootPriceCatalog.FixedSnapshot("eu");
         public int CommandCalls { get; private set; }
+        public int RecheckCalls { get; private set; }
+        public Task<TrackerCommandResult>? InstallResult { get; init; }
+        public Task<TrackerCommandResult>? RecheckResult { get; init; }
         private Task<TrackerCommandResult> Command() { CommandCalls++; return Task.FromResult(TrackerCommandResult.Success); }
         public Task<TrackerCommandResult> ToggleTrackingAsync() => Command();
         public Task<TrackerCommandResult> PauseAsync() => Command();
-        public Task<TrackerCommandResult> InstallOcrLanguageAsync() => Command();
-        public Task<TrackerCommandResult> RecheckOcrLanguageAsync() => Command();
+        public Task<TrackerCommandResult> InstallOcrLanguageAsync() => InstallResult ?? Command();
+        public Task<TrackerCommandResult> RecheckOcrLanguageAsync()
+        {
+            RecheckCalls++;
+            return RecheckResult ?? Command();
+        }
         public Task<TrackerCommandResult> NewSessionAsync() => Command();
         public Task<TrackerCommandResult> SetDemoAsync(bool enabled) => Command();
         public Task<PreferenceSaveResult> SavePreferencesAsync(TrackerPreferences preferences, string? apiKey = null, bool resumeAutomaticUpload = false) { CommandCalls++; return Task.FromResult(new PreferenceSaveResult()); }

@@ -6,8 +6,8 @@ using BdoGrindTracker.Core;
 namespace BdoGrindTracker.App.Analysis;
 
 /// <summary>
-/// Normal and rare maintain separate accounts. A positive normal total takes
-/// priority over its rare counterpart, as in the verified Garmoth model.
+/// Normal and special logs contain independent physical drops and their complete
+/// lifetime estimates are added. The rare-delta overload preserves historical replay rules.
 /// Summation differences are audit records, not newly arrived physical drops.
 /// </summary>
 internal sealed class LifetimeLootProjectionComposer
@@ -19,6 +19,35 @@ internal sealed class LifetimeLootProjectionComposer
     private DateTimeOffset? _latestArrival;
     private long _revision;
 
+    public (LootTotalsProjection Projection, IReadOnlyList<TrackedLootEvent> Events) Combine(
+        LifetimeSnapshot normal, LifetimeSnapshot special, DateTimeOffset timestamp)
+    {
+        ArgumentNullException.ThrowIfNull(normal);
+        ArgumentNullException.ThrowIfNull(special);
+        var totals = new Dictionary<string, long>(StringComparer.Ordinal);
+        AddSource(normal);
+        AddSource(special);
+        var count = checked(normal.SupportedDropCount + special.SupportedDropCount);
+        var result = CreateProjection(totals, count, Max(normal.LatestArrivalAt, special.LatestArrivalAt), timestamp);
+        Commit(result.Projection);
+        return result;
+
+        void AddSource(LifetimeSnapshot source)
+        {
+            ArgumentNullException.ThrowIfNull(source.Totals);
+            if (source.SupportedDropCount < 0)
+                throw new ArgumentException("Source drop counts cannot be negative.");
+            foreach (var (name, amount) in source.Totals)
+            {
+                if (string.IsNullOrWhiteSpace(name) || name.Length > 4096 || amount < 0)
+                    throw new ArgumentException("Invalid source loot totals.");
+                if (amount > 0) totals[name] = checked(totals.GetValueOrDefault(name) + amount);
+            }
+        }
+    }
+
+    // Compatibility for recordings made before independent special-log lifetimes:
+    // a positive normal total took priority over the same rare item.
     public (LootTotalsProjection Projection, IReadOnlyList<TrackedLootEvent> Events) Combine(
         LifetimeSnapshot normal, IReadOnlyList<CompanionRareCountDelta> rareChanges, DateTimeOffset timestamp)
     {
@@ -61,6 +90,17 @@ internal sealed class LifetimeLootProjectionComposer
         }
         var count = checked(normal.SupportedDropCount + rareLots
             .Where(pair => normal.Totals.GetValueOrDefault(pair.Key) <= 0).Sum(pair => pair.Value.Count));
+        var result = CreateProjection(totals, count, latest, timestamp);
+        // Commit only after the complete replacement and all audit deltas validate.
+        _rare = rare;
+        _rareLots = rareLots;
+        Commit(result.Projection);
+        return result;
+    }
+
+    private (LootTotalsProjection Projection, IReadOnlyList<TrackedLootEvent> Events) CreateProjection(
+        Dictionary<string, long> totals, int count, DateTimeOffset? latest, DateTimeOffset timestamp)
+    {
         var differences = totals.Keys.Concat(_previous.Keys).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)
             .Select(name => (Name: name, Amount: checked(totals.GetValueOrDefault(name) - _previous.GetValueOrDefault(name))))
             .Where(pair => pair.Amount != 0).ToArray();
@@ -81,14 +121,15 @@ internal sealed class LifetimeLootProjectionComposer
                 remaining -= delta;
             }
         }
-        // Commit only after the complete replacement and all audit deltas validate.
-        _rare = rare;
-        _rareLots = rareLots;
-        _previous = projection.Totals;
-        _dropCount = count;
-        _latestArrival = latest;
-        _revision = revision;
         return (projection, events.AsReadOnly());
+    }
+
+    private void Commit(LootTotalsProjection projection)
+    {
+        _previous = projection.Totals;
+        _dropCount = projection.ConfirmedDropCount;
+        _latestArrival = projection.LatestArrivalAt;
+        _revision = projection.Revision;
     }
 
     public void Reset()

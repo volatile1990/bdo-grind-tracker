@@ -10,7 +10,8 @@ public sealed class LootSpot
     public LootSpot(
         string id,
         string displayName,
-        IEnumerable<string> allowedItems)
+        IEnumerable<string> allowedItems,
+        string? primaryTrashItemName = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
         ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
@@ -33,6 +34,7 @@ public sealed class LootSpot
 
         Id = id;
         DisplayName = displayName;
+        PrimaryTrashItemName = primaryTrashItemName;
         AllowedItems = Array.AsReadOnly(items);
         allowedItemSet = new HashSet<string>(items, StringComparer.Ordinal);
     }
@@ -40,6 +42,8 @@ public sealed class LootSpot
     public string Id { get; }
 
     public string DisplayName { get; }
+
+    public string? PrimaryTrashItemName { get; }
 
     public IReadOnlyList<string> AllowedItems { get; }
 
@@ -51,11 +55,17 @@ public sealed class LootSpot
 }
 
 /// <summary>
-/// Compile-time loot pools for the supported Inner Edania spots, including shared drops.
+/// Compile-time loot pools for the supported monster zones, including shared drops.
 /// Event loot is listed separately and is always allowed alongside the detected spot's loot.
 /// </summary>
-public static class LootSpotCatalog
+public static partial class LootSpotCatalog
 {
+    public const string AetherionId = "aetherion";
+    public const string NymphamareId = "nymphamare";
+    public const string OrbitaId = "orbita";
+    public const string TenebraumId = "tenebraum";
+    public const string ZephyrosId = "zephyros";
+    public const string DarkEnergyFloodlandsId = "dark-energy-floodlands";
     public const string AphrodonId = "aphrodon";
     public const string HermesiaId = "hermesia";
     public const string MagaiaId = "magaia";
@@ -97,6 +107,80 @@ public static class LootSpotCatalog
 
     private static readonly LootSpot[] SupportedSpots =
     [
+        new(
+            AetherionId,
+            "Aetherion Castle",
+            WithOuterSharedItems(
+                "WON Crystal of Dusky Ruin",
+                "WON Crystal of Ruin",
+                "Primordial Fragment",
+                "Distorted Fragment of Origin",
+                "Silent Fragment of Origin",
+                "Distorted Crystal of Origin",
+                "Silent Crystal of Origin",
+                "Chilled Soul Piece")),
+        new(
+            NymphamareId,
+            "Nymphamaré Castle",
+            WithOuterSharedItems(
+                "BON Crystal of Dusky Ruin",
+                "BON Crystal of Ruin",
+                "Crystallized Energy of Endtimes",
+                "Distorted Fragment of Origin",
+                "Silent Fragment of Origin",
+                "Distorted Crystal of Origin",
+                "Silent Crystal of Origin",
+                "Contaminated Coral Piece")),
+        new(
+            OrbitaId,
+            "Orbita Castle",
+            WithOuterSharedItems(
+                "JIN Crystal of Dusky Ruin",
+                "JIN Crystal of Ruin",
+                "Crystallized Energy of Endtimes",
+                "Distorted Fragment of Origin",
+                "Silent Fragment of Origin",
+                "Distorted Crystal of Origin",
+                "Silent Crystal of Origin",
+                "Lightlost Core")),
+        new(
+            TenebraumId,
+            "Tenebraum Castle",
+            WithOuterSharedItems(
+                "HAN Crystal of Dusky Ruin",
+                "HAN Crystal of Ruin",
+                "Crystallized Energy of Endtimes",
+                "Herald's Crystal",
+                "Flawless Herald's Crystal",
+                "Distorted Fragment of Origin",
+                "Silent Fragment of Origin",
+                "Distorted Crystal of Origin",
+                "Silent Crystal of Origin",
+                "Ancient Soldier Fragment")),
+        new(
+            ZephyrosId,
+            "Zephyros Castle",
+            WithOuterSharedItems(
+                "Sealed Black Magic Crystal",
+                "HAN Crystal of Dusky Ruin",
+                "HAN Crystal of Ruin",
+                "Crystallized Energy of Endtimes",
+                "Herald's Crystal",
+                "Flawless Herald's Crystal",
+                "Distorted Fragment of Origin",
+                "Silent Fragment of Origin",
+                "Distorted Crystal of Origin",
+                "Silent Crystal of Origin",
+                "Hardened Lava Chunk")),
+        new(
+            DarkEnergyFloodlandsId,
+            "Dark Energy Floodlands",
+            WithOuterSharedItems(
+                "Flawless Herald's Crystal",
+                "HAN Crystal of Dusky Ruin",
+                "Silent Crystal of Origin",
+                "Tainted Armor Fragment",
+                "Faded Dark Energy")),
         new(
             AphrodonId,
             "Aphrodon Temple",
@@ -235,6 +319,7 @@ public static class LootSpotCatalog
                 "Fusion Shard",
                 "Corrupt Oil of Immortality",
                 "Broken Gloves of the Void")),
+        .. CreateScreenshotSpots(),
     ];
 
     private static readonly HashSet<string> EventItemSet = new(
@@ -274,6 +359,15 @@ public static class LootSpotCatalog
         spotItems
             .Concat(SharedGlobalItemNames)
             .Concat(SharedHighestTierItemNames)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+    // Outer Edania does not inherit the Inner Edania #HighestTier pool.
+    // All six outer zones list all four Deboreka accessories as main loot.
+    private static string[] WithOuterSharedItems(params string[] spotItems) =>
+        spotItems
+            .Concat(SharedGlobalItemNames)
+            .Concat(["Deboreka Necklace", "Deboreka Earring", "Deboreka Belt", "Deboreka Ring"])
             .Distinct(StringComparer.Ordinal)
             .ToArray();
 }

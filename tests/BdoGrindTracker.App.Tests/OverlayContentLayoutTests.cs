@@ -34,15 +34,14 @@ public sealed class OverlayContentLayoutTests
     [InlineData("dashboard")]
     [InlineData("loot")]
     [InlineData("loot-strip")]
-    public void CanvasResizeMatchesResizingEachIndividualModule(string preset)
+    public void CanvasResizePreservesEachModuleContentLayout(string preset)
     {
         var original = OverlayCatalog.Preset(preset);
         var resized = OverlayLayout.ResizeCanvas(original, original.Width * 1.25, original.Height * .75);
         for (var i = 0; i < original.Widgets.Count; i++)
         {
             var widget = original.Widgets[i];
-            var direct = OverlayLayout.ResizeWidget(widget, widget.Width * 1.25, widget.Height * .75);
-            Assert.Equal(OverlayContentLayout.Create(direct, OverlaySnapshot.Demo),
+            Assert.Equal(OverlayContentLayout.Create(widget, OverlaySnapshot.Demo),
                 OverlayContentLayout.Create(resized.Widgets[i], OverlaySnapshot.Demo));
         }
     }
@@ -73,8 +72,8 @@ public sealed class OverlayContentLayoutTests
         var restored = OverlayLayout.ResizeCanvas(loaded, original.Width, original.Height);
         for (var i = 0; i < original.Widgets.Count; i++)
         {
-            Assert.Equal(original.Widgets[i].Width, restored.Widgets[i].ContentWidth);
-            Assert.Equal(original.Widgets[i].Height, restored.Widgets[i].ContentHeight);
+            Assert.Equal(original.Widgets[i].ContentWidth, restored.Widgets[i].ContentWidth);
+            Assert.Equal(original.Widgets[i].ContentHeight, restored.Widgets[i].ContentHeight);
             var first = OverlayContentLayout.Create(original.Widgets[i], OverlaySnapshot.Demo);
             var last = OverlayContentLayout.Create(restored.Widgets[i], OverlaySnapshot.Demo);
             Assert.Equal(first.Scale, last.Scale, 10);

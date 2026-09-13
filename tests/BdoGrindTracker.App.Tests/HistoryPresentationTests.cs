@@ -12,7 +12,7 @@ public sealed class HistoryPresentationTests
     [Fact]
     public void SpotProfilesMatchTheInGameValuesAndProvidedTraits()
     {
-        Assert.Collection(LootSpotPresentationCatalog.Profiles,
+        Assert.Collection(LootSpotPresentationCatalog.Profiles.Take(12),
             profile => AssertProfile(profile, LootSpotCatalog.AphrodonId, 2090, 2120, 810,
                 "Branch of Abundance", 155_127, "#Knockdown/Bound", "Adamantine", "adamantine.png"),
             profile => AssertProfile(profile, LootSpotCatalog.HermesiaId, 2220, 2250, 830,
@@ -24,27 +24,46 @@ public sealed class HistoryPresentationTests
             profile => AssertProfile(profile, LootSpotCatalog.ScalesOfJudgmentId, 2455, 2485, 860,
                 "Elion Follower's Mark", 186_458, "#PartyOf3", "Giant", "giant.png"),
             profile => AssertProfile(profile, LootSpotCatalog.EventHorizonId, 2570, 2600, 870,
-                "Broken Gloves of the Void", 196_501, "#FeverPowerfulMobs", "Giant", "giant.png"));
+                "Broken Gloves of the Void", 196_501, "#FeverPowerfulMobs", "Giant", "giant.png"),
+            profile => AssertProfile(profile, LootSpotCatalog.AetherionId, 1565, 1595, 615,
+                "Chilled Soul Piece", 105_640, "#Stun/Stiffness/Freezing", "Giant", "giant.png"),
+            profile => AssertProfile(profile, LootSpotCatalog.NymphamareId, 1660, 1690, 720,
+                "Contaminated Coral Piece", 116_200, "#Stun/Stiffness/Freezing", "Giant", "giant.png"),
+            profile => AssertProfile(profile, LootSpotCatalog.OrbitaId, 1770, 1800, 740,
+                "Lightlost Core", 140_600, "#Knockdown/Bound", "Adamantine", "adamantine.png"),
+            profile => AssertProfile(profile, LootSpotCatalog.TenebraumId, 1890, 1920, 760,
+                "Ancient Soldier Fragment", 147_630, "#Knockback/Floating", "Fighting Spirit", "fighting-spirit.png"),
+            profile => AssertProfile(profile, LootSpotCatalog.ZephyrosId, 1980, 2010, 800,
+                "Hardened Lava Chunk", 126_980, "#Knockdown/Bound", "Adamantine", "adamantine.png"),
+            profile => AssertProfile(profile, LootSpotCatalog.DarkEnergyFloodlandsId, 1850, 1880, 760,
+                "Tainted Armor Fragment", 100_507, "#PartyOf3", "Adamantine", "adamantine.png"));
 
         Assert.All(LootSpotPresentationCatalog.Profiles, profile =>
         {
-            Assert.Contains("#CombatEXP", profile.Traits);
-            Assert.Contains("#HighestTier", profile.Traits);
+            if (profile.RegionName == "Inner Edania")
+                Assert.Contains("#HighestTier", profile.Traits);
+            else if (profile.RegionName == "Outer Edania")
+            {
+                Assert.Contains("#CombatEXP", profile.Traits);
+                Assert.DoesNotContain("#HighestTier", profile.Traits);
+            }
+            if (profile.BackgroundFileName is { } background)
+                Assert.True(File.Exists(Path.Combine(AppContext.BaseDirectory,
+                    "wwwroot", "assets", "spot-backgrounds", background)),
+                    $"Packaged background is missing: {background}");
             Assert.True(File.Exists(Path.Combine(AppContext.BaseDirectory,
-                "data", "spot-backgrounds", profile.BackgroundFileName)),
-                $"Packaged background is missing: {profile.BackgroundFileName}");
-            Assert.True(File.Exists(Path.Combine(AppContext.BaseDirectory,
-                "data", "spot-icons", profile.IconFileName)),
+                "wwwroot", "assets", "spot-icons", profile.IconFileName)),
                 $"Packaged spot icon is missing: {profile.IconFileName}");
+            if (profile.RecommendedCrystalFileName is { } crystal)
+                Assert.True(File.Exists(Path.Combine(AppContext.BaseDirectory,
+                    "wwwroot", "assets", "crystal-icons", crystal)),
+                    $"Packaged crystal icon is missing: {crystal}");
             Assert.True(File.Exists(Path.Combine(AppContext.BaseDirectory,
-                "data", "crystal-icons", profile.RecommendedCrystalFileName)),
-                $"Packaged crystal icon is missing: {profile.RecommendedCrystalFileName}");
-            Assert.True(File.Exists(Path.Combine(AppContext.BaseDirectory,
-                "data", "icons", AssetNames.ItemSlug(profile.TrashItemName) + ".png")),
+                "wwwroot", "assets", "icons", AssetNames.ItemSlug(profile.TrashItemName) + ".png")),
                 $"Packaged trash icon is missing: {profile.TrashItemName}");
         });
         Assert.True(File.Exists(Path.Combine(AppContext.BaseDirectory,
-            "data", "ui-icons", "silver.png")), "Packaged silver UI icon is missing.");
+            "wwwroot", "assets", "ui-icons", "silver.png")), "Packaged silver UI icon is missing.");
     }
 
 
@@ -153,6 +172,45 @@ public sealed class HistoryPresentationTests
         Assert.Equal([30_000m, 10_000m, 20_000m], charts.TrashPerHour);
         Assert.Equal([30_000m, 10_000m, 20_000m], charts.RecentFiveTrashPerHour);
         Assert.Equal([30_000m, 20_000m, 10_000m], charts.BestFiveTrashPerHour);
+    }
+
+    [Fact]
+    public void EverySupportedSpotHasOneProfileAndUsesItsOwnPrimaryTrash()
+    {
+        var profiles = LootSpotPresentationCatalog.Profiles;
+        Assert.Equal(LootSpotCatalog.Spots.Select(spot => spot.Id).Order(), profiles.Select(profile => profile.SpotId).Order());
+        Assert.Equal(profiles.Count, profiles.Select(profile => profile.SpotId).Distinct().Count());
+        Assert.All(profiles, profile =>
+        {
+            var spot = LootSpotCatalog.Spots.Single(spot => spot.Id == profile.SpotId);
+            Assert.Contains(profile.TrashItemName, spot.AllowedItems);
+            Assert.False(string.IsNullOrWhiteSpace(profile.RegionName));
+        });
+        Assert.Null(LootSpotPresentationCatalog.GetRequired("dehkia-ash-forest-unspecified").MaxApLimit);
+        Assert.Equal(1350, LootSpotPresentationCatalog.GetRequired("dehkia-ash-forest").MaxApLimit);
+        Assert.Equal(1540, LootSpotPresentationCatalog.GetRequired("dehkia-ii-ash-forest").MaxApLimit);
+        Assert.Null(LootSpotPresentationCatalog.GetRequired("winter-tree-fossil-unspecified").MaxApLimit);
+    }
+
+    [Fact]
+    public void FloodlandsGuidanceUsesPartyTraitsAndItsPrimaryTrash()
+    {
+        var profile = LootSpotPresentationCatalog.GetRequired(LootSpotCatalog.DarkEnergyFloodlandsId);
+        Assert.DoesNotContain("#MarnisRealmPrivate", profile.Traits);
+        Assert.Contains("#PartyOf3", profile.Traits);
+        Assert.Equal("Tainted Armor Fragment", profile.TrashItemName);
+
+        var entry = CreateEntry(profile.SpotId, profile.TrashItemName, 10,
+            DateTimeOffset.UtcNow, totals: new Dictionary<string, long>
+            {
+                [profile.TrashItemName] = 10,
+                ["Faded Dark Energy"] = 3
+            });
+        var columns = HistoryPresentation.BuildLootColumns(profile, [entry],
+            LootPriceCatalog.FixedSnapshot("eu"), SilverTaxOptions.Default);
+        var bonusTrash = Assert.Single(columns, column => column.ItemName == "Faded Dark Energy");
+        Assert.Equal(3, bonusTrash.TotalQuantity);
+        Assert.Equal(3 * 597_680m, bonusTrash.SilverPerHour);
     }
 
     [Fact]

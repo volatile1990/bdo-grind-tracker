@@ -41,7 +41,7 @@
                 @foreach (var session in chronological.Skip((_page - 1) * PageSize).Take(PageSize))
                 {
                     <details class="chronological-session-card" @key="session.SessionId">
-                        <summary class="chronological-session-header" style="@("background-image:linear-gradient(90deg,#111820ef,#111820cc),url('assets/spot-backgrounds/" + Profile(session.SpotId)?.BackgroundFileName + "')")">
+                        <summary class="chronological-session-header" style="@SpotBackgroundStyle(Profile(session.SpotId), shaded: true)">
                             <span class="chronological-date"><strong>@session.StartedAt.ToLocalTime().ToString("dd.MM.yy", German)</strong><small>@session.StartedAt.ToLocalTime().ToString("HH:mm 'Uhr'", German)</small></span>
                             <span class="chronological-spot"><AssetImage Src="@("assets/spot-icons/" + Profile(session.SpotId)?.IconFileName)" Alt="" Class="chronological-spot-icon" /><span><strong>@SpotName(session.SpotId)</strong><small>@(session.CharacterClass ?? "Klasse nicht erkannt")</small>@if (session.GarmothLocallyModified) { <small class="session-local-correction">Lokal korrigiert; Garmoth unverändert</small> }</span></span>
                             <span class="chronological-loot-preview">
@@ -77,8 +77,8 @@
                 var sessions = filtered.Where(session => session.SpotId == profile.SpotId).ToArray();
                 var metrics = HistoryPresentation.CalculateMetrics(profile, sessions);
                 <button class="spot-card" @onclick="() => OpenSpot(profile.SpotId)">
-                    <div class="spot-card-art" style="@("background-image:url('assets/spot-backgrounds/" + profile.BackgroundFileName + "')")"><span class="spot-session-count">@sessions.Length @(sessions.Length == 1 ? "Session" : "Sessions")</span><AssetImage Src="@("assets/spot-icons/" + profile.IconFileName)" Alt="" Class="spot-card-emblem" Fallback="pin" /><div><span class="eyebrow">INNER EDANIA</span><h3>@SpotName(profile.SpotId)</h3></div></div>
-                    <div class="spot-card-body"><div class="spot-card-stats"><div><span>Ø SILBER / H</span><strong>@(sessions.Length > 0 ? Silver(metrics.AverageSilverPerHour) : "—")@PartialMark(sessions)</strong></div><div><span>TRASH / H</span><strong>@(sessions.Length > 0 ? Number(metrics.TrashPerHour) : "—")</strong></div></div><div class="spot-card-footer"><span>@profile.RecommendedAp AP <span>·</span> @profile.RecommendedDp DP</span><span>Spot ansehen <AppIcon Name="arrow" /></span></div></div>
+                    <div class="spot-card-art" style="@SpotBackgroundStyle(profile)"><span class="spot-session-count">@sessions.Length @(sessions.Length == 1 ? "Session" : "Sessions")</span><AssetImage Src="@("assets/spot-icons/" + profile.IconFileName)" Alt="" Class="spot-card-emblem" Fallback="pin" /><div><span class="eyebrow">@profile.RegionName.ToUpperInvariant()</span><h3>@SpotName(profile.SpotId)</h3></div></div>
+                    <div class="spot-card-body"><div class="spot-card-stats"><div><span>Ø SILBER / H</span><strong>@(sessions.Length > 0 ? Silver(metrics.AverageSilverPerHour) : "—")@PartialMark(sessions)</strong></div><div><span>TRASH / H</span><strong>@(sessions.Length > 0 ? Number(metrics.TrashPerHour) : "—")</strong></div></div><div class="spot-card-footer"><span>@SpotGuidanceSummary(profile)</span><span>Spot ansehen <AppIcon Name="arrow" /></span></div></div>
                 </button>
             }
         </div>
@@ -90,7 +90,31 @@
         var sessions = visibleSessions;
         var metrics = HistoryPresentation.CalculateMetrics(profile, sessions);
         var chart = HistoryPresentation.BuildChartData(profile, sessions);
-        <section class="spot-detail-hero" style="@("background-image:url('assets/spot-backgrounds/" + profile.BackgroundFileName + "')")"><div class="hero-shade"></div><div class="spot-detail-content"><div class="spot-detail-identity"><AssetImage Src="@("assets/spot-icons/" + profile.IconFileName)" Alt="" Class="spot-emblem" /><div><span class="eyebrow">SPOT-GUIDE</span><h2>@SpotName(_spotId)</h2><p>@ItemLabel(profile.TrashItemName) · @Number(profile.TrashSilver) Silber / Stück</p></div></div><div class="spot-guidance"><div><span>EMPFOHLENE AP</span><strong>@Number(profile.RecommendedAp)</strong><small>AP-Limit @Number(profile.MaxApLimit)</small></div><div><span>EMPFOHLENE DP</span><strong>@Number(profile.RecommendedDp)</strong><small>Verteidigung</small></div><div class="crystal-guidance"><AssetImage Src="@("assets/crystal-icons/" + profile.RecommendedCrystalFileName)" Alt="" Class="crystal-image" Fallback="spark" /><div><span>KRISTALL-EMPFEHLUNG</span><strong>@profile.RecommendedCrystalName</strong><small>@string.Join(" · ", profile.Traits.Where(LootSpotPresentationCatalog.IsResistanceTrait).Select(Trait))</small></div></div></div><div class="trait-list">@foreach (var trait in profile.Traits.Where(trait => !LootSpotPresentationCatalog.IsResistanceTrait(trait))) { <span>@Trait(trait)</span> }</div></div></section>
+        <section class="spot-detail-hero" style="@SpotBackgroundStyle(profile)">
+            <div class="hero-shade"></div>
+            <div class="spot-detail-content">
+                <div class="spot-detail-identity"><AssetImage Src="@("assets/spot-icons/" + profile.IconFileName)" Alt="" Class="spot-emblem" /><div><span class="eyebrow">SPOT-GUIDE</span><h2>@SpotName(_spotId)</h2><p>@ItemLabel(profile.TrashItemName) · @Number(profile.TrashSilver) Silber / Stück</p></div></div>
+                <div class="spot-guidance">
+                    @if (profile.RecommendedAp is { } recommendedAp)
+                    {
+                        <div><span>EMPFOHLENE AP</span><strong>@Number(recommendedAp)</strong>@if (profile.MaxApLimit is { } cap) { <small>AP-Limit @Number(cap)</small> }</div>
+                    }
+                    else if (profile.MaxApLimit is { } knownLimit)
+                    {
+                        <div><span>AP-LIMIT</span><strong>@Number(knownLimit)</strong><small>Gesamte AP</small></div>
+                    }
+                    @if (profile.RecommendedDp is { } recommendedDp)
+                    {
+                        <div><span>EMPFOHLENE DP</span><strong>@Number(recommendedDp)</strong><small>Verteidigung</small></div>
+                    }
+                    @if (profile.RecommendedCrystalName is { } crystal && profile.RecommendedCrystalFileName is { } crystalFile)
+                    {
+                        <div class="crystal-guidance"><AssetImage Src="@("assets/crystal-icons/" + crystalFile)" Alt="" Class="crystal-image" Fallback="spark" /><div><span>KRISTALL-EMPFEHLUNG</span><strong>@crystal</strong><small>@string.Join(" · ", profile.Traits.Where(LootSpotPresentationCatalog.IsResistanceTrait).Select(Trait))</small></div></div>
+                    }
+                </div>
+                <div class="trait-list">@foreach (var trait in profile.Traits.Where(trait => !LootSpotPresentationCatalog.IsResistanceTrait(trait))) { <span>@Trait(trait)</span> }</div>
+            </div>
+        </section>
 
         <p class="valuation-note">Bewertung mit aktuellen Preisen und Steuereinstellungen · Silber pro Stunde berücksichtigt Lootmenge und Grindzeit.</p>
         <div class="history-metrics-grid">

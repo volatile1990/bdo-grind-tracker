@@ -1,9 +1,135 @@
 using BdoGrindTracker.App.Persistence;
+using BdoGrindTracker.App.Integrations.Garmoth;
 
 namespace BdoGrindTracker.App.Tests;
 
 public sealed class LegacyDataImportTests
 {
+    [Fact]
+    public void CompleteMigrationIncludesCheckpointOverlaysTemplatesAndUnfinishedUploadIntent()
+    {
+        using var fixture = new Fixture();
+        fixture.WriteSource("overlay.json", "{\"Overlays\":[]}");
+        fixture.WriteSource("overlay-templates.json", "{\"Version\":1,\"Templates\":[]}");
+        var session = CurrentSessionStoreTests.Example();
+        new CurrentSessionStore(fixture.SourceFile(CurrentSessionStore.FileName)).Save(session);
+        var draft = Draft(session.SessionId);
+        var attempt = new GarmothUploadJournalStore(fixture.SourceFile(GarmothUploadJournalStore.FileName)).Begin(draft);
+        var before = fixture.SnapshotSource();
+
+        LegacyDataImport.Import(fixture.Source, fixture.Destination);
+
+        Assert.Equal(session.SessionId, new CurrentSessionStore(fixture.TargetFile(CurrentSessionStore.FileName)).Load()!.SessionId);
+        foreach (var name in new[] { "overlay.json", "overlay-templates.json" })
+            Assert.Equal(File.ReadAllBytes(fixture.SourceFile(name)), File.ReadAllBytes(fixture.TargetFile(name)));
+        var journal = new GarmothUploadJournalStore(fixture.TargetFile(GarmothUploadJournalStore.FileName));
+        Assert.Equal(attempt, Assert.Single(journal.Load()).AttemptId);
+        Assert.True(Assert.Single(journal.Load()).BlocksAfterRestart);
+        Assert.Throws<InvalidOperationException>(() => journal.Begin(draft));
+        fixture.AssertSourceUnchanged(before);
+    }
+
+    [Fact]
+    public void VersionOneMigrationAddsMissingStateWithoutResurrectingDeletedOriginalFiles()
+    {
+        using var fixture = new Fixture();
+        fixture.WriteSource("settings.json", "legacy settings");
+        fixture.WriteSource("garmoth-api-key.dpapi", "old key");
+        fixture.WriteSource("loot-history-v1.json", "unchanged history");
+        fixture.WriteSource("overlay.json", "legacy overlay");
+        fixture.WriteSource("overlay-templates.json", "legacy templates");
+        Directory.CreateDirectory(fixture.Destination);
+        File.WriteAllText(fixture.TargetFile(LegacyDataImport.PreviousCompletionFile), "1\n");
+        File.WriteAllText(fixture.TargetFile("loot-history-v1.json"), "unchanged history");
+        File.WriteAllText(fixture.TargetFile("overlay.json"), "Store overlay");
+        var session = CurrentSessionStoreTests.Example();
+        new CurrentSessionStore(fixture.SourceFile(CurrentSessionStore.FileName)).Save(session);
+        var draft = Draft(session.SessionId);
+        new GarmothUploadJournalStore(fixture.SourceFile(GarmothUploadJournalStore.FileName)).Begin(draft);
+
+        LegacyDataImport.Import(fixture.Source, fixture.Destination);
+
+        Assert.False(File.Exists(fixture.TargetFile("settings.json")));
+        Assert.False(File.Exists(fixture.TargetFile("garmoth-api-key.dpapi")));
+        Assert.Equal("Store overlay", File.ReadAllText(fixture.TargetFile("overlay.json")));
+        Assert.Equal("legacy templates", File.ReadAllText(fixture.TargetFile("overlay-templates.json")));
+        Assert.Equal(session.SessionId, new CurrentSessionStore(fixture.TargetFile(CurrentSessionStore.FileName)).Load()!.SessionId);
+        Assert.True(Assert.Single(new GarmothUploadJournalStore(fixture.TargetFile(GarmothUploadJournalStore.FileName)).Load()).BlocksAfterRestart);
+        Assert.Equal("2\n", File.ReadAllText(fixture.TargetFile(LegacyDataImport.CompletionFile)));
+    }
+
+    [Theory]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    [InlineData(true, false)]
+    public void AlreadyUsedStoreKeepsItsHistoryAndPreservesOldCheckpointAsSeparateBackup(
+        bool previousImport, bool hasStoreHistory)
+    {
+        using var fixture = new Fixture();
+        fixture.WriteSource("loot-history-v1.json", "legacy history");
+        var session = CurrentSessionStoreTests.Example();
+        new CurrentSessionStore(fixture.SourceFile(CurrentSessionStore.FileName)).Save(session);
+        Directory.CreateDirectory(fixture.Destination);
+        if (previousImport) File.WriteAllText(fixture.TargetFile(LegacyDataImport.PreviousCompletionFile), "1\n");
+        if (hasStoreHistory) File.WriteAllText(fixture.TargetFile("loot-history-v1.json"), "newer Store history");
+
+        LegacyDataImport.Import(fixture.Source, fixture.Destination);
+
+        Assert.False(File.Exists(fixture.TargetFile(CurrentSessionStore.FileName)));
+        if (hasStoreHistory) Assert.Equal("newer Store history", File.ReadAllText(fixture.TargetFile("loot-history-v1.json")));
+        else Assert.False(File.Exists(fixture.TargetFile("loot-history-v1.json")));
+        Assert.Equal(File.ReadAllBytes(fixture.SourceFile(CurrentSessionStore.FileName)),
+            File.ReadAllBytes(fixture.TargetFile(LegacyDataImport.PreservedCurrentSessionFile)));
+    }
+
+    [Fact]
+    public void LockedJournalCannotLeaveImportedHistoryWithoutItsUploadGuard()
+    {
+        using var fixture = new Fixture();
+        fixture.WriteSource("loot-history-v1.json", "legacy history");
+        var draft = Draft(Guid.NewGuid());
+        new GarmothUploadJournalStore(fixture.SourceFile(GarmothUploadJournalStore.FileName)).Begin(draft);
+        using (var locked = new FileStream(fixture.SourceFile(GarmothUploadJournalStore.FileName),
+            FileMode.Open, FileAccess.Read, FileShare.None))
+            Assert.Throws<IOException>(() => LegacyDataImport.Import(fixture.Source, fixture.Destination));
+        Assert.False(File.Exists(fixture.TargetFile("loot-history-v1.json")));
+        Assert.False(File.Exists(fixture.TargetFile(LegacyDataImport.CompletionFile)));
+        LegacyDataImport.Import(fixture.Source, fixture.Destination);
+        Assert.Equal("legacy history", File.ReadAllText(fixture.TargetFile("loot-history-v1.json")));
+        Assert.Throws<InvalidOperationException>(() =>
+            new GarmothUploadJournalStore(fixture.TargetFile(GarmothUploadJournalStore.FileName)).Begin(draft));
+    }
+
+    [Fact]
+    public void ExistingJournalAndImportedJournalKeepAllPossiblyCommittedAttempts()
+    {
+        using var fixture = new Fixture();
+        Directory.CreateDirectory(fixture.Source);
+        Directory.CreateDirectory(fixture.Destination);
+        var oldDraft = Draft(Guid.NewGuid());
+        var localDraft = Draft(Guid.NewGuid());
+        var source = new GarmothUploadJournalStore(fixture.SourceFile(GarmothUploadJournalStore.FileName));
+        var target = new GarmothUploadJournalStore(fixture.TargetFile(GarmothUploadJournalStore.FileName));
+        var oldAttempt = source.Begin(oldDraft);
+        File.Copy(fixture.SourceFile(GarmothUploadJournalStore.FileName), fixture.TargetFile(GarmothUploadJournalStore.FileName));
+        target.Complete(oldAttempt, GarmothUploadStatus.Rejected);
+        var localAttempt = target.Begin(localDraft);
+        target.Complete(localAttempt, GarmothUploadStatus.Succeeded);
+
+        LegacyDataImport.Import(fixture.Source, fixture.Destination);
+        LegacyDataImport.Import(fixture.Source, fixture.Destination);
+
+        Assert.Equal(2, target.Load().Count);
+        Assert.All(target.Load(), attempt => Assert.True(attempt.BlocksAfterRestart));
+        Assert.Throws<InvalidOperationException>(() => target.Begin(oldDraft));
+        Assert.Throws<InvalidOperationException>(() => target.Begin(localDraft));
+    }
+
+    private static GarmothSessionDraft Draft(Guid sessionId) => new(Guid.NewGuid(), "hermesia", "Warrior",
+        GarmothSpecialization.Succession, TimeSpan.FromMinutes(2),
+        new Dictionary<string, long> { ["Black Crystal Fragment"] = 27 }, 1000, DateTimeOffset.UtcNow)
+        { SourceSessionId = sessionId };
+
     [Fact]
     public void ImportCopiesPersistentStateAndDpapiKeyWithoutChangingSourceOrImportingCaches()
     {

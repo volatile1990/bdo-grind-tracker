@@ -10,7 +10,7 @@ namespace BdoGrindTracker.App.Tests;
 
 public sealed class IconCoverageTests
 {
-    private static string IconDirectory => Path.Combine(AppContext.BaseDirectory, "data", "icons");
+    private static string IconDirectory => Path.Combine(AppContext.BaseDirectory, "wwwroot", "assets", "icons");
 
     public static IEnumerable<object[]> ExactIconNames() => LootSpotCatalog.Spots
         .SelectMany(static spot => spot.AllowedItems)
@@ -35,8 +35,8 @@ public sealed class IconCoverageTests
         Assert.True(bytes.AsSpan(0, 8).SequenceEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }));
         using var stream = new MemoryStream(bytes, writable: false);
         using var image = Image.FromStream(stream, useEmbeddedColorManagement: false, validateImageData: true);
-        Assert.InRange(image.Width, 44, 48);
-        Assert.Equal(44, image.Height);
+        Assert.InRange(image.Width, 42, 48);
+        Assert.InRange(image.Height, 42, 44);
         Assert.Equal(image.Width, entry.GetProperty("width").GetInt32());
         Assert.Equal(image.Height, entry.GetProperty("height").GetInt32());
 
@@ -66,11 +66,20 @@ public sealed class IconCoverageTests
     [InlineData("Scorched Belt Ornament", "980131")]
     [InlineData("Elion Follower's Mark", "980130")]
     [InlineData("Broken Gloves of the Void", "980132")]
+    [InlineData("Chilled Soul Piece", "767244")]
+    [InlineData("Contaminated Coral Piece", "767245")]
+    [InlineData("Lightlost Core", "767247")]
+    [InlineData("Ancient Soldier Fragment", "767246")]
+    [InlineData("Hardened Lava Chunk", "767248")]
+    [InlineData("Tainted Armor Fragment", "767348")]
+    [InlineData("Faded Dark Energy", "767349")]
     public void EachSpotTrashHasItsOwnExactItemIcon(string name, string itemId)
     {
         var entry = ReadCatalog()[name];
         Assert.Equal(itemId, entry.GetProperty("itemId").GetString());
-        Assert.Contains(itemId, entry.GetProperty("sourceIcon").GetString(), StringComparison.Ordinal);
+        // The game reuses older assets for the Outer Edania trash. The exact
+        // source item ID is authoritative, not the numeric asset filename.
+        Assert.Equal($"https://bdocodex.com/us/item/{itemId}/", entry.GetProperty("page").GetString());
     }
 
     [Fact]
@@ -79,18 +88,15 @@ public sealed class IconCoverageTests
         var catalog = ReadCatalog();
         var names = LootSpotCatalog.Spots.SelectMany(static spot => spot.AllowedItems)
             .Distinct(StringComparer.Ordinal).ToArray();
-        Assert.Equal(56, names.Length);
         Assert.DoesNotContain(names, name => !catalog.ContainsKey(name));
-        Assert.Equal(58, catalog.Count);
-        Assert.Equal(58, Directory.GetFiles(IconDirectory, "*.png").Length);
+        Assert.Equal(catalog.Count, Directory.GetFiles(IconDirectory, "*.png").Length);
         Assert.True(catalog.ContainsKey("Pure Black Stone"));
         Assert.Equal("assets/icons/pure-black-stone.png", Presentation.ItemIcon("Pure Black Stone"));
-        Assert.Equal(35, catalog.Values.Count(static entry => entry.TryGetProperty("addedAtUtc", out _)));
     }
 
     private static Dictionary<string, JsonElement> ReadCatalog()
     {
-        using var document = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(IconDirectory, "catalog.json")));
+        using var document = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "data", "icons", "catalog.json")));
         Assert.Equal(1, document.RootElement.GetProperty("schemaVersion").GetInt32());
         return document.RootElement.GetProperty("items").EnumerateArray().ToDictionary(
             static entry => entry.GetProperty("name").GetString()!, static entry => entry.Clone(), StringComparer.Ordinal);

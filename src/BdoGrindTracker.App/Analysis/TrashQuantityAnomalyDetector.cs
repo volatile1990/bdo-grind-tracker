@@ -23,7 +23,7 @@ internal sealed record TrashQuantityAnomaly(int BaselineQuantity, int TypicalQua
 /// Later revisions update an existing sample without adding another observation.
 /// This class neither changes a quantity nor rejects a drop.
 /// </summary>
-internal sealed class TrashQuantityAnomalyDetector
+internal sealed class TrashQuantityAnomalyDetector(LootSource source = LootSource.Normal)
 {
     private const int HistoryCapacity = 64;
     private const int MinimumHistorySamples = 8;
@@ -72,7 +72,7 @@ internal sealed class TrashQuantityAnomalyDetector
     public TrashQuantityAnomaly? Assess(string? spotId, LootObservation row)
     {
         ArgumentNullException.ThrowIfNull(row);
-        if (row.Source != LootSource.Normal || row.ItemName is null || row.RejectionReason is not null ||
+        if (row.Source != source || row.ItemName is null || row.RejectionReason is not null ||
             row.Quantity is not > 0 || row.IsAlignmentAnchor || row.UsesFixedUnitQuantity) return null;
         var association = TrashLootMinimumCatalog.Entries.FirstOrDefault(entry => entry.ItemName == row.ItemName &&
             (spotId is null || entry.SpotId == spotId));

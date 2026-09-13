@@ -19,23 +19,28 @@ internal sealed class GarmothGrindBenchmarkProvider : IGarmothGrindBenchmarkProv
     private readonly string? _cachePath;
     private readonly TimeProvider _time;
     private readonly TimeSpan _timeout;
+    private readonly Func<CancellationToken, Task<GarmothBenchmarkPayload>>? _readPayloads;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly object _sync = new();
     private readonly Dictionary<string, GrindBenchmark> _benchmarks = new(StringComparer.Ordinal);
     private bool _loaded;
 
-    public GarmothGrindBenchmarkProvider(string cachePath) : this(new HttpClientHandler
+    public GarmothGrindBenchmarkProvider(string cachePath,
+        Func<CancellationToken, Task<GarmothBenchmarkPayload>>? readPayloads = null) : this(new HttpClientHandler
     {
         AllowAutoRedirect = false, UseCookies = false,
-    }, cachePath) { }
+    }, cachePath, requestTimeout: readPayloads is null ? null : TimeSpan.FromSeconds(45),
+        readPayloads: readPayloads) { }
 
     internal GarmothGrindBenchmarkProvider(HttpMessageHandler handler, string? cachePath = null,
-        TimeProvider? timeProvider = null, TimeSpan? requestTimeout = null)
+        TimeProvider? timeProvider = null, TimeSpan? requestTimeout = null,
+        Func<CancellationToken, Task<GarmothBenchmarkPayload>>? readPayloads = null)
     {
         _http = new HttpClient(handler, true) { Timeout = Timeout.InfiniteTimeSpan };
         _cachePath = cachePath;
         _time = timeProvider ?? TimeProvider.System;
         _timeout = requestTimeout ?? TimeSpan.FromSeconds(10);
+        _readPayloads = readPayloads;
         if (_timeout <= TimeSpan.Zero || _timeout > TimeSpan.FromMinutes(1))
             throw new ArgumentOutOfRangeException(nameof(requestTimeout));
     }
@@ -62,10 +67,19 @@ internal sealed class GarmothGrindBenchmarkProvider : IGarmothGrindBenchmarkProv
             {
                 // Both sources must succeed: combining today's average with unverified old
                 // moderator thresholds would incorrectly mark the entire row as current.
-                var requests = new[] { FetchAsync(CollectiveUrl, deadline.Token), FetchAsync(MetadataUrl, deadline.Token) };
-                var payloads = await Task.WhenAll(requests).ConfigureAwait(false);
+                GarmothBenchmarkPayload payload;
+                if (_readPayloads is { } readPayloads)
+                    payload = await readPayloads(deadline.Token).ConfigureAwait(false);
+                else
+                {
+                    var requests = new[] { FetchAsync(CollectiveUrl, deadline.Token), FetchAsync(MetadataUrl, deadline.Token) };
+                    var payloads = await Task.WhenAll(requests).ConfigureAwait(false);
+                    payload = new(payloads[0], payloads[1]);
+                }
                 cancellationToken.ThrowIfCancellationRequested();
-                received = Parse(payloads[0], payloads[1], _time.GetUtcNow());
+                if (payload.Collective.Length > MaximumResponseBytes || payload.Metadata.Length > MaximumResponseBytes)
+                    throw new InvalidDataException("Garmoth response exceeds the maximum size.");
+                received = Parse(payload.Collective, payload.Metadata, _time.GetUtcNow());
                 if (received.Count == 0) return Failed("Garmoth liefert keine gültigen Vergleichswerte.");
             }
             catch (Exception exception) when (exception is HttpRequestException or IOException or JsonException or
@@ -85,9 +99,9 @@ internal sealed class GarmothGrindBenchmarkProvider : IGarmothGrindBenchmarkProv
                 LoadCache();
                 foreach (var benchmark in received) _benchmarks[benchmark.SpotId] = benchmark;
                 var saved = SaveCache();
-                var message = received.Count == GarmothGrindBenchmarks.All.Count
+                var message = received.Count == GarmothCatalog.SupportedSpotCount
                     ? "Garmoth-Referenzwerte aktualisiert."
-                    : $"Garmoth-Referenzwerte für {received.Count} von {GarmothGrindBenchmarks.All.Count} Spots aktualisiert; übrige Werte behalten ihren bisherigen Stand.";
+                    : $"Garmoth-Referenzwerte für {received.Count} von {GarmothCatalog.SupportedSpotCount} Spots aktualisiert; übrige Werte behalten ihren bisherigen Stand.";
                 if (!saved) message += " Die aktualisierten Werte konnten nicht lokal gespeichert werden.";
                 return Snapshot(message);
             }
@@ -124,7 +138,9 @@ internal sealed class GarmothGrindBenchmarkProvider : IGarmothGrindBenchmarkProv
     }
 
     private GarmothBenchmarkSnapshot Snapshot(string message) => new(Array.AsReadOnly(
-        GarmothGrindBenchmarks.All.Select(fallback => _benchmarks.GetValueOrDefault(fallback.SpotId, fallback)).ToArray()), message);
+        GarmothGrindBenchmarks.All.Select(fallback => _benchmarks.GetValueOrDefault(fallback.SpotId, fallback))
+            .Concat(_benchmarks.Values.Where(reference => GarmothGrindBenchmarks.Find(reference.SpotId) is null)
+                .OrderBy(reference => reference.SpotId, StringComparer.Ordinal)).ToArray()), message);
 
     internal static IReadOnlyList<GrindBenchmark> Parse(ReadOnlyMemory<byte> collective, ReadOnlyMemory<byte> metadata,
         DateTimeOffset retrievedAt)
@@ -149,9 +165,7 @@ internal sealed class GarmothGrindBenchmarkProvider : IGarmothGrindBenchmarkProv
                 !Numeric(idElement, out var numericId) || numericId < 1 || numericId > int.MaxValue ||
                 numericId != decimal.Truncate(numericId)) continue;
             var id = (int)numericId;
-            var known = GarmothGrindBenchmarks.All.FirstOrDefault(reference =>
-                GarmothCatalog.TryGetSpot(reference.SpotId, out var knownId) && knownId == id);
-            if (known is null) continue;
+            if (!GarmothCatalog.TryGetLocalSpotId(id, out var spotId)) continue;
             if (!seen.Add(id)) throw new InvalidDataException("Duplicate Garmoth spot.");
             if (!meta.TryGetProperty(id.ToString(CultureInfo.InvariantCulture), out var spotMeta) ||
                 spotMeta.ValueKind != JsonValueKind.Object || !Number(row, "total_minutes", out var minutes) || minutes <= 0 ||
@@ -170,8 +184,10 @@ internal sealed class GarmothGrindBenchmarkProvider : IGarmothGrindBenchmarkProv
                 !OptionalTier(spotMeta, "topTierTrash", average, out var top)) continue;
             var start = Date(row, "start_date") ?? Date(stats, "start_date");
             var end = Date(row, "end_date") ?? Date(stats, "end_date");
-            if (start is null || end is null || start > end || end > DateOnly.FromDateTime(retrievedAt.UtcDateTime)) continue;
-            var reference = new GrindBenchmark(known.SpotId, average, high, top, retrievedAt,
+            // These dates bound the selected reporting window, not the age of its data.
+            // Garmoth can return an ongoing week whose end is still in the future.
+            if (start is null || end is null || start > end || start > DateOnly.FromDateTime(retrievedAt.UtcDateTime)) continue;
+            var reference = new GrindBenchmark(spotId, average, high, top, retrievedAt,
                 $"https://garmoth.com/grind-tracker/best-grind-spots/{id}?startDate={start:yyyy-MM-dd}&endDate={end:yyyy-MM-dd}",
                 GarmothGrindBenchmarks.Conditions);
             if (Valid(reference, retrievedAt)) result.Add(reference.SpotId, reference);
@@ -239,7 +255,7 @@ internal sealed class GarmothGrindBenchmarkProvider : IGarmothGrindBenchmarkProv
             var now = _time.GetUtcNow();
             foreach (var reference in cache.Benchmarks)
                 if (reference is not null && Valid(reference, now) &&
-                    reference.UpdatedAt >= GarmothGrindBenchmarks.Find(reference.SpotId)!.UpdatedAt)
+                    (GarmothGrindBenchmarks.Find(reference.SpotId) is not { } fallback || reference.UpdatedAt >= fallback.UpdatedAt))
                     _benchmarks[reference.SpotId] = reference;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException) { }

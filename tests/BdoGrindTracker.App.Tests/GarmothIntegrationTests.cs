@@ -56,13 +56,18 @@ public sealed class GarmothIntegrationTests
     }
 
     [Theory]
+    [InlineData("aetherion", "Chilled Soul Piece", 183, "767244_0")]
+    [InlineData("nymphamare", "Contaminated Coral Piece", 184, "767245_0")]
+    [InlineData("orbita", "Lightlost Core", 185, "767247_0")]
+    [InlineData("tenebraum", "Ancient Soldier Fragment", 193, "767246_0")]
+    [InlineData("zephyros", "Hardened Lava Chunk", 194, "767248_0")]
     [InlineData("aphrodon", "Branch of Abundance", 213, "980127_0")]
     [InlineData("hermesia", "Black Crystal Fragment", 214, "980128_0")]
     [InlineData("magaia", "Elion Follower's Helmet", 215, "980129_0")]
     [InlineData("aresion", "Scorched Belt Ornament", 216, "980131_0")]
     [InlineData("scales-of-judgment", "Elion Follower's Mark", 217, "980130_0")]
     [InlineData("event-horizon", "Broken Gloves of the Void", 218, "980132_0")]
-    public void AllInnerEdaniaSpotTrashMappingsAreExact(string spot, string name, int id, string key)
+    public void AllMappedEdaniaSpotTrashMappingsAreExact(string spot, string name, int id, string key)
     {
         var payload = GarmothSessionPayload.Create(Draft() with
         {
@@ -73,11 +78,56 @@ public sealed class GarmothIntegrationTests
     }
 
     [Fact]
-    public void AllSupportedSpotItemsHaveVerifiedMappingExceptExplicitlyUnmappedWorldDrops()
+    public void OuterSpotUploadsItsOwnCrystalAndExplicitlyOmitsOtherSpotLoot()
+    {
+        var payload = GarmothSessionPayload.Create(Draft() with
+        {
+            SpotId = "aetherion", Totals = new Dictionary<string, long>
+            {
+                ["Chilled Soul Piece"] = 100, ["WON Crystal of Ruin"] = 2,
+                ["Deboreka Earring"] = 1, ["Primordial Fragment"] = 3,
+                ["BON Crystal of Ruin"] = 1, ["Branch of Abundance"] = 20,
+            },
+        });
+        Assert.Equal(4, payload.Drops.Count);
+        Assert.Equal(2, payload.Drops["821253_0"]);
+        Assert.Equal(1, payload.Drops["11882_0"]);
+        Assert.Equal(3, payload.Drops["821246_0"]);
+        Assert.Equal(["BON Crystal of Ruin", "Branch of Abundance"], payload.OmittedItems);
+    }
+
+    [Fact]
+    public void FloodlandsUploadDoesNotSilentlyChooseOneOfTheThreeGarmothLocations()
+    {
+        Assert.False(GarmothCatalog.TryGetSpot("dark-energy-floodlands", out _));
+        var draft = Draft() with { SpotId = "dark-energy-floodlands",
+            Totals = new Dictionary<string, long> { ["Tainted Armor Fragment"] = 10, ["Faded Dark Energy"] = 2 } };
+        var error = Assert.Throws<ArgumentException>(() => GarmothSessionPayload.Create(draft));
+        Assert.Contains("Great Red Sea, Orbita oder Zephyros", error.Message);
+        Assert.Contains("Gebiet", error.Message);
+        Assert.Equal("767348_0", GetDropKey("Tainted Armor Fragment"));
+        Assert.Equal("767349_0", GetDropKey("Faded Dark Energy"));
+    }
+
+    private static string GetDropKey(string name)
+    {
+        Assert.True(GarmothCatalog.TryGetDropKey(name, out var key));
+        return key;
+    }
+
+    [Fact]
+    public void GlobalItemMappingsExcludeWorldDropsAndNamesThatRequireASpotOrAggregate()
     {
         foreach (var item in LootSpotCatalog.Spots.SelectMany(static spot => spot.AllowedItems).Distinct())
-            Assert.Equal(item is not ("Pure Black Stone" or "Empty Picture Frame"),
+        {
+            var needsSpot = item.StartsWith("Kehelle's Artifact -", StringComparison.Ordinal) ||
+                item.StartsWith("Lesha's Artifact -", StringComparison.Ordinal) ||
+                item.StartsWith("Marsh's Artifact -", StringComparison.Ordinal) || item is
+                "Tainted Specter's Cloth" or "Lafi Bedmountain's Upgraded Compass Parts" or
+                "Lafi Bedmountain's Upgraded Telescope Parts";
+            Assert.Equal(!needsSpot && item is not ("Pure Black Stone" or "Empty Picture Frame"),
                 GarmothCatalog.TryGetDropKey(item, out _));
+        }
         Assert.False(GarmothCatalog.TryGetDropKey("[Event] Mysterious Ore", out _));
     }
 

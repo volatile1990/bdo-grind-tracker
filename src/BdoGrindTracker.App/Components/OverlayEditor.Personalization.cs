@@ -26,9 +26,9 @@ public partial class OverlayEditor
     private async Task OpenHotkeyEditor()
     {
         if (_disposed || _saving || _hotkeyBusy) return;
-        _toggleOverlayDraft = _settings.ToggleOverlayHotkey;
-        _toggleInteractionDraft = _settings.ToggleInteractionHotkey;
-        _hotkeysEnabledDraft = _settings.HotkeysEnabled;
+        _toggleOverlayDraft = Overlay.Hotkeys.ToggleOverlay;
+        _toggleInteractionDraft = Overlay.Hotkeys.ToggleInteraction;
+        _hotkeysEnabledDraft = Overlay.Hotkeys.Enabled;
         _hotkeyFormError = null;
         _hotkeyEditorOpen = true;
         await ShowFeatureDialog("overlay-hotkeys-edit");
@@ -54,19 +54,22 @@ public partial class OverlayEditor
         _hotkeyBusy = true;
         try
         {
-            await Change(s => s with
+            var result = await Overlay.SaveHotkeysAsync(new OverlayHotkeySettings
             {
-                HotkeysEnabled = _hotkeysEnabledDraft,
-                ToggleOverlayHotkey = _toggleOverlayDraft,
-                ToggleInteractionHotkey = _toggleInteractionDraft,
+                Enabled = _hotkeysEnabledDraft,
+                ToggleOverlay = _toggleOverlayDraft,
+                ToggleInteraction = _toggleInteractionDraft,
             });
-            _hotkeyFormError = _error;
-            if (_error is null)
+            _hotkeyFormError = result.Error;
+            _error = result.Error;
+            if (result.Succeeded)
             {
+                _settings = OverlayLayout.Normalize(Overlay.Settings);
                 _hotkeyEditorOpen = false;
                 await JS.InvokeVoidAsync("grindcrest.closeDialog", "overlay-hotkeys-edit");
             }
         }
+        catch (Exception exception) { _hotkeyFormError = _error = "Tastenkürzel nicht gespeichert: " + exception.Message; }
         finally { _hotkeyBusy = false; }
     }
 
@@ -164,6 +167,19 @@ public partial class OverlayEditor
     {
         StateHasChanged();
         try { await JS.InvokeVoidAsync("grindcrest.showDialog", id); }
-        catch (JSException exception) { _error = "Der Dialog konnte nicht geöffnet werden. " + exception.Message; }
+        catch (JSException exception)
+        {
+            // A dialog which never opened cannot provide a cancel action. Release
+            // its draft so window selection and creation remain available.
+            if (id == "overlay-hotkeys-edit") _hotkeyEditorOpen = false;
+            if (id == "overlay-template-save")
+            {
+                _templateSaveOpen = false;
+                _templateLayoutDraft = null;
+                _templateReplaceId = null;
+            }
+            if (id == "overlay-template-delete") _templateToDelete = null;
+            _error = "Der Dialog konnte nicht geöffnet werden. " + exception.Message;
+        }
     }
 }

@@ -1,0 +1,68 @@
+[
+  {
+    "spotId": "aetherion",
+    "background": "https://s1.pearlcdn.com/KR/Upload/News/37ef291563d20250730162835782.jpg",
+    "backgroundFile": "data/spot-backgrounds/aetherion.jpg",
+    "backgroundSha256": "d9069e03d570955434d1cd35ef4a0e24903da7bd7088e059482e71fea073de30",
+    "backgroundDimensions": "1920x639",
+    "icon": "https://s1.pearlcdn.com/KR/Upload/News/5b072dfa6a120250730161025436.png",
+    "iconFile": "data/spot-icons/aetherion.png",
+    "iconSha256": "e4b2c2c30a86e12e19f25ac4efc18c7bcf46c22a2313242e74ce6cfcba38db8a",
+    "iconDimensions": "380x380"
+  },
+  {
+    "spotId": "nymphamare",
+    "background": "https://s1.pearlcdn.com/KR/Upload/News/c11bb16639120250730162831242.jpg",
+    "backgroundFile": "data/spot-backgrounds/nymphamare.jpg",
+    "backgroundSha256": "655b4b1498be7c329415bf80075abb822432ec530dfc1e7a0606cc75fdaf469b",
+    "backgroundDimensions": "1920x639",
+    "icon": "https://s1.pearlcdn.com/KR/Upload/News/c37f73a598320250730161038366.png",
+    "iconFile": "data/spot-icons/nymphamare.png",
+    "iconSha256": "a674d0f9a479510ecb5840536d726f70cb8fa13943a1850210934769a0a3cd42",
+    "iconDimensions": "380x380"
+  },
+  {
+    "spotId": "orbita",
+    "background": "https://s1.pearlcdn.com/KR/Upload/News/58ddf52a5bd20250730162839832.jpg",
+    "backgroundFile": "data/spot-backgrounds/orbita.jpg",
+    "backgroundSha256": "59945097433fe99a95453f694c67e667ffd7e7fdb1c4dbf0698c3c8b0c566775",
+    "backgroundDimensions": "1920x639",
+    "icon": "https://s1.pearlcdn.com/KR/Upload/News/c39b2f1fe4120250730161119941.png",
+    "iconFile": "data/spot-icons/orbita.png",
+    "iconSha256": "0270ab6a01ae8a8bf052294daa3fd67f807db389515d272fda677ed470212971",
+    "iconDimensions": "380x380"
+  },
+  {
+    "spotId": "tenebraum",
+    "background": "https://s1.pearlcdn.com/KR/Upload/News/0f8a63d3bcc20250905153755262.jpg",
+    "backgroundFile": "data/spot-backgrounds/tenebraum.jpg",
+    "backgroundSha256": "03ab3f4893d11b594d390a0abe254c92722b667c6274e8514aaa5cd2a1b4910a",
+    "backgroundDimensions": "1920x480",
+    "icon": "https://s1.pearlcdn.com/KR/Upload/News/9274062954320250730161058425.png",
+    "iconFile": "data/spot-icons/tenebraum.png",
+    "iconSha256": "351b8c190a441460e19326c404867d82a761a2c13b5d4107540d9bcbd36a660d",
+    "iconDimensions": "380x380"
+  },
+  {
+    "spotId": "zephyros",
+    "background": "https://s1.pearlcdn.com/KR/Upload/News/e662bb40c9b20250905153803666.jpg",
+    "backgroundFile": "data/spot-backgrounds/zephyros.jpg",
+    "backgroundSha256": "5e367b7ad7f021cebc74a62f038e74a31cf80be765ac4840be3ea9e185230514",
+    "backgroundDimensions": "1920x480",
+    "icon": "https://s1.pearlcdn.com/KR/Upload/News/d5d89819c9120250730161132149.png",
+    "iconFile": "data/spot-icons/zephyros.png",
+    "iconSha256": "92619f1abe404bb843fbe760316c703f370eae2c71b31cedcb38e336e298f673",
+    "iconDimensions": "380x380"
+  },
+  {
+    "spotId": "dark-energy-floodlands",
+    "background": "https://s1.pearlcdn.com/KR/Upload/News/ccafce8b80b20260313142707244.png",
+    "backgroundFile": "data/spot-backgrounds/dark-energy-floodlands.jpg",
+    "backgroundSha256": "4135430ff0d057bcc254cd89f63cc1fc3c2507e7b3ef657a1bf696f7306ec271",
+    "backgroundDimensions": "1920x1080",
+    "icon": "https://s1.pearlcdn.com/KR/Upload/News/18dfab2f93b20260313140641867.png",
+    "iconFile": "data/spot-icons/dark-energy-floodlands.png",
+    "iconSha256": "534d7972a96834c6c10882b4b4279dc266e36e5f1ed165591cc1571965708c0f",
+    "iconDimensions": "380x380"
+  }
+]

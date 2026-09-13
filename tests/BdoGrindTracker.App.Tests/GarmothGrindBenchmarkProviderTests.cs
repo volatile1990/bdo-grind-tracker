@@ -21,6 +21,146 @@ public sealed class GarmothGrindBenchmarkProviderTests
         """;
 
     [Fact]
+    public async Task BlockedFreshInstallRatesTheUsersMagaiaSessionAboveTheCorrectedAverage()
+    {
+        using var provider = new GarmothGrindBenchmarkProvider(new Handler((_, _) =>
+            Task.FromResult(new HttpResponseMessage(HttpStatusCode.Forbidden))),
+            timeProvider: new ManualTime());
+
+        var snapshot = await provider.RefreshAsync();
+        var reference = Assert.IsType<GrindBenchmark>(snapshot.Find(LootSpotCatalog.MagaiaId));
+        // Actual user session: 4,536 trash in 20:44, approximately 13,119/h.
+        var result = GrindRatingEvaluator.Evaluate(LootSpotCatalog.MagaiaId, 4536,
+            TimeSpan.FromSeconds(20 * 60 + 44), reference);
+
+        Assert.Equal(GrindRatingTier.Average, result.Tier);
+        Assert.Contains("HTTP 403", snapshot.Status);
+        Assert.Equal(GrindRatingTier.BelowAverage, GrindRatingEvaluator.Evaluate(
+            LootSpotCatalog.MagaiaId, 12802, TimeSpan.FromHours(1), reference).Tier);
+        Assert.Equal(GrindRatingTier.Average, GrindRatingEvaluator.Evaluate(
+            LootSpotCatalog.MagaiaId, 12803, TimeSpan.FromHours(1), reference).Tier);
+    }
+
+    [Fact]
+    public async Task OngoingWeeklyWindowRefreshesAndSurvivesAnOfflineRestartBeforeItsEndDate()
+    {
+        const string collective = """
+            {"start_date":"2026-09-10","end_date":"2026-09-17","data":[
+              {"grindspot_id":215,"total_minutes":96780,
+               "drops":[{"is_trash":true,"hourly_rate":6401.5}]}]}
+            """;
+        const string metadata = """
+            {"result":{"data":{"215":{"dropRatios":{"l2":2},"highTierTrash":14000,"topTierTrash":15200}}}}
+            """;
+        using var directory = new CacheDirectory();
+        var time = new ManualTime();
+        GrindBenchmark received;
+        using (var provider = new GarmothGrindBenchmarkProvider(HandlerFor(collective, metadata), directory.Path, time))
+        {
+            var snapshot = await provider.RefreshAsync();
+            received = Assert.IsType<GrindBenchmark>(snapshot.Find(LootSpotCatalog.MagaiaId));
+            Assert.Contains("aktualisiert", snapshot.Status);
+            Assert.Equal(12803m, received.AverageTrashPerHour);
+            Assert.Equal(14000m, received.HighTrashPerHour);
+            Assert.Equal(15200m, received.TopTrashPerHour);
+            Assert.Equal(time.GetUtcNow(), received.UpdatedAt);
+            Assert.EndsWith("?startDate=2026-09-10&endDate=2026-09-17", received.SourceUrl);
+        }
+        time.Advance(TimeSpan.FromDays(1));
+        using var restarted = new GarmothGrindBenchmarkProvider(new Handler((_, _) =>
+            throw new HttpRequestException("Offline")), directory.Path, time);
+        Assert.Equal(received, restarted.GetCachedSnapshot().Find(LootSpotCatalog.MagaiaId));
+        Assert.Equal(received, (await restarted.RefreshAsync()).Find(LootSpotCatalog.MagaiaId));
+    }
+
+    [Theory]
+    [InlineData("2026-09-13", "2026-09-17")]
+    [InlineData("2026-09-10", "2026-09-09")]
+    public void FutureOnlyOrInvertedWindowsStillCannotSupplyObservedReferences(string start, string end)
+    {
+        var collective = $$"""
+            {"start_date":"{{start}}","end_date":"{{end}}","data":[
+              {"grindspot_id":215,"total_minutes":120,"drops":[{"is_trash":true,"hourly_rate":6401.5}]}]}
+            """;
+        Assert.Empty(GarmothGrindBenchmarkProvider.Parse(Encoding.UTF8.GetBytes(collective),
+            Encoding.UTF8.GetBytes(Metadata), new ManualTime().GetUtcNow()));
+    }
+
+    [Fact]
+    public async Task BrowserPayloadsUseTheSameParserAndCacheWithoutSeparateHttpRequests()
+    {
+        using var directory = new CacheDirectory();
+        var time = new ManualTime();
+        var reads = 0;
+        using var provider = new GarmothGrindBenchmarkProvider(new Handler((_, _) =>
+            throw new InvalidOperationException("Browser transport must not make a second HTTP request.")),
+            directory.Path, time, readPayloads: token =>
+            {
+                token.ThrowIfCancellationRequested();
+                reads++;
+                return Task.FromResult(new GarmothBenchmarkPayload(
+                    Encoding.UTF8.GetBytes(Collective), Encoding.UTF8.GetBytes(Metadata)));
+            });
+
+        var result = await provider.RefreshAsync();
+
+        Assert.Equal(1, reads);
+        Assert.Equal(12001m, result.Find(LootSpotCatalog.MagaiaId)!.AverageTrashPerHour);
+        Assert.Contains("aktualisiert", result.Status);
+        Assert.True(File.Exists(directory.Path));
+        Assert.Equal(result.Benchmarks, provider.GetCachedSnapshot().Benchmarks);
+    }
+
+    [Fact]
+    public async Task BrowserTransportTimeoutCancelsTheReaderAndKeepsThePreviousReference()
+    {
+        var canceled = false;
+        using var provider = new GarmothGrindBenchmarkProvider(HandlerFor(), timeProvider: new ManualTime(),
+            requestTimeout: TimeSpan.FromMilliseconds(50), readPayloads: async token =>
+            {
+                try { await Task.Delay(Timeout.InfiniteTimeSpan, token); }
+                catch (OperationCanceledException) { canceled = true; throw; }
+                throw new InvalidOperationException("The timeout must cancel the reader.");
+            });
+        var before = provider.GetCachedSnapshot();
+
+        var after = await provider.RefreshAsync().WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.True(canceled);
+        Assert.Equal(before.Benchmarks, after.Benchmarks);
+        Assert.Contains("weiterverwendet", after.Status);
+    }
+
+    [Fact]
+    public async Task CapturedPublicBrowserResponsesRefreshEveryBundledInnerSpotWithTheCurrentWeek()
+    {
+        var fixtures = Path.Combine(AppContext.BaseDirectory, "fixtures", "garmoth");
+        using var provider = new GarmothGrindBenchmarkProvider(HandlerFor(), timeProvider: new ManualTime(),
+            readPayloads: async token => new(
+                await File.ReadAllBytesAsync(Path.Combine(fixtures, "collective-20260912.json"), token),
+                await File.ReadAllBytesAsync(Path.Combine(fixtures, "metadata-20260912.json"), token)));
+
+        var snapshot = await provider.RefreshAsync();
+
+        Assert.Contains($"6 von {GarmothCatalog.SupportedSpotCount}", snapshot.Status);
+        Assert.Equal(6, snapshot.Benchmarks.Count);
+        Assert.Equal(12472m, snapshot.Find(LootSpotCatalog.AphrodonId)!.AverageTrashPerHour);
+        Assert.Equal(12893m, snapshot.Find(LootSpotCatalog.HermesiaId)!.AverageTrashPerHour);
+        var magaia = snapshot.Find(LootSpotCatalog.MagaiaId)!;
+        Assert.Equal(12803m, magaia.AverageTrashPerHour);
+        Assert.Equal(14000m, magaia.HighTrashPerHour);
+        Assert.Equal(15200m, magaia.TopTrashPerHour);
+        Assert.Equal(13323m, snapshot.Find(LootSpotCatalog.AresionId)!.AverageTrashPerHour);
+        Assert.Equal(15243m, snapshot.Find(LootSpotCatalog.ScalesOfJudgmentId)!.AverageTrashPerHour);
+        Assert.Equal(12590m, snapshot.Find(LootSpotCatalog.EventHorizonId)!.AverageTrashPerHour);
+        foreach (var reference in snapshot.Benchmarks)
+        {
+            Assert.Equal(new ManualTime().GetUtcNow(), reference.UpdatedAt);
+            Assert.EndsWith("endDate=2026-09-17", reference.SourceUrl);
+        }
+    }
+
+    [Fact]
     public async Task SuccessfulAnonymousRefreshUsesSpotMultiplierAndSourceDates()
     {
         var time = new ManualTime();
@@ -290,7 +430,65 @@ public sealed class GarmothGrindBenchmarkProviderTests
         Assert.Equal(time.GetUtcNow(), after.Find(LootSpotCatalog.MagaiaId)!.UpdatedAt);
         Assert.NotEqual(before.Find(LootSpotCatalog.MagaiaId)!.UpdatedAt, after.Find(LootSpotCatalog.MagaiaId)!.UpdatedAt);
         Assert.Equal(GarmothGrindBenchmarks.Find(LootSpotCatalog.AresionId), after.Find(LootSpotCatalog.AresionId));
-        Assert.Contains("1 von 6", after.Status);
+        Assert.Contains($"1 von {GarmothCatalog.SupportedSpotCount}", after.Status);
+    }
+
+    [Theory]
+    [InlineData("aetherion", 183)]
+    [InlineData("nymphamare", 184)]
+    [InlineData("orbita", 185)]
+    [InlineData("tenebraum", 193)]
+    [InlineData("zephyros", 194)]
+    public async Task OuterSpotWithoutBundledReferenceCanRefreshAndSurviveAnOfflineRestart(string spotId, int garmothId)
+    {
+        // Synthetic transport data exercises mapping and persistence, not a bundled average.
+        var collective = Collective.Replace("\"grindspot_id\":215", $"\"grindspot_id\":{garmothId}", StringComparison.Ordinal);
+        var metadata = Metadata.Replace("\"215\"", $"\"{garmothId}\"", StringComparison.Ordinal);
+        using var directory = new CacheDirectory();
+        var time = new ManualTime();
+        GrindBenchmark received;
+        using (var provider = new GarmothGrindBenchmarkProvider(HandlerFor(collective, metadata), directory.Path, time))
+        {
+            Assert.Null(provider.GetCachedSnapshot().Find(spotId));
+            received = Assert.IsType<GrindBenchmark>((await provider.RefreshAsync()).Find(spotId));
+            Assert.Equal(12001m, received.AverageTrashPerHour);
+            Assert.Contains($"/best-grind-spots/{garmothId}?", received.SourceUrl);
+            Assert.Equal(time.GetUtcNow(), received.UpdatedAt);
+        }
+
+        time.Advance(TimeSpan.FromDays(1));
+        using var restarted = new GarmothGrindBenchmarkProvider(new Handler((_, _) =>
+            throw new HttpRequestException("Offline")), directory.Path, time);
+        Assert.Equal(received, restarted.GetCachedSnapshot().Find(spotId));
+        Assert.Equal(received, (await restarted.RefreshAsync()).Find(spotId));
+    }
+
+    [Fact]
+    public async Task OuterSpotsRemainWithoutInventedReferencesWhenOnlyInnerDataIsAvailable()
+    {
+        using var provider = Provider(Collective, Metadata);
+        var snapshot = await provider.RefreshAsync();
+        foreach (var spotId in new[] { "aetherion", "nymphamare", "orbita", "tenebraum", "zephyros", "dark-energy-floodlands" })
+        {
+            Assert.Null(snapshot.Find(spotId));
+            Assert.Equal(GrindRatingTier.Unavailable, GrindRatingEvaluator.Evaluate(spotId, 1000,
+                TimeSpan.FromHours(1), snapshot.Find(spotId)).Tier);
+        }
+    }
+
+    [Theory]
+    [InlineData(208)]
+    [InlineData(209)]
+    [InlineData(210)]
+    public void FloodlandsLocationReferencesCannotBeAssignedToTheUndeterminedLocalLocation(int garmothId)
+    {
+        var collective = Collective.Replace("\"grindspot_id\":215", $"\"grindspot_id\":{garmothId}", StringComparison.Ordinal);
+        var metadata = Metadata.Replace("\"215\"", $"\"{garmothId}\"", StringComparison.Ordinal);
+        var benchmark = Assert.Single(GarmothGrindBenchmarkProvider.Parse(Encoding.UTF8.GetBytes(collective),
+            Encoding.UTF8.GetBytes(metadata), new ManualTime().GetUtcNow()));
+        Assert.NotEqual(LootSpotCatalog.DarkEnergyFloodlandsId, benchmark.SpotId);
+        Assert.True(GarmothCatalog.TryGetSpot(benchmark.SpotId, out var actualId));
+        Assert.Equal(garmothId, actualId);
     }
 
     [Theory]

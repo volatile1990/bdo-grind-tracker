@@ -1,18 +1,31 @@
 # Dropmengen pro Item und Spot
 
-Die vollständige [Recherche und bestätigte Mengentabelle](DROP_QUANTITIES_RESEARCH.md)
-umfasst 56 Items und 207 erlaubte Item/Spot-Paare einschließlich optionalem Eventloot.
-Der Nutzer hat sämtliche Min-/Max-Werte in `Dropmengen-Eingabe.xlsx` am
-8. September 2026 angegeben. Alle 207 Paare sind in
-[`data/drop-quantities.json`](../data/drop-quantities.json) übernommen, mit
-Quellzellen und SHA-256 der Excel-Datei. Es gibt keine offenen Werte.
-Diese Angaben sind Nutzervorgaben, keine nachträglich behaupteten Datenbankbelege.
+Die ursprünglichen Nutzervorgaben aus den Excel-Dateien vom 8. und 13. September
+2026 bleiben die Grundlage. Die Screenshot-Erweiterung ergänzt alle neuen
+Item/Spot-Paare in `data/drop-quantities.json`. Nicht bestätigte seltene Dropmengen
+bleiben `null`; daraus wird keine feste Menge oder Obergrenze abgeleitet.
 
-Die App bindet den Datensatz als Ressource ein und prüft beim Laden, dass jedes
-erlaubte Item/Spot-Paar genau einmal vorhanden und jeder Bereich gültig ist.
-Excel wird zur Laufzeit nicht benötigt. Spotabhängige Unterschiede bleiben
-erhalten, zum Beispiel Black Stone (Aphrodon 1–15, Hermesia 1–20, Magaia 1–50)
-und Caphras Stone (Scales of Judgment 1–1, Hermesia 1–20, Event Horizon 1–50).
+Die anschließende Nutzervorgabe vom 13. September gilt für alle Spots:
+
+| Item | Minimum | Maximum |
+| --- | ---: | ---: |
+| Trashloot bisheriger Spots | bisheriges Minimum erhalten | 1000 |
+| Trashloot neuer Spots | 1 | 1000 |
+| Black Stone | 1 | 100 |
+| Caphras Stone | 1 | 100 |
+| Ancient Spirit Dust | 1 | 100 |
+| Laila's Petal | 1 | 10 |
+
+Aphrodon und Hermesia behalten Trash-Minimum 4; Magaia, Aresion, Scales of Judgment
+und Event Horizon behalten Minimum 2. Die bisherigen Outer-Edania-Minima bleiben 1.
+Das Maximum von Scales of Judgment ist nun ebenfalls 1000. Empty Picture Frame
+behält die frühere globale Vorgabe 1–10. Andere bestätigte seltene Mengen bleiben
+unverändert. Konkrete Floodlands-Gebiete übernehmen die Mengen ihres bisherigen
+Sammelprofils.
+
+Die App prüft beim Laden, dass jedes erlaubte Item/Spot-Paar genau einmal
+vorhanden und jeder Bereich gültig ist. Excel wird zur Laufzeit nicht benötigt.
+[Spot-Erweiterung und Quellen](SCREENSHOT_SPOTS.md).
 
 ## Bedeutung
 
@@ -27,7 +40,7 @@ und Caphras Stone (Scales of Judgment 1–1, Hermesia 1–20, Event Horizon 1–
 
 ## Verarbeitung
 
-**175 Paare haben Minimum = Maximum = 1.** Nach Identifikation eines solchen
+**Bestätigte feste Einermengen haben Minimum = Maximum = 1.** Nach Identifikation eines solchen
 Items setzt die App direkt Menge 1. Eine Zahl im OCR-Text wird dafür nicht
 geparst; getrennte Mengen-Nachlesungen sind unnötig. Auch ein erst bei der
 Namenrettung erkanntes festes Item benötigt keine anschließende Mengen-OCR.
@@ -79,5 +92,5 @@ weiterhin die alte Trash-Mindestmengentabelle enthalten.
 Tests prüfen beide Kanäle, wechselnde Fehlmengen, getrennte Drops, Maxima größer
 als 1, die Anhebung gelesener Mengen unter dem Minimum, fehlende Mengen und signierte Korrekturen.
 Integrationstests prüfen den Spotbezug und die unveränderte Wiedergabe gespeicherter
-Rohmengen mit Grenzen. Alle 175 festen Item/Spot-Paare werden jeweils im normalen
+Rohmengen mit Grenzen. Alle bestätigten festen Item/Spot-Paare werden jeweils im normalen
 und im Rare-Kanal getestet. Synthetische Testwerte sind keine Spieldaten.

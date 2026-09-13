@@ -12,6 +12,7 @@ internal sealed record LootRowReviewInput(LootObservation? Baseline, LootSource 
     public double UiScale { get; init; } = 1;
     public IReadOnlyList<PrimaryLootQuantityRead> PrimaryQuantityReads { get; init; } = [];
     public bool ReviewMissingAlignmentAnchor { get; init; }
+    public bool ApplyNormalSafetyRules { get; init; }
     public TrashQuantityAnomaly? QuantityAnomaly { get; init; }
 }
 
@@ -107,7 +108,8 @@ internal sealed class BackgroundLootRowReview : ILootRowReview
     }
 
     private static bool HasQuantityAnomaly(LootRowReviewInput input, LootObservation row) =>
-        input.Source == LootSource.Normal && row is { ItemName: not null, RejectionReason: null, Quantity: > 0 } &&
+        (input.Source == LootSource.Normal || input.ApplyNormalSafetyRules) &&
+        row is { ItemName: not null, RejectionReason: null, Quantity: > 0 } &&
         input.QuantityAnomaly is { } anomaly && anomaly.BaselineQuantity == row.Quantity &&
         input.Allows(row.ItemName) && input.Bounds(row.ItemName)?.IsFixedUnit != true;
 

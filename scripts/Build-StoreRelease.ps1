@@ -4,7 +4,8 @@ param(
     [Parameter(Mandatory)] [string] $Version,
     [string] $OutputDirectory,
     [string] $WindowsSdkBin,
-    [switch] $SkipTests
+    [switch] $SkipTests,
+    [switch] $RequireWindowsOcr
 )
 
 $ErrorActionPreference = 'Stop'
@@ -50,12 +51,19 @@ try {
     $versionProperties = @("-p:Version=$Version", "-p:InformationalVersion=$Version",
         '-p:IncludeSourceRevisionInInformationalVersion=false')
     if (-not $SkipTests) {
-        Invoke-DotNet (@('test', 'BdoGrindTracker.slnx', '-c', 'Release', '--nologo',
-            '--logger', 'trx', '--results-directory', (Join-Path $workDirectory 'test-results')) + $versionProperties)
+        & (Join-Path $PSScriptRoot 'Test-Ui.ps1')
+        $previousOcrRequirement = $env:GRINDCREST_REQUIRE_WINDOWS_OCR
+        try {
+            if ($RequireWindowsOcr) { $env:GRINDCREST_REQUIRE_WINDOWS_OCR = '1' }
+            Invoke-DotNet (@('test', 'BdoGrindTracker.slnx', '-c', 'Release', '--nologo',
+                '--logger', 'trx', '--results-directory', (Join-Path $workDirectory 'test-results')) + $versionProperties)
+        } finally { $env:GRINDCREST_REQUIRE_WINDOWS_OCR = $previousOcrRequirement }
     }
     Invoke-DotNet (@('publish', 'src/BdoGrindTracker.App/BdoGrindTracker.App.csproj', '-c', 'Release',
         '-r', 'win-x64', '--self-contained', 'true', '-o', $publishDirectory, '--nologo',
         '-p:PublishSingleFile=false', '-p:PublishTrimmed=false') + $versionProperties)
+    & (Join-Path $PSScriptRoot 'Test-PackagedRuntime.ps1') -RuntimeConfigJson (
+        Get-Content -LiteralPath (Join-Path $publishDirectory 'BdoGrindTracker.runtimeconfig.json') -Raw)
     Invoke-DotNet @('run', '--project', 'tools/BrandAssets', '-c', 'Release', '--', '--msix',
         'data/branding/grindcrest-logo.png', (Join-Path $publishDirectory 'Assets'))
     [xml] $manifest = Get-Content -LiteralPath (Join-Path $workspaceRoot 'packaging/msix/AppxManifest.xml') -Raw

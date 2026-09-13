@@ -70,6 +70,7 @@ internal sealed class ArshaLootPriceProvider : ILootPriceProvider
 
             Dictionary<int, MarketPrice> received;
             DateTimeOffset receivedAt;
+            IndividualPrices? individual = null;
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             deadline.CancelAfter(_requestTimeout);
             try
@@ -84,27 +85,25 @@ internal sealed class ArshaLootPriceProvider : ILootPriceProvider
                 if (response.StatusCode == HttpStatusCode.InternalServerError)
                 {
                     receivedAt = _time.GetUtcNow();
-                    received = await FetchIndividualPricesAsync(region, receivedAt, deadline.Token).ConfigureAwait(false);
+                    individual = await FetchIndividualPricesAsync(region, receivedAt, deadline.Token).ConfigureAwait(false);
+                    received = individual.Prices;
                     cancellationToken.ThrowIfCancellationRequested();
-                    if (received.Count == 0) return Failed(region, "Marktpreisquelle derzeit nicht verfügbar.");
+                    if (received.Count == 0) return Failed(region, individual.RateLimited
+                        ? "Marktpreisquelle begrenzt Anfragen." : "Marktpreisquelle derzeit nicht verfügbar.", individual.RetryAfter);
                 }
                 else
                 {
-                if (!response.IsSuccessStatusCode)
-                {
-                    var retryAfter = response.Headers.RetryAfter?.Delta ??
-                        (response.Headers.RetryAfter?.Date is { } date ? date - now : (TimeSpan?)null);
-                    return Failed(region, response.StatusCode == HttpStatusCode.TooManyRequests
-                        ? "Marktpreisquelle begrenzt Anfragen."
-                        : "Marktpreisquelle derzeit nicht verfügbar.", retryAfter);
-                }
-                if (response.Content.Headers.ContentLength is > MaximumResponseBytes ||
-                    response.Content.Headers.ContentType?.MediaType is "text/html" or "application/xhtml+xml")
-                    return Failed(region, "Marktpreisquelle liefert keine gültigen Preisdaten.");
-                await response.Content.LoadIntoBufferAsync(MaximumResponseBytes, deadline.Token).ConfigureAwait(false);
-                var bytes = await response.Content.ReadAsByteArrayAsync(deadline.Token).ConfigureAwait(false);
-                receivedAt = _time.GetUtcNow();
-                received = ParsePrices(bytes, receivedAt);
+                    if (!response.IsSuccessStatusCode)
+                        return Failed(region, response.StatusCode == HttpStatusCode.TooManyRequests
+                            ? "Marktpreisquelle begrenzt Anfragen."
+                            : "Marktpreisquelle derzeit nicht verfügbar.", RetryAfter(response));
+                    if (response.Content.Headers.ContentLength is > MaximumResponseBytes ||
+                        response.Content.Headers.ContentType?.MediaType is "text/html" or "application/xhtml+xml")
+                        return Failed(region, "Marktpreisquelle liefert keine gültigen Preisdaten.");
+                    await response.Content.LoadIntoBufferAsync(MaximumResponseBytes, deadline.Token).ConfigureAwait(false);
+                    var bytes = await response.Content.ReadAsByteArrayAsync(deadline.Token).ConfigureAwait(false);
+                    receivedAt = _time.GetUtcNow();
+                    received = ParsePrices(bytes, receivedAt);
                 }
                 if (received.Count == 0) return Failed(region, "Keine passenden Marktpreise erhalten.");
             }
@@ -128,6 +127,12 @@ internal sealed class ArshaLootPriceProvider : ILootPriceProvider
                 current.Message = received.Count == LootPriceCatalog.MarketItemIds.Count
                     ? "Marktpreise von Arsha aktualisiert."
                     : "Marktpreise teilweise aktualisiert; fehlende Werte bleiben gekennzeichnet.";
+                if (individual is { RateLimited: true })
+                {
+                    var retryAt = _time.GetUtcNow() + ClampRetryAfter(individual.RetryAfter ?? RefreshInterval);
+                    if (retryAt > current.NextAttempt) current.NextAttempt = retryAt;
+                    current.Message += " Die Marktpreisquelle begrenzt weitere Anfragen; ihre Wartefrist wird eingehalten.";
+                }
                 snapshot = BuildSnapshot(region, current, live: true);
                 SaveCache();
             }
@@ -136,11 +141,14 @@ internal sealed class ArshaLootPriceProvider : ILootPriceProvider
         finally { _refreshGate.Release(); }
     }
 
-    private async Task<Dictionary<int, MarketPrice>> FetchIndividualPricesAsync(string region, DateTimeOffset receivedAt, CancellationToken token)
+    private async Task<IndividualPrices> FetchIndividualPricesAsync(string region, DateTimeOffset receivedAt, CancellationToken token)
     {
         var received = new System.Collections.Concurrent.ConcurrentDictionary<int, MarketPrice>();
         using var slots = new SemaphoreSlim(4);
         var stop = 0;
+        var rateGate = new object();
+        var rateLimited = false;
+        TimeSpan? retryAfter = null;
         await Task.WhenAll(LootPriceCatalog.MarketItemIds.Select(async id =>
         {
             var entered = false;
@@ -157,6 +165,15 @@ internal sealed class ArshaLootPriceProvider : ILootPriceProvider
                 if (response.StatusCode is HttpStatusCode.TooManyRequests or HttpStatusCode.Forbidden)
                 {
                     Interlocked.Exchange(ref stop, 1);
+                    if (response.StatusCode == HttpStatusCode.TooManyRequests)
+                    {
+                        var requested = RetryAfter(response);
+                        lock (rateGate)
+                        {
+                            rateLimited = true;
+                            if (requested is { } wait && (retryAfter is null || wait > retryAfter)) retryAfter = wait;
+                        }
+                    }
                     return;
                 }
                 if (!response.IsSuccessStatusCode || response.Content.Headers.ContentLength is > MaximumResponseBytes ||
@@ -170,8 +187,14 @@ internal sealed class ArshaLootPriceProvider : ILootPriceProvider
                 OperationCanceledException or InvalidDataException) { }
             finally { if (entered) slots.Release(); }
         })).ConfigureAwait(false);
-        return received.ToDictionary(pair => pair.Key, pair => pair.Value);
+        return new(received.ToDictionary(pair => pair.Key, pair => pair.Value), rateLimited, retryAfter);
     }
+
+    private TimeSpan? RetryAfter(HttpResponseMessage response) => response.Headers.RetryAfter?.Delta ??
+        (response.Headers.RetryAfter?.Date is { } date ? date - _time.GetUtcNow() : null);
+
+    private static TimeSpan ClampRetryAfter(TimeSpan requested) => requested > TimeSpan.FromHours(1)
+        ? TimeSpan.FromHours(1) : requested < TimeSpan.Zero ? TimeSpan.Zero : requested;
 
     private LootPriceSnapshot Failed(string region, string message, TimeSpan? retryAfter = null)
     {
@@ -181,7 +204,7 @@ internal sealed class ArshaLootPriceProvider : ILootPriceProvider
             current.Failures = Math.Min(current.Failures + 1, 6);
             var backoff = TimeSpan.FromSeconds(Math.Min(900, 30 * Math.Pow(2, current.Failures - 1)));
             if (retryAfter is { } requested && requested > backoff)
-                backoff = requested > TimeSpan.FromHours(1) ? TimeSpan.FromHours(1) : requested;
+                backoff = ClampRetryAfter(requested);
             current.NextAttempt = _time.GetUtcNow() + backoff;
             current.Message = message + " Vorhandene Cache-/Festwerte werden weiter angezeigt.";
             return BuildSnapshot(region, current, live: false);
@@ -311,5 +334,6 @@ internal sealed class ArshaLootPriceProvider : ILootPriceProvider
     }
 
     private sealed record MarketPrice(long UnitPrice, DateTimeOffset RetrievedAt);
+    private sealed record IndividualPrices(Dictionary<int, MarketPrice> Prices, bool RateLimited, TimeSpan? RetryAfter);
     private sealed record PersistedCache(int SchemaVersion, Dictionary<string, Dictionary<int, MarketPrice>> Regions);
 }

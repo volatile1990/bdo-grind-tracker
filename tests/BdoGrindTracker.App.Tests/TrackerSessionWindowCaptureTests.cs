@@ -1,9 +1,62 @@
 using BdoGrindTracker.App.Capture;
+using BdoGrindTracker.App.Analysis;
+using BdoGrindTracker.App.Persistence;
+using BdoGrindTracker.Core;
 
 namespace BdoGrindTracker.App.Tests;
 
 public sealed partial class TrackerSessionServiceTests
 {
+    [Fact]
+    public async Task ResizingPausedGamePreservesAuthoritativeLootManualCorrectionAndSavedTotals()
+    {
+        var bounds = new Rectangle(100, 100, 8, 6);
+        using var window = new PassiveWindowCapture(() => new(123, 456, Size.Empty),
+            _ => new(bounds, bounds, bounds, false), (_, _) => new ServiceWindowSource());
+        var capture = new PassiveCaptureSession(window, TimeSpan.FromDays(1));
+        long automaticTotal = 0, revision = 0, nextDrop = 100;
+        var resets = 0;
+        var observed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var analyzer = new SyntheticAnalyzer
+        {
+            OnReset = () => { automaticTotal = 0; revision = 0; resets++; },
+        };
+        analyzer.Analyze = () =>
+        {
+            automaticTotal += nextDrop;
+            var result = new FrameAnalysisResult([], [], 1, "resize-projection", 0, 0, 0, 0, null)
+            {
+                SpotId = LootSpotCatalog.HermesiaId,
+                LootProjection = new(++revision,
+                    new Dictionary<string, long> { ["Black Crystal Fragment"] = automaticTotal },
+                    (int)revision, DateTimeOffset.UtcNow),
+            };
+            analyzer.CompletionResult = result;
+            observed.TrySetResult();
+            return Task.FromResult(result);
+        };
+        await using var fixture = new Fixture(autoUpload: false, analyzer: analyzer, suppliedCapture: capture);
+        Assert.True((await fixture.Service.ToggleTrackingAsync()).Succeeded);
+        await observed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.True((await fixture.Service.PauseAsync()).Succeeded);
+        Assert.Equal(100, fixture.Service.State.Loot.TotalQuantity);
+        Assert.True((await fixture.Service.UpdateLootQuantityAsync(fixture.Service.State.SessionId,
+            "Black Crystal Fragment", 125, 100)).Succeeded);
+
+        bounds = new Rectangle(200, 150, 9, 7);
+        nextDrop = 15;
+        observed = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        Assert.True((await fixture.Service.ToggleTrackingAsync()).Succeeded);
+        await observed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.True((await fixture.Service.PauseAsync()).Succeeded);
+
+        Assert.Equal(1, resets);
+        Assert.Equal(140, fixture.Service.State.Loot.TotalQuantity);
+        Assert.Equal(140, Assert.Single(fixture.HistoryStore.Load()).Totals["Black Crystal Fragment"]);
+        Assert.Equal(140, new CurrentSessionStore(Path.Combine(fixture.DirectoryPath,
+            CurrentSessionStore.FileName)).Load()!.Totals["Black Crystal Fragment"]);
+    }
+
     [Fact]
     public async Task WindowCaptureUsesClientCalibrationAndCanResumeAfterMovingToAnotherMonitor()
     {

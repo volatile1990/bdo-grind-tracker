@@ -89,7 +89,8 @@ internal static class Program
             }
             else
             {
-                var analyzer = FrameAnalyzerFactory.Create();
+                var settingsStore = new SettingsStore();
+                var analyzer = FrameAnalyzerFactory.Create(captureConfigurationPath: settingsStore.Load().CaptureConfigurationPath);
                 if (startupSmokeTest)
                 {
                     var available = analyzer.IsAvailable;
@@ -108,10 +109,11 @@ internal static class Program
                         screen.DeviceName,
                         $"Bildschirm {index + 1} · {screen.Bounds.Width} × {screen.Bounds.Height}" + (screen.Primary ? " · Hauptbildschirm" : ""),
                         screen.Bounds, screen.Primary)).OrderByDescending(screen => screen.IsPrimary).ToArray();
-                    var settingsStore = new SettingsStore();
                     session = new TrackerSessionService(new PassiveCaptureSession(new PassiveWindowCapture()),
                         analyzer, settingsStore, monitors, benchmarkProvider: new GarmothGrindBenchmarkProvider(
-                            Path.Combine(settingsStore.BaseDirectory, GarmothGrindBenchmarkProvider.CacheFileName)),
+                            Path.Combine(settingsStore.BaseDirectory, GarmothGrindBenchmarkProvider.CacheFileName),
+                            token => capturePromptOwner?.ReadGarmothBenchmarksAsync(token) ??
+                                Task.FromException<GarmothBenchmarkPayload>(new IOException("Das App-Fenster ist noch nicht bereit."))),
                         prepareWindowCapture: () => capturePromptOwner?.PrepareWindowCaptureAsync() ?? Task.FromResult(false));
                 }
             }

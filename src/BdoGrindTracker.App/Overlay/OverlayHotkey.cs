@@ -2,6 +2,42 @@ using System.Text.Json.Serialization;
 
 namespace BdoGrindTracker.App.Overlay;
 
+/// <summary>One shortcut pair controls every overlay window.</summary>
+public sealed record OverlayHotkeySettings
+{
+    public bool Enabled { get; init; } = true;
+    public OverlayHotkey ToggleOverlay { get; init; } = OverlayHotkey.DefaultToggleOverlay;
+    public OverlayHotkey ToggleInteraction { get; init; } = OverlayHotkey.DefaultToggleInteraction;
+
+    public static OverlayHotkeySettings Normalize(OverlayHotkeySettings? settings)
+    {
+        settings ??= new();
+        var toggle = OverlayHotkey.Normalize(settings.ToggleOverlay, OverlayHotkey.DefaultToggleOverlay);
+        var interaction = OverlayHotkey.Normalize(settings.ToggleInteraction, OverlayHotkey.DefaultToggleInteraction);
+        if (toggle == interaction)
+        {
+            toggle = OverlayHotkey.DefaultToggleOverlay;
+            interaction = OverlayHotkey.DefaultToggleInteraction;
+        }
+        return settings with { ToggleOverlay = toggle, ToggleInteraction = interaction };
+    }
+
+    internal static OverlayHotkeySettings FromLegacy(OverlaySettings settings) => Normalize(new()
+    {
+        Enabled = settings.HotkeysEnabled,
+        ToggleOverlay = settings.ToggleOverlayHotkey,
+        ToggleInteraction = settings.ToggleInteractionHotkey,
+    });
+
+    internal OverlaySettings ApplyTo(OverlaySettings settings) => settings with
+    {
+        HotkeysEnabled = Enabled,
+        HotkeySettingsVersion = OverlaySettings.CurrentHotkeySettingsVersion,
+        ToggleOverlayHotkey = ToggleOverlay,
+        ToggleInteractionHotkey = ToggleInteraction,
+    };
+}
+
 [Flags]
 public enum OverlayHotkeyModifiers
 {

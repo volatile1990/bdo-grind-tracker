@@ -148,7 +148,8 @@ public sealed class LootScrollTimerReaderTests(ITestOutputHelper output)
         Assert.Equal(2, calls);
     }
 
-    [Theory]
+    [WindowsOcrTheory]
+    [Trait("Category", "WindowsOcr")]
     [InlineData("inactive-user-20260910.png", 23378, 1, 0f)]
     [InlineData("inactive-expanded-user-20260910.png", 23378, 1, 0f)]
     [InlineData("active-2-user-20260910.png", 23040, 60, 0f)]
@@ -164,7 +165,7 @@ public sealed class LootScrollTimerReaderTests(ITestOutputHelper output)
     public void ReadsTimerNextToTheActualUserHud(string name, int expectedSeconds, int expectedResolution, float whiteLevel)
     {
         var engine = CompanionWindowsOcrRecognizer.TryCreate();
-        if (engine is null) { output.WriteLine("Native OCR unavailable; parser and bounded reader have independent tests."); return; }
+        Assert.NotNull(engine);
         using var original = Load(name);
         using var frame = whiteLevel == 0 ? (Bitmap)original.Clone() : LootScrollGaugeDetectorTests.ToneMapHdr(original, whiteLevel);
         using var detector = new LootScrollGaugeDetector();
@@ -212,7 +213,8 @@ public sealed class LootScrollTimerReaderTests(ITestOutputHelper output)
         Assert.Equal(LootScrollReading.Unknown, detector.Analyze(frame, CancellationToken.None));
     }
 
-    [Theory]
+    [WindowsOcrTheory]
+    [Trait("Category", "WindowsOcr")]
     [InlineData(0.99, 0f)]
     [InlineData(1.01, 0f)]
     [InlineData(0.99, 2.5f)]
@@ -222,7 +224,7 @@ public sealed class LootScrollTimerReaderTests(ITestOutputHelper output)
     public void StationaryZeroGaugeKeepsTheSameTimerAcrossRepeatedReads(double scale, float whiteLevel)
     {
         var engine = CompanionWindowsOcrRecognizer.TryCreate();
-        if (engine is null) { output.WriteLine("Native OCR unavailable; parser and bounded reader have independent tests."); return; }
+        Assert.NotNull(engine);
         using var original = Load("inactive-zero-user-20260910.png");
         using var scaled = new Bitmap((int)Math.Round(original.Width * scale), (int)Math.Round(original.Height * scale),
             System.Drawing.Imaging.PixelFormat.Format24bppRgb);
@@ -252,7 +254,8 @@ public sealed class LootScrollTimerReaderTests(ITestOutputHelper output)
         }
     }
 
-    [Theory]
+    [WindowsOcrTheory]
+    [Trait("Category", "WindowsOcr")]
     [InlineData("inactive-user-20260910.png", 23378, 1, 0)]
     [InlineData("inactive-user-20260910.png", 23378, 1, 255)]
     [InlineData("inactive-expanded-user-20260910.png", 23378, 1, 0)]
@@ -265,7 +268,7 @@ public sealed class LootScrollTimerReaderTests(ITestOutputHelper output)
         int expectedResolution, int background)
     {
         var engine = CompanionWindowsOcrRecognizer.TryCreate();
-        if (engine is null) { output.WriteLine("Native OCR unavailable; parser and bounded reader have independent tests."); return; }
+        Assert.NotNull(engine);
         using var original = Load(name);
         using var frame = new Bitmap(original.Width + 320, original.Height + 80,
             System.Drawing.Imaging.PixelFormat.Format24bppRgb);
@@ -294,7 +297,8 @@ public sealed class LootScrollTimerReaderTests(ITestOutputHelper output)
             Assert.Equal(new LootScrollTimerReading(TimeSpan.FromSeconds(expectedSeconds), TimeSpan.FromSeconds(expectedResolution)), reading);
     }
 
-    [Theory]
+    [WindowsOcrTheory]
+    [Trait("Category", "WindowsOcr")]
     [InlineData(1920, 1080, .75, 0f)]
     [InlineData(1920, 1080, 1, 0f)]
     [InlineData(1920, 1080, 1.01, 2.5f)]
@@ -307,7 +311,7 @@ public sealed class LootScrollTimerReaderTests(ITestOutputHelper output)
     public void ReadsNewUserEightHourTimerOnMonitor(int width, int height, double uiScale, float whiteLevel)
     {
         var engine = CompanionWindowsOcrRecognizer.TryCreate();
-        if (engine is null) { output.WriteLine("Native OCR unavailable; parser and bounded reader have independent tests."); return; }
+        Assert.NotNull(engine);
         using var original = Load("inactive-eight-hours-user-20260910.png");
         using var source = whiteLevel == 0 ? (Bitmap)original.Clone() : LootScrollGaugeDetectorTests.ToneMapHdr(original, whiteLevel);
         using var frame = new Bitmap(width, height, System.Drawing.Imaging.PixelFormat.Format24bppRgb);

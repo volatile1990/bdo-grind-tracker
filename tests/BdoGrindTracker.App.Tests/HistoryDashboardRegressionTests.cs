@@ -16,6 +16,37 @@ namespace BdoGrindTracker.App.Tests;
 
 public sealed class HistoryDashboardRegressionTests
 {
+    [Fact]
+    public async Task SpotOverviewRendersEverySpotWithItsOwnRegionAndEmblem()
+    {
+        var markup = await RenderAsync(new() { History = [] }, "/history");
+
+        Assert.Equal(LootSpotCatalog.Spots.Count, Regex.Matches(markup, "class=\"spot-card\"").Count);
+        var decoded = WebUtility.HtmlDecode(markup);
+        foreach (var spot in LootSpotCatalog.Spots)
+        {
+            var profile = Presentation.Profile(spot.Id)!;
+            if (profile.BackgroundFileName is { } background)
+                Assert.Contains("assets/spot-backgrounds/" + background, markup);
+            Assert.Contains("assets/spot-icons/" + profile.IconFileName, markup);
+            Assert.Contains("<h3>" + Presentation.SpotName(spot.Id) + "</h3>", decoded);
+            Assert.Contains(profile.RegionName.ToUpperInvariant(), decoded);
+        }
+    }
+
+    [Fact]
+    public async Task NewlyAddedSpotShowsKnownCapWithoutInventedRecommendationsOrImages()
+    {
+        var markup = WebUtility.HtmlDecode(await RenderAsync(new() { History = [] }, "/history/spots/tungrad-ruins"));
+
+        Assert.Contains("Tungrad Ruins", markup);
+        Assert.Contains("<span>AP-LIMIT</span><strong>1.395</strong>", markup);
+        Assert.Contains("assets/spot-icons/tungrad-ruins.png", markup);
+        Assert.DoesNotContain("EMPFOHLENE DP", markup);
+        Assert.DoesNotContain("KRISTALL-EMPFEHLUNG", markup);
+        Assert.DoesNotContain("assets/spot-backgrounds/", markup);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

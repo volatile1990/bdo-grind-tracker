@@ -134,7 +134,7 @@ public sealed partial class CompanionLootFrameAnalyzerTests
         Assert.Null(observation.RejectionReason);
         var completed = analyzer.CompleteSession(DateTimeOffset.UnixEpoch.AddSeconds(1));
         var counted = Assert.Single(completed.NewEvents, result => result.ItemName == item);
-        var expected = item == "Pure Black Stone" || item == "Laila's Petal" && trash == "Elion Follower's Helmet" ? 1 : 3;
+        var expected = item == "Pure Black Stone" ? 1 : 3;
         Assert.Equal(expected, counted.Quantity);
     }
 

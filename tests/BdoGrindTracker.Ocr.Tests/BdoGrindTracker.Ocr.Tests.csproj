@@ -16,6 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\Shared\WindowsOcrAttributes.cs" Link="TestSupport\WindowsOcrAttributes.cs" />
     <ProjectReference Include="..\..\src\BdoGrindTracker.Ocr\BdoGrindTracker.Ocr.csproj" />
   </ItemGroup>
 </Project>

@@ -23,7 +23,7 @@ public sealed class PresentationTests
     public void ClassIconsSupportStoredNamesIncludingOlderCorruptedSeparators(string className, string fileName)
     {
         Assert.Equal("assets/class-icons/" + fileName, Presentation.ClassIcon(className));
-        Assert.True(File.Exists(Path.Combine(AppContext.BaseDirectory, "data", "class-icons", fileName)));
+        Assert.True(File.Exists(Path.Combine(AppContext.BaseDirectory, "wwwroot", "assets", "class-icons", fileName)));
     }
 
     [Theory]
