@@ -147,8 +147,8 @@ internal sealed unsafe class WindowCaptureDevice : IDisposable
             Marshal.ThrowExceptionForHR(getBorder(borderSession, &required));
             // Windows retains the border if access is denied, or another capture
             // application still requires it. Never change the global OS policy.
-            // Consent was prepared by the UI before the session clock/capture began.
-            // The capture worker must never open an unexplained permission dialog.
+            // Permission was requested by the UI before the session clock/capture began.
+            // The capture worker must never open a permission dialog.
             return CheckBorderlessAccess() == AppCapabilityAccessStatus.Allowed && required == 0;
         }
         catch (Exception error) when (error is COMException or UnauthorizedAccessException or NotSupportedException)
@@ -175,7 +175,7 @@ internal sealed unsafe class WindowCaptureDevice : IDisposable
             Marshal.ThrowExceptionForHR(RoGetActivationFactory(className, &accessId, &factory));
             var request = (delegate* unmanaged[Stdcall]<nint, int, nint*, int>)Method(factory, 6);
             // GraphicsCaptureAccessKind.Borderless = 0. Called by the UI's preparation
-            // task, before capture begins and after any required explanation.
+            // task before capture begins; Windows shows a prompt only if needed.
             Marshal.ThrowExceptionForHR(request(factory, 0, &operation));
             var pending = WinRT.MarshalInterface<Windows.Foundation.IAsyncOperation<AppCapabilityAccessStatus>>.FromAbi(operation);
             try { return pending.AsTask().GetAwaiter().GetResult(); }

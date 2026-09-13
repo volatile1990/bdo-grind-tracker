@@ -11,7 +11,6 @@ using BdoGrindTracker.App.Persistence;
 using BdoGrindTracker.App.Overlay;
 using BdoGrindTracker.App.Overlay.Native;
 using BdoGrindTracker.App.Integrations.Garmoth;
-using Windows.Security.Authorization.AppCapabilityAccess;
 
 namespace BdoGrindTracker.App.UI;
 
@@ -40,7 +39,6 @@ internal sealed class HybridMainForm : Form
     private bool _resourcesDisposed;
     private bool _storePreparing;
     private bool _storeInstalling;
-    private bool _capturePermissionExplained;
     private DateTimeOffset _nextStoreCheck;
 
     public int ExitCode { get; private set; }
@@ -367,18 +365,7 @@ internal sealed class HybridMainForm : Form
                 return;
             }
 
-            var access = WindowCaptureDevice.CheckBorderlessAccess();
-            if (access == AppCapabilityAccessStatus.UserPromptRequired ||
-                (access is null && !_capturePermissionExplained))
-            {
-                if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
-                if (!CapturePermissionExplanation.Show(this)) return;
-                // Unpackaged installations may not expose the current status.
-                // Explain that case once per host, but allow another try after cancel.
-                _capturePermissionExplained = true;
-            }
-            if (_closing || _closed || IsDisposed) return;
-
+            // Windows decides whether borderless access needs a permission prompt.
             try { await Task.Run(WindowCaptureDevice.RequestBorderlessAccess); }
             catch (Exception error) when (error is COMException or UnauthorizedAccessException or NotSupportedException)
             {

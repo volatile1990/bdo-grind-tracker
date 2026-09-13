@@ -4,7 +4,7 @@ Grindcrest ist ein lokaler, passiver Loot-Tracker für Black Desert auf Windows.
 Er erkennt Drops aus dem Spielfenster und zeigt Lootmengen, aktive Grindzeit,
 Silber und Stundenwerte im Dashboard und in anpassbaren Ingame-Overlays.
 
-**Version 1.5.0:** [Marktpreis-Fallback und weitere Änderungen](docs/release-notes/1.5.0.md).
+**Version 1.5.1:** [Trackingstart ohne zusätzlichen Erklärdialog](docs/release-notes/1.5.1.md).
 
 ## Funktionen
 
@@ -156,12 +156,12 @@ Paketinhalte. Mit **`-RequireWindowsOcr`** schlagen sie bei fehlenden nativen
 OCR-Voraussetzungen fehl. Beispiel für den Store:
 
 ```powershell
-./scripts/Build-StoreRelease.ps1 -Version 1.5.0 -RequireWindowsOcr
+./scripts/Build-StoreRelease.ps1 -Version 1.5.1 -RequireWindowsOcr
 ```
 
 Das erzeugte MSIX wird anschließend im Partner Center eingereicht. Ein lokaler
 Paketbuild veröffentlicht nichts. Für den GitHub-Installer dient
-`./scripts/Build-Release.ps1 -Version 1.5.0 -RequireWindowsOcr`.
+`./scripts/Build-Release.ps1 -Version 1.5.1 -RequireWindowsOcr`.
 [GitHub-Releases](docs/RELEASING.md) · [Store-Paketierung](docs/MICROSOFT_STORE.md).
 
 Weitere Details: [Silberbewertung](docs/SILVER_VALUATION.md),

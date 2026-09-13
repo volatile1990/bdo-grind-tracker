@@ -1,0 +1,6 @@
+Neu in Grindcrest 1.5.1:
+
+• Der zusätzliche Grindcrest-Erklärdialog zum Ausblenden des gelben Aufnahmerahmens entfällt beim Trackingstart, beim Fortsetzen und in der Erfassungsvorschau.
+• Die Aufnahme ohne gelben Rahmen wird weiterhin automatisch bei Windows angefordert. Windows zeigt nur bei Bedarf eine eigene Berechtigungsabfrage.
+
+Die Verbesserungen aus Version 1.5.0 sind weiterhin enthalten.
