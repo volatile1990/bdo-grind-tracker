@@ -25,7 +25,7 @@ public partial class OverlayEditor
     private string LayoutConfirmationAction => PendingClearLayout ? "Layout leeren" : "Vorlage anwenden";
     private string PendingPresetLabel => _pendingLayoutChange?.Template?.Name ?? (_pendingLayoutChange?.Preset switch
     {
-        "loot" => "Loot-Inventar", "loot-strip" => "Loot-Leiste", "compact" => "Kompakt", "dashboard" => "Dashboard", _ => "Vorlage"
+        "loot" => "Loot-Inventar", "loot-strip" => "Loot-Leiste", "compact" => "Kompakt", "dashboard" => "Dashboard", "rotation-monitor" => "Rotation Monitor", _ => "Vorlage"
     });
     private static IReadOnlyList<OverlayWidgetDefinition> Modules => OverlayCatalog.Widgets;
     private OverlayWidget? SelectedWidget => _settings.Widgets.FirstOrDefault(w => w.Id == _selectedId);
@@ -333,7 +333,7 @@ public partial class OverlayEditor
         }
         var preset = OverlayCatalog.Preset(name);
         _selectedId = null;
-        await Change(s => s with { Width = preset.Width, Height = preset.Height, Widgets = preset.Widgets });
+        await Change(s => name == "rotation-monitor" ? new OverlayTemplate { Layout = preset }.ApplyTo(s) : s with { Width = preset.Width, Height = preset.Height, Widgets = preset.Widgets });
     }
 
     private async Task ClearLayout()
@@ -374,7 +374,7 @@ public partial class OverlayEditor
             else if (change.Preset is { } name)
             {
                 var preset = OverlayCatalog.Preset(name);
-                await Change(s => s with { Width = preset.Width, Height = preset.Height, Widgets = preset.Widgets });
+                await Change(s => name == "rotation-monitor" ? new OverlayTemplate { Layout = preset }.ApplyTo(s) : s with { Width = preset.Width, Height = preset.Height, Widgets = preset.Widgets });
             }
             else await Change(s => s with { Widgets = [] });
             if (_error is null)

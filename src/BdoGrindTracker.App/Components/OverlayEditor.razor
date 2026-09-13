@@ -64,7 +64,7 @@
     </details>
 
     <div class="oe-layout-toolbar">
-        <div class="oe-presets"><span>Vorlage</span><button class="button secondary" @onclick='() => ApplyPreset("loot")'>Loot-Inventar</button><button class="button secondary" @onclick='() => ApplyPreset("loot-strip")'>Loot-Leiste</button><button class="button secondary" @onclick='() => ApplyPreset("compact")'>Kompakt</button><button class="button secondary" @onclick='() => ApplyPreset("dashboard")'>Dashboard</button><button class="text-button" @onclick="ClearLayout">Leer starten</button></div>
+        <div class="oe-presets"><span>Vorlage</span><button class="button secondary" @onclick='() => ApplyPreset("loot")'>Loot-Inventar</button><button class="button secondary" @onclick='() => ApplyPreset("loot-strip")'>Loot-Leiste</button><button class="button secondary" @onclick='() => ApplyPreset("compact")'>Kompakt</button><button class="button secondary" @onclick='() => ApplyPreset("dashboard")'>Dashboard</button><button class="button secondary" @onclick='() => ApplyPreset("rotation-monitor")'>Rotation Monitor</button><button class="text-button" @onclick="ClearLayout">Leer starten</button></div>
         <button type="button" class="button secondary oe-save-template" @onclick="() => OpenTemplateSave(null)" disabled="@(_saving || _templateBusy)"><AppIcon Name="plus" />Als Vorlage speichern</button>
         <label class="oe-check"><input type="checkbox" checked="@_demo" @onchange="e => _demo = Checked(e)" /><span>Beispieldaten</span></label>
     </div>
