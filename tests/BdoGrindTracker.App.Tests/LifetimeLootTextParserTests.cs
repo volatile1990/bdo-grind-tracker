@@ -5,6 +5,57 @@ namespace BdoGrindTracker.App.Tests;
 
 public sealed class LifetimeLootTextParserTests
 {
+    [Theory]
+    [InlineData("Twilight of the End - Ring x 1", "Twilight of the End - Ring")]
+    [InlineData("Twilight of the End - Rlng x 1", "Twilight of the End - Ring")]
+    [InlineData("Twilight of the End - R1ng x 1", "Twilight of the End - Ring")]
+    [InlineData("Dämmerung des Endes – Ohrrlng x 1", "Twilight of the End - Earring")]
+    [InlineData("Dämmerung des Endes – Ring x 1", "Twilight of the End - Ring")]
+    [InlineData("Twilight of the End x 1", null)]
+    [InlineData("TRI: Twilight of the End - Ring x 1", null)]
+    [InlineData("TRI Twilight of the End - Ring x 1", null)]
+    [InlineData("TRITwilight of the End - Ring x 1", null)]
+    [InlineData("tri twilight of the end - ring x 1", null)]
+    [InlineData("V Twilight of the End - Ring x 1", null)]
+    [InlineData("Unrelated Foreign Treasure x 1", null)]
+    [InlineData("Other family Rlng x 1", null)]
+    public void SpecialTextUsesTheSharedParserWithoutLosingIdentitySafety(string text, string? expected)
+    {
+        var parser = new LifetimeLootTextParser(new(0,
+            [new("Twilight of the End - Ring", ["Dämmerung des Endes – Ring"], true),
+                new("Twilight of the End - Earring", ["Dämmerung des Endes – Ohrring"], true),
+                new("Twilight of the End - Belt", [], true), new("Twilight of the End - Necklace", [], true)]), LootSource.Rare);
+        var row = Raw(text) with { Source = LootSource.Rare };
+        Assert.Equal(expected, parser.Parse(row)?.Name);
+        Assert.True(parser.Parse(row with { Source = LootSource.Normal })!.IsExcluded);
+        Assert.True(parser.Parse(row with { RejectionReason = AutomaticLootSpotLock.OutsideSpotPoolReason })!.IsExcluded);
+        Assert.True(parser.Parse(row with { RejectionReason = "ocr-geometry" })!.IsExcluded);
+    }
+
+    [Fact]
+    public void SpecialEnhancementCannotReuseAnAcceptedBaseAccessoryFallback()
+    {
+        const string ring = "Twilight of the End - Ring";
+        var parser = new LifetimeLootTextParser(new(0, [new(ring, [], true)]), LootSource.Rare);
+        var accepted = Raw("TRI: " + ring + " x 1") with
+            { Source = LootSource.Rare, ItemName = ring, Quantity = 1, RejectionReason = null };
+        Assert.True(parser.Parse(accepted)!.IsExcluded);
+        var adapter = new LifetimeNormalReconciliationAdapter(parser.Context, false, LootSource.Rare, 1);
+        adapter.ProcessObservations([accepted], Start);
+        Assert.Empty(adapter.Projection!.Totals);
+    }
+
+    [Fact]
+    public void AccessoryGlyphRepairDoesNotChangeTheHistoricalNormalParser()
+    {
+        var context = new LifetimeParsingContext(0,
+            [new("Twilight of the End - Ring", [], true), new("Twilight of the End - Earring", [], true),
+                new("Twilight of the End - Belt", [], true), new("Twilight of the End - Necklace", [], true)]);
+        var normal = new LifetimeLootTextParser(context);
+        Assert.Null(normal.Parse(Raw("Twilight of the End - Rlng x 1")));
+        Assert.Null(normal.Parse(Raw("Twilight of the End - R1ng x 1")));
+    }
+
     private const string Helmet = "Elion Follower's Helmet";
     private const string Dust = "Ancient Spirit Dust";
     private static readonly DateTimeOffset Start = DateTimeOffset.UnixEpoch;

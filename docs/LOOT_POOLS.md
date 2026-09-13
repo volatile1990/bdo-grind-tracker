@@ -1,7 +1,13 @@
-# Lootpools – Prüfstand 2026-09-11
+# Lootpools – Prüfstand 2026-09-13
 
-Der Tracker unterstützt alle sechs Inner-Edania-Zonen: Aphrodon Temple, Hermesia
-Inner Castle, Magaia Temple, Aresion Temple, Scales of Judgment und Event Horizon.
+Der Tracker unterstützt alle 40 konkret angefragten Screenshot-Spots. Für die automatische Erkennung gibt es zusätzlich drei Sammelprofile bei nicht unterscheidbarem Trashloot. [Ergänzte Spots und Grenzen](SCREENSHOT_SPOTS.md). Die bisherigen zwölf Edania-Zonen bleiben erhalten. Inner Edania umfasst Aphrodon Temple,
+Hermesia Inner Castle, Magaia Temple, Aresion Temple, Scales of Judgment und Event
+Horizon. Outer Edania umfasst Aetherion Castle, Nymphamaré Castle, Orbita Castle,
+Tenebraum Castle, Zephyros Castle und Dark Energy Floodlands.
+Die [Outer-Edania-Quellen](OUTER_EDANIA_SOURCES.md) dokumentieren deren eigene
+Hauptdrops und Trashloot. Beide Trashloot-Items von Dark Energy Floodlands lösen
+dieselbe Spoterkennung aus; Tainted Armor Fragment ist der Haupttrash für die
+Stundenkennzahl, Faded Dark Energy wird als zusätzlicher Loot mit Silberwert erfasst.
 Der Spotfilter soll mögliche Beute durchlassen, nicht nur die prominenten
 Hauptdrops. Eine geringe Dropchance ist kein Ausschlussgrund.
 
@@ -10,13 +16,13 @@ Hauptdrops. Eine geringe Dropchance ist kein Ausschlussgrund.
 Jeder Spotpool ist die Vereinigung aus:
 
 1. den bisherigen spotspezifischen Hauptdrops und dem jeweiligen Trashloot;
-2. dem gemeinsamen HighestTier-Pool;
+2. dem gemeinsamen HighestTier-Pool ausschließlich bei Inner-Edania-Spots;
 3. den gemeinsamen Standard-/Worlddrops unten.
 
 Die separate Eventliste bleibt über den vorhandenen Event-Schalter zuschaltbar.
 Ein globaler Drop benötigt diesen Schalter nicht. Die erste passende Trashloot-Zeile
 legt weiterhin nur den Spot fest; globale Items verändern den Spot nicht.
-Die OCR-, Matching- und Zählalgorithmen sind unverändert.
+Die Ereigniszählung bleibt erhalten. Die Texterkennung berücksichtigt zusätzlich lange Artefaktnamen und verhindert, dass Wortteile in Dehkia oder Gavinya als Mengen gelesen werden.
 
 ## Gemeinsame Standard-/Worlddrops
 
@@ -25,7 +31,7 @@ Die OCR-, Matching- und Zählalgorithmen sind unverändert.
 | Ancient Spirit Dust | Vom Nutzer im unterstützten Grind beobachtet; zusätzlich als direkter Inner-Edania-Monsterdrop offiziell belegt. |
 | Black Stone | Offiziell als direkter Inner-Edania-Monsterdrop belegt; bewusst als gemeinsames Material zugelassen. |
 | Caphras Stone | Dieselbe Einordnung wie Black Stone. |
-| Empty Picture Frame | Auf Nutzervorgabe vom 11.09.2026 global zugelassen; Drop über Allan Serbins Landschaftsgemälde. Minimum 1 und Maximum 10 pro Drop gelten an allen sechs Spots. |
+| Empty Picture Frame | Auf Nutzervorgabe vom 11.09.2026 global zugelassen; Drop über Allan Serbins Landschaftsgemälde. Minimum 1 und Maximum 10 pro Drop gelten an allen unterstützten Spots. |
 | Laila's Petal | Pearl Abyss beschreibt Monsterbeute unabhängig von der Region. |
 | Pure Black Stone | Historisch als sehr seltener Worlddrop beschrieben; vorsorglich als theoretisch mögliche Beute zugelassen. Kein neuer offizieller Nachweis für jede der sechs Zonen. |
 
@@ -82,7 +88,7 @@ Solche Items wurden nicht allein aufgrund einer Erwähnung in derselben Patchnot
 zu Globaldrops erklärt.
 
 `Black Gem Fragment` bleibt entsprechend dem gemeldeten Fehlzählungsfall außerhalb
-aller sechs Spotpools, aber als Vergleichskandidat im globalen Namensmatcher.
+aller unterstützten Spotpools, aber als Vergleichskandidat im globalen Namensmatcher.
 Ein solcher Treffer darf nicht zu Black Crystal Fragment umgedeutet werden.
 Der Trashloot eines anderen unterstützten Spots bleibt ebenfalls ausgeschlossen.
 

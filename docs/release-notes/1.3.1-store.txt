@@ -1,0 +1,6 @@
+Neu in Grindcrest 1.3.1:
+
+• Reparierter automatischer Abruf der Garmoth-Vergleichswerte beim Tracking-Start und zu jeder weiteren vollen aktiven Stunde. Keine Anmeldung und kein offenes Browserfenster erforderlich.
+• Vergleichswerte aus laufenden Statistikwochen werden korrekt übernommen, auch wenn deren Enddatum noch in der Zukunft liegt.
+• Aktualisierter Referenzstand für alle sechs Spots. Magaia: Average ab 12.803, High ab 14.000 und Top ab 15.200 Trash pro Stunde.
+• Bei Verbindungsfehlern bleibt der letzte verfügbare Referenzstand erhalten; Tracking und Loot-Erkennung laufen weiter.

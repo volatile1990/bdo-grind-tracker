@@ -16,6 +16,120 @@ namespace BdoGrindTracker.App.Tests;
 
 public sealed class TrackerSessionRestoreTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task UnreadSettingsStayUnchangedAndDoNotPreventClosingWhenPreferenceChangesWereRejected(bool locked)
+    {
+        using var directory = new TestDirectory();
+        var path = Path.Combine(directory.Path, "settings.json");
+        var content = locked ? "{\"AutoPauseMinutes\":12}" : "broken settings";
+        File.WriteAllText(path, content);
+        Fixture fixture;
+        using (var fileLock = locked ? new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None) : null)
+            fixture = new Fixture(directory.Path);
+        await using (fixture)
+        {
+            var previous = fixture.Service.Preferences;
+            Assert.NotNull(fixture.Service.State.PersistenceError);
+            Assert.False((await fixture.Service.SavePreferencesAsync(previous with
+            {
+                AutoPauseMinutes = 9,
+                FavoriteItems = ["Black Stone"],
+                LootColumnOrders = new Dictionary<string, string[]> { [LootSpotCatalog.HermesiaId] = ["Black Stone"] },
+            })).Succeeded);
+            Assert.Same(previous, fixture.Service.Preferences);
+
+            await fixture.Service.ShutdownAsync();
+
+            Assert.False(fixture.Service.State.ShutdownFailed);
+            Assert.True(fixture.Analyzer.Disposed);
+            Assert.Equal(content, File.ReadAllText(path));
+            Assert.False(File.Exists(path + ".bak"));
+        }
+    }
+
+    [Fact]
+    public async Task LockedSettingsStayProtectedAndExplicitRetryReloadsPreferencesWithoutRestart()
+    {
+        using var directory = new TestDirectory();
+        var settingsPath = Path.Combine(directory.Path, "settings.json");
+        File.WriteAllText(settingsPath, "{\"AutoPauseMinutes\":12,\"MarketRegion\":\"na\",\"FavoriteItems\":[\"Black Stone\"]}");
+        Fixture fixture;
+        using (var locked = new FileStream(settingsPath, FileMode.Open, FileAccess.Read, FileShare.None))
+            fixture = new Fixture(directory.Path);
+        await using (fixture)
+        {
+            Assert.Contains("Einstellungen", fixture.Service.State.PersistenceError);
+            Assert.False((await fixture.Service.SavePreferencesAsync(
+                fixture.Service.Preferences with { AutoPauseMinutes = 4 }, "synthetic-key")).Succeeded);
+            Assert.Contains("12", File.ReadAllText(settingsPath));
+            Assert.False(File.Exists(Path.Combine(directory.Path, "test-key.dpapi")));
+            Assert.True((await fixture.Service.SaveSessionAsync()).Succeeded);
+            Assert.Equal(12, fixture.Service.Preferences.AutoPauseMinutes);
+            Assert.Equal("na", fixture.Service.Preferences.MarketRegion);
+            Assert.Contains("Black Stone", fixture.Service.Preferences.FavoriteItems);
+            Assert.Null(fixture.Service.State.PersistenceError);
+            Assert.False(fixture.Service.State.HasSession);
+            Assert.Equal(0, fixture.Captures);
+        }
+    }
+
+    [Fact]
+    public async Task RepairedCheckpointCanBeReloadedWithoutRestartAndDoesNotLoseNewerHistory()
+    {
+        using var directory = new TestDirectory();
+        var original = CurrentSessionStoreTests.Example();
+        var history = new LootHistoryEntry
+        {
+            SessionId = original.SessionId, StartedAt = original.StartedAt!.Value,
+            UpdatedAt = original.UpdatedAt.AddMinutes(1), Duration = TimeSpan.FromMinutes(3),
+            SpotId = original.SpotId!, CharacterClass = CompanionCharacterClassCatalog.FindById("maegu-awakening")!.DisplayName,
+            Totals = new() { [Item] = 35 }, SilverBeforeTax = 0, SilverAfterTax = 0, SilverIsComplete = false,
+        };
+        new LootHistoryStore(Path.Combine(directory.Path, "loot-history-v1.json")).Save([history]);
+        File.WriteAllText(directory.CurrentPath, "broken checkpoint");
+        await using var fixture = new Fixture(directory.Path);
+        Assert.False((await fixture.Service.SaveSessionAsync()).Succeeded);
+        Assert.False((await fixture.Service.ToggleTrackingAsync()).Succeeded);
+        Assert.False((await fixture.Service.NewSessionAsync()).Succeeded);
+        Assert.Equal("broken checkpoint", File.ReadAllText(directory.CurrentPath));
+        new CurrentSessionStore(directory.CurrentPath).Save(original);
+
+        Assert.True((await fixture.Service.SaveSessionAsync()).Succeeded);
+
+        Assert.Equal(original.SessionId, fixture.Service.State.SessionId);
+        Assert.Equal(35, fixture.Service.State.Loot.TotalQuantity);
+        Assert.Equal(TimeSpan.FromMinutes(3), fixture.Service.State.Elapsed);
+        Assert.Equal("maegu-awakening", fixture.Service.State.CharacterClassId);
+        Assert.False(fixture.Service.State.IsRunning);
+        Assert.Null(fixture.Service.State.PersistenceError);
+        Assert.Equal(35, Assert.Single(fixture.History.Load()).Totals[Item]);
+        Assert.Equal(35, new CurrentSessionStore(directory.CurrentPath).Load()!.Totals[Item]);
+        Assert.Equal("maegu-awakening", new CurrentSessionStore(directory.CurrentPath).Load()!.CharacterClassId);
+        Assert.False((await fixture.Service.UploadAsync()).Succeeded);
+        Assert.Equal(0, fixture.Requests);
+    }
+
+    [Fact]
+    public async Task TransientCurrentReadLockCanRecoverExactSessionAfterUnlock()
+    {
+        using var directory = new TestDirectory();
+        var original = CurrentSessionStoreTests.Example();
+        new CurrentSessionStore(directory.CurrentPath).Save(original);
+        Fixture fixture;
+        using (var locked = new FileStream(directory.CurrentPath, FileMode.Open, FileAccess.Read, FileShare.None))
+            fixture = new Fixture(directory.Path);
+        await using (fixture)
+        {
+            Assert.False(fixture.Service.State.HasSession);
+            Assert.True((await fixture.Service.SaveSessionAsync()).Succeeded);
+            Assert.Equal(original.SessionId, fixture.Service.State.SessionId);
+            Assert.Equal(original.Totals, fixture.Service.State.Loot.Totals);
+            Assert.Null(fixture.Service.State.PersistenceError);
+        }
+    }
+
     [Fact]
     public async Task ClosingRunningSessionRestoresSameSessionPausedWithoutCapturingOrCountingOfflineTime()
     {

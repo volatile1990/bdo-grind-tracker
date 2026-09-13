@@ -175,7 +175,7 @@ public sealed class TrashQuantityAnomalyReviewTests
     [Fact]
     public async Task ACorrectionMustRespectTheExistingCountOneTrashFilter()
     {
-        const string item = "Decayed Cloth";
+        const string item = "Outlaw's Mark";
         var baseline = Row(11) with { ItemName = item, RawText = item + " x 11", QuantityBounds = new(1, 100) };
         using var review = new BackgroundLootRowReview(new CompanionItemMatcher([item]),
             _ => new Engine(Read(item, "1"), Read(item, "1")));

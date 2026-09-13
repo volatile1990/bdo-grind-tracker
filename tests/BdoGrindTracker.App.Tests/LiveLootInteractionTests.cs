@@ -16,6 +16,44 @@ namespace BdoGrindTracker.App.Tests;
 
 public sealed class LiveLootInteractionTests
 {
+    [Theory]
+    [InlineData("dark-energy-floodlands", "dark-energy-floodlands-orbita", 3)]
+    [InlineData("dehkia-ash-forest-unspecified", "dehkia-ii-ash-forest", 2)]
+    [InlineData("winter-tree-fossil-unspecified", "winter-tree-fossil-280", 1)]
+    public async Task AmbiguousSpotOffersVariantsAndSendsSelectionForTheCurrentSession(string familyId, string variantId, int count)
+    {
+        var session = new Session();
+        session.State = session.State with { SpotId = familyId, CanSelectSpotVariant = true };
+        await Render<LiveDashboard>(session, null, async (dashboard, markup, _) =>
+        {
+            Assert.Contains("Bitte auswählen", markup());
+            Assert.Contains(count == 1 ? "280-AP-Variante" : "Diese Varianten teilen denselben Trashloot", markup());
+            var variants = LootSpotCatalog.VariantsFor(familyId);
+            Assert.Equal(count, variants.Count);
+            foreach (var variant in variants) Assert.Contains("value=\"" + variant.Id + "\"", markup());
+            var command = typeof(LiveDashboard).GetMethod("SelectSpotVariant", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            await (Task)command.Invoke(dashboard, [session.State.SessionId, new ChangeEventArgs { Value = variantId }])!;
+            Assert.Equal(session.State.SessionId, session.SelectedSpotSessionId);
+            Assert.Equal(variantId, session.State.SpotId);
+            Assert.DoesNotContain("Bitte auswählen", markup());
+            if (count == 1) Assert.DoesNotContain("id=\"live-spot-variant\"", markup());
+        });
+    }
+
+    [Fact]
+    public async Task SpotVariantPickerIsDisabledAfterTheSessionSpotIsFrozen()
+    {
+        var session = new Session();
+        session.State = session.State with { SpotId = "dark-energy-floodlands-orbita", CanSelectSpotVariant = false };
+        await Render<LiveDashboard>(session, null, (_, markup, _) =>
+        {
+            var select = System.Text.RegularExpressions.Regex.Match(markup(), "<select id=\"live-spot-variant\"[^>]*>").Value;
+            Assert.Contains("disabled", select);
+            Assert.Contains("Die Spot-Auswahl ist für diese Session abgeschlossen.", markup());
+            return Task.CompletedTask;
+        });
+    }
+
     [Fact]
     public async Task DemoExplainsDiscardingSampleDataAndShowsManualProvenanceWithoutHistory()
     {
@@ -284,6 +322,7 @@ public sealed class LiveLootInteractionTests
         public int NewSessionCalls { get; private set; }
         public int ToggleCalls { get; private set; }
         public long LastOriginalQuantity { get; private set; }
+        public Guid? SelectedSpotSessionId { get; private set; }
         private static Task<TrackerCommandResult> Success() => Task.FromResult(new TrackerCommandResult());
         public Task<TrackerCommandResult> PauseAsync()
         {
@@ -293,6 +332,12 @@ public sealed class LiveLootInteractionTests
             return Success();
         }
         public Task<TrackerCommandResult> NewSessionAsync() { NewSessionCalls++; return Success(); }
+        public Task<TrackerCommandResult> SelectSpotVariantAsync(Guid sessionId, string spotId)
+        {
+            SelectedSpotSessionId = sessionId;
+            State = State with { SpotId = spotId };
+            return Success();
+        }
         public Task<TrackerCommandResult> UpdateLootQuantityAsync(Guid sessionId, string itemName, long quantity, long originalQuantity)
         {
             CorrectionCalls++;

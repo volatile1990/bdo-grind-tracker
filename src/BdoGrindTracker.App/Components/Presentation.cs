@@ -31,6 +31,17 @@ internal static class Presentation
     internal static decimal Hourly(decimal amount, TimeSpan duration) => duration > TimeSpan.Zero ? amount / Hours(duration) : 0;
     internal static string SpotName(string? id) => LootSpotCatalog.Spots.FirstOrDefault(spot => spot.Id == id)?.DisplayName ?? "Grindspot wird erkannt";
     internal static LootSpotPresentation? Profile(string? id) => LootSpotPresentationCatalog.Profiles.FirstOrDefault(profile => profile.SpotId == id);
+    internal static string SpotBackgroundStyle(LootSpotPresentation? profile, bool shaded = false)
+    {
+        var backdrop = shaded ? "linear-gradient(90deg,#111820ef,#111820cc)" : "linear-gradient(135deg,#25323a,#111820)";
+        return profile?.BackgroundFileName is { Length: > 0 } file
+            ? "background-image:" + (shaded ? backdrop + "," : "") + "url('assets/spot-backgrounds/" + file + "')"
+            : "background-image:" + backdrop;
+    }
+    internal static string SpotGuidanceSummary(LootSpotPresentation profile) =>
+        profile.RecommendedAp is { } ap && profile.RecommendedDp is { } dp
+            ? $"{Number(ap)} AP · {Number(dp)} DP"
+            : profile.MaxApLimit is { } limit ? $"AP-Limit {Number(limit)}" : profile.RegionName;
     internal static string? ItemIcon(string name) => ItemIcons.TryGetValue(name, out var file) ? "assets/icons/" + file : null;
     internal static string? ClassIcon(string? idOrName)
     {
@@ -53,7 +64,9 @@ internal static class Presentation
         "#CombatEXP" => "Kampf-EP", "#MarnisRealmPrivate" => "Marnis Reich", "#Knockdown/Bound" => "Niederschlag / Umwerfen",
         "#Knockback/Floating" => "Rückstoß / Hochschleudern", "#Stun/Stiffness/Freezing" => "Betäuben / Erstarren / Einfrieren",
         "#AllanSerbinsLandscape" => "Allan Serbins Landschaft", "#HighestTier" => "Höchste Stufe", "#DivineAuthority" => "Göttliche Autorität",
-        "#PartyOf3" => "Gruppe · 3 Spieler", "#FeverPowerfulMobs" => "Verstärkte Monster", _ => trait.TrimStart('#')
+        "#PartyOf3" => "Gruppe · 3 Spieler", "#FeverPowerfulMobs" => "Verstärkte Monster",
+        "#Dehkia" => "Dehkias Laterne", "#DehkiaII" => "Dehkias Laterne · Stufe II", "#Elvia" => "Elvia",
+        _ => trait.TrimStart('#')
     };
     private static IReadOnlyDictionary<string, string> ReadItemIcons()
     {

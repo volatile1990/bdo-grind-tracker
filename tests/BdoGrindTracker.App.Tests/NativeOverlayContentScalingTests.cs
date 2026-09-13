@@ -32,7 +32,7 @@ public sealed class NativeOverlayContentScalingTests
     [InlineData(.5)]
     [InlineData(1.5)]
     [InlineData(2)]
-    public void CanvasResizeAndEquivalentWidgetResizeProduceTheSameContent(double factor)
+    public void CanvasResizePreservesTheRenderedContentSizeAndPosition(double factor)
     {
         var widget = OverlayCatalog.CreateWidget("duration", 24, 16) with
         {
@@ -40,17 +40,36 @@ public sealed class NativeOverlayContentScalingTests
         };
         var original = Settings(480, 256, widget);
         var resizedCanvas = OverlayLayout.ResizeCanvas(original, original.Width * factor, original.Height * factor);
-        var resizedWidget = OverlayLayout.ResizeWidget(widget, widget.Width * factor, widget.Height * factor) with
-        {
-            X = widget.X * factor, Y = widget.Y * factor
-        };
-        var direct = Settings(original.Width * factor, original.Height * factor, resizedWidget);
-        var size = new Size((int)direct.Width, (int)direct.Height);
+        var size = new Size((int)resizedCanvas.Width, (int)resizedCanvas.Height);
         using var renderer = new NativeOverlayRenderer();
+        using var originalImage = renderer.Render(new Size((int)original.Width, (int)original.Height),
+            original, OverlaySnapshot.Demo, out _);
         using var canvasImage = renderer.Render(size, resizedCanvas, OverlaySnapshot.Demo, out _);
-        using var widgetImage = renderer.Render(size, direct, OverlaySnapshot.Demo, out _);
 
-        Assert.Equal(Pixels(canvasImage), Pixels(widgetImage));
+        Assert.Equal(OpaqueBounds(originalImage), OpaqueBounds(canvasImage));
+        var visibleWidth = Math.Min(originalImage.Width, canvasImage.Width);
+        var visibleHeight = Math.Min(originalImage.Height, canvasImage.Height);
+        Assert.Equal(RegionPixels(originalImage, visibleWidth, visibleHeight),
+            RegionPixels(canvasImage, visibleWidth, visibleHeight));
+    }
+
+    [Fact]
+    public void CroppedModulesReappearWithIdenticalPixelsAfterCanvasExpansion()
+    {
+        var widget = OverlayCatalog.CreateWidget("duration", 120, 48) with
+        {
+            Width = 200, Height = 80, ShowIcon = false
+        };
+        var original = Settings(480, 256, widget);
+        var cropped = OverlayLayout.ResizeCanvas(original, 160, 64);
+        var restored = OverlayLayout.ResizeCanvas(cropped, original.Width, original.Height);
+        using var renderer = new NativeOverlayRenderer();
+        using var originalImage = renderer.Render(new Size(480, 256), original, OverlaySnapshot.Demo, out _);
+        using var croppedImage = renderer.Render(new Size(160, 64), cropped, OverlaySnapshot.Demo, out _);
+        using var restoredImage = renderer.Render(new Size(480, 256), restored, OverlaySnapshot.Demo, out _);
+
+        Assert.Equal(RegionPixels(originalImage, 160, 64), Pixels(croppedImage));
+        Assert.Equal(Pixels(originalImage), Pixels(restoredImage));
     }
 
     [Theory]
@@ -151,6 +170,9 @@ public sealed class NativeOverlayContentScalingTests
 
     private static int[] Pixels(Bitmap image) => Enumerable.Range(0, image.Height)
         .SelectMany(y => Enumerable.Range(0, image.Width).Select(x => image.GetPixel(x, y).ToArgb())).ToArray();
+
+    private static int[] RegionPixels(Bitmap image, int width, int height) => Enumerable.Range(0, height)
+        .SelectMany(y => Enumerable.Range(0, width).Select(x => image.GetPixel(x, y).ToArgb())).ToArray();
 
     private static Rectangle OpaqueBounds(Bitmap image)
     {

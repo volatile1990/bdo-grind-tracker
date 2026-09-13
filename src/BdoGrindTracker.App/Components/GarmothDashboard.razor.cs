@@ -25,7 +25,7 @@ public partial class GarmothDashboard
         string? CharacterClass, TimeSpan Duration, SilverValuationResult Valuation, GarmothUploadPreview Preview,
         bool Blocked, bool Uploaded, bool LocallyModified);
 
-    private bool InteractionBlocked => Acting || _preparing || _batchUploading || State.IsBusy;
+    private bool InteractionBlocked => _disposed || Acting || _preparing || _batchUploading || State.IsBusy;
     private bool UploadsAvailable => !State.IsDemo && !State.IsBusy && State.HasApiKey && State.PersistenceError is null;
     private void FormChanged() => _saveFeedback = null;
     private void ResetPage() => _page = 1;
@@ -114,8 +114,10 @@ public partial class GarmothDashboard
         else _saveFeedback = ActionError ?? "Die Änderung wurde nicht gespeichert.";
     }
 
-    private async Task PauseForPreview()
+    private async Task PauseForPreview(Guid expectedSessionId)
     {
+        if (_disposed || State.SessionId != expectedSessionId)
+            throw new InvalidOperationException("Die Session hat sich geändert. Bitte öffne die Upload-Vorschau erneut.");
         if (!State.IsRunning) return;
         var result = await Tracker.PauseAsync();
         if (!result.Succeeded) throw new InvalidOperationException(result.Error);
@@ -129,7 +131,9 @@ public partial class GarmothDashboard
         try
         {
             await Tracker.RefreshPricesAsync();
-            if (row.IsCurrent) await PauseForPreview();
+            if (_disposed) return;
+            if (row.IsCurrent) await PauseForPreview(row.SessionId);
+            if (_disposed) return;
             var fresh = SessionRows.FirstOrDefault(candidate => candidate.SessionId == row.SessionId && candidate.IsCurrent == row.IsCurrent);
             if (!UploadsAvailable || fresh is null || !Eligible(fresh))
                 throw new InvalidOperationException(fresh?.Preview.Error ?? "Diese Session ist derzeit nicht uploadfähig.");
@@ -149,11 +153,16 @@ public partial class GarmothDashboard
         _preparing = true;
         _uploadFeedback = null;
         _batchTargets = [];
+        var expectedSessionId = State.SessionId;
         try
         {
             await Tracker.RefreshPricesAsync();
+            if (_disposed) return;
+            if (State.SessionId != expectedSessionId)
+                throw new InvalidOperationException("Die Session hat sich geändert. Bitte öffne die Upload-Vorschau erneut.");
             if (SessionRows.FirstOrDefault(row => row.IsCurrent) is { } current && Eligible(current))
-                await PauseForPreview();
+                await PauseForPreview(expectedSessionId);
+            if (_disposed) return;
             var rows = SessionRows;
             if (!UploadsAvailable) throw new InvalidOperationException("Uploads sind derzeit nicht verfügbar.");
             _batchTargets = rows.Where(Eligible).OrderByDescending(row => row.IsCurrent).ThenBy(row => row.StartedAt)

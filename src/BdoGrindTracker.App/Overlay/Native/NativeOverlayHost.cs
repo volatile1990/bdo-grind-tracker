@@ -2,53 +2,131 @@ using BdoGrindTracker.App.Services;
 
 namespace BdoGrindTracker.App.Overlay.Native;
 
-/// <summary>Owns the optional desktop window and samples immutable application state.</summary>
+/// <summary>Owns an independent desktop window for each overlay, regardless of editor selection.</summary>
 internal sealed class NativeOverlayHost(IOverlayService service, ITrackerSession tracker, Form owner,
-    bool validationMode = false) : IDisposable
+    bool validationMode = false, Func<NativeOverlayHotkeyWindow>? hotkeyWindowFactory = null,
+    Func<(Screen? Screen, bool Foreground)>? locateGame = null) : IDisposable
 {
     private readonly NativeOverlayGameWindow _game = new();
-    private readonly NativeOverlayRenderer _renderer = new();
-    private NativeOverlayForm? _window;
+    private readonly Dictionary<string, NativeOverlayWindowHost> _windows = new(StringComparer.Ordinal);
+    private NativeOverlayHotkeyWindow? _hotkeyWindow;
     private bool _disposed, _commandInProgress;
-    private bool? _captureExcluded;
-    private string? _captureError, _hotkeyError, _commandError;
-    private double _dpi = 96;
+    private string? _commandError;
 
     internal void Tick()
     {
         if (_disposed || owner.IsDisposed) return;
-        var settings = service.Settings;
-        var preview = service.State.Previewing;
-        if (validationMode)
+        service.RefreshClock();
+        if (!validationMode) UpdateHotkeys();
+        var overlays = service.Overlays.ToArray();
+        var retained = overlays.Select(overlay => overlay.Id).ToHashSet(StringComparer.Ordinal);
+        var gameLocation = !validationMode && overlays.Any(overlay => overlay.Settings.Enabled || service.GetState(overlay.Id).Previewing)
+            ? (locateGame?.Invoke() ?? _game.Locate()) : default;
+        foreach (var id in _windows.Keys.Where(id => !retained.Contains(id)).ToArray())
         {
-            service.UpdateRuntime(new OverlayRuntimeState { Status = "In der UI-Testvorschau wird kein Desktop-Fenster geöffnet." });
-            return;
+            _windows[id].Dispose();
+            _windows.Remove(id);
         }
+        foreach (var overlay in overlays)
+        {
+            if (validationMode)
+            {
+                service.UpdateRuntime(overlay.Id, new OverlayRuntimeState
+                {
+                    Status = "In der UI-Testvorschau wird kein Desktop-Fenster geöffnet.",
+                });
+                continue;
+            }
+            if (!_windows.TryGetValue(overlay.Id, out var window))
+                _windows[overlay.Id] = window = new NativeOverlayWindowHost(overlay.Id, service, tracker, Tick);
+            window.Tick(overlay, gameLocation);
+        }
+    }
+
+    private void UpdateHotkeys()
+    {
         try
         {
-            if (!settings.Enabled && !preview && !settings.HotkeysEnabled)
+            if (_hotkeyWindow is null)
+            {
+                _hotkeyWindow = hotkeyWindowFactory?.Invoke() ?? new NativeOverlayHotkeyWindow();
+                _hotkeyWindow.HotkeyPressed += hotkey => _ = RunHotkeyAsync(hotkey);
+            }
+            var registrationError = _hotkeyWindow.Apply(service.Hotkeys);
+            service.UpdateHotkeyRuntime(_commandError ?? registrationError);
+        }
+        catch (Exception exception) when (exception is System.ComponentModel.Win32Exception or InvalidOperationException or
+            ArgumentException or System.Runtime.InteropServices.ExternalException)
+        {
+            service.UpdateHotkeyRuntime("Tastenkürzel konnten nicht registriert werden: " + exception.Message);
+        }
+    }
+
+    private async Task RunHotkeyAsync(int hotkey)
+    {
+        if (_disposed || _commandInProgress || !service.Hotkeys.Enabled || hotkey is not (1 or 2)) return;
+        _commandInProgress = true;
+        try
+        {
+            var result = hotkey == 1 ? await service.ToggleAllOverlaysAsync() : await service.ToggleAllInteractionAsync();
+            _commandError = result.Error;
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            _commandError = exception.Message;
+        }
+        finally
+        {
+            _commandInProgress = false;
+            if (!_disposed) Tick();
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _hotkeyWindow?.Dispose();
+        foreach (var window in _windows.Values) window.Dispose();
+        _windows.Clear();
+    }
+}
+
+internal sealed class NativeOverlayWindowHost(string id, IOverlayService service, ITrackerSession tracker,
+    Action refresh) : IDisposable
+{
+    private readonly NativeOverlayRenderer _renderer = new();
+    private readonly NativeOverlayRenderState _renderState = new();
+    private NativeOverlayForm? _window;
+    private bool _disposed, _commandInProgress;
+    private bool? _captureExcluded;
+    private string? _captureError, _commandError;
+    private double _dpi = 96;
+    private OverlaySettings _lastSettings = new();
+    private OverlaySettings Settings => service.Overlays.FirstOrDefault(overlay => overlay.Id == id)?.Settings ?? _lastSettings;
+
+    internal void Tick(OverlayInstance overlay, (Screen? Screen, bool Foreground) gameLocation)
+    {
+        if (_disposed) return;
+        var settings = _lastSettings = overlay.Settings;
+        var preview = service.GetState(id).Previewing;
+        try
+        {
+            if (!settings.Enabled && !preview)
             {
                 _window?.Hide();
-                if (_window is not null)
-                {
-                    _window.SetHotkeys(false);
-                    _hotkeyError = null;
-                }
                 Publish(false, "Overlay ausgeschaltet.", null);
                 return;
             }
             EnsureWindow();
-            // The form compares the full binding pair, so editing either shortcut
-            // and recreating its window handle both trigger fresh registration.
-            _hotkeyError = _window!.SetHotkeys(settings.HotkeysEnabled,
-                settings.ToggleOverlayHotkey, settings.ToggleInteractionHotkey);
+            _window!.Text = "Grindcrest – " + overlay.Name;
             _window!.SetInteraction(settings.Interaction);
             if (_captureExcluded != settings.CaptureExcluded)
             {
                 _captureError = _window.SetCaptureExcluded(settings.CaptureExcluded);
                 _captureExcluded = settings.CaptureExcluded;
             }
-            var (gameScreen, foreground) = _game.Locate();
+            var (gameScreen, foreground) = gameLocation;
             var screen = gameScreen ?? Screen.AllScreens.FirstOrDefault(value =>
                 value.DeviceName == tracker.Preferences.MonitorDeviceName) ?? Screen.PrimaryScreen ?? Screen.AllScreens.FirstOrDefault();
             if (screen is null)
@@ -66,7 +144,9 @@ internal sealed class NativeOverlayHost(IOverlayService service, ITrackerSession
             {
                 var bounds = NativeOverlayGeometry.Place(screen.Bounds, settings.Width, settings.Height,
                     settings.PositionX, settings.PositionY, settings.Scale, _dpi);
-                _window.Present(bounds);
+                var snapshot = service.Snapshot;
+                _window.Present(bounds, repaint: !_renderState.Matches(settings, snapshot, bounds.Size));
+                _renderState.Remember(settings, snapshot, bounds.Size);
             }
             else _window.Hide();
             var status = preview ? "Desktop-Vorschau aktiv." : !settings.Enabled ? "Overlay ausgeschaltet." :
@@ -88,11 +168,11 @@ internal sealed class NativeOverlayHost(IOverlayService service, ITrackerSession
     {
         if (_window is not null) return;
         _window = new NativeOverlayForm();
-        _window.HandleCreated += (_, _) => _captureExcluded = null;
-        _window.CreateResize = bounds => new NativeOverlayResize(service.Settings, bounds, _window.MonitorBounds, _dpi);
+        _window.HandleCreated += (_, _) => { _captureExcluded = null; _renderState.Invalidate(); };
+        _window.CreateResize = bounds => new NativeOverlayResize(Settings, bounds, _window.MonitorBounds, _dpi);
         _window.RenderBitmap = size =>
         {
-            var settings = _window.ResizePreview ?? service.Settings;
+            var settings = _window.ResizePreview ?? Settings;
             var bitmap = _renderer.Render(size, settings, service.Snapshot, out var actions);
             _window!.SetActions(actions);
             return bitmap;
@@ -102,8 +182,8 @@ internal sealed class NativeOverlayHost(IOverlayService service, ITrackerSession
             var position = NativeOverlayGeometry.RelativePosition(bounds, _window.MonitorBounds);
             // Commit exactly the layout already shown during the corner drag.
             var result = resized is not null
-                ? await service.SaveAsync(resized with { PositionX = position.X, PositionY = position.Y })
-                : await service.SavePositionAsync(position.X, position.Y);
+                ? await service.SaveAsync(id, resized with { PositionX = position.X, PositionY = position.Y })
+                : await service.SavePositionAsync(id, position.X, position.Y);
             if (!result.Succeeded) throw new InvalidOperationException(result.Error);
         });
         _window.ActionClicked += action =>
@@ -111,23 +191,11 @@ internal sealed class NativeOverlayHost(IOverlayService service, ITrackerSession
             if (action.StartsWith("toggle-tracking:", StringComparison.Ordinal) && service.Snapshot.CanToggleTracking)
                 _ = RunCommandAsync(service.ToggleTrackingAsync);
         };
-        _window.HotkeyPressed += id => _ = RunCommandAsync(async () =>
-        {
-            var settings = service.Settings;
-            var updated = id switch
-            {
-                1 => settings with { Enabled = !settings.Enabled },
-                2 => settings with { Interaction = settings.Interaction == "passthrough" ? "move" : "passthrough" },
-                _ => settings,
-            };
-            var result = await service.SaveAsync(updated);
-            if (!result.Succeeded) throw new InvalidOperationException(result.Error);
-        });
     }
 
     private async Task RunCommandAsync(Func<Task> action)
     {
-        if (_disposed || _commandInProgress) return;
+        if (_disposed || _commandInProgress || !service.Overlays.Any(overlay => overlay.Id == id)) return;
         _commandInProgress = true;
         try { await action(); _commandError = null; }
         catch (Exception exception) when (exception is not OutOfMemoryException)
@@ -137,7 +205,7 @@ internal sealed class NativeOverlayHost(IOverlayService service, ITrackerSession
         finally
         {
             _commandInProgress = false;
-            if (!_disposed) Tick();
+            if (!_disposed) refresh();
         }
     }
 
@@ -145,10 +213,10 @@ internal sealed class NativeOverlayHost(IOverlayService service, ITrackerSession
     {
         var issue = _commandError ?? _captureError;
         if (issue is not null) status += " " + issue;
-        service.UpdateRuntime(new OverlayRuntimeState
+        service.UpdateRuntime(id, new OverlayRuntimeState
         {
             IsVisible = visible, Status = status, IsError = error || issue is not null,
-            TargetMonitorLabel = monitor, HotkeyStatus = _hotkeyError,
+            TargetMonitorLabel = monitor,
         });
     }
 
@@ -156,7 +224,13 @@ internal sealed class NativeOverlayHost(IOverlayService service, ITrackerSession
     {
         if (_disposed) return;
         _disposed = true;
-        _window?.Dispose();
+        if (_window is not null)
+        {
+            // Releasing capture during disposal can otherwise render a removed overlay once more.
+            _window.RenderBitmap = null;
+            _window.CreateResize = null;
+            _window.Dispose();
+        }
         _renderer.Dispose();
     }
 }

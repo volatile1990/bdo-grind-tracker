@@ -10,13 +10,15 @@ internal static class LootDiagnosticFormat
 {
     public const int Version = 3;
     public const int HistoricalVersion = 2;
-    public const string EngineVersion = "grindcrest-lifetime-v3";
+    public const string EngineVersion = "grindcrest-lifetime-v4";
+    public const string LegacyVisualLifetimeEngineVersion = "grindcrest-lifetime-v3";
     public const string LegacyRawLifetimeEngineVersion = "grindcrest-lifetime-v2";
     public const string LegacyLifetimeEngineVersion = "grindcrest-lifetime-v1";
     public const string LegacyVisualTemporalEngineVersion = "grindcrest-temporal-v2";
     public const string LegacyTemporalEngineVersion = "grindcrest-temporal-v1";
     public const string VisualAppearanceVariantName = "visual-appearance-v1";
     public const string VisualOccupancyVariantName = "visual-occupancy-v1";
+    public const string IndependentSpecialVariantName = "independent-special-v1";
     public const string LegacyRowTracksEngineVersion = "companion-0.7.4-row-tracks-v8";
     public const string PreviousRowTracksEngineVersion = "companion-0.7.4-row-tracks-v7";
     public const string ClampedQuantityEngineVersion = "companion-0.7.4-drop-quantity-v6";
@@ -139,6 +141,9 @@ internal sealed record LootDiagnosticEntry(
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public NormalLootRecoveryDiagnostics? Recovery { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public NormalLootRecoveryDiagnostics? RareRecovery { get; init; }
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<LootRowReviewDiagnostics>? RowReviews { get; init; }

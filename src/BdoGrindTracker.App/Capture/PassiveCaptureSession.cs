@@ -18,15 +18,19 @@ internal sealed class PassiveCaptureSession : IAsyncDisposable
     // Four waiting frames plus the frame currently being analyzed. Capacity is
     // reserved before capture, so a slow OCR worker cannot grow bitmap memory.
     internal const int DefaultMaximumQueuedFrames = 4;
+    internal static readonly TimeSpan DefaultAnalysisTimeout = TimeSpan.FromSeconds(30);
 
     private readonly Func<Rectangle, CancellationToken, CapturedDesktopBitmap> _captureFrame;
     private IDisposable? _captureOwner;
     private readonly TimeProvider _timeProvider;
     private readonly TimeSpan _frameInterval;
     private readonly int _maximumQueuedFrames;
+    private readonly TimeSpan _analysisTimeout;
     private readonly object _sync = new();
     private CancellationTokenSource? _cancellation;
     private Task? _runTask;
+    private Task _pendingAnalysis = Task.CompletedTask;
+    private bool _analysisFailed;
     private DateTimeOffset? _captureEpochUtc;
     private long _captureEpochTimestamp;
     private DateTimeOffset _lastCapturedAtUtc = DateTimeOffset.MinValue;
@@ -51,17 +55,47 @@ internal sealed class PassiveCaptureSession : IAsyncDisposable
         _captureOwner is PassiveWindowCapture windowCapture
             ? windowCapture.PrepareCapture() : fallbackDesktopRegion;
 
+    internal Bitmap CapturePreview(Rectangle fallbackDesktopRegion, CancellationToken cancellationToken)
+    {
+        lock (_sync)
+        {
+            if (_runTask is { IsCompleted: false } || !_pendingAnalysis.IsCompleted)
+                throw new InvalidOperationException("Bitte die laufende Aufnahme zuerst pausieren.");
+            Bitmap? frame = null;
+            try
+            {
+                try
+                {
+                    var region = ResolveCaptureRegion(fallbackDesktopRegion);
+                    ValidateArguments(region);
+                    frame = _captureFrame(region, cancellationToken).Bitmap;
+                }
+                finally
+                {
+                    if (_captureOwner is PassiveWindowCapture windowCapture) windowCapture.StopCapture();
+                }
+                return frame;
+            }
+            catch
+            {
+                frame?.Dispose();
+                throw;
+            }
+        }
+    }
+
     internal PassiveCaptureSession(
         Func<Rectangle, Bitmap> captureFrame,
         TimeProvider? timeProvider = null,
         TimeSpan? frameInterval = null,
-        int maximumQueuedFrames = DefaultMaximumQueuedFrames)
+        int maximumQueuedFrames = DefaultMaximumQueuedFrames,
+        TimeSpan? analysisTimeout = null)
         : this(
             WrapLegacyCapture(captureFrame),
             timeProvider,
             frameInterval,
             maximumQueuedFrames,
-            captureOwner: null)
+            captureOwner: null, analysisTimeout)
     {
     }
 
@@ -69,13 +103,14 @@ internal sealed class PassiveCaptureSession : IAsyncDisposable
         Func<Rectangle, CapturedDesktopBitmap> captureFrame,
         TimeProvider? timeProvider = null,
         TimeSpan? frameInterval = null,
-        int maximumQueuedFrames = DefaultMaximumQueuedFrames)
+        int maximumQueuedFrames = DefaultMaximumQueuedFrames,
+        TimeSpan? analysisTimeout = null)
         : this(
             WrapMetadataCapture(captureFrame),
             timeProvider,
             frameInterval,
             maximumQueuedFrames,
-            captureOwner: null)
+            captureOwner: null, analysisTimeout)
     {
     }
 
@@ -84,13 +119,15 @@ internal sealed class PassiveCaptureSession : IAsyncDisposable
         TimeProvider? timeProvider,
         TimeSpan? frameInterval,
         int maximumQueuedFrames,
-        IDisposable? captureOwner)
+        IDisposable? captureOwner,
+        TimeSpan? analysisTimeout = null)
     {
         _captureFrame = captureFrame ?? throw new ArgumentNullException(nameof(captureFrame));
         _captureOwner = captureOwner;
         _timeProvider = timeProvider ?? TimeProvider.System;
         _frameInterval = frameInterval ?? LiveFrameInterval;
         _maximumQueuedFrames = maximumQueuedFrames;
+        _analysisTimeout = analysisTimeout ?? DefaultAnalysisTimeout;
         if (_frameInterval <= TimeSpan.Zero)
         {
             throw new ArgumentOutOfRangeException(nameof(frameInterval));
@@ -99,12 +136,30 @@ internal sealed class PassiveCaptureSession : IAsyncDisposable
         {
             throw new ArgumentOutOfRangeException(nameof(maximumQueuedFrames));
         }
+        if (_analysisTimeout <= TimeSpan.Zero || _analysisTimeout > TimeSpan.FromMinutes(5))
+            throw new ArgumentOutOfRangeException(nameof(analysisTimeout));
     }
 
     public event EventHandler<CaptureSessionStoppedEventArgs>? Stopped;
 
     public TimeSpan FrameInterval => _frameInterval;
     public int MaximumQueuedFrames => _maximumQueuedFrames;
+    internal bool HasPendingAnalysis { get { lock (_sync) return !_pendingAnalysis.IsCompleted; } }
+    internal Task PendingAnalysis { get { lock (_sync) return _pendingAnalysis; } }
+    internal bool AnalysisFailed { get { lock (_sync) return _analysisFailed; } }
+
+    // HUD freshness must use the same monotonic epoch as CapturedAtUtc. A
+    // Windows clock correction must not make every subsequent image stale.
+    internal DateTimeOffset ObservationTime
+    {
+        get
+        {
+            lock (_sync)
+                return _captureEpochUtc is { } epoch
+                    ? epoch + _timeProvider.GetElapsedTime(_captureEpochTimestamp)
+                    : _timeProvider.GetUtcNow();
+        }
+    }
 
     public bool IsRunning
     {
@@ -137,6 +192,9 @@ internal sealed class PassiveCaptureSession : IAsyncDisposable
             {
                 throw new InvalidOperationException("Die Aufnahme läuft bereits.");
             }
+            if (!_pendingAnalysis.IsCompleted)
+                throw new InvalidOperationException("Die abgebrochene Texterkennung wird noch beendet.");
+            _analysisFailed = false;
 
             _cancellation?.Dispose();
             _cancellation = new CancellationTokenSource();
@@ -195,21 +253,37 @@ internal sealed class PassiveCaptureSession : IAsyncDisposable
         {
             await foreach (var frame in frames.Reader.ReadAllAsync().ConfigureAwait(false))
             {
-                using (frame.Bitmap)
+                var metadata = frame.Metadata with
                 {
-                    var metadata = frame.Metadata with
-                    {
-                        QueueDelay = _timeProvider.GetElapsedTime(frame.EnqueuedAtTimestamp)
-                    };
-                    // A normal pause must not cancel delayed OCR and lose loot.
-                    // Individual recognition passes enforce their own limits.
-                    await onFrame(frame.Bitmap, metadata, CancellationToken.None)
-                        .ConfigureAwait(false);
+                    QueueDelay = _timeProvider.GetElapsedTime(frame.EnqueuedAtTimestamp)
+                };
+                // The worker owns its bitmap even after a watchdog timeout.
+                // Neither normal pause nor UI disposal releases native inputs
+                // still in use by an unresponsive recognizer.
+                var analysisCancellation = new CancellationTokenSource();
+                var analysis = Task.Run(async () =>
+                {
+                    using (analysisCancellation)
+                    using (frame.Bitmap)
+                        await onFrame(frame.Bitmap, metadata, analysisCancellation.Token).ConfigureAwait(false);
+                }, CancellationToken.None);
+                lock (_sync) _pendingAnalysis = analysis;
+                try { await analysis.WaitAsync(_analysisTimeout).ConfigureAwait(false); }
+                catch (TimeoutException)
+                {
+                    // A native cancellation callback can itself be slow. Signal
+                    // cancellation without letting it block the watchdog caller.
+                    try { _ = ObserveAbandonedAnalysisAsync(analysisCancellation.CancelAsync()); }
+                    catch (ObjectDisposedException) { }
+                    _ = ObserveAbandonedAnalysisAsync(analysis);
+                    throw new TimeoutException("Die Texterkennung hat nicht rechtzeitig geantwortet. " +
+                        "Tracking wurde gestoppt; der zuletzt erkannte Stand bleibt erhalten.");
                 }
             }
         }
         catch (Exception exception)
         {
+            lock (_sync) _analysisFailed = true;
             failure = exception;
             producerCancellation.Cancel();
         }
@@ -253,20 +327,11 @@ internal sealed class PassiveCaptureSession : IAsyncDisposable
                 // bitmap. The single producer already reserved a queue slot.
                 using var pending = new PendingCapture(capturedFrame.Bitmap);
                 hudVisible = hudVisible && (UsesWindowCapture || TryObserveHud(canObserveHud));
-                if (_captureEpochUtc is null)
-                {
-                    _captureEpochUtc = _timeProvider.GetUtcNow();
-                    _captureEpochTimestamp = captureCompletedTimestamp;
-                }
                 // The temporal counter needs real elapsed capture time, even
                 // when Windows corrects its wall clock while paused. Keep one
                 // epoch for this capture-session instance; the monotonic clock
                 // continues through pauses so their actual gaps are preserved.
-                var capturedAt = EnsureMonotonicTimestamp(
-                    _captureEpochUtc.Value +
-                        _timeProvider.GetElapsedTime(_captureEpochTimestamp, captureTimestamp),
-                    _lastCapturedAtUtc);
-                _lastCapturedAtUtc = capturedAt;
+                var capturedAt = CaptureTime(captureTimestamp, captureCompletedTimestamp);
                 sequence++;
 
                 var metadata = new CapturedFrameMetadata(
@@ -323,6 +388,27 @@ internal sealed class PassiveCaptureSession : IAsyncDisposable
         Bitmap Bitmap,
         CapturedFrameMetadata Metadata,
         long EnqueuedAtTimestamp);
+
+    private DateTimeOffset CaptureTime(long captureTimestamp, long completedTimestamp)
+    {
+        lock (_sync)
+        {
+            if (_captureEpochUtc is null)
+            {
+                _captureEpochUtc = _timeProvider.GetUtcNow();
+                _captureEpochTimestamp = completedTimestamp;
+            }
+            return _lastCapturedAtUtc = EnsureMonotonicTimestamp(
+                _captureEpochUtc.Value + _timeProvider.GetElapsedTime(_captureEpochTimestamp, captureTimestamp),
+                _lastCapturedAtUtc);
+        }
+    }
+
+    private static async Task ObserveAbandonedAnalysisAsync(Task analysis)
+    {
+        try { await analysis.ConfigureAwait(false); }
+        catch (Exception) { /* The watchdog already reported this worker as failed. */ }
+    }
 
     private static bool TryObserveHud(Func<bool>? canObserveHud)
     {

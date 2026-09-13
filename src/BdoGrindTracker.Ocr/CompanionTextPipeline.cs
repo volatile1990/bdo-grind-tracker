@@ -25,8 +25,9 @@ internal static partial class CompanionTextPipeline
     {
         var text = NormalizeRawText(ocrText);
 
-        // Companion removes the first quantity-shaped match from the name even when the
-        // captured digits cannot subsequently be parsed as an ASCII decimal value.
+        // Remove the first quantity token even if its digits cannot be parsed.
+        // Letter-shaped ones must be separate tokens so Dehkia, Gavinya and
+        // "Max Increase" remain item names rather than quantities of one.
         var name = QuantityRegex().Replace(text, string.Empty, 1);
         name = TrailingMultiplierRegex().Replace(name, string.Empty, 1);
         name = GolemPossessiveRegex().Replace(name, "Golem's", 1);
@@ -163,7 +164,7 @@ internal static partial class CompanionTextPipeline
             return false;
         }
 
-        var capture = match.Groups[1].Value;
+        var capture = match.Groups["quantity"].Value;
         if (capture is "I" or "i")
         {
             quantity = 1;
@@ -221,7 +222,7 @@ internal static partial class CompanionTextPipeline
             0x0025 or // %
             0x00B1; // plus-minus
 
-    [GeneratedRegex(@"[xkv] ?(\d{1,4}|I|i)", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"[xkv] ?(?<quantity>\d{1,4})|(?<![\p{L}\p{M}])[xkv] ?(?<quantity>[Ii])(?![\p{L}\p{M}])", RegexOptions.CultureInvariant)]
     private static partial Regex QuantityRegex();
 
     // Rust regex `$` is absolute end-of-haystack without multi-line mode. Use .NET

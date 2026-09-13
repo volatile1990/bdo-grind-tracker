@@ -7,14 +7,15 @@ namespace BdoGrindTracker.App.Tests;
 
 public sealed class ExperienceHudContextTests(ITestOutputHelper output)
 {
-    [Theory]
+    [WindowsOcrTheory]
+    [Trait("Category", "WindowsOcr")]
     [InlineData(1920, 1080)]
     [InlineData(2560, 1440)]
     [InlineData(3840, 2160)]
     public void ReadsRealHudWithNeighbouringStatsAndIconsAtDifferentResolutions(int width, int height)
     {
         var engine = CompanionWindowsOcrRecognizer.TryCreate();
-        if (engine is null) { output.WriteLine("Native OCR unavailable; independent parser tests remain active."); return; }
+        Assert.NotNull(engine);
         using var hud = new Bitmap(Path.Combine(AppContext.BaseDirectory, "fixtures", "experience",
             "level-65-38.907-hud-user-20260911.png"));
         using var frame = new Bitmap(width, height, PixelFormat.Format24bppRgb);

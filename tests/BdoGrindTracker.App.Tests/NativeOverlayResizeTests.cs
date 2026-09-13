@@ -46,8 +46,7 @@ public sealed class NativeOverlayResizeTests
         {
             var before = original.Widgets[index];
             var after = frame.Settings.Widgets[index];
-            Assert.Equal(before.Width, after.ContentWidth);
-            Assert.Equal(before.Height, after.ContentHeight);
+            Assert.Equal(before, after);
             Assert.Equal(before.FontScale, after.FontScale);
             Assert.Equal(before.ItemSize, after.ItemSize);
             Assert.Equal(before.ItemLimit, after.ItemLimit);
@@ -105,8 +104,8 @@ public sealed class NativeOverlayResizeTests
             Assert.Equal(before.Y, after.Y, 8);
             Assert.Equal(before.Width, after.Width, 8);
             Assert.Equal(before.Height, after.Height, 8);
-            Assert.Equal(before.Width, after.ContentWidth);
-            Assert.Equal(before.Height, after.ContentHeight);
+            Assert.Equal(before.ContentWidth, after.ContentWidth);
+            Assert.Equal(before.ContentHeight, after.ContentHeight);
             Assert.Equal(before.FontScale, after.FontScale);
             Assert.Equal(before.ItemSize, after.ItemSize);
             Assert.Equal(before.ItemNames, after.ItemNames);

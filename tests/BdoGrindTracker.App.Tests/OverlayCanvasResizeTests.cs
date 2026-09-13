@@ -9,7 +9,7 @@ public sealed class OverlayCanvasResizeTests
     [InlineData("dashboard")]
     [InlineData("loot")]
     [InlineData("loot-strip")]
-    public void SmallestCanvasPreservesPresetModuleProportionsAndMargins(string preset)
+    public void SmallestCanvasPreservesPresetModulesEvenOutsideTheWindow(string preset)
     {
         var original = OverlayCatalog.Preset(preset);
 
@@ -17,7 +17,7 @@ public sealed class OverlayCanvasResizeTests
 
         Assert.Equal(160, resized.Width);
         Assert.Equal(64, resized.Height);
-        AssertProportions(original, resized);
+        AssertModulesUnchanged(original, resized);
         Assert.Equal(resized.Widgets, OverlayLayout.Normalize(resized).Widgets);
     }
 
@@ -42,18 +42,20 @@ public sealed class OverlayCanvasResizeTests
 
         var resized = OverlayLayout.ResizeCanvas(original, width, height);
 
-        AssertProportions(original, resized);
+        AssertModulesUnchanged(original, resized);
         Assert.Equal(7.25, original.Widgets[0].X);
         Assert.Equal(400, original.Width);
         Assert.True(Assert.IsAssignableFrom<IList<OverlayWidget>>(resized.Widgets).IsReadOnly);
     }
 
-    [Fact]
-    public void NormalizingCanvasChangesDoesNotImplicitlyResizeModules()
+    [Theory]
+    [InlineData(720, 520)]
+    [InlineData(160, 64)]
+    public void NormalizingCanvasChangesDoesNotImplicitlyResizeModules(double width, double height)
     {
         var original = OverlayCatalog.Preset("compact");
 
-        var normalized = OverlayLayout.Normalize(original with { Width = 720, Height = 520 });
+        var normalized = OverlayLayout.Normalize(original with { Width = width, Height = height });
 
         Assert.Equal(original.Widgets, normalized.Widgets);
     }
@@ -86,14 +88,11 @@ public sealed class OverlayCanvasResizeTests
         Assert.Equal(original, resized with { Width = original.Width, Height = original.Height, Widgets = original.Widgets });
         var before = Assert.Single(original.Widgets);
         var after = Assert.Single(resized.Widgets);
-        Assert.Equal(before, after with { X = before.X, Y = before.Y, Width = before.Width, Height = before.Height,
-            ContentWidth = before.ContentWidth, ContentHeight = before.ContentHeight });
-        Assert.Equal(before.Width, after.ContentWidth);
-        Assert.Equal(before.Height, after.ContentHeight);
+        Assert.Equal(before, after);
     }
 
     [Fact]
-    public void ShrinkingAndGrowingDoesNotExpandModulesToIndividualEditorMinimums()
+    public void ShrinkingAndGrowingKeepsClippedModulesAtTheirOriginalGeometry()
     {
         var original = new OverlaySettings
         {
@@ -103,29 +102,32 @@ public sealed class OverlayCanvasResizeTests
 
         var small = OverlayLayout.ResizeCanvas(original, 160, 64);
         var widget = Assert.Single(small.Widgets);
-        Assert.Equal(8, widget.Width);
-        Assert.Equal(40d * 64 / 1200, widget.Height, 10);
-        AssertProportions(original, small);
+        Assert.Equal(80, widget.Width);
+        Assert.Equal(40, widget.Height);
+        Assert.True(widget.X > small.Width && widget.Y > small.Height);
+        AssertModulesUnchanged(original, small);
 
         var restored = OverlayLayout.ResizeCanvas(small, original.Width, original.Height);
-        AssertProportions(original, restored);
+        AssertModulesUnchanged(original, restored);
     }
 
     [Fact]
-    public void SavingAndLoadingKeepsShrunkenModulesAndTheirMargins()
+    public void SavingAndLoadingKeepsClippedModuleGeometryAndRestoresItOnExpansion()
     {
         var folder = Path.Combine(Path.GetTempPath(), "Grindcrest.OverlayResize.Tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(folder);
         try
         {
-            var resized = OverlayLayout.ResizeCanvas(OverlayCatalog.Preset("loot"), 160, 64);
+            var original = OverlayCatalog.Preset("loot");
+            var resized = OverlayLayout.ResizeCanvas(original, 160, 64);
             var store = new OverlaySettingsStore(folder);
             store.Save(resized);
 
             var restored = store.Load();
 
-            AssertProportions(resized, restored);
-            Assert.Contains(restored.Widgets, widget => widget.Width < 80 && widget.Height < 40);
+            AssertModulesUnchanged(original, restored);
+            Assert.Contains(restored.Widgets, widget => widget.Y > restored.Height);
+            AssertModulesUnchanged(original, OverlayLayout.ResizeCanvas(restored, original.Width, original.Height));
         }
         finally
         {
@@ -137,7 +139,7 @@ public sealed class OverlayCanvasResizeTests
     [InlineData(0, -10, 160, 64)]
     [InlineData(2000, 1400, 1600, 1200)]
     [InlineData(double.NaN, double.PositiveInfinity, 400, 300)]
-    public void TargetDimensionsAreValidatedBeforeCalculatingProportions(double width, double height,
+    public void TargetDimensionsAreValidatedWithoutChangingModules(double width, double height,
         double expectedWidth, double expectedHeight)
     {
         var original = new OverlaySettings
@@ -150,7 +152,7 @@ public sealed class OverlayCanvasResizeTests
 
         Assert.Equal(expectedWidth, resized.Width);
         Assert.Equal(expectedHeight, resized.Height);
-        AssertProportions(original, resized);
+        AssertModulesUnchanged(original, resized);
     }
 
     [Fact]
@@ -167,8 +169,8 @@ public sealed class OverlayCanvasResizeTests
 
         Assert.Equal(1, widget.Width);
         Assert.Equal(1, widget.Height);
-        Assert.Equal(159, widget.X);
-        Assert.Equal(63, widget.Y);
+        Assert.Equal(1599, widget.X);
+        Assert.Equal(1199, widget.Y);
     }
 
     [Fact]
@@ -186,29 +188,34 @@ public sealed class OverlayCanvasResizeTests
         Assert.Equal(720, resized.Width);
         Assert.Equal(128, resized.Height);
         Assert.Equal(0, widget.X);
-        Assert.Equal(0, widget.Y);
-        Assert.Equal(2, widget.Width);
-        Assert.Equal(128, widget.Height);
+        Assert.Equal(100, widget.Y);
+        Assert.Equal(1, widget.Width);
+        Assert.Equal(72, widget.Height);
     }
 
-    private static void AssertProportions(OverlaySettings original, OverlaySettings resized)
+    [Fact]
+    public void CanvasResizePreservesExistingModuleContentScaling()
+    {
+        var widget = OverlayLayout.ResizeWidget(OverlayCatalog.CreateWidget("duration", 250, 200), 120, 48);
+        var original = new OverlaySettings { Width = 400, Height = 300, Widgets = [widget] };
+
+        var resized = OverlayLayout.ResizeCanvas(original, 160, 64);
+
+        AssertModulesUnchanged(original, resized);
+        Assert.Equal(OverlayContentLayout.Create(widget, OverlaySnapshot.Demo),
+            OverlayContentLayout.Create(resized.Widgets[0], OverlaySnapshot.Demo));
+    }
+
+    private static void AssertModulesUnchanged(OverlaySettings original, OverlaySettings resized)
     {
         Assert.Equal(original.Widgets.Count, resized.Widgets.Count);
         for (var i = 0; i < original.Widgets.Count; i++)
         {
             var before = original.Widgets[i];
             var after = resized.Widgets[i];
-            Assert.Equal(before.Id, after.Id);
-            Assert.Equal(before.X / original.Width, after.X / resized.Width, 10);
-            Assert.Equal(before.Y / original.Height, after.Y / resized.Height, 10);
-            Assert.Equal(before.Width / original.Width, after.Width / resized.Width, 10);
-            Assert.Equal(before.Height / original.Height, after.Height / resized.Height, 10);
-            Assert.Equal((original.Width - before.X - before.Width) / original.Width,
-                (resized.Width - after.X - after.Width) / resized.Width, 10);
-            Assert.Equal((original.Height - before.Y - before.Height) / original.Height,
-                (resized.Height - after.Y - after.Height) / resized.Height, 10);
-            Assert.InRange(after.X, 0, resized.Width - after.Width);
-            Assert.InRange(after.Y, 0, resized.Height - after.Height);
+            Assert.Equal(before, after);
+            Assert.InRange(after.X, 0, 1600 - after.Width);
+            Assert.InRange(after.Y, 0, 1200 - after.Height);
         }
     }
 }

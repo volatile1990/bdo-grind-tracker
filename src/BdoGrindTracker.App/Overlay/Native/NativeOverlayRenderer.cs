@@ -117,6 +117,7 @@ internal sealed class NativeOverlayRenderer : IDisposable
             else if (OverlayCatalog.IsLootWidget(widget.Kind))
                 DrawLoot(graphics, widget, inner, snapshot);
             else if (widget.Kind == "chart") DrawChart(graphics, widget, inner, snapshot);
+            else if (widget.Kind == "clock") DrawClock(graphics, widget, inner, snapshot);
             else DrawMetric(graphics, widget, inner, snapshot);
             graphics.Restore(state);
         }
@@ -129,6 +130,37 @@ internal sealed class NativeOverlayRenderer : IDisposable
         }
         actions = controls;
         return bitmap;
+    }
+
+    private static void DrawClock(Graphics graphics, OverlayWidget widget, RectangleF inner, OverlaySnapshot snapshot)
+    {
+        var clock = OverlayClockPresentation.Create(widget, snapshot.ClockUtcNow);
+        var fontScale = (float)widget.FontScale;
+        if (widget.ShowLabel)
+        {
+            var inset = widget.ShowIcon ? 17 * fontScale : 0;
+            if (widget.ShowIcon) DrawGlyph(graphics, "clock", new RectangleF(inner.X, inner.Y + fontScale, 12 * fontScale, 12 * fontScale));
+            Draw(graphics, clock.Label, new RectangleF(inner.X + inset, inner.Y, inner.Width - inset, 15 * fontScale), 10 * fontScale, Muted);
+            inner.Y += 18 * fontScale; inner.Height -= 18 * fontScale;
+        }
+        var rowHeight = 26 * fontScale;
+        var top = inner.Y + Math.Max(0, (inner.Height - rowHeight * clock.Rows.Count) / 2);
+        for (var index = 0; index < clock.Rows.Count; index++)
+        {
+            var row = clock.Rows[index];
+            var bounds = new RectangleF(inner.X, top + index * rowHeight, inner.Width, rowHeight);
+            if (index == 0 && !widget.ShowLabel && widget.ShowIcon)
+            {
+                DrawGlyph(graphics, "clock", new RectangleF(bounds.X, bounds.Y + 6 * fontScale, 14 * fontScale, 14 * fontScale));
+                bounds.X += 20 * fontScale; bounds.Width -= 20 * fontScale;
+            }
+            var labelWidth = bounds.Width * .4f;
+            Draw(graphics, row.Label, new RectangleF(bounds.X, bounds.Y, labelWidth, bounds.Height), 11 * fontScale, Muted,
+                vertical: StringAlignment.Center);
+            Draw(graphics, row.Value, new RectangleF(bounds.X + labelWidth + 6 * fontScale, bounds.Y,
+                    Math.Max(0, bounds.Width - labelWidth - 6 * fontScale), bounds.Height), 18 * fontScale,
+                row.Kind == "countdown" ? Gold : Text, true, StringAlignment.Far, StringAlignment.Center);
+        }
     }
 
     private static void DrawMetric(Graphics graphics, OverlayWidget widget, RectangleF inner, OverlaySnapshot snapshot)
@@ -345,7 +377,7 @@ internal sealed class NativeOverlayRenderer : IDisposable
         Image? image = null;
         try
         {
-            var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "data"));
+            var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "wwwroot", "assets"));
             var suffix = relative.Replace('\\', '/');
             if (suffix.StartsWith("assets/", StringComparison.Ordinal)) suffix = suffix[7..];
             var path = Path.GetFullPath(Path.Combine(root, suffix));
@@ -418,7 +450,7 @@ internal sealed class NativeOverlayRenderer : IDisposable
         else
         {
             graphics.DrawEllipse(pen, 1, 1, 14, 14);
-            if (kind == "duration") graphics.DrawLines(pen, [new PointF(8, 4), new(8, 8), new(11, 9)]);
+            if (kind is "duration" or "clock") graphics.DrawLines(pen, [new PointF(8, 4), new(8, 8), new(11, 9)]);
             else graphics.DrawEllipse(pen, 5, 3, 6, 10);
         }
         graphics.Restore(state);

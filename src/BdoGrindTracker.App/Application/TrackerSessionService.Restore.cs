@@ -20,7 +20,41 @@ internal sealed partial class TrackerSessionService
             _isError = true;
             return;
         }
+        _currentSessionPersistenceError = null;
         if (saved is null) return;
+
+        // History is committed before the checkpoint. Recover its newer totals
+        // for this same session after an interrupted two-file save; never infer
+        // a current session from an unrelated history entry.
+        var newerHistory = _historyEntries.FirstOrDefault(entry =>
+            entry.SessionId == saved.SessionId && entry.UpdatedAt > saved.UpdatedAt);
+        var reconciledHistory = newerHistory is not null &&
+            (newerHistory.Duration != saved.Duration || newerHistory.SpotId != saved.SpotId ||
+             newerHistory.Totals.Count != saved.Totals.Count ||
+             newerHistory.Totals.Any(pair => saved.Totals.GetValueOrDefault(pair.Key) != pair.Value));
+        if (newerHistory is not null)
+            saved = saved with
+            {
+                UpdatedAt = newerHistory.UpdatedAt,
+                StartedAt = newerHistory.StartedAt,
+                Duration = newerHistory.Duration,
+                SpotId = newerHistory.SpotId,
+                CharacterClassId = newerHistory.CharacterClass is null ? null
+                    : CompanionCharacterClassCatalog.Classes.FirstOrDefault(character =>
+                        character.DisplayName == newerHistory.CharacterClass)?.Id ?? saved.CharacterClassId,
+                Totals = new(newerHistory.Totals, StringComparer.OrdinalIgnoreCase),
+                ManualLootItems = saved.ManualLootItems.Concat(newerHistory.ManualLootItems)
+                    .Where(newerHistory.Totals.ContainsKey).Distinct(StringComparer.OrdinalIgnoreCase).ToArray(),
+                GarmothLocallyModified = saved.GarmothLocallyModified || newerHistory.GarmothLocallyModified,
+                AgrisActiveDuration = newerHistory.AgrisActiveDuration ?? TimeSpan.Zero,
+                AgrisObservedDuration = newerHistory.AgrisObservedDuration ?? TimeSpan.Zero,
+                ExperienceGainedPercentagePoints = newerHistory.ExperienceGainedPercentagePoints,
+                ExperienceObservedDuration = newerHistory.ExperienceObservedDuration ?? TimeSpan.Zero,
+                ExperienceStartLevel = newerHistory.ExperienceStartLevel,
+                ExperienceEndLevel = newerHistory.ExperienceEndLevel,
+                // Changed history cannot prove the matching remote watermark.
+                Uploads = reconciledHistory ? null : saved.Uploads,
+            };
 
         if (saved.Uploads is { } uploads) _garmothIntervals.RestoreState(uploads);
         else _garmothIntervals.SuspendAutomatic();
@@ -50,10 +84,19 @@ internal sealed partial class TrackerSessionService
             // Diagnosis recording requires a new explicit choice after restart.
             RecordLoot = false,
         };
-        if (_garmothRestartBlocks.Contains(saved.SessionId)) _garmothIntervals.BlockFurtherUploads();
+        if (reconciledHistory || _garmothRestartBlocks.Contains(saved.SessionId)) _garmothIntervals.BlockFurtherUploads();
         _status = saved.SessionSubmitted
             ? "Die zuletzt übertragene Session wurde wiederhergestellt. Für einen weiteren Grind eine neue Session anlegen."
             : "Die letzte Session wurde pausiert wiederhergestellt. Du kannst sie fortsetzen.";
+    }
+
+    private void RecoverCurrentSessionIfNeeded()
+    {
+        if (_currentSessionStore.LoadError is null) return;
+        if (_hasSession || _uiRunning || _demoMode)
+            throw new IOException("Die gespeicherte Session kann erst ohne laufende Session oder Demo erneut geladen werden.");
+        RestoreCurrentSession();
+        if (_currentSessionStore.LoadError is { } error) throw new IOException(error);
     }
 
     private void PersistCurrentSessionCheckpoint(DateTimeOffset updatedAt, bool throwOnError = false,

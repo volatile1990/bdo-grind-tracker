@@ -5,8 +5,18 @@
 @code {
     [Parameter] public IReadOnlyList<decimal> Values { get; set; } = [];
     [Parameter] public string Label { get; set; } = "Verlauf der gespeicherten Sessions";
-    private string Points => string.Join(" ", Values.Select((value, index) => $"{X(index).ToString("0.##", CultureInfo.InvariantCulture)},{Y(value).ToString("0.##", CultureInfo.InvariantCulture)}"));
-    private string AreaPath => "M0,36 L" + Points.Replace(" ", " L", StringComparison.Ordinal) + " L180,36 Z";
-    private decimal X(int index) => index * 180m / Math.Max(1, Values.Count - 1);
-    private decimal Y(decimal value) { var min = Values.Min(); var range = Values.Max() - min; return range == 0 ? 18 : 31 - (value - min) * 26 / range; }
+    private string Points = "", AreaPath = "";
+    protected override void OnParametersSet()
+    {
+        if (Values.Count < 2) { Points = AreaPath = ""; return; }
+        var min = Values.Min();
+        var range = Values.Max() - min;
+        Points = string.Join(" ", Values.Select((value, index) =>
+        {
+            var x = index * 180m / (Values.Count - 1);
+            var y = range == 0 ? 18 : 31 - (value - min) * 26 / range;
+            return $"{x.ToString("0.##", CultureInfo.InvariantCulture)},{y.ToString("0.##", CultureInfo.InvariantCulture)}";
+        }));
+        AreaPath = "M0,36 L" + Points.Replace(" ", " L", StringComparison.Ordinal) + " L180,36 Z";
+    }
 }

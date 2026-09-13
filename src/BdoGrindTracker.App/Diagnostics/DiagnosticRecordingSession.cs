@@ -30,6 +30,7 @@ internal sealed class DiagnosticRecordingSession : IDisposable
     private long summaryBytes;
     private LifetimeParsingContext? lastParsingContext;
     private LootCalibrationDiagnostics? lastCaptureCalibration;
+    private bool? independentSpecialMode;
 
     private DiagnosticRecordingSession(long? maximumBytes, int? maximumFrames)
     {
@@ -118,7 +119,8 @@ internal sealed class DiagnosticRecordingSession : IDisposable
         IReadOnlyList<LootRowReviewDiagnostics>? rowReviews = null,
         string? recognitionVariant = null,
         LootCaptureTiming? captureTiming = null,
-        LootCalibrationDiagnostics? captureCalibration = null)
+        LootCalibrationDiagnostics? captureCalibration = null,
+        NormalLootRecoveryDiagnostics? rareRecovery = null)
     {
         lock (sync)
         {
@@ -136,6 +138,9 @@ internal sealed class DiagnosticRecordingSession : IDisposable
                 }
 
                 ValidateObservations(observations);
+                var independentSpecial = ReadIndependentSpecialMode(recognitionVariant);
+                if (independentSpecialMode is { } previousSpecialMode && previousSpecialMode != independentSpecial)
+                    throw new InvalidDataException("Special-Loot-Zähler wechselt innerhalb der Diagnose-Aufnahme.");
                 if ((recognitionVariant?.Split('+').Any(marker =>
                         marker == LifetimeLootReconciler.VisualSlotAlgorithmName ||
                         marker.StartsWith("visual-occupancy-", StringComparison.Ordinal)) ?? false) &&
@@ -172,6 +177,7 @@ internal sealed class DiagnosticRecordingSession : IDisposable
                 {
                     RareEnabled = rareBand is not null,
                     Recovery = recovery,
+                    RareRecovery = rareRecovery,
                     IsHdr = isHdr,
                     IsToneMapped = isToneMapped,
                     RecognitionVariant = recognitionVariant,
@@ -195,6 +201,7 @@ internal sealed class DiagnosticRecordingSession : IDisposable
                 WriteBytes(jsonBytes);
                 lastParsingContext = result.LifetimeParsingContext ?? lastParsingContext;
                 lastCaptureCalibration = captureCalibration ?? lastCaptureCalibration;
+                independentSpecialMode = independentSpecial;
                 entrySequence = sequence;
                 frameCount++;
                 countAudit.Observe(result, reconciliation);
@@ -438,6 +445,17 @@ internal sealed class DiagnosticRecordingSession : IDisposable
             markers.Contains(LootDiagnosticFormat.VisualAppearanceVariantName, StringComparer.Ordinal) &&
             !markers.Contains("row-tracks-v1", StringComparer.Ordinal) &&
             !markers.Contains(LootDiagnosticFormat.VisualOccupancyVariantName, StringComparer.Ordinal);
+    }
+
+    internal static bool ReadIndependentSpecialMode(string? recognitionVariant)
+    {
+        var specialMarkers = (recognitionVariant?.Split('+') ?? [])
+            .Where(marker => marker.StartsWith("independent-special-", StringComparison.Ordinal)).ToArray();
+        if (specialMarkers.Length == 0) return false;
+        if (!specialMarkers.SequenceEqual([LootDiagnosticFormat.IndependentSpecialVariantName]) ||
+            !HasVisualOccupancyMode(recognitionVariant))
+            throw new InvalidDataException("Widersprüchliche oder unbekannte Kennung für den unabhängigen Special-Loot-Zähler.");
+        return true;
     }
 
     internal static bool HasLifetimeMode(string? recognitionVariant)

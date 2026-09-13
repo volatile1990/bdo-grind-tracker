@@ -17,9 +17,11 @@ public sealed class OverlayPersonalizationInteractionTests
     public Task GlobalShortcutsAreVisibleBeforeCollapsedSettings() => Render(async (editor, overlay, markup, js) =>
     {
         var html = markup();
-        Assert.True(overlay.Settings.HotkeysEnabled);
+        Assert.True(overlay.Hotkeys.Enabled);
         Assert.True(html.IndexOf("oe-shortcuts", StringComparison.Ordinal) < html.IndexOf("oe-behavior", StringComparison.Ordinal));
         Assert.Contains("Global aktiv", html);
+        Assert.Contains("Für alle Overlays", html);
+        Assert.Contains("Alle Overlays ein / aus", html);
         Assert.Contains("<kbd>Strg+Alt+O</kbd>", html);
         Assert.Contains("<kbd>Strg+Alt+L</kbd>", html);
         Assert.DoesNotContain("Automatisch lokal gespeichert", html);
@@ -32,11 +34,13 @@ public sealed class OverlayPersonalizationInteractionTests
     public Task CancelingShortcutEditsKeepsExistingBindings() => Render(async (editor, overlay, markup, js) =>
     {
         var before = overlay.Settings;
+        var beforeHotkeys = overlay.Hotkeys;
         await Invoke(editor, "OpenHotkeyEditor");
         Set(editor, "_toggleOverlayDraft", new OverlayHotkey { Modifiers = OverlayHotkeyModifiers.Control, Key = "F8" });
         await Invoke(editor, "CloseHotkeyEditor");
         await Invoke(editor, "SaveHotkeys");
         Assert.Same(before, overlay.Settings);
+        Assert.Same(beforeHotkeys, overlay.Hotkeys);
     });
 
     [Fact]
@@ -50,9 +54,9 @@ public sealed class OverlayPersonalizationInteractionTests
         Assert.Contains("unterschiedliche Tastenkürzel", markup());
         Set(editor, "_toggleInteractionDraft", OverlayHotkey.DefaultToggleOverlay);
         await Invoke(editor, "SaveHotkeys");
-        Assert.Equal(OverlayHotkey.DefaultToggleInteraction, overlay.Settings.ToggleOverlayHotkey);
-        Assert.Equal(OverlayHotkey.DefaultToggleOverlay, overlay.Settings.ToggleInteractionHotkey);
-        Assert.True(overlay.Settings.HotkeysEnabled);
+        Assert.Equal(OverlayHotkey.DefaultToggleInteraction, overlay.Hotkeys.ToggleOverlay);
+        Assert.Equal(OverlayHotkey.DefaultToggleOverlay, overlay.Hotkeys.ToggleInteraction);
+        Assert.True(overlay.Hotkeys.Enabled);
         Assert.Contains(js.Calls, call => call == ("grindcrest.closeDialog", "overlay-hotkeys-edit"));
     });
 
@@ -62,7 +66,7 @@ public sealed class OverlayPersonalizationInteractionTests
         await Invoke(editor, "OpenHotkeyEditor");
         Set(editor, "_hotkeysEnabledDraft", false);
         await Invoke(editor, "SaveHotkeys");
-        Assert.False(overlay.Settings.HotkeysEnabled);
+        Assert.False(overlay.Hotkeys.Enabled);
         Assert.Contains("Deaktiviert", markup());
     });
 
@@ -109,8 +113,8 @@ public sealed class OverlayPersonalizationInteractionTests
         Set(editor, "_toggleOverlayDraft", toggle);
         Set(editor, "_toggleInteractionDraft", interaction);
         await Invoke(editor, "SaveHotkeys");
-        Assert.Equal(toggle, overlay.Settings.ToggleOverlayHotkey);
-        Assert.Equal(interaction, overlay.Settings.ToggleInteractionHotkey);
+        Assert.Equal(toggle, overlay.Hotkeys.ToggleOverlay);
+        Assert.Equal(interaction, overlay.Hotkeys.ToggleInteraction);
         Assert.Contains(js.Calls, call => call == ("grindcrest.closeDialog", "overlay-hotkeys-edit"));
     });
 
@@ -155,11 +159,16 @@ public sealed class OverlayPersonalizationInteractionTests
         await Invoke(editor, "Change", new Func<OverlaySettings, OverlaySettings>(s => s with
         {
             Enabled = true, Interaction = "passthrough", Visibility = "always", CaptureExcluded = false,
-            ToggleOverlayHotkey = new() { Modifiers = OverlayHotkeyModifiers.Control, Key = "F8" },
-            ToggleInteractionHotkey = new() { Modifiers = OverlayHotkeyModifiers.Alt, Key = "F9" },
         }));
+        Assert.True((await overlay.SaveHotkeysAsync(new OverlayHotkeySettings
+        {
+            Enabled = true,
+            ToggleOverlay = new() { Modifiers = OverlayHotkeyModifiers.Control, Key = "F8" },
+            ToggleInteraction = new() { Modifiers = OverlayHotkeyModifiers.Alt, Key = "F9" },
+        })).Succeeded);
         await overlay.SavePositionAsync(.7, .4);
         var before = overlay.Settings;
+        var beforeHotkeys = overlay.Hotkeys;
         var layout = OverlayCatalog.Preset("loot-strip") with { BackgroundOpacity = .3, ShowBorder = false, Scale = 1.4 };
         await overlay.SaveTemplateAsync("Meine Leiste", layout);
         Set(editor, "_selectedTemplateId", Assert.Single(overlay.Templates).Id);
@@ -182,6 +191,7 @@ public sealed class OverlayPersonalizationInteractionTests
         Assert.Equal(before.CaptureExcluded, overlay.Settings.CaptureExcluded);
         Assert.Equal(before.ToggleOverlayHotkey, overlay.Settings.ToggleOverlayHotkey);
         Assert.Equal(before.ToggleInteractionHotkey, overlay.Settings.ToggleInteractionHotkey);
+        Assert.Equal(beforeHotkeys, overlay.Hotkeys);
     });
 
     [Fact]

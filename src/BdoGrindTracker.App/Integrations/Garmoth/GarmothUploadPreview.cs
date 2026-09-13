@@ -45,6 +45,8 @@ internal sealed record GarmothUploadPreview
                 ? GarmothSpecialization.Succession : GarmothSpecialization.Unique;
         if (!GarmothCatalog.TryGetClass(className, specialization, out _, out _))
             return Unavailable("Klasse oder Spezialisierung ist nicht für Garmoth zugeordnet.", correctionHref, correctionLabel);
+        if (GarmothCatalog.GetSpotUploadLimitation(spotId) is { } limitation)
+            return Unavailable(limitation);
         if (!GarmothCatalog.TryGetSpot(spotId ?? "", out _))
             return Unavailable("Der Grindspot muss zuerst erkannt und für Garmoth unterstützt werden.", "/", "Zur Live-Session");
         var positiveTotals = new ReadOnlyDictionary<string, long>(totals.Where(pair => pair.Value > 0)

@@ -16,6 +16,18 @@
                     @if (CurrentProfile is { } profile) { <AssetImage Src="@("assets/spot-icons/" + profile.IconFileName)" Alt="" Class="spot-emblem" Fallback="pin" /> }
                     <div class="live-spot-copy">
                         <h2>@(State.SpotId is null ? "Spot wird automatisch erkannt" : SpotName(State.SpotId))</h2>
+                        @if (!State.IsDemo && ShowSpotVariantSelection)
+                        {
+                            var variantSessionId = State.SessionId;
+                            <div class="live-spot-variant">
+                                <label for="live-spot-variant">@(State.SpotId == "winter-tree-fossil-unspecified" ? "AP-Variante bestätigen" : "Spot-Variante")</label>
+                                <select id="live-spot-variant" value="@State.SpotId" @onchange="args => SelectSpotVariant(variantSessionId, args)" disabled="@(Acting || !State.CanSelectSpotVariant)" aria-describedby="live-spot-variant-help">
+                                    @if (!SpotVariants.Any(variant => variant.Id == State.SpotId)) { <option value="@State.SpotId" disabled>Bitte auswählen</option> }
+                                    @foreach (var variant in SpotVariants) { <option value="@variant.Id">@SpotName(variant.Id)</option> }
+                                </select>
+                                <small id="live-spot-variant-help">@(State.IsSubmitted || !State.CanSelectSpotVariant && !State.IsBusy ? "Die Spot-Auswahl ist für diese Session abgeschlossen." : State.SpotId == "winter-tree-fossil-unspecified" ? "Bitte bestätigen, dass du an der 280-AP-Variante grindest." : "Diese Varianten teilen denselben Trashloot. Bitte deinen Spot auswählen.")</small>
+                            </div>
+                        }
                         <div class="live-session-meta">
                             <span><AssetImage Src="@ClassIcon(State.CharacterClassId)" Alt="" Class="class-image" Fallback="shield" />@State.CharacterLabel</span>
                             <span title="@MonitorLabel"><AppIcon Name="monitor" />@ShortMonitorLabel</span>
@@ -60,7 +72,7 @@
                 <div class="ocr-install-status" role="status" aria-live="polite" aria-atomic="true">
                     @if (State.IsInstallingOcrLanguage)
                     {
-                        <progress aria-label="OCR-Sprachpaket wird installiert"></progress>
+                        <progress aria-label="OCR-Sprachpaket wird installiert" max="100" value="@State.OcrInstallationPercent"></progress>
                     }
                     @if (State.OcrInstallationStatus is not null) { <span>@State.OcrInstallationStatus</span> }
                 </div>
@@ -71,7 +83,7 @@
                         {
                             <button class="button primary" @onclick="() => Act(Tracker.InstallOcrLanguageAsync)" disabled="@OcrActionDisabled">@(State.IsInstallingOcrLanguage ? "Wird installiert …" : "OCR-Sprachpaket installieren")</button>
                         }
-                        <button class="button secondary" @onclick="() => Act(Tracker.RecheckOcrLanguageAsync)" disabled="@OcrActionDisabled"><AppIcon Name="refresh" />Erneut prüfen</button>
+                        <button class="button secondary" @onclick="RecheckOcrLanguage" disabled="@OcrRecheckDisabled"><AppIcon Name="refresh" />Erneut prüfen</button>
                     }
                     <button class="text-button" @onclick="OpenSettings" disabled="@(Acting || State.IsInstallingOcrLanguage)">Einstellungen <AppIcon Name="arrow" /></button>
                 </div>
@@ -127,7 +139,20 @@
 
 @code {
     private void OpenSettings() => Navigation.NavigateTo("/settings");
-    private bool OcrActionDisabled => Acting || State.IsBusy || State.IsRunning || State.IsInstallingOcrLanguage;
+    private bool _recheckingOcrLanguage;
+    private bool OcrActionDisabled => Acting || State.IsBusy || State.IsRunning || State.IsInstallingOcrLanguage || State.IsOcrInstallerRunning;
+    private bool OcrRecheckDisabled => _recheckingOcrLanguage || State.IsRunning || (!State.IsInstallingOcrLanguage && (Acting || State.IsBusy));
+    private async Task RecheckOcrLanguage()
+    {
+        if (OcrRecheckDisabled) return;
+        _recheckingOcrLanguage = true;
+        try
+        {
+            if (State.IsInstallingOcrLanguage) await Tracker.RecheckOcrLanguageAsync();
+            else await Act(Tracker.RecheckOcrLanguageAsync);
+        }
+        finally { _recheckingOcrLanguage = false; }
+    }
     private string OcrLanguageLabel => State.MissingOcrLanguageTag switch
     {
         "de-DE" => "Deutsch (de-DE)",
@@ -135,9 +160,21 @@
         var tag => tag ?? "",
     };
     private LootSpotPresentation? CurrentProfile => Profile(State.SpotId);
+    private IReadOnlyList<LootSpot> SpotVariants => State.SpotId is { } spotId ? LootSpotCatalog.VariantsFor(spotId) : [];
+    private bool ShowSpotVariantSelection => SpotVariants.Count > 1 ||
+        SpotVariants.Count == 1 && SpotVariants[0].Id != State.SpotId;
+    private async Task SelectSpotVariant(Guid sessionId, ChangeEventArgs args)
+    {
+        if (args.Value is string spotId)
+            await Act(() => Tracker.SelectSpotVariantAsync(sessionId, spotId));
+    }
     private LiveSessionPresentation SessionMetrics => new(State);
     private bool CanShowSilver => SessionMetrics.CanShowSilver;
-    private string HeroStyle => $"background-image:url('assets/spot-backgrounds/{CurrentProfile?.BackgroundFileName ?? "aphrodon.jpg"}')";
+    private string HeroStyle => CurrentProfile is null
+        ? "--live-session-artwork:url('assets/spot-backgrounds/aphrodon.jpg')"
+        : CurrentProfile.BackgroundFileName is { } background
+            ? $"--live-session-artwork:url('assets/spot-backgrounds/{background}')"
+            : "--live-session-artwork:none";
     private string MonitorLabel => Tracker.CapturesGameWindow ? "Black Desert · Spielfenster" : Tracker.Monitors.FirstOrDefault(monitor => monitor.DeviceName == Tracker.Preferences.MonitorDeviceName)?.Label ?? Tracker.Monitors.FirstOrDefault()?.Label ?? "Kein Bildschirm";
     private string ShortMonitorLabel => MonitorLabel.Split('·')[0].Trim();
     private string SessionStatus => SessionMetrics.Status;

@@ -9,14 +9,14 @@ namespace BdoGrindTracker.App.Tests;
 public sealed partial class CompanionLootFrameAnalyzerTests
 {
     public static IEnumerable<object[]> ConfirmedFixedDrops() => DropQuantityCatalog.Entries
-        .Where(entry => entry.Bounds!.IsFixedUnit).SelectMany(entry => new[] { LootSource.Normal, LootSource.Rare }
+        .Where(entry => entry.Bounds?.IsFixedUnit == true).SelectMany(entry => new[] { LootSource.Normal, LootSource.Rare }
             .Select(source => new object[] { entry.SpotId, entry.ItemName, source }));
 
     [Theory]
     [MemberData(nameof(ConfirmedFixedDrops))]
     public async Task EveryConfirmedUnitDropCountsOneInBothChannels(string spotId, string item, LootSource source)
     {
-        var trash = TrashLootMinimumCatalog.Entries.Single(entry => entry.SpotId == spotId).ItemName;
+        var trash = TrashLootMinimumCatalog.Entries.First(entry => entry.SpotId == spotId).ItemName;
         var rows = new Rows(new Input(250, trash, 17)) { RareText = source == LootSource.Rare ? item + " x7" : "" };
         if (source == LootSource.Normal) rows.Values = [.. rows.Values, new(200, item + " x7", 7)];
         using var analyzer = new CompanionLootFrameAnalyzer(Calibration() with
@@ -45,7 +45,7 @@ public sealed partial class CompanionLootFrameAnalyzerTests
     [InlineData("Elion Follower's Helmet", 338, 338)]
     [InlineData("Elion Follower's Mark", 1, 2)]
     [InlineData("Elion Follower's Mark", -1, 2)]
-    [InlineData("Elion Follower's Mark", 4000, 2000)]
+    [InlineData("Elion Follower's Mark", 4000, 1000)]
     public async Task UserTrashBoundsClampSingleDropsAndSupplyMissingQuantities(string trash, int quantity, int expected)
     {
         var rows = new Rows(new Input(250, trash, quantity));

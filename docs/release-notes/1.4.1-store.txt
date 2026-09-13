@@ -1,0 +1,10 @@
+Grindcrest 1.4.1 verbessert Stabilität und Datensicherheit:
+
+• Gezählt bleibt gezählt: Pause, Fenstergrößenänderung und Fortsetzen erhalten den Lootstand.
+• Sicherere Übernahme vorhandener Daten in die Store-Version, einschließlich Overlays und Schutz vor doppelten Uploads.
+• Einstellungen und Sessions lassen sich nach Dateifehlern erneut laden, ohne vorhandene Daten mit Standardwerten zu überschreiben.
+• Zeitgrenzen für hängende Texterkennung und zuverlässigere Agris-, XP- und Lootscroll-Anzeigen nach Windows-Uhrzeitkorrekturen.
+• Verbesserte Garmoth-Vorschau, Marktpreisabfragen, Overlay-Aktualisierung und Tastenkürzel.
+• Kleineres Paket und aktualisierte .NET-Laufzeit.
+
+Enthalten bleiben die OCR-Installation mit Fortschrittsanzeige, zusätzliche Grindspots und mehrere individuell gestaltbare Overlays aus Version 1.4.0.

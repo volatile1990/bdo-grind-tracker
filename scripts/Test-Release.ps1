@@ -30,7 +30,7 @@ foreach ($asset in $feed.Assets) {
 $archive = [IO.Compression.ZipFile]::OpenRead((Join-Path $Directory $fullPackages[0].FileName))
 try {
     $entries = @($archive.Entries | ForEach-Object { $_.FullName.Replace('\', '/') })
-    foreach ($required in @('Grindcrest.exe', 'BdoGrindTracker.dll', 'Velopack.dll', 'System.Private.CoreLib.dll',
+    foreach ($required in @('Grindcrest.exe', 'BdoGrindTracker.dll', 'BdoGrindTracker.runtimeconfig.json', 'Velopack.dll', 'System.Private.CoreLib.dll',
             'wwwroot/index.html', 'data/items.en.txt', 'data/branding/grindcrest.ico', 'THIRD_PARTY_NOTICES.md',
             'licenses/Microsoft.Web.WebView2.txt', 'licenses/Blazor.WebView.WindowsForms.txt', 'licenses/Velopack.txt',
             'Microsoft.ML.OnnxRuntime.dll', 'onnxruntime.dll', 'onnxruntime_providers_shared.dll',
@@ -41,6 +41,9 @@ try {
     if (-not ($entries | Where-Object { $_ -like 'lib/app/wwwroot/assets/icons/*.png' })) {
         throw 'The packaged Blazor UI is missing the item icons.'
     }
+    $reader = [IO.StreamReader]::new($archive.GetEntry('lib/app/BdoGrindTracker.runtimeconfig.json').Open())
+    try { & (Join-Path $PSScriptRoot 'Test-PackagedRuntime.ps1') -RuntimeConfigJson $reader.ReadToEnd() }
+    finally { $reader.Dispose() }
     $nuspecEntry = @($archive.Entries | Where-Object { $_.FullName -like '*.nuspec' })
     if ($nuspecEntry.Count -ne 1) { throw 'Expected one package manifest.' }
     $reader = [IO.StreamReader]::new($nuspecEntry[0].Open())

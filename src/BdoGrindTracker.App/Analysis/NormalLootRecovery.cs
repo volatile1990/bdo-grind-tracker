@@ -56,11 +56,14 @@ internal sealed class NormalLootRecoveryBudget
 internal sealed partial class NormalLootRecovery(
     CompanionItemMatcher matcher,
     ICompanionNameRecognizer recognizer,
-    Func<Mat, NormalLootRecoveryVariant, NormalLootRecoveryImages>? prepare = null)
+    Func<Mat, NormalLootRecoveryVariant, NormalLootRecoveryImages>? prepare = null,
+    LootSource source = LootSource.Normal)
     : INormalLootRecovery
 {
     private readonly Func<Mat, NormalLootRecoveryVariant, NormalLootRecoveryImages> _prepare =
-        prepare ?? NormalLootRecoveryPreprocessor.Prepare;
+        prepare ?? ((band, variant) => source == LootSource.Rare
+            ? RareLootRecoveryPreprocessor.Prepare(band, variant)
+            : NormalLootRecoveryPreprocessor.Prepare(band, variant));
     private Func<string, DropQuantityBounds?> _quantityBounds = name => DropQuantityCatalog.GetBounds(null, name);
 
     public void ConfigureQuantityBounds(Func<string, DropQuantityBounds?> resolve) =>
@@ -109,7 +112,9 @@ internal sealed partial class NormalLootRecovery(
                 if (!budget.TryBeginOcr()) break;
                 var ocr = recognizer.Recognize(images.NameImage, cancellationToken);
                 onRead?.Invoke(ocr, images.NameScale);
-                if (!CompanionWindowsOcrRecognizer.PassesNormalGeometryGate(ocr.FirstWord, uiScale))
+                if (source == LootSource.Rare
+                    ? !RareLootRecoveryPreprocessor.PassesGeometryGate(ocr.FirstWord, images.RecognizedTextWidth)
+                    : !CompanionWindowsOcrRecognizer.PassesNormalGeometryGate(ocr.FirstWord, uiScale))
                     continue;
                 var knownQuantity = baseline?.Quantity ??
                     (original.TemplateQuantity > 0 ? original.TemplateQuantity : (int?)null);
@@ -121,7 +126,7 @@ internal sealed partial class NormalLootRecovery(
                 // identity and can count an already visible drop again.
                 var rowQuantity = hasFullQuantity ? fullQuantity : knownQuantity ?? -1;
                 var text = CompanionTextPipeline.Process(hasFullQuantity ? nameText : ocr.Text,
-                    rowQuantity, false, images.RecognizedTextWidth);
+                    rowQuantity, source == LootSource.Rare, images.RecognizedTextWidth);
                 // Companion's legacy regex can parse only a prefix of x4O or
                 // x12345. Its baseline contract stays untouched, but a NEW
                 // recovery quantity must come from a complete numeric token.
@@ -132,14 +137,14 @@ internal sealed partial class NormalLootRecovery(
                 };
                 if (!CompanionTextPipeline.PassesExpectedWidth(text,
                         images.RecognizedTextWidth, 0, images.NameScale) ||
-                    !matcher.TryMatch(text.Name, text.Quantity, false, out var match) || match is null)
+                    !matcher.TryMatch(text.Name, text.Quantity, source == LootSource.Rare, out var match) || match is null)
                     continue;
                 // An already identified item is not replaced just to obtain a number.
                 if (Accepted(best) && !string.Equals(best!.ItemName, match.CanonicalName,
                         StringComparison.Ordinal))
                     continue;
 
-                best = new LootObservation(LootSource.Normal, slot, ocr.Text, match.CanonicalName,
+                best = new LootObservation(source, slot, ocr.Text, match.CanonicalName,
                     text.Quantity > 0 ? text.Quantity : null,
                     Math.Clamp(1 - match.NormalizedDistance, 0, 1), 0, null, null)
                 {

@@ -1,0 +1,496 @@
+using System.Net;
+using System.Reflection;
+using System.Text.RegularExpressions;
+using BdoGrindTracker.App.Components;
+using BdoGrindTracker.App.Persistence;
+using BdoGrindTracker.App.Pricing;
+using BdoGrindTracker.App.Services;
+using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+
+namespace BdoGrindTracker.App.Tests;
+
+public sealed class CaptureConfigurationSettingsTests
+{
+    private static readonly CaptureConfigurationOption First = Option(@"C:\BDO\first\gameVariable.xml");
+    private static readonly CaptureConfigurationOption Second = Option(@"C:\BDO\second\gameVariable.xml");
+    private static readonly CaptureConfigurationOption Invalid = Option(@"C:\BDO\invalid\gameVariable.xml") with { Error = "Lootposition fehlt." };
+    private const string FullImage = "data:image/png;base64,ZnVsbA==";
+    private const string NormalImage = "data:image/png;base64,bm9ybWFs";
+    private const string RareImage = "data:image/png;base64,cmFyZQ==";
+
+    [Fact]
+    public async Task OpeningLoadsConfigurationsOnDemandAndApplyingRequiresAPreview()
+    {
+        var session = new Session();
+        await Render(session, async (component, markup) =>
+        {
+            Assert.Equal(0, session.Scans);
+            Assert.DoesNotContain(First.Path, markup());
+            await Invoke(component, "ToggleOpen");
+            Assert.Equal(1, session.Scans);
+            Assert.Contains(First.Path, ActiveFile(markup()));
+            Assert.Contains("100 %", markup());
+            await Invoke(component, "Choose", Second);
+            await Invoke(component, "Apply");
+            Assert.Empty(session.Selections);
+            Assert.Empty(session.Previews);
+            await Invoke(component, "Preview");
+            Assert.Equal(Second.Path, Assert.Single(session.Previews));
+            Assert.Equal(First.Path, session.Preferences.CaptureConfigurationPath);
+            Assert.Contains(First.Path, ActiveFile(markup()));
+            await Invoke(component, "Apply");
+            Assert.Equal(Second.Path, Assert.Single(session.Selections));
+            Assert.Equal(Second.Path, session.Preferences.CaptureConfigurationPath);
+            Assert.Contains(Second.Path, ActiveFile(markup()));
+            Assert.Contains("Dateiauswahl gespeichert.", markup());
+        });
+    }
+
+    [Fact]
+    public async Task PreviewShowsExactPixelRectanglesAndBothUnmodifiedCrops()
+    {
+        await Render(new Session(), async (component, markup) =>
+        {
+            await Invoke(component, "ToggleOpen");
+            await Invoke(component, "Preview");
+            var html = markup();
+            Assert.Contains("viewBox=\"0 0 1920 1080\"", html);
+            Assert.Contains($"href=\"{FullImage}\"", html);
+            Assert.Contains($"src=\"{NormalImage}\"", html);
+            Assert.Contains($"src=\"{RareImage}\"", html);
+            AssertRect(html, "capture-normal-rect", 120, 680, 500, 270);
+            AssertRect(html, "capture-rare-rect", 1100, 160, 600, 56);
+            Assert.Contains("Türkis: normales Droplog", html);
+            Assert.Contains("Gold: Special-Droplog", html);
+            Assert.Contains("Special-Droplog", html);
+            Assert.DoesNotContain("<form", html);
+            ExportReviewIfRequested(html);
+            await Invoke(component, "ToggleOpen");
+            Assert.DoesNotContain(FullImage, markup());
+        });
+    }
+
+    [Fact]
+    public async Task AFailedSaveLeavesThePreviouslyActiveConfigurationAndOffersRetry()
+    {
+        var session = new Session { SelectionError = "Die Auswahl konnte nicht gespeichert werden." };
+        await Render(session, async (component, markup) =>
+        {
+            await Invoke(component, "ToggleOpen");
+            await Invoke(component, "Choose", Second);
+            await Invoke(component, "Preview");
+            await Invoke(component, "Apply");
+            Assert.Equal(First.Path, session.Preferences.CaptureConfigurationPath);
+            Assert.Contains(First.Path, ActiveFile(markup()));
+            Assert.Contains("Die Auswahl konnte nicht gespeichert werden.", markup());
+            Assert.DoesNotContain("Dateiauswahl gespeichert.", markup());
+            session.SelectionError = null;
+            await Invoke(component, "Apply");
+            Assert.Equal(Second.Path, session.Preferences.CaptureConfigurationPath);
+        });
+    }
+
+    [Fact]
+    public async Task InvalidConfigurationsShowTheirReasonAndCannotBeSelected()
+    {
+        var session = new Session { BrowseResult = Invalid };
+        await Render(session, async (component, markup) =>
+        {
+            await Invoke(component, "ToggleOpen");
+            Assert.DoesNotContain(Invalid.Path, VisiblePaths(markup()));
+            await Invoke(component, "SetQuery", "keine-passende-datei");
+            await Invoke(component, "Browse");
+            Assert.Equal(Invalid.Path, Assert.Single(VisiblePaths(markup())));
+            Assert.Contains("Lootposition fehlt.", markup());
+            Assert.Single(DetailRows(markup()));
+            await Invoke(component, "Choose", Invalid);
+            await Invoke(component, "Preview");
+            Assert.Equal(First.Path, Assert.Single(session.Previews));
+            Assert.Empty(session.Selections);
+        });
+    }
+
+    [Fact]
+    public async Task PreviewFailureCannotBeAppliedAndChangingSelectionDiscardsAnEarlierPreview()
+    {
+        var session = new Session();
+        await Render(session, async (component, markup) =>
+        {
+            await Invoke(component, "ToggleOpen");
+            await Invoke(component, "Preview");
+            await Invoke(component, "Choose", Second);
+            Assert.DoesNotContain(FullImage, markup());
+            await Invoke(component, "Apply");
+            Assert.Empty(session.Selections);
+            session.PreviewError = "Das Spielfenster ist minimiert.";
+            await Invoke(component, "Preview");
+            Assert.Contains(session.PreviewError, markup());
+            await Invoke(component, "Apply");
+            Assert.Empty(session.Selections);
+        });
+    }
+
+    [Fact]
+    public async Task RunningCaptureBlocksSnapshotsAndExistingSessionBlocksApplying()
+    {
+        var session = new Session { State = new() { IsRunning = true, HasSession = true } };
+        await Render(session, async (component, markup) =>
+        {
+            await Invoke(component, "ToggleOpen");
+            Assert.Contains("zuerst die laufende Erfassung pausieren", markup());
+            Assert.True(IsDisabled(markup(), "Vorschau aktualisieren"));
+            await Invoke(component, "Preview");
+            Assert.Empty(session.Previews);
+            session.State = session.State with { IsRunning = false };
+            await Invoke(component, "Preview");
+            Assert.Single(session.Previews);
+            Assert.Contains("vor dem Start einer neuen Session", markup());
+            Assert.True(IsDisabled(markup(), "Verwenden"));
+            await Invoke(component, "Apply");
+            Assert.Empty(session.Selections);
+        });
+    }
+
+    [Fact]
+    public async Task NativeFileChoiceAndAutomaticModeBothNeedExplicitPreviewAndApply()
+    {
+        var extra = Option(@"D:\Backup\gameVariable.xml");
+        var session = new Session { BrowseResult = extra };
+        await Render(session, async (component, markup) =>
+        {
+            await Invoke(component, "ToggleOpen");
+            await Invoke(component, "SetFilter", "invalid");
+            await Invoke(component, "SetQuery", "keine-passende-datei");
+            await Invoke(component, "Browse");
+            Assert.Contains(extra.Path, VisiblePaths(markup()));
+            Assert.DoesNotContain(Invalid.Path, VisiblePaths(markup()));
+            Assert.Empty(session.Selections);
+            await Invoke(component, "Preview");
+            Assert.Equal(extra.Path, Assert.Single(session.Previews));
+            await Invoke(component, "Apply");
+            Assert.Equal(extra.Path, Assert.Single(session.Selections));
+            await Invoke(component, "ChooseAutomatic");
+            await Invoke(component, "Apply");
+            Assert.Single(session.Selections);
+            await Invoke(component, "Preview");
+            Assert.Null(session.Previews[^1]);
+            await Invoke(component, "Apply");
+            Assert.Null(session.Selections[^1]);
+            Assert.Null(session.Preferences.CaptureConfigurationPath);
+            Assert.Contains("Automatische Auswahl gespeichert.", markup());
+            Assert.Contains(First.Path, ActiveFile(markup()));
+        });
+    }
+
+    [Fact]
+    public async Task BrowsingACorrectedFileReplacesItsEarlierInvalidScanResult()
+    {
+        var session = new Session { BrowseResult = Invalid with { Error = null } };
+        await Render(session, async (component, markup) =>
+        {
+            await Invoke(component, "ToggleOpen");
+            await Invoke(component, "SetFilter", "invalid");
+            await Invoke(component, "ToggleDetails", Invalid.Path);
+            Assert.Contains("Lootposition fehlt.", markup());
+            await Invoke(component, "Browse");
+            Assert.DoesNotContain("Lootposition fehlt.", markup());
+            Assert.Equal(3, VisiblePaths(markup()).Count);
+            await Invoke(component, "Preview");
+            Assert.Equal(Invalid.Path, Assert.Single(session.Previews));
+            await Invoke(component, "Scan");
+            Assert.DoesNotContain(Invalid.Path, VisiblePaths(markup()));
+            await Invoke(component, "SetFilter", "invalid");
+            Assert.Equal(Invalid.Path, Assert.Single(VisiblePaths(markup())));
+            await Invoke(component, "Preview");
+            Assert.Single(session.Previews);
+        });
+    }
+
+    [Fact]
+    public async Task FiftyFilesDefaultToUsableAndFiltersDistinguishBothLogsFromNormalOnly()
+    {
+        var files = ManyFiles();
+        var session = new Session { Candidates = files.Reverse().ToArray(), Preferences = new() { CaptureConfigurationPath = files[35].Path } };
+        await Render(session, async (component, markup) =>
+        {
+            await Invoke(component, "ToggleOpen");
+            var visible = VisiblePaths(markup());
+            Assert.Equal(40, visible.Count);
+            Assert.Equal(files[35].Path, visible[0]);
+            Assert.Equal(files[29].Path, visible[1]);
+            Assert.Equal(files[30].Path, visible[^1]);
+            Assert.Empty(DetailRows(markup()));
+            await Invoke(component, "SetFilter", "both");
+            Assert.Equal(30, VisiblePaths(markup()).Count);
+            Assert.All(VisiblePaths(markup()), path => Assert.NotNull(files.Single(file => file.Path == path).RareBounds));
+            await Invoke(component, "SetFilter", "invalid");
+            Assert.Equal(10, VisiblePaths(markup()).Count);
+            Assert.All(VisiblePaths(markup()), path => Assert.False(files.Single(file => file.Path == path).IsValid));
+            await Invoke(component, "SetFilter", "all");
+            Assert.Equal(50, VisiblePaths(markup()).Count);
+            await Invoke(component, "SetFilter", "usable");
+            await Invoke(component, "Choose", files[0]);
+            await Invoke(component, "Preview");
+            ExportReviewIfRequested(markup(), "capture-configuration-50-files.html");
+        });
+    }
+
+    [Fact]
+    public async Task FiftyFilesCanBeSearchedByPathOrLabelAndSortedByDateOrPath()
+    {
+        var files = ManyFiles();
+        var session = new Session { Candidates = files.Reverse().ToArray(), Preferences = new() { CaptureConfigurationPath = files[35].Path } };
+        await Render(session, async (component, markup) =>
+        {
+            await Invoke(component, "ToggleOpen");
+            await Invoke(component, "SetFilter", "all");
+            await Invoke(component, "SetSort", "recent");
+            Assert.Equal(files.Reverse().Select(file => file.Path), VisiblePaths(markup()));
+            await Invoke(component, "SetSort", "path");
+            Assert.Equal(files.Select(file => file.Path), VisiblePaths(markup()));
+            await Invoke(component, "SetQuery", "PROFILE-0");
+            Assert.Equal(files.Take(10).Select(file => file.Path), VisiblePaths(markup()));
+            await Invoke(component, "SetQuery", "Profil 17");
+            Assert.Equal(files[17].Path, Assert.Single(VisiblePaths(markup())));
+            await Invoke(component, "SetQuery", "keine-passende-datei");
+            Assert.Empty(VisiblePaths(markup()));
+            Assert.Contains("Keine", markup());
+            await Invoke(component, "SetQuery", "");
+            Assert.Equal(50, VisiblePaths(markup()).Count);
+        });
+    }
+
+    [Fact]
+    public async Task FilteringAndSearchingDoNotChangeThePreviewedSelectionOrSaveAnotherFile()
+    {
+        var files = ManyFiles();
+        var session = new Session { Candidates = files, Preferences = new() { CaptureConfigurationPath = files[35].Path } };
+        await Render(session, async (component, markup) =>
+        {
+            await Invoke(component, "ToggleOpen");
+            await Invoke(component, "Choose", files[12]);
+            await Invoke(component, "Preview");
+            await Invoke(component, "SetFilter", "invalid");
+            await Invoke(component, "SetQuery", "Profile-4");
+            Assert.Equal(10, VisiblePaths(markup()).Count);
+            Assert.DoesNotContain(files[12].Path, VisiblePaths(markup()));
+            Assert.Contains(FullImage, markup());
+            Assert.False(IsDisabled(markup(), "Verwenden"));
+            await Invoke(component, "Apply");
+            Assert.Equal(files[12].Path, Assert.Single(session.Previews));
+            Assert.Equal(files[12].Path, Assert.Single(session.Selections));
+            Assert.Equal(files[12].Path, session.Preferences.CaptureConfigurationPath);
+        });
+    }
+
+    [Fact]
+    public async Task DetailsExpandOneFileAtATimeWithoutChangingTheMarkedSelection()
+    {
+        var session = new Session();
+        await Render(session, async (component, markup) =>
+        {
+            await Invoke(component, "ToggleOpen");
+            Assert.Empty(DetailRows(markup()));
+            await Invoke(component, "ToggleDetails", First.Path);
+            Assert.Single(DetailRows(markup()));
+            Assert.Contains("x 120, y 680", DetailRows(markup())[0]);
+            await Invoke(component, "ToggleDetails", Second.Path);
+            Assert.Single(DetailRows(markup()));
+            await Invoke(component, "ToggleDetails", Second.Path);
+            Assert.Empty(DetailRows(markup()));
+            await Invoke(component, "Preview");
+            Assert.Equal(First.Path, Assert.Single(session.Previews));
+        });
+    }
+
+    [Fact]
+    public async Task AValidNormalOnlyFileRemainsUsableWhenTheBothLogsFilterHasNoMatches()
+    {
+        var normalOnly = First with { RareBounds = null, RareStatus = "Special-Zeile nicht gefunden." };
+        var session = new Session { Candidates = [normalOnly] };
+        await Render(session, async (component, markup) =>
+        {
+            await Invoke(component, "ToggleOpen");
+            Assert.Equal(First.Path, Assert.Single(VisiblePaths(markup())));
+            await Invoke(component, "SetFilter", "both");
+            Assert.Empty(VisiblePaths(markup()));
+            Assert.Contains("Keine", markup());
+            await Invoke(component, "Preview");
+            Assert.Contains(NormalImage, markup());
+            Assert.DoesNotContain(RareImage, markup());
+            Assert.Contains(normalOnly.RareStatus, markup());
+            await Invoke(component, "Apply");
+            Assert.Equal(First.Path, Assert.Single(session.Selections));
+        });
+    }
+
+    private static CaptureConfigurationOption[] ManyFiles() => Enumerable.Range(0, 50).Select(index =>
+        Option($@"C:\BDO\UserCache\Profile-{index:D2}\gameVariable.xml") with
+        {
+            Label = $"Profil {index:D2}",
+            LastWriteUtc = new DateTime(2026, 9, 13, 12, 0, 0, DateTimeKind.Utc).AddMinutes(index),
+            RareBounds = index < 30 ? First.RareBounds : null,
+            RareStatus = index < 30 ? "Erkannt" : "Special-Zeile nicht gefunden.",
+            Error = index < 40 ? null : "Lootposition fehlt.",
+        }).ToArray();
+
+    private static CaptureConfigurationOption Option(string path) => new(path, "BDO-Einstellungen", new(2026, 9, 13, 12, 30, 0, DateTimeKind.Utc),
+        1920, 1080, 1, new(120, 680, 500, 270), new(1100, 160, 600, 56), "Erkannt");
+
+    // Optional, standalone visual QA artifact; normal test runs write no images.
+    private static void ExportReviewIfRequested(string markup, string fileName = "capture-configuration-preview.html")
+    {
+        var directory = Environment.GetEnvironmentVariable("GRINDCREST_CAPTURE_CONFIGURATION_REVIEW_DIR");
+        if (string.IsNullOrWhiteSpace(directory)) return;
+        using var bitmap = new Bitmap(1920, 1080);
+        using (var graphics = Graphics.FromImage(bitmap))
+        using (var font = new Font("Segoe UI", 24))
+        {
+            graphics.Clear(Color.FromArgb(22, 31, 42));
+            graphics.DrawString("Testbild · keine Spielaufnahme", font, Brushes.LightGray, 600, 500);
+            graphics.FillRectangle(Brushes.DarkSlateGray, First.NormalBounds!.Value);
+            graphics.FillRectangle(Brushes.DarkGoldenrod, First.RareBounds!.Value);
+            graphics.DrawString("Normales Droplog", font, Brushes.White, 140, 700);
+            graphics.DrawString("Special-Droplog", font, Brushes.White, 1120, 166);
+        }
+        using var normal = bitmap.Clone(First.NormalBounds!.Value, bitmap.PixelFormat);
+        using var rare = bitmap.Clone(First.RareBounds!.Value, bitmap.PixelFormat);
+        static string DataUrl(Bitmap image)
+        {
+            using var stream = new MemoryStream();
+            image.Save(stream, System.Drawing.Imaging.ImageFormat.Png);
+            return "data:image/png;base64," + Convert.ToBase64String(stream.ToArray());
+        }
+        DirectoryInfo? repository = new(AppContext.BaseDirectory);
+        while (repository is not null && !File.Exists(Path.Combine(repository.FullName, "Directory.Build.props"))) repository = repository.Parent;
+        var css = repository is null ? "" : File.ReadAllText(Path.Combine(repository.FullName, "src", "BdoGrindTracker.App", "wwwroot", "app.css"));
+        Directory.CreateDirectory(directory);
+        File.WriteAllText(Path.Combine(directory, fileName),
+            "<!doctype html><html lang=\"de\"><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Erfassungsbereiche – UI-Test</title><style>" + css +
+            "html,body{height:auto;overflow:auto}body{margin:0}.page{max-width:1300px}</style><div class=\"page\">" +
+            markup.Replace(FullImage, DataUrl(bitmap)).Replace(NormalImage, DataUrl(normal)).Replace(RareImage, DataUrl(rare)) + "</div></html>");
+    }
+
+    private static async Task Render(Session session, Func<CaptureConfigurationSettings, Func<string>, Task> test)
+    {
+        var activator = new CapturingActivator();
+        await using var provider = new ServiceCollection().AddLogging().AddSingleton<ITrackerSession>(session)
+            .AddSingleton<IComponentActivator>(activator).BuildServiceProvider();
+        await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
+        await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            var root = await renderer.RenderComponentAsync<CaptureConfigurationSettings>();
+            var component = activator.Components.OfType<CaptureConfigurationSettings>().Single();
+            string Markup()
+            {
+                typeof(ComponentBase).GetMethod("StateHasChanged", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(component, null);
+                return WebUtility.HtmlDecode(root.ToHtmlString());
+            }
+            await test(component, Markup);
+        });
+    }
+
+    private static async Task Invoke(CaptureConfigurationSettings component, string method, params object?[] arguments)
+    {
+        var result = typeof(CaptureConfigurationSettings).GetMethod(method, BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(component, arguments);
+        if (result is Task task) await task;
+    }
+
+    private static string ActiveFile(string markup) => Regex.Match(markup, "<div class=\"capture-active-file\".*?</div>", RegexOptions.Singleline).Value;
+
+    private static IReadOnlyList<string> VisiblePaths(string markup) => Regex.Matches(markup,
+            "<tr\\b(?=[^>]*class=\"[^\"]*\\bcapture-file-row\\b[^\"]*\")[^>]*data-config-path=\"(?<path>[^\"]*)\"[^>]*>", RegexOptions.Singleline)
+        .Select(match => match.Groups["path"].Value).ToArray();
+
+    private static IReadOnlyList<string> DetailRows(string markup) => Regex.Matches(markup,
+            "<tr\\b[^>]*class=\"[^\"]*\\bcapture-file-details\\b[^\"]*\"[^>]*>.*?</tr>", RegexOptions.Singleline)
+        .Select(match => match.Value).ToArray();
+
+    private static bool IsDisabled(string markup, string label)
+    {
+        var button = Regex.Matches(markup, "<button(?<attrs>[^>]*)>(?<content>.*?)</button>", RegexOptions.Singleline)
+            .Single(match => Regex.Replace(match.Groups["content"].Value, "<[^>]+>", "").Trim() == label);
+        return Regex.IsMatch(button.Groups["attrs"].Value, @"\bdisabled(?:\s|=|$)");
+    }
+
+    private static void AssertRect(string markup, string cssClass, int x, int y, int width, int height)
+    {
+        var rect = Regex.Match(markup, $"<rect class=\"{cssClass}\"[^>]*>").Value;
+        Assert.NotEmpty(rect);
+        foreach (var (name, value) in new[] { ("x", x), ("y", y), ("width", width), ("height", height) })
+            Assert.Contains($"{name}=\"{value}\"", rect);
+    }
+
+    private sealed class CapturingActivator : IComponentActivator
+    {
+        public List<IComponent> Components { get; } = [];
+        public IComponent CreateInstance(Type componentType)
+        {
+            var component = (IComponent)Activator.CreateInstance(componentType)!;
+            Components.Add(component);
+            return component;
+        }
+    }
+
+    private sealed class Session : ITrackerSession
+    {
+        public event Action? Changed { add { } remove { } }
+        public TrackerState State { get; set; } = new();
+        public TrackerPreferences Preferences { get; set; } = new() { CaptureConfigurationPath = First.Path };
+        public IReadOnlyList<TrackerMonitor> Monitors { get; } = [];
+        public IReadOnlyList<LootHistoryEntry> History { get; } = [];
+        public LootPriceSnapshot Prices { get; } = LootPriceCatalog.FixedSnapshot("eu");
+        public int Scans { get; private set; }
+        public List<string?> Previews { get; } = [];
+        public List<string?> Selections { get; } = [];
+        public string? SelectionError { get; set; }
+        public string? PreviewError { get; set; }
+        public CaptureConfigurationOption? BrowseResult { get; set; }
+        public IReadOnlyList<CaptureConfigurationOption> Candidates { get; set; } = [First, Second, Invalid];
+        public Task<CaptureConfigurationScan> ScanCaptureConfigurationsAsync()
+        {
+            Scans++;
+            return Task.FromResult(new CaptureConfigurationScan(Candidates, Preferences.CaptureConfigurationPath ?? First.Path));
+        }
+        public Task<CaptureConfigurationPreview> PreviewCaptureConfigurationAsync(string? gameVariablePath)
+        {
+            Previews.Add(gameVariablePath);
+            var path = gameVariablePath ?? First.Path;
+            var configuration = BrowseResult is { } browsed && browsed.Path == path
+                ? browsed : Candidates.FirstOrDefault(option => option.Path == path) ?? Option(path);
+            return Task.FromResult(PreviewError is not null ? new CaptureConfigurationPreview(Error: PreviewError) :
+                new CaptureConfigurationPreview(configuration, FullImage, NormalImage,
+                    configuration.RareBounds is null ? null : RareImage, DateTimeOffset.UnixEpoch));
+        }
+        public Task<CaptureConfigurationOption?> BrowseCaptureConfigurationAsync() => Task.FromResult(BrowseResult);
+        public Task<TrackerCommandResult> SelectCaptureConfigurationAsync(string? gameVariablePath)
+        {
+            Selections.Add(gameVariablePath);
+            if (SelectionError is not null) return Task.FromResult(new TrackerCommandResult(SelectionError));
+            Preferences = Preferences with { CaptureConfigurationPath = gameVariablePath };
+            return Success();
+        }
+        private static Task<TrackerCommandResult> Success() => Task.FromResult(TrackerCommandResult.Success);
+        public Task<TrackerCommandResult> ToggleTrackingAsync() => Success();
+        public Task<TrackerCommandResult> PauseAsync() => Success();
+        public Task<TrackerCommandResult> NewSessionAsync() => Success();
+        public Task<TrackerCommandResult> SetDemoAsync(bool enabled) => Success();
+        public Task<TrackerCommandResult> InstallOcrLanguageAsync() => Success();
+        public Task<TrackerCommandResult> RecheckOcrLanguageAsync() => Success();
+        public Task<PreferenceSaveResult> SavePreferencesAsync(TrackerPreferences preferences, string? apiKey = null, bool resumeAutomaticUpload = false) => Task.FromResult(new PreferenceSaveResult());
+        public Task<TrackerCommandResult> UploadAsync() => Success();
+        public Task<TrackerCommandResult> UploadHistoryAsync(Guid sessionId) => Success();
+        public Task<TrackerCommandResult> UpdateHistoryLootAsync(Guid sessionId, IReadOnlyDictionary<string, long> totals, string? characterClass = null) => Success();
+        public Task<TrackerCommandResult> UpdateLootQuantityAsync(Guid sessionId, string itemName, long quantity, long originalQuantity) => Success();
+        public Task<TrackerCommandResult> DeleteHistoryAsync(Guid sessionId) => Success();
+        public Task RefreshPricesAsync() => Task.CompletedTask;
+        public Task TickAsync() => Task.CompletedTask;
+        public Task PrepareUpdateRestartAsync() => Task.CompletedTask;
+        public Task RunPreparedUpdateAsync(Func<Task> install) => Task.CompletedTask;
+        public Task ShutdownAsync() => Task.CompletedTask;
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+}

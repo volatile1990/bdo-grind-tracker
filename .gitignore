@@ -8,3 +8,5 @@ TestResults/
 artifacts/
 debug-captures/
 .repro-real/
+/.artifacts/
+/.codex-*.log

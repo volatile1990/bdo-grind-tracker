@@ -17,6 +17,53 @@ namespace BdoGrindTracker.App.Tests;
 
 public sealed class GarmothBatchInteractionTests
 {
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task LeavingThePageDuringPriceRefreshCannotPauseAnySession(bool batch, bool startAnotherSession)
+    {
+        var pricesReady = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var session = new Session { RefreshResponse = () => pricesReady.Task };
+        session.StartLive();
+        await Render(session, async (dashboard, _, js) =>
+        {
+            var preparing = batch ? Invoke(dashboard, "AskAllUploads") : Invoke(dashboard, "AskUpload", FirstSessionRow(dashboard));
+            Assert.False(preparing.IsCompleted);
+            dashboard.Dispose();
+            if (startAnotherSession) session.StartLive();
+            pricesReady.SetResult();
+            await preparing;
+            Assert.True(session.State.IsRunning);
+            Assert.Equal(0, session.PauseCalls);
+            Assert.Empty(session.Uploads);
+            Assert.DoesNotContain(js.Calls, call => call.Identifier == "grindcrest.showDialog");
+        });
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ReplacedLiveSessionDuringPriceRefreshIsNeverPaused(bool batch)
+    {
+        var pricesReady = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var session = new Session { RefreshResponse = () => pricesReady.Task };
+        session.StartLive();
+        await Render(session, async (dashboard, markup, js) =>
+        {
+            var preparing = batch ? Invoke(dashboard, "AskAllUploads") : Invoke(dashboard, "AskUpload", FirstSessionRow(dashboard));
+            Assert.False(preparing.IsCompleted);
+            session.StartLive();
+            pricesReady.SetResult();
+            await preparing;
+            Assert.True(session.State.IsRunning);
+            Assert.Equal(0, session.PauseCalls);
+            Assert.Contains("Session hat sich geändert", markup());
+            Assert.DoesNotContain(js.Calls, call => call.Identifier == "grindcrest.showDialog");
+        });
+    }
+
     [Fact]
     public async Task CancelingSingleLiveUploadConsumesTheConfirmationWithoutSending()
     {
@@ -367,6 +414,7 @@ public sealed class GarmothBatchInteractionTests
         public Action? AfterPause { get; set; }
         public int PauseCalls { get; private set; }
         public int RefreshCalls { get; private set; }
+        public Func<Task> RefreshResponse { get; init; } = () => Task.CompletedTask;
         public Func<GarmothUploadPreview, Task<TrackerCommandResult>> Respond { get; set; } = _ => Success();
 
         public void StartLive()
@@ -436,7 +484,7 @@ public sealed class GarmothBatchInteractionTests
         public Task<TrackerCommandResult> UpdateHistoryLootAsync(Guid sessionId, IReadOnlyDictionary<string, long> totals, string? characterClass = null) => Success();
         public Task<TrackerCommandResult> DeleteHistoryAsync(Guid sessionId) => Success();
         public Task<PreferenceSaveResult> SavePreferencesAsync(TrackerPreferences preferences, string? apiKey = null, bool resumeAutomaticUpload = false) => Task.FromResult(new PreferenceSaveResult());
-        public Task RefreshPricesAsync() { RefreshCalls++; return Task.CompletedTask; }
+        public Task RefreshPricesAsync() { RefreshCalls++; return RefreshResponse(); }
         public Task TickAsync() => Task.CompletedTask;
         public Task PrepareUpdateRestartAsync() => Task.CompletedTask;
         public Task RunPreparedUpdateAsync(Func<Task> install) => Task.CompletedTask;

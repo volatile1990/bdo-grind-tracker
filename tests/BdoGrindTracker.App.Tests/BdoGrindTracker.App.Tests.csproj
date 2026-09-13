@@ -16,11 +16,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\Shared\WindowsOcrAttributes.cs" Link="TestSupport\WindowsOcrAttributes.cs" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="..\..\src\BdoGrindTracker.App\BdoGrindTracker.App.csproj" />
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="..\fixtures\garmoth\*.json" Link="fixtures\garmoth\%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\fixtures\lifetime\*.txt" Link="fixtures\lifetime\%(Filename)%(Extension)"
              CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\fixtures\companion-counter-v1.jsonl" Link="fixtures\companion-counter-v1.jsonl"

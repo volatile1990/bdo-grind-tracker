@@ -6,16 +6,25 @@ namespace BdoGrindTracker.Ocr.Tests;
 
 public sealed class CompanionWindowsOcrRecognizerTests
 {
-    [Theory]
-    [InlineData("en-US", "Black Stone x 17", .75f)]
-    [InlineData("en-US", "Black Stone x 17", 1.5f)]
-    [InlineData("de-DE", "Bruchstück x 12", .75f)]
-    [InlineData("de-DE", "Bruchstück x 12", 1.5f)]
-    public void AvailableNativeEngineReturnsOwnedWordGeometryFromTheOriginalRead(
+    [WindowsOcrTheory("en-US")]
+    [Trait("Category", "WindowsOcr")]
+    [InlineData(.75f)]
+    [InlineData(1.5f)]
+    public void EnglishNativeEngineReturnsOwnedWordGeometry(float scale) =>
+        AssertNativeWordGeometry("en-US", "Black Stone x 17", scale);
+
+    [WindowsOcrTheory("de-DE")]
+    [Trait("Category", "WindowsOcr")]
+    [InlineData(.75f)]
+    [InlineData(1.5f)]
+    public void GermanNativeEngineReturnsOwnedWordGeometry(float scale) =>
+        AssertNativeWordGeometry("de-DE", "Bruchstück x 12", scale);
+
+    private static void AssertNativeWordGeometry(
         string language, string text, float scale)
     {
         var engine = CompanionWindowsOcrRecognizer.TryCreate(language, requirePreferredLanguage: true);
-        if (engine is null) return; // Optional Windows language packages are machine-local.
+        Assert.NotNull(engine);
         using var bitmap = new Bitmap((int)(900 * scale), (int)(100 * scale), PixelFormat.Format24bppRgb);
         using (var graphics = Graphics.FromImage(bitmap))
         using (var font = new Font("Segoe UI", 36 * scale, FontStyle.Regular, GraphicsUnit.Pixel))

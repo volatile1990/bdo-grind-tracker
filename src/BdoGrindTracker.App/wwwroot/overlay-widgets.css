@@ -20,6 +20,14 @@
 .overlay-widget-status .overlay-widget-value { font-size: calc(15px * var(--widget-font-scale, 1) * var(--line-fit, 1)); }
 .overlay-widget-loot-scroll .overlay-widget-value { font-size: calc(16px * var(--widget-font-scale, 1) * var(--line-fit, 1)); }
 .overlay-widget-grind-rating .overlay-widget-value { font-size: calc(16px * var(--widget-font-scale, 1) * var(--line-fit, 1)); }
+.overlay-widget-clock { padding: 8px 10px; gap: 0; border: 0; }
+.overlay-widget-clock > .overlay-widget-label { flex: 0 0 calc(18px * var(--widget-font-scale, 1)); }
+.overlay-clock-rows { display: flex; flex-direction: column; justify-content: center; min-width: 0; flex: 1; }
+.overlay-clock-row { display: flex; align-items: center; gap: calc(6px * var(--widget-font-scale, 1) * var(--line-fit, 1)); height: calc(26px * var(--widget-font-scale, 1)); flex: 0 0 auto; min-width: 0; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.overlay-clock-row-label { color: #9aafbe; font-size: calc(11px * var(--widget-font-scale, 1) * var(--line-fit, 1)); }
+.overlay-clock-row strong { margin-left: auto; font-size: calc(18px * var(--widget-font-scale, 1) * var(--line-fit, 1)); font-weight: 650; }
+.overlay-clock-row.is-countdown strong { color: #f2c76c; }
+.overlay-clock-row > .icon { flex: 0 0 auto; width: calc(14px * var(--widget-font-scale, 1) * var(--line-fit, 1)); height: calc(14px * var(--widget-font-scale, 1) * var(--line-fit, 1)); color: #f2c76c; }
 .overlay-widget-preview.metric-tone-muted .overlay-widget-value { color: #9aafbe; }
 .overlay-widget-preview.metric-tone-positive .overlay-widget-value { color: #7dd3b5; }
 .overlay-widget-preview.metric-tone-accent .overlay-widget-value { color: #f2c76c; }

@@ -1,8 +1,30 @@
 # Ingame-Overlay
 
-Unter **Overlay** kann ein eigenes Layout aus Modulen zusammengestellt werden.
-Das Overlay ist standardmäßig ausgeschaltet. Es zeigt dieselben Sessiondaten wie
-die Live-Ansicht und erzeugt keine eigenen Drops oder Zählentscheidungen.
+Unter **Overlay** können mehrere unabhängige Fenster mit eigenen Layouts aus
+Modulen zusammengestellt werden. Neue Fenster sind standardmäßig ausgeschaltet.
+Alle Fenster zeigen dieselben Sessiondaten wie die Live-Ansicht und erzeugen
+keine eigenen Drops oder Zählentscheidungen.
+
+## Mehrere Fenster
+
+Unter **Deine Overlay-Fenster** legt **Neues Overlay** ein leeres Fenster an.
+**Duplizieren** kopiert das ausgewählte Layout in ein eigenes Fenster. Die Auswahl
+**Fenster bearbeiten** wechselt zwischen den Fenstern, das Feld **Name** benennt
+das ausgewählte Fenster um. Der Papierkorb entfernt es nach Bestätigung;
+mindestens ein Fenster bleibt erhalten.
+
+Jedes Fenster hat eigene Module, Position, Größe, Sichtbarkeit, Mausbedienung
+und Einstellungen für Bildschirmaufnahmen. Die beiden Tastenkürzel steuern alle
+Fenster gemeinsam. Mehrere aktive Fenster
+werden gleichzeitig angezeigt; der Wechsel im Editor schaltet sie nicht um.
+**Overlay aktiv**, **Auf Bildschirm testen** und **Position zurücksetzen** beziehen
+sich auf das ausgewählte Fenster. Beim Verlassen des Editors enden alle temporären
+Vorschauen; dauerhaft aktivierte Fenster bleiben eingeschaltet.
+
+Die Fenster einschließlich der Auswahl werden in `overlay.json` gespeichert.
+Ein bisheriges Einzel-Overlay wird mit seinem Layout, seiner Position und seinen
+Einstellungen als **Overlay 1** übernommen. Eigene Layoutvorlagen lassen sich in
+jedes Fenster laden.
 
 ## Einrichten
 
@@ -11,16 +33,19 @@ Die Vorlagen **Kompakt**, **Dashboard**, **Loot-Inventar** und **Loot-Leiste** b
 Trash pro Stunde über einem großen Inventarraster an (336 × 640).
 Module lassen sich aus der Bibliothek auf die Arbeitsfläche ziehen oder per Klick
 hinzufügen. Auf der Fläche können sie verschoben, vergrößert und verkleinert werden.
-Wird die gesamte Overlay-Fläche am Eckgriff oder über Breite und Höhe geändert,
-passen sich Position, Breite und Höhe aller Module proportional an. Abstände
-bleiben relativ zur Fläche erhalten, auch ohne ganzzahlige Rasterpositionen.
-Beim Ändern einzelner Module oder der gesamten Fläche skalieren auch Schrift,
+Wird die Overlay-Fläche am Eckgriff oder über Breite und Höhe geändert,
+bleiben Position, Breite und Höhe aller Module unverändert. So lässt sich freie
+Fläche entfernen, ohne die Komponenten zu verkleinern. Inhalte außerhalb der
+kleineren Fensterfläche werden abgeschnitten und bleiben gespeichert; beim
+Vergrößern erscheinen sie wieder an derselben Position und in derselben Größe.
+Beim gezielten Ändern einzelner Module skalieren deren Schrift,
 Icons, Abstände und Inhalte mit. Unterschiedliche Seitenverhältnisse verzerren
 die Inhalte nicht: Die knappere Achse begrenzt die gemeinsame Skalierung, die
 andere Achse bietet zusätzlichen Layoutplatz. Lange Texte werden passend
 verkleinert. Schrift- und Icongröße bleiben als relative Gestaltung einstellbar.
-Escape bricht eine laufende Größenänderung am Ziehgriff ab und stellt auch die
-Inhaltsskalierung wieder her.
+Escape bricht eine laufende Größenänderung am Ziehgriff ab. **Größe im Spiel**
+bleibt ein separater Zoomregler, der das gesamte Overlay einschließlich seiner
+Module skaliert.
 Die Moduleigenschaften erlauben genaue Positionen und Größen sowie Beschriftung,
 Icons und Textgröße. Das Drop-Inventar unterstützt Liste und Iconraster.
 
@@ -65,7 +90,7 @@ Platz an; bei kleinen Modulen werden Icons und Mengen entsprechend kleiner.
 einzelnen Itemkarte maximal ein Item); die maximale Itemanzahl ist einstellbar.
 Alle Einstellungen werden automatisch gespeichert. Bestehende Layouts bleiben erhalten.
 
-Verfügbare Module: aktive Zeit, Grindspot, Silber netto, Silber pro Stunde,
+Verfügbare Module: aktive Zeit, Uhrzeit, Grindspot, Silber netto, Silber pro Stunde,
 Trashloot, Trash pro Stunde, Drop-Inventar, seltene Drops, Silberverlauf,
 Tracking-Status, Loot-Scroll, Grind-Bewertung und Start-/Pause-Steuerung. Der Filter für seltene Drops ist eine
 explizite Auswahl bekannter seltener Gegenstände, keine neue Klassifizierung durch
@@ -87,14 +112,32 @@ gespeichert. Die Vorschau selbst ist vorübergehend und aktiviert das Overlay ni
 dauerhaft. Fehler beim Speichern werden angezeigt; die zuvor gespeicherte Datei
 bleibt erhalten.
 
+### Uhrzeit und Tag/Nacht
+
+Das Modul **Uhrzeit** zeigt die lokale Windows-Uhrzeit, die berechnete BDO-Weltzeit
+und die reale Restdauer bis zum nächsten Wechsel zwischen Tag und Nacht. Die drei
+Zeilen lassen sich separat einblenden, mindestens eine bleibt sichtbar. Sekunden,
+Beschriftung, Icon und Schriftgröße sind einstellbar. Die Uhr läuft auch ohne
+aktive Grind-Session und bei pausiertem Tracking weiter.
+
+Die Berechnung verwendet den regulären EU/NA-Zyklus: Tag von 07:00 bis 22:00 BDO
+entspricht 200 realen Minuten, die Nacht 40 Minuten. 00:20 UTC dient als Anker für
+07:00 BDO; die Systemzeitzone und Sommerzeit verändern diesen Anker nicht.
+Grundlage ist die veröffentlichte
+[bdo-clock-Implementierung](https://github.com/markni/bdo-clock/blob/master/bdo-clock.js).
+**BDO-Zeitkorrektur** verschiebt die Berechnung um reale Minuten, falls der Server
+abweicht. Positive Werte stellen die BDO-Zeit vor, negative zurück. Sondergebiete
+oder Ereignisse mit festgelegter Tageszeit können vom regulären Weltzyklus
+abweichen. Die Uhr verwendet die Systemzeit und liest keine Daten aus dem Spiel.
+
 ## Verhalten
 
 - **Verschiebbar:** Das Overlay kann am Hintergrund mit der linken Maustaste
   gezogen und am Griff unten rechts in der Größe geändert werden. Breite und
   Höhe lassen sich unabhängig vergrößern und verkleinern, auch gleichzeitig in
-  entgegengesetzte Richtungen. Module und Inhalte passen sich bereits während
-  des Ziehens wie im Editor an. Beim Loslassen werden die sichtbaren Maße und
-  das Layout gespeichert; der eingestellte Zoomfaktor bleibt erhalten. Das
+  entgegengesetzte Richtungen. Module und Inhalte behalten dabei ihre Position
+  und Größe wie im Editor. Beim Loslassen werden die neuen Fenstermaße
+  gespeichert; der eingestellte Zoomfaktor bleibt erhalten. Das
   optionale 8-Pixel-Raster gilt auch hier. Die Tracking-Steuerung bleibt klickbar.
 - **Position gesperrt:** Die Position bleibt fest, enthaltene Steuerungen sind
   weiterhin bedienbar.
@@ -113,10 +156,21 @@ Deckkraft, Größe, Skalierung, Rahmen und Raster sind einstellbar.
 
 ### Tastenkürzel
 
-Die globalen Tastenkürzel sind standardmäßig aktiv, solange Grindcrest läuft.
-**Strg+Alt+O** schaltet das Overlay ein/aus; **Strg+Alt+L** wechselt zwischen
-Verschieben und Mausdurchlässigkeit. Beide funktionieren auch bei ausgeblendetem
-Overlay. Gedrückthalten löst die Aktion nur einmal aus.
+Es gibt eine gemeinsame Belegung für alle Overlay-Fenster. Sie gilt unabhängig
+von der Auswahl im Editor und wird von neuen oder duplizierten Fenstern übernommen.
+**Strg+Alt+O** schaltet alle Overlays aus, sobald mindestens eines aktiv oder in
+der Bildschirmvorschau ist.
+Sind alle ausgeschaltet, aktiviert der nächste Tastendruck alle Fenster.
+Temporäre Desktop-Vorschauen werden beim Ausschalten ebenfalls beendet.
+**Strg+Alt+L** schaltet alle Fenster auf Mausdurchlässigkeit; sind bereits alle
+mausdurchlässig, schaltet es alle zurück auf **Verschiebbar**. Beide Kürzel
+funktionieren auch bei ausgeblendeten Overlays. Gedrückthalten löst die Aktion
+nur einmal aus.
+
+Die Hotkey-Einstellungen werden einmalig gemeinsam in `overlay.json` gespeichert.
+Beim Übernehmen älterer Mehrfenster-Einstellungen wird die Belegung des ersten
+Fensters mit aktivierten Hotkeys übernommen. Falls alle deaktiviert waren,
+bleibt die Belegung des ersten Fensters deaktiviert erhalten.
 
 Die Leiste **Tastenkürzel** zeigt die aktuellen Kombinationen. Über **Anpassen**
 lassen sich die Haupttaste sowie **Strg**, **Alt** oder **Strg+Alt** wählen.
@@ -160,7 +214,7 @@ aber seine Gültigkeit nicht: Nach 120 Sekunden ohne Bestätigung wird er unbeka
 Eine ausgeblendete, verdeckte oder nicht eindeutig erkennbare Anzeige gilt nicht
 als ausgeschaltet. Das Tracking läuft weiter. Pausieren setzt den Status zurück.
 
-Das Overlay ist ein eigenes Windows-Fenster über dem Spiel, geeignet für
+Jedes Overlay ist ein eigenes Windows-Fenster über dem Spiel, geeignet für
 Fenstermodus und randlosen Vollbildmodus. Exklusiver Vollbildmodus wird nicht
 garantiert. Es wird kein Code in Black Desert geladen. Zur Platzierung fragt die
 App Windows nach sichtbaren Fenstern, deren Prozessnamen und Monitoren.

@@ -81,12 +81,18 @@ public sealed class AutomaticLootSpotLock
 
     private static string? SpotIdForTrash(string name) => name switch
     {
+        "Chilled Soul Piece" => LootSpotCatalog.AetherionId,
+        "Contaminated Coral Piece" => LootSpotCatalog.NymphamareId,
+        "Lightlost Core" => LootSpotCatalog.OrbitaId,
+        "Ancient Soldier Fragment" => LootSpotCatalog.TenebraumId,
+        "Hardened Lava Chunk" => LootSpotCatalog.ZephyrosId,
+        "Tainted Armor Fragment" or "Faded Dark Energy" => LootSpotCatalog.DarkEnergyFloodlandsId,
         "Branch of Abundance" => LootSpotCatalog.AphrodonId,
         "Black Crystal Fragment" => LootSpotCatalog.HermesiaId,
         "Elion Follower's Helmet" => LootSpotCatalog.MagaiaId,
         "Scorched Belt Ornament" => LootSpotCatalog.AresionId,
         "Elion Follower's Mark" => LootSpotCatalog.ScalesOfJudgmentId,
         "Broken Gloves of the Void" => LootSpotCatalog.EventHorizonId,
-        _ => null,
+        _ => LootSpotCatalog.DetectScreenshotSpot(name),
     };
 }

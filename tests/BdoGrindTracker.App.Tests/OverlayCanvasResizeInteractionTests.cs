@@ -16,7 +16,7 @@ public sealed class OverlayCanvasResizeInteractionTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public Task CanvasDimensionFieldScalesEveryModuleAlongTheEditedAxis(bool width) => Render(async (editor, overlay, markup) =>
+    public Task CanvasDimensionFieldKeepsEveryModuleAtItsExistingSizeAndPosition(bool width) => Render(async (editor, overlay, markup) =>
     {
         var ids = overlay.Settings.Widgets.Select(widget => widget.Id).ToArray();
         await Invoke(editor, "CanvasDimension", new ChangeEventArgs { Value = width ? "800" : "600" }, width);
@@ -24,13 +24,13 @@ public sealed class OverlayCanvasResizeInteractionTests
         Assert.Equal(width ? 800 : 400, overlay.Settings.Width);
         Assert.Equal(width ? 300 : 600, overlay.Settings.Height);
         Assert.Equal(ids, overlay.Settings.Widgets.Select(widget => widget.Id));
-        AssertGeometry(overlay.Settings.Widgets[0], width ? (40, 24, 240, 64) : (20, 48, 120, 128));
-        AssertGeometry(overlay.Settings.Widgets[1], width ? (360, 112, 400, 160) : (180, 224, 200, 320));
+        AssertGeometry(overlay.Settings.Widgets[0], (20, 24, 120, 64));
+        AssertGeometry(overlay.Settings.Widgets[1], (180, 112, 200, 160));
         Assert.Contains(width ? "data-width=\"800\"" : "data-height=\"600\"", markup());
     });
 
     [Fact]
-    public Task CanvasDragCommitScalesEveryModuleInBothDimensions() => Render(async (editor, overlay, markup) =>
+    public Task CanvasDragCommitKeepsEveryModuleAtItsExistingSizeAndPosition() => Render(async (editor, overlay, markup) =>
     {
         var ids = overlay.Settings.Widgets.Select(widget => widget.Id).ToArray();
         await editor.CommitCanvasSize(800, 600);
@@ -38,10 +38,33 @@ public sealed class OverlayCanvasResizeInteractionTests
         Assert.Equal(800, overlay.Settings.Width);
         Assert.Equal(600, overlay.Settings.Height);
         Assert.Equal(ids, overlay.Settings.Widgets.Select(widget => widget.Id));
-        AssertGeometry(overlay.Settings.Widgets[0], (40, 48, 240, 128));
-        AssertGeometry(overlay.Settings.Widgets[1], (360, 224, 400, 320));
-        Assert.Contains("data-x=\"360\"", markup());
-        Assert.Contains("data-y=\"224\"", markup());
+        AssertGeometry(overlay.Settings.Widgets[0], (20, 24, 120, 64));
+        AssertGeometry(overlay.Settings.Widgets[1], (180, 112, 200, 160));
+        Assert.Contains("data-x=\"180\"", markup());
+        Assert.Contains("data-y=\"112\"", markup());
+    });
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public Task CroppingAndReExpandingCanvasDoesNotChangeClippedModules(bool drag) => Render(async (editor, overlay, markup) =>
+    {
+        var original = overlay.Settings;
+        if (drag) await editor.CommitCanvasSize(160, 64);
+        else
+        {
+            await Invoke(editor, "CanvasDimension", new ChangeEventArgs { Value = "160" }, true);
+            await Invoke(editor, "CanvasDimension", new ChangeEventArgs { Value = "64" }, false);
+        }
+
+        Assert.Equal(160, overlay.Settings.Width);
+        Assert.Equal(64, overlay.Settings.Height);
+        Assert.Equal(original.Widgets, overlay.Settings.Widgets);
+        Assert.Contains("data-x=\"180\"", markup());
+        Assert.Contains("data-y=\"112\"", markup());
+
+        await editor.CommitCanvasSize(original.Width, original.Height);
+        Assert.Equal(original.Widgets, overlay.Settings.Widgets);
     });
 
     [Theory]

@@ -6,6 +6,30 @@ namespace BdoGrindTracker.App.Tests;
 public sealed partial class TrackerSessionServiceTests
 {
     [Fact]
+    public async Task AcceptedPreferenceChangeWithWriteFailureStillPreventsShutdownUntilSaved()
+    {
+        await using var fixture = new Fixture(autoUpload: false);
+        var blockedPath = fixture.SettingsPath + ".tmp";
+        Directory.CreateDirectory(blockedPath);
+        try
+        {
+            Assert.False((await fixture.Service.SavePreferencesAsync(
+                fixture.Service.Preferences with { AutoPauseMinutes = 9 })).Succeeded);
+            Assert.Equal(9, fixture.Service.Preferences.AutoPauseMinutes);
+            await fixture.Service.ShutdownAsync();
+            Assert.True(fixture.Service.State.ShutdownFailed);
+            Assert.False(fixture.Analyzer.Disposed);
+        }
+        finally { Directory.Delete(blockedPath); }
+
+        await fixture.Service.ShutdownAsync();
+
+        Assert.False(fixture.Service.State.ShutdownFailed);
+        Assert.True(fixture.Analyzer.Disposed);
+        Assert.Equal(9, fixture.Settings.Load().AutoPauseMinutes);
+    }
+
+    [Fact]
     public async Task SettingsWriteFailureStaysVisibleAcrossSuccessfulActionsAndCanBeRetried()
     {
         await using var fixture = new Fixture(autoUpload: false);

@@ -46,7 +46,7 @@ public partial class OverlayEditor
 
     protected override void OnInitialized()
     {
-        _settings = OverlayLayout.Normalize(Overlay.Settings);
+        LoadSelectedOverlay();
         Overlay.Changed += OverlayChanged;
     }
 
@@ -57,7 +57,16 @@ public partial class OverlayEditor
             if (_disposed) return;
             // Native resize or a global interaction shortcut may update the
             // same settings while the editor is visible.
-            if (!_saving && _error is null) _settings = OverlayLayout.Normalize(Overlay.Settings);
+            if (!_saving)
+            {
+                if (_editingOverlayId != Overlay.SelectedOverlayId) LoadSelectedOverlay();
+                else if (_error is null) _settings = OverlayLayout.Normalize(Overlay.Settings);
+                else _settings = _settings with
+                {
+                    Enabled = Overlay.Settings.Enabled,
+                    Interaction = Overlay.Settings.Interaction,
+                };
+            }
             StateHasChanged();
         });
     }
@@ -76,7 +85,9 @@ public partial class OverlayEditor
 
     private async Task Change(Func<OverlaySettings, OverlaySettings> update)
     {
-        if (_disposed) return;
+        if (_disposed || Overlay.LoadError is not null) return;
+        var overlayId = _editingOverlayId;
+        var original = _settings;
         _settings = OverlayLayout.Normalize(update(_settings));
         var revision = ++_revision;
         var draft = _settings;
@@ -87,9 +98,22 @@ public partial class OverlayEditor
         {
             // Moving the native window can happen while the editor is open.
             // Layout edits must retain that newly saved screen position.
-            draft = draft with { PositionX = Overlay.Settings.PositionX, PositionY = Overlay.Settings.PositionY };
-            var result = await Overlay.SaveAsync(draft);
-            if (revision == _revision)
+            var current = Overlay.Overlays.FirstOrDefault(window => window.Id == overlayId)?.Settings;
+            if (current is null)
+            {
+                if (revision == _revision) _error = "Das Overlay-Fenster ist nicht mehr vorhanden.";
+                return;
+            }
+            draft = draft with
+            {
+                PositionX = current.PositionX, PositionY = current.PositionY,
+                // Global hotkeys can fire while a layout save is queued. Keep
+                // their result unless this edit explicitly changed that field.
+                Enabled = draft.Enabled == original.Enabled ? current.Enabled : draft.Enabled,
+                Interaction = draft.Interaction == original.Interaction ? current.Interaction : draft.Interaction,
+            };
+            var result = await Overlay.SaveAsync(overlayId, draft);
+            if (revision == _revision && _editingOverlayId == overlayId)
             {
                 _error = result.Error;
                 if (result.Succeeded) _settings = OverlayLayout.Normalize(Overlay.Settings);
@@ -132,9 +156,10 @@ public partial class OverlayEditor
         if (SelectedWidget is not { } widget) return Task.CompletedTask;
         var (minimum, maximum) = field switch
         {
-            "x" => (0d, _settings.Width - widget.Width), "y" => (0d, _settings.Height - widget.Height),
-            "width" => (Math.Min(80, widget.Width), _settings.Width - widget.X), "height" => (Math.Min(40, widget.Height), _settings.Height - widget.Y),
-            "fontScale" => (.7, 2d), "itemLimit" => (1d, 24d), "itemSize" => (32d, 112d), _ => (0d, 0d),
+            "x" => (0d, 1600 - widget.Width), "y" => (0d, 1200 - widget.Height),
+            "width" => (Math.Min(80, widget.Width), 1600 - widget.X), "height" => (Math.Min(40, widget.Height), 1200 - widget.Y),
+            "fontScale" => (.7, 2d), "itemLimit" => (1d, 24d), "itemSize" => (32d, 112d),
+            "clockOffset" => (-240d, 240d), _ => (0d, 0d),
         };
         if (!TryNumber(e, minimum, maximum, out var value)) return Task.CompletedTask;
         if (field == "itemLimit" && value != Math.Truncate(value))
@@ -142,12 +167,18 @@ public partial class OverlayEditor
             _error = "Bitte eine ganze Anzahl an Items eingeben.";
             return Task.CompletedTask;
         }
+        if (field == "clockOffset" && value != Math.Truncate(value))
+        {
+            _error = "Bitte ganze Minuten für die BDO-Zeitkorrektur eingeben.";
+            return Task.CompletedTask;
+        }
         return ChangeWidget(w => field switch
         {
             "x" => w with { X = value }, "y" => w with { Y = value },
             "width" => OverlayLayout.ResizeWidget(w, value, w.Height), "height" => OverlayLayout.ResizeWidget(w, w.Width, value),
             "fontScale" => w with { FontScale = value }, "itemLimit" => w with { ItemLimit = (int)value },
-            "itemSize" => w with { ItemSize = value }, _ => w,
+            "itemSize" => w with { ItemSize = value },
+            "clockOffset" => w with { ClockOffsetMinutes = (int)value }, _ => w,
         });
     }
 
@@ -355,7 +386,8 @@ public partial class OverlayEditor
         await _saveGate.WaitAsync();
         _saveGate.Release();
         // Preview is temporary setup, separate from the saved Enabled choice.
-        if (Overlay.State.Previewing) await Overlay.SetPreviewAsync(false);
+        foreach (var window in Overlay.Overlays)
+            if (Overlay.GetState(window.Id).Previewing) await Overlay.SetPreviewAsync(window.Id, false);
         GC.SuppressFinalize(this);
     }
 }

@@ -35,7 +35,7 @@ public sealed class WindowsOcrLanguageInstallerTests
         Assert.Equal(new[]
         {
             "/Online", "/Add-Capability", $"/CapabilityName:Language.OCR~~~{canonical}~0.0.1.0",
-            "/NoRestart", "/Quiet"
+            "/NoRestart", "/English", $"/LogPath:{WindowsOcrLanguageInstaller.DefaultLogPath}"
         }, invocation.ArgumentList);
         Assert.Empty(invocation.Arguments);
         Assert.False(invocation.RedirectStandardOutput);
@@ -129,6 +129,7 @@ public sealed class WindowsOcrLanguageInstallerTests
 
     [Theory]
     [InlineData(87, "0x00000057", "Windows Update")]
+    [InlineData(1618, "0x00000652", "Installationsprozess läuft noch")]
     [InlineData(unchecked((int)0x800F0954), "0x800F0954", "Update-Richtlinien")]
     [InlineData(unchecked((int)0x800F081F), "0x800F081F", "Installationsdateien")]
     [InlineData(unchecked((int)0x800F0906), "0x800F0906", "Internetverbindung")]

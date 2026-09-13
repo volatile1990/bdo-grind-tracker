@@ -8,11 +8,12 @@ namespace BdoGrindTracker.App.Tests;
 
 public sealed class ExperienceFrameReaderTests(ITestOutputHelper output)
 {
-    [Fact]
+    [WindowsOcrFact]
+    [Trait("Category", "WindowsOcr")]
     public void ReadsActualUserExperienceWithNativeWindowsOcr()
     {
         var engine = CompanionWindowsOcrRecognizer.TryCreate();
-        if (engine is null) { output.WriteLine("Native OCR unavailable; independent parser tests remain active."); return; }
+        Assert.NotNull(engine);
         using var frame = Load();
         using var reader = new ExperienceFrameReader((image, token) =>
         {
@@ -31,12 +32,13 @@ public sealed class ExperienceFrameReaderTests(ITestOutputHelper output)
             yield return [width, height, scale];
     }
 
-    [Theory]
+    [WindowsOcrTheory]
+    [Trait("Category", "WindowsOcr")]
     [MemberData(nameof(FrameScales))]
     public void ReadsScaledRelocatedHudWithinTopLeftFrame(int width, int height, double scale)
     {
         var engine = CompanionWindowsOcrRecognizer.TryCreate();
-        if (engine is null) { output.WriteLine("Native OCR unavailable."); return; }
+        Assert.NotNull(engine);
         using var original = Load();
         using var frame = new Bitmap(width, height, PixelFormat.Format24bppRgb);
         using (var graphics = Graphics.FromImage(frame))
@@ -55,14 +57,15 @@ public sealed class ExperienceFrameReaderTests(ITestOutputHelper output)
         Assert.Equal(new ExperienceReading(61, .579m), reader.Read(frame, CancellationToken.None));
     }
 
-    [Theory]
+    [WindowsOcrTheory]
+    [Trait("Category", "WindowsOcr")]
     [InlineData(1f)]
     [InlineData(2.5f)]
     [InlineData(5f)]
     public void ToneMappedHdrPreservesExactPercent(float whiteLevel)
     {
         var engine = CompanionWindowsOcrRecognizer.TryCreate();
-        if (engine is null) { output.WriteLine("Native OCR unavailable."); return; }
+        Assert.NotNull(engine);
         using var original = Load();
         using var frame = LootScrollGaugeDetectorTests.ToneMapHdr(original, whiteLevel);
         using var reader = new ExperienceFrameReader((image, token) =>

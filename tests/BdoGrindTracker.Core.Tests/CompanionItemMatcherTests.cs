@@ -6,6 +6,22 @@ namespace BdoGrindTracker.Core.Tests;
 public sealed class CompanionItemMatcherTests
 {
     [Theory]
+    [InlineData("Lesha's Artifact - All Damage Reduction")]
+    [InlineData("Lesha's Artifact - Melee Damage Reduction")]
+    [InlineData("Dehkia's Artifact - All Damage Reduction")]
+    [InlineData("Kehelle's Artifact - Black Spirit's Rage Max Increase")]
+    public void FullEnglishArtifactNamesRetainIdentityAfterOcrRemovesPunctuation(string canonical)
+    {
+        var matcher = new CompanionItemMatcher(ItemLocalizationCatalog.GermanNames.Keys);
+        foreach (var rare in new[] { false, true })
+        {
+            Assert.True(matcher.TryMatch(canonical.Replace("-", ""), 1, rare, out var match));
+            Assert.Equal(canonical, match!.CanonicalName);
+            Assert.True(match.IsExact);
+        }
+    }
+
+    [Theory]
     [InlineData("Broken Vestige of Ebonmere")]
     [InlineData("BON Origin Shard")]
     [InlineData("Black Gem Fragment")]
@@ -37,12 +53,15 @@ public sealed class CompanionItemMatcherTests
         Assert.Equal(0, match.NormalizedDistance);
     }
 
-    [Fact]
-    public void NativeCountOneTrashFilterIsPreserved()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void NativeCountOneTrashFilterIsPreservedForUnconfiguredItems(bool rare)
     {
-        CompanionItemMatcher matcher = new(["Decayed Cloth"]);
-        Assert.False(matcher.TryMatch("Decayed Cloth", 1, false, out _));
-        Assert.True(matcher.TryMatch("Decayed Cloth", 2, false, out _));
+        CompanionItemMatcher matcher = new(["Outlaw's Mark"]);
+        Assert.Null(DropQuantityCatalog.GetBounds(null, "Outlaw's Mark"));
+        Assert.False(matcher.TryMatch("Outlaw's Mark", 1, rare, out _));
+        Assert.True(matcher.TryMatch("Outlaw's Mark", 2, rare, out _));
     }
 
     [Fact]

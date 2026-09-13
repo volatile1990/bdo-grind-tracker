@@ -33,6 +33,7 @@ internal sealed partial class GarmothUploadIntervals
     private bool _automaticSuspended;
 
     public bool IsBlocked { get { lock (_gate) return _blocked; } }
+    public bool HasTransmittedLoot { get { lock (_gate) return _transmitted.Count > 0; } }
     public bool AutomaticSuspended { get { lock (_gate) return _automaticSuspended; } }
     public Guid? PreparedIntervalId { get { lock (_gate) return _prepared?.Interval.Id; } }
 

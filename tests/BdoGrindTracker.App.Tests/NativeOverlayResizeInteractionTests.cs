@@ -22,6 +22,14 @@ public sealed class NativeOverlayResizeInteractionTests
             var preview = Assert.IsType<OverlaySettings>(form.ResizePreview);
             Assert.Equal(480, preview.Width);
             Assert.Equal(200, preview.Height);
+            var originalModules = new OverlaySettings().Widgets;
+            Assert.Equal(originalModules.Select(widget => (widget.Kind, widget.X, widget.Y, widget.Width, widget.Height)),
+                preview.Widgets.Select(widget => (widget.Kind, widget.X, widget.Y, widget.Width, widget.Height)));
+            Assert.All(preview.Widgets, widget =>
+            {
+                Assert.Null(widget.ContentWidth);
+                Assert.Null(widget.ContentHeight);
+            });
             Assert.Empty(commits);
             // Regular host refreshes must not restore the persisted old size.
             form.Present(new Rectangle(form.Location, new Size(360, 260)));

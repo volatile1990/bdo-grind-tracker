@@ -18,13 +18,22 @@ Der Produktlink ist erst nach der Veröffentlichung öffentlich verfügbar. Für
 
 ## Paket erstellen
 
-Windows, PowerShell 7.2+, .NET SDK 9 und das Windows SDK ab 10.0.19041.0 mit `MakeAppx.exe` und `MakePri.exe` sind erforderlich.
+Windows, PowerShell 7.2+, .NET SDK 9.0.318 oder neuer aus der 9er-Reihe, Node.js 24 und das Windows SDK ab 10.0.19041.0 mit `MakeAppx.exe` und `MakePri.exe` sind erforderlich.
 
 ```powershell
-./scripts/Build-StoreRelease.ps1 -Version 1.2.3
+./scripts/Build-StoreRelease.ps1 -Version 1.4.1 -RequireWindowsOcr
 ```
 
-Das Skript führt alle Tests aus, veröffentlicht .NET samt Desktop-/Blazor-Laufzeit, erzeugt Logos aus der bestehenden Marke, erstellt den Shell-Ressourcenindex mit MakePri und das MSIX mit der Manifestprüfung des Windows SDK. Anschließend prüft es Identität, Inhalt, Icontransparenz und Ressourcen-Zuordnungen. Das Ergebnis liegt unter `artifacts/store/1.2.3/Grindcrest-1.2.3.0-x64.msix`, zusammen mit SHA-256-Prüfsumme sowie MakePri- und MakeAppx-Protokollen. Das Ausgabeverzeichnis muss leer sein; zum Wiederholen einen neuen `-OutputDirectory` angeben. `-SkipTests` ist nur für lokale Paketierungsdiagnosen gedacht.
+Das Skript führt .NET- und JavaScript-Tests aus, veröffentlicht .NET samt Desktop-/Blazor-Laufzeit, erzeugt Logos aus der bestehenden Marke, erstellt den Shell-Ressourcenindex mit MakePri und das MSIX mit der Manifestprüfung des Windows SDK. Anschließend prüft es Identität, Inhalt, Runtime-Mindestversion, Icontransparenz und Ressourcen-Zuordnungen. Das Ergebnis liegt unter `artifacts/store/1.4.1/Grindcrest-1.4.1.0-x64.msix`, zusammen mit SHA-256-Prüfsumme sowie MakePri- und MakeAppx-Protokollen. Das Ausgabeverzeichnis muss leer sein; zum Wiederholen einen neuen `-OutputDirectory` angeben. `-SkipTests` ist nur für lokale Paketierungsdiagnosen gedacht.
+
+`-RequireWindowsOcr` verlangt, dass die nativen OCR-Tests tatsächlich laufen;
+die Windows-OCR-Sprachpakete für `en-US` und `de-DE` müssen auf dem Testrechner
+vorhanden sein. Ohne den Schalter erscheinen fehlende Voraussetzungen sichtbar
+als übersprungene Tests in Konsole und TRX. Das gilt auch für gehostete CI-Runner:
+deren grüner Lauf mit Skips ersetzt keine native Prüfung auf einem passenden Windows-PC.
+
+Die [Versionshinweise für 1.4.1](release-notes/1.4.1.md) und der
+[Text für den Store-Eintrag](release-notes/1.4.1-store.txt) beschreiben dieses Release.
 
 Für Taskleiste, Start und Alt+Tab enthält das Paket transparente `Square44x44Logo.targetsize-*`-Icons in 15 Größen, jeweils als Standard-, `altform-unplated`- und `altform-lightunplated`-Variante. MakePri ordnet diese im mitgelieferten `resources.pri` dem Manifestlogo zu. `BackgroundColor="transparent"` allein verhindert die von Windows ergänzte farbige Hintergrundfläche nicht. Der PNG-Master und das EXE-Icon bleiben unverändert.
 
@@ -74,7 +83,15 @@ Bereits installierte **1.0.0**-Ausgaben enthalten ausschließlich den Store-Verw
 
 Die automatisierten Tests prüfen Kanalwahl, direkte und bereits vorbereitete Installation, parallele Klicks, Abbruch, Netzwerk-/Speicherfehler sowie den Schutz der Session. UI-Tests prüfen Popup, Aufschieben, Wiederöffnen, Fortschritt und die gesperrte Aktion während des Trackings. Sie verwenden ein simuliertes Store-Backend. Für den vollständigen Integrationstest müssen zwei passende, freigegebene Paketversionen über das echte Store-Produkt verfügbar sein: eine Ausgabe mit diesem Popup installieren, anschließend eine höhere Version veröffentlichen und **Jetzt aktualisieren** ausführen. Dabei gespeicherten Verlauf, Abbruch und tatsächliche neue Paketversion nach dem Neustart prüfen. Ein lokal entpackter oder lediglich selbst signierter Build ersetzt diesen Test nicht.
 
-Die Store-Ausgabe nutzt den eigenen `LocalState`-Datenordner. Beim ersten regulären Start werden vorhandene Tracker-Daten aus `%LOCALAPPDATA%\BdoGrindTracker` übernommen; die Originale bleiben erhalten. Danach entwickeln sich GitHub- und Store-Daten getrennt weiter. Vor einem Wechsel oder der Deinstallation sollten wichtige Sessions zusätzlich exportiert werden. Details der tatsächlich ausgeführten Übernahme und Prüfungen stehen in der Implementierung und den zugehörigen Tests.
+Die Store-Ausgabe nutzt den eigenen `LocalState`-Datenordner. Beim ersten regulären Start werden vorhandene Tracker-Daten aus `%LOCALAPPDATA%\BdoGrindTracker` übernommen; die Originale bleiben erhalten. Die Übernahme ergänzt ab 1.4.1 auch das Uploadjournal, den aktuellen Sitzungsmarker, Overlaylayouts und Vorlagen bei bereits erfolgter älterer Migration. Vorhandene Store-Daten haben Vorrang. Passt ein alter Sitzungsmarker nicht mehr zum Store-Verlauf, bleibt er als `legacy-current-session-v1.json` separat erhalten. Danach entwickeln sich GitHub- und Store-Daten getrennt weiter.
+
+Eine Export-/Importoberfläche ist noch nicht vorhanden. Vor Wechsel oder
+Deinstallation beide Ausgaben schließen und den vollständigen jeweiligen
+Datenordner außerhalb des App-Ordners sichern, einschließlich Uploadjournal und
+Sitzungsmarker. Die Einstellungen zeigen den Diagnose-Unterordner des tatsächlich verwendeten Datenordners.
+Den Garmoth-Schlüssel schützt Windows benutzergebunden; eine Dateikopie ist keine
+portable Schlüsselübertragung auf einen anderen PC. Backups nicht während
+laufender Aufnahme oder Uploads erstellen.
 
 MSIX enthält die .NET-Laufzeit. Die aktuellen OpenCV- und WebView2-Loader-Binärdateien brauchen kein zusätzliches VCLibs-Store-Paket; ihre nativen Importtabellen wurden geprüft. WebView2 Evergreen ist ein eigener Systembestandteil. Das Store-MSIX installiert keine EXE-Bootstrapper und lädt keinen Programmcode über den GitHub-Updater nach.
 

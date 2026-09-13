@@ -10,6 +10,7 @@ using BdoGrindTracker.App.Updates;
 using BdoGrindTracker.App.Persistence;
 using BdoGrindTracker.App.Overlay;
 using BdoGrindTracker.App.Overlay.Native;
+using BdoGrindTracker.App.Integrations.Garmoth;
 using Windows.Security.Authorization.AppCapabilityAccess;
 
 namespace BdoGrindTracker.App.UI;
@@ -20,6 +21,8 @@ internal sealed class HybridMainForm : Form
     private readonly ITrackerSession _session;
     private readonly BdoGrindTracker.App.Persistence.WindowPlacementStore _placementStore = new();
     private readonly bool _persistPlacement;
+    private readonly WindowPlacement? _startupPlacement;
+    private FormWindowState _lastNonMinimizedWindowState = FormWindowState.Normal;
     private readonly BlazorWebView _web = new() { Dock = DockStyle.Fill };
     private readonly ServiceProvider _services;
     private readonly IAppUpdates _updates;
@@ -42,10 +45,15 @@ internal sealed class HybridMainForm : Form
 
     public int ExitCode { get; private set; }
 
+    internal Task<GarmothBenchmarkPayload> ReadGarmothBenchmarksAsync(CancellationToken cancellationToken)
+        => new GarmothWebViewBenchmarkReader(this,
+            Path.Combine(AppDataPaths.Current.BaseDirectory, "garmoth-webview2")).ReadAsync(cancellationToken);
+
     public HybridMainForm(ITrackerSession session, bool smokeTest = false, int? debugPort = null, bool preview = false, bool hidden = false)
     {
         _session = session;
         _persistPlacement = !preview && !smokeTest && !hidden;
+        _startupPlacement = _persistPlacement ? _placementStore.Load() : null;
         _smokeTest = smokeTest;
         _hidden = smokeTest || hidden;
         Text = AppBranding.WindowTitle + (preview ? " · Vorschau" : "");
@@ -56,8 +64,14 @@ internal sealed class HybridMainForm : Form
         MinimumSize = new Size(860, 640);
         Size = new Size(1320, 900);
         StartPosition = FormStartPosition.Manual;
-        var screen = Screen.AllScreens.FirstOrDefault(s => !s.Primary) ?? Screen.PrimaryScreen;
-        if (screen is not null)
+        // Establish the saved monitor before the HWND is created, so Windows
+        // initializes the form at that monitor's DPI instead of scaling a later move.
+        if (_startupPlacement is { } savedPlacement)
+        {
+            Bounds = savedPlacement.Fit(Screen.AllScreens.OrderByDescending(screen => screen.Primary)
+                .Select(screen => screen.WorkingArea).ToArray());
+        }
+        else if ((Screen.AllScreens.FirstOrDefault(s => !s.Primary) ?? Screen.PrimaryScreen) is { } screen)
         {
             var work = screen.WorkingArea;
             Size = new Size(Math.Min(Width, work.Width), Math.Min(Height, work.Height));
@@ -119,13 +133,22 @@ internal sealed class HybridMainForm : Form
         var scale = DeviceDpi / 96f;
         var work = Screen.FromControl(this).WorkingArea;
         MinimumSize = new Size(Math.Min((int)(860 * scale), work.Width), Math.Min((int)(640 * scale), work.Height));
-        Size = new Size(Math.Min((int)(1320 * scale), work.Width), Math.Min((int)(900 * scale), work.Height));
-        Location = new Point(work.Left + (work.Width - Width) / 2, work.Top + (work.Height - Height) / 2);
-        if (_persistPlacement && _placementStore.Load() is { } saved)
+        if (_startupPlacement is { } saved)
         {
             Bounds = saved.Fit(Screen.AllScreens.OrderByDescending(screen => screen.Primary).Select(screen => screen.WorkingArea).ToArray());
             if (saved.Maximized) WindowState = FormWindowState.Maximized;
         }
+        else
+        {
+            Size = new Size(Math.Min((int)(1320 * scale), work.Width), Math.Min((int)(900 * scale), work.Height));
+            Location = new Point(work.Left + (work.Width - Width) / 2, work.Top + (work.Height - Height) / 2);
+        }
+    }
+
+    protected override void OnResize(EventArgs e)
+    {
+        base.OnResize(e);
+        if (WindowState != FormWindowState.Minimized) _lastNonMinimizedWindowState = WindowState;
     }
 
     protected override void OnHandleCreated(EventArgs e)
@@ -328,9 +351,8 @@ internal sealed class HybridMainForm : Form
     private void SaveWindowPlacement()
     {
         if (!_persistPlacement) return;
-        var bounds = WindowState == FormWindowState.Normal ? Bounds : RestoreBounds;
-        if (bounds.Width > 0 && bounds.Height > 0)
-            _placementStore.Save(new(bounds.X, bounds.Y, bounds.Width, bounds.Height, WindowState == FormWindowState.Maximized));
+        if (WindowPlacement.Capture(Bounds, RestoreBounds, WindowState, _lastNonMinimizedWindowState) is { } placement)
+            _placementStore.Save(placement);
     }
 
     internal async Task<bool> PrepareWindowCaptureAsync()

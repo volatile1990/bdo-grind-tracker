@@ -38,10 +38,13 @@ internen Spieldaten und steuert weder BDO noch BDO Companion. Die Paddle-Modelle
 Ziffernvorlagen sind lokal enthalten.
 
 Ein fehlendes Windows-OCR-Sprachpaket kann der Nutzer ausdrücklich aus Grindcrest
-nachinstallieren. Dafür startet die App die vertrauenswürdige Windows-Systemdatei
-`dism.exe` mit Administratorabfrage und einer festen Whitelist für die OCR-Pakete
-`en-US` und `de-DE`. Es werden keine frei formulierten Befehle oder Scripts erhöht
-ausgeführt. Windows bezieht die Komponenten aus seinen Updatequellen; dieser
+nachinstallieren. Dafür startet die App die Windows-Systemdatei `powershell.exe`
+mit Administratorabfrage, ohne Benutzerprofil und mit einem fest eingebetteten
+Hilfsaufruf. Dieser führt ausschließlich die Systemdatei `dism.exe` mit einer festen
+Whitelist für die OCR-Pakete `en-US` und `de-DE` aus und protokolliert dessen
+Fortschrittsausgabe lokal. Es werden keine frei formulierten Befehle oder editierbaren
+Skriptdateien erhöht ausgeführt und keine Ausführungsrichtlinien geändert.
+Windows bezieht die Komponenten aus seinen Updatequellen; dieser
 Vorgang überträgt keine Sessiondaten oder Bilder. Ohne Installationsklick wird kein
 Paket installiert, und Windows wird nicht automatisch neu gestartet.
 
@@ -97,6 +100,18 @@ und nicht geöffnet. Frühere Diagnoseformate mit anderer Zähllogik werden abge
 
 Lokale Diagnosescreenshots sind nicht Teil des Repositorys oder eines Builds und werden
 durch `.gitignore` ausgeschlossen.
+
+## Automatische Garmoth-Vergleichswerte
+
+Beim Tracking-Start und zu jeder weiteren vollen aktiven Stunde lädt eine
+separate, unsichtbare InPrivate-WebView2-Instanz die öffentliche Garmoth-Übersicht.
+Die App übernimmt daraus ausschließlich die öffentlichen Statistik- und
+Tier-JSON-Antworten. Sie übergibt weder Sessions noch API-Keys, Screenshots oder
+Cookies anderer Browser. Der Datenbrowser hat ein eigenes Profil und keine
+Hostobjekte oder Nachrichtenbrücke zur App. Popups, Downloads und Berechtigungen
+sind deaktiviert; Netzwerkzugriffe sind auf Garmoth-Hosts beschränkt. Nach dem
+Abruf, bei Abbruch oder spätestens nach 45 Sekunden wird die Instanz geschlossen.
+Vergleichswerte werden lokal gespeichert. Details: [Grind-Bewertung](GRIND_RATING.md).
 
 ## Optionaler Garmoth-Upload
 

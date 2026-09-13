@@ -8,6 +8,47 @@ namespace BdoGrindTracker.App.Tests;
 
 public sealed class ArshaLootPriceProviderTests
 {
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task IndividualRateLimitRetainsRetryAfterEvenWithPartialPrices(bool returnPartialPrice, bool absoluteDate)
+    {
+        var time = new ManualTime();
+        var partialReturned = false;
+        var handler = new Handler(request =>
+        {
+            var query = Uri.UnescapeDataString(request.RequestUri!.Query);
+            if (query.Contains(',')) return new(HttpStatusCode.InternalServerError);
+            if (returnPartialPrice && !partialReturned)
+            {
+                partialReturned = true;
+                var id = int.Parse(query.Split('=')[1].Split('&')[0], System.Globalization.CultureInfo.InvariantCulture);
+                return Json(JsonSerializer.Serialize(new { id, sid = 0, basePrice = 1234 }));
+            }
+            var limited = new HttpResponseMessage(HttpStatusCode.TooManyRequests);
+            limited.Headers.RetryAfter = absoluteDate
+                ? new(time.GetUtcNow().AddHours(1)) : new(TimeSpan.FromHours(1));
+            return limited;
+        });
+        using var provider = new ArshaLootPriceProvider(handler, timeProvider: time);
+        var snapshot = await provider.GetSnapshotAsync("eu");
+        Assert.Contains("begrenzt", snapshot.StatusMessage);
+        if (returnPartialPrice) Assert.Contains(snapshot.Quotes.Values, quote => quote.Origin == LootPriceOrigin.LiveMarket);
+        var count = handler.Count;
+
+        time.Advance(TimeSpan.FromMinutes(11));
+        await provider.GetSnapshotAsync("eu");
+        Assert.Equal(count, handler.Count);
+        time.Advance(TimeSpan.FromMinutes(48));
+        await provider.GetSnapshotAsync("eu");
+        Assert.Equal(count, handler.Count);
+        time.Advance(TimeSpan.FromMinutes(1));
+        await provider.GetSnapshotAsync("eu");
+        Assert.True(handler.Count > count);
+    }
+
     [Fact]
     public async Task BatchServerErrorFallsBackToIndividualPricesAndKeepsMissingCacheStale()
     {
@@ -82,6 +123,31 @@ public sealed class ArshaLootPriceProviderTests
         handler.Respond = _ => Json("""[{"id":16001,"sid":0,"basePrice":1001},{"id":721003,"sid":0,"basePrice":102}]""");
         var next = await provider.GetSnapshotAsync("eu");
         Assert.False(next.Quotes.ContainsKey("Ancient Spirit Dust"));
+    }
+
+    [Fact]
+    public async Task OuterEdaniaUsesLiveMarketValuesAlongsideUntaxedNpcLoot()
+    {
+        var handler = new Handler(_ => Json("""
+            [{"id":821317,"sid":0,"basePrice":100000000},
+             {"id":11882,"sid":0,"basePrice":200000000},
+             {"id":11882,"sid":1,"basePrice":900000000},
+             {"id":768160,"sid":0,"basePrice":4000000}]
+            """));
+        using var provider = new ArshaLootPriceProvider(handler, timeProvider: new ManualTime());
+        var prices = await provider.GetSnapshotAsync("eu");
+        var valuation = SilverValuation.Calculate(new Dictionary<string, long>
+        {
+            ["Lightlost Core"] = 100, ["WON Crystal of Ruin"] = 1,
+            ["Distorted Fragment of Origin"] = 1, ["Deboreka Earring"] = 1,
+            ["Sealed Black Magic Crystal"] = 1,
+        }, prices, SilverTaxOptions.Default);
+
+        Assert.Equal(200_000_000, prices.Quotes["Deboreka Earring"].TaxableUnitPrice);
+        Assert.Equal(LootPriceOrigin.LiveMarket, prices.Quotes["Distorted Fragment of Origin"].Origin);
+        Assert.True(valuation.IsComplete);
+        Assert.Equal(323_060_000m, valuation.BeforeTax);
+        Assert.Equal(216_660_000m, valuation.AfterTax);
     }
 
     [Theory]

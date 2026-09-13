@@ -33,7 +33,7 @@
         {
             <div class="notice error-notice persistence-notice" role="alert">
                 <AppIcon Name="info" /><div><strong>Problem mit lokalen Daten</strong><span>@State.PersistenceError</span></div>
-                <button class="button secondary" @onclick="() => Act(Tracker.SaveSessionAsync)" disabled="@(Acting || State.IsBusy)">Erneut sichern</button>
+                <button class="button secondary" @onclick="() => Act(Tracker.SaveSessionAsync)" disabled="@(Acting || State.IsBusy)">Erneut laden und sichern</button>
             </div>
         }
         <main id="main-content">

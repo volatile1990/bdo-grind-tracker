@@ -28,7 +28,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
     private readonly LootScrollMonitor _lootScrollMonitor;
     private readonly Func<Rectangle, bool> _isLootScrollCaptureVisible;
     private readonly SettingsStore _settingsStore;
-    private readonly AppSettings _settings;
+    private AppSettings _settings;
     private readonly GrindSessionClock _sessionClock;
     private readonly GrindInactivityTimer _inactivityTimer;
     private readonly Func<CharacterClassDetection> _detectCharacterClass;
@@ -40,6 +40,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
     private readonly LootHistoryStore _historyStore;
     private readonly List<LootHistoryEntry> _historyEntries;
     private readonly FrameUiMailbox _uiMailbox = new();
+    private readonly object _framePublicationSync = new();
     private readonly SessionSilverHistory _silverHistory = new();
     private readonly SessionDropHistory _dropHistory = new();
     private readonly GarmothUploadIntervals _garmothIntervals = new();
@@ -107,7 +108,9 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         AgrisMonitor? agrisMonitor = null,
         ExperienceMonitor? experienceMonitor = null,
         IGarmothGrindBenchmarkProvider? benchmarkProvider = null,
-        Func<Task<bool>>? prepareWindowCapture = null)
+        Func<Task<bool>>? prepareWindowCapture = null,
+        CaptureConfigurationCatalog? captureConfigurations = null,
+        Func<string?>? browseCaptureConfiguration = null)
     {
         _captureSession = capture ?? throw new ArgumentNullException(nameof(capture));
         _prepareWindowCapture = prepareWindowCapture;
@@ -118,11 +121,13 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             readConfiguration: new ExperienceHudConfigurationReader().ReadDefault));
         _isLootScrollCaptureVisible = isLootScrollCaptureVisible ?? CreateLootScrollVisibilityCheck();
         _ocrLanguageInstaller = ocrLanguageInstaller ?? new WindowsOcrLanguageInstaller();
-        _analyzerFactory = analyzerFactory ?? (language => FrameAnalyzerFactory.Create(language));
+        _captureConfigurations = captureConfigurations ?? new CaptureConfigurationCatalog();
+        _browseCaptureConfiguration = browseCaptureConfiguration ?? BrowseCaptureConfigurationFile;
         _settingsStore = settingsStore ?? throw new ArgumentNullException(nameof(settingsStore));
         ArgumentNullException.ThrowIfNull(monitors);
         Monitors = Array.AsReadOnly(monitors.ToArray());
         _settings = settingsStore.Load();
+        _settingsSaveError = settingsStore.LoadError;
         _sessionClock = sessionClock ?? new GrindSessionClock();
         _inactivityTimer = inactivityTimer ?? new GrindInactivityTimer();
         _detectCharacterClass = classDetector ?? new CompanionCharacterClassDetector().DetectDefault;
@@ -154,6 +159,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
                 ?? Monitors.FirstOrDefault(m => m.IsPrimary)?.DeviceName ?? Monitors.FirstOrDefault()?.DeviceName,
             AutoPauseMinutes = _settings.AutoPauseMinutes,
             GameLanguage = _settings.GameLanguage,
+            CaptureConfigurationPath = _settings.CaptureConfigurationPath,
             FavoriteItems = _settings.FavoriteItems ?? [],
             LootColumnOrders = _settings.LootColumnOrders ?? new(),
             CharacterClassId = CompanionCharacterClassCatalog.FindById(_settings.CharacterClassId ?? "")?.Id,
@@ -163,6 +169,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             MerchantRing = _settings.SilverMerchantRing,
             FamilyFame = _settings.SilverFamilyFame,
         };
+        _analyzerFactory = analyzerFactory ?? (language => FrameAnalyzerFactory.Create(language, Preferences.CaptureConfigurationPath));
         _status = analyzer.IsAvailable ? "Bereit für deine nächste Session." : analyzer.Status;
         _isError = !analyzer.IsAvailable;
         RestoreCurrentSession();
@@ -176,6 +183,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
     public TrackerPreferences Preferences { get; private set; }
     public IReadOnlyList<TrackerMonitor> Monitors { get; }
     public bool CapturesGameWindow => _captureSession.UsesWindowCapture;
+    public string DiagnosticsDirectory => Path.Combine(_settingsStore.BaseDirectory, "diagnostics");
     public IReadOnlyList<LootHistoryEntry> History { get; private set; } = [];
     public LootPriceSnapshot Prices { get; private set; } = LootPriceCatalog.FixedSnapshot("eu");
     private bool IsBusy => _operationInProgress || _garmothUploadInProgress;
@@ -196,6 +204,9 @@ internal sealed partial class TrackerSessionService : ITrackerSession
 
     public Task<TrackerCommandResult> NewSessionAsync() => RunOperationAsync(() =>
     {
+        if (_currentSessionStore.LoadError is { } loadError) throw new IOException(loadError);
+        if (_captureSession.HasPendingAnalysis)
+            throw new InvalidOperationException("Die abgebrochene Texterkennung wird noch beendet. Bitte Grindcrest neu starten, falls sie nicht reagiert.");
         if (_uiRunning)
         {
             SetStatus("Bitte die laufende Session zuerst pausieren.", true);
@@ -282,6 +293,9 @@ internal sealed partial class TrackerSessionService : ITrackerSession
 
     private async Task StartTrackingAsync()
     {
+        if (_currentSessionStore.LoadError is { } loadError) throw new IOException(loadError);
+        if (_captureSession.HasPendingAnalysis)
+            throw new InvalidOperationException("Die abgebrochene Texterkennung wird noch beendet. Bitte Grindcrest neu starten, falls sie nicht reagiert.");
         if (_sessionSubmitted) return;
         var monitor = Monitors.FirstOrDefault(m => m.DeviceName == Preferences.MonitorDeviceName);
         if (monitor is null && !_captureSession.UsesWindowCapture)
@@ -303,21 +317,27 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             }
         }
         var continuesExistingSession = _hasSession;
-        var geometryChanged = _lastCaptureDesktopRegion is { } previous && previous != captureRegion;
         try
         {
             TrySaveSettings();
             await RefreshClassDetectionAsync();
             if (_shutdownStarted) return;
             _sessionClass ??= SelectedCharacterClass;
-            if (!continuesExistingSession || geometryChanged || _restoredSessionNeedsCaptureSetup)
+            // Calibration refresh updates crops without resetting authoritative
+            // projections. A resize must not erase loot already earned this session.
+            if (!continuesExistingSession || _restoredSessionNeedsCaptureSetup || _captureSession.AnalysisFailed)
             {
+                if (continuesExistingSession && _captureSession.AnalysisFailed)
+                {
+                    RefreshPendingState(publish: false);
+                    _uiMailbox.Restore(_sessionSummary, _sessionManualLootItems);
+                }
                 _analyzer.Reset();
                 _lastProcessedCaptureAt = null;
                 if (!continuesExistingSession) _sessionSpotId = null;
                 _recording?.Dispose();
                 _recording = Preferences.RecordLoot
-                    ? DiagnosticRecordingSession.Start(Path.Combine(_settingsStore.BaseDirectory, "diagnostics"),
+                    ? DiagnosticRecordingSession.Start(DiagnosticsDirectory,
                         minimumTrashQuantities: TrashLootMinimumCatalog.MinimumQuantities,
                         targetFrameInterval: _captureSession.FrameInterval,
                         maximumQueuedFrames: _captureSession.MaximumQueuedFrames)
@@ -397,10 +417,18 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         var analysis = await _analyzer.AnalyzeAsync(frame, metadata.CapturedAtUtc,
             metadata.UseHdrOcr, metadata.IsToneMapped, cancellationToken).ConfigureAwait(false);
         var analysisDuration = Stopwatch.GetElapsedTime(analysisStarted);
+        cancellationToken.ThrowIfCancellationRequested();
         if (_analyzer.RequiresLootPanel && (analysis.PanelRegion is not { Width: > 0, Height: > 0 } panel ||
             !new Rectangle(Point.Empty, frame.Size).Contains(panel)))
             throw new LootPanelUnavailableException(LootPanelCaptureGuard.MissingPanelMessage);
-        _lastProcessedCaptureAt = metadata.CapturedAtUtc;
+        lock (_framePublicationSync)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            _lastProcessedCaptureAt = metadata.CapturedAtUtc;
+            _uiMailbox.Publish(analysis, onPublished: ObserveGarmothTotals,
+                capturedAt: metadata.CapturedAtUtc);
+        }
+        cancellationToken.ThrowIfCancellationRequested();
         _recording?.RecordFrame(metadata.CapturedAtUtc, analysis.Observations,
             analysis.TrackingResult, frame, analysis.PanelRegion, analysis.RareBandRegion, analysis.Recovery,
             isHdr: metadata.IsHdr,
@@ -411,9 +439,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
                     metadata.CaptureDuration.TotalMilliseconds, metadata.CaptureInterval?.TotalMilliseconds,
                     metadata.BackpressureDuration.TotalMilliseconds, metadata.QueueDelay.TotalMilliseconds,
                     analysisDuration.TotalMilliseconds) : null,
-            captureCalibration: analysis.CaptureCalibration);
-        _uiMailbox.Publish(analysis, onPublished: ObserveGarmothTotals,
-            capturedAt: metadata.CapturedAtUtc);
+            captureCalibration: analysis.CaptureCalibration, rareRecovery: analysis.RareRecovery);
+        cancellationToken.ThrowIfCancellationRequested();
         if (_uiRunning && metadata.CanObserveHud)
         {
             _lootScrollMonitor.Observe(frame, metadata.CapturedAtUtc);
@@ -461,7 +488,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         using var update = _uiMailbox.TakeLatest();
         if (update is not null)
         {
-            _sessionSpotId = update.Analysis.SpotId ?? _sessionSpotId;
+            ApplyDetectedSpot(update.Analysis.SpotId);
             if (update.Totals is { } totals) _sessionSummary = totals;
             if (_uiRunning && !_operationInProgress && !_garmothUploadInProgress &&
                 !_garmothIntervals.IsBlocked && !_garmothIntervals.AutomaticSuspended &&
@@ -486,6 +513,18 @@ internal sealed partial class TrackerSessionService : ITrackerSession
     private void CompleteCaptureSegment(DateTimeOffset completedAt)
     {
         if (_captureSegmentCompleted) return;
+        // A watchdog signals cancellation before capture completes. Wait for
+        // any already-started publication; later workers check the cancelled
+        // token under this same gate before touching session totals.
+        lock (_framePublicationSync) { }
+        if (_captureSession.AnalysisFailed)
+        {
+            // A failed or still-running frame may have only partly advanced the
+            // analyzer. Save the last committed mailbox state, never flush it.
+            _captureSegmentCompleted = true;
+            RefreshPendingState();
+            return;
+        }
         // Capture uses one UTC epoch advanced by its monotonic clock. A flush
         // adds no newer image evidence: keep its timestamp in that same domain,
         // including across wall-clock jumps and a later pause/resume.
@@ -607,6 +646,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             SessionId = _sessionId, HasSession = _hasSession, IsRunning = _uiRunning,
             IsBusy = IsBusy, IsDemo = _demoMode, IsSubmitted = _sessionSubmitted,
             CanEditLoot = !_operationInProgress && !_shutdownStarted && !_disposed,
+            CanSelectSpotVariant = !IsBusy && !_shutdownStarted && !_disposed && CanChangeSpotVariant,
             CanPause = _uiRunning && !_operationInProgress && !_shutdownStarted && !_disposed,
             PersistenceError = _currentSessionPersistenceError ?? _historyPersistenceError ?? _historyStore.LoadError ?? _garmothPersistenceError ?? _settingsSaveError,
             CurrentGarmothUpload = CreateCurrentGarmothUploadPreview(),
@@ -614,6 +654,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             TrackingBlockedReason = trackingBlockedReason,
             MissingOcrLanguageTag = _missingOcrLanguageTag,
             IsInstallingOcrLanguage = _isInstallingOcrLanguage,
+            IsOcrInstallerRunning = _ocrInstallerTask is { IsCompleted: false },
+            OcrInstallationPercent = _ocrInstallationPercent,
             OcrInstallationStatus = _ocrInstallationStatus,
             OcrRestartRequired = _ocrRestartRequired,
             DetectedGameLanguage = _gameLanguageDetection.Language,
@@ -624,7 +666,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             Elapsed = _demoMode ? TimeSpan.FromHours(1) : _sessionClock.Elapsed,
             IsWaitingForFirstDrop = !_demoMode && _uiRunning && _sessionClock.IsWaitingForFirstDrop,
             LootScroll = !_demoMode && _uiRunning
-                ? _lootScrollMonitor.Snapshot(DateTimeOffset.UtcNow) : LootScrollState.Unknown,
+                ? _lootScrollMonitor.Snapshot(_captureSession.ObservationTime) : LootScrollState.Unknown,
             Agris = agris,
             AgrisActiveDuration = agrisDuration.ActiveDuration,
             AgrisObservedDuration = agrisDuration.ObservedDuration,
@@ -699,6 +741,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
     {
         if (_disposed) return;
         _shutdownStarted = true;
+        // Closing Grindcrest stops only its OCR wait; Windows servicing keeps running independently.
+        _ocrAvailabilityCompletion?.TrySetResult(new(WindowsOcrInstallStatus.Cancelled));
         _shutdownFailed = false;
         ResetGrindBenchmarkRefresh();
         UpdateAgrisSession();
@@ -719,7 +763,11 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             RefreshPendingState();
             PersistCurrentSession(DateTimeOffset.UtcNow, throwOnError: true);
             SavePendingHistory();
-            if (!TrySaveSettings()) throw new IOException("Die Einstellungen konnten nicht gespeichert werden.");
+            // Unread settings were never accepted as an editable baseline. Keep
+            // that original untouched and allow closing; actual unsaved changes
+            // and all session/history failures still prevent shutdown.
+            if ((_settingsStore.LoadError is null || _settingsChangesPending) && !TrySaveSettings())
+                throw new IOException("Die Einstellungen konnten nicht gespeichert werden.");
         }
         catch (Exception exception)
         {
@@ -740,7 +788,9 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             _garmothApiKey = string.Empty;
             PublishState();
             _disposed = true;
-            _analyzer.Dispose();
+            if (_captureSession.HasPendingAnalysis)
+                _ = DisposeAnalyzerWhenIdleAsync(_captureSession.PendingAnalysis, _analyzer);
+            else _analyzer.Dispose();
             _lootScrollMonitor.Dispose();
             _agrisMonitor.Dispose();
             _experienceMonitor.Dispose();
@@ -754,4 +804,12 @@ internal sealed partial class TrackerSessionService : ITrackerSession
     }
 
     public async ValueTask DisposeAsync() => await ShutdownAsync();
+
+    private static async Task DisposeAnalyzerWhenIdleAsync(Task pending, ILootFrameAnalyzer analyzer)
+    {
+        try { await pending.ConfigureAwait(false); }
+        catch (Exception) { /* The timed-out worker's failure was already reported. */ }
+        try { analyzer.Dispose(); }
+        catch (Exception) { /* Deferred cleanup cannot affect an already closed host. */ }
+    }
 }

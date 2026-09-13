@@ -12,11 +12,22 @@ internal sealed partial class TrackerSessionService
     private string? _ocrInstallationStatus;
     private string? _checkedOcrGameLanguage;
     private bool _isInstallingOcrLanguage;
+    private int? _ocrInstallationPercent;
     private bool _ocrRestartRequired;
+    private Task<WindowsOcrInstallResult>? _ocrInstallerTask;
+    private TaskCompletionSource<WindowsOcrInstallResult>? _ocrAvailabilityCompletion;
+    private string? _installingOcrGameLanguage;
+    private string? _ocrInstallationLogPath;
 
     public Task<TrackerCommandResult> InstallOcrLanguageAsync() => RunOperationAsync(async () =>
     {
         if (_uiRunning || _demoMode || _missingOcrLanguageTag is null) return;
+        if (_ocrInstallerTask is { IsCompleted: false })
+        {
+            SetOcrInstallationStatus("Der vorherige Windows-Installationsprozess läuft noch. " +
+                "Du kannst die Texterkennung erneut prüfen; eine zweite Installation ist noch nicht möglich.");
+            return;
+        }
         var offeredTag = _missingOcrLanguageTag;
         try
         {
@@ -42,22 +53,56 @@ internal sealed partial class TrackerSessionService
 
         if (_ocrRestartRequired) return;
         _isInstallingOcrLanguage = true;
+        _ocrInstallationPercent = null;
+        _installingOcrGameLanguage = _checkedOcrGameLanguage;
+        _ocrInstallationLogPath = null;
+        var available = new TaskCompletionSource<WindowsOcrInstallResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _ocrAvailabilityCompletion = available;
         SetOcrInstallationStatus($"Windows installiert die Texterkennung ({offeredTag}) … Das kann einige Minuten dauern.");
+        var reportProgress = true;
+        var nextAvailabilityCheck = TimeSpan.FromSeconds(30);
+        var progress = new Progress<WindowsOcrInstallProgress>(update =>
+        {
+            // Progress posts to the UI context; ignore queued reports after completion.
+            if (reportProgress && !_disposed && !_shutdownStarted && !available.Task.IsCompleted)
+            {
+                _ocrInstallationLogPath = update.LogPath;
+                _ocrInstallationPercent = update.Percent;
+                if (update.Elapsed >= nextAvailabilityCheck)
+                {
+                    nextAvailabilityCheck = update.Elapsed + TimeSpan.FromSeconds(30);
+                    if (TryRecoverOcrInstallation()) return;
+                }
+                SetOcrInstallationStatus(update.Message);
+            }
+        });
         try
         {
-            var result = await _ocrLanguageInstaller.InstallAsync(offeredTag);
+            // Windows can make OCR usable before its servicing process exits.
+            // Keep that process observed and guarded, but release the UI after a real OCR check.
+            var installation = ObserveOcrInstallationAsync(_ocrLanguageInstaller.InstallAsync(offeredTag, progress));
+            _ocrInstallerTask = installation;
+            PublishState();
+            var completed = await Task.WhenAny(installation, available.Task);
+            // A successful manual check can arrive while a process-exit continuation is queued.
+            var result = await (available.Task.IsCompletedSuccessfully ? available.Task : completed);
+            reportProgress = false;
+            if (_shutdownStarted || _disposed) return;
             switch (result.Status)
             {
                 case WindowsOcrInstallStatus.Installed:
                     try
                     {
-                        EnsureOcrLanguage(_checkedOcrGameLanguage!);
-                        SetOcrInstallationStatus("OCR-Sprachpaket installiert und geprüft. Du kannst das Tracking starten.");
+                        EnsureOcrLanguage(_installingOcrGameLanguage!);
+                        SetOcrInstallationStatus(installation.IsCompleted
+                            ? "OCR-Sprachpaket installiert und geprüft. Du kannst das Tracking starten."
+                            : "Die Windows-Texterkennung ist verfügbar und geprüft. Du kannst das Tracking starten.");
                     }
                     catch (WindowsOcrLanguageUnavailableException)
                     {
                         SetOcrInstallationStatus("Windows hat die Installation abgeschlossen, die Texterkennung ist aber noch nicht verfügbar. " +
-                            "Bitte prüfe erneut oder starte Windows neu.", error: true);
+                            "Bitte prüfe erneut. Falls das Paket weiterhin fehlt, prüfe das Windows-Installationsprotokoll: " +
+                            (result.LogPath ?? WindowsOcrLanguageInstaller.DefaultLogPath), error: true);
                     }
                     break;
                 case WindowsOcrInstallStatus.RestartRequired:
@@ -78,27 +123,66 @@ internal sealed partial class TrackerSessionService
         }
         finally
         {
+            reportProgress = false;
+            _ocrAvailabilityCompletion = null;
+            _installingOcrGameLanguage = null;
             _isInstallingOcrLanguage = false;
+            _ocrInstallationPercent = null;
             PublishState();
         }
     });
 
-    public Task<TrackerCommandResult> RecheckOcrLanguageAsync() => RunOperationAsync(() =>
+    public Task<TrackerCommandResult> RecheckOcrLanguageAsync()
     {
-        if (_uiRunning || _demoMode) return Task.CompletedTask;
+        // This is the one read/check operation allowed while the install command owns the UI lock.
+        if (_isInstallingOcrLanguage && _ocrAvailabilityCompletion is not null && !_shutdownStarted && !_disposed)
+        {
+            if (!TryRecoverOcrInstallation())
+                SetOcrInstallationStatus("Die Texterkennung ist noch nicht nutzbar. Windows arbeitet weiter an der Installation; " +
+                    "du kannst erneut prüfen, sobald das Paket verfügbar ist.");
+            return Task.FromResult(TrackerCommandResult.Success);
+        }
+        return RunOperationAsync(() =>
+        {
+            if (_uiRunning || _demoMode) return Task.CompletedTask;
+            try
+            {
+                EnsureOcrLanguage(ResolveGameLanguage());
+                SetOcrInstallationStatus("Die Windows-Texterkennung ist verfügbar. Du kannst das Tracking starten.");
+            }
+            catch (Exception exception)
+            {
+                SetOcrInstallationStatus(_ocrRestartRequired
+                    ? "Windows benötigt einen Neustart, bevor das installierte OCR-Sprachpaket verwendet werden kann."
+                    : exception.Message, error: true);
+            }
+            return Task.CompletedTask;
+        });
+    }
+
+    private bool TryRecoverOcrInstallation()
+    {
+        if (!_isInstallingOcrLanguage || _uiRunning || _shutdownStarted || _disposed ||
+            _ocrAvailabilityCompletion is null || _installingOcrGameLanguage is null) return false;
+        if (_ocrAvailabilityCompletion.Task.IsCompleted) return true;
         try
         {
-            EnsureOcrLanguage(ResolveGameLanguage());
-            SetOcrInstallationStatus("Die Windows-Texterkennung ist verfügbar. Du kannst das Tracking starten.");
+            // Capability state or a 100% console message alone never enables tracking.
+            EnsureOcrLanguage(_installingOcrGameLanguage);
+            return _ocrAvailabilityCompletion.TrySetResult(new(WindowsOcrInstallStatus.Installed, LogPath: _ocrInstallationLogPath));
         }
+        catch (Exception) { return false; }
+    }
+
+    private static async Task<WindowsOcrInstallResult> ObserveOcrInstallationAsync(Task<WindowsOcrInstallResult> installation)
+    {
+        // After OCR recovery/shutdown no continuation may mutate the tracker or its analyzer.
+        try { return await installation.ConfigureAwait(false); }
         catch (Exception exception)
         {
-            SetOcrInstallationStatus(_ocrRestartRequired
-                ? "Windows benötigt einen Neustart, bevor das installierte OCR-Sprachpaket verwendet werden kann."
-                : exception.Message, error: true);
+            return new(WindowsOcrInstallStatus.Failed, "OCR-Installation: " + exception.Message);
         }
-        return Task.CompletedTask;
-    });
+    }
 
     private string ResolveGameLanguage()
     {
@@ -117,6 +201,9 @@ internal sealed partial class TrackerSessionService
 
     private void EnsureOcrLanguage(string language)
     {
+        if (_captureSession.HasPendingAnalysis)
+            throw new InvalidOperationException("Die abgebrochene Texterkennung wird noch beendet. Bitte Grindcrest neu starten, falls sie nicht reagiert.");
+        if (_captureConfigurationReloadPending) RebuildCaptureAnalyzer();
         if (_checkedOcrGameLanguage != language)
         {
             _ocrInstallationStatus = null;

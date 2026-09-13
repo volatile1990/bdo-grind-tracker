@@ -275,7 +275,7 @@ public sealed class TrackerSessionOcrInstallationTests
     }
 
     [Fact]
-    public async Task ConcurrentClicksAndRechecksAreBlockedUntilTheInstallerCompletes()
+    public async Task PendingInstallationAllowsRechecksButBlocksConcurrentInstallationAndTracking()
     {
         var analyzer = new SyntheticAnalyzer { Missing = true };
         var completion = new TaskCompletionSource<WindowsOcrInstallResult>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -292,7 +292,11 @@ public sealed class TrackerSessionOcrInstallationTests
             await fixture.Service.RecheckOcrLanguageAsync();
             await fixture.Service.ToggleTrackingAsync();
             Assert.Single(installer.Requests);
-            Assert.Equal(checks, analyzer.Configured.Count);
+            Assert.Equal(checks + 1, analyzer.Configured.Count);
+            Assert.True(fixture.Service.State.IsInstallingOcrLanguage);
+            Assert.True(fixture.Service.State.IsOcrInstallerRunning);
+            Assert.True(fixture.Service.State.IsBusy);
+            Assert.Equal("en-US", fixture.Service.State.MissingOcrLanguageTag);
             Assert.Equal(0, fixture.Captures);
         }
         finally
@@ -304,6 +308,423 @@ public sealed class TrackerSessionOcrInstallationTests
         Assert.False(fixture.Service.State.IsInstallingOcrLanguage);
         Assert.False(fixture.Service.State.IsBusy);
         Assert.Null(fixture.Service.State.MissingOcrLanguageTag);
+    }
+
+    [Fact]
+    public async Task ManualRecheckReleasesTrackingWhileTheWindowsInstallerIsStillRunning()
+    {
+        var analyzer = new SyntheticAnalyzer { Missing = true };
+        var completion = new TaskCompletionSource<WindowsOcrInstallResult>();
+        var installer = new FakeInstaller { Install = _ => completion.Task };
+        await using var fixture = new Fixture(analyzer, installer);
+        await fixture.Service.ToggleTrackingAsync();
+        var context = new QueuedProgressContext();
+        var installation = context.Run(fixture.Service.InstallOcrLanguageAsync);
+        var windowsInstaller = PendingWindowsInstallerTask(fixture.Service);
+        try
+        {
+            analyzer.Missing = false;
+
+            await fixture.Service.RecheckOcrLanguageAsync();
+            await context.DrainUntilAsync(installation);
+
+            Assert.False(completion.Task.IsCompleted);
+            Assert.True(fixture.Service.State.IsOcrInstallerRunning);
+            Assert.False(fixture.Service.State.IsInstallingOcrLanguage);
+            Assert.False(fixture.Service.State.IsBusy);
+            Assert.False(fixture.Service.State.IsError);
+            Assert.Null(fixture.Service.State.MissingOcrLanguageTag);
+            Assert.Null(fixture.Service.State.OcrInstallationPercent);
+            Assert.Equal(0, fixture.Captures);
+
+            var result = await fixture.Service.ToggleTrackingAsync();
+
+            Assert.True(result.Succeeded);
+            Assert.True(fixture.Service.State.IsRunning);
+            Assert.False(completion.Task.IsCompleted);
+            await fixture.Service.PauseAsync();
+        }
+        finally
+        {
+            completion.TrySetResult(new(WindowsOcrInstallStatus.Installed));
+            await context.DrainUntilAsync(Task.WhenAll(installation, windowsInstaller));
+        }
+    }
+
+    [Fact]
+    public async Task ProgressAutomaticallyDetectsAvailableOcrAfterThirtySeconds()
+    {
+        var analyzer = new SyntheticAnalyzer { Missing = true };
+        var completion = new TaskCompletionSource<WindowsOcrInstallResult>();
+        var installer = new FakeInstaller { Install = _ => completion.Task };
+        await using var fixture = new Fixture(analyzer, installer);
+        await fixture.Service.ToggleTrackingAsync();
+        var context = new QueuedProgressContext();
+        var installation = context.Run(fixture.Service.InstallOcrLanguageAsync);
+        var windowsInstaller = PendingWindowsInstallerTask(fixture.Service);
+        try
+        {
+            Assert.NotNull(installer.Progress);
+            var checks = analyzer.Configured.Count;
+            analyzer.Missing = false;
+            installer.Progress.Report(new(TimeSpan.FromSeconds(29), @"C:\Test Logs\ocr.log", 100));
+            context.Drain();
+
+            Assert.Equal(checks, analyzer.Configured.Count);
+            Assert.False(installation.IsCompleted);
+            Assert.True(fixture.Service.State.IsInstallingOcrLanguage);
+
+            installer.Progress.Report(new(TimeSpan.FromSeconds(30), @"C:\Test Logs\ocr.log", 100));
+            await context.DrainUntilAsync(installation);
+
+            Assert.True(analyzer.Configured.Count > checks);
+            Assert.False(completion.Task.IsCompleted);
+            Assert.True(fixture.Service.State.IsOcrInstallerRunning);
+            Assert.False(fixture.Service.State.IsInstallingOcrLanguage);
+            Assert.False(fixture.Service.State.IsBusy);
+            Assert.False(fixture.Service.State.IsError);
+            Assert.Null(fixture.Service.State.MissingOcrLanguageTag);
+            Assert.Null(fixture.Service.State.OcrInstallationPercent);
+            Assert.Equal(0, fixture.Captures);
+        }
+        finally
+        {
+            completion.TrySetResult(new(WindowsOcrInstallStatus.Installed));
+            await context.DrainUntilAsync(Task.WhenAll(installation, windowsInstaller));
+        }
+    }
+
+    [Fact]
+    public async Task UnavailableOcrKeepsWaitingAndProgressChecksAreThrottled()
+    {
+        var analyzer = new SyntheticAnalyzer { Missing = true };
+        var completion = new TaskCompletionSource<WindowsOcrInstallResult>();
+        var installer = new FakeInstaller { Install = _ => completion.Task };
+        await using var fixture = new Fixture(analyzer, installer);
+        await fixture.Service.ToggleTrackingAsync();
+        var context = new QueuedProgressContext();
+        var installation = context.Run(fixture.Service.InstallOcrLanguageAsync);
+        var windowsInstaller = PendingWindowsInstallerTask(fixture.Service);
+        try
+        {
+            Assert.NotNull(installer.Progress);
+            var checks = analyzer.Configured.Count;
+            installer.Progress.Report(new(TimeSpan.FromSeconds(30), @"C:\Test Logs\ocr.log", 100));
+            context.Drain();
+
+            Assert.Equal(checks + 1, analyzer.Configured.Count);
+            Assert.True(fixture.Service.State.IsInstallingOcrLanguage);
+            Assert.True(fixture.Service.State.IsBusy);
+            Assert.Equal("en-US", fixture.Service.State.MissingOcrLanguageTag);
+
+            analyzer.Missing = false;
+            installer.Progress.Report(new(TimeSpan.FromSeconds(31), @"C:\Test Logs\ocr.log", 100));
+            context.Drain();
+
+            Assert.Equal(checks + 1, analyzer.Configured.Count);
+            Assert.False(installation.IsCompleted);
+
+            installer.Progress.Report(new(TimeSpan.FromSeconds(60), @"C:\Test Logs\ocr.log", 100));
+            await context.DrainUntilAsync(installation);
+
+            Assert.True(analyzer.Configured.Count > checks + 1);
+            Assert.Null(fixture.Service.State.MissingOcrLanguageTag);
+            Assert.False(fixture.Service.State.IsBusy);
+            Assert.False(completion.Task.IsCompleted);
+        }
+        finally
+        {
+            completion.TrySetResult(new(WindowsOcrInstallStatus.Installed));
+            await context.DrainUntilAsync(Task.WhenAll(installation, windowsInstaller));
+        }
+    }
+
+    [Theory]
+    [InlineData((int)WindowsOcrInstallStatus.Installed)]
+    [InlineData((int)WindowsOcrInstallStatus.RestartRequired)]
+    [InlineData((int)WindowsOcrInstallStatus.Cancelled)]
+    [InlineData((int)WindowsOcrInstallStatus.Failed)]
+    [InlineData(-1)]
+    public async Task LateWindowsResultsAndProgressCannotOverwriteRecoveredRunningTracking(int status)
+    {
+        var analyzer = new SyntheticAnalyzer { Missing = true };
+        var completion = new TaskCompletionSource<WindowsOcrInstallResult>();
+        var installer = new FakeInstaller { Install = _ => completion.Task };
+        await using var fixture = new Fixture(analyzer, installer);
+        await fixture.Service.ToggleTrackingAsync();
+        var context = new QueuedProgressContext();
+        var installation = context.Run(fixture.Service.InstallOcrLanguageAsync);
+        var windowsInstaller = PendingWindowsInstallerTask(fixture.Service);
+        try
+        {
+            analyzer.Missing = false;
+            await fixture.Service.RecheckOcrLanguageAsync();
+            await context.DrainUntilAsync(installation);
+            await fixture.Service.ToggleTrackingAsync();
+            Assert.True(fixture.Service.State.IsRunning);
+            var trackingStatus = fixture.Service.State.Status;
+            var ocrStatus = fixture.Service.State.OcrInstallationStatus;
+            var checks = analyzer.Configured.Count;
+
+            Assert.NotNull(installer.Progress);
+            installer.Progress.Report(new(TimeSpan.FromMinutes(10), @"C:\Test Logs\ocr.log", 100));
+            if (status == -1) completion.SetException(new InvalidOperationException("Late Windows installer failure"));
+            else completion.SetResult(new((WindowsOcrInstallStatus)status, "Late Windows installer error"));
+            await context.DrainUntilAsync(windowsInstaller);
+
+            Assert.True(fixture.Service.State.IsRunning);
+            Assert.False(fixture.Service.State.IsBusy);
+            Assert.False(fixture.Service.State.IsError);
+            Assert.False(fixture.Service.State.IsInstallingOcrLanguage);
+            Assert.False(fixture.Service.State.OcrRestartRequired);
+            Assert.Null(fixture.Service.State.OcrInstallationPercent);
+            Assert.Null(fixture.Service.State.MissingOcrLanguageTag);
+            Assert.Equal(trackingStatus, fixture.Service.State.Status);
+            Assert.Equal(ocrStatus, fixture.Service.State.OcrInstallationStatus);
+            Assert.Equal(checks, analyzer.Configured.Count);
+            await fixture.Service.PauseAsync();
+        }
+        finally
+        {
+            completion.TrySetResult(new(WindowsOcrInstallStatus.Installed));
+            await context.DrainUntilAsync(Task.WhenAll(installation, windowsInstaller));
+        }
+    }
+
+    [Fact]
+    public async Task RecoveredOcrCannotStartASecondWindowsInstallerAfterChangingTheGameLanguage()
+    {
+        var installedEnglish = false;
+        var analyzer = new SyntheticAnalyzer { IsMissingForLanguage = language => language != "en" || !installedEnglish };
+        var completion = new TaskCompletionSource<WindowsOcrInstallResult>();
+        var installer = new FakeInstaller { Install = _ => completion.Task };
+        await using var fixture = new Fixture(analyzer, installer, preference: "en");
+        await fixture.Service.ToggleTrackingAsync();
+        var context = new QueuedProgressContext();
+        var installation = context.Run(fixture.Service.InstallOcrLanguageAsync);
+        var windowsInstaller = PendingWindowsInstallerTask(fixture.Service);
+        try
+        {
+            installedEnglish = true;
+            await fixture.Service.RecheckOcrLanguageAsync();
+            await context.DrainUntilAsync(installation);
+            await fixture.Service.SavePreferencesAsync(fixture.Service.Preferences with { GameLanguage = "de" });
+            await fixture.Service.ToggleTrackingAsync();
+            Assert.Equal("de-DE", fixture.Service.State.MissingOcrLanguageTag);
+
+            await fixture.Service.InstallOcrLanguageAsync();
+
+            Assert.Equal(new[] { "en-US" }, installer.Requests);
+            Assert.True(fixture.Service.State.IsOcrInstallerRunning);
+            Assert.False(fixture.Service.State.IsRunning);
+            Assert.Equal("de-DE", fixture.Service.State.MissingOcrLanguageTag);
+            Assert.False(completion.Task.IsCompleted);
+        }
+        finally
+        {
+            completion.TrySetResult(new(WindowsOcrInstallStatus.Installed));
+            await context.DrainUntilAsync(Task.WhenAll(installation, windowsInstaller));
+        }
+    }
+
+    [Theory]
+    [InlineData((int)WindowsOcrInstallStatus.Failed)]
+    [InlineData((int)WindowsOcrInstallStatus.RestartRequired)]
+    public async Task VerifiedAvailabilityWinsOverAWindowsResultStillQueuedForTheUi(int status)
+    {
+        var analyzer = new SyntheticAnalyzer { Missing = true };
+        var completion = new TaskCompletionSource<WindowsOcrInstallResult>();
+        var installer = new FakeInstaller { Install = _ => completion.Task };
+        await using var fixture = new Fixture(analyzer, installer);
+        await fixture.Service.ToggleTrackingAsync();
+        var context = new QueuedProgressContext();
+        var installation = context.Run(fixture.Service.InstallOcrLanguageAsync);
+        var windowsInstaller = PendingWindowsInstallerTask(fixture.Service);
+        try
+        {
+            completion.SetResult(new((WindowsOcrInstallStatus)status, "Outdated Windows installation result"));
+            await windowsInstaller.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.False(installation.IsCompleted);
+            analyzer.Missing = false;
+
+            await fixture.Service.RecheckOcrLanguageAsync();
+            await context.DrainUntilAsync(installation);
+
+            Assert.False(fixture.Service.State.IsBusy);
+            Assert.False(fixture.Service.State.IsInstallingOcrLanguage);
+            Assert.False(fixture.Service.State.IsError);
+            Assert.False(fixture.Service.State.OcrRestartRequired);
+            Assert.Null(fixture.Service.State.MissingOcrLanguageTag);
+            Assert.DoesNotContain("Outdated", fixture.Service.State.Status);
+        }
+        finally
+        {
+            completion.TrySetResult(new(WindowsOcrInstallStatus.Installed));
+            await context.DrainUntilAsync(Task.WhenAll(installation, windowsInstaller));
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ShutdownFinishesWhileWindowsIsStillRunningAndIgnoresLateCallbacks(bool recovered)
+    {
+        var analyzer = new SyntheticAnalyzer { Missing = true };
+        var completion = new TaskCompletionSource<WindowsOcrInstallResult>();
+        var installer = new FakeInstaller { Install = _ => completion.Task };
+        await using var fixture = new Fixture(analyzer, installer);
+        await fixture.Service.ToggleTrackingAsync();
+        var context = new QueuedProgressContext();
+        var installation = context.Run(fixture.Service.InstallOcrLanguageAsync);
+        var windowsInstaller = PendingWindowsInstallerTask(fixture.Service);
+        try
+        {
+            if (recovered)
+            {
+                analyzer.Missing = false;
+                await fixture.Service.RecheckOcrLanguageAsync();
+                await context.DrainUntilAsync(installation);
+            }
+            var checks = analyzer.Configured.Count;
+            var changes = 0;
+            fixture.Service.Changed += () => changes++;
+
+            await context.DrainUntilAsync(Task.WhenAll(fixture.Service.ShutdownAsync(), installation));
+
+            Assert.False(completion.Task.IsCompleted);
+            Assert.True(analyzer.Disposed);
+            Assert.False(fixture.Service.State.ShutdownFailed);
+            var shutdownState = fixture.Service.State;
+            var changesAtShutdown = changes;
+            Assert.NotNull(installer.Progress);
+            installer.Progress.Report(new(TimeSpan.FromMinutes(10), @"C:\Test Logs\ocr.log", 100));
+            completion.SetException(new InvalidOperationException("Windows failed after Grindcrest closed"));
+            await context.DrainUntilAsync(windowsInstaller);
+
+            Assert.Equal(checks, analyzer.Configured.Count);
+            Assert.Equal(changesAtShutdown, changes);
+            Assert.Same(shutdownState, fixture.Service.State);
+        }
+        finally
+        {
+            completion.TrySetResult(new(WindowsOcrInstallStatus.Installed));
+            await context.DrainUntilAsync(Task.WhenAll(installation, windowsInstaller));
+        }
+    }
+
+    [Fact]
+    public async Task WindowsProgressReachesLiveStateAndIsClearedAfterVerifiedInstallation()
+    {
+        var analyzer = new SyntheticAnalyzer { Missing = true };
+        var completion = new TaskCompletionSource<WindowsOcrInstallResult>();
+        var installer = new FakeInstaller { Install = _ => completion.Task };
+        await using var fixture = new Fixture(analyzer, installer);
+        await fixture.Service.ToggleTrackingAsync();
+        var context = new QueuedProgressContext();
+        var previous = SynchronizationContext.Current;
+        Task<TrackerCommandResult> installation;
+        try
+        {
+            SynchronizationContext.SetSynchronizationContext(context);
+            installation = fixture.Service.InstallOcrLanguageAsync();
+        }
+        finally { SynchronizationContext.SetSynchronizationContext(previous); }
+        try
+        {
+            Assert.NotNull(installer.Progress);
+            installer.Progress.Report(new(TimeSpan.FromSeconds(45), @"C:\Test Logs\ocr.log", 42));
+            context.Drain();
+
+            Assert.Equal(42, fixture.Service.State.OcrInstallationPercent);
+            Assert.Contains("42 %", fixture.Service.State.OcrInstallationStatus);
+            Assert.True(fixture.Service.State.IsInstallingOcrLanguage);
+            Assert.False(installation.IsCompleted);
+        }
+        finally
+        {
+            analyzer.Missing = false;
+            completion.SetResult(new(WindowsOcrInstallStatus.Installed));
+            await context.DrainUntilAsync(installation);
+        }
+        Assert.Null(fixture.Service.State.OcrInstallationPercent);
+        Assert.Null(fixture.Service.State.MissingOcrLanguageTag);
+        Assert.False(fixture.Service.State.IsInstallingOcrLanguage);
+        Assert.False(fixture.Service.State.IsRunning);
+    }
+
+    [Fact]
+    public async Task MissingOcrAfterWindowsSuccessKeepsDiagnosticPathAndIgnoresLateProgress()
+    {
+        const string logPath = @"C:\Test Logs\ocr-installation.log";
+        var installer = new FakeInstaller { Install = _ => Task.FromResult(
+            new WindowsOcrInstallResult(WindowsOcrInstallStatus.Installed, LogPath: logPath)) };
+        await using var fixture = new Fixture(new SyntheticAnalyzer { Missing = true }, installer);
+        await fixture.Service.ToggleTrackingAsync();
+        var context = new QueuedProgressContext();
+        var previous = SynchronizationContext.Current;
+        Task<TrackerCommandResult> installation;
+        try
+        {
+            SynchronizationContext.SetSynchronizationContext(context);
+            installation = fixture.Service.InstallOcrLanguageAsync();
+        }
+        finally { SynchronizationContext.SetSynchronizationContext(previous); }
+        await installation;
+        var finalStatus = fixture.Service.State.OcrInstallationStatus;
+        Assert.Contains(logPath, finalStatus);
+        Assert.DoesNotContain("starte Windows neu", finalStatus);
+        Assert.NotNull(fixture.Service.State.MissingOcrLanguageTag);
+        Assert.False(fixture.Service.State.IsInstallingOcrLanguage);
+        Assert.False(fixture.Service.State.IsBusy);
+        Assert.True(fixture.Service.State.IsError);
+
+        Assert.NotNull(installer.Progress);
+        installer.Progress.Report(new(TimeSpan.FromMinutes(10), logPath));
+        context.Drain();
+
+        Assert.Equal(finalStatus, fixture.Service.State.OcrInstallationStatus);
+        Assert.True(fixture.Service.State.IsError);
+    }
+
+    private sealed class QueuedProgressContext : SynchronizationContext
+    {
+        private readonly System.Collections.Concurrent.ConcurrentQueue<Action> _callbacks = new();
+        public override void Post(SendOrPostCallback callback, object? state) => _callbacks.Enqueue(() => callback(state));
+
+        public Task<TrackerCommandResult> Run(Func<Task<TrackerCommandResult>> action)
+        {
+            var previous = Current;
+            try
+            {
+                SetSynchronizationContext(this);
+                return action();
+            }
+            finally { SetSynchronizationContext(previous); }
+        }
+
+        public void Drain()
+        {
+            while (_callbacks.TryDequeue(out var callback)) callback();
+        }
+
+        public async Task DrainUntilAsync(Task task)
+        {
+            var timeout = System.Diagnostics.Stopwatch.StartNew();
+            while (!task.IsCompleted && timeout.Elapsed < TimeSpan.FromSeconds(5))
+            {
+                Drain();
+                if (!task.IsCompleted) await Task.Delay(1);
+            }
+            Drain();
+            await task.WaitAsync(TimeSpan.FromSeconds(1));
+        }
+    }
+
+    private static Task PendingWindowsInstallerTask(TrackerSessionService service)
+    {
+        var field = typeof(TrackerSessionService).GetField("_ocrInstallerTask", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(field);
+        return Assert.IsAssignableFrom<Task>(field.GetValue(service));
     }
 
     [Fact]
@@ -436,11 +857,13 @@ public sealed class TrackerSessionOcrInstallationTests
     private sealed class FakeInstaller : IWindowsOcrLanguageInstaller
     {
         public List<string> Requests { get; } = [];
+        public IProgress<WindowsOcrInstallProgress>? Progress { get; private set; }
         public Func<string, Task<WindowsOcrInstallResult>> Install { get; init; } =
             _ => Task.FromResult(new WindowsOcrInstallResult(WindowsOcrInstallStatus.Installed));
-        public Task<WindowsOcrInstallResult> InstallAsync(string languageTag)
+        public Task<WindowsOcrInstallResult> InstallAsync(string languageTag, IProgress<WindowsOcrInstallProgress>? progress = null)
         {
             Requests.Add(languageTag);
+            Progress = progress;
             return Install(languageTag);
         }
     }

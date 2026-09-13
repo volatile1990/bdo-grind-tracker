@@ -2,6 +2,19 @@
 
 ## Umfang und Datensicherheit
 
+Alle 40 konkreten Screenshot-Spots besitzen eine geprüfte Garmoth-Zuordnung.
+Die bisherige Sammelkennung für Dark Energy Floodlands bleibt für vorhandene
+Sessions gültig. Bei identischem Trashloot ist vor dem Upload eine Auswahl in
+der Live-Session nötig: Floodlands-Gebiet, Dehkia-Stufe von Ash Forest oder
+Bestätigung von Winter Tree Fossil (280ap). Die Auswahl bleibt über Pause und
+Neustart erhalten und ist nach einem übertragenen oder unklaren Upload gesperrt.
+Die Stundenautomatik wartet auf diese Auswahl und verarbeitet dann offene Stunden.
+
+Garmoths gemeinsamer Artefakt-Eintrag erhält die Summe der erkannten Kampfartefakte.
+Kompass-/Teleskopteile mit mehreren möglichen Garmoth-IDs im selben Spot werden
+als ausgelassen angezeigt; es wird keine willkürliche Teile-ID gewählt.
+[Zuordnungen und Quellen](SCREENSHOT_SPOTS.md).
+
 Der eigene Menüpunkt **Garmoth** bündelt Verbindung, Stundenautomatik und sämtliche
 Upload-Aktionen. Die aktuelle Session steht genau einmal in derselben Liste wie
 gespeicherte Sessions; solange sie nicht abgeschlossen ist, trägt sie einen kleinen

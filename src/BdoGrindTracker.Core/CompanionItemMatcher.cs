@@ -1,4 +1,4 @@
-// Restored from the verified 0.5.1 assembly; recognition behavior is intentionally unchanged.
+// Restored from the verified 0.5.1 assembly, with localized-name parity guards.
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -37,6 +37,7 @@ public sealed class CompanionItemMatcher
     private readonly Entry[] entries;
 
     private readonly Dictionary<string, Entry> exactEntries;
+    private readonly Dictionary<string, Entry[]> normalizedEntries;
 
     private readonly CompanionRareCatalogEntry[] catalogEntries;
     private readonly GermanItemMatcher germanMatcher;
@@ -69,6 +70,8 @@ public sealed class CompanionItemMatcher
         MetadataTablePresent = metadataTablePresent;
         catalogEntries = entries.Select((Entry entry) => new CompanionRareCatalogEntry(entry.Name, entry.IconPath)).ToArray();
         exactEntries = entries.ToDictionary<Entry, string>((Entry entry) => entry.Name, StringComparer.Ordinal);
+        normalizedEntries = entries.GroupBy(entry => ItemLocalizationCatalog.NormalizeGermanName(entry.Name))
+            .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.Ordinal);
         germanMatcher = new GermanItemMatcher(entries.Select(entry => entry.Name));
     }
 
@@ -85,11 +88,22 @@ public sealed class CompanionItemMatcher
             match = new CompanionItemMatch(observedText, value.Name, 0.0, IsExact: true);
             return true;
         }
+        // OCR removes punctuation and may merge spaces. Resolve only a unique,
+        // complete normalized name before fuzzy comparison; artifact families
+        // differ by a few meaningful words and must not compete over a hyphen.
+        if (normalizedEntries.TryGetValue(ItemLocalizationCatalog.NormalizeGermanName(observedText), out var normalized))
+        {
+            match = normalized.Length == 1 && !IsFilteredCountOneTrash(normalized[0].Name, quantity)
+                ? new CompanionItemMatch(observedText, normalized[0].Name, 0, IsExact: true) : null;
+            return match is not null;
+        }
         var germanMatch = germanMatcher.Match(observedText);
         if (germanMatch is { IsExact: true })
         {
-            match = germanMatch;
-            return true;
+            match = IsFilteredCountOneTrash(germanMatch.CanonicalName, quantity) ||
+                rareDropMode && !PassesGermanRareIdentityRules(observedText, germanMatch.CanonicalName)
+                ? null : germanMatch;
+            return match is not null;
         }
         byte[] observedBytes = Encoding.UTF8.GetBytes(observedText);
         ScoredEntry[] array = (from entry in entries
@@ -99,12 +113,15 @@ public sealed class CompanionItemMatcher
         ScoredEntry scoredEntry = array[0];
         if (germanMatch is not null && germanMatch.NormalizedDistance < scoredEntry.Score)
         {
-            match = germanMatch;
-            return true;
+            match = IsFilteredCountOneTrash(germanMatch.CanonicalName, quantity) ||
+                rareDropMode && !PassesGermanRareIdentityRules(observedText, germanMatch.CanonicalName)
+                ? null : germanMatch;
+            return match is not null;
         }
         if (rareDropMode)
         {
-            if (!PassesRareAccessoryPrefixRule(observedBytes, scoredEntry.Entry))
+            if (!PassesRareAccessoryPrefixRule(observedBytes, scoredEntry.Entry) ||
+                !HasRuinCrystalTier(observedText, scoredEntry.Entry.Name))
             {
                 match = null;
                 return false;
@@ -239,9 +256,18 @@ public sealed class CompanionItemMatcher
 
     private static bool PassesRareAccessoryPrefixRule(ReadOnlySpan<byte> observed, Entry candidate)
     {
-        if (CountNonEmptySpaceSeparatedWords(candidate.Bytes) != 2 || ClassifyEnglishSuffix(candidate.Name) == Gear.None || CountNonEmptySpaceSeparatedWords(observed) < 3)
+        if (CountNonEmptySpaceSeparatedWords(candidate.Bytes) != 2 || ClassifyEnglishSuffix(candidate.Name) == Gear.None)
         {
             return true;
+        }
+        if (CountNonEmptySpaceSeparatedWords(observed) < 3)
+        {
+            if (!ItemLocalizationCatalog.GermanNames.TryGetValue(candidate.Name, out var localized)) return true;
+            var text = Encoding.UTF8.GetString(observed);
+            // A German hyphenated item can reach the English fallback with only
+            // two words, e.g. "TRI: Apeiron-Ring". Keep its family prefix required.
+            return PassesAccessoryFamilyPrefix(text, candidate.Name) ||
+                PassesAccessoryFamilyPrefix(text, localized);
         }
         if (!TryGetPrefixBeforeFirstSpace(observed, out var prefix) || !TryGetPrefixBeforeFirstSpace(candidate.Bytes, out var prefix2))
         {
@@ -249,6 +275,53 @@ public sealed class CompanionItemMatcher
         }
         int num = Math.Max(prefix.Length, prefix2.Length);
         return (float)LevenshteinDistance(prefix, prefix2) / (float)num <= 0.34f;
+    }
+
+    private static bool PassesGermanRareIdentityRules(string observedText, string canonicalName)
+    {
+        if (!HasRuinCrystalTier(observedText, canonicalName)) return false;
+        if (ClassifyEnglishSuffix(canonicalName) == Gear.None) return true;
+        return PassesAccessoryFamilyPrefix(observedText, ItemLocalizationCatalog.GermanNames[canonicalName]);
+    }
+
+    private static bool PassesAccessoryFamilyPrefix(string observedText, string localized)
+    {
+        // German accessories may use spaces (Deborekas Ring) or a hyphen
+        // (Apeiron-Ring). A prepended enhancement must not resolve to base gear,
+        // including when OCR omits the separator or all spaces.
+        var separator = localized.IndexOfAny([' ', '-']);
+        var family = ItemLocalizationCatalog.NormalizeGermanName(
+            separator < 0 ? localized : localized[..separator]);
+        var observed = ItemLocalizationCatalog.NormalizeGermanName(observedText);
+        var observedPrefix = observed[..Math.Min(family.Length, observed.Length)];
+        var expectedBytes = Encoding.UTF8.GetBytes(family);
+        var observedBytes = Encoding.UTF8.GetBytes(observedPrefix);
+        return LevenshteinDistance(observedBytes, expectedBytes) /
+            (double)Math.Max(observedBytes.Length, expectedBytes.Length) <= MaximumNormalizedDistance;
+    }
+
+    private static bool HasRuinCrystalTier(string observedText, string canonicalName)
+    {
+        if (canonicalName.Length < 4 || canonicalName[4..] is not
+            ("Crystal of Ruin" or "Crystal of Dusky Ruin")) return true;
+        var expected = canonicalName[..3];
+        string[] tiers = ["won", "bon", "jin", "han"];
+        // Complete tier tokens in a longer rare banner retain native substring
+        // matching. Missing/partial prefixes cannot choose a tier by list order.
+        var explicitTiers = observedText.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Select(ItemLocalizationCatalog.NormalizeGermanName)
+            .Where(token => tiers.Contains(token, StringComparer.Ordinal)).Distinct().ToArray();
+        if (explicitTiers.Length > 0)
+            return explicitTiers.Length == 1 && string.Equals(explicitTiers[0], expected, StringComparison.OrdinalIgnoreCase);
+
+        var normalized = ItemLocalizationCatalog.NormalizeGermanName(observedText);
+        if (normalized.Length < 3) return false;
+        var prefix = Encoding.UTF8.GetBytes(normalized[..3]);
+        var ranked = tiers.Select(tier => (Tier: tier,
+            Edits: LevenshteinDistance(prefix, Encoding.UTF8.GetBytes(tier))))
+            .OrderBy(candidate => candidate.Edits).ToArray();
+        return ranked[0].Edits <= 1 && ranked[0].Edits < ranked[1].Edits &&
+            string.Equals(ranked[0].Tier, expected, StringComparison.OrdinalIgnoreCase);
     }
 
     private bool AreRelatedRareCandidates(Entry left, Entry right)
@@ -355,7 +428,10 @@ public sealed class CompanionItemMatcher
     {
         if (quantity == 1)
         {
-            return CountOneTrashNames.Contains(name);
+            // Explicit user-supplied bounds take precedence over the legacy
+            // count-one heuristic, including Outer Edania's confirmed 1..1000.
+            return CountOneTrashNames.Contains(name) &&
+                DropQuantityCatalog.GetBounds(null, name)?.Minimum != 1;
         }
         return false;
     }

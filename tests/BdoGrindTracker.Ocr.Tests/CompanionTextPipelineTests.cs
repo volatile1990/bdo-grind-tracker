@@ -5,6 +5,27 @@ namespace BdoGrindTracker.Ocr.Tests;
 public sealed class CompanionTextPipelineTests
 {
     [Theory]
+    [InlineData("Dehkia's Fragment")]
+    [InlineData("Fragment von Dehkia")]
+    [InlineData("Gavinya Paint")]
+    [InlineData("Pigment von Gavinya")]
+    [InlineData("Kehelle's Artifact - Black Spirit's Rage Max Increase")]
+    [InlineData("Schatzkiste des glucklichen Goldschweins")]
+    [InlineData("Ski")]
+    public void LetterQuantityLookalikesInsideItemNamesArePreserved(string item)
+    {
+        var expectedName = CompanionTextPipeline.NormalizeRawText(item);
+        var withoutQuantity = CompanionTextPipeline.Process(item, -1, false, 300);
+        Assert.Equal(expectedName, withoutQuantity.Name);
+        Assert.Equal(-1, withoutQuantity.Quantity);
+        Assert.False(withoutQuantity.HasParsedOcrQuantity);
+        var withQuantity = CompanionTextPipeline.Process(item + " x9999", -1, false, 300);
+        Assert.Equal(expectedName, withQuantity.Name);
+        Assert.Equal(9999, withQuantity.Quantity);
+        Assert.True(withQuantity.HasParsedOcrQuantity);
+    }
+
+    [Theory]
     [InlineData("BON Wandering Origin Crystal")]
     [InlineData("BON Wandering Origin Crystal x7")]
     [InlineData("BON Wandering Origin Crystal x0")]

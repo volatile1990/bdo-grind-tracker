@@ -54,7 +54,8 @@ internal sealed record GarmothSessionPayload
             throw new ArgumentException("Der bestätigte Gesamtwert in Silber darf nicht negativ sein.");
         ArgumentNullException.ThrowIfNull(draft.Totals);
         if (!GarmothCatalog.TryGetSpot(draft.SpotId, out var spotId))
-            throw new ArgumentException("Der Grindspot ist nicht für den Garmoth-Upload zugeordnet.");
+            throw new ArgumentException(GarmothCatalog.GetSpotUploadLimitation(draft.SpotId)
+                ?? "Der Grindspot ist nicht für den Garmoth-Upload zugeordnet.");
         if (!GarmothCatalog.TryGetClass(draft.ClassName, draft.Specialization, out var classId, out var spec))
             throw new ArgumentException("Klasse oder Spezialisierung ist nicht für Garmoth zugeordnet.");
 
@@ -90,7 +91,8 @@ internal sealed record GarmothSessionPayload
     {
         ArgumentNullException.ThrowIfNull(totals);
         if (!GarmothCatalog.TryGetSpot(spotId, out _))
-            throw new ArgumentException("Der Grindspot ist nicht für den Garmoth-Upload zugeordnet.");
+            throw new ArgumentException(GarmothCatalog.GetSpotUploadLimitation(spotId)
+                ?? "Der Grindspot ist nicht für den Garmoth-Upload zugeordnet.");
 
         var drops = new SortedDictionary<string, long>(StringComparer.Ordinal);
         var omitted = new List<string>();
@@ -104,7 +106,15 @@ internal sealed record GarmothSessionPayload
                 continue;
             }
             if (!drops.TryAdd(key, quantity))
-                throw new ArgumentException("Mehrere Items würden demselben Garmoth-Eintrag zugeordnet.");
+            {
+                // Garmoth deliberately combines the individual combat artifacts
+                // into its Any Artifact slot. Other collisions remain invalid.
+                if (key != "100001004_0")
+                    throw new ArgumentException("Mehrere Items würden demselben Garmoth-Eintrag zugeordnet.");
+                if (quantity > long.MaxValue - drops[key])
+                    throw new ArgumentException("Die gemeinsame Artefaktmenge ist zu groß für den Garmoth-Upload.");
+                drops[key] += quantity;
+            }
         }
 
         omitted.Sort(StringComparer.Ordinal);

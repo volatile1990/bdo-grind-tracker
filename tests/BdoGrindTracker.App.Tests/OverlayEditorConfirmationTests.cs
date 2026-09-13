@@ -18,7 +18,7 @@ public sealed class OverlayEditorConfirmationTests
     [InlineData(true)]
     public async Task CancelingLayoutConfirmationPreservesTheLayoutAndDiscardsThePendingAction(bool clear)
     {
-        var overlay = new RecordingOverlay();
+        var overlay = new RecordingOverlayService();
         var original = overlay.Settings;
         await Render(overlay, async (editor, markup, js) =>
         {
@@ -48,7 +48,7 @@ public sealed class OverlayEditorConfirmationTests
     [InlineData(true)]
     public async Task ConfirmingChangesTheLayoutOnceAndPreservesDisplayAndBehaviorSettings(bool clear)
     {
-        var overlay = new RecordingOverlay(new()
+        var overlay = new RecordingOverlayService(new()
         {
             Enabled = true, Interaction = "passthrough", Visibility = "always",
             PositionX = .6, PositionY = .4, Scale = 1.3, BackgroundOpacity = .35,
@@ -84,7 +84,7 @@ public sealed class OverlayEditorConfirmationTests
     public async Task RepeatedConfirmationWhileSavingDoesNotApplyTheChangeTwice(bool clear)
     {
         var response = new TaskCompletionSource<OverlaySaveResult>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var overlay = new RecordingOverlay { SaveResponse = () => response.Task };
+        var overlay = new RecordingOverlayService { SaveResponse = () => response.Task };
         await Render(overlay, async (editor, _, _) =>
         {
             await Ask(editor, clear);
@@ -109,7 +109,7 @@ public sealed class OverlayEditorConfirmationTests
     [Fact]
     public async Task ApplyingAPresetToAnEmptyLayoutDoesNotAskToReplaceAnything()
     {
-        var overlay = new RecordingOverlay(new() { Widgets = [] });
+        var overlay = new RecordingOverlayService(new() { Widgets = [] });
         await Render(overlay, async (editor, _, js) =>
         {
             await Invoke(editor, "ApplyPreset", "dashboard");
@@ -127,7 +127,7 @@ public sealed class OverlayEditorConfirmationTests
     {
         const string error = "Das Overlay konnte nicht gespeichert werden.";
         var attempts = 0;
-        var overlay = new RecordingOverlay
+        var overlay = new RecordingOverlayService
         {
             SaveResponse = () => Task.FromResult(++attempts == 1 ? new OverlaySaveResult(error) : new OverlaySaveResult()),
         };
@@ -177,7 +177,7 @@ public sealed class OverlayEditorConfirmationTests
         ? Invoke(editor, "ClearLayout")
         : Invoke(editor, "ApplyPreset", "dashboard");
 
-    private static async Task Render(RecordingOverlay overlay,
+    private static async Task Render(RecordingOverlayService overlay,
         Func<OverlayEditor, Func<string>, RecordingJs, Task> test)
     {
         var activator = new CapturingActivator();
@@ -229,33 +229,4 @@ public sealed class OverlayEditorConfirmationTests
             object?[]? args) => InvokeAsync<TValue>(identifier, args);
     }
 
-    private sealed class RecordingOverlay(OverlaySettings? settings = null) : IOverlayService
-    {
-        public event Action? Changed { add { } remove { } }
-        public OverlaySettings Settings { get; private set; } = OverlayLayout.Normalize(settings);
-        public OverlayRuntimeState State { get; private set; } = new();
-        public OverlaySnapshot Snapshot { get; } = new();
-        public List<OverlaySettings> Saves { get; } = [];
-        public Func<Task<OverlaySaveResult>> SaveResponse { get; init; } = () => Task.FromResult(new OverlaySaveResult());
-
-        public async Task<OverlaySaveResult> SaveAsync(OverlaySettings value)
-        {
-            Saves.Add(value);
-            var result = await SaveResponse();
-            if (result.Succeeded) Settings = OverlayLayout.Normalize(value);
-            return result;
-        }
-
-        public Task<OverlaySaveResult> SavePositionAsync(double x, double y, double? width = null, double? height = null) =>
-            throw new NotSupportedException();
-        public Task SetPreviewAsync(bool enabled)
-        {
-            State = State with { Previewing = enabled };
-            return Task.CompletedTask;
-        }
-        public Task ResetPositionAsync() => throw new NotSupportedException();
-        public Task ToggleTrackingAsync() => throw new NotSupportedException();
-        public void UpdateRuntime(OverlayRuntimeState state) => State = state;
-        public void Dispose() { }
-    }
 }

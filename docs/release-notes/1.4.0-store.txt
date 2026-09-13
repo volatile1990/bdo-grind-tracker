@@ -1,0 +1,9 @@
+Neu in Grindcrest 1.4.0:
+
+• Die OCR-Sprachpaket-Installation zeigt den von Windows gemeldeten Prozentfortschritt oder die bisherige Wartezeit an. Bei Problemen hilft ein Installationsprotokoll.
+• „Erneut prüfen“ bleibt während der Installation verfügbar. Sobald die Texterkennung erfolgreich geprüft wurde, lässt sich das Tracking starten – auch wenn Windows seinen Installationsprozess noch abschließt.
+• Mehrere Overlay-Fenster mit eigenen Layouts, Positionen und Einstellungen. Gemeinsame Tastenkürzel steuern alle Fenster; beim Ändern der Fensterfläche behalten die Module ihre Größe.
+• Neues Overlay-Modul für lokale Uhrzeit, berechnete BDO-Zeit und den Countdown bis zum nächsten Tag-/Nachtwechsel.
+• Erweiterung auf 40 konkrete Grindspots, darunter Outer Edania, Star's End, Sycraia und weitere Dehkia-Gebiete, mit deutschen und englischen Itemnamen, Icons und Preiszuordnungen.
+• Passende Garmoth-Zuordnung durch Gebiet- und Variantenauswahl bei gleichem Trashnamen. Die Auswahl bleibt über Pausen und Neustarts erhalten.
+• Aktualisierte Dropmengen für alle Spots sowie ergänzte Lootpools und Silberwerte für neue Gegenstände.

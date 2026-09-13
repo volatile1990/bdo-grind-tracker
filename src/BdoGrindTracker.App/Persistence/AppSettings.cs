@@ -13,6 +13,7 @@ internal sealed class AppSettings
     public int SettingsVersion { get; set; }
 
     public string? MonitorDeviceName { get; set; }
+    public string? CaptureConfigurationPath { get; set; }
     public string GameLanguage { get; set; } = "auto";
 
     public string? SpotId { get; set; }

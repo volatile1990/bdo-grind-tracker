@@ -2,12 +2,12 @@
 
 <div class="overlay-widget-viewport" data-content-width="@Css(Content.ReferenceWidth)" data-content-height="@Css(Content.ReferenceHeight)"
      data-min-content-width="@Css(Content.MinimumWidth)" data-min-content-height="@Css(Content.MinimumHeight)" data-content-layout="@PreviewStyle">
-<div class="overlay-widget-preview overlay-widget-@Widget.Kind @(IsLoot ? "is-loot-widget" : "") @(Metric.IsWarning ? "is-warning" : "") metric-tone-@Metric.Tone.ToString().ToLowerInvariant()" style="@PreviewStyle" title="@(IsLoot ? Loot.Detail : Metric.Tooltip ?? (Metric.IsWarning ? "Loot-Scroll ist nicht aktiv." : Metric.Detail))">
+<div class="overlay-widget-preview overlay-widget-@Widget.Kind @(IsLoot ? "is-loot-widget" : "") @(Metric.IsWarning ? "is-warning" : "") metric-tone-@Metric.Tone.ToString().ToLowerInvariant()" style="@PreviewStyle" title="@(IsClock ? Clock.Tooltip : IsLoot ? Loot.Detail : Metric.Tooltip ?? (Metric.IsWarning ? "Loot-Scroll ist nicht aktiv." : Metric.Detail))">
     @if (Widget.ShowLabel)
     {
         <div class="overlay-widget-label" data-overlay-fit>
             @if (Widget.ShowIcon) { <AppIcon Name="@(OverlayCatalog.Find(Widget.Kind)?.Icon ?? "live")" /> }
-            <span>@(IsLoot ? Loot.Label : Metric.Label)</span>
+            <span>@(IsClock ? Clock.Label : IsLoot ? Loot.Label : Metric.Label)</span>
         </div>
     }
     @if (IsLoot)
@@ -32,6 +32,19 @@
             </div>
             @if (Loot.HiddenCount > 0) { <span class="overlay-widget-more" data-overlay-fit title="Maximale Items in den Moduleinstellungen erhöhen">+ @Loot.HiddenCount weitere</span> }
         }
+    }
+    else if (IsClock)
+    {
+        <div class="overlay-clock-rows">
+            @foreach (var row in Clock.Rows)
+            {
+                <div class="overlay-clock-row is-@row.Kind" data-overlay-fit>
+                    @if (!Widget.ShowLabel && Widget.ShowIcon && row == Clock.Rows[0]) { <AppIcon Name="clock" /> }
+                    <span class="overlay-clock-row-label">@row.Label</span>
+                    <strong>@row.Value</strong>
+                </div>
+            }
+        </div>
     }
     else if (Widget.Kind == "controls")
     {
@@ -97,12 +110,15 @@
 
     private OverlayMetric Metric => Snapshot.Metrics.GetValueOrDefault(Widget.Kind) ?? new(OverlayCatalog.Find(Widget.Kind)?.Label ?? "Modul", "—");
     private bool IsLoot => OverlayCatalog.IsLootWidget(Widget.Kind);
+    private bool IsClock => Widget.Kind == "clock";
+    private OverlayClockView? _clock;
+    private OverlayClockView Clock => _clock ??= OverlayClockPresentation.Create(Widget, Snapshot.ClockUtcNow);
     private OverlayContentLayout? _content;
     private OverlayContentLayout Content => _content ??= OverlayContentLayout.Create(Widget, Snapshot);
     private OverlayWidget LayoutWidget => Content.LayoutWidget;
     private OverlayLootView? _loot;
     private OverlayLootView Loot => _loot ??= OverlayLootPresentation.Create(LayoutWidget, Snapshot);
-    protected override void OnParametersSet() { _loot = null; _content = null; }
+    protected override void OnParametersSet() { _loot = null; _content = null; _clock = null; }
     private string PreviewStyle => $"width:{Css(LayoutWidget.Width)}px;height:{Css(LayoutWidget.Height)}px;transform:scale({Css(Content.Scale)});--widget-font-scale:{FontScale}" +
         (IsLoot ? $";--loot-item-size:{Css(Loot.ItemSize)}px;--loot-gap:{Css(Loot.Gap)}px;--loot-columns:{Math.Max(1, Loot.Columns)};--loot-cell-width:{Css(Loot.CellWidth)}px;--loot-cell-height:{Css(Loot.CellHeight)}px;--loot-header-height:{Css(Loot.HeaderHeight)}px;--loot-footer-height:{Css(Loot.FooterHeight)}px;--loot-layout-width:{Css(LootWidth)}px;--loot-layout-height:{Css(LootHeight)}px" : "");
     private int LootRows => (int)Math.Ceiling((double)Loot.VisibleItems.Count / Math.Max(1, Loot.Columns));

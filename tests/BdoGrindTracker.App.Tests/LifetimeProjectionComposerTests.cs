@@ -8,6 +8,90 @@ public sealed class LifetimeProjectionComposerTests
     private static readonly DateTimeOffset Start = new(2026, 9, 10, 20, 0, 0, TimeSpan.Zero);
 
     [Fact]
+    public void SameItemInIndependentLogsAddsQuantitiesAndPhysicalDropCounts()
+    {
+        var composer = new LifetimeLootProjectionComposer();
+        var result = composer.Combine(Snapshot(("Twilight Ring", 1)),
+            Snapshot(("Twilight Ring", 3)) with { SupportedDropCount = 3, LatestArrivalAt = Start.AddSeconds(1) },
+            Start.AddSeconds(2));
+        Assert.Equal(4, result.Projection.Totals["Twilight Ring"]);
+        Assert.Equal(4, result.Projection.ConfirmedDropCount);
+        Assert.Equal(Start.AddSeconds(1), result.Projection.LatestArrivalAt);
+        Assert.Equal(4, Assert.Single(result.Events).Quantity);
+    }
+
+    [Fact]
+    public void IndependentSourceRetractionsReplaceQuantitiesCountsAndArrivalEvidence()
+    {
+        var composer = new LifetimeLootProjectionComposer();
+        var normal = Snapshot(("Ring", 2));
+        var special = Snapshot(("Ring", 3)) with { LatestArrivalAt = Start.AddSeconds(1) };
+        var first = composer.Combine(normal, special, Start.AddSeconds(2));
+        var corrected = composer.Combine(normal, special with { Totals = Snapshot(("Ring", 1)).Totals }, Start.AddSeconds(3));
+        Assert.Equal(3, corrected.Projection.Totals["Ring"]);
+        Assert.Equal(-2, Assert.Single(corrected.Events).Quantity);
+        Assert.Equal(first.Projection.ConfirmedDropCount, corrected.Projection.ConfirmedDropCount);
+        Assert.Equal(first.Projection.LatestArrivalAt, corrected.Projection.LatestArrivalAt);
+        var retracted = composer.Combine(normal, Snapshot(), Start.AddSeconds(4));
+        Assert.Equal(2, retracted.Projection.Totals["Ring"]);
+        Assert.Equal(-1, Assert.Single(retracted.Events).Quantity);
+        Assert.Equal(1, retracted.Projection.ConfirmedDropCount);
+        Assert.Equal(Start, retracted.Projection.LatestArrivalAt);
+        Assert.True(retracted.Projection.Revision > corrected.Projection.Revision);
+    }
+
+    [Fact]
+    public void SeparateLifetimesAndSourceRevisionsCannotRepeatPreviouslyProjectedDrops()
+    {
+        var composer = new LifetimeLootProjectionComposer();
+        var normal = Snapshot(("Helmet", 4));
+        var special = Snapshot(("Ring", 1)) with { SelectedLifetimeMs = 6000 };
+        var first = composer.Combine(normal, special, Start);
+        var unchanged = composer.Combine(normal with { Revision = 20, SelectedLifetimeMs = 1500 },
+            special with { Revision = 30, SelectedLifetimeMs = 9000 }, Start.AddSeconds(10));
+        Assert.Empty(unchanged.Events);
+        Assert.Equal(first.Projection.Revision, unchanged.Projection.Revision);
+        Assert.Equal(2, unchanged.Projection.ConfirmedDropCount);
+        Assert.Equal(first.Projection.LatestArrivalAt, unchanged.Projection.LatestArrivalAt);
+        Assert.Equal(first.Events, new LifetimeLootProjectionComposer().Combine(normal, special, Start).Events);
+    }
+
+    [Fact]
+    public void InvalidIndependentSourceCannotPartiallyMutateTheProjection()
+    {
+        var composer = new LifetimeLootProjectionComposer();
+        var normal = Snapshot(("Ring", 2));
+        var special = Snapshot(("Ring", 1));
+        var first = composer.Combine(normal, special, Start);
+        Assert.Throws<ArgumentException>(() => composer.Combine(normal, Snapshot(("Ring", -1)), Start));
+        Assert.Throws<ArgumentException>(() => composer.Combine(normal,
+            special with { SupportedDropCount = -1 }, Start));
+        Assert.Throws<OverflowException>(() => composer.Combine(normal, Snapshot(("Ring", long.MaxValue)), Start));
+        Assert.Throws<OverflowException>(() => composer.Combine(normal,
+            special with { SupportedDropCount = int.MaxValue }, Start));
+        var unchanged = composer.Combine(normal, special, Start.AddSeconds(1));
+        Assert.Empty(unchanged.Events);
+        Assert.Equal(first.Projection.Revision, unchanged.Projection.Revision);
+        Assert.Equal(3, unchanged.Projection.Totals["Ring"]);
+    }
+
+    [Fact]
+    public void ResetClearsBothIndependentSourcesAndAuditRevision()
+    {
+        var composer = new LifetimeLootProjectionComposer();
+        var first = composer.Combine(Snapshot(("Ring", 2)), Snapshot(("Ring", 1)), Start);
+        composer.Reset();
+        var empty = composer.Combine(Snapshot(), Snapshot(), Start.AddSeconds(1));
+        Assert.Empty(empty.Projection.Totals);
+        Assert.Empty(empty.Events);
+        Assert.Equal(0, empty.Projection.Revision);
+        Assert.Equal(0, empty.Projection.ConfirmedDropCount);
+        Assert.Null(empty.Projection.LatestArrivalAt);
+        var restarted = composer.Combine(Snapshot(("Ring", 2)), Snapshot(("Ring", 1)), Start);
+        Assert.Equal(first.Events, restarted.Events);
+    }
+
+    [Fact]
     public void NormalTakesPriorityAndRetractionRestoresTheIndependentRareBalance()
     {
         var composer = new LifetimeLootProjectionComposer();

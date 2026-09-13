@@ -23,6 +23,7 @@ internal sealed record TrackerPreferences
     public IReadOnlyList<string> FavoriteItems { get; init; } = [];
     public IReadOnlyDictionary<string, string[]> LootColumnOrders { get; init; } = new Dictionary<string, string[]>();
     public string? MonitorDeviceName { get; init; }
+    public string? CaptureConfigurationPath { get; init; }
     public string GameLanguage { get; init; } = "auto";
     public string? CharacterClassId { get; init; }
     public int AutoPauseMinutes { get; init; } = 3;
@@ -43,6 +44,7 @@ internal sealed record TrackerState
     public bool IsWaitingForFirstDrop { get; init; }
     public bool IsBusy { get; init; }
     public bool CanEditLoot { get; init; } = true;
+    public bool CanSelectSpotVariant { get; init; }
     public bool CanPause { get; init; }
     public string? PersistenceError { get; init; }
     public GarmothUploadPreview CurrentGarmothUpload { get; init; } = GarmothUploadPreview.Unavailable("Keine Session vorhanden.");
@@ -52,6 +54,8 @@ internal sealed record TrackerState
     public string? TrackingBlockedReason { get; init; }
     public string? MissingOcrLanguageTag { get; init; }
     public bool IsInstallingOcrLanguage { get; init; }
+    public bool IsOcrInstallerRunning { get; init; }
+    public int? OcrInstallationPercent { get; init; }
     public string? OcrInstallationStatus { get; init; }
     public bool OcrRestartRequired { get; init; }
     public string? DetectedGameLanguage { get; init; }
@@ -94,12 +98,22 @@ internal interface ITrackerSession : IAsyncDisposable
     TrackerState State { get; }
     TrackerPreferences Preferences { get; }
     IReadOnlyList<TrackerMonitor> Monitors { get; }
+    string DiagnosticsDirectory => Path.Combine(AppDataPaths.Current.BaseDirectory, "diagnostics");
     bool CapturesGameWindow => false;
+    Task<CaptureConfigurationScan> ScanCaptureConfigurationsAsync() =>
+        Task.FromResult(new CaptureConfigurationScan([], null, "Die Konfigurationssuche ist hier nicht verfügbar."));
+    Task<CaptureConfigurationPreview> PreviewCaptureConfigurationAsync(string? gameVariablePath) =>
+        Task.FromResult(new CaptureConfigurationPreview(Error: "Die Vorschau ist hier nicht verfügbar."));
+    Task<CaptureConfigurationOption?> BrowseCaptureConfigurationAsync() => Task.FromResult<CaptureConfigurationOption?>(null);
+    Task<TrackerCommandResult> SelectCaptureConfigurationAsync(string? gameVariablePath) =>
+        Task.FromResult(new TrackerCommandResult("Die Konfigurationsauswahl ist hier nicht verfügbar."));
     IReadOnlyList<LootHistoryEntry> History { get; }
     LootPriceSnapshot Prices { get; }
     Task<TrackerCommandResult> ToggleTrackingAsync();
     Task<TrackerCommandResult> PauseAsync();
     Task<TrackerCommandResult> NewSessionAsync();
+    Task<TrackerCommandResult> SelectSpotVariantAsync(Guid sessionId, string spotId) =>
+        Task.FromResult(new TrackerCommandResult("Für diese Session kann kein Spot ausgewählt werden."));
     Task<TrackerCommandResult> SetDemoAsync(bool enabled);
     Task<TrackerCommandResult> InstallOcrLanguageAsync();
     Task<TrackerCommandResult> RecheckOcrLanguageAsync();

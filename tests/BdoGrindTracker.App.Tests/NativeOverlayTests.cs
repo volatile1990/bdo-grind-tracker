@@ -56,20 +56,22 @@ public sealed class NativeOverlayTests
     [InlineData("dashboard")]
     [InlineData("loot")]
     [InlineData("loot-strip")]
-    public void ProportionallyShrunkCanvasRendersWithoutInvalidDrawingOrHitRegions(string preset)
+    public void ShrunkCanvasRendersWithOriginalModuleGeometryBeyondItsVisibleBounds(string preset)
     {
         using var renderer = new NativeOverlayRenderer();
         var layout = OverlayLayout.ResizeCanvas(OverlayCatalog.Preset(preset), 160, 64);
         using var image = renderer.Render(new Size(160, 64), layout,
             OverlaySnapshot.Demo with { CanToggleTracking = true }, out var actions);
         Assert.Equal(new Size(160, 64), image.Size);
-        Assert.All(actions.Values, bounds =>
+        Assert.All(layout.Widgets, widget =>
         {
+            var bounds = actions["widget:" + widget.Id];
+            Assert.Equal(new RectangleF((float)widget.X, (float)widget.Y, (float)widget.Width, (float)widget.Height), bounds);
             Assert.True(bounds.Width > 0 && bounds.Height > 0);
-            Assert.InRange(bounds.Left, 0, 160);
-            Assert.InRange(bounds.Top, 0, 64);
-            Assert.InRange(bounds.Right, 0, 160.001f);
-            Assert.InRange(bounds.Bottom, 0, 64.001f);
+            Assert.InRange(bounds.Left, 0, 1600);
+            Assert.InRange(bounds.Top, 0, 1200);
+            Assert.InRange(bounds.Right, 0, 1600.001f);
+            Assert.InRange(bounds.Bottom, 0, 1200.001f);
         });
     }
 

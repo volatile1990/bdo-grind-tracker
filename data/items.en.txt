@@ -1,8 +1,8 @@
 # Required positive OCR vocabulary, one visible item name per line.
 # Extend this file with the drops relevant to the current grind spot.
-# Main/junk loot for all six Inner Edania monster zones,
+# Main/junk loot for the supported Edania and screenshot monster zones,
 # shared #HighestTier loot, and supported additional world drops.
-# Pool sources and coverage limitations are documented in docs/LOOT_POOLS.md.
+# Pool sources and coverage limitations: docs/LOOT_POOLS.md and docs/OUTER_EDANIA_SOURCES.md.
 Ancient Spirit Dust
 Apeiron Belt
 Apeiron Earring
@@ -61,3 +61,199 @@ White Primordial Pigment - Edana
 White Primordial Pigment - Sovereign
 WON Origin Shard
 WON Wandering Origin Crystal
+Ancient Soldier Fragment
+BON Crystal of Dusky Ruin
+BON Crystal of Ruin
+Chilled Soul Piece
+Contaminated Coral Piece
+Crystallized Energy of Endtimes
+Deboreka Belt
+Deboreka Earring
+Deboreka Necklace
+Deboreka Ring
+Distorted Crystal of Origin
+Distorted Fragment of Origin
+Faded Dark Energy
+Flawless Herald's Crystal
+HAN Crystal of Dusky Ruin
+HAN Crystal of Ruin
+Hardened Lava Chunk
+Herald's Crystal
+JIN Crystal of Dusky Ruin
+JIN Crystal of Ruin
+Lightlost Core
+Primordial Fragment
+Sealed Black Magic Crystal
+Tainted Armor Fragment
+WON Crystal of Dusky Ruin
+WON Crystal of Ruin
+
+# Additional screenshot spots, September 2026.
+Abyssal Essence
+Ah'krad
+Al Yurad's Ring Piece
+Ancient Magic Crystal - Addis
+Ancient Magic Crystal - Carmae
+Ancient Magic Crystal of Nature - Adamantine
+Ancient Magic Crystal of Nature - Fighting Spirit
+Ancient Magic Crystal of Nature - Giant
+Ancient Relic Crystal Shard
+Ancient Spirit Light
+Ash Forest Paint
+BON Dawn Crystal - Accuracy
+BON Dawn Crystal - All AP
+BON Dawn Crystal - Black Spirit's Rage
+BON Dawn Crystal - Damage Reduction
+BON Dawn Crystal - Evasion
+Black Distortion Earring
+Blessed Soul Fragment
+Broken Horn Fragment
+City of the Dead Paint
+Clear Blackstar Crystal
+Corrupt Power Source
+Corrupted Breath
+Corrupted Gargoyle Claw
+Corrupted Gluttony Crystal
+Corrupted Sanguine Crystal
+Crystal of Dogged Patience
+Crystal of Precise Destruction
+Crystal of Stalwart Fortitude
+Crystal of Unyielding Spirit
+Crystallized Despair
+Darkseekers' Retreat Paint
+Dawn Earring
+Decayed Cloth
+Dehkia's Artifact - All Damage Reduction
+Dehkia's Artifact - All Evasion
+Dehkia's Fragment
+Destruction Spirit Stone
+Discarded Kkebicap
+Dragon Scale Fossil
+Elkarr
+Embers of Despair
+Embers of Frost
+Embers of Resonance
+Essence of Dawn
+Essence of Devouring
+Essence of Insight
+Faint Origin of Dark Hunger
+Faint Sycraia's Memory
+Fiery Troll Hide
+Flame of Despair
+Flame of Frost
+Flame of Resonance
+Forest Fury
+Forgotten Limbo Box
+Forgotten Witch's Token
+Fortunate Golden Pig King Summon Scroll
+Fortunate Golden Pig King's Treasure Chest
+Gavinya Coastal Cliff Paint
+Gem of Void
+Gentle Sycraia's Memory
+Gluttony Crystal
+Golden Pigs Subjugation Token
+Guardian Spirit Stone
+Howling Bone Fragment
+Hystria Ruins Paint
+Imperfect Lightstone of Earth
+Imperfect Lightstone of Fire
+Imperfect Lightstone of Wind
+Intense Sycraia's Memory
+Iridescent Lightstone
+Kabua's Artifact
+Kabua's Fragment
+Kehelle's Artifact - Black Spirit's Rage Max Increase
+Kehelle's Artifact - Max HP
+Kehelle's Artifact - Max Stamina
+Krogdalo's Origin Stone
+Kuadir Fragment
+Lafi Bedmountain's Upgraded Compass Parts
+Lafi Bedmountain's Upgraded Telescope Parts
+Lesha's Artifact - All Damage Reduction
+Lesha's Artifact - All Evasion
+Lesha's Artifact - Magic Damage Reduction
+Lesha's Artifact - Magic Evasion
+Lesha's Artifact - Melee Damage Reduction
+Lesha's Artifact - Melee Evasion
+Lesha's Artifact - Monster Damage Reduction
+Lesha's Artifact - Ranged Damage Reduction
+Lesha's Artifact - Ranged Evasion
+Life Spirit Stone
+Magic Crystal of Infinity - Max HP
+Manshaum Voodoo Doll
+Mark of the Black Sands
+Marsh's Artifact - Extra AP Against Monsters
+Marsh's Artifact - Magic AP
+Marsh's Artifact - Magic Accuracy
+Marsh's Artifact - Melee AP
+Marsh's Artifact - Melee Accuracy
+Marsh's Artifact - Ranged AP
+Marsh's Artifact - Ranged Accuracy
+Mass of Pure Magic
+Moonlight Spirit Powder
+Old Warrior's Horn Decoration
+Olun's Valley Paint
+Ominous Ring
+Origin of Corruption
+Origin of Dark Hunger
+Ouk Pill of Time and Tide
+Quturan's Ashen Leaf
+Quturan's Black Leaf
+Quturan's Left Lung
+Quturan's Right Lung
+Radiant Sycraia's Memory
+Rare Treasure Chest
+Rare Treasures
+Ring of Cadry Guardian
+Ring of Crescent Guardian
+Rumbling Earth Shard
+Scroll Written in Ancient Language
+Shattered Treasures
+Shiny Treasure
+Silver
+Specter's Energy
+Starlit Jade Powder
+Starlit Jade's Breath
+Sulfur Golem Fragment
+Sulfur Golem Power Core
+Sulfur Golem Power Core Fragment
+Swaying Wind Shard
+Sycraia Shard
+Sycraia Underwater Ruins Paint
+Tainted Broken Horn Fragment
+Tainted Bronze Fragment
+Tainted Cadry's Token
+Tainted Golem's Heart Fragment
+Tainted Huge Spear
+Tainted Moonlight Spirit Powder
+Tainted Ruins Fragment
+Tainted Specter's Cloth
+Tainted Token of Crescent
+Tainted Wood Fragment
+Tattered Shadow
+Thick Turo Blood
+Thorn-Entwined Weapon Fragment
+Trace of Nature
+Traveler's Map
+Tungrad Belt
+Tungrad Earring
+Tungrad Necklace
+Tungrad Ring
+Tungrad Ruins Fragment
+Tungrad Ruins Paint
+Turo Heart
+Turo's Belt
+Turquoise Primordial Luster - Edana
+Turquoise Primordial Luster - Sovereign
+Turquoise Primordial Pigment - Edana
+Turquoise Primordial Pigment - Sovereign
+Underwater Ancient Weapon Power Stone
+Valtarra Eclipsed Belt
+Venomous Night Fang
+Void Tainted Whispers
+WON Dawn Crystal - Accuracy
+WON Dawn Crystal - All AP
+WON Dawn Crystal - Black Spirit's Rage
+WON Dawn Crystal - Damage Reduction
+WON Dawn Crystal - Evasion
+Winter Tree Snow Crystal

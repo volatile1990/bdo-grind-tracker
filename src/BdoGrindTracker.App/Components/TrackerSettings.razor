@@ -19,7 +19,7 @@
                 <section class="panel settings-panel"><div class="settings-heading"><div class="settings-icon"><AppIcon Name="shield" /></div><h2>Loot-Diagnose</h2></div>
                     <label class="toggle-row"><span><strong>Diese Session aufzeichnen</strong><small>Loot-Ausschnitte und Erkennungsdaten lokal speichern.</small></span><input type="checkbox" class="switch" @bind="_recordLoot" @bind:after="RecordingChanged" disabled="@State.HasSession" /></label>
                     <div class="subtle-box"><AppIcon Name="info" /><span>Die Dateien bleiben lokal, bis du sie selbst teilst.</span></div>
-                    <p class="field-note">Speicherort: <code>%LOCALAPPDATA%\BdoGrindTracker\diagnostics</code></p>
+                    <p class="field-note">Speicherort: <code>@Tracker.DiagnosticsDirectory</code></p>
                     @if (State.IsRecording && State.RecordingPath is { } path) { <div class="recording-path"><span class="record-dot"></span><span>@path</span></div> }
                 </section>
             </div>
@@ -36,6 +36,7 @@
         </div>
         </fieldset>
     </form>
+    <CaptureConfigurationSettings />
 </div>
 
 @code {

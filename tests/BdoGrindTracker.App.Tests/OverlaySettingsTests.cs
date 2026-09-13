@@ -7,6 +7,64 @@ namespace BdoGrindTracker.App.Tests;
 public sealed class OverlaySettingsTests
 {
     [Fact]
+    public async Task TemporaryReadFailureBlocksOverwriteUntilTheOriginalCollectionCanBeReloaded()
+    {
+        using var folder = new TestFolder();
+        await using var tracker = new PreviewTrackerSession(empty: true);
+        using (var original = new OverlayService(tracker, new OverlaySettingsStore(folder.Path)))
+        {
+            await original.RenameOverlayAsync(original.SelectedOverlayId, "Mein Layout");
+            await original.CreateOverlayAsync("Zweites Layout");
+        }
+        var path = System.IO.Path.Combine(folder.Path, "overlay.json");
+        var before = File.ReadAllBytes(path);
+        OverlayService recovered;
+        using (var locked = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+        {
+            recovered = new OverlayService(tracker, new OverlaySettingsStore(folder.Path));
+            Assert.NotNull(recovered.LoadError);
+            Assert.True(recovered.State.IsError);
+            Assert.False(recovered.Hotkeys.Enabled);
+            Assert.False((await recovered.ReloadAsync()).Succeeded);
+        }
+        using (recovered)
+        {
+            Assert.False((await recovered.ToggleAllOverlaysAsync()).Succeeded);
+            Assert.False((await recovered.CreateOverlayAsync("Ungewollter Ersatz")).Succeeded);
+            Assert.Equal(before, File.ReadAllBytes(path));
+            Assert.True((await recovered.ReloadAsync()).Succeeded);
+            Assert.Null(recovered.LoadError);
+            Assert.False(recovered.State.IsError);
+            Assert.Equal(new[] { "Mein Layout", "Zweites Layout" }, recovered.Overlays.Select(overlay => overlay.Name));
+            Assert.True((await recovered.ToggleAllOverlaysAsync()).Succeeded);
+        }
+        using var restored = new OverlayService(tracker, new OverlaySettingsStore(folder.Path));
+        Assert.Equal(2, restored.Overlays.Count);
+        Assert.All(restored.Overlays, overlay => Assert.True(overlay.Settings.Enabled));
+    }
+
+    [Theory]
+    [InlineData("{broken")]
+    [InlineData("null")]
+    [InlineData("{\"Version\":99,\"Overlays\":[]}")]
+    [InlineData("{\"Version\":2,\"Overlays\":null}")]
+    public async Task InvalidExistingOverlayFilesRemainUntouchedAfterChangesOrReloads(string json)
+    {
+        using var folder = new TestFolder();
+        var path = System.IO.Path.Combine(folder.Path, "overlay.json");
+        File.WriteAllText(path, json);
+        await using var tracker = new PreviewTrackerSession(empty: true);
+        using var service = new OverlayService(tracker, new OverlaySettingsStore(folder.Path));
+        Assert.NotNull(service.LoadError);
+        Assert.False((await service.ToggleAllOverlaysAsync()).Succeeded);
+        Assert.False((await service.ReloadAsync()).Succeeded);
+        Assert.Equal(json, File.ReadAllText(path));
+        var compatibilityStore = new OverlaySettingsStore(folder.Path);
+        Assert.Throws<IOException>(() => compatibilityStore.Save(new()));
+        Assert.Equal(json, File.ReadAllText(path));
+    }
+
+    [Fact]
     public void CorruptOrOldConfigurationKeepsTheOverlayOptInAndBoundsEveryModule()
     {
         var id = Guid.NewGuid().ToString("N");
@@ -33,8 +91,8 @@ public sealed class OverlaySettingsTests
         Assert.Equal("game", settings.Visibility);
         var widget = Assert.Single(settings.Widgets);
         Assert.True(widget.X >= 0 && widget.Y >= 0);
-        Assert.True(widget.X + widget.Width <= settings.Width);
-        Assert.True(widget.Y + widget.Height <= settings.Height);
+        Assert.True(widget.X + widget.Width <= 1600);
+        Assert.True(widget.Y + widget.Height <= 1200);
     }
 
     [Theory]

@@ -13,14 +13,18 @@ internal sealed class OverlayMetrics
 {
     private string? _catalogLanguage;
     private IReadOnlyList<OverlayLootItem> _itemCatalog = [];
-    private static readonly HashSet<string> TrashItems = LootSpotPresentationCatalog.Profiles
-        .Select(profile => profile.TrashItemName).ToHashSet(StringComparer.Ordinal);
+    private static readonly HashSet<string> TrashItems = TrashLootMinimumCatalog.Entries
+        .Select(entry => entry.ItemName).ToHashSet(StringComparer.Ordinal);
 
     // A deliberately explicit presentation filter. The aggregate does not retain whether
     // an item was read in the rare banner, and common market materials are not rare drops.
     private static readonly HashSet<string> RareItems = new(StringComparer.Ordinal)
     {
         "Apeiron Belt", "Apeiron Earring", "Apeiron Necklace", "Apeiron Ring",
+        "Deboreka Belt", "Deboreka Earring", "Deboreka Necklace", "Deboreka Ring",
+        "WON Crystal of Dusky Ruin", "BON Crystal of Dusky Ruin",
+        "JIN Crystal of Dusky Ruin", "HAN Crystal of Dusky Ruin",
+        "Distorted Crystal of Origin", "Herald's Crystal", "Flawless Herald's Crystal",
         "WON Wandering Origin Crystal", "BON Wandering Origin Crystal",
         "JIN Wandering Origin Crystal", "HAN Wandering Origin Crystal",
         "Twilight of the End - Belt", "Twilight of the End - Earring",

@@ -16,7 +16,7 @@ internal sealed record LootCalibrationDiagnostics(
     RareLootAnchorResolution? RareResolution)
 {
     public static LootCalibrationDiagnostics From(CompanionCalibration calibration) => new(
-        Path.GetFileName(calibration.ProfileDirectoryPath), "gamevariable-last-write",
+        Path.GetFileName(calibration.ProfileDirectoryPath), calibration.ProfileSelection,
         calibration.ScreenWidth, calibration.ScreenHeight, calibration.UiScale,
         calibration.LootAnchorX, calibration.LootAnchorY,
         calibration.HasRareLootAnchor ? calibration.RareLootAnchorX : null,

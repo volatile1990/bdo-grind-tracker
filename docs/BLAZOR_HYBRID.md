@@ -63,7 +63,7 @@ neu und führt keine Session-Aktionen erneut aus. Eine neue Navigation nach „Z
 ersetzt den bisherigen Vorwärtsverlauf. Windows-Browserbefehle, die der WebView nicht
 selbst verarbeitet, werden vom nativen Fenster an denselben Verlauf weitergereicht.
 
-**Verlauf** bietet alle sechs Spotprofile sowie eine chronologische Gesamtliste,
+**Verlauf** bietet alle zwölf Edania-Spotprofile sowie eine chronologische Gesamtliste,
 Filter nach Zeitraum und Klasse, Kennzahlen und vollständige Lootdetails. Gespeicherte
 Sessions lassen sich korrigieren und löschen. Einzelmengen sind direkt in der
 Spotmatrix und in den Sessiondetails editierbar; in der Matrix lassen sich auch
@@ -136,6 +136,24 @@ verhindert auch dort Änderungen am normalen UI-Profil.
 Mit `--ui-debug-port=9225` lässt sich die eigene WebView zur UI-Prüfung über CDP
 verbinden, etwa mit Playwright. `--ui-hidden` hält eine solche Vorschau unsichtbar.
 Ohne expliziten Debug-Port wird kein Debug-Endpunkt eingerichtet.
+
+Die Einstellungen enthalten eine aufklappbare Prüfung der Erfassungsbereiche.
+Der Scan läuft erst auf Anforderung und liest alle `gameVariable.xml` unter
+`UserCache`. `CaptureConfigurationCatalog` verwendet denselben Reader und dieselbe
+Geometrievalidierung wie `FrameAnalyzerFactory`; eine manuelle Datei verwendet
+ihre nächstgelegene `GameOption.txt`, ersatzweise den BDO-Dokumentenordner.
+Die Auswahl wird in `CaptureConfigurationPath` gespeichert (`null` = automatisch).
+Beim Wechsel wird der Analyzer vor der nächsten Session neu erstellt. Eine
+fehlende oder ungültige fest ausgewählte Datei führt zu einem Fehler und wird
+nicht durch ein automatisch gefundenes Profil ersetzt.
+
+Die Vorschau nutzt eine Einzelaufnahme derselben Fenster-/Bildschirmquelle wie
+das Tracking, ausschließlich bei pausierter Aufnahme. Sie ruft weder OCR noch
+Zähler auf. Das vollständige Bild wird für die Anzeige auf maximal 1.600 Pixel
+Breite verkleinert; die markierten Rechtecke beziehen sich weiterhin auf die
+Originalauflösung. Die beiden PNG-Ausschnitte enthalten die originalen Pixel.
+Bei abweichender Spielauflösung erscheinen ein Fehler und keine Vorschau.
+Die Bilder bleiben im Arbeitsspeicher und werden beim Schließen verworfen.
 
 Die Tests prüfen unveränderte Erkennungs-/Zählregeln, echte Service-Übergänge,
 Stunden-Deltas, Fehler- und Shutdown-Fälle sowie Razor-Ausgabe und pure

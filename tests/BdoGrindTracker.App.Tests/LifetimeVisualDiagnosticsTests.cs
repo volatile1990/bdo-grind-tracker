@@ -52,7 +52,7 @@ public sealed class LifetimeVisualDiagnosticsTests : IDisposable
         Assert.Equal(.96, Assert.Single(entries[1].Observations[0].OccupancyEvidence!.Matches).Correlation);
         Assert.Single(entries, entry => entry.LifetimeParsingContext is not null);
         var replay = LootDiagnosticReplay.Run(file);
-        Assert.Equal("grindcrest-lifetime-v3", replay.RecordingEngineVersion);
+        Assert.Equal(LootDiagnosticFormat.EngineVersion, replay.RecordingEngineVersion);
         Assert.Equal("lifetime-v3", replay.NormalTrackingAlgorithm);
         Assert.True(replay.TotalsMatch, replay.ToDisplayText());
         Assert.True(replay.EventTimelineMatches, replay.ToDisplayText());
@@ -71,6 +71,22 @@ public sealed class LifetimeVisualDiagnosticsTests : IDisposable
         var replay = LootDiagnosticReplay.Run(file);
         Assert.False(replay.UsesCurrentEngine);
         Assert.Equal("lifetime-v2", replay.NormalTrackingAlgorithm);
+        Assert.True(replay.TotalsMatch, replay.ToDisplayText());
+        Assert.True(replay.EventTimelineMatches, replay.ToDisplayText());
+    }
+
+    [Fact]
+    public void HistoricalVisualEngineHeaderKeepsExactV3Replay()
+    {
+        var file = RecordFrames(visual: true);
+        var lines = File.ReadAllLines(file);
+        var header = JsonNode.Parse(lines[0])!;
+        header["engineVersion"] = LootDiagnosticFormat.LegacyVisualLifetimeEngineVersion;
+        lines[0] = header.ToJsonString();
+        File.WriteAllLines(file, lines);
+        var replay = LootDiagnosticReplay.Run(file);
+        Assert.False(replay.UsesCurrentEngine);
+        Assert.Equal("lifetime-v3", replay.NormalTrackingAlgorithm);
         Assert.True(replay.TotalsMatch, replay.ToDisplayText());
         Assert.True(replay.EventTimelineMatches, replay.ToDisplayText());
     }

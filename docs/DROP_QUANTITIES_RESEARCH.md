@@ -1,7 +1,25 @@
 # Dropmengen: Recherche und bestätigte Nutzervorgaben
 
-Stand: **11. September 2026, PC-Version**. Umfang: alle sechs Spots und alle
-potenziellen Items aus `LootSpotCatalog`, einschließlich des optionalen Eventitems.
+Stand der Nutzertabellen: **13. September 2026, PC-Version**. Umfang: zwölf Edania-Spots
+und alle potenziellen Items aus `LootSpotCatalog`, einschließlich des optionalen Eventitems.
+
+**Import vom 13. September 2026:** Alle 110 zuvor offenen Outer-Edania-Paare wurden
+aus der ausgefüllten [Excel-Eingabeliste](../data/Dropmengen-Outer-Edania-Eingabe.xlsx)
+übernommen. Zusammen mit den 213 bestehenden Inner-Edania-Paaren und den sechs
+globalen Empty-Picture-Frame-Ergänzungen sind alle **329 Item-/Spot-Kombinationen**
+vollständig gepflegt; 255 haben Minimum = Maximum = 1. Die 219 bereits vorhandenen
+Werte bleiben unverändert. Vor dem Spotlock wird für gemeinsame Items nur eine
+über alle unterstützten Spots sichere Grenze verwendet. Quellen und Ausnahmen
+stehen in [Outer Edania](OUTER_EDANIA_SOURCES.md).
+
+Die Outer-Edania-Arbeitsmappe enthält deutsche und englische Namen. Ihr SHA-256 ist
+`546151963fd3173ea2ebdbb55c655fbe26816ea51fbeabe83b14ae75b21e1384`.
+Die Herkunft jeder übernommenen Menge ist mit den Excel-Zellen `Eingabe!D11:E120`
+im JSON dokumentiert; `additionalSources` enthält den zugehörigen Datei-Hash.
+Die Werte gelten gemeinsam für Deutsch und Englisch. Für spätere Änderungen können
+`Minimum` und `Maximum` weiter gepflegt werden; Bezeichnungen und Spot-IDs bleiben
+unverändert. Danach sind ein erneuter Import und Neubau nötig. Die App liest die
+Arbeitsmappe nicht zur Laufzeit.
 
 Gesucht sind das **kleinste positive Minimum** und das **höchste mögliche Maximum
 einer einzelnen angezeigten Dropmenge** je Item und Spot. Das Maximum muss auch
@@ -26,7 +44,7 @@ Der eingebundene Datensatz steht in
 [`data/drop-quantities.json`](../data/drop-quantities.json), einschließlich
 der jeweiligen Excel-Quellzellen. Kein zulässiges Paar wurde ausgelassen.
 
-## Vollständige Tabelle der Nutzervorgaben
+## Inner-Edania-Tabelle der Nutzervorgaben
 
 Spalten: **Ap** = Aphrodon Temple, **He** = Hermesia Inner Castle,
 **Ma** = Magaia Temple, **Ar** = Aresion Temple, **Sc** = Scales of Judgment,

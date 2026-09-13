@@ -5,13 +5,32 @@
 @inject IJSRuntime JS
 
 <div class="page overlay-editor" id="overlay-editor">
+    @if (Overlay.LoadError is { } loadError)
+    {
+        <div class="notice error-notice" role="alert"><AppIcon Name="info" /><div><strong>Gespeicherte Overlays nicht verfügbar</strong><span>@loadError</span></div><button type="button" class="button secondary" @onclick="ReloadOverlays" disabled="@_windowBusy">Erneut laden</button></div>
+    }
+    <fieldset class="autosave-fields" disabled="@(Overlay.LoadError is not null)">
     <div class="page-heading oe-heading">
-        <div><h1>Ingame-Overlay</h1></div>
+        <div><h1>Ingame-Overlays</h1></div>
         <div class="page-actions">
             <button class="button secondary" aria-pressed="@Overlay.State.Previewing" @onclick="TogglePreview"><AppIcon Name="monitor" />@(Overlay.State.Previewing ? "Vorschau beenden" : "Auf Bildschirm testen")</button>
             <label class="oe-enable"><span>Overlay aktiv</span><input type="checkbox" class="switch" checked="@_settings.Enabled" @onchange="e => Change(s => s with { Enabled = Checked(e) })" /></label>
         </div>
     </div>
+
+    <section class="panel oe-window-manager" aria-label="Overlay-Fenster verwalten">
+        <div class="oe-window-heading"><AppIcon Name="monitor" /><strong>Deine Overlay-Fenster</strong><span>@Overlay.Overlays.Count erstellt · @Overlay.Overlays.Count(window => window.Settings.Enabled) aktiv</span></div>
+        <div class="oe-window-fields">
+            <label class="oe-field"><span>Fenster bearbeiten</span><select aria-label="Overlay-Fenster auswählen" value="@_editingOverlayId" @onchange="SelectOverlay" disabled="@WindowActionsBusy">@foreach (var window in Overlay.Overlays) { <option value="@window.Id">@window.Name · @(window.Settings.Enabled ? "Aktiv" : "Aus")</option> }</select></label>
+            <label class="oe-field"><span>Name</span><input aria-label="Overlay-Name" maxlength="60" value="@SelectedOverlayName" @onchange="RenameOverlay" disabled="@WindowActionsBusy" /></label>
+            <div class="oe-window-actions">
+                <button type="button" class="button primary" @onclick="CreateOverlay" disabled="@WindowActionsBusy"><AppIcon Name="plus" />Neues Overlay</button>
+                <button type="button" class="button secondary" @onclick="DuplicateOverlay" disabled="@WindowActionsBusy">Duplizieren</button>
+                <button type="button" class="icon-button" aria-label="Ausgewähltes Overlay löschen" title="Overlay löschen" @onclick="RequestOverlayDelete" disabled="@(WindowActionsBusy || Overlay.Overlays.Count <= 1)"><AppIcon Name="delete" /></button>
+            </div>
+        </div>
+        <p class="oe-help">Jedes aktive Overlay erscheint als eigenes Fenster mit eigenem Layout, Position und Verhalten. Hier bearbeitest du „@SelectedOverlayName“.</p>
+    </section>
 
     @if (_error is not null) { <div class="notice error-notice" role="alert"><AppIcon Name="info" /><span>@_error</span></div> }
     @if (Overlay.State.IsError && Overlay.State.Status != _error) { <div class="notice error-notice" role="alert"><AppIcon Name="info" /><span>@Overlay.State.Status</span></div> }
@@ -22,11 +41,11 @@
     </div>
 
     <section class="panel oe-shortcuts" aria-label="Globale Overlay-Tastenkürzel">
-        <div class="oe-shortcuts-title"><strong>Tastenkürzel</strong><span class="oe-shortcuts-state @(_settings.HotkeysEnabled ? "enabled" : "")">@(_settings.HotkeysEnabled ? "Global aktiv" : "Deaktiviert")</span></div>
-        <button type="button" class="oe-shortcut" @onclick="OpenHotkeyEditor" aria-label="Tastenkürzel für Overlay ein/aus ändern"><span>Overlay ein / aus</span><kbd>@_settings.ToggleOverlayHotkey.DisplayText</kbd></button>
-        <button type="button" class="oe-shortcut" @onclick="OpenHotkeyEditor" aria-label="Tastenkürzel für Mausbedienung ändern"><span>Verschieben / Klicks ans Spiel</span><kbd>@_settings.ToggleInteractionHotkey.DisplayText</kbd></button>
+        <div class="oe-shortcuts-title"><strong>Tastenkürzel</strong><small>Für alle Overlays</small><span class="oe-shortcuts-state @(Overlay.Hotkeys.Enabled ? "enabled" : "")">@(Overlay.Hotkeys.Enabled ? "Global aktiv" : "Deaktiviert")</span></div>
+        <button type="button" class="oe-shortcut" @onclick="OpenHotkeyEditor" aria-label="Tastenkürzel für alle Overlays ein/aus ändern"><span>Alle Overlays ein / aus</span><kbd>@Overlay.Hotkeys.ToggleOverlay.DisplayText</kbd></button>
+        <button type="button" class="oe-shortcut" @onclick="OpenHotkeyEditor" aria-label="Tastenkürzel für Mausbedienung aller Overlays ändern"><span>Verschieben / Klicks ans Spiel</span><kbd>@Overlay.Hotkeys.ToggleInteraction.DisplayText</kbd></button>
         <button type="button" class="button secondary" @onclick="OpenHotkeyEditor">Anpassen</button>
-        @if (!string.IsNullOrEmpty(Overlay.State.HotkeyStatus)) { <div class="oe-shortcut-error" role="alert"><AppIcon Name="info" />@Overlay.State.HotkeyStatus</div> }
+        @if (!string.IsNullOrEmpty(Overlay.HotkeyStatus)) { <div class="oe-shortcut-error" role="alert"><AppIcon Name="info" />@Overlay.HotkeyStatus</div> }
     </section>
 
     <details class="panel oe-behavior">
@@ -81,7 +100,8 @@
             <div class="oe-canvas-toolbar"><h2 id="oe-canvas-title">Layout</h2><label class="oe-check"><input type="checkbox" checked="@_settings.SnapToGrid" @onchange="e => Change(s => s with { SnapToGrid = Checked(e) })" /><span>8-px-Raster</span></label><span class="oe-data-kind">@(_demo ? "Beispieldaten" : "Live-Daten")</span></div>
             <div class="oe-stage-viewport" @ref="_viewport">
                 <div class="oe-stage-wrap">
-                    <div class="oe-stage @(_settings.ShowBorder ? "has-border" : "")" data-width="@Css(_settings.Width)" data-height="@Css(_settings.Height)" data-snap="@_settings.SnapToGrid.ToString().ToLowerInvariant()" style="@StageStyle" @onclick="ClearSelection">
+                    <div class="oe-stage @(_settings.ShowBorder ? "has-border" : "")" data-overlay-id="@_editingOverlayId" data-width="@Css(_settings.Width)" data-height="@Css(_settings.Height)" data-snap="@_settings.SnapToGrid.ToString().ToLowerInvariant()" style="@StageStyle" @onclick="ClearSelection">
+                        <div class="oe-stage-content">
                         @if (_settings.Widgets.Count == 0) { <div class="oe-canvas-empty"><AppIcon Name="plus" /><strong>Dein Layout</strong><span>Füge das erste Modul hinzu.</span></div> }
                         @foreach (var widget in _settings.Widgets)
                         {
@@ -92,12 +112,14 @@
                                 <button class="oe-widget-resize" data-widget-resize="@widget.Id" aria-label="@(Label(widget.Kind) + " vergrößern; alternativ Größe in den Moduleinstellungen ändern")" title="Größe ändern"></button>
                             </div>
                         }
+                        </div>
                         <button class="oe-canvas-resize" data-canvas-resize="true" aria-label="Overlay-Größe ändern; alternativ Breite und Höhe unter der Fläche eingeben" title="Overlay-Größe ändern"></button>
                     </div>
                 </div>
             </div>
             <div class="oe-canvas-dimensions"><label>Breite <input aria-label="Overlay-Breite" type="number" min="160" max="1600" step="8" value="@Css(_settings.Width)" @onchange="e => CanvasDimension(e, true)" /></label><span>×</span><label>Höhe <input aria-label="Overlay-Höhe" type="number" min="64" max="1200" step="8" value="@Css(_settings.Height)" @onchange="e => CanvasDimension(e, false)" /></label><span>px</span><span class="oe-fit-label">Vorschau passt sich der Fläche an</span></div>
             <p class="oe-canvas-help">Modul auswählen, am Griff verschieben und an der Ecke vergrößern. Pfeiltasten verschieben das ausgewählte Modul; Umschalt bewegt es um 8 px.</p>
+            <p class="oe-canvas-help">Breite, Höhe und der Eckgriff ändern nur die Fensterfläche. Module behalten Position und Größe. Inhalte außerhalb der Fläche werden ausgeblendet und beim Vergrößern wieder sichtbar.</p>
         </section>
 
         <section class="panel oe-inspector" aria-labelledby="oe-inspector-title">
@@ -105,11 +127,22 @@
             @if (SelectedWidget is { } selected)
             {
                 <div class="oe-inspector-body" @key="selected.Id">
-                    <div class="oe-pair"><label class="oe-field"><span>X</span><input type="number" aria-label="Modul Position X" min="0" max="@Css(_settings.Width - selected.Width)" step="0.01" value="@Css(selected.X)" @onchange='e => WidgetNumber(e, "x")' /></label><label class="oe-field"><span>Y</span><input type="number" aria-label="Modul Position Y" min="0" max="@Css(_settings.Height - selected.Height)" step="0.01" value="@Css(selected.Y)" @onchange='e => WidgetNumber(e, "y")' /></label></div>
-                    <div class="oe-pair"><label class="oe-field"><span>Breite</span><input type="number" aria-label="Modulbreite" min="@Css(Math.Min(80, selected.Width))" max="@Css(_settings.Width - selected.X)" step="0.01" value="@Css(selected.Width)" @onchange='e => WidgetNumber(e, "width")' /></label><label class="oe-field"><span>Höhe</span><input type="number" aria-label="Modulhöhe" min="@Css(Math.Min(40, selected.Height))" max="@Css(_settings.Height - selected.Y)" step="0.01" value="@Css(selected.Height)" @onchange='e => WidgetNumber(e, "height")' /></label></div>
+                    <div class="oe-pair"><label class="oe-field"><span>X</span><input type="number" aria-label="Modul Position X" min="0" max="@Css(1600 - selected.Width)" step="0.01" value="@Css(selected.X)" @onchange='e => WidgetNumber(e, "x")' /></label><label class="oe-field"><span>Y</span><input type="number" aria-label="Modul Position Y" min="0" max="@Css(1200 - selected.Height)" step="0.01" value="@Css(selected.Y)" @onchange='e => WidgetNumber(e, "y")' /></label></div>
+                    <div class="oe-pair"><label class="oe-field"><span>Breite</span><input type="number" aria-label="Modulbreite" min="@Css(Math.Min(80, selected.Width))" max="@Css(1600 - selected.X)" step="0.01" value="@Css(selected.Width)" @onchange='e => WidgetNumber(e, "width")' /></label><label class="oe-field"><span>Höhe</span><input type="number" aria-label="Modulhöhe" min="@Css(Math.Min(40, selected.Height))" max="@Css(1200 - selected.Y)" step="0.01" value="@Css(selected.Height)" @onchange='e => WidgetNumber(e, "height")' /></label></div>
                     <label class="oe-field"><span>Schriftgröße <output>@Percent(selected.FontScale)</output></span><input type="range" min="0.7" max="2" step="0.05" value="@Css(selected.FontScale)" @onchange='e => WidgetNumber(e, "fontScale")' /></label>
                     <label class="oe-check"><input type="checkbox" checked="@selected.ShowLabel" @onchange="e => ChangeWidget(w => w with { ShowLabel = Checked(e) })" /><span>Beschriftung</span></label>
                     <label class="oe-check"><input type="checkbox" checked="@selected.ShowIcon" @onchange="e => ChangeWidget(w => w with { ShowIcon = Checked(e) })" /><span>Icon</span></label>
+                    @if (selected.Kind == "clock")
+                    {
+                        <div class="oe-clock-settings">
+                            <label class="oe-check"><input type="checkbox" checked="@selected.ShowRealTime" disabled="@(!selected.ShowGameTime && !selected.ShowDayNightCountdown)" @onchange="e => ChangeWidget(w => w with { ShowRealTime = Checked(e) })" /><span>Echte Uhrzeit</span></label>
+                            <label class="oe-check"><input type="checkbox" checked="@selected.ShowGameTime" disabled="@(!selected.ShowRealTime && !selected.ShowDayNightCountdown)" @onchange="e => ChangeWidget(w => w with { ShowGameTime = Checked(e) })" /><span>BDO-Ingame-Zeit</span></label>
+                            <label class="oe-check"><input type="checkbox" checked="@selected.ShowDayNightCountdown" disabled="@(!selected.ShowRealTime && !selected.ShowGameTime)" @onchange="e => ChangeWidget(w => w with { ShowDayNightCountdown = Checked(e) })" /><span>Countdown bis Tag / Nacht</span></label>
+                            <label class="oe-check"><input type="checkbox" checked="@selected.ClockShowSeconds" @onchange="e => ChangeWidget(w => w with { ClockShowSeconds = Checked(e) })" /><span>Sekunden anzeigen</span></label>
+                            <label class="oe-field"><span>BDO-Zeitkorrektur (reale Minuten)</span><input type="number" aria-label="BDO-Zeitkorrektur" min="-240" max="240" step="1" value="@selected.ClockOffsetMinutes" @onchange='e => WidgetNumber(e, "clockOffset")' /><small>Positiv stellt die BDO-Zeit vor, negativ zurück.</small></label>
+                            <p class="oe-help">Echte Uhrzeit: lokale Windows-Zeit. Die BDO-Zeit wird aus dem regulären EU/NA-Zyklus berechnet: 200 Minuten Tag, 40 Minuten Nacht. Bei einer abweichenden Serverzeit kannst du die Berechnung korrigieren. Der Countdown zählt reale Zeit.</p>
+                        </div>
+                    }
                     @if (OverlayCatalog.IsLootWidget(selected.Kind))
                     {
                         <div class="oe-loot-settings">
@@ -177,7 +210,15 @@
             else { <div class="oe-inspector-empty"><AppIcon Name="settings" /><p>Wähle ein Modul auf der Fläche aus, um Position, Größe und Inhalt anzupassen.</p></div> }
         </section>
     </div>
+    </fieldset>
 </div>
+
+<dialog id="overlay-window-delete" class="modal confirm-modal" aria-labelledby="overlay-window-delete-title" @oncancel="CloseOverlayDelete" @oncancel:preventDefault>
+    <div class="modal-heading"><h2 id="overlay-window-delete-title">Overlay-Fenster löschen?</h2><button type="button" class="icon-button" aria-label="Overlay-Löschdialog schließen" @onclick="CloseOverlayDelete" disabled="@_windowBusy"><AppIcon Name="close" /></button></div>
+    <p>Das Fenster „@_windowToDelete?.Name“ und sein Layout werden gelöscht. Alle anderen Overlay-Fenster bleiben erhalten.</p>
+    @if (_error is not null) { <div class="notice error-notice" role="alert">@_error</div> }
+    <div class="modal-actions"><button type="button" class="button secondary" @onclick="CloseOverlayDelete" disabled="@_windowBusy" autofocus>Abbrechen</button><button type="button" class="button primary" @onclick="DeleteOverlay" disabled="@(_windowBusy || _windowToDelete is null)">Overlay löschen</button></div>
+</dialog>
 
 <dialog id="overlay-layout-confirm" class="modal confirm-modal" aria-labelledby="overlay-layout-title" aria-describedby="overlay-layout-description" @oncancel="CloseLayoutConfirmation" @oncancel:preventDefault>
     <div class="modal-heading">
@@ -194,9 +235,10 @@
 
 <dialog id="overlay-hotkeys-edit" class="modal oe-hotkey-modal" aria-labelledby="overlay-hotkeys-title" @oncancel="CloseHotkeyEditor" @oncancel:preventDefault>
     <div class="modal-heading"><h2 id="overlay-hotkeys-title">Tastenkürzel anpassen</h2><button type="button" class="icon-button" aria-label="Tastenkürzel-Dialog schließen" @onclick="CloseHotkeyEditor" disabled="@_hotkeyBusy"><AppIcon Name="close" /></button></div>
-    <p>Für jedes Tastenkürzel ist Strg, Alt oder Strg+Alt erforderlich, auch bei Funktionstasten.</p>
+    <p>Für jedes Tastenkürzel ist Strg, Alt oder Strg+Alt erforderlich, auch bei Funktionstasten. Die beiden Kürzel steuern immer alle Overlay-Fenster gemeinsam.</p>
+    <p>Ein / aus blendet alle Overlays aus, sobald eines aktiv oder in der Bildschirmvorschau ist. Sind alle aus, werden alle eingeschaltet. Der zweite Hotkey schaltet alle auf „Klicks ans Spiel“ und beim nächsten Drücken zurück auf „Verschieben“.</p>
     <label class="oe-check oe-hotkeys-toggle"><input type="checkbox" @bind="_hotkeysEnabledDraft" disabled="@_hotkeyBusy" /><span>Globale Tastenkürzel aktiv</span></label>
-    <OverlayHotkeyField Label="Overlay ein / aus" @bind-Value="_toggleOverlayDraft" Disabled="@_hotkeyBusy" />
+    <OverlayHotkeyField Label="Alle Overlays ein / aus" @bind-Value="_toggleOverlayDraft" Disabled="@_hotkeyBusy" />
     <OverlayHotkeyField Label="Verschieben / Klicks ans Spiel" @bind-Value="_toggleInteractionDraft" Disabled="@_hotkeyBusy" />
     @if (HotkeyValidationError is { } validationError) { <p class="oe-shortcut-error" role="alert">@validationError</p> }
     @if (_hotkeyFormError is not null) { <div class="notice error-notice" role="alert">@_hotkeyFormError</div> }

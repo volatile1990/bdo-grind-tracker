@@ -373,14 +373,20 @@ public sealed class LootDiagnosticRecordingTests : IDisposable
     public void ExplicitStorageLimitStopsRecordingWithoutWritingAnOversizedEntry()
     {
         using var source = new Bitmap(4, 4);
-        using var recording = DiagnosticRecordingSession.Start(temporaryDirectory, null, 16_000, 10);
+        long byteLimit;
+        using (var baseline = DiagnosticRecordingSession.Start(temporaryDirectory))
+        {
+            Assert.True(baseline.IsRecording);
+            byteLimit = new FileInfo(baseline.RecordingPath!).Length + 1024;
+        }
+        using var recording = DiagnosticRecordingSession.Start(temporaryDirectory, null, byteLimit, 10);
         Assert.True(recording.IsRecording);
         var observation = Observation() with { RawText = new string('X', 2000) };
         recording.RecordFrame(StartTime, Enumerable.Repeat(observation, 8).ToArray(), new TrackerFrameResult([], []), source, null, null);
 
         Assert.False(recording.IsRecording);
         Assert.Contains("Speicherlimit", recording.LastError);
-        Assert.True(new FileInfo(recording.RecordingPath!).Length <= 16_000);
+        Assert.True(new FileInfo(recording.RecordingPath!).Length <= byteLimit);
         Assert.Equal(0, LootDiagnosticReplay.Run(recording.RecordingPath!).FrameCount);
     }
 

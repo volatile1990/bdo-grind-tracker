@@ -11,7 +11,7 @@ internal sealed partial class TrackerSessionService
 
     private AgrisState UpdateAgrisSession()
     {
-        var now = DateTimeOffset.UtcNow;
+        var now = _captureSession.ObservationTime;
         var running = _hasSession && !_demoMode && _uiRunning && _sessionClock.IsRunning;
         var visible = false;
         if (running && _lastCaptureDesktopRegion is { } region)

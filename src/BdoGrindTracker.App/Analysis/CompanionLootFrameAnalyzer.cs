@@ -10,15 +10,20 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
 {
     internal const string ExactVariantName = "bdo-companion-0.7.4";
     internal const string RecoveryVariantName = "companion-0.7.4+normal-recovery-v1";
+    internal const string IndependentSpecialVariantName = "independent-special-v1";
     private CompanionCalibration _calibration;
+    public CompanionCalibration CaptureCalibration => Volatile.Read(ref _calibration);
     private readonly CompanionItemMatcher _itemMatcher;
     private readonly ICompanionBitmapDecoder _frameDecoder;
     private readonly ICompanionNormalRowPipeline _rowPipeline;
     private ICompanionRareRowPipeline? _rareRowPipeline;
     private readonly ICompanionNameRecognizer _nameRecognizer;
     private readonly INormalLootRecovery? _normalRecovery;
+    private readonly INormalLootRecovery? _rareRecovery;
+    private readonly LifetimeNormalReconciliationAdapter? _specialReconciliation;
     private readonly ILootRowReview? _rowReview;
     private readonly TrashQuantityAnomalyDetector? _trashQuantityAnomalies;
+    private readonly TrashQuantityAnomalyDetector? _rareQuantityAnomalies;
     private readonly LootPanelCaptureGuard? _captureGuard;
     private readonly Action<string>? _configureGameLanguage;
     private readonly Func<string?, string, DropQuantityBounds?> _quantityBoundsResolver;
@@ -54,20 +59,29 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
         LootPanelCaptureGuard? captureGuard = null,
         Action<string>? configureGameLanguage = null,
         ILootRowReview? rowReview = null,
-        bool reviewTrashQuantityAnomalies = true)
+        bool reviewTrashQuantityAnomalies = true,
+        INormalLootRecovery? rareRecovery = null,
+        LifetimeNormalReconciliationAdapter? specialReconciliation = null)
     {
         _calibration = calibration ?? throw new ArgumentNullException(nameof(calibration));
         _itemMatcher = itemMatcher ?? throw new ArgumentNullException(nameof(itemMatcher));
         _rowPipeline = rowPipeline ?? throw new ArgumentNullException(nameof(rowPipeline));
         _nameRecognizer = nameRecognizer ?? throw new ArgumentNullException(nameof(nameRecognizer));
         _normalRecovery = normalRecovery;
+        _rareRecovery = rareRecovery;
+        _specialReconciliation = specialReconciliation;
         _rowReview = rowReview;
         _trashQuantityAnomalies = reviewTrashQuantityAnomalies ? new TrashQuantityAnomalyDetector() : null;
+        _rareQuantityAnomalies = reviewTrashQuantityAnomalies && specialReconciliation is not null
+            ? new TrashQuantityAnomalyDetector(LootSource.Rare) : null;
         _captureGuard = captureGuard;
         _configureGameLanguage = configureGameLanguage;
         _quantityBoundsResolver = quantityBoundsResolver ?? DropQuantityCatalog.GetBounds;
         _normalRecovery?.ConfigureQuantityBounds(name => _quantityBoundsResolver(_spotLock.Spot?.Id, name));
+        _rareRecovery?.ConfigureQuantityBounds(name => _quantityBoundsResolver(_spotLock.Spot?.Id, name));
         _reconciliation = reconciliation ?? new CompanionReconciliationAdapter();
+        if (specialReconciliation is not null && !_reconciliation.UsesRawText)
+            throw new ArgumentException("Independent special tracking requires the raw-text normal counter.", nameof(specialReconciliation));
         _frameDecoder = frameDecoder ?? CompanionBitmapDecoder.Instance;
         _panelBounds = CompanionNormalLootGeometry.CalculatePanelBounds(calibration);
         _slotBounds = CompanionNormalLootGeometry.CalculateSlotCrops(calibration).ToArray();
@@ -76,8 +90,9 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
             _rarePanelBounds = CompanionNormalLootGeometry.CalculateRarePanelBounds(calibration);
             _rareBandBounds = CompanionNormalLootGeometry.CalculateRareBandCrop(calibration);
             _rareRowPipeline = rareRowPipeline ?? new CompanionRareRowPipeline();
-            _rareReconciliation = rareReconciliation ?? new CompanionRareReconciliationAdapter(
-                new CompanionRareFrameReconciler(itemMatcher.CatalogEntries, _ledger));
+            if (_specialReconciliation is null)
+                _rareReconciliation = rareReconciliation ?? new CompanionRareReconciliationAdapter(
+                    new CompanionRareFrameReconciler(itemMatcher.CatalogEntries, _ledger));
         }
         else
         {
@@ -112,8 +127,9 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
         if (current.HasRareLootAnchor && _rareRowPipeline is null)
         {
             _rareRowPipeline = new CompanionRareRowPipeline();
-            _rareReconciliation ??= new CompanionRareReconciliationAdapter(
-                new CompanionRareFrameReconciler(_itemMatcher.CatalogEntries, _ledger));
+            if (_specialReconciliation is null)
+                _rareReconciliation ??= new CompanionRareReconciliationAdapter(
+                    new CompanionRareFrameReconciler(_itemMatcher.CatalogEntries, _ledger));
         }
 
         var normalMoved = _panelBounds != panel || !_slotBounds.SequenceEqual(slots);
@@ -188,7 +204,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
                 ValidateBoundsInsideFrame(decodedFrame, rareBounds, "Rare-Loot-Band");
                 using var band = new Mat(decodedFrame, ToOpenCvRect(rareBounds));
                 rareRow = _rareRowPipeline.Process(band, 0,
-                    _calibration.UiScale, (int)_calibration.FontType, isHdr);
+                    _calibration.UiScale, (int)_calibration.FontType, isHdr, isToneMapped);
             }
 
             // Preserve Companion's trimming and OCR order, including the one row
@@ -202,7 +218,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
             var normal = new List<LootObservation>();
             var rare = new List<LootObservation>();
             var rawLines = new List<string>();
-            var primaryQuantityReads = _rowReview is null ? null : new Dictionary<int, List<PrimaryLootQuantityRead>>();
+            var primaryQuantityReads = _rowReview is null ? null : new Dictionary<(LootSource Source, int Y), List<PrimaryLootQuantityRead>>();
             var ocrCalls = 0;
             for (var index = first; index < preparedRows.Count; index++)
                 Observe(preparedRows[index], LootSource.Normal, preparedRows.Count - 1 - index, normal);
@@ -274,6 +290,44 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
                     quantitiesRecovered, rowsRecovered, budget.Errors);
             }
 
+            var rareRecoveryDiagnostics = NormalLootRecoveryDiagnostics.Empty;
+            if (_rareRecovery is not null && rareRow is not null && _rareBandBounds is { } recoveryRareBounds)
+            {
+                var baseline = rare.SingleOrDefault();
+                if (baseline is not { Quantity: > 0 } || !IsAccepted(baseline))
+                {
+                    // A separate budget prevents a busy normal panel from starving the special line.
+                    var budget = new NormalLootRecoveryBudget();
+                    using var originalBand = new Mat(decodedFrame, ToOpenCvRect(recoveryRareBounds));
+                    var recovered = _rareRecovery.Recover(originalBand, rareRow, baseline, 0,
+                        _calibration.UiScale, budget, cancellationToken,
+                        (reading, scale) => RememberPrimaryRead(rareRow.Y, reading, scale, source: LootSource.Rare));
+                    var quantitiesRecovered = 0;
+                    var rowsRecovered = 0;
+                    if (recovered is not null && IsAccepted(recovered))
+                    {
+                        recovered = ApplyQuantityPolicy(recovered);
+                        if (baseline is not null && IsAccepted(baseline))
+                        {
+                            if (!baseline.Quantity.HasValue && recovered.Quantity is > 0 &&
+                                baseline.ItemName == recovered.ItemName)
+                            {
+                                rare[0] = baseline with { Quantity = recovered.Quantity };
+                                quantitiesRecovered++;
+                            }
+                        }
+                        else
+                        {
+                            rare.Clear();
+                            rare.Add(recovered with { Source = LootSource.Rare, Slot = 0, NativeY = rareRow.Y });
+                            rowsRecovered++;
+                        }
+                    }
+                    ocrCalls += budget.OcrCalls;
+                    rareRecoveryDiagnostics = new(1, budget.OcrCalls, quantitiesRecovered, rowsRecovered, budget.Errors);
+                }
+            }
+
             var reviewDiagnostics = new List<LootRowReviewDiagnostics>();
             if (_rowReview is not null)
             {
@@ -319,9 +373,10 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
                             name => _quantityBoundsResolver(spotId, name), allowed.Contains)
                         {
                             UiScale = _calibration.UiScale,
-                            QuantityAnomaly = baseline is null ? null : _trashQuantityAnomalies?.Assess(spotId, baseline),
-                            PrimaryQuantityReads = source == LootSource.Normal &&
-                                primaryQuantityReads?.TryGetValue(row.Y, out var reads) == true
+                            QuantityAnomaly = baseline is null ? null :
+                                (source == LootSource.Normal ? _trashQuantityAnomalies : _rareQuantityAnomalies)?.Assess(spotId, baseline),
+                            ApplyNormalSafetyRules = _specialReconciliation is not null,
+                            PrimaryQuantityReads = primaryQuantityReads?.TryGetValue((source, row.Y), out var reads) == true
                                     ? Array.AsReadOnly(reads.ToArray()) : [],
                         }, cancellationToken)
                         .ConfigureAwait(false);
@@ -420,12 +475,19 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
             ObserveCountEvidence(reconciled);
             foreach (var entry in reconciled) _ledger.ApplyDelta(entry.Name, entry.QuantityDelta ?? (long)entry.Count);
             var rareChanges = _rareReconciliation?.ProcessFrame(rareEntries) ?? [];
+            // An unavailable panel is not an observed empty notification. Preserve
+            // its episode through layout changes and resume when pixels return.
+            if (rareRow is not null)
+                _specialReconciliation?.ProcessObservations(
+                    observations.Where(row => row.Source == LootSource.Rare).ToArray(), capturedAt);
+            RefreshSpecialQuantityHistory();
             return CreateResult(reconciled, rareChanges, capturedAt, frame.Size,
                 rawLines, observations, preparedRows.Count + (rareRow is null ? 0 : 1),
                 preparedRows.Count(row => !row.IsBlank) + (rareRow is { IsBlank: false } ? 1 : 0), ocrCalls,
                 isToneMapped) with
             {
                 Recovery = recoveryDiagnostics,
+                RareRecovery = rareRecoveryDiagnostics,
                 RowReviews = reviewDiagnostics,
             };
 
@@ -435,18 +497,29 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
                 if (row.IsBlank || row.NameImage is null) return;
                 ocrCalls++;
                 var ocr = _nameRecognizer.Recognize(row.NameImage, cancellationToken);
-                if (source == LootSource.Normal) RememberPrimaryRead(row.Y, ocr, row.NameScale, row.NormalizedNameTop);
+                if (source == LootSource.Normal || _specialReconciliation is not null)
+                    RememberPrimaryRead(row.Y, ocr, row.NameScale, row.NormalizedNameTop, source);
                 if (ocr.Text.Length > 0) rawLines.Add(ocr.Text);
                 var isRare = source == LootSource.Rare;
                 string? rejection = null;
                 CompanionItemMatch? match = null;
                 CompanionTextResult? text = null;
                 if (!isRare && !CompanionWindowsOcrRecognizer.PassesGeometryGate(
-                    ocr.FirstWord, _calibration.UiScale, false))
+                    ocr.FirstWord, _calibration.UiScale, false) ||
+                    isRare && _specialReconciliation is not null &&
+                    !RareLootRecoveryPreprocessor.PassesGeometryGate(ocr.FirstWord, row.RecognizedTextWidth))
                     rejection = "ocr-geometry";
                 else
                 {
-                    text = CompanionTextPipeline.Process(ocr.Text, row.TemplateQuantity,
+                    var inputText = ocr.Text;
+                    int? completeSpecialQuantity = null;
+                    if (isRare && _specialReconciliation is not null &&
+                        NormalLootRecovery.TryParseTrailingQuantity(ocr.Text, out var amount, out var completeName))
+                    {
+                        completeSpecialQuantity = amount;
+                        inputText = completeName;
+                    }
+                    text = CompanionTextPipeline.Process(inputText, row.TemplateQuantity,
                         isRare, row.RecognizedTextWidth, name =>
                         {
                             if (!_itemMatcher.TryMatch(name, 1, isRare, out var candidate) || candidate is null ||
@@ -455,6 +528,11 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
                             match = candidate;
                             return true;
                         });
+                    // The independent source follows normal quantity safety: a missing
+                    // suffix is not evidence for one, except for catalog-confirmed 1/1 items.
+                    if (isRare && _specialReconciliation is not null && !text.Value.UsesFixedUnitQuantity)
+                        text = text.Value with { Quantity = completeSpecialQuantity ?? -1,
+                            HasParsedOcrQuantity = completeSpecialQuantity.HasValue };
                     if (!CompanionTextPipeline.PassesExpectedWidth(text.Value,
                         row.RecognizedTextWidth, row.LeftmostQuantityX, row.NameScale))
                         rejection = "ocr-width-or-empty";
@@ -468,18 +546,20 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
                 {
                     NativeY = row.Y,
                     QuantityBounds = match is null ? null : _quantityBoundsResolver(_spotLock.Spot?.Id, match.CanonicalName),
-                    UsesImplicitUnitQuantity = isRare && text is { HasParsedOcrQuantity: false, UsesFixedUnitQuantity: false },
+                    UsesImplicitUnitQuantity = isRare && _specialReconciliation is null &&
+                        text is { HasParsedOcrQuantity: false, UsesFixedUnitQuantity: false },
                     UsesFixedUnitQuantity = text is { UsesFixedUnitQuantity: true },
                 });
             }
 
-            void RememberPrimaryRead(int y, CompanionOcrResult reading, float scale, float normalizedNameTop = 0)
+            void RememberPrimaryRead(int y, CompanionOcrResult reading, float scale, float normalizedNameTop = 0,
+                LootSource source = LootSource.Normal)
             {
                 if (primaryQuantityReads is null || reading.Words.Count == 0 || !float.IsFinite(scale) || scale <= 0 ||
                     !float.IsFinite(normalizedNameTop) || normalizedNameTop < 0 || normalizedNameTop >= 100)
                     return;
-                if (!primaryQuantityReads.TryGetValue(y, out var reads))
-                    primaryQuantityReads.Add(y, reads = []);
+                if (!primaryQuantityReads.TryGetValue((source, y), out var reads))
+                    primaryQuantityReads.Add((source, y), reads = []);
                 // One initial name read and the existing two recovery variants;
                 // no image or cross-frame history is retained with these hints.
                 if (reads.Count < 3) reads.Add(new PrimaryLootQuantityRead(reading, scale, normalizedNameTop));
@@ -502,6 +582,8 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
         ObserveCountEvidence(reconciled);
         foreach (var entry in reconciled) _ledger.ApplyDelta(entry.Name, entry.QuantityDelta ?? (long)entry.Count);
         var rareChanges = _rareReconciliation?.Complete() ?? [];
+        _specialReconciliation?.Complete();
+        RefreshSpecialQuantityHistory();
         return CreateResult(reconciled, rareChanges, completedAt,
             new System.Drawing.Size(_calibration.ScreenWidth, _calibration.ScreenHeight),
             [], [], 0, 0, 0);
@@ -512,6 +594,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
         ObjectDisposedException.ThrowIf(_disposed, this);
         _reconciliation.Reset();
         _rareReconciliation?.Reset();
+        _specialReconciliation?.Reset();
         _ledger.Reset();
         _projectionComposer.Reset();
         _parsingSpotId = null;
@@ -523,6 +606,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
         _occupancyTracker.Reset();
         _occupancyRepresentation = null;
         _trashQuantityAnomalies?.Reset();
+        _rareQuantityAnomalies?.Reset();
     }
 
     public void Dispose()
@@ -560,6 +644,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
             .Select(item => new LifetimeParsingCatalogEntry(item.Name, item.Aliases,
                 _quantityBoundsResolver(_spotLock.Spot?.Id, item.Name)?.IsFixedUnit == true)).ToArray();
         lifetime.UpdateParsingContext(new(checked(current.Revision + 1), allowed));
+        _specialReconciliation?.UpdateParsingContext(lifetime.ParsingContext!);
         _parsingSpotId = _spotLock.Spot?.Id;
     }
 
@@ -576,6 +661,16 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
         }
         if (UsesTemporalTracking) _spotLock.ObserveConfirmed(reconciled);
         _trashQuantityAnomalies?.ObserveCountedDrops(_spotLock.Spot?.Id, reconciled);
+    }
+
+    private void RefreshSpecialQuantityHistory()
+    {
+        if (_rareQuantityAnomalies is null || _specialReconciliation?.Projection is not { } projection) return;
+        _rareQuantityAnomalies.Reset();
+        _rareQuantityAnomalies.ObserveCountedDrops(_spotLock.Spot?.Id,
+            projection.PolicyDrops.Select(drop => new CompanionRecognizedEntry(drop.Name, checked((uint)drop.Quantity))
+            { EventId = drop.EventId, DetectedAt = drop.DetectedAt, QuantityDelta = drop.Quantity,
+                TotalDropQuantity = drop.Quantity, QuantityBounds = _quantityBoundsResolver(_spotLock.Spot?.Id, drop.Name) }).ToArray());
     }
 
     private LootObservation ApplyQuantityPolicy(LootObservation row)
@@ -595,8 +690,12 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
         IReadOnlyList<LootObservation> observations, int prepared, int nonBlank, int ocrCalls,
         bool isToneMapped = false)
     {
+        var parsingContext = _specialReconciliation is not null && _reconciliation.Projection is null
+            ? null : _reconciliation.ParsingContext;
         var projectionResult = _reconciliation.Projection is { } normalProjection
-            ? _projectionComposer.Combine(normalProjection, rareChanges, timestamp) : default;
+            ? _specialReconciliation?.Projection is { } specialProjection
+                ? _projectionComposer.Combine(normalProjection, specialProjection, timestamp)
+                : _projectionComposer.Combine(normalProjection, rareChanges, timestamp) : default;
         var events = projectionResult.Projection is not null
             ? projectionResult.Events.Select(change => new LootEventView(change.EventId, change.DetectedAt, change.ItemName, change.Quantity)).ToArray()
             : reconciled.Select(entry => new LootEventView(entry.EventId ?? Guid.NewGuid(), entry.DetectedAt ?? timestamp,
@@ -617,12 +716,16 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
         {
             var change = events[index];
             var source = projectionResult.Projection is not null
-                ? _reconciliation.Projection!.Totals.GetValueOrDefault(change.ItemName) > 0 ? LootSource.Normal : LootSource.Rare
+                ? _specialReconciliation?.Projection is { } special
+                    ? special.Deltas.GetValueOrDefault(change.ItemName) != 0 &&
+                        _reconciliation.Projection!.Deltas.GetValueOrDefault(change.ItemName) == 0 ? LootSource.Rare : LootSource.Normal
+                    : _reconciliation.Projection!.Totals.GetValueOrDefault(change.ItemName) > 0 ? LootSource.Normal : LootSource.Rare
                 : index < reconciled.Count ? LootSource.Normal : LootSource.Rare;
             decisions.Add(new(new LootObservation(source,
                 0, "", change.ItemName, change.Quantity, 0, 0, null, null),
                 change.EventId, LootTrackingDecisionStatus.Counted,
-                projectionResult.Projection is not null ? "lifetime-projection-change" :
+                projectionResult.Projection is not null
+                    ? _specialReconciliation is not null ? "independent-source-projection-change" : "lifetime-projection-change" :
                 change.Revision > 0 ? "drop-quantity-correction" :
                 index < reconciled.Count && reconciled[index].IsMinimumQuantityEstimate
                     ? LootDiagnosticFormat.MinimumQuantityEstimateReason : "companion-delta") { TrackId = change.EventId });
@@ -637,11 +740,12 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
                 (UsesTemporalTracking ? "+" + _reconciliation.AlgorithmName :
                     _reconciliation.TracksRows ? "+row-tracks-v1" : string.Empty) +
                 (UsesVisualAppearance ? "+" + LootDiagnosticFormat.VisualAppearanceVariantName : string.Empty) +
-                (UsesOccupancyEvidence ? "+" + LootDiagnosticFormat.VisualOccupancyVariantName : string.Empty),
+                (UsesOccupancyEvidence ? "+" + LootDiagnosticFormat.VisualOccupancyVariantName : string.Empty) +
+                (_specialReconciliation is not null ? "+" + IndependentSpecialVariantName : string.Empty),
             prepared, nonBlank, ocrCalls, accepted.Length, _panelBounds)
         {
             LootProjection = projectionResult.Projection,
-            LifetimeParsingContext = _reconciliation.ParsingContext,
+            LifetimeParsingContext = parsingContext,
             FrameSize = frameSize,
             SlotRegions = _slotBounds,
             RarePanelRegion = _rarePanelBounds,
@@ -655,7 +759,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
                 { Revision = change.Revision, TotalDropQuantity = change.TotalDropQuantity }).ToArray(), decisions)
                 { NormalCaptureIndex = _reconciliation.CaptureIndex, NormalReconciliation = _reconciliation.LastTrace,
                     LootProjection = projectionResult.Projection,
-                    LifetimeParsingContext = _reconciliation.ParsingContext },
+                    LifetimeParsingContext = parsingContext },
             SpotId = _spotLock.Spot?.Id,
         };
     }
@@ -863,6 +967,9 @@ internal interface ICompanionRareRowPipeline : IDisposable
         float uiScale,
         int fontType,
         bool isHdr);
+
+    ICompanionPreparedRow Process(Mat band, int y, float uiScale, int fontType,
+        bool isHdr, bool isToneMapped) => Process(band, y, uiScale, fontType, isHdr);
 }
 
 internal sealed class CompanionRareRowPipeline : ICompanionRareRowPipeline
@@ -880,6 +987,15 @@ internal sealed class CompanionRareRowPipeline : ICompanionRareRowPipeline
         ObjectDisposedException.ThrowIf(_disposed, this);
         return new CompanionPreparedRareRow(
             _processor.Process(band, y, uiScale, fontType, isHdr));
+    }
+
+    public ICompanionPreparedRow Process(Mat band, int y, float uiScale, int fontType,
+        bool isHdr, bool isToneMapped)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        return isToneMapped
+            ? new CompanionPreparedRareRow(ToneMappedRareRowProcessor.Process(band, y))
+            : Process(band, y, uiScale, fontType, isHdr);
     }
 
     public void Dispose() => _disposed = true;

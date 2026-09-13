@@ -6,6 +6,49 @@ namespace BdoGrindTracker.App.Tests;
 
 public sealed class SettingsStoreTests
 {
+    [Theory]
+    [InlineData("{broken")]
+    [InlineData("null")]
+    public void CorruptSettingsCannotBeOverwrittenUntilExplicitSuccessfulReload(string content)
+    {
+        using var fixture = new IsolatedStore();
+        File.WriteAllText(fixture.Path, content);
+        var fallback = fixture.Store.Load();
+        Assert.NotNull(fixture.Store.LoadError);
+        Assert.Throws<IOException>(() => fixture.Store.Save(fallback));
+        Assert.Equal(content, File.ReadAllText(fixture.Path));
+        File.WriteAllText(fixture.Path, "{\"AutoPauseMinutes\":12,\"MarketRegion\":\"na\"}");
+        Assert.Throws<IOException>(() => fixture.Store.Save(fallback));
+        var recovered = fixture.Store.Load();
+        Assert.Null(fixture.Store.LoadError);
+        Assert.Equal(12, recovered.AutoPauseMinutes);
+        Assert.Equal("na", recovered.MarketRegion);
+        fixture.Store.Save(recovered);
+    }
+
+    [Fact]
+    public void TransientReadLockDoesNotTurnLaterSaveIntoAReset()
+    {
+        using var fixture = new IsolatedStore();
+        File.WriteAllText(fixture.Path, "{\"AutoPauseMinutes\":12}");
+        AppSettings fallback;
+        using (var locked = new FileStream(fixture.Path, FileMode.Open, FileAccess.Read, FileShare.None))
+            fallback = fixture.Store.Load();
+        Assert.Throws<IOException>(() => fixture.Store.Save(fallback));
+        Assert.Contains("12", File.ReadAllText(fixture.Path));
+        Assert.Equal(12, fixture.Store.Load().AutoPauseMinutes);
+        Assert.Null(fixture.Store.LoadError);
+    }
+
+    [Fact]
+    public void SaveWithoutPriorLoadStillProtectsAnUnreadExistingFile()
+    {
+        using var fixture = new IsolatedStore();
+        File.WriteAllText(fixture.Path, "broken settings");
+        Assert.Throws<IOException>(() => fixture.Store.Save(new AppSettings()));
+        Assert.Equal("broken settings", File.ReadAllText(fixture.Path));
+    }
+
     [Fact]
     public void MissingSettingsUseThreeMinuteDefault()
     {
