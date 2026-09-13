@@ -12,7 +12,11 @@ internal sealed class CaptureConfigurationCatalog(string? blackDesertDirectory =
 
     internal CompanionCalibration Read(string? path)
     {
-        return LootPanelCaptureGuard.ReadCalibration(() => _reader.Read(FindRoot(path), path));
+        try { return LootPanelCaptureGuard.ReadCalibration(() => _reader.Read(FindRoot(path), path)); }
+        catch (Exception error) when (IsConfigurationError(error))
+        {
+            throw new LootPanelUnavailableException(CaptureConfigurationErrorPresentation.Describe(error), error);
+        }
     }
 
     internal CaptureConfigurationOption Inspect(string path)
@@ -33,12 +37,14 @@ internal sealed class CaptureConfigurationCatalog(string? blackDesertDirectory =
             try
             {
                 foreach (var candidate in _reader.ScanCandidates(root))
-                    options[candidate.GameVariablePath] = candidate.IsValid
-                        ? Inspect(candidate.GameVariablePath)
-                        : new(candidate.GameVariablePath, Label(candidate.GameVariablePath), candidate.LastWriteUtc,
-                            0, 0, 0, null, null, "Nicht verfügbar", candidate.ValidationError);
+                    // Validate through the app boundary to retain the exception
+                    // type; a raw candidate error can include XML contents.
+                    options[candidate.GameVariablePath] = Inspect(candidate.GameVariablePath);
             }
-            catch (Exception error) when (IsConfigurationError(error)) { errors.Add(error.Message); }
+            catch (Exception error) when (IsConfigurationError(error))
+            {
+                errors.Add(CaptureConfigurationErrorPresentation.Describe(error));
+            }
         }
 
         string? activePath = null;
@@ -50,7 +56,7 @@ internal sealed class CaptureConfigurationCatalog(string? blackDesertDirectory =
         }
         catch (Exception error) when (IsConfigurationError(error))
         {
-            errors.Add("Aktuelle Konfiguration: " + DescribeError(error));
+            errors.Add("Aktuelle Konfiguration: " + CaptureConfigurationErrorPresentation.Describe(error));
             if (selectedPath is not null) options[selectedPath] = Invalid(selectedPath, error);
         }
         return new(options.Values.OrderByDescending(option => option.LastWriteUtc)
@@ -63,15 +69,17 @@ internal sealed class CaptureConfigurationCatalog(string? blackDesertDirectory =
         var normal = CompanionNormalLootGeometry.CalculatePanelBounds(calibration);
         Rectangle? rare = calibration.HasRareLootAnchor
             ? CompanionNormalLootGeometry.CalculateRareBandCrop(calibration) : null;
-        var status = calibration.RareLootResolution?.Status switch
+        var status = calibration.RareLootResolution?.Reason == "rare-band-shape-changed-restart-required"
+            ? "Position verändert · für eine neue Session erneut übernehmen"
+            : calibration.RareLootResolution?.Status switch
         {
-            RareLootAnchorStatus.Active => "Sichtbar · aktive Position",
-            RareLootAnchorStatus.PresetFallback => "Sichtbar · Position aus gespeichertem UI-Preset",
+            RareLootAnchorStatus.Active => "Position gespeichert · aktive Oberfläche",
+            RareLootAnchorStatus.PresetFallback => "Position gespeichert · aus einem UI-Preset",
             RareLootAnchorStatus.Hidden => "Im Spiel ausgeblendet",
             RareLootAnchorStatus.Missing => "Keine Position gespeichert",
             RareLootAnchorStatus.Ambiguous => "Mehrdeutige Position · keine Erfassung",
             RareLootAnchorStatus.Invalid => "Ungültige Position · keine Erfassung",
-            _ => rare is null ? "Nicht verfügbar" : "Sichtbar",
+            _ => rare is null ? "Keine Position gespeichert" : "Position gespeichert",
         };
         return new(calibration.GameVariablePath, Label(calibration.GameVariablePath),
             LastWrite(calibration.GameVariablePath), calibration.ScreenWidth, calibration.ScreenHeight,
@@ -79,10 +87,8 @@ internal sealed class CaptureConfigurationCatalog(string? blackDesertDirectory =
     }
 
     private CaptureConfigurationOption Invalid(string path, Exception error) =>
-        new(path, Label(path), LastWrite(path), 0, 0, 0, null, null, "Nicht verfügbar", DescribeError(error));
-
-    private static string DescribeError(Exception error) => error is LootPanelUnavailableException { InnerException: { } inner }
-        ? inner.Message : error.Message;
+        new(path, Label(path), LastWrite(path), 0, 0, 0, null, null, "Nicht geprüft",
+            CaptureConfigurationErrorPresentation.Describe(error));
 
     private string Label(string path)
     {

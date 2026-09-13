@@ -80,7 +80,11 @@ noch nicht, dass die gespeicherte Position zur aktuellen Spieloberfläche passt.
 
 Die Konfigurationssuche listet alle `gameVariable.xml` unter dem BDO-`UserCache`,
 einschließlich Unterordnern, mit Speicherzeit, Auflösung, UI-Skalierung,
-Erfassungspositionen und Special-Droplog-Status. Eine Datei markieren oder über
+Erfassungspositionen und Special-Droplog-Status. Die kompakte Tabelle zeigt
+zunächst verwendbare Dateien. Suche, Statusfilter und Sortierung grenzen größere
+Listen ein; vollständige Pfade und deutsche Fehlerhinweise stehen unter
+**Details**. Der Filter **Beide Droplogs** zeigt Dateien mit beiden gespeicherten
+Positionen. Eine Datei markieren oder über
 **Datei auswählen…** öffnen, ihre Vorschau prüfen und mit **Verwenden** übernehmen.
 Die feste Auswahl bleibt nach einem Neustart erhalten; **Automatische Auswahl**
 verwendet wieder das zuletzt gespeicherte Profil. Eine andere Datei lässt sich
