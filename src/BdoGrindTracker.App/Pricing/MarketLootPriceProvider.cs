@@ -6,11 +6,11 @@ using BdoGrindTracker.App.Persistence;
 namespace BdoGrindTracker.App.Pricing;
 
 /// <summary>
-/// Anonymous batched market GET, with bounded individual requests after a batch HTTP 500. Region-isolated persisted prices
+/// Arsha market GET with a direct Pearl Abyss fallback. Region-isolated persisted prices
 /// remain usable offline but retain their old timestamps and stale markers.
 /// No captured images, quantities, class, session, account or API key are sent.
 /// </summary>
-internal sealed class ArshaLootPriceProvider : ILootPriceProvider
+internal sealed partial class MarketLootPriceProvider : ILootPriceProvider
 {
     public static TimeSpan RefreshInterval { get; } = TimeSpan.FromMinutes(10);
     public static TimeSpan RequestTimeout { get; } = TimeSpan.FromSeconds(8);
@@ -24,12 +24,12 @@ internal sealed class ArshaLootPriceProvider : ILootPriceProvider
     private readonly Dictionary<string, RegionCache> _regions = new(StringComparer.Ordinal);
     private bool _cacheLoaded;
 
-    public ArshaLootPriceProvider() : this(new HttpClientHandler
+    public MarketLootPriceProvider() : this(new HttpClientHandler
     {
         AllowAutoRedirect = false, UseCookies = false,
     }, Path.Combine(AppDataPaths.Current.BaseDirectory, "market-prices-v1.json")) { }
 
-    internal ArshaLootPriceProvider(HttpMessageHandler handler, string? cachePath = null,
+    internal MarketLootPriceProvider(HttpMessageHandler handler, string? cachePath = null,
         TimeProvider? timeProvider = null, TimeSpan? requestTimeout = null)
     {
         _http = new HttpClient(handler, true) { Timeout = Timeout.InfiniteTimeSpan };
@@ -46,7 +46,7 @@ internal sealed class ArshaLootPriceProvider : ILootPriceProvider
         lock (_sync)
         {
             LoadCacheOnce();
-            return BuildSnapshot(region, GetRegion(region), live: false);
+            return BuildSnapshot(region, GetRegion(region));
         }
     }
 
@@ -63,82 +63,104 @@ internal sealed class ArshaLootPriceProvider : ILootPriceProvider
             {
                 LoadCacheOnce();
                 previous = GetRegion(region);
-                if (previous.NextAttempt > now ||
-                    previous.LastRefresh is { } refreshed && refreshed <= now && now - refreshed < RefreshInterval)
-                    return BuildSnapshot(region, previous, live: false);
+                if (previous.LastRefresh is { } refreshed && refreshed <= now && now - refreshed < RefreshInterval ||
+                    previous.Arsha.NextAttempt > now && previous.PearlAbyss.NextAttempt > now)
+                    return BuildSnapshot(region, previous);
             }
 
-            Dictionary<int, MarketPrice> received;
-            DateTimeOffset receivedAt;
-            IndividualPrices? individual = null;
-            using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            deadline.CancelAfter(_requestTimeout);
-            try
+            var received = new Dictionary<int, MarketPrice>();
+            var sources = new List<string>();
+            SourcePrices? arsha = null;
+            SourcePrices? pearlAbyss = null;
+            if (previous.Arsha.NextAttempt <= _time.GetUtcNow())
             {
-                var ids = string.Join(',', LootPriceCatalog.MarketItemIds);
-                using var request = new HttpRequestMessage(HttpMethod.Get,
-                    $"https://api.arsha.io/v2/{region}/GetWorldMarketSubList?id={ids}&lang=en");
-                request.Headers.Accept.ParseAdd("application/json");
-                request.Headers.UserAgent.ParseAdd(AppBranding.UserAgent);
-                using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead,
-                    deadline.Token).ConfigureAwait(false);
-                if (response.StatusCode == HttpStatusCode.InternalServerError)
-                {
-                    receivedAt = _time.GetUtcNow();
-                    individual = await FetchIndividualPricesAsync(region, receivedAt, deadline.Token).ConfigureAwait(false);
-                    received = individual.Prices;
-                    cancellationToken.ThrowIfCancellationRequested();
-                    if (received.Count == 0) return Failed(region, individual.RateLimited
-                        ? "Marktpreisquelle begrenzt Anfragen." : "Marktpreisquelle derzeit nicht verfügbar.", individual.RetryAfter);
-                }
-                else
-                {
-                    if (!response.IsSuccessStatusCode)
-                        return Failed(region, response.StatusCode == HttpStatusCode.TooManyRequests
-                            ? "Marktpreisquelle begrenzt Anfragen."
-                            : "Marktpreisquelle derzeit nicht verfügbar.", RetryAfter(response));
-                    if (response.Content.Headers.ContentLength is > MaximumResponseBytes ||
-                        response.Content.Headers.ContentType?.MediaType is "text/html" or "application/xhtml+xml")
-                        return Failed(region, "Marktpreisquelle liefert keine gültigen Preisdaten.");
-                    await response.Content.LoadIntoBufferAsync(MaximumResponseBytes, deadline.Token).ConfigureAwait(false);
-                    var bytes = await response.Content.ReadAsByteArrayAsync(deadline.Token).ConfigureAwait(false);
-                    receivedAt = _time.GetUtcNow();
-                    received = ParsePrices(bytes, receivedAt);
-                }
-                if (received.Count == 0) return Failed(region, "Keine passenden Marktpreise erhalten.");
-            }
-            catch (Exception exception) when (exception is HttpRequestException or IOException or
-                JsonException or OperationCanceledException or InvalidDataException)
-            {
-                if (cancellationToken.IsCancellationRequested) throw new OperationCanceledException(cancellationToken);
-                return Failed(region, "Marktpreise konnten nicht aktualisiert werden.");
+                arsha = await FetchArshaPricesAsync(region, cancellationToken).ConfigureAwait(false);
+                lock (_sync) UpdateSource(previous.Arsha, arsha);
+                foreach (var (id, price) in arsha.Prices) received[id] = price;
+                if (arsha.Prices.Count > 0) sources.Add("Arsha");
             }
 
-            LootPriceSnapshot snapshot;
+            cancellationToken.ThrowIfCancellationRequested();
+            var missing = LootPriceCatalog.MarketItemIds.Where(id => !received.ContainsKey(id)).ToArray();
+            if (missing.Length > 0 && previous.PearlAbyss.NextAttempt <= _time.GetUtcNow())
+            {
+                // The fallback has its own deadline, so an Arsha timeout cannot cancel it.
+                pearlAbyss = await FetchPearlAbyssPricesAsync(region, missing, cancellationToken).ConfigureAwait(false);
+                lock (_sync) UpdateSource(previous.PearlAbyss, pearlAbyss);
+                foreach (var (id, price) in pearlAbyss.Prices) received.TryAdd(id, price);
+                if (pearlAbyss.Prices.Count > 0) sources.Add("Pearl Abyss (Fallback)");
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+
             lock (_sync)
             {
                 var current = GetRegion(region);
+                if (received.Count == 0)
+                {
+                    current.Message = string.Join(" ", new[] { current.Arsha.Error, current.PearlAbyss.Error }
+                        .Where(static error => !string.IsNullOrEmpty(error)).Distinct()) +
+                        " Vorhandene Cache-/Festwerte werden weiter angezeigt.";
+                    return BuildSnapshot(region, current);
+                }
                 // Only successful returned rows receive a new timestamp. Missing rows
                 // keep their old quote and are never silently made fresh or zeroed.
                 foreach (var (id, price) in received) current.Prices[id] = price;
-                current.LastRefresh = receivedAt;
-                current.NextAttempt = current.LastRefresh.Value + RefreshInterval;
-                current.Failures = 0;
+                if (arsha is { Prices.Count: > 0 }) UpdateSource(current.Arsha, arsha, pricesCommitted: true);
+                if (pearlAbyss is { Prices.Count: > 0 }) UpdateSource(current.PearlAbyss, pearlAbyss, pricesCommitted: true);
+                current.LastRefresh = _time.GetUtcNow();
                 current.Message = received.Count == LootPriceCatalog.MarketItemIds.Count
-                    ? "Marktpreise von Arsha aktualisiert."
-                    : "Marktpreise teilweise aktualisiert; fehlende Werte bleiben gekennzeichnet.";
-                if (individual is { RateLimited: true })
-                {
-                    var retryAt = _time.GetUtcNow() + ClampRetryAfter(individual.RetryAfter ?? RefreshInterval);
-                    if (retryAt > current.NextAttempt) current.NextAttempt = retryAt;
-                    current.Message += " Die Marktpreisquelle begrenzt weitere Anfragen; ihre Wartefrist wird eingehalten.";
-                }
-                snapshot = BuildSnapshot(region, current, live: true);
+                    ? $"Marktpreise von {string.Join(" und ", sources)} aktualisiert."
+                    : $"Marktpreise teilweise aktualisiert ({string.Join(" und ", sources)}); fehlende Werte bleiben gekennzeichnet.";
+                if (current.Arsha.RateLimited && current.Arsha.NextAttempt > current.LastRefresh ||
+                    current.PearlAbyss.RateLimited && current.PearlAbyss.NextAttempt > current.LastRefresh)
+                    current.Message += " Eine Marktpreisquelle begrenzt weitere Anfragen; ihre Wartefrist wird eingehalten.";
+                var snapshot = BuildSnapshot(region, current, received.Keys.ToHashSet());
                 SaveCache();
+                return snapshot;
             }
-            return snapshot;
         }
         finally { _refreshGate.Release(); }
+    }
+
+    private async Task<SourcePrices> FetchArshaPricesAsync(string region, CancellationToken cancellationToken)
+    {
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        deadline.CancelAfter(_requestTimeout);
+        try
+        {
+            var ids = string.Join(',', LootPriceCatalog.MarketItemIds);
+            using var request = new HttpRequestMessage(HttpMethod.Get,
+                $"https://api.arsha.io/v2/{region}/GetWorldMarketSubList?id={ids}&lang=en");
+            request.Headers.Accept.ParseAdd("application/json");
+            request.Headers.UserAgent.ParseAdd(AppBranding.UserAgent);
+            using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead,
+                deadline.Token).ConfigureAwait(false);
+            if (response.StatusCode == HttpStatusCode.InternalServerError)
+            {
+                var individual = await FetchIndividualPricesAsync(region, _time.GetUtcNow(), deadline.Token).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+                return new(individual.Prices, individual.RateLimited ? "Arsha: Marktpreisquelle begrenzt Anfragen." :
+                    individual.Prices.Count == 0 ? "Arsha: Marktpreisquelle derzeit nicht verfügbar." : null,
+                    individual.RetryAfter, individual.RateLimited);
+            }
+            if (!response.IsSuccessStatusCode)
+                return new([], response.StatusCode == HttpStatusCode.TooManyRequests
+                    ? "Arsha: Marktpreisquelle begrenzt Anfragen." : "Arsha: Marktpreisquelle derzeit nicht verfügbar.",
+                    RetryAfter(response), response.StatusCode == HttpStatusCode.TooManyRequests);
+            if (response.Content.Headers.ContentLength is > MaximumResponseBytes ||
+                response.Content.Headers.ContentType?.MediaType is "text/html" or "application/xhtml+xml")
+                return new([], "Arsha: Marktpreisquelle liefert keine gültigen Preisdaten.");
+            await response.Content.LoadIntoBufferAsync(MaximumResponseBytes, deadline.Token).ConfigureAwait(false);
+            var bytes = await response.Content.ReadAsByteArrayAsync(deadline.Token).ConfigureAwait(false);
+            var received = ParsePrices(bytes, _time.GetUtcNow());
+            return new(received, received.Count == 0 ? "Arsha: Keine passenden Marktpreise erhalten." : null);
+        }
+        catch (Exception exception) when (exception is HttpRequestException or IOException or
+            JsonException or OperationCanceledException or InvalidDataException)
+        {
+            if (cancellationToken.IsCancellationRequested) throw new OperationCanceledException(cancellationToken);
+            return new([], "Arsha: Marktpreise konnten nicht aktualisiert werden.");
+        }
     }
 
     private async Task<IndividualPrices> FetchIndividualPricesAsync(string region, DateTimeOffset receivedAt, CancellationToken token)
@@ -196,22 +218,36 @@ internal sealed class ArshaLootPriceProvider : ILootPriceProvider
     private static TimeSpan ClampRetryAfter(TimeSpan requested) => requested > TimeSpan.FromHours(1)
         ? TimeSpan.FromHours(1) : requested < TimeSpan.Zero ? TimeSpan.Zero : requested;
 
-    private LootPriceSnapshot Failed(string region, string message, TimeSpan? retryAfter = null)
+    private void UpdateSource(SourceState source, SourcePrices result, bool pricesCommitted = false)
     {
-        lock (_sync)
+        TimeSpan wait;
+        if (result.Prices.Count > 0)
         {
-            var current = GetRegion(region);
-            current.Failures = Math.Min(current.Failures + 1, 6);
-            var backoff = TimeSpan.FromSeconds(Math.Min(900, 30 * Math.Pow(2, current.Failures - 1)));
-            if (retryAfter is { } requested && requested > backoff)
-                backoff = ClampRetryAfter(requested);
-            current.NextAttempt = _time.GetUtcNow() + backoff;
-            current.Message = message + " Vorhandene Cache-/Festwerte werden weiter angezeigt.";
-            return BuildSnapshot(region, current, live: false);
+            // Cancellation during the fallback must not suppress an uncommitted
+            // primary result for ten minutes. Server limits still apply immediately.
+            if (!pricesCommitted)
+            {
+                if (result.RetryAfter is null && !result.RateLimited) return;
+                wait = result.RateLimited ? TimeSpan.FromSeconds(30) : TimeSpan.Zero;
+            }
+            else
+            {
+                source.Failures = 0;
+                wait = RefreshInterval;
+            }
         }
+        else
+        {
+            source.Failures = Math.Min(source.Failures + 1, 6);
+            wait = TimeSpan.FromSeconds(Math.Min(900, 30 * Math.Pow(2, source.Failures - 1)));
+        }
+        if (result.RetryAfter is { } requested && requested > wait) wait = ClampRetryAfter(requested);
+        source.NextAttempt = _time.GetUtcNow() + wait;
+        source.Error = result.Error;
+        source.RateLimited = result.RateLimited;
     }
 
-    private LootPriceSnapshot BuildSnapshot(string region, RegionCache cache, bool live)
+    private LootPriceSnapshot BuildSnapshot(string region, RegionCache cache, IReadOnlySet<int>? refreshedIds = null)
     {
         var now = _time.GetUtcNow();
         var quotes = LootPriceCatalog.FixedSnapshot(region).Quotes.Values.ToList();
@@ -220,7 +256,7 @@ internal sealed class ArshaLootPriceProvider : ILootPriceProvider
             if (!cache.Prices.TryGetValue(definition.MarketItemId!.Value, out var price)) continue;
             if (price.RetrievedAt > now) continue;
             quotes.Add(new(definition.ItemName, price.UnitPrice, 0,
-                live && cache.LastRefresh == price.RetrievedAt ? LootPriceOrigin.LiveMarket : LootPriceOrigin.CachedMarket,
+                refreshedIds?.Contains(definition.MarketItemId.Value) == true ? LootPriceOrigin.LiveMarket : LootPriceOrigin.CachedMarket,
                 price.RetrievedAt, now - price.RetrievedAt >= RefreshInterval));
         }
         if (cache.Prices.TryGetValue(721003, out var caphras) && caphras.RetrievedAt <= now &&
@@ -328,12 +364,22 @@ internal sealed class ArshaLootPriceProvider : ILootPriceProvider
     {
         public Dictionary<int, MarketPrice> Prices { get; } = new();
         public DateTimeOffset? LastRefresh { get; set; }
-        public DateTimeOffset NextAttempt { get; set; }
-        public int Failures { get; set; }
+        public SourceState Arsha { get; } = new();
+        public SourceState PearlAbyss { get; } = new();
         public string Message { get; set; } = "";
     }
 
+    private sealed class SourceState
+    {
+        public DateTimeOffset NextAttempt { get; set; }
+        public int Failures { get; set; }
+        public string? Error { get; set; }
+        public bool RateLimited { get; set; }
+    }
+
     private sealed record MarketPrice(long UnitPrice, DateTimeOffset RetrievedAt);
+    private sealed record SourcePrices(Dictionary<int, MarketPrice> Prices, string? Error = null,
+        TimeSpan? RetryAfter = null, bool RateLimited = false);
     private sealed record IndividualPrices(Dictionary<int, MarketPrice> Prices, bool RateLimited, TimeSpan? RetryAfter);
     private sealed record PersistedCache(int SchemaVersion, Dictionary<string, Dictionary<int, MarketPrice>> Regions);
 }

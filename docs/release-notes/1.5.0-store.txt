@@ -1,0 +1,8 @@
+Neu in Grindcrest 1.5.0:
+
+• Automatischer Marktpreis-Fallback für EU und NA: Bei Fehlern, Zeitüberschreitungen oder unvollständigen Arsha-Antworten werden fehlende Preise direkt beim Pearl-Abyss-Marktplatz abgefragt.
+• Beide Preisquellen erhalten eigene Zeitlimits und Wartefristen. Ein Arsha-Timeout verhindert den anschließenden Fallback nicht.
+• Vorhandene Preise bleiben bei Ausfällen mit ihrem ursprünglichen Zeitstempel erhalten. Veraltete und fehlende Werte bleiben gekennzeichnet.
+• Der Preisstatus zeigt die verwendeten Quellen, unvollständige Aktualisierungen und Anfragebegrenzungen an.
+
+Die Verbesserungen aus Version 1.4.3 sind weiterhin enthalten.

@@ -135,7 +135,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         _detectCharacterClass = classDetector ?? new CompanionCharacterClassDetector().DetectDefault;
         _detectGameLanguage = languageDetector ?? BlackDesertLanguageDetector.Detect;
         _gameLanguageDetection = _detectGameLanguage();
-        _priceProvider = priceProvider ?? new ArshaLootPriceProvider();
+        _priceProvider = priceProvider ?? new MarketLootPriceProvider();
         _garmothClient = garmothClient ?? new GarmothUploadClient();
         _benchmarkProvider = benchmarkProvider;
         _benchmarkSnapshot = benchmarkProvider?.GetCachedSnapshot() ?? GarmothBenchmarkSnapshot.Bundled;

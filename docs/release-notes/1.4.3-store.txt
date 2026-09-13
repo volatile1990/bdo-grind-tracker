@@ -1,0 +1,7 @@
+Grindcrest 1.4.3 macht die Aufnahmevorschau verständlicher:
+
+• Die goldene Markierung des Special-Droplogs ist klar als Textbereich beschriftet.
+• Neue Hinweise erklären, dass Name und Menge vollständig im Rahmen liegen müssen. Ein abgeschnittenes Gegenstandssymbol oder eine fehlende Verzierung sind dabei in Ordnung.
+• Der Abgleich mit einer echten Dropmeldung hilft, den Textbereich zu prüfen, ohne sich vom grauen Platzhalter in „UI bearbeiten“ verwirren zu lassen.
+
+Die Verbesserungen aus Version 1.4.2 sind weiterhin enthalten.

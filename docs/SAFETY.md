@@ -171,13 +171,39 @@ Vorschau und Prüfmodi verwenden auch hier kein Update-Backend.
 
 ## Öffentliche Marktpreise
 
-Die App ruft beim Anzeigen und anschließend höchstens alle zehn Minuten gebündelt
-öffentliche Itempreise per HTTPS-GET von `api.arsha.io` ab. Übertragen werden nur
-Serverregion, feste öffentliche Markt-Item-IDs und die Sprache. Keine Lootmengen,
-Klasse, Sitzungsdaten, Bilder, API-Keys oder Cookies. Antwortgröße, Lesezeit und
-Wiederholungsrate sind begrenzt; Weiterleitungen sind aus. Preise werden regional
-getrennt in `market-prices-v1.json` gespeichert und offline mit Altershinweis
-weiterverwendet. Preisfehler greifen niemals in OCR oder Zählung ein.
+`MarketLootPriceProvider` ruft öffentliche Itempreise zunächst gebündelt per
+HTTPS-GET von `api.arsha.io` ab. Ein HTTP 500 der Sammelanfrage erlaubt begrenzte
+Einzelabfragen bei Arsha mit höchstens vier gleichzeitig laufenden Anfragen.
+Bei Ausfall oder einer Teilantwort werden nur die noch fehlenden Katalog-IDs
+in einem HTTPS-POST an
+`https://eu-trade.naeu.playblackdesert.com/Trademarket/GetWorldMarketSearchList`
+beziehungsweise den fest vorgegebenen NA-Host
+`na-trade.naeu.playblackdesert.com` abgefragt. Übertragen werden nur öffentliche
+Markt-Item-IDs, die gewählte EU-/NA-Region und bei Arsha die Sprache. Arsha erhält
+den aktuellen App-User-Agent, der direkte Abruf den dokumentierten User-Agent
+`BlackDesert`. Keine Lootmengen, Klasse, Sitzungsdaten, Bilder, Zugangsdaten,
+API-Keys oder Cookies; Weiterleitungen und Cookieverarbeitung sind aus.
+
+Die [Velia-Dokumentation](https://developers.veliainn.com/) beschreibt diese
+Pearl-Abyss-Endpunkte. Laut [Arsha-Repository](https://github.com/guy0090/api.arsha.io)
+greift Arsha selbst als Proxy mit Cache auf dieselbe Quelle zu. Der Fallback
+kann daher einen Arsha-Ausfall abfangen, teilt aber dessen Pearl-Abyss-Abhängigkeit;
+eine höhere allgemeine Verfügbarkeit oder SLA wird nicht zugesichert.
+
+Jede Quelle hat ein eigenes Zeitbudget von acht Sekunden einschließlich des
+Antwortlesens; eine aktive Aktualisierung nutzt damit höchstens 16 Sekunden
+Netzwerkbudget. Arsha-Einzelabfragen teilen dessen acht Sekunden. Antwortgröße
+und Zahl der Preiszeilen sind begrenzt; ungültige oder widersprüchliche Preise
+werden verworfen. Nach erfolgreicher Aktualisierung wird zehn Minuten gewartet.
+Fehlerpausen beginnen je Quelle und Region bei 30 Sekunden und steigen bis
+15 Minuten; `Retry-After` wird für die jeweilige Quelle bis höchstens eine
+Stunde berücksichtigt. Es gibt keine unbegrenzten Wiederholungen. Ein
+Nutzerabbruch beendet auch den Fallback.
+
+Beide Quellen teilen den unveränderten lokalen Cache `market-prices-v1.json`.
+Preise bleiben nach EU und NA getrennt und werden offline mit Altershinweis
+weiterverwendet. Fehlende Preise einer Teilantwort behalten ihren bisherigen
+Zeitstempel. Preisfehler greifen niemals in OCR oder Zählung ein.
 
 ## Analyse- und Lieferumfang
 

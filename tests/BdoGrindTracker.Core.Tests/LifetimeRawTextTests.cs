@@ -75,7 +75,7 @@ public sealed class LifetimeRawTextTests
         var right = new LifetimeLootReconciler(_ => null);
         var rows = new[] { Unknown("Follower's Hel x4", 1), Row(Helmet, 4) };
         var first = left.ProcessObservations(rows, Start);
-        var second = right.ProcessObservations(rows.Reverse().ToArray(), Start);
+        var second = right.ProcessObservations(rows.AsEnumerable().Reverse().ToArray(), Start);
         Assert.Equal(first.Lanes, second.Lanes);
         Assert.Equal(first.ObservedDrops, second.ObservedDrops);
         Assert.Equal(4, first.Totals[Helmet]);

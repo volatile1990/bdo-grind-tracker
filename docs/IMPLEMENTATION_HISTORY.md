@@ -461,11 +461,10 @@ Testgrenzen stehen in [LIFETIME_LOOT_TRACKING.md](LIFETIME_LOOT_TRACKING.md).
 Grindcrest fordert die Aufnahme ohne gelben Windows-Rahmen an; das Store-Paket
 enthält die erforderliche Berechtigung. Windows kann den Rahmen bei verweigertem
 Zugriff oder durch Anforderungen anderer Aufnahmeprogramme weiterhin anzeigen.
-Vor einer nötigen Windows-Abfrage erklärt Grindcrest, dass die Freigabe den gelben
-Aufnahmerahmen ausblendet. Bei vorhandener Freigabe entfällt dieser Hinweis.
-**Weiter zur Windows-Abfrage** öffnet die eigentliche Berechtigungsanfrage;
-**Abbrechen** lässt die Session unverändert. Die Aufnahme beginnt erst nach diesem
-Schritt; die aktive Zeit beginnt mit dem ersten neu erkannten Drop.
+Die Freigabe wird vor der Aufnahme vorbereitet. Windows entscheidet, ob eine
+Systemabfrage nötig ist; der zusätzliche Erklärdialog von Grindcrest entfällt.
+Eine abgelehnte Freigabe verhindert das Tracking nicht, kann aber den gelben
+Rahmen sichtbar lassen. Die aktive Zeit beginnt mit dem ersten neu erkannten Drop.
 
 Die zusätzlichen Referenzen mit 2.050 und 604 echten Helmen sowie vollständige
 Windows-, Paddle- und native Garmoth-Vergleiche sind in

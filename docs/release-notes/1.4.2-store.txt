@@ -1,0 +1,9 @@
+Grindcrest 1.4.2 verbessert die Droperkennung und die Auswahl der BDO-Konfiguration:
+
+• Neue Bildvorschau zum Prüfen der erfassten Bereiche für normales Droplog und Special-Droplog.
+• Übersichtliche Konfigurationstabelle mit Suche, Filtern, Sortierung und gespeicherter manueller Auswahl.
+• Verständliche deutsche Hinweise zu fehlenden oder ungültigen Droplog-Positionen.
+• Verbesserte OCR-Bestätigung, Wiederholungsprüfung und Wiederherstellung für Special-Drops, einschließlich verbesserter HDR-Bildaufbereitung.
+• Fensterposition, Fenstergröße und maximierter Zustand bleiben beim nächsten Start erhalten.
+
+Die Stabilitätsverbesserungen aus Version 1.4.1 sind weiterhin enthalten.

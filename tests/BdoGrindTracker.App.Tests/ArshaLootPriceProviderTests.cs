@@ -32,7 +32,7 @@ public sealed class ArshaLootPriceProviderTests
                 ? new(time.GetUtcNow().AddHours(1)) : new(TimeSpan.FromHours(1));
             return limited;
         });
-        using var provider = new ArshaLootPriceProvider(handler, timeProvider: time);
+        using var provider = new MarketLootPriceProvider(handler, timeProvider: time);
         var snapshot = await provider.GetSnapshotAsync("eu");
         Assert.Contains("begrenzt", snapshot.StatusMessage);
         if (returnPartialPrice) Assert.Contains(snapshot.Quotes.Values, quote => quote.Origin == LootPriceOrigin.LiveMarket);
@@ -54,7 +54,7 @@ public sealed class ArshaLootPriceProviderTests
     {
         var time = new ManualTime();
         var handler = new Handler(_ => Json("""[{"id":16001,"sid":0,"basePrice":100},{"id":721003,"sid":0,"basePrice":1000}]"""));
-        using var provider = new ArshaLootPriceProvider(handler, timeProvider: time);
+        using var provider = new MarketLootPriceProvider(handler, timeProvider: time);
         var before = await provider.GetSnapshotAsync("eu");
         time.Advance(TimeSpan.FromMinutes(11));
         handler.Respond = request => request.RequestUri!.Query == "?id=16001&lang=en"
@@ -74,7 +74,7 @@ public sealed class ArshaLootPriceProviderTests
     public void ConstructionAndCachedSnapshotNeverSendRequests()
     {
         var handler = new Handler(_ => Json("[]"));
-        using var provider = new ArshaLootPriceProvider(handler);
+        using var provider = new MarketLootPriceProvider(handler);
         var snapshot = provider.GetCachedSnapshot(" EU ");
         Assert.Equal(0, handler.Count);
         Assert.Equal("eu", snapshot.Region);
@@ -97,7 +97,7 @@ public sealed class ArshaLootPriceProviderTests
             Assert.False(request.Headers.Contains("apiKey"));
             return Json("""[[{"id":16001,"sid":0,"basePrice":134000},{"id":16001,"sid":1,"basePrice":999999}],[{"id":721003,"sid":0,"basePrice":885000}],[{"id":999,"sid":0,"basePrice":100}]]""");
         });
-        using var provider = new ArshaLootPriceProvider(handler, timeProvider: new ManualTime());
+        using var provider = new MarketLootPriceProvider(handler, timeProvider: new ManualTime());
         var result = await provider.GetSnapshotAsync("eu");
         Assert.Equal("api.arsha.io", uri!.Host);
         Assert.Equal("https", uri.Scheme);
@@ -116,7 +116,7 @@ public sealed class ArshaLootPriceProviderTests
     {
         var time = new ManualTime();
         var handler = new Handler(_ => Json("""[{"id":16001,"sid":0,"basePrice":102},{"id":721003,"sid":0,"basePrice":1001}]"""));
-        using var provider = new ArshaLootPriceProvider(handler, timeProvider: time);
+        using var provider = new MarketLootPriceProvider(handler, timeProvider: time);
         var first = await provider.GetSnapshotAsync("eu");
         Assert.Equal(179, first.Quotes["Ancient Spirit Dust"].UnitPrice);
         time.Advance(TimeSpan.FromMinutes(10));
@@ -134,7 +134,7 @@ public sealed class ArshaLootPriceProviderTests
              {"id":11882,"sid":1,"basePrice":900000000},
              {"id":768160,"sid":0,"basePrice":4000000}]
             """));
-        using var provider = new ArshaLootPriceProvider(handler, timeProvider: new ManualTime());
+        using var provider = new MarketLootPriceProvider(handler, timeProvider: new ManualTime());
         var prices = await provider.GetSnapshotAsync("eu");
         var valuation = SilverValuation.Calculate(new Dictionary<string, long>
         {
@@ -171,7 +171,7 @@ public sealed class ArshaLootPriceProviderTests
     [InlineData("[{\"id\":16001,\"sid\":0,\"basePrice\":1},{\"id\":16001,\"sid\":0,\"basePrice\":2}]")]
     public async Task InvalidRemoteDataNeverCrashesOrSuppliesZeroPrice(string body)
     {
-        using var provider = new ArshaLootPriceProvider(new Handler(_ => Json(body)));
+        using var provider = new MarketLootPriceProvider(new Handler(_ => Json(body)));
         var result = await provider.GetSnapshotAsync("eu");
         Assert.False(result.Quotes.ContainsKey("Black Stone"));
         Assert.Contains("Festwerte", result.StatusMessage);
@@ -181,7 +181,7 @@ public sealed class ArshaLootPriceProviderTests
     public async Task FreshCachePreventsRepeatedRequestAndRegionsNeverMix()
     {
         var handler = new Handler(request => Json(Price(request.RequestUri!.AbsolutePath.Contains("/eu/") ? 100 : 200)));
-        using var provider = new ArshaLootPriceProvider(handler, timeProvider: new ManualTime());
+        using var provider = new MarketLootPriceProvider(handler, timeProvider: new ManualTime());
         await provider.GetSnapshotAsync("eu");
         var eu = await provider.GetSnapshotAsync("eu");
         var na = await provider.GetSnapshotAsync("na");
@@ -196,7 +196,7 @@ public sealed class ArshaLootPriceProviderTests
     {
         var time = new ManualTime();
         var handler = new Handler(_ => Json("""[{"id":16001,"sid":0,"basePrice":100},{"id":721003,"sid":0,"basePrice":1000}]"""));
-        using var provider = new ArshaLootPriceProvider(handler, timeProvider: time);
+        using var provider = new MarketLootPriceProvider(handler, timeProvider: time);
         var first = await provider.GetSnapshotAsync("eu");
         time.Advance(TimeSpan.FromMinutes(11));
         handler.Respond = _ => Json(Price(200));
@@ -214,7 +214,7 @@ public sealed class ArshaLootPriceProviderTests
     {
         var time = new ManualTime();
         var handler = new Handler(_ => Json(Price(100)));
-        using var provider = new ArshaLootPriceProvider(handler, timeProvider: time);
+        using var provider = new MarketLootPriceProvider(handler, timeProvider: time);
         var original = await provider.GetSnapshotAsync("eu");
         time.Advance(TimeSpan.FromMinutes(10));
         handler.Respond = _ => new(HttpStatusCode.Forbidden);
@@ -242,7 +242,7 @@ public sealed class ArshaLootPriceProviderTests
             response.Headers.RetryAfter = new(TimeSpan.FromDays(1));
             return response;
         });
-        using var provider = new ArshaLootPriceProvider(handler, timeProvider: time);
+        using var provider = new MarketLootPriceProvider(handler, timeProvider: time);
         await provider.GetSnapshotAsync("eu");
         time.Advance(TimeSpan.FromMinutes(59));
         await provider.GetSnapshotAsync("eu");
@@ -259,7 +259,7 @@ public sealed class ArshaLootPriceProviderTests
     public async Task HttpErrorIsFixedSafeMessageAndDoesNotReadResponseBody(HttpStatusCode status)
     {
         var body = new BlockingContent();
-        using var provider = new ArshaLootPriceProvider(new Handler(_ => new(status) { Content = body }));
+        using var provider = new MarketLootPriceProvider(new Handler(_ => new(status) { Content = body }));
         var result = await provider.GetSnapshotAsync("eu");
         Assert.False(body.WasRead);
         Assert.Contains("derzeit nicht verfügbar", result.StatusMessage);
@@ -269,7 +269,7 @@ public sealed class ArshaLootPriceProviderTests
     public async Task BodyReadIsIncludedInDeadline()
     {
         var body = new BlockingContent();
-        using var provider = new ArshaLootPriceProvider(new Handler(_ => new(HttpStatusCode.OK) { Content = body }),
+        using var provider = new MarketLootPriceProvider(new Handler(_ => new(HttpStatusCode.OK) { Content = body }),
             requestTimeout: TimeSpan.FromMilliseconds(30));
         var result = await provider.GetSnapshotAsync("eu").WaitAsync(TimeSpan.FromSeconds(3));
         Assert.True(body.WasRead);
@@ -279,7 +279,7 @@ public sealed class ArshaLootPriceProviderTests
     [Fact]
     public async Task OversizedBodyIsRejected()
     {
-        using var provider = new ArshaLootPriceProvider(new Handler(_ => Json(new string('x', 1_048_577))));
+        using var provider = new MarketLootPriceProvider(new Handler(_ => Json(new string('x', 1_048_577))));
         var result = await provider.GetSnapshotAsync("eu");
         Assert.False(result.Quotes.ContainsKey("Black Stone"));
         Assert.Contains("keine gültigen", result.StatusMessage);
@@ -288,7 +288,7 @@ public sealed class ArshaLootPriceProviderTests
     [Fact]
     public async Task CallerCancellationIsPreserved()
     {
-        using var provider = new ArshaLootPriceProvider(new Handler(_ => new(HttpStatusCode.OK) { Content = new BlockingContent() }));
+        using var provider = new MarketLootPriceProvider(new Handler(_ => new(HttpStatusCode.OK) { Content = new BlockingContent() }));
         using var cancel = new CancellationTokenSource(TimeSpan.FromMilliseconds(30));
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => provider.GetSnapshotAsync("eu", cancel.Token));
     }
@@ -301,11 +301,11 @@ public sealed class ArshaLootPriceProviderTests
         var time = new ManualTime();
         try
         {
-            using (var writer = new ArshaLootPriceProvider(new Handler(_ => Json(Price(100))), path, time))
+            using (var writer = new MarketLootPriceProvider(new Handler(_ => Json(Price(100))), path, time))
                 await writer.GetSnapshotAsync("eu");
             time.Advance(TimeSpan.FromMinutes(11));
             var handler = new Handler(_ => throw new HttpRequestException("untrusted server text"));
-            using var reader = new ArshaLootPriceProvider(handler, path, time);
+            using var reader = new MarketLootPriceProvider(handler, path, time);
             var cached = reader.GetCachedSnapshot("eu");
             Assert.Equal(100, cached.Quotes["Black Stone"].UnitPrice);
             Assert.True(cached.IsStale);
@@ -329,7 +329,7 @@ public sealed class ArshaLootPriceProviderTests
         try
         {
             File.WriteAllText(path, text);
-            using var provider = new ArshaLootPriceProvider(new Handler(_ => Json("[]")), path, new ManualTime());
+            using var provider = new MarketLootPriceProvider(new Handler(_ => Json("[]")), path, new ManualTime());
             Assert.False(provider.GetCachedSnapshot("eu").Quotes.ContainsKey("Black Stone"));
         }
         finally { File.Delete(path); }
@@ -342,7 +342,7 @@ public sealed class ArshaLootPriceProviderTests
     public async Task InvalidRegionCannotChangeRequestDestination(string region)
     {
         var handler = new Handler(_ => Json("[]"));
-        using var provider = new ArshaLootPriceProvider(handler);
+        using var provider = new MarketLootPriceProvider(handler);
         await Assert.ThrowsAsync<ArgumentException>(() => provider.GetSnapshotAsync(region));
         Assert.Equal(0, handler.Count);
     }
@@ -367,7 +367,14 @@ public sealed class ArshaLootPriceProviderTests
         public Func<HttpRequestMessage, HttpResponseMessage> Respond { get; set; } = respond;
         public int Count { get; private set; }
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        { Count++; return Task.FromResult(Respond(request)); }
+        {
+            // These regressions isolate Arsha's behavior. Cross-source recovery and
+            // request counts are covered by MarketLootPriceFallbackTests.
+            if (request.RequestUri!.Host != "api.arsha.io")
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
+            Count++;
+            return Task.FromResult(Respond(request));
+        }
     }
 
     private sealed class ManualTime : TimeProvider

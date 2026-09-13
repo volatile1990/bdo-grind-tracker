@@ -62,14 +62,11 @@ verfügbar. Windows kann die Markierung weiterhin erzwingen, wenn die Berechtigu
 verweigert wird oder eine andere Aufnahme-App denselben Rahmen verlangt.
 Siehe [Microsoft: IsBorderRequired](https://learn.microsoft.com/en-us/uwp/api/windows.graphics.capture.graphicscapturesession.isborderrequired).
 
-Vor der Windows-Anfrage zeigt Grindcrest bei noch ausstehender Freigabe einen
-eigenen Erklärungstext: Windows liefert das Spielfensterbild für die Loot-Erkennung;
-die Freigabe blendet den gelben Aufnahmeindikator aus. Ablehnen verhindert das
-Tracking nicht, kann aber den Rahmen sichtbar lassen. Der Systemdialog selbst
-bleibt unverändert. Bei bereits entschiedener Freigabe entfällt die Erklärung;
-bei nicht prüfbarem Status erscheint sie höchstens einmal pro App-Lauf nach
-Bestätigung. Ein Abbruch startet keine Aufnahme und keine Sessionuhr. Diese
-Vorbereitung gilt auch beim Fortsetzen und beim Start aus dem Overlay.
+Grindcrest bereitet die Freigabe vor der Aufnahme vor. Windows entscheidet,
+ob dafür eine Systemabfrage nötig ist; einen eigenen Erklärdialog zeigt
+Grindcrest nicht mehr. Ablehnen verhindert das Tracking nicht, kann aber den
+gelben Aufnahmeindikator sichtbar lassen. Diese Vorbereitung gilt auch beim
+Fortsetzen, beim Start aus dem Overlay und für die Erfassungsvorschau.
 
 Das MSIX-Manifest deklariert zusätzlich `uap11:graphicsCaptureWithoutBorder`.
 Diese Paketberechtigung ist für die Borderless-Anfrage erforderlich; `runFullTrust`

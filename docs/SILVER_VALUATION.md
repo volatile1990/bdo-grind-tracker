@@ -6,35 +6,65 @@ not change OCR, the spot loot pool, deduplication or any counted quantity.
 
 ## Current market source
 
-The application makes an anonymous batched GET to
+Updated on 2026-09-13. `MarketLootPriceProvider` uses Arsha as the primary source
+and the public Pearl Abyss market endpoint as a fallback, with one shared price
+cache. The app offers PC **EU (default)** and **NA**.
+
+The primary request is an anonymous batched GET to
 `https://api.arsha.io/v2/{region}/GetWorldMarketSubList?id={catalogIds}&lang=en`.
-It uses `basePrice` for enhancement sub-ID `sid=0`, not `lastSoldPrice` and not
-the price of an enhanced accessory. Its own user agent is `Grindcrest/0.9.6-test.2`.
-No screenshot, session quantity, class, API key, account or other session data
-is sent. Cookie handling and redirects are disabled.
+It requests the market IDs in `LootPriceCatalog` and uses `basePrice` for
+enhancement sub-ID `sid=0`, not `lastSoldPrice` or an enhanced accessory price.
+The multi-ID response contains an array of enhancement-row arrays. Arsha
+requests use the current application user agent from `AppBranding.UserAgent`.
+After a batch HTTP 500, bounded individual Arsha requests remain available,
+with at most four in flight and within the same Arsha deadline. A 403 or 429
+stops further queued individual requests to that source.
 
-Arsha's [first-party API documentation](https://www.postman.com/bdomarket/arsha-io-bdo-market-api/documentation/qpavrc8/bdo-market-api-v2)
-describes it as a community-operated cached wrapper, not a Pearl Abyss-supported
-API. It documents a **30-minute server-side cache**. Therefore the displayed
-timestamp is **when this application fetched the quote**, not the time of the
-underlying market change, and the appraisal is not a guaranteed sale price.
-The multi-ID endpoint returns an array of arrays, each inner array containing
-one item's enhancement rows. This shape was confirmed by public GET and is
-covered by parser tests. The app currently offers PC **EU (default)** and **NA**;
-the API documents additional regions but these are deliberately not exposed yet.
+If Arsha fails or returns only some requested prices, the provider requests
+the remaining IDs in one anonymous POST to
+`https://eu-trade.naeu.playblackdesert.com/Trademarket/GetWorldMarketSearchList`
+or the fixed NA equivalent at `na-trade.naeu.playblackdesert.com`. Its JSON body
+contains only `searchResult`, a comma-separated list of those catalog IDs, and
+its user agent is `BlackDesert` as required by the documented endpoint. The
+response envelope must contain integer `resultCode=0` and string `resultMsg`;
+each pipe-separated row has `id-stock-basePrice-totalTrades` fields. The
+fallback fills missing prices without replacing prices already returned by
+Arsha. No screenshot, session quantity, class, API key, account or other session
+data is sent to either source. Cookie handling and redirects are disabled.
 
-One batch requests the 30 verified market IDs in `LootPriceCatalog`. The provider
-does not make HTTP calls in its constructor. Requests are serialized; successful
-refreshes suppress further requests for 10 minutes. Timeout is 8 seconds over
-both headers **and body**; response/cache size is limited to 1 MiB, JSON depth
-to 32 and flattened rows to 5,000. Invalid field types, contradictory duplicates,
-nonpositive prices, unexpected IDs and nonzero enhancement sub-IDs cannot create
-a quote. An error never triggers a hidden retry loop. Retry backoff starts at
-30 seconds, doubles and is capped at 15 minutes; a server Retry-After may extend
-this up to one hour. Response bodies and exception messages are not shown or
-logged. A 403 is treated as unavailable, never bypassed.
+[Velia's documentation](https://developers.veliainn.com/) describes the Pearl
+Abyss endpoints; Velia is not a separate price-data host. The
+[Arsha repository](https://github.com/guy0090/api.arsha.io) identifies Arsha as
+a community-operated proxy/cache for this same upstream API and credits Velia
+for documenting it. Direct fallback can bypass an Arsha-specific failure, but
+both paths still depend on Pearl Abyss. There is no reliability or SLA claim.
+The displayed timestamp is **when this application fetched the quote**, not
+the underlying market-change time, and the appraisal is not a guaranteed sale
+price. The [Arsha API documentation](https://www.postman.com/bdomarket/arsha-io-bdo-market-api/documentation/qpavrc8/bdo-market-api-v2)
+describes its request and response formats.
 
-The app's own region-separated cache is
+Construction and cached-snapshot reads do not make HTTP calls. Active refreshes
+are serialized; successful refreshes suppress further requests for 10 minutes.
+Each source has an independent 8-second deadline over both headers **and body**,
+giving a refresh at most 16 seconds of active network-request budget. Waiting
+for another refresh and local processing are outside that network budget.
+An Arsha timeout does not cancel the fallback; caller cancellation cancels the
+operation. Response/cache size is limited to 1 MiB, response rows to 5,000, and
+JSON depth to 32 for Arsha or 8 for Pearl Abyss. Invalid field types,
+contradictory duplicates, nonpositive prices, unexpected IDs and nonzero Arsha
+enhancement sub-IDs cannot create a quote. Pearl Abyss also rejects malformed
+envelopes, duplicate envelope fields and malformed four-field rows.
+
+Each region tracks failure backoff separately for Arsha and Pearl Abyss. It
+starts at 30 seconds, doubles and is capped at 15 minutes; a source's
+`Retry-After` may extend its wait up to one hour. A successful source waits
+10 minutes, also respecting a longer bounded `Retry-After`. One source's
+cooldown does not prevent use of the other source when a refresh is due.
+There is no unbounded retry loop. Response bodies and exception messages are
+not shown or logged. A 403 marks that source unavailable; it is not retried
+through different credentials or redirects.
+
+The unchanged version-1 region-separated cache, shared by both sources, is
 `%LOCALAPPDATA%/BdoGrindTracker/market-prices-v1.json`. It contains only item IDs,
 unit prices and retrieval timestamps. It contains no account/session data and
 is unrelated to Companion's user settings. Cache quotes older than 10 minutes
@@ -146,12 +176,24 @@ count and not before-tax silver. No actual session was uploaded during testing.
 
 ## Verification
 
-`ArshaLootPriceProviderTests` exercises the nested API response, integer dust
-appraisal, malformed JSON types, enhancement filtering, immutability, region
+`ArshaLootPriceProviderTests` exercises `MarketLootPriceProvider`'s nested Arsha
+response, integer dust appraisal, malformed JSON types, enhancement filtering, immutability, region
 isolation, partial responses, stale/offline cache, retry delays, caller
-cancellation, full-response timeout and response limits. Tests use mock HTTP,
-not internet calls. Native tax behavior has separate `SilverValuationTests`.
+cancellation, full-response timeout and response limits.
+`MarketLootPriceFallbackTests` covers the anonymous regional POST contract,
+primary failure/timeout and partial responses, independent fallback deadlines,
+shared cache persistence, source-specific cooldowns, cancellation and invalid
+Pearl Abyss responses. These tests use mock HTTP, not internet calls. Native tax
+behavior has separate `SilverValuationTests`.
 Public anonymous GET checks on 2026-09-05 returned all 24 then-requested base market
 prices, and the six additions were verified on 2026-09-06. A transient
 non-success response was also observed and correctly
 produced fixed-only/incomplete valuation rather than fabricated prices.
+
+Anonymous live checks on 2026-09-13 observed an Arsha EU Black Stone request
+return HTTP 500 while the direct Pearl Abyss request returned HTTP 200 in about
+275 ms. Full-catalog direct search batches then returned HTTP 200 in about
+425 ms (EU) and 293 ms (NA). Each returned 118 of the 120 IDs requested at that
+time; IDs `980115` and `980116` were absent, and all returned rows matched the
+four-field grammar. These are point-in-time observations, not an availability
+benchmark or a guarantee that either source supplies every catalog item.
