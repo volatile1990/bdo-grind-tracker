@@ -97,6 +97,9 @@ internal sealed class HermesiaRotationMonitor : IRotationProfileMonitor
             return snapshot with { Error = _error ?? snapshot.Error };
         }
     }
+    public (DateTimeOffset StartedAt, RotationRun Run)[] DrainCompleted()
+    { lock (_sync) return _tracker.DrainCompleted(); }
+
     public void Interrupt(string status = "Tracking pausiert · warte auf erstes Ereignis")
     { lock (_sync) InterruptCore(status); }
     private void InterruptCore(string status)

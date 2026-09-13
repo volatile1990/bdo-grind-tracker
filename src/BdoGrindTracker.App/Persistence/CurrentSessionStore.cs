@@ -8,6 +8,7 @@ namespace BdoGrindTracker.App.Persistence;
 internal sealed record CurrentSessionSnapshot
 {
     public required Guid SessionId { get; init; }
+    public IReadOnlyList<BdoGrindTracker.App.Overlay.SessionRotation> Rotations { get; init; } = [];
     public required DateTimeOffset? StartedAt { get; init; }
     public required DateTimeOffset UpdatedAt { get; init; }
     public required TimeSpan Duration { get; init; }

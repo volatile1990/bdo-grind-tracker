@@ -9,6 +9,7 @@ internal interface IRotationProfileMonitor : IDisposable
     void Observe(Bitmap frame, DateTimeOffset at);
     void Interrupt(string status);
     RotationMonitorSnapshot Snapshot(DateTimeOffset now);
+    (DateTimeOffset StartedAt, RotationRun Run)[] DrainCompleted() => [];
 }
 
 /// <summary>Each spot owns its message recognition, rotation rules and records.</summary>
@@ -45,11 +46,33 @@ internal sealed class RotationMonitor : IDisposable
     private IRotationProfileMonitor? _profile;
     private string? _spotId;
     private bool _disposed;
+    private readonly List<SessionRotation> _sessionRotations = [];
+    private void CollectCompleted()
+    {
+        if (_profile is null || _spotId is null) return;
+        _sessionRotations.AddRange(_profile.DrainCompleted().Select(r => new SessionRotation(_spotId, r.StartedAt, r.Run)));
+    }
+    internal SessionRotation[] ExportSession()
+    {
+        lock (_sync) { CollectCompleted(); return _sessionRotations.ToArray(); }
+    }
+    internal void RestoreSession(IEnumerable<SessionRotation> rotations)
+    {
+        lock (_sync)
+        {
+            _profile?.Interrupt("Neue Session · warte auf erstes Ereignis");
+            _profile?.DrainCompleted();
+            _sessionRotations.Clear();
+            _sessionRotations.AddRange(rotations);
+        }
+    }
 
     internal RotationMonitor(Func<string?, IRotationProfileMonitor?>? create = null) => _create = create ?? RotationProfiles.Create;
     private void Select(string? spotId)
     {
         if (_disposed || _spotId == spotId) return;
+        _profile?.Interrupt("Spotwechsel");
+        CollectCompleted();
         _profile?.Dispose();
         _spotId = spotId;
         _profile = _create(spotId);

@@ -230,6 +230,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         _hasSession = false;
         _sessionId = Guid.NewGuid();
         _rotationMonitor.Interrupt("Neue Session · warte auf erstes Ereignis");
+        _rotationMonitor.RestoreSession([]);
         _sessionStartedAt = null;
         _sessionSpotId = null;
         _demoMode = false;

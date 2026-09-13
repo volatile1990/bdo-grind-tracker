@@ -11,6 +11,7 @@ public sealed record RotationRun(double Duration, IReadOnlyList<RotationEvent> E
 {
     public int TimingVersion { get; init; }
 }
+public sealed record SessionRotation(string SpotId, DateTimeOffset StartedAt, RotationRun Run);
 public sealed record RotationMonitorSnapshot
 {
     public string? SpotId { get; init; }
@@ -34,6 +35,13 @@ internal sealed class HermesiaRotationTracker
     private static readonly string[] RequiredMechanics = ["drakania", "drakania-kill", "transfer", "mine-enter", "dragon", "afk"];
     private readonly List<RotationEvent> _events = [];
     private readonly List<RotationRun> _runs;
+    private readonly List<(DateTimeOffset StartedAt, RotationRun Run)> _completed = [];
+    internal (DateTimeOffset StartedAt, RotationRun Run)[] DrainCompleted()
+    {
+        var result = _completed.ToArray();
+        _completed.Clear();
+        return result;
+    }
     private readonly string? _path;
     private DateTimeOffset? _start;
     private double _finishedElapsed;
@@ -86,7 +94,7 @@ internal sealed class HermesiaRotationTracker
             {
                 Add("end", "AFK-Ende", (at - start).TotalSeconds);
                 var run = new RotationRun((at - start).TotalSeconds, _events.ToArray()) { TimingVersion = 2 };
-                if (Valid(run)) { _runs.Add(run); Save(); }
+                if (Valid(run)) { _completed.Add((start, run)); _runs.Add(run); Save(); }
             }
             _finishedElapsed = _start is { } started ? Math.Max(0, (at - started).TotalSeconds) : 0;
             _start = null; _afk = false;

@@ -14,6 +14,19 @@ public sealed class HermesiaRotationTests
 {
     private static readonly DateTimeOffset Epoch = new(2026,9,13,0,0,0,TimeSpan.Zero);
 
+    [Fact]
+    public void CompletedRunsAreCollectedOnceAndSurvivePause()
+    {
+        var tracker = new HermesiaRotationTracker();
+        foreach (var e in HermesiaRotationDemo.Reference.Events.Where(e => e.Kind != "start"))
+            tracker.Observe(e.Kind == "end" ? "mine-cleared" : e.Kind, e.Label, Epoch.AddSeconds(e.Seconds));
+        tracker.Interrupt();
+        var completed = Assert.Single(tracker.DrainCompleted());
+        Assert.Equal(Epoch, completed.StartedAt);
+        Assert.Equal(HermesiaRotationDemo.Reference.Duration, completed.Run.Duration, 5);
+        Assert.Empty(tracker.DrainCompleted());
+    }
+
     [Theory]
     [InlineData("best")]
     [InlineData("sectors")]

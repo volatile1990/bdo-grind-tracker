@@ -20,6 +20,8 @@ Die Moduleinstellungen bieten die schnellste vollständige Rotation, die Bestrot
 
 Persönliche Bestzeiten liegen lokal in `hermesia-rotations.json` im App-Datenverzeichnis. Der laufende Playhead wird beim Neustart neu synchronisiert. Demo-Daten werden niemals als persönliche Rekorde gespeichert. Die Datei behält bis zu 200 schnelle Rotationen und zusätzlich erforderliche Spender von Mechanik-Bestzeiten.
 
+Zusätzlich werden alle neu abgeschlossenen, gültigen Rotationen in der jeweiligen Session gespeichert: Spot-ID, Startzeitpunkt, Gesamtdauer und sämtliche Ereigniszeiten. Sie stehen in `Rotations` sowohl im Verlaufsdatensatz als auch im aktuellen Session-Checkpoint. Die reguläre automatische Sicherung (alle 15 Sekunden), Pausieren, Session-Wechsel und Beenden speichern diese Daten zusammen mit der Session. Die Sessionliste wird nicht auf Bestzeiten reduziert. Wiederherstellung übernimmt nur die Rotationen derselben Session; neue Sessions beginnen leer. Unterbrochene/unvollständige Rotationen sind weiterhin keine abgeschlossenen Rotationen. Alte Sessions erhalten keine nachträglich geschätzte Zuordnung aus der globalen Bestzeiten-Datei. Die Daten werden zunächst gespeichert; eine eigene Ansicht im Verlauf ist noch nicht enthalten.
+
 ## Erkennung und Grenzen
 
 Die Erkennung ist auf die **englischen Systemmeldungen und die mittlere untere Meldungsposition der gelieferten Aufnahme** abgestimmt. Sie liest einen eigenen Ausschnitt (25–75 % der Bildbreite, 54–70 % der Bildhöhe). Andere Sprachen oder verschobene Meldungsbereiche sind noch nicht kalibriert.
