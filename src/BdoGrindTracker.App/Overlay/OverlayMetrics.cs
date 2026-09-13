@@ -101,6 +101,7 @@ internal sealed class OverlayMetrics
             RareDrops = Array.AsReadOnly(drops.Where(item => item.IsRare).ToArray()),
             ItemCatalog = _itemCatalog,
             SilverHistory = state.SilverHistory,
+            Rotation = BdoGrindTracker.App.Analysis.RotationProfiles.Present(state.SpotId, state.Rotation),
             DropMarkers = Array.AsReadOnly(state.DropHistory
                 .Where(drop => preferences.FavoriteItems.Contains(drop.ItemName, StringComparer.Ordinal) ||
                     prices is not null && prices.TryGetQuote(drop.ItemName, out var quote) && quote.UnitPrice > 200_000_000m)
@@ -152,6 +153,7 @@ internal sealed class OverlayMetrics
             snapshot = metrics.Update(state with { SilverHistory = history.Update(state) }, preferences);
         }
         var demoItem = snapshot.Drops.First(item => item.CanonicalName == "BON Wandering Origin Crystal");
-        return snapshot with { DropMarkers = [new(TimeSpan.FromSeconds(870), demoItem), new(TimeSpan.FromSeconds(910), demoItem)] };
+        return snapshot with { DropMarkers = [new(TimeSpan.FromSeconds(870), demoItem), new(TimeSpan.FromSeconds(910), demoItem)],
+            Rotation = HermesiaRotationDemo.At(350) };
     }
 }

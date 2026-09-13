@@ -46,6 +46,10 @@
             }
         </div>
     }
+    else if (Widget.Kind == "rotation-monitor")
+    {
+        <OverlayRotationTimeline State="Snapshot.Rotation" Mode="@Widget.RotationComparison" ShowLabel="Widget.ShowLabel" />
+    }
     else if (Widget.Kind == "controls")
     {
         <button type="button" class="overlay-tracking-button" data-overlay-fit disabled="@(!Interactive || !Snapshot.CanToggleTracking)"

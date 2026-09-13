@@ -10,6 +10,7 @@ using BdoGrindTracker.App.Persistence;
 using BdoGrindTracker.App.Pricing;
 using BdoGrindTracker.App.UI;
 using BdoGrindTracker.App.Overlay.Native;
+using BdoGrindTracker.App.Overlay;
 using BdoGrindTracker.Core;
 using BdoGrindTracker.Ocr;
 
@@ -43,6 +44,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
     private readonly object _framePublicationSync = new();
     private readonly SessionSilverHistory _silverHistory = new();
     private readonly SessionDropHistory _dropHistory = new();
+    private readonly RotationMonitor _rotationMonitor = new();
     private readonly GarmothUploadIntervals _garmothIntervals = new();
     private readonly CancellationTokenSource _priceLifetime = new();
     private readonly AsyncLocal<CommandOutcome?> _commandOutcome = new();
@@ -227,6 +229,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         _recording = null;
         _hasSession = false;
         _sessionId = Guid.NewGuid();
+        _rotationMonitor.Interrupt("Neue Session · warte auf AFK-Ende");
         _sessionStartedAt = null;
         _sessionSpotId = null;
         _demoMode = false;
@@ -398,6 +401,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             _sessionClock.Pause(_inactivityTimer.PauseAndGetIdleDuration());
         CompleteCaptureSegment(DateTimeOffset.UtcNow);
         _uiRunning = false;
+        _rotationMonitor.Interrupt();
         _lootScrollMonitor.Reset();
         _agrisMonitor.Reset();
         _agrisSessionTracker.Pause(_sessionClock.Elapsed);
@@ -443,12 +447,14 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         cancellationToken.ThrowIfCancellationRequested();
         if (_uiRunning && metadata.CanObserveHud)
         {
+            _rotationMonitor.Observe(frame, metadata.CapturedAtUtc, _sessionSpotId);
             _lootScrollMonitor.Observe(frame, metadata.CapturedAtUtc);
             _agrisMonitor.Observe(frame, metadata.CapturedAtUtc);
             _experienceMonitor.Observe(frame, metadata.CapturedAtUtc);
         }
         else
         {
+            _rotationMonitor.Interrupt("Bildsignal fehlt · warte auf AFK-Ende");
             _agrisMonitor.Reset();
             _experienceMonitor.Reset();
         }
@@ -688,7 +694,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             AutomaticSuspended = _garmothIntervals.AutomaticSuspended,
             ShutdownFailed = _shutdownFailed,
         };
-        State = State with { SilverHistory = _silverHistory.Update(State), DropHistory = _dropHistory.Update(State) };
+        State = State with { SilverHistory = _silverHistory.Update(State), DropHistory = _dropHistory.Update(State),
+            Rotation = _rotationMonitor.Snapshot(DateTimeOffset.UtcNow, _sessionSpotId) };
         if (_historyChanged)
         {
             History = Array.AsReadOnly(_historyEntries.Select(entry => entry with
@@ -794,6 +801,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             _lootScrollMonitor.Dispose();
             _agrisMonitor.Dispose();
             _experienceMonitor.Dispose();
+            _rotationMonitor.Dispose();
             _priceProvider.Dispose();
             _benchmarkProvider?.Dispose();
             _garmothClient.Dispose();

@@ -11,6 +11,8 @@ public partial class OverlayEditor
     private string? _selectedId, _error;
     private string _itemSearch = "";
     private bool _demo, _saving, _disposed;
+    private readonly System.Diagnostics.Stopwatch _rotationDemoClock = System.Diagnostics.Stopwatch.StartNew();
+    private System.Threading.Timer? _rotationDemoTimer;
     private ElementReference _viewport;
     private DotNetObjectReference<OverlayEditor>? _reference;
     private readonly SemaphoreSlim _saveGate = new(1, 1);
@@ -27,7 +29,9 @@ public partial class OverlayEditor
     });
     private static IReadOnlyList<OverlayWidgetDefinition> Modules => OverlayCatalog.Widgets;
     private OverlayWidget? SelectedWidget => _settings.Widgets.FirstOrDefault(w => w.Id == _selectedId);
-    private OverlaySnapshot PreviewSnapshot => _demo ? OverlaySnapshot.Demo : Overlay.Snapshot;
+    private OverlaySnapshot PreviewSnapshot => _demo ? OverlaySnapshot.Demo with {
+        Rotation = HermesiaRotationDemo.At((350 + _rotationDemoClock.Elapsed.TotalSeconds) % HermesiaRotationDemo.Reference.Duration)
+    } : Overlay.Snapshot;
     private string StageStyle => $"width:{Css(_settings.Width)}px;height:{Css(_settings.Height)}px;--overlay-opacity:{Css(_settings.BackgroundOpacity)};background:rgba(17,23,30,{Css(_settings.BackgroundOpacity)})";
     private static string WidgetStyle(OverlayWidget widget) => $"left:{Css(widget.X)}px;top:{Css(widget.Y)}px;width:{Css(widget.Width)}px;height:{Css(widget.Height)}px";
     private static string Css(double value) => value.ToString("0.##", CultureInfo.InvariantCulture);
@@ -48,6 +52,11 @@ public partial class OverlayEditor
     {
         LoadSelectedOverlay();
         Overlay.Changed += OverlayChanged;
+        _rotationDemoTimer = new System.Threading.Timer(_ =>
+        {
+            if (_demo && !_disposed && _settings.Widgets.Any(w => w.Kind == "rotation-monitor"))
+                _ = InvokeAsync(() => { if (!_disposed) StateHasChanged(); });
+        }, null, 500, 500);
     }
 
     private void OverlayChanged()
@@ -379,6 +388,7 @@ public partial class OverlayEditor
     public async ValueTask DisposeAsync()
     {
         _disposed = true;
+        _rotationDemoTimer?.Dispose();
         Overlay.Changed -= OverlayChanged;
         try { await JS.InvokeVoidAsync("grindcrestOverlayEditor.unmount", "overlay-editor"); }
         catch (Exception exception) when (exception is JSException or TaskCanceledException or InvalidOperationException) { }

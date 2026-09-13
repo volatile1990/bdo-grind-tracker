@@ -1,0 +1,58 @@
+@using BdoGrindTracker.App.Overlay
+<div class="rotation-timeline">
+    <div class="rotation-spot">@State.SpotName</div>
+    @if (!State.HasProfile)
+    {
+        <div class="rotation-comparison">@State.Status</div>
+    }
+    else
+    {
+    <div class="rotation-heading"><strong>@(State.Synchronized ? RotationTimelinePresentation.Time(State.Elapsed) : "—:—")</strong><span>@State.Status</span></div>
+    <div class="rotation-comparison">@RotationTimelinePresentation.Mode(Mode)</div>
+    <svg viewBox="0 0 600 120" preserveAspectRatio="none" class="rotation-track" role="img" aria-label="Rotation Monitor: Referenz oben, aktuelle Rotation unten">
+        @foreach (var row in new[] { 0, 1 })
+        {
+            var events = row == 0 ? Reference?.Events ?? [] : State.Events;
+            var y = row == 0 ? 46 : 108;
+            var afk = events.FirstOrDefault(e => e.Kind == "afk");
+            <line x1="0" x2="600" y1="@y" y2="@y" stroke="#44515c" stroke-width="2" />
+            @if (afk is not null)
+            {
+                var end = row == 0 ? Reference?.Duration ?? Extent : State.Elapsed;
+                <rect x="@X(afk.Seconds)" y="@(y-9)" width="@X(Math.Max(0,end-afk.Seconds))" height="18" fill="#6e849d" opacity=".25" />
+            }
+            @foreach (var e in events)
+            {
+                <g>
+                    <title>@(e.Label + " · " + RotationTimelinePresentation.Time(e.Seconds) + (Mode == "sectors" && State.SectorBests.TryGetValue(e.Key, out var sector) ? " · Bestabschnitt " + RotationTimelinePresentation.Time(sector) : ""))</title>
+                    <line x1="@X(e.Seconds)" x2="@X(e.Seconds)" y1="@(y-8)" y2="@(y+8)" stroke="@(row==0 ? "#f1cc7a" : "#66d8c7")" stroke-width="2" vector-effect="non-scaling-stroke" />
+                    <circle cx="@X(e.Seconds)" cy="@y" r="@(e.Kind is "porter" or "offer" ? 2 : 4)" fill="@(row==0 ? "#f1cc7a" : "#66d8c7")" />
+                    @if (RotationTimelinePresentation.Mark(e) is { Length: > 0 } mark)
+                    {
+                        <g><text x="@X(e.Seconds)" y="@(y - 12 - (e.Kind is "drakania-kill" or "mine-cleared" ? 12 : e.Kind == "transfer" ? 24 : 0))" text-anchor="middle" fill="@(row==0 ? "#f1cc7a" : "#66d8c7")" font-size="10">@mark</text></g>
+                    }
+                </g>
+            }
+        }
+        @if (State.Synchronized)
+        {
+            <line x1="@X(State.Elapsed)" x2="@X(State.Elapsed)" y1="0" y2="120" stroke="#ffffff" stroke-width="2" vector-effect="non-scaling-stroke" />
+            <path d="@($"M {X(State.Elapsed-Extent*.008)} 0 H {X(State.Elapsed+Extent*.008)} L {X(State.Elapsed)} 7 Z")" fill="#ffffff" />
+        }
+    </svg>
+    <div class="rotation-range"><span>0:00</span><span>@(Reference is null ? "Noch keine persönliche Bestrotation" : "Referenz " + RotationTimelinePresentation.Time(Reference.Duration))</span><span>@RotationTimelinePresentation.Time(Extent)</span></div>
+    <div class="rotation-delta">@RotationTimelinePresentation.Delta(State, Mode)</div>
+    @if (Mode == "sectors") { <div class="rotation-comparison">@RotationTimelinePresentation.Sector(State)</div> }
+    @if (ShowLabel) { <div class="rotation-legend"><span>● Referenz</span><span>● Aktuell</span><span>▰ AFK</span><span>│ Playhead</span></div> }
+    @if (ShowLabel) { <div class="rotation-comparison">@RotationTimelinePresentation.Legend</div> }
+    @if (State.Error is not null) { <div class="rotation-error">@State.Error</div> }
+    }
+</div>
+@code {
+    [Parameter] public RotationMonitorSnapshot State { get; set; } = new();
+    [Parameter] public string Mode { get; set; } = "best";
+    [Parameter] public bool ShowLabel { get; set; } = true;
+    private RotationRun? Reference => RotationTimelinePresentation.Reference(State, Mode);
+    private double Extent => RotationTimelinePresentation.Extent(State, Mode);
+    private string X(double seconds) => (Math.Clamp(seconds / Extent,0,1) * 600).ToString("0.###", CultureInfo.InvariantCulture);
+}

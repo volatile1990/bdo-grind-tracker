@@ -13,6 +13,7 @@ public sealed record OverlaySnapshot
     public IReadOnlyList<OverlayLootItem> ItemCatalog { get; init; } = [];
     public IReadOnlyList<SessionSilverSample> SilverHistory { get; init; } = [];
     public IReadOnlyList<OverlayDropMarker> DropMarkers { get; init; } = [];
+    public RotationMonitorSnapshot Rotation { get; init; } = new();
     public LootScrollState LootScroll { get; init; } = LootScrollState.Unknown;
     public string Status { get; init; } = "Bereit";
     public bool IsRunning { get; init; }

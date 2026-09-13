@@ -132,6 +132,17 @@
                     <label class="oe-field"><span>Schriftgröße <output>@Percent(selected.FontScale)</output></span><input type="range" min="0.7" max="2" step="0.05" value="@Css(selected.FontScale)" @onchange='e => WidgetNumber(e, "fontScale")' /></label>
                     <label class="oe-check"><input type="checkbox" checked="@selected.ShowLabel" @onchange="e => ChangeWidget(w => w with { ShowLabel = Checked(e) })" /><span>Beschriftung</span></label>
                     <label class="oe-check"><input type="checkbox" checked="@selected.ShowIcon" @onchange="e => ChangeWidget(w => w with { ShowIcon = Checked(e) })" /><span>Icon</span></label>
+                    @if (selected.Kind == "rotation-monitor")
+                    {
+                        <label class="oe-field"><span>Rotationsvergleich</span>
+                            <select aria-label="Rotationsvergleich" value="@selected.RotationComparison" @onchange='e => ChangeWidget(w => w with { RotationComparison = Text(e) })'>
+                                <option value="best">Beste vollständige Rotation</option>
+                                <option value="sectors">Bestrotation + Mechanik-Bestzeiten</option>
+                                <option value="ideal">Ideale Rotation aus Bestabschnitten</option>
+                            </select>
+                        </label>
+                        <p class="oe-help">Der Rotation Monitor übernimmt den Spot automatisch aus dem Tracker. Mechaniken und Bestzeiten gehören zum jeweiligen Spot-Profil. Aktuell verfügbar: Hermesia (englische Meldungen, Rotationsgrenze: AFK-Ende). Weitere Spots werden nach und nach ergänzt.</p>
+                    }
                     @if (selected.Kind == "clock")
                     {
                         <div class="oe-clock-settings">

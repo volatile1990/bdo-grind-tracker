@@ -75,6 +75,18 @@
 .overlay-widget-chart .overlay-widget-value { font-size: calc(20px * var(--widget-font-scale, 1) * var(--line-fit, 1)); }
 svg.overlay-widget-chart { display: block; width: 100%; min-height: 15px; flex: 1 1 60px; overflow: visible; }
 .overlay-chart-drop-icon { display: block; width: 100%; height: 100%; object-fit: contain; }
+.rotation-timeline { display:flex; flex-direction:column; flex:1; min-height:0; gap:5px; font-size:11px; }
+.rotation-spot { color:#c4d0d9; font-size:11px; font-weight:600; }
+.rotation-heading { display:flex; align-items:baseline; gap:12px; min-width:0; }
+.rotation-heading strong { color:#f1cc7a; font-size:25px; font-variant-numeric:tabular-nums; }
+.rotation-heading span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#c4d0d9; }
+.rotation-comparison,.rotation-range { color:#93a7b6; font-size:10px; }
+.rotation-track { width:100%; flex:1; min-height:40px; overflow:visible; }
+.rotation-range,.rotation-legend { display:flex; justify-content:space-between; gap:8px; }
+.rotation-delta { font-variant-numeric:tabular-nums; color:#dce5eb; }
+.rotation-legend { font-size:9px; color:#8fa4b7; justify-content:flex-start; gap:16px; }
+.rotation-legend span:first-child { color:#f1cc7a; }.rotation-legend span:nth-child(2) { color:#66d8c7; }
+.rotation-error { color:#ffb48b; font-size:10px; }
 .overlay-chart-baseline { stroke: #91a6b333; stroke-width: 1; }
 .overlay-chart-area { fill: #f1cc7a1c; }
 .overlay-chart-line { fill: none; stroke: #f1cc7a; stroke-width: 2; }
