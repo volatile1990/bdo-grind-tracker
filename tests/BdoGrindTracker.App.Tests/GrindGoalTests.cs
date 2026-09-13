@@ -29,7 +29,8 @@ public sealed class GrindGoalTests
     {
         var start = new DateTimeOffset(2026,9,14,23,45,0,TimeZoneInfo.Local.GetUtcOffset(new DateTime(2026,9,14)));
         var first = new LootHistoryEntry { SessionId = Guid.NewGuid(), StartedAt = start, UpdatedAt = start,
-            Duration = TimeSpan.FromHours(2), SpotId = LootSpotCatalog.HermesiaId, Totals = [],
+            Duration = TimeSpan.FromHours(2), SpotId = LootSpotCatalog.HermesiaId,
+            Totals = new Dictionary<string, long> { ["rare"] = 1, ["favorite"] = 2, ["ordinary"] = 100, ["empty"] = 0 },
             SilverBeforeTax = 900, SilverAfterTax = 100, SilverIsComplete = true };
         var revised = first with { UpdatedAt = start.AddHours(2), SilverAfterTax = 250 };
         var second = first with { SessionId = Guid.NewGuid(), SilverAfterTax = 50 };
@@ -37,6 +38,12 @@ public sealed class GrindGoalTests
         var totals = GrindGoalStore.DailyNet([first,revised,second,nextDay]);
         Assert.Equal(300, totals[new DateOnly(2026,9,14)]);
         Assert.Equal(80, totals[new DateOnly(2026,9,15)]);
+        var drops = GrindGoalStore.DailyDrops([first,revised,second,nextDay], name => name != "ordinary");
+        var today = drops[new DateOnly(2026,9,14)].ToDictionary();
+        Assert.Equal(2, today["rare"]);
+        Assert.Equal(4, today["favorite"]);
+        Assert.Equal(2, today.Count);
+        Assert.Equal(1, drops[new DateOnly(2026,9,15)].Single(d => d.Key == "rare").Value);
     }
 
     [Fact]

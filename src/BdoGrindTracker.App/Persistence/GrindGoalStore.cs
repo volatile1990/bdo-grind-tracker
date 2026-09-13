@@ -34,4 +34,14 @@ internal sealed class GrindGoalStore(string? path)
         .GroupBy(s => s.SessionId).Select(g => g.MaxBy(s => s.UpdatedAt)!)
         .GroupBy(s => DateOnly.FromDateTime(s.StartedAt.LocalDateTime))
         .ToDictionary(g => g.Key, g => g.Sum(s => s.SilverAfterTax));
+
+    public static Dictionary<DateOnly, KeyValuePair<string, long>[]> DailyDrops(
+        IEnumerable<LootHistoryEntry> sessions, Func<string, bool> includeItem) => sessions
+        .GroupBy(s => s.SessionId).Select(g => g.MaxBy(s => s.UpdatedAt)!)
+        .GroupBy(s => DateOnly.FromDateTime(s.StartedAt.LocalDateTime))
+        .ToDictionary(g => g.Key, g => g.SelectMany(s => s.Totals)
+            .Where(item => item.Value > 0 && includeItem(item.Key))
+            .GroupBy(item => item.Key, StringComparer.Ordinal)
+            .Select(items => new KeyValuePair<string, long>(items.Key, items.Sum(item => item.Value)))
+            .OrderBy(item => item.Key, StringComparer.Ordinal).ToArray());
 }

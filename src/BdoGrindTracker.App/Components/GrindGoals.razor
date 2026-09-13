@@ -2,6 +2,10 @@
 @inherits TrackerComponentBase
 @inject GrindGoalStore Goals
 
+@{ var dailyDrops = GrindGoalStore.DailyDrops(Tracker.History, name =>
+    Tracker.Preferences.FavoriteItems.Contains(name, StringComparer.Ordinal) ||
+    Tracker.Prices.TryGetQuote(name, out var quote) && quote.UnitPrice > 200_000_000m); }
+
 <div class="page grind-goals">
     <div class="page-heading"><div><span class="eyebrow">DEINE ZIELE</span><h1>Grind Goals</h1><p>Plane deinen Grind und verfolge deinen täglichen Netto-Silbergewinn.</p></div></div>
     @if (_error is not null || Goals.Error is not null) { <div class="notice error-notice" role="alert">@(_error ?? Goals.Error)</div> }
@@ -25,6 +29,21 @@
                         <button class="gg-day @(date.Month != _month.Month ? "outside" : "") @(date == _day ? "chosen" : "") @(goal > 0 && net >= goal ? "reached" : "")" aria-pressed="@(date == _day)" @onclick="() => SelectDay(date)">
                             <span>@date.Day</span><strong>@Silver(net)</strong><small>@(goal > 0 ? "von " + Silver(goal) : "Kein Ziel")</small>
                             @if (goal > 0) { <progress value="@Math.Clamp(net,0,goal)" max="@goal" aria-label="Zielfortschritt"></progress> }
+                            @if (dailyDrops.TryGetValue(date, out var drops) && drops.Length > 0)
+                            {
+                                <span class="gg-drops">
+                                    @foreach (var drop in drops)
+                                    {
+                                        var favorite = Tracker.Preferences.FavoriteItems.Contains(drop.Key, StringComparer.Ordinal);
+                                        var label = ItemLabel(drop.Key) + " · " + Number(drop.Value) + (favorite ? " · Favorit" : "");
+                                        <span class="gg-drop" title="@label" aria-label="@label">
+                                            <AssetImage Src="@ItemIcon(drop.Key)" Alt="" Class="gg-drop-icon" Fallback="loot" />
+                                            <span class="gg-drop-count">@Number(drop.Value)</span>
+                                            @if (favorite) { <span class="gg-drop-star" aria-hidden="true">★</span> }
+                                        </span>
+                                    }
+                                </span>
+                            }
                         </button>
                     }
                 </div>
@@ -42,6 +61,7 @@
             <small>Sessions zählen zum lokalen Tag ihres Starts. Grundlage ist Silber netto aus dem gespeicherten Verlauf. Wochenaktionen gelten innerhalb des angezeigten Monats.</small>
         </section>
     </div>
+    <GrindGoalDaySummary Day="_day" />
     @if (Tracker.History.Any(s => !s.SilverIsComplete && DateOnly.FromDateTime(s.StartedAt.LocalDateTime).Month == _month.Month && s.StartedAt.LocalDateTime.Year == _month.Year))
     { <p class="notice">Einige Sessions enthalten unvollständige Silberwerte. Ihr bisher bekannter Nettowert zählt zum Fortschritt.</p> }
 </div>
