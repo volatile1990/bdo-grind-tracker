@@ -14,6 +14,7 @@ public sealed record OverlayWidget
     public double? ContentHeight { get; init; }
     public bool ShowLabel { get; init; } = true;
     public bool ShowIcon { get; init; } = true;
+    public bool ShowNewSession { get; init; } = true;
     public double FontScale { get; init; } = 1;
     public int ItemLimit { get; init; } = 8;
     public string ItemView { get; init; } = "grid";
@@ -28,6 +29,7 @@ public sealed record OverlayWidget
     // Real minutes added to the regular NA/EU cycle for server calibration.
     public int ClockOffsetMinutes { get; init; }
     public string RotationComparison { get; init; } = "best";
+    public string RotationColors { get; init; } = "colored";
 }
 
 public sealed record OverlaySettings
@@ -220,6 +222,7 @@ public static class OverlayLayout
                 ShowRealTime = widget.ShowRealTime || (!widget.ShowGameTime && !widget.ShowDayNightCountdown),
                 ClockOffsetMinutes = Math.Clamp(widget.ClockOffsetMinutes, -240, 240),
                 RotationComparison = widget.RotationComparison is "sectors" or "ideal" ? widget.RotationComparison : "best",
+                RotationColors = RotationPhases.NormalizeColors(widget.RotationColors),
             });
         }
         return settings with

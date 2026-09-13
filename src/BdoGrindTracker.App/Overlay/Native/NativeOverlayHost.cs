@@ -190,6 +190,13 @@ internal sealed class NativeOverlayWindowHost(string id, IOverlayService service
         {
             if (action.StartsWith("toggle-tracking:", StringComparison.Ordinal) && service.Snapshot.CanToggleTracking)
                 _ = RunCommandAsync(service.ToggleTrackingAsync);
+            if (action.StartsWith("new-session:", StringComparison.Ordinal) && service.Snapshot.CanNewSession)
+                _ = RunCommandAsync(async () =>
+                {
+                    if (MessageBox.Show(_window, "Neue Session beginnen? Die bisherige Session wird abgeschlossen.",
+                            "Neue Session", MessageBoxButtons.OKCancel, MessageBoxIcon.Question) == DialogResult.OK)
+                        await service.NewSessionAsync();
+                });
         };
     }
 

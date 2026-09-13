@@ -5,6 +5,31 @@ namespace BdoGrindTracker.App.Tests;
 
 public sealed class RotationPhasesTests
 {
+    [Theory]
+    [InlineData("colored")]
+    [InlineData("gold")]
+    [InlineData("slate")]
+    [InlineData("minimal")]
+    public void PaletteSurvivesSettingsRoundTripWithoutChangingPhaseTimes(string mode)
+    {
+        var settings = new OverlaySettings { Widgets = [OverlayCatalog.CreateWidget("rotation-monitor") with { RotationColors = mode }] };
+        var json = System.Text.Json.JsonSerializer.Serialize(settings);
+        var restored = OverlayLayout.Normalize(System.Text.Json.JsonSerializer.Deserialize<OverlaySettings>(json));
+        Assert.Equal(mode, restored.Widgets[0].RotationColors);
+        var run = HermesiaRotationDemo.Reference;
+        var original = RotationPhases.Create(LootSpotCatalog.HermesiaId, run.Events, run.Duration);
+        var themed = RotationPhases.Create(LootSpotCatalog.HermesiaId, run.Events, run.Duration, mode);
+        Assert.Equal(original.Select(p => (p.Id,p.Start,p.End)), themed.Select(p => (p.Id,p.Start,p.End)));
+        if (mode != "colored") Assert.Equal(2, themed.Select(p => p.Color).Distinct().Count());
+    }
+
+    [Fact]
+    public void UnknownPaletteFallsBackToColored()
+    {
+        var settings = OverlayLayout.Normalize(new OverlaySettings { Widgets = [OverlayCatalog.CreateWidget("rotation-monitor") with { RotationColors = "unknown" }] });
+        Assert.Equal("colored", settings.Widgets[0].RotationColors);
+    }
+
     [Fact]
     public void ReferenceHasSixGroupsAndTwoSubphasesPerMine()
     {

@@ -305,6 +305,13 @@ internal sealed class OverlayService : IOverlayService
         if (!result.Succeeded) throw new InvalidOperationException(result.Error);
     }
 
+    public async Task NewSessionAsync()
+    {
+        if (_disposed || !Snapshot.CanNewSession) return;
+        var result = await _tracker.NewSessionAsync();
+        if (!result.Succeeded) throw new InvalidOperationException(result.Error);
+    }
+
     public void UpdateRuntime(OverlayRuntimeState state) => UpdateRuntime(SelectedOverlayId, state);
 
     public void UpdateRuntime(string id, OverlayRuntimeState state)

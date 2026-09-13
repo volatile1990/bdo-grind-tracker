@@ -1,7 +1,7 @@
 @using BdoGrindTracker.App.Overlay
 <div class="rotation-timeline" title="@(State.SpotName + " · " + State.Status + (State.Error is null ? "" : " · " + State.Error))">
     <svg viewBox="0 0 600 120" preserveAspectRatio="none" class="rotation-track" role="img" aria-label="Rotation Monitor: Referenz oben, aktuelle Rotation unten">
-        @foreach (var group in RotationPhases.Create(State.SpotId, Reference?.Events ?? State.Events, Reference?.Duration ?? State.Elapsed).GroupBy(p => p.Group))
+        @foreach (var group in RotationPhases.Create(State.SpotId, Reference?.Events ?? State.Events, Reference?.Duration ?? State.Elapsed, Colors).GroupBy(p => p.Group))
         {
             <rect x="@X(group.First().Start)" y="12" width="@Width(group.Last().End-group.First().Start)" height="98" rx="4" fill="@group.First().Color" fill-opacity=".18" />
             <rect x="@X(group.First().Start)" y="12" width="@Width(group.Last().End-group.First().Start)" height="3" fill="@group.First().GroupColor" />
@@ -11,7 +11,7 @@
             var events = row == 0 ? Reference?.Events ?? [] : State.Events;
             var y = row == 0 ? 35 : 85;
             var end = row == 0 ? Reference?.Duration ?? 0 : State.Elapsed;
-            var phases = RotationPhases.Create(State.SpotId, events, end);
+            var phases = RotationPhases.Create(State.SpotId, events, end, Colors);
             <line x1="0" x2="600" y1="@y" y2="@y" stroke="#44515c" stroke-width="2" />
             @foreach (var phase in phases)
             {
@@ -30,7 +30,7 @@
                     <title>@(e.Label + " · " + RotationTimelinePresentation.Time(e.Seconds) + (Mode == "sectors" && State.SectorBests.TryGetValue(e.Key, out var sector) ? " · Bestabschnitt " + RotationTimelinePresentation.Time(sector) : ""))</title>
                     @if (e.Kind is "porter" or "offer")
                     {
-                        <line class="rotation-pack-marker" x1="@X(e.Seconds)" x2="@X(e.Seconds)" y1="@(y-18)" y2="@(y-11)" stroke="@(row==0 ? "#f1cc7a" : "#66d8c7")" stroke-width="2" vector-effect="non-scaling-stroke" />
+                        <line class="rotation-pack-marker" x1="@X(e.Seconds)" x2="@X(e.Seconds)" y1="@(y-18)" y2="@(y-11)" stroke="@RotationPhases.MarkerColor(Colors, row == 1)" stroke-width="2" vector-effect="non-scaling-stroke" />
                     }
                 </g>
             }
@@ -45,7 +45,7 @@
 @code {
     [Parameter] public RotationMonitorSnapshot State { get; set; } = new();
     [Parameter] public string Mode { get; set; } = "best";
-    [Parameter] public bool ShowLabel { get; set; } = true;
+    [Parameter] public string Colors { get; set; } = "colored";
     private RotationRun? Reference => RotationTimelinePresentation.Reference(State, Mode);
     private double Extent => RotationTimelinePresentation.Extent(State, Mode);
     private string X(double seconds) => (Math.Clamp(seconds / Extent,0,1) * 600).ToString("0.###", CultureInfo.InvariantCulture);

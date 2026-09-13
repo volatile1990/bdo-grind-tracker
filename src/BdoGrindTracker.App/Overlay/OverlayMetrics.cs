@@ -111,6 +111,7 @@ internal sealed class OverlayMetrics
             LootScroll = state.LootScroll,
             Status = state.Status,
             IsRunning = state.IsRunning,
+            CanNewSession = !state.IsRunning && !state.IsBusy,
             CanToggleTracking = state.IsRunning ? state.CanPause :
                 !state.IsBusy && !state.IsSubmitted && !state.IsInstallingOcrLanguage &&
                 state.AnalyzerAvailable && state.TrackingBlockedReason is null &&

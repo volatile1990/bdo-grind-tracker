@@ -8,12 +8,19 @@ public sealed record RotationPhase(string Id, string Group, string Name, double 
 /// <summary>Projects recorded boundaries without estimating future mechanic times.</summary>
 public static class RotationPhases
 {
+    public static string NormalizeColors(string? mode) => mode is "gold" or "slate" or "minimal" ? mode : "colored";
+    public static string MarkerColor(string? mode, bool current) => NormalizeColors(mode) switch
+    {
+        "gold" or "minimal" => current ? "#F1CC7A" : "#C0B18B",
+        "slate" => current ? "#DCE3E8" : "#A0B0BD",
+        _ => current ? "#66D8C7" : "#F1CC7A"
+    };
     public static string Duration(double seconds)
     {
         var total = (int)Math.Round(Math.Max(0, seconds));
         return $"{total / 60}:{total % 60:00}";
     }
-    public static IReadOnlyList<RotationPhase> Create(string? spotId, IReadOnlyList<RotationEvent> events, double elapsed)
+    public static IReadOnlyList<RotationPhase> Create(string? spotId, IReadOnlyList<RotationEvent> events, double elapsed, string? colors = "colored")
     {
         if (spotId != LootSpotCatalog.HermesiaId || events.Count == 0 || !double.IsFinite(elapsed) || elapsed <= 0) return [];
         var phases = new List<RotationPhase>();
@@ -49,6 +56,14 @@ public static class RotationPhases
         {
             if (active is null || end <= start) return;
             var (group, name, color, groupColor) = Style(active);
+            var index = Array.IndexOf(Order, active);
+            (color, groupColor) = NormalizeColors(colors) switch
+            {
+                "gold" => (index % 2 == 0 ? "#78643C" : "#948052", "#D8BD75"),
+                "slate" => (index % 2 == 0 ? "#45535E" : "#61717E", "#A0B0BD"),
+                "minimal" => (index % 2 == 0 ? "#39434B" : "#505B64", "#C8AA67"),
+                _ => (color, groupColor)
+            };
             phases.Add(new(active, group, name, start, end, color, groupColor));
         }
     }

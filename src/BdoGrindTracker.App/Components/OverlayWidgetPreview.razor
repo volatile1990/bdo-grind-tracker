@@ -48,7 +48,7 @@
     }
     else if (Widget.Kind == "rotation-monitor")
     {
-        <OverlayRotationTimeline State="Snapshot.Rotation" Mode="@Widget.RotationComparison" ShowLabel="Widget.ShowLabel" />
+        <OverlayRotationTimeline State="Snapshot.Rotation" Mode="@Widget.RotationComparison" Colors="@Widget.RotationColors" />
     }
     else if (Widget.Kind == "controls")
     {
@@ -57,6 +57,14 @@
             @if (Widget.ShowIcon) { <AppIcon Name="@(Snapshot.IsRunning ? "pause" : "play")" /> }
             <span>@Snapshot.TrackingButtonLabel</span>
         </button>
+        @if (Widget.ShowNewSession)
+        {
+            <button type="button" class="overlay-tracking-button" data-overlay-fit disabled="@(!Interactive || !Snapshot.CanNewSession)"
+                    @onclick="OnNewSession" @onclick:stopPropagation @onpointerdown:stopPropagation>
+                @if (Widget.ShowIcon) { <AppIcon Name="plus" /> }
+                <span>Neue Session</span>
+            </button>
+        }
     }
     else if (Widget.Kind == "chart")
     {
@@ -111,6 +119,7 @@
     [Parameter, EditorRequired] public OverlaySnapshot Snapshot { get; set; } = new();
     [Parameter] public bool Interactive { get; set; }
     [Parameter] public EventCallback OnToggleTracking { get; set; }
+    [Parameter] public EventCallback OnNewSession { get; set; }
 
     private OverlayMetric Metric => Snapshot.Metrics.GetValueOrDefault(Widget.Kind) ?? new(OverlayCatalog.Find(Widget.Kind)?.Label ?? "Modul", "—");
     private bool IsLoot => OverlayCatalog.IsLootWidget(Widget.Kind);

@@ -184,7 +184,7 @@ internal sealed class NativeOverlayForm : Form
     {
         // Match drawing order: a later module covers controls beneath it.
         foreach (var pair in _actions.Reverse())
-            if (pair.Value.Contains(point)) return pair.Key.StartsWith("toggle-tracking:", StringComparison.Ordinal) ? pair.Key : null;
+            if (pair.Value.Contains(point)) return pair.Key.StartsWith("toggle-tracking:", StringComparison.Ordinal) || pair.Key.StartsWith("new-session:", StringComparison.Ordinal) ? pair.Key : null;
         return null;
     }
     private void CancelManipulation(bool restore = true)

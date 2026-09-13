@@ -14,6 +14,8 @@ Die Registrierung in `RotationProfiles` ordnet jedem unterstützten Spot ein eig
 
 ## Vergleiche
 
+Die Moduleinstellungen bieten unter **Timeline-Farben** die bestehende Darstellung **Eingefärbt** sowie **Grindcrest Gold**, **Schiefer** und **Dezent · Gold & Grau**. Die Auswahl wird pro Modul gespeichert und in Editor und nativem Overlay identisch verwendet. Die vereinfachten Varianten wechseln zwischen zwei Helligkeitsstufen; Minen-Unterphasen bleiben getrennt. Die allgemeinen Optionen Icon und Beschriftung werden für dieses Modul ausgeblendet.
+
 Die Moduleinstellungen bieten die schnellste vollständige Rotation, die Bestrotation mit Mechanik-Bestzeiten sowie eine ideale Rotation aus Bestabschnitten. Mechanik-Abschnitte liegen zwischen den großen Ereignissen; Träger-/Opfergabe-Meldungen zerlegen sie nicht. Die ideale Rotation kombiniert nur Durchläufe mit derselben Mechanik-Reihenfolge. Ihre kleinen Zwischenmarkierungen werden proportional in die Bestabschnitte eingesetzt und sind keine gemessene vollständige Rotation.
 
 Persönliche Bestzeiten liegen lokal in `hermesia-rotations.json` im App-Datenverzeichnis. Der laufende Playhead wird beim Neustart neu synchronisiert. Demo-Daten werden niemals als persönliche Rekorde gespeichert. Die Datei behält bis zu 200 schnelle Rotationen und zusätzlich erforderliche Spender von Mechanik-Bestzeiten.

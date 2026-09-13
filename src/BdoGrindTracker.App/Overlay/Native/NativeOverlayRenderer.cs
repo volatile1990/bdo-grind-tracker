@@ -75,6 +75,23 @@ internal sealed class NativeOverlayRenderer : IDisposable
                     continue;
                 }
                 var enabled = snapshot.CanToggleTracking && settings.Interaction != "passthrough";
+                if (widget.ShowNewSession)
+                {
+                    var half = Math.Max(1, (inner.Height-4)/2);
+                    var next = new RectangleF(inner.X, inner.Y+half+4, inner.Width, half);
+                    var newEnabled = snapshot.CanNewSession && settings.Interaction != "passthrough";
+                    FillRound(graphics, Color.FromArgb(newEnabled ? 24 : 12, Gold), next, 5);
+                    Draw(graphics, "Neue Session", next, 12*(float)widget.FontScale,
+                        newEnabled ? Gold : Color.FromArgb(130, Gold), true, StringAlignment.Center, StringAlignment.Center);
+                    if (newEnabled)
+                    {
+                        PointF[] corners = [next.Location, new(next.Right,next.Bottom)];
+                        using var transform = graphics.Transform;
+                        transform.TransformPoints(corners);
+                        controls["new-session:"+widget.Id] = RectangleF.FromLTRB(corners[0].X,corners[0].Y,corners[1].X,corners[1].Y);
+                    }
+                    inner.Height = half;
+                }
                 var buttonHeight = Math.Min(inner.Height, 28 * (float)widget.FontScale);
                 inner.Y += (inner.Height - buttonHeight) / 2;
                 inner.Height = buttonHeight;
@@ -372,7 +389,7 @@ internal sealed class NativeOverlayRenderer : IDisposable
         using var baseline = new Pen(Color.FromArgb(70, 85, 100), 1);
         var bandHeight = Math.Max(4, graph.Height * .28f);
         foreach (var group in RotationPhases.Create(rotation.SpotId, reference?.Events ?? rotation.Events,
-                     reference?.Duration ?? rotation.Elapsed).GroupBy(p => p.Group))
+                     reference?.Duration ?? rotation.Elapsed, widget.RotationColors).GroupBy(p => p.Group))
         {
             using var background = new SolidBrush(Color.FromArgb(45, ColorTranslator.FromHtml(group.First().Color)));
             using var accent = new SolidBrush(ColorTranslator.FromHtml(group.First().GroupColor));
@@ -386,7 +403,7 @@ internal sealed class NativeOverlayRenderer : IDisposable
             var y = graph.Top + graph.Height * (row == 0 ? .25f : .78f);
             graphics.DrawLine(baseline, graph.Left, y, graph.Right, y);
             var end = row == 0 ? reference?.Duration ?? 0 : rotation.Elapsed;
-            var phases = RotationPhases.Create(rotation.SpotId, events, end);
+            var phases = RotationPhases.Create(rotation.SpotId, events, end, widget.RotationColors);
             foreach (var phase in phases)
             {
                 using var fill = new SolidBrush(Color.FromArgb(190, ColorTranslator.FromHtml(phase.Color)));
@@ -397,7 +414,7 @@ internal sealed class NativeOverlayRenderer : IDisposable
                     Draw(graphics, RotationPhases.Duration(phase.End-phase.Start), bounds,
                         Math.Clamp(bandHeight*.45f, 11, 18), Color.White, false, StringAlignment.Center, StringAlignment.Center);
             }
-            using var pen = new Pen(row == 0 ? Gold : Color.FromArgb(102,216,199), 2);
+            using var pen = new Pen(ColorTranslator.FromHtml(RotationPhases.MarkerColor(widget.RotationColors, row == 1)), 2);
             foreach (var e in events.Where(e => e.Seconds <= end && e.Kind is "porter" or "offer"))
             {
                 graphics.DrawLine(pen, X(e.Seconds), y-bandHeight/2-4, X(e.Seconds), y-bandHeight/2+3);

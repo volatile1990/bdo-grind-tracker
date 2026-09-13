@@ -19,6 +19,7 @@ internal sealed class NativeOverlayRenderState
             if (_snapshot.Metrics.GetValueOrDefault(widget.Kind) != snapshot.Metrics.GetValueOrDefault(widget.Kind)) return false;
             if (widget.Kind == "controls" && (_snapshot.IsRunning != snapshot.IsRunning ||
                 _snapshot.CanToggleTracking != snapshot.CanToggleTracking ||
+                _snapshot.CanNewSession != snapshot.CanNewSession ||
                 _snapshot.TrackingButtonLabel != snapshot.TrackingButtonLabel)) return false;
             if (widget.Kind == "chart" && !_snapshot.SilverHistory.SequenceEqual(snapshot.SilverHistory)) return false;
             if (OverlayCatalog.IsLootWidget(widget.Kind) &&

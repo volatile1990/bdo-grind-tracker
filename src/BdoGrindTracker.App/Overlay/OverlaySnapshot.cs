@@ -18,6 +18,7 @@ public sealed record OverlaySnapshot
     public string Status { get; init; } = "Bereit";
     public bool IsRunning { get; init; }
     public bool CanToggleTracking { get; init; }
+    public bool CanNewSession { get; init; }
     public string TrackingButtonLabel { get; init; } = "Tracking starten";
 
     public static OverlaySnapshot Demo => OverlayMetrics.Demo;

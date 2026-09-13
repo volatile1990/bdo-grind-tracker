@@ -17,7 +17,7 @@ public sealed record OverlayContentLayout(OverlayWidget LayoutWidget, double Sca
         var minimumHeight = widget.Kind switch
         {
             "rotation-monitor" => 48,
-            "controls" => 16 + (widget.ShowLabel ? 18 * fontScale : 0) + 28 * fontScale,
+            "controls" => 16 + (widget.ShowLabel ? 18 * fontScale : 0) + (widget.ShowNewSession ? 60 : 28) * fontScale,
             "chart" => 16 + (widget.ShowLabel ? 20 * fontScale : 0) + 33 * fontScale + 24 + 16 * fontScale,
             "clock" => 16 + (widget.ShowLabel ? 18 * fontScale : 0) + OverlayClockPresentation.RowCount(widget) * 26 * fontScale,
             _ when OverlayCatalog.IsLootWidget(widget.Kind) => 48,

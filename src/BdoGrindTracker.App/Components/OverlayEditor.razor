@@ -130,10 +130,21 @@
                     <div class="oe-pair"><label class="oe-field"><span>X</span><input type="number" aria-label="Modul Position X" min="0" max="@Css(1600 - selected.Width)" step="0.01" value="@Css(selected.X)" @onchange='e => WidgetNumber(e, "x")' /></label><label class="oe-field"><span>Y</span><input type="number" aria-label="Modul Position Y" min="0" max="@Css(1200 - selected.Height)" step="0.01" value="@Css(selected.Y)" @onchange='e => WidgetNumber(e, "y")' /></label></div>
                     <div class="oe-pair"><label class="oe-field"><span>Breite</span><input type="number" aria-label="Modulbreite" min="@Css(Math.Min(80, selected.Width))" max="@Css(1600 - selected.X)" step="0.01" value="@Css(selected.Width)" @onchange='e => WidgetNumber(e, "width")' /></label><label class="oe-field"><span>Höhe</span><input type="number" aria-label="Modulhöhe" min="@Css(Math.Min(40, selected.Height))" max="@Css(1200 - selected.Y)" step="0.01" value="@Css(selected.Height)" @onchange='e => WidgetNumber(e, "height")' /></label></div>
                     <label class="oe-field"><span>Schriftgröße <output>@Percent(selected.FontScale)</output></span><input type="range" min="0.7" max="2" step="0.05" value="@Css(selected.FontScale)" @onchange='e => WidgetNumber(e, "fontScale")' /></label>
-                    <label class="oe-check"><input type="checkbox" checked="@selected.ShowLabel" @onchange="e => ChangeWidget(w => w with { ShowLabel = Checked(e) })" /><span>Beschriftung</span></label>
-                    <label class="oe-check"><input type="checkbox" checked="@selected.ShowIcon" @onchange="e => ChangeWidget(w => w with { ShowIcon = Checked(e) })" /><span>Icon</span></label>
+                    @if (selected.Kind != "rotation-monitor")
+                    {
+                        <label class="oe-check"><input type="checkbox" checked="@selected.ShowLabel" @onchange="e => ChangeWidget(w => w with { ShowLabel = Checked(e) })" /><span>Beschriftung</span></label>
+                        <label class="oe-check"><input type="checkbox" checked="@selected.ShowIcon" @onchange="e => ChangeWidget(w => w with { ShowIcon = Checked(e) })" /><span>Icon</span></label>
+                    }
                     @if (selected.Kind == "rotation-monitor")
                     {
+                        <label class="oe-field"><span>Timeline-Farben</span>
+                            <select aria-label="Timeline-Farben" value="@selected.RotationColors" @onchange='e => ChangeWidget(w => w with { RotationColors = Text(e) })'>
+                                <option value="colored">Eingefärbt</option>
+                                <option value="gold">Grindcrest Gold</option>
+                                <option value="slate">Schiefer</option>
+                                <option value="minimal">Dezent · Gold &amp; Grau</option>
+                            </select>
+                        </label>
                         <label class="oe-field"><span>Rotationsvergleich</span>
                             <select aria-label="Rotationsvergleich" value="@selected.RotationComparison" @onchange='e => ChangeWidget(w => w with { RotationComparison = Text(e) })'>
                                 <option value="best">Beste vollständige Rotation</option>
@@ -142,6 +153,10 @@
                             </select>
                         </label>
                         <p class="oe-help">Der Rotation Monitor übernimmt den Spot automatisch aus dem Tracker. Mechaniken und Bestzeiten gehören zum jeweiligen Spot-Profil. Aktuell verfügbar: Hermesia (englische Meldungen, Rotationsgrenze: AFK-Ende). Weitere Spots werden nach und nach ergänzt.</p>
+                    }
+                    @if (selected.Kind == "controls")
+                    {
+                        <label class="oe-check"><input type="checkbox" checked="@selected.ShowNewSession" @onchange="e => ChangeWidget(w => w with { ShowNewSession = Checked(e) })" /><span>Neue Session</span></label>
                     }
                     @if (selected.Kind == "clock")
                     {
