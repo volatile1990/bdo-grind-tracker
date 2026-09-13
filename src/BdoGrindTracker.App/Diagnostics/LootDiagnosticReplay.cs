@@ -83,6 +83,8 @@ internal static class LootDiagnosticReplay
         var header = Deserialize<LootDiagnosticHeader>(ReadBoundedLine(reader), 1);
         if (header.Kind != "header" || header.FormatVersion is not (LootDiagnosticFormat.Version or LootDiagnosticFormat.HistoricalVersion) ||
             (header.EngineVersion != LootDiagnosticFormat.EngineVersion &&
+             header.EngineVersion != LootDiagnosticFormat.LegacyUnreadableVisualLifetimeEngineVersion &&
+             header.EngineVersion != LootDiagnosticFormat.LegacyIndependentSpecialEngineVersion &&
              header.EngineVersion != LootDiagnosticFormat.LegacyVisualLifetimeEngineVersion &&
              header.EngineVersion != LootDiagnosticFormat.LegacyRawLifetimeEngineVersion &&
              header.EngineVersion != LootDiagnosticFormat.LegacyLifetimeEngineVersion &&
@@ -106,6 +108,8 @@ internal static class LootDiagnosticReplay
         }
 
         if (header.EngineVersion != LootDiagnosticFormat.EngineVersion &&
+            header.EngineVersion != LootDiagnosticFormat.LegacyUnreadableVisualLifetimeEngineVersion &&
+            header.EngineVersion != LootDiagnosticFormat.LegacyIndependentSpecialEngineVersion &&
             header.EngineVersion != LootDiagnosticFormat.LegacyVisualLifetimeEngineVersion &&
             header.EngineVersion != LootDiagnosticFormat.LegacyRawLifetimeEngineVersion &&
             header.EngineVersion != LootDiagnosticFormat.LegacyLifetimeEngineVersion &&
@@ -146,7 +150,9 @@ internal static class LootDiagnosticReplay
                 throw new InvalidDataException($"Ungültige Diagnose-Metadaten in Sequenz {sequence}.");
             }
 
-            DiagnosticRecordingSession.ValidateObservations(entry.Observations);
+            DiagnosticRecordingSession.ValidateObservations(entry.Observations,
+                DiagnosticRecordingSession.HasUnreadableVisualOccupancyMode(entry.RecognitionVariant),
+                DiagnosticRecordingSession.HasFadeMode(entry.RecognitionVariant));
             DiagnosticRecordingSession.ValidateProjection(entry.LootProjection);
             if (entry.LifetimeParsingContext is { } changedContext)
             {
@@ -168,6 +174,8 @@ internal static class LootDiagnosticReplay
             }
             entry.CaptureTiming?.Validate();
             if (header.EngineVersion != LootDiagnosticFormat.EngineVersion &&
+                header.EngineVersion != LootDiagnosticFormat.LegacyUnreadableVisualLifetimeEngineVersion &&
+                header.EngineVersion != LootDiagnosticFormat.LegacyIndependentSpecialEngineVersion &&
                 header.EngineVersion != LootDiagnosticFormat.LegacyVisualLifetimeEngineVersion &&
                 header.EngineVersion != LootDiagnosticFormat.LegacyRawLifetimeEngineVersion &&
                 header.EngineVersion != LootDiagnosticFormat.LegacyLifetimeEngineVersion &&
@@ -187,7 +195,9 @@ internal static class LootDiagnosticReplay
                 // Old and directly constructed baseline analyzers retain their counter.
                 var algorithm = ReadNormalAlgorithm(entry.RecognitionVariant);
                 var independentSpecial = DiagnosticRecordingSession.ReadIndependentSpecialMode(entry.RecognitionVariant);
-                if (independentSpecial && header.EngineVersion != LootDiagnosticFormat.EngineVersion)
+                if (independentSpecial && header.EngineVersion is not
+                    (LootDiagnosticFormat.EngineVersion or LootDiagnosticFormat.LegacyUnreadableVisualLifetimeEngineVersion or
+                     LootDiagnosticFormat.LegacyIndependentSpecialEngineVersion))
                     throw new InvalidDataException("Diese ältere Engine-Version unterstützt keinen unabhängigen Special-Loot-Zähler.");
                 if (independentSpecialMode is { } previousSpecialMode && independentSpecial != previousSpecialMode)
                     throw new InvalidDataException("Special-Loot-Zähler wechselt innerhalb der Diagnose-Aufnahme.");
@@ -199,9 +209,19 @@ internal static class LootDiagnosticReplay
                 if (IsRawLifetime(algorithm) && !IsRawLifetimeEngine(header.EngineVersion))
                     throw new InvalidDataException("Diese ältere Diagnose-Version unterstützt keine erneute Rohtextauswertung.");
                 if (algorithm == LifetimeLootReconciler.VisualSlotAlgorithmName &&
-                    header.EngineVersion is not (LootDiagnosticFormat.EngineVersion or LootDiagnosticFormat.LegacyVisualLifetimeEngineVersion))
+                    header.EngineVersion is not (LootDiagnosticFormat.EngineVersion or
+                        LootDiagnosticFormat.LegacyUnreadableVisualLifetimeEngineVersion or
+                        LootDiagnosticFormat.LegacyIndependentSpecialEngineVersion or LootDiagnosticFormat.LegacyVisualLifetimeEngineVersion))
                     throw new InvalidDataException("Diese ältere Diagnose-Version unterstützt keine visuelle Belegung.");
+                if (algorithm == LifetimeLootReconciler.UnreadableVisualSlotAlgorithmName &&
+                    header.EngineVersion is not (LootDiagnosticFormat.EngineVersion or LootDiagnosticFormat.LegacyUnreadableVisualLifetimeEngineVersion))
+                    throw new InvalidDataException("Diese ältere Diagnose-Version unterstützt keine Belegung unlesbarer Zeilen.");
+                if (algorithm == LifetimeLootReconciler.FadeAwareAlgorithmName &&
+                    header.EngineVersion != LootDiagnosticFormat.EngineVersion)
+                    throw new InvalidDataException("Diese ältere Diagnose-Version unterstützt keine Evidenz für verblassende Zeilen.");
                 if (algorithm == TemporalLootReconciler.AlgorithmName && header.EngineVersion != LootDiagnosticFormat.EngineVersion &&
+                    header.EngineVersion != LootDiagnosticFormat.LegacyUnreadableVisualLifetimeEngineVersion &&
+                    header.EngineVersion != LootDiagnosticFormat.LegacyIndependentSpecialEngineVersion &&
                     header.EngineVersion != LootDiagnosticFormat.LegacyVisualLifetimeEngineVersion &&
                     header.EngineVersion != LootDiagnosticFormat.LegacyRawLifetimeEngineVersion &&
                     header.EngineVersion != LootDiagnosticFormat.LegacyLifetimeEngineVersion &&
@@ -213,13 +233,15 @@ internal static class LootDiagnosticReplay
                     header.EngineVersion != LootDiagnosticFormat.LegacyLifetimeEngineVersion &&
                     header.EngineVersion != LootDiagnosticFormat.LegacyRawLifetimeEngineVersion &&
                     header.EngineVersion != LootDiagnosticFormat.LegacyVisualLifetimeEngineVersion &&
+                    header.EngineVersion != LootDiagnosticFormat.LegacyIndependentSpecialEngineVersion &&
+                    header.EngineVersion != LootDiagnosticFormat.LegacyUnreadableVisualLifetimeEngineVersion &&
                     header.EngineVersion != LootDiagnosticFormat.EngineVersion)
                     throw new InvalidDataException("Diese ältere Engine-Version unterstützt keinen zeitlichen Normalzähler v1.");
                 if (entry.Observations.Any(observation => observation.AppearanceEvidence is not null) &&
                     algorithm != TemporalLootReconciler.AlgorithmName)
                     throw new InvalidDataException("Visuelle Zeilenevidenz ist im historischen Normalzähler nicht zulässig.");
                 if (entry.Observations.Any(observation => observation.OccupancyEvidence is not null) &&
-                    algorithm != LifetimeLootReconciler.VisualSlotAlgorithmName)
+                    !IsVisualLifetime(algorithm))
                     throw new InvalidDataException("Visuelle Belegung ist im historischen Normalzähler nicht zulässig.");
                 normalAlgorithm = algorithm;
                 independentSpecialMode = independentSpecial;
@@ -231,8 +253,10 @@ internal static class LootDiagnosticReplay
                     trackRows: algorithm == "row-tracks-v1", temporal: IsTemporal(algorithm),
                     legacyTemporal: algorithm == TemporalLootReconciler.LegacyAlgorithmName,
                     lifetime: IsLifetime(algorithm), rawLifetime: IsRawLifetime(algorithm),
-                    parsingContext: parsingContext, visualLifetime: algorithm == LifetimeLootReconciler.VisualSlotAlgorithmName,
-                    independentSpecial: independentSpecial);
+                    parsingContext: parsingContext, visualLifetime: IsVisualLifetime(algorithm),
+                    independentSpecial: independentSpecial,
+                    unreadableVisualLifetime: algorithm is LifetimeLootReconciler.UnreadableVisualSlotAlgorithmName or LifetimeLootReconciler.FadeAwareAlgorithmName,
+                    useFadeEvidence: algorithm == LifetimeLootReconciler.FadeAwareAlgorithmName);
                 frameCount++;
                 actual = tracker.ProcessFrame(entry.Timestamp, entry.Observations, entry.RareEnabled, parsingContext);
                 finalCompletion = false;
@@ -295,8 +319,9 @@ internal static class LootDiagnosticReplay
                 throw new InvalidDataException("Widersprüchliche oder unbekannte Lebensdauer-Normalzähler-Kennung.");
             return lifetimeMarkers[0];
         }
-        if (markers.Any(marker => marker.StartsWith("visual-occupancy-", StringComparison.Ordinal)))
-            throw new InvalidDataException("Belegungskennung ohne Lebensdauer-Normalzähler v3.");
+        if (markers.Any(marker => marker.StartsWith("visual-occupancy-", StringComparison.Ordinal) ||
+            marker.StartsWith("visual-fade-", StringComparison.Ordinal)))
+            throw new InvalidDataException("Belegungskennung ohne visuellen Lebensdauer-Normalzähler.");
         var temporalMarkers = markers.Where(marker => marker.StartsWith("temporal-", StringComparison.Ordinal))
             .Distinct(StringComparer.Ordinal).ToArray();
         if (temporalMarkers.Length > 1 || temporalMarkers.Any(marker => !IsTemporal(marker)) ||
@@ -318,16 +343,24 @@ internal static class LootDiagnosticReplay
         TemporalLootReconciler.AlgorithmName or TemporalLootReconciler.LegacyAlgorithmName;
 
     private static bool IsLifetime(string? algorithm) => algorithm is
-        LifetimeLootReconciler.AlgorithmName or LifetimeLootReconciler.RawTextAlgorithmName or LifetimeLootReconciler.VisualSlotAlgorithmName;
+        LifetimeLootReconciler.AlgorithmName or LifetimeLootReconciler.RawTextAlgorithmName or
+        LifetimeLootReconciler.VisualSlotAlgorithmName or LifetimeLootReconciler.UnreadableVisualSlotAlgorithmName or
+        LifetimeLootReconciler.FadeAwareAlgorithmName;
 
     private static bool IsRawLifetime(string? algorithm) => algorithm is
-        LifetimeLootReconciler.RawTextAlgorithmName or LifetimeLootReconciler.VisualSlotAlgorithmName;
+        LifetimeLootReconciler.RawTextAlgorithmName or LifetimeLootReconciler.VisualSlotAlgorithmName or
+        LifetimeLootReconciler.UnreadableVisualSlotAlgorithmName or LifetimeLootReconciler.FadeAwareAlgorithmName;
+
+    private static bool IsVisualLifetime(string? algorithm) => algorithm is
+        LifetimeLootReconciler.VisualSlotAlgorithmName or LifetimeLootReconciler.UnreadableVisualSlotAlgorithmName or
+        LifetimeLootReconciler.FadeAwareAlgorithmName;
 
     private static bool IsRawLifetimeEngine(string? engine) => engine is
-        LootDiagnosticFormat.EngineVersion or LootDiagnosticFormat.LegacyVisualLifetimeEngineVersion or LootDiagnosticFormat.LegacyRawLifetimeEngineVersion;
+        LootDiagnosticFormat.EngineVersion or LootDiagnosticFormat.LegacyUnreadableVisualLifetimeEngineVersion or LootDiagnosticFormat.LegacyIndependentSpecialEngineVersion or
+        LootDiagnosticFormat.LegacyVisualLifetimeEngineVersion or LootDiagnosticFormat.LegacyRawLifetimeEngineVersion;
 
     private static bool IsLifetimeEngine(string? engine) => engine is
-        LootDiagnosticFormat.EngineVersion or LootDiagnosticFormat.LegacyVisualLifetimeEngineVersion or
+        LootDiagnosticFormat.EngineVersion or LootDiagnosticFormat.LegacyUnreadableVisualLifetimeEngineVersion or LootDiagnosticFormat.LegacyIndependentSpecialEngineVersion or LootDiagnosticFormat.LegacyVisualLifetimeEngineVersion or
         LootDiagnosticFormat.LegacyRawLifetimeEngineVersion or LootDiagnosticFormat.LegacyLifetimeEngineVersion;
 
     private static T Deserialize<T>(string? line, int lineNumber)

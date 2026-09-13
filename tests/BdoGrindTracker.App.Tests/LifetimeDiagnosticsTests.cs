@@ -15,6 +15,7 @@ public sealed class LifetimeDiagnosticsTests : IDisposable
 
     [Theory]
     [InlineData(LootDiagnosticFormat.EngineVersion)]
+    [InlineData(LootDiagnosticFormat.LegacyIndependentSpecialEngineVersion)]
     [InlineData(LootDiagnosticFormat.LegacyVisualLifetimeEngineVersion)]
     [InlineData(LootDiagnosticFormat.LegacyRawLifetimeEngineVersion)]
     [InlineData(LootDiagnosticFormat.LegacyLifetimeEngineVersion)]

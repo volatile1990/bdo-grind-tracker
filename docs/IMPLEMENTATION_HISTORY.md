@@ -507,12 +507,12 @@ zur visuellen Prüfung. Eine Übereinstimmung mit der Aufnahme ist kein Abgleich
 mit dem tatsächlichen Inventarloot; dafür werden manuell überprüfte Sollwerte benötigt.
 
 Neue Aufnahmen verwenden Formatversion **3** und die Enginekennung
-`grindcrest-lifetime-v4`. Der Header enthält unter anderem die App-Version,
+`grindcrest-lifetime-v6`. Der Header enthält unter anderem die App-Version,
 die aktive Mindestmengen-Tabelle, den Aufnahmetakt und die Queue-Grenze.
-Frames kennzeichnen den Normalzähler in `recognitionVariant` mit `lifetime-v3`
-und dem Messungsmarker `visual-occupancy-v1`; `independent-special-v1` kennzeichnet
+Frames kennzeichnen den Normalzähler in `recognitionVariant` mit `lifetime-v5`
+und den Messungsmarkern `visual-occupancy-v2` sowie `visual-fade-v1`; `independent-special-v1` kennzeichnet
 zusätzlich den unabhängigen Special-Zähler. Rohlesungen, Parsing-Kontext,
-Belegungsdaten und vollständige Rohprojektionen machen die Zählung reproduzierbar;
+Belegungsdaten, Schriftkontrast und vollständige Rohprojektionen machen die Zählung reproduzierbar;
 das Replay berechnet weder OCR noch Bildbelegung erneut. Historische unterstützte
 Lifetime-, Temporal- und Companion-Aufnahmen verwenden ihren eigenen Zählpfad.
 Fehlende Zeitmesswerte älterer Aufnahmen gelten als unbekannt. Historische

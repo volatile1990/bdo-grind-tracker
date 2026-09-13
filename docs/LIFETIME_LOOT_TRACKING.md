@@ -1,5 +1,89 @@
 # Lebensdauerzählung für normales und Special-Droplog
 
+## Verblassende Zeilen im normalen Log
+
+Der Produktionszähler verwendet `lifetime-v5`, `visual-occupancy-v2` und
+`visual-fade-v1`. Er misst zusätzlich den Kontrast der Schrift gegenüber einer
+zuvor stabilen Vorlage desselben Items an derselben Bildschirmposition.
+Eine deutliche Abnahme bei weiterhin passendem Schriftbild liefert einen
+Hinweis auf das Alter der Meldung. Sie liefert weder Itemnamen noch Mengen.
+Helle identische Zeilen dürfen weiterhin verschiedene neue Drops darstellen.
+
+Die Referenz benötigt zwei aufeinanderfolgende stabile, ausreichend lesbare
+Bilder. Ein schwaches Einzelbild oder eine unlesbare Zeile kann sich nicht
+selbst als Referenz bestätigen. Änderungen von Kalibrierung, Bildgröße,
+HDR-Darstellung, eine Aufnahmeunterbrechung oder ein gemeinsamer deutlicher
+Helligkeitswechsel verwerfen die betroffenen Referenzen. Jede Position hat
+eine eigene Vorlage, weil Hintergrund und Textrasterung zwischen Zeilen
+abweichen können.
+
+Das Lebensdauermodell bewertet eine neue Meldung schlechter, wenn sie bereits
+zu stark verblasst ist, um so jung zu sein. Zugleich berücksichtigt es die
+bildbestätigte Anzahl vollständig gelesener Zeilen. Es verwendet keine festen
+Trashmengen, Aufnahmezeiten, Sequenznummern oder vorgegebenen Endsummen.
+Die unabhängige Special-Zählung bleibt unverändert.
+
+Eine sichtbar verblassende Restzeile kann alternativ kurz über das geschätzte
+Ablaufdatum hinaus bestehen. Diese Toleranz ist durch die tatsächliche
+Zeitunsicherheit ihrer ursprünglichen Aufnahme begrenzt und nimmt mit der
+Überschreitung ab. Die gewöhnliche Ablaufvariante bleibt ebenfalls erhalten,
+damit eine echte neue Meldung weiterhin Platz finden kann.
+
+Ein durch das Bild bestätigtes Wachstum kann jetzt auch einen kleineren Stapel
+mit genau einer unlesbaren ältesten Zeile betreffen. Bereits zuvor unlesbar
+belegte Positionen werden dabei mitgezählt. Die neue Abdeckungsbedingung muss
+durch Zeilen mit tatsächlich gelesenen Namen und Mengen erfüllt werden;
+anonyme Platzhalter dürfen keine fehlenden Mengen ersetzen.
+Die strengeren neuen Abdeckungsregeln werden erst aktiv, sobald der laufende
+Aufnahmeabschnitt tatsächlich einen brauchbaren Fade-Messwert geliefert hat.
+Nach einem Neustart oder einer Bildlücke über 600 ms ist dieser Nachweis erneut
+nötig. Ohne solche Messwerte bleiben die bisherigen V4-Abdeckungsregeln aktiv.
+
+Die Aufnahme um 19:45 UTC liefert im vollständigen Durchlauf **2.428 statt
+2.440 Helme**. Genau drei bildgeprüfte Gruppen verlieren jeweils eine falsche
+Vierer-Meldung; alle übrigen Gruppen behalten Menge und Dropanzahl. Der echte
+zusätzliche Drop bei Frame 3022 bleibt erhalten. In der vorigen Aufnahme bleiben
+**2.288 Helme**, wobei zwei weitere falsche Buchungen entfallen und zwei zuvor
+übersehene echte Zugänge bei Frame 372 und 1387 hinzukommen. Die schon zuvor
+korrigierten Zugänge bei Frame 428 und 2384 bleiben erhalten. Die frühere
+15:31-Aufnahme bleibt bei ihrem Reproduktionswert von 2.144 Helmen. Ihre tatsächliche
+Inventarmenge ist nicht unabhängig belegt.
+
+## Vorheriger Teststand: unlesbare ältere Zeilen
+
+Der vorherige normale Zähler verwendet `lifetime-v4` mit `visual-occupancy-v2`.
+Ein zuvor akzeptiertes Schriftbild kann damit auch eine Zeile bestätigen, deren
+OCR-Text unlesbar ist oder vollständig fehlt. Diese Beobachtung behält ihren
+ursprünglichen Rohtext; eine ergänzte Beobachtung enthält weder Itemname noch
+Menge. Ausgeschlossene Items und widersprechende erkannte Namen werden nicht
+durch anonyme Beobachtungen ersetzt. Nur akzeptierte OCR-Zeilen können als
+Vorlage für das nächste Bild dienen.
+
+Die zusätzliche Zählregel greift nur, wenn ein zuvor vollständig lesbarer Stapel
+auf alle fünf Positionen wächst: vier aktuelle Zeilen sind vollständig gelesen,
+die bekannten nach oben verschobenen Zeilen passen zusammen und das Schriftbild
+bestätigt die unlesbare älteste Position. Bereits zuvor belegte unlesbare Plätze
+gelten dabei nicht als leer. Kleinere, zeitlich mehrdeutige Stapel behalten die
+bisherigen Zählalternativen. Bei belegten fünf Positionen muss eine gültige Zählhypothese genügend durch
+vorherige oder aktuelle Mengenlesungen belegte Drops enthalten. Bloß vermutete
+leere Zeilenplätze reichen nicht aus; die Bildmessung liefert selbst keine Menge.
+Ein unlesbares Bild allein startet keine Buchung. Zeitlücken, Neustarts sowie
+Änderungen der Kalibrierung oder Bilddarstellung begrenzen die Bildzuordnung.
+
+Die bisherigen Zählpfade bleiben für historische Aufnahmen erhalten. Die
+Änderung betrifft keine bereits gespeicherten Sessionmengen und verwendet keine
+aufnahmespezifischen Itemnamen, Sequenznummern oder Sollsummen.
+
+Der vollständige Bildabgleich der Aufnahme vom 13. September um 18:02 UTC
+(3.115 Frames, ursprüngliche OCR beibehalten) ergibt **2.288 statt 2.280 Helme**.
+Die zwei bildgeprüften Verluste liegen bei Frame 428 und 2384. Entfernt der
+Regressionstest nur den zusätzlichen Bildhinweis einer dieser Zeilen, ergibt
+derselbe Durchlauf jeweils 2.284; ohne beide Hinweise wieder 2.280. Dadurch sind
+beide zusätzlichen Drops einzeln belegt. Die anderen Item-Endmengen bleiben in
+allen vier Varianten gleich. Der Bildabgleich der früheren Aufnahme um
+15:31 UTC (2.802 Frames) bleibt bei 2.144 Helmen und unveränderten Item-Endmengen.
+Das belegt diese Fälle, keine vollständige Erkennung jedes unlesbaren Drops.
+
 ## Aktueller Stand: unabhängige Quellen
 
 Ein physischer Drop erscheint ausschließlich im normalen oder im Special-Droplog.
@@ -228,7 +312,7 @@ Spot ausreichend belegt feststeht, bleibt er wie bisher für die Sitzung fixiert
 
 ## Diagnose und Lebenszyklus
 
-Neue Aufnahmen verwenden Format 3 und die Engine `grindcrest-lifetime-v4`.
+Neue Aufnahmen verwenden Format 3 und die Engine `grindcrest-lifetime-v6`.
 Der Marker `independent-special-v1` kennzeichnet die getrennte Special-Instanz
 und additive Quellenprojektion. Er bleibt auch bei ausgeblendetem Special-Panel
 an jedem Frame erhalten; ein Wechsel innerhalb derselben Aufnahme, unbekannte
@@ -240,8 +324,12 @@ den Zähler nicht zurück.
 Jeder Frame enthält die vollständige `lootProjection`; Trace-Metadaten zeigen
 die Lebensdauermodelle und die gewählte Variante. V3-Traces protokollieren
 zusätzlich `coverage-fallbacks:N`; die historischen V1-/V2-Trace-Texte bleiben
-unverändert. `lifetime-v3` benötigt den Marker `visual-occupancy-v1` und speichert
-die gemessenen Belegungs-Matches an den Beobachtungen. Das Replay verwendet diese
+unverändert. `lifetime-v3` benötigt den Marker `visual-occupancy-v1`;
+`lifetime-v4` benötigt `visual-occupancy-v2` und erlaubt zusätzlich Belegungs-Matches
+an unlesbaren Zeilen. `lifetime-v5` benötigt außerdem `visual-fade-v1` und
+speichert den gemessenen relativen Schriftkontrast und die Korrelation in
+`fadeEvidence`. Historische Modi akzeptieren diese Zusatzdaten nicht.
+Das Replay verwendet diese
 Werte, ohne Bilder zu öffnen oder die Bildmessung erneut auszuführen. Neue
 Belegungsdaten unter einem historischen Zählermodus werden abgewiesen.
 Die Diagnose und ihr Replay
@@ -254,9 +342,9 @@ Wiederholte Abschlussaufrufe
 erzeugen keine erneute Buchung. Ein Stopp projiziert den bestehenden Zustand;
 eine neue Sitzung setzt ihn vollständig zurück.
 
-Aufnahmen mit `lifetime-v1`, `lifetime-v2` und dem bisherigen `lifetime-v3`,
+Aufnahmen mit `lifetime-v1`, `lifetime-v2`, `lifetime-v3` und `lifetime-v4`,
 einschließlich echter Header mit `grindcrest-lifetime-v2` und
-`grindcrest-lifetime-v3`, sowie Format-2-Aufnahmen mit `temporal-v1` und
+`grindcrest-lifetime-v3`, `grindcrest-lifetime-v4` und `grindcrest-lifetime-v5`, sowie Format-2-Aufnahmen mit `temporal-v1` und
 `temporal-v2` bleiben mit ihrem ursprünglichen Algorithmus reproduzierbar.
 Ein neuer OCR-Lauf über alte PNGs
 ist ausdrücklich eine neue Messung und wird getrennt gespeichert.

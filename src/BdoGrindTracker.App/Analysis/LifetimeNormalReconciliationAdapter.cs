@@ -10,7 +10,9 @@ internal sealed class LifetimeNormalReconciliationAdapter : ICompanionReconcilia
     private readonly LifetimeParsingContext? _initialContext;
     private DateTimeOffset _lastAt;
     private long _captureIndex;
-    public string AlgorithmName => _reconciler.UsesVisualSlotCoverage ? LifetimeLootReconciler.VisualSlotAlgorithmName :
+    public string AlgorithmName => _reconciler.UsesFadeEvidence ? LifetimeLootReconciler.FadeAwareAlgorithmName :
+        _reconciler.UsesUnreadableSlotCoverage ? LifetimeLootReconciler.UnreadableVisualSlotAlgorithmName :
+        _reconciler.UsesVisualSlotCoverage ? LifetimeLootReconciler.VisualSlotAlgorithmName :
         _textParser is null ? LifetimeLootReconciler.AlgorithmName : LifetimeLootReconciler.RawTextAlgorithmName;
     public bool UsesRawText => _textParser is not null;
     public LifetimeParsingContext? ParsingContext => _textParser?.Context;
@@ -22,13 +24,15 @@ internal sealed class LifetimeNormalReconciliationAdapter : ICompanionReconcilia
     public LifetimeNormalReconciliationAdapter(LifetimeParsingContext? context = null) : this(context, false) { }
 
     public LifetimeNormalReconciliationAdapter(LifetimeParsingContext? context, bool useVisualSlotCoverage,
-        LootSource source = LootSource.Normal, int slotCount = LifetimeLootReconciler.SlotCount)
+        LootSource source = LootSource.Normal, int slotCount = LifetimeLootReconciler.SlotCount,
+        bool useUnreadableSlotCoverage = false, bool useFadeEvidence = false)
     {
         _initialContext = context;
         if (context is not null) _textParser = new(context, source);
         _reconciler = new(_textParser is null ? null : _textParser.Parse,
             _textParser is null ? null : _textParser.GetAliases, useVisualSlotCoverage: useVisualSlotCoverage,
-            source: source, slotCount: slotCount);
+            source: source, slotCount: slotCount, useUnreadableSlotCoverage: useUnreadableSlotCoverage,
+            useFadeEvidence: useFadeEvidence);
     }
 
     public void UpdateParsingContext(LifetimeParsingContext context)

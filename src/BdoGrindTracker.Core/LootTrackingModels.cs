@@ -8,8 +8,8 @@ public enum LootSource
 }
 
 /// <summary>
-/// A native OCR row after Companion's leading-row trim. Diagnostics only;
-/// confidence fields never gate counting. Null quantity denotes the native -1 sentinel.
+/// An OCR row after Companion's leading-row trim, or an anonymous visual occupancy
+/// probe. Null quantity means no amount was read; a probe supplies no loot votes.
 /// </summary>
 public sealed record LootObservation(
     LootSource Source,
@@ -43,6 +43,9 @@ public sealed record LootObservation(
 
     /// <summary>Physical glyph evidence only; cannot supply an item, amount, or event identity.</summary>
     public NormalLootOccupancyEvidence? OccupancyEvidence { get; init; }
+
+    /// <summary>Optional measured fading of recognized glyphs; supplies no loot votes.</summary>
+    public NormalLootFadeEvidence? FadeEvidence { get; init; }
 
 }
 

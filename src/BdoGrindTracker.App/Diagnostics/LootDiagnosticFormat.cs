@@ -10,7 +10,9 @@ internal static class LootDiagnosticFormat
 {
     public const int Version = 3;
     public const int HistoricalVersion = 2;
-    public const string EngineVersion = "grindcrest-lifetime-v4";
+    public const string EngineVersion = "grindcrest-lifetime-v6";
+    public const string LegacyUnreadableVisualLifetimeEngineVersion = "grindcrest-lifetime-v5";
+    public const string LegacyIndependentSpecialEngineVersion = "grindcrest-lifetime-v4";
     public const string LegacyVisualLifetimeEngineVersion = "grindcrest-lifetime-v3";
     public const string LegacyRawLifetimeEngineVersion = "grindcrest-lifetime-v2";
     public const string LegacyLifetimeEngineVersion = "grindcrest-lifetime-v1";
@@ -18,6 +20,8 @@ internal static class LootDiagnosticFormat
     public const string LegacyTemporalEngineVersion = "grindcrest-temporal-v1";
     public const string VisualAppearanceVariantName = "visual-appearance-v1";
     public const string VisualOccupancyVariantName = "visual-occupancy-v1";
+    public const string UnreadableVisualOccupancyVariantName = "visual-occupancy-v2";
+    public const string VisualFadeVariantName = "visual-fade-v1";
     public const string IndependentSpecialVariantName = "independent-special-v1";
     public const string LegacyRowTracksEngineVersion = "companion-0.7.4-row-tracks-v8";
     public const string PreviousRowTracksEngineVersion = "companion-0.7.4-row-tracks-v7";

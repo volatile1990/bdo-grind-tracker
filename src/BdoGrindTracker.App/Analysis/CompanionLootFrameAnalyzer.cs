@@ -42,7 +42,8 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
     private readonly NormalLootAlignmentReview _alignmentReview = new();
     private readonly NormalLootAppearanceTracker _appearanceTracker = new();
     private (bool IsHdr, bool IsToneMapped)? _appearanceRepresentation;
-    private readonly NormalLootOccupancyTracker _occupancyTracker = new();
+    private readonly NormalLootOccupancyTracker _occupancyTracker;
+    private readonly NormalLootFadeTracker _fadeTracker = new();
     private (bool IsHdr, bool IsToneMapped)? _occupancyRepresentation;
 
     public CompanionLootFrameAnalyzer(
@@ -80,6 +81,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
         _normalRecovery?.ConfigureQuantityBounds(name => _quantityBoundsResolver(_spotLock.Spot?.Id, name));
         _rareRecovery?.ConfigureQuantityBounds(name => _quantityBoundsResolver(_spotLock.Spot?.Id, name));
         _reconciliation = reconciliation ?? new CompanionReconciliationAdapter();
+        _occupancyTracker = new(allowUnreadableRows: UsesUnreadableOccupancyEvidence);
         if (specialReconciliation is not null && !_reconciliation.UsesRawText)
             throw new ArgumentException("Independent special tracking requires the raw-text normal counter.", nameof(specialReconciliation));
         _frameDecoder = frameDecoder ?? CompanionBitmapDecoder.Instance;
@@ -144,6 +146,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
             _appearanceTracker.Reset();
             _recoveryCursor = 0;
             _occupancyTracker.Reset();
+            _fadeTracker.Reset();
         }
         // Preserve pending drops, event IDs, spot lock and the shared ledger.
         // Resetting reconciliation would count the still-visible log again.
@@ -157,6 +160,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
         _alignmentReview.Reset();
         _appearanceTracker.Reset();
         _occupancyTracker.Reset();
+        _fadeTracker.Reset();
     }
 
     public Task<FrameAnalysisResult> AnalyzeAsync(Bitmap frame, DateTimeOffset capturedAt,
@@ -181,6 +185,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
         if (UsesOccupancyEvidence && _occupancyRepresentation != (isHdr, isToneMapped))
         {
             _occupancyTracker.Reset();
+            _fadeTracker.Reset();
             _occupancyRepresentation = (isHdr, isToneMapped);
         }
         var preparedRows = new List<ICompanionPreparedRow>(_slotBounds.Length);
@@ -448,11 +453,15 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
                 var relativeSlots = _slotBounds.OrderByDescending(bounds => bounds.Top)
                     .Select(bounds => new Rectangle(bounds.Left - _panelBounds.Left,
                         bounds.Top - _panelBounds.Top, bounds.Width, bounds.Height)).ToArray();
-                // Only annotate final accepted reads. The OCR fields and the
-                // historical appearance/identity rules remain independent.
+                // The selected recording mode controls whether unreadable slots
+                // may carry occupancy. OCR names and amounts remain unchanged.
                 observations = _occupancyTracker.Observe(panel, relativeSlots,
                     observations.Where(row => row.Source == LootSource.Normal).ToArray(), capturedAt,
                     _calibration.UiScale).Concat(observations.Where(row => row.Source == LootSource.Rare)).ToArray();
+                if (UsesFadeEvidence)
+                    observations = _fadeTracker.Observe(panel, relativeSlots,
+                        observations.Where(row => row.Source == LootSource.Normal).ToArray(), capturedAt,
+                        _calibration.UiScale).Concat(observations.Where(row => row.Source == LootSource.Rare)).ToArray();
             }
             var entries = observations.Where(row => row.Source == LootSource.Normal && IsAccepted(row))
                 .Select(row => new CompanionRecognizedEntry(row.ItemName!,
@@ -604,6 +613,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
         _appearanceTracker.Reset();
         _appearanceRepresentation = null;
         _occupancyTracker.Reset();
+        _fadeTracker.Reset();
         _occupancyRepresentation = null;
         _trashQuantityAnomalies?.Reset();
         _rareQuantityAnomalies?.Reset();
@@ -617,6 +627,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
         _rowReview?.Dispose();
         _appearanceTracker.Dispose();
         _occupancyTracker.Dispose();
+        _fadeTracker.Dispose();
         _disposed = true;
     }
 
@@ -650,7 +661,13 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
 
     private bool UsesVisualAppearance => _reconciliation.AlgorithmName == TemporalLootReconciler.AlgorithmName;
 
-    private bool UsesOccupancyEvidence => _reconciliation.AlgorithmName == LifetimeLootReconciler.VisualSlotAlgorithmName;
+    private bool UsesFadeEvidence => _reconciliation.AlgorithmName == LifetimeLootReconciler.FadeAwareAlgorithmName;
+
+    private bool UsesUnreadableOccupancyEvidence => UsesFadeEvidence ||
+        _reconciliation.AlgorithmName == LifetimeLootReconciler.UnreadableVisualSlotAlgorithmName;
+
+    private bool UsesOccupancyEvidence => UsesUnreadableOccupancyEvidence ||
+        _reconciliation.AlgorithmName == LifetimeLootReconciler.VisualSlotAlgorithmName;
 
     private void ObserveCountEvidence(IReadOnlyList<CompanionRecognizedEntry> reconciled)
     {
@@ -740,7 +757,10 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
                 (UsesTemporalTracking ? "+" + _reconciliation.AlgorithmName :
                     _reconciliation.TracksRows ? "+row-tracks-v1" : string.Empty) +
                 (UsesVisualAppearance ? "+" + LootDiagnosticFormat.VisualAppearanceVariantName : string.Empty) +
-                (UsesOccupancyEvidence ? "+" + LootDiagnosticFormat.VisualOccupancyVariantName : string.Empty) +
+                (UsesOccupancyEvidence ? "+" + (UsesUnreadableOccupancyEvidence
+                    ? LootDiagnosticFormat.UnreadableVisualOccupancyVariantName
+                    : LootDiagnosticFormat.VisualOccupancyVariantName) : string.Empty) +
+                (UsesFadeEvidence ? "+" + LootDiagnosticFormat.VisualFadeVariantName : string.Empty) +
                 (_specialReconciliation is not null ? "+" + IndependentSpecialVariantName : string.Empty),
             prepared, nonBlank, ocrCalls, accepted.Length, _panelBounds)
         {

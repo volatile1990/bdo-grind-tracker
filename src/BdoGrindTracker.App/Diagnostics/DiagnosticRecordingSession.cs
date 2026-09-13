@@ -31,6 +31,7 @@ internal sealed class DiagnosticRecordingSession : IDisposable
     private LifetimeParsingContext? lastParsingContext;
     private LootCalibrationDiagnostics? lastCaptureCalibration;
     private bool? independentSpecialMode;
+    private string? lifetimeAlgorithm;
 
     private DiagnosticRecordingSession(long? maximumBytes, int? maximumFrames)
     {
@@ -137,21 +138,29 @@ internal sealed class DiagnosticRecordingSession : IDisposable
                     return;
                 }
 
-                ValidateObservations(observations);
+                ValidateObservations(observations, HasUnreadableVisualOccupancyMode(recognitionVariant),
+                    HasFadeMode(recognitionVariant));
                 var independentSpecial = ReadIndependentSpecialMode(recognitionVariant);
                 if (independentSpecialMode is { } previousSpecialMode && previousSpecialMode != independentSpecial)
                     throw new InvalidDataException("Special-Loot-Zähler wechselt innerhalb der Diagnose-Aufnahme.");
                 if ((recognitionVariant?.Split('+').Any(marker =>
                         marker == LifetimeLootReconciler.VisualSlotAlgorithmName ||
+                        marker == LifetimeLootReconciler.UnreadableVisualSlotAlgorithmName ||
+                        marker == LifetimeLootReconciler.FadeAwareAlgorithmName ||
+                        marker.StartsWith("visual-fade-", StringComparison.Ordinal) ||
                         marker.StartsWith("visual-occupancy-", StringComparison.Ordinal)) ?? false) &&
                     !HasVisualOccupancyMode(recognitionVariant))
-                    throw new InvalidDataException("Widersprüchliche Kennung für den Lebensdauer-Normalzähler v3.");
+                    throw new InvalidDataException("Widersprüchliche Kennung für den visuellen Lebensdauer-Normalzähler.");
+                var currentLifetimeAlgorithm = HasLifetimeMode(recognitionVariant)
+                    ? recognitionVariant!.Split('+').First(marker => marker.StartsWith("lifetime-", StringComparison.Ordinal)) : null;
+                if (lifetimeAlgorithm is not null && lifetimeAlgorithm != currentLifetimeAlgorithm)
+                    throw new InvalidDataException("Normalzähler wechselt innerhalb der Diagnose-Aufnahme.");
                 if (observations.Any(observation => observation.AppearanceEvidence is not null) &&
                     !HasVisualAppearanceMode(recognitionVariant))
                     throw new InvalidDataException("Visuelle Zeilenevidenz benötigt den zeitlichen Normalzähler v2.");
                 if (observations.Any(observation => observation.OccupancyEvidence is not null) &&
                     !HasVisualOccupancyMode(recognitionVariant))
-                    throw new InvalidDataException("Visuelle Belegung benötigt den Lebensdauer-Normalzähler v3.");
+                    throw new InvalidDataException("Visuelle Belegung benötigt einen visuellen Lebensdauer-Normalzähler.");
                 ValidateResult(result);
                 if (result.LootProjection is not null && !HasLifetimeMode(recognitionVariant))
                     throw new InvalidDataException("Eine Loot-Projektion benötigt den Lebensdauer-Normalzähler.");
@@ -202,6 +211,7 @@ internal sealed class DiagnosticRecordingSession : IDisposable
                 lastParsingContext = result.LifetimeParsingContext ?? lastParsingContext;
                 lastCaptureCalibration = captureCalibration ?? lastCaptureCalibration;
                 independentSpecialMode = independentSpecial;
+                lifetimeAlgorithm = currentLifetimeAlgorithm;
                 entrySequence = sequence;
                 frameCount++;
                 countAudit.Observe(result, reconciliation);
@@ -381,7 +391,8 @@ internal sealed class DiagnosticRecordingSession : IDisposable
         journal = null;
     }
 
-    internal static void ValidateObservations(IReadOnlyList<LootObservation> observations)
+    internal static void ValidateObservations(IReadOnlyList<LootObservation> observations,
+        bool allowUnreadableOccupancy = false, bool allowFadeEvidence = false)
     {
         if (observations is null || observations.Count > LootDiagnosticFormat.MaximumObservationsPerFrame)
         {
@@ -422,12 +433,26 @@ internal sealed class DiagnosticRecordingSession : IDisposable
                     throw new InvalidDataException("Ungültige visuelle Zeilenevidenz.", exception);
                 }
             }
+            if (observation.FadeEvidence is { } fade)
+            {
+                if (!allowFadeEvidence || observation.Source != LootSource.Normal || observation.Slot > 5 ||
+                    observation.NativeY is null || observation.IsAlignmentAnchor || observation.AppearanceEvidence is not null ||
+                    observation.RejectionReason is not null || string.IsNullOrWhiteSpace(observation.ItemName))
+                    throw new InvalidDataException("Visuelles Verblassen benötigt eine akzeptierte kalibrierte Normal-Loot-Zeile im passenden Zählermodus.");
+                try { fade.Validate(); }
+                catch (Exception exception) when (exception is ArgumentException or NullReferenceException)
+                {
+                    throw new InvalidDataException("Ungültige visuelle Evidenz für verblassende Zeilen.", exception);
+                }
+            }
             if (observation.OccupancyEvidence is { } occupancy)
             {
+                var unreadable = allowUnreadableOccupancy && observation.ItemName is null &&
+                    observation.RejectionReason != AutomaticLootSpotLock.OutsideSpotPoolReason;
                 if (observation.Source != LootSource.Normal || observation.Slot > 5 ||
-                    observation.IsAlignmentAnchor || observation.RejectionReason is not null ||
-                    string.IsNullOrWhiteSpace(observation.ItemName) || observation.AppearanceEvidence is not null)
-                    throw new InvalidDataException("Visuelle Belegung benötigt eine akzeptierte kalibrierte Normal-Loot-Zeile.");
+                    observation.NativeY is null || observation.IsAlignmentAnchor || observation.AppearanceEvidence is not null ||
+                    !unreadable && (observation.RejectionReason is not null || string.IsNullOrWhiteSpace(observation.ItemName)))
+                    throw new InvalidDataException("Visuelle Belegung benötigt eine kalibrierte Normal-Loot-Zeile im passenden Zählermodus.");
                 try { occupancy.Validate(); }
                 catch (Exception exception) when (exception is ArgumentException or NullReferenceException)
                 {
@@ -444,7 +469,8 @@ internal sealed class DiagnosticRecordingSession : IDisposable
                 .Distinct(StringComparer.Ordinal).SequenceEqual([TemporalLootReconciler.AlgorithmName]) &&
             markers.Contains(LootDiagnosticFormat.VisualAppearanceVariantName, StringComparer.Ordinal) &&
             !markers.Contains("row-tracks-v1", StringComparer.Ordinal) &&
-            !markers.Contains(LootDiagnosticFormat.VisualOccupancyVariantName, StringComparer.Ordinal);
+            !markers.Any(marker => marker.StartsWith("visual-occupancy-", StringComparison.Ordinal) ||
+                marker.StartsWith("visual-fade-", StringComparison.Ordinal));
     }
 
     internal static bool ReadIndependentSpecialMode(string? recognitionVariant)
@@ -466,19 +492,39 @@ internal sealed class DiagnosticRecordingSession : IDisposable
             .Distinct(StringComparer.Ordinal).ToArray();
         var occupancyMarkers = markers.Where(marker => marker.StartsWith("visual-occupancy-", StringComparison.Ordinal))
             .Distinct(StringComparer.Ordinal).ToArray();
-        return algorithms.Length == 1 &&
-            algorithms[0] is LifetimeLootReconciler.AlgorithmName or LifetimeLootReconciler.RawTextAlgorithmName or LifetimeLootReconciler.VisualSlotAlgorithmName &&
-            !markers.Contains(LootDiagnosticFormat.VisualAppearanceVariantName, StringComparer.Ordinal) &&
-            (algorithms[0] == LifetimeLootReconciler.VisualSlotAlgorithmName
-                ? occupancyMarkers.SequenceEqual([LootDiagnosticFormat.VisualOccupancyVariantName])
-                : occupancyMarkers.Length == 0);
+        var fadeMarkers = markers.Where(marker => marker.StartsWith("visual-fade-", StringComparison.Ordinal)).ToArray();
+        if (algorithms.Length != 1 || markers.Contains(LootDiagnosticFormat.VisualAppearanceVariantName, StringComparer.Ordinal))
+            return false;
+        if (algorithms[0] != LifetimeLootReconciler.FadeAwareAlgorithmName && fadeMarkers.Length != 0) return false;
+        return algorithms[0] switch
+        {
+            LifetimeLootReconciler.AlgorithmName or LifetimeLootReconciler.RawTextAlgorithmName => occupancyMarkers.Length == 0,
+            LifetimeLootReconciler.VisualSlotAlgorithmName =>
+                occupancyMarkers.SequenceEqual([LootDiagnosticFormat.VisualOccupancyVariantName]),
+            LifetimeLootReconciler.UnreadableVisualSlotAlgorithmName =>
+                occupancyMarkers.SequenceEqual([LootDiagnosticFormat.UnreadableVisualOccupancyVariantName]),
+            LifetimeLootReconciler.FadeAwareAlgorithmName =>
+                occupancyMarkers.SequenceEqual([LootDiagnosticFormat.UnreadableVisualOccupancyVariantName]) &&
+                fadeMarkers.SequenceEqual([LootDiagnosticFormat.VisualFadeVariantName]),
+            _ => false,
+        };
     }
 
     internal static bool HasRawLifetimeMode(string? recognitionVariant) => HasLifetimeMode(recognitionVariant) &&
-        recognitionVariant!.Split('+').Any(marker => marker is LifetimeLootReconciler.RawTextAlgorithmName or LifetimeLootReconciler.VisualSlotAlgorithmName);
+        recognitionVariant!.Split('+').Any(marker => marker is LifetimeLootReconciler.RawTextAlgorithmName or
+            LifetimeLootReconciler.VisualSlotAlgorithmName or LifetimeLootReconciler.UnreadableVisualSlotAlgorithmName or
+            LifetimeLootReconciler.FadeAwareAlgorithmName);
 
     internal static bool HasVisualOccupancyMode(string? recognitionVariant) => HasLifetimeMode(recognitionVariant) &&
-        recognitionVariant!.Split('+').Contains(LifetimeLootReconciler.VisualSlotAlgorithmName, StringComparer.Ordinal);
+        recognitionVariant!.Split('+').Any(marker => marker is LifetimeLootReconciler.VisualSlotAlgorithmName or
+            LifetimeLootReconciler.UnreadableVisualSlotAlgorithmName or LifetimeLootReconciler.FadeAwareAlgorithmName);
+
+    internal static bool HasUnreadableVisualOccupancyMode(string? recognitionVariant) => HasLifetimeMode(recognitionVariant) &&
+        recognitionVariant!.Split('+').Any(marker => marker is LifetimeLootReconciler.UnreadableVisualSlotAlgorithmName or
+            LifetimeLootReconciler.FadeAwareAlgorithmName);
+
+    internal static bool HasFadeMode(string? recognitionVariant) => HasLifetimeMode(recognitionVariant) &&
+        recognitionVariant!.Split('+').Contains(LifetimeLootReconciler.FadeAwareAlgorithmName, StringComparer.Ordinal);
 
     private LifetimeParsingContext? ContextChange(LifetimeParsingContext? context)
     {

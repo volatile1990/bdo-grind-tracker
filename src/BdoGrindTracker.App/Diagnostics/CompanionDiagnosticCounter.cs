@@ -10,13 +10,15 @@ namespace BdoGrindTracker.App.Diagnostics;
 internal sealed class CompanionDiagnosticCounter(IReadOnlyList<CompanionRareCatalogEntry> catalog,
     IReadOnlyDictionary<string, uint>? minimumQuantities = null, bool trackRows = false, bool temporal = false,
     bool legacyTemporal = false, bool lifetime = false, bool rawLifetime = false,
-    LifetimeParsingContext? parsingContext = null, bool visualLifetime = false, bool independentSpecial = false)
+    LifetimeParsingContext? parsingContext = null, bool visualLifetime = false, bool independentSpecial = false,
+    bool unreadableVisualLifetime = false, bool useFadeEvidence = false)
 {
-    private readonly bool usesRawLifetime = rawLifetime || visualLifetime || independentSpecial;
-    private readonly ICompanionReconciliation normal = lifetime || rawLifetime || visualLifetime || independentSpecial
-        ? new LifetimeNormalReconciliationAdapter(rawLifetime || visualLifetime || independentSpecial
+    private readonly bool usesRawLifetime = rawLifetime || visualLifetime || independentSpecial || unreadableVisualLifetime || useFadeEvidence;
+    private readonly ICompanionReconciliation normal = lifetime || rawLifetime || visualLifetime || independentSpecial || unreadableVisualLifetime || useFadeEvidence
+        ? new LifetimeNormalReconciliationAdapter(rawLifetime || visualLifetime || independentSpecial || unreadableVisualLifetime || useFadeEvidence
             ? parsingContext ?? throw new InvalidDataException("Dem Rohtext-Normalzähler fehlt der Parsing-Kontext.") : null,
-            useVisualSlotCoverage: visualLifetime || independentSpecial)
+            useVisualSlotCoverage: visualLifetime || independentSpecial || unreadableVisualLifetime || useFadeEvidence,
+            useUnreadableSlotCoverage: unreadableVisualLifetime || useFadeEvidence, useFadeEvidence: useFadeEvidence)
         : temporal
         ? new TemporalNormalReconciliationAdapter(minimumQuantities, legacyTemporal)
         : new CompanionReconciliationAdapter(minimumQuantities, trackRows);
@@ -36,8 +38,11 @@ internal sealed class CompanionDiagnosticCounter(IReadOnlyList<CompanionRareCata
     {
         if ((lifetime || usesRawLifetime || !temporal || legacyTemporal) && observations.Any(observation => observation.AppearanceEvidence is not null))
             throw new InvalidDataException("Visuelle Zeilenevidenz gehört nicht zu diesem historischen Normalzähler.");
-        if (!visualLifetime && !independentSpecial && observations.Any(observation => observation.OccupancyEvidence is not null))
+        if (!visualLifetime && !independentSpecial && !unreadableVisualLifetime && !useFadeEvidence &&
+            observations.Any(observation => observation.OccupancyEvidence is not null))
             throw new InvalidDataException("Visuelle Belegung gehört ausschließlich zum Lebensdauer-Normalzähler v3.");
+        if (!useFadeEvidence && observations.Any(observation => observation.FadeEvidence is not null))
+            throw new InvalidDataException("Visuelles Verblassen gehört ausschließlich zum Lebensdauer-Normalzähler v5.");
         var accepted = observations
             .Where(static observation => !string.IsNullOrWhiteSpace(observation.ItemName) &&
                 observation.RejectionReason is null)

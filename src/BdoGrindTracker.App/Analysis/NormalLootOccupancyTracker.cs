@@ -14,8 +14,11 @@ internal sealed class NormalLootOccupancyTracker : IDisposable
 {
     internal static readonly TimeSpan MaximumFrameGap = TimeSpan.FromMilliseconds(600);
     private const double MinimumCorrelation = .90;
+    private readonly bool _allowUnreadableRows;
     private Snapshot? _previous;
     private bool _disposed;
+
+    public NormalLootOccupancyTracker(bool allowUnreadableRows = false) => _allowUnreadableRows = allowUnreadableRows;
 
     public IReadOnlyList<LootObservation> Observe(Mat panel,
         IReadOnlyList<DrawingRectangle> slotsNewestFirstRelativeToPanel,
@@ -51,25 +54,35 @@ internal sealed class NormalLootOccupancyTracker : IDisposable
         for (var index = 0; index < result.Length; index++)
         {
             var observation = result[index];
-            if (!Accepted(observation) || observation.Slot < 0 || observation.Slot >= current.Rows.Length ||
+            if (!(Accepted(observation) || _allowUnreadableRows && Unreadable(observation) &&
+                    !observations.Any(other => other != observation && other.Source == LootSource.Normal &&
+                        other.Slot == observation.Slot && !Unreadable(other))) ||
+                observation.Slot < 0 || observation.Slot >= current.Rows.Length ||
                 current.Rows[observation.Slot] is not { } row)
                 continue;
-            var matches = new List<NormalLootOccupancyMatch>();
-            for (var slot = 0; slot < previous.Rows.Length; slot++)
-            {
-                if (previous.Names[slot] is not { } previousName || previousName != observation.ItemName ||
-                    previous.Rows[slot] is not { } old || old.Width != row.Width || old.Height != row.Height ||
-                    !CreateMask(old, uiScale, out var mask, out var previousEnergy))
-                    continue;
-                // Mask and minimum energy belong to the accepted previous image.
-                // Fading current glyphs need not pass the source-mask admission.
-                var match = Compare(old.Pixels[1], row, mask, previousEnergy, slot);
-                if (match is not null) matches.Add(match);
-            }
+            var matches = FindMatches(row, previous, observation.ItemName, uiScale);
             if (matches.Count > 0)
                 result[index] = observation with { OccupancyEvidence = new(matches) };
         }
-        return result;
+        if (!_allowUnreadableRows) return result;
+
+        var augmented = result.ToList();
+        for (var slot = 0; slot < current.Rows.Length; slot++)
+        {
+            // An explicit OCR row owns its slot even when rejected. Never hide a
+            // conflicting name or spot exclusion behind an anonymous replacement.
+            if (observations.Any(row => row.Source == LootSource.Normal && row.Slot == slot) ||
+                current.Rows[slot] is not { } row)
+                continue;
+            var matches = FindMatches(row, previous, null, uiScale);
+            if (matches.Count == 0) continue;
+            augmented.Add(new(LootSource.Normal, slot, "", null, null, 0, 0, null, "visual-occupancy-only")
+            {
+                NativeY = current.Bounds[slot].Y,
+                OccupancyEvidence = new(matches)
+            });
+        }
+        return augmented;
     }
 
     public void Reset() => _previous = null;
@@ -85,6 +98,27 @@ internal sealed class NormalLootOccupancyTracker : IDisposable
 
     private static bool Accepted(LootObservation row) => row is
         { Source: LootSource.Normal, ItemName: not null, RejectionReason: null, IsAlignmentAnchor: false, NameConfidence: >= .8 };
+
+    private static bool Unreadable(LootObservation row) => row is
+        { Source: LootSource.Normal, ItemName: null, IsAlignmentAnchor: false } &&
+        row.RejectionReason != AutomaticLootSpotLock.OutsideSpotPoolReason;
+
+    private static List<NormalLootOccupancyMatch> FindMatches(GlyphRow row, Snapshot previous, string? itemName, float uiScale)
+    {
+        var matches = new List<NormalLootOccupancyMatch>();
+        for (var slot = 0; slot < previous.Rows.Length; slot++)
+        {
+            if (previous.Names[slot] is not { } previousName || itemName is not null && previousName != itemName ||
+                previous.Rows[slot] is not { } old || old.Width != row.Width || old.Height != row.Height ||
+                !CreateMask(old, uiScale, out var mask, out var previousEnergy))
+                continue;
+            // Mask and minimum energy belong to the accepted previous image.
+            // Anonymous matches describe pixels only, without copying its name.
+            var match = Compare(old.Pixels[1], row, mask, previousEnergy, slot);
+            if (match is not null) matches.Add(match);
+        }
+        return matches;
+    }
 
     private static Snapshot Capture(Mat panel, IReadOnlyList<DrawingRectangle> bounds,
         IReadOnlyList<LootObservation> observations, DateTimeOffset at, float scale)

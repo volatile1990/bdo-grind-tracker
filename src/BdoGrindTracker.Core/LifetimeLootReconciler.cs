@@ -14,6 +14,8 @@ public sealed class LifetimeLootReconciler
     public const string AlgorithmName = "lifetime-v1";
     public const string RawTextAlgorithmName = "lifetime-v2";
     public const string VisualSlotAlgorithmName = "lifetime-v3";
+    public const string UnreadableVisualSlotAlgorithmName = "lifetime-v4";
+    public const string FadeAwareAlgorithmName = "lifetime-v5";
     public const int SlotCount = 5;
     private const int BeamCapacity = 24;
     private const int AgeBins = 8;
@@ -41,6 +43,8 @@ public sealed class LifetimeLootReconciler
     private (string Name, int Quantity)?[]? previousVisualSlots;
     private (string Name, int Quantity)?[]? earlierVisualSlots;
     private long? previousVisualMilliseconds;
+    private int previousVisualOccupiedSlots;
+    private bool hasObservedFading;
 
     public LifetimeLootReconciler(Func<LootObservation, LifetimeParsedReading?>? rawParser = null,
         Func<string, IReadOnlyList<string>>? nameAliases = null)
@@ -50,13 +54,18 @@ public sealed class LifetimeLootReconciler
 
     public LifetimeLootReconciler(Func<LootObservation, LifetimeParsedReading?>? rawParser,
         Func<string, IReadOnlyList<string>>? nameAliases, bool useVisualSlotCoverage,
-        LootSource source = LootSource.Normal, int slotCount = SlotCount)
+        LootSource source = LootSource.Normal, int slotCount = SlotCount, bool useUnreadableSlotCoverage = false,
+        bool useFadeEvidence = false)
     {
         if (source is not (LootSource.Normal or LootSource.Rare))
             throw new ArgumentOutOfRangeException(nameof(source));
         if (slotCount is not (1 or SlotCount)) throw new ArgumentOutOfRangeException(nameof(slotCount));
         if (useVisualSlotCoverage && rawParser is null)
             throw new ArgumentException("Visual slot coverage requires a raw-text parser.", nameof(rawParser));
+        if (useUnreadableSlotCoverage && (!useVisualSlotCoverage || source != LootSource.Normal || slotCount != SlotCount))
+            throw new ArgumentException("Unreadable slot coverage requires the normal five-slot visual counter.", nameof(useUnreadableSlotCoverage));
+        if (useFadeEvidence && !useUnreadableSlotCoverage)
+            throw new ArgumentException("Fade evidence requires the unreadable normal five-slot visual counter.", nameof(useFadeEvidence));
         this.rawParser = rawParser;
         this.nameAliases = nameAliases;
         this.source = source;
@@ -64,10 +73,14 @@ public sealed class LifetimeLootReconciler
         persistentSingleRow = slotCount == 1;
         models = CreateModels();
         UsesVisualSlotCoverage = useVisualSlotCoverage;
+        UsesUnreadableSlotCoverage = useUnreadableSlotCoverage;
+        UsesFadeEvidence = useFadeEvidence;
     }
 
     public bool UsesRawText => rawParser is not null;
     public bool UsesVisualSlotCoverage { get; }
+    public bool UsesUnreadableSlotCoverage { get; }
+    public bool UsesFadeEvidence { get; }
     public LootSource Source => source;
     public int TrackedSlotCount => trackedSlotCount;
     public int VisualCoverageFallbackCount { get; private set; }
@@ -122,16 +135,30 @@ public sealed class LifetimeLootReconciler
             else if (candidates.Length == 1) observations[slot] = observation with { Name = candidates[0] };
         }
         knownNames.UnionWith(nextKnown);
-        return ProcessNormalized(observations, capturedAt);
+        return ProcessNormalized(observations, capturedAt, rows);
     }
 
-    private LifetimeSnapshot ProcessNormalized(Observation?[] observations, DateTimeOffset capturedAt)
+    private LifetimeSnapshot ProcessNormalized(Observation?[] observations, DateTimeOffset capturedAt,
+        IReadOnlyList<LootObservation>? rawRows = null)
     {
         var now = capturedAt.ToUnixTimeMilliseconds();
         if (lastCaptureMilliseconds is { } last && now <= last)
             return previousSnapshot! with { Deltas = FrozenDictionary<string, long>.Empty };
         lastCaptureMilliseconds = now;
+        // Stronger physical coverage needs age measurements to disambiguate
+        // later fading. During warm-up, or in an older stream without them,
+        // retain the previous visual counter's constraints.
+        if (previousVisualMilliseconds is { } previousCapture && now - previousCapture > 600)
+            hasObservedFading = false;
+        hasObservedFading |= UsesFadeEvidence && observations.Any(row => row?.Source?.FadeEvidence is
+            { Correlation: >= .90, ContrastRatio: >= .12 and <= .85 });
+        var unreadableCoverage = UsesUnreadableSlotCoverage
+            ? UnreadableSlotCoverage(observations, rawRows, now) : null;
+        if (UsesFadeEvidence && hasObservedFading && AdditionalPhysicalCoverage(observations, rawRows, now) is { } physical &&
+            physical.Count > (unreadableCoverage?.Count ?? 0)) unreadableCoverage = physical;
         var minimumCoveredSlots = UsesVisualSlotCoverage ? ObserveVisualSlots(observations, now) : 0;
+        minimumCoveredSlots = Math.Max(minimumCoveredSlots, unreadableCoverage?.Count ?? 0);
+        if (UsesUnreadableSlotCoverage) previousVisualOccupiedSlots = OccupiedPrefix(observations, rawRows);
         // Empty menus before the first real reading are not a representative
         // training sample of the log's in-session detection probabilities.
         if (!started)
@@ -158,7 +185,7 @@ public sealed class LifetimeLootReconciler
         foreach (var model in models)
         {
             if (persistentSingleRow) AdvanceSingleRow(model, observations[0], now, closeSingleRow);
-            else Advance(model, observations, now, elapsed, maximumBirths, minimumCoveredSlots);
+            else Advance(model, observations, now, elapsed, maximumBirths, minimumCoveredSlots, unreadableCoverage);
             Learn(model);
             if (frameIndex == nextFit) model.Refit();
             if (frameIndex % 50 == 0) Settle(model, now);
@@ -191,6 +218,8 @@ public sealed class LifetimeLootReconciler
         previousVisualSlots = null;
         earlierVisualSlots = null;
         previousVisualMilliseconds = null;
+        previousVisualOccupiedSlots = 0;
+        hasObservedFading = false;
         VisualCoverageFallbackCount = 0;
         singleRowMissingSince = null;
     }
@@ -219,6 +248,13 @@ public sealed class LifetimeLootReconciler
                     throw new ArgumentException("Occupancy evidence requires lifetime-v3.", nameof(rows));
                 occupancy.Validate();
             }
+            if (row.FadeEvidence is { } fade)
+            {
+                if (!UsesFadeEvidence || row.Source != LootSource.Normal || row.ItemName is null ||
+                    row.RejectionReason is not null || row.IsAlignmentAnchor)
+                    throw new ArgumentException("Fade evidence requires a recognized normal row in the fade-aware counter.", nameof(rows));
+                fade.Validate();
+            }
         }
     }
 
@@ -233,6 +269,14 @@ public sealed class LifetimeLootReconciler
             ? ((string Name, int Quantity)?)(name, quantity) : null).ToArray();
         var count = CompletePrefix(current);
         var minimum = 0;
+        // In the fade-aware mode, the visible, fully read prefix must still fit
+        // the explanation. Age evidence must not improve a score by discarding
+        // a real upper row. Glyph occupancy corroborates the oldest position;
+        // this bounds the live row count without asserting a particular scroll.
+        if (UsesFadeEvidence && hasObservedFading && count >= 2 && observations.Take(count).All(row => row?.Source is
+                { ItemName: not null, Quantity: not null, RejectionReason: null, IsAlignmentAnchor: false }) &&
+            observations[count - 1]?.Source?.OccupancyEvidence?.Matches.Any(match => match.Correlation >= .90) == true)
+            minimum = count;
         // Protect physical coverage only when two complete prior readings agree
         // and their names/amounts still fit after the visible stack grows. A
         // matching prior glyph mask confirms the current upper row is occupied;
@@ -362,6 +406,76 @@ public sealed class LifetimeLootReconciler
         }
     }
 
+    private UnreadableCoverageConstraint? UnreadableSlotCoverage(Observation?[] observations,
+        IReadOnlyList<LootObservation>? rawRows, long now)
+    {
+        if (rawRows is null || previousVisualSlots is not { } previous ||
+            previousVisualMilliseconds is not { } last || now - last > 600)
+            return null;
+        var oldCount = previous.TakeWhile(row => row is not null).Count();
+        var readableCount = observations.TakeWhile(row => row is { Name: not null, Quantity: not null }).Count();
+        // Limit this extra constraint to the five-slot capacity boundary. In a
+        // smaller stack, a recovered fading row can shift the lifetime estimate
+        // and split later readings. Those ambiguous cases keep the original
+        // temporal alternatives instead of forcing an additional supported row.
+        // The previous stack must be fully readable: an already occupied but
+        // unreadable tail is not an empty place. Treating it as absent would
+        // exaggerate the scroll distance when it is read again in the next frame.
+        if (oldCount < 2 || oldCount != previousVisualOccupiedSlots ||
+            readableCount != trackedSlotCount - 1 || readableCount + 1 <= oldCount)
+            return null;
+        var oldest = rawRows.FirstOrDefault(row => row.Source == source && row.Slot == readableCount);
+        if (oldest is null || oldest.IsAlignmentAnchor ||
+            oldest.RejectionReason == AutomaticLootSpotLock.OutsideSpotPoolReason || Interpret(oldest)?.IsExcluded == true ||
+            oldest.ItemName is not null && oldest.RejectionReason is not null ||
+            observations[readableCount]?.Name is { } oldestName && oldestName != previous[oldCount - 1]!.Value.Name ||
+            oldest.OccupancyEvidence?.Matches.Any(match => match.Correlation >= .90 &&
+                match.PreviousSlot < previous.Length && previous[match.PreviousSlot] is { } template &&
+                template.Name == previous[oldCount - 1]!.Value.Name) != true)
+            return null;
+        var covered = readableCount + 1;
+        var shift = covered - oldCount;
+        for (var slot = 0; slot < oldCount - 1; slot++)
+        {
+            var current = observations[slot + shift];
+            if (current is null || (current.Name, current.Quantity) != previous[slot]) return null;
+        }
+        // Require the newly occupied oldest position to continue a known row;
+        // an anonymous latent hypothesis must not satisfy physical coverage.
+        // Its old reading remains the amount vote, never the matching glyph mask.
+        var expectedOldest = previous[oldCount - 1]!.Value;
+        return new(covered, expectedOldest.Name, expectedOldest.Quantity);
+    }
+
+    private UnreadableCoverageConstraint? AdditionalPhysicalCoverage(Observation?[] observations,
+        IReadOnlyList<LootObservation>? rawRows, long now)
+    {
+        if (rawRows is null || previousVisualMilliseconds is not { } last || now - last > 600) return null;
+        var count = observations.TakeWhile(row => row is { Name: not null, Quantity: not null } &&
+            row.Source is { ItemName: not null, Quantity: not null, RejectionReason: null, IsAlignmentAnchor: false }).Count();
+        if (count < 2 || count >= trackedSlotCount || previousVisualOccupiedSlots < 2 || count + 1 <= previousVisualOccupiedSlots) return null;
+        var oldest = rawRows.FirstOrDefault(row => row.Source == source && row.Slot == count);
+        if (oldest is not { ItemName: null, IsAlignmentAnchor: false } ||
+            oldest.RejectionReason == AutomaticLootSpotLock.OutsideSpotPoolReason || Interpret(oldest)?.IsExcluded == true ||
+            oldest.OccupancyEvidence?.Matches.Any(match => match.Correlation >= .90) != true) return null;
+        // Occupancy supplies no name or amount. The candidate must already
+        // support every covered row from text readings, including this tail.
+        return new(count + 1, null, null);
+    }
+
+    private sealed record UnreadableCoverageConstraint(int Count, string? OldestName, int? OldestQuantity);
+
+    private int OccupiedPrefix(Observation?[] observations, IReadOnlyList<LootObservation>? rawRows)
+    {
+        for (var slot = 0; slot < trackedSlotCount; slot++)
+        {
+            if (observations[slot]?.Name is not null) continue;
+            var row = rawRows?.FirstOrDefault(row => row.Source == source && row.Slot == slot && !row.IsAlignmentAnchor);
+            if (row?.OccupancyEvidence?.Matches.Any(match => match.Correlation >= .90) != true) return slot;
+        }
+        return trackedSlotCount;
+    }
+
     private static LifeRow TrimSingleRowReadings(LifeRow row)
     {
         // Persistent notifications must not retain an entire session of bitmap
@@ -390,51 +504,95 @@ public sealed class LifetimeLootReconciler
     }
 
     private void Advance(Model model, Observation?[] observations, double now, double elapsed, int maximumBirths,
-        int minimumCoveredSlots)
+        int minimumCoveredSlots, UnreadableCoverageConstraint? unreadableCoverage = null)
     {
         var candidates = new Dictionary<string, State>(StringComparer.Ordinal);
         foreach (var prior in model.Beam)
         {
-            var survivors = prior.Live.TakeWhile(row => now - row.BornAt < model.Duration).ToArray();
-            var retired = prior.Done;
-            foreach (var expired in prior.Live.Skip(survivors.Length)) retired = new(expired, retired);
-            var capacity = Math.Min(maximumBirths, SlotCount - survivors.Length);
-            for (var births = 0; births <= capacity; births++)
+            // A birth is placed inside its capture interval, not timestamped by
+            // the game. An already fading, still visible tail may therefore
+            // survive slightly beyond that point estimate. Retain ordinary
+            // expiry alternatives too, so this cannot block a fresh arrival.
+            var ordinaryCount = prior.Live.TakeWhile(row => now - row.BornAt < model.Duration).Count();
+            var tailCount = ordinaryCount;
+            if (UsesFadeEvidence)
+                while (tailCount < prior.Live.Length &&
+                    now - prior.Live[tailCount].BornAt < model.Duration + prior.Live[tailCount].BirthUncertaintyMs &&
+                    prior.Live[tailCount].Readings?.Value.Source?.FadeEvidence is
+                        { Correlation: >= .90, ContrastRatio: >= .12 and <= .85 }) tailCount++;
+            for (var survivorCount = ordinaryCount; survivorCount <= tailCount; survivorCount++)
             {
-                var rows = new LifeRow[survivors.Length + births];
-                if (rows.Length < minimumCoveredSlots) continue;
-                // Spread births over the interval with a 100 ms minimum spacing,
-                // leaving a bounded margin on either end instead of inventing a
-                // single identical first-observed time for every new row.
-                var span = Math.Max(elapsed, (births - 1) * BirthStepMs);
-                var margin = Math.Min(200, (span - (births - 1) * BirthStepMs) / (births + 1));
-                for (var slot = 0; slot < births; slot++)
-                    rows[slot] = new(now - margin - slot * (BirthStepMs + margin), null, null, null);
-                Array.Copy(survivors, 0, rows, births, survivors.Length);
-                var score = prior.Score;
-                var outcomes = new int[SlotCount];
-                for (var slot = 0; slot < SlotCount; slot++)
+                var survivors = prior.Live.Take(survivorCount).ToArray();
+                var retired = prior.Done;
+                foreach (var expired in prior.Live.Skip(survivors.Length)) retired = new(expired, retired);
+                var capacity = Math.Min(maximumBirths, SlotCount - survivors.Length);
+                for (var births = 0; births <= capacity; births++)
                 {
-                    var observation = observations[slot];
-                    if (slot >= rows.Length)
+                    // Extra survival only resolves an occupied-position conflict;
+                    // it does not generally lengthen the duration model.
+                    if (survivorCount > ordinaryCount && ordinaryCount + births >= minimumCoveredSlots) continue;
+                    if (Enumerable.Range(ordinaryCount, survivorCount - ordinaryCount).Any(index =>
+                        observations[index + births]?.Name != survivors[index].Name ||
+                        observations[index + births]?.Source?.OccupancyEvidence?.Matches.Any(match =>
+                            match.Correlation >= .90 && match.PreviousSlot == survivors[index].Readings!.Value.Source!.Slot) != true))
+                        continue;
+                    var rows = new LifeRow[survivors.Length + births];
+                    if (rows.Length < minimumCoveredSlots) continue;
+                    // Spread births over the interval with a 100 ms minimum spacing,
+                    // leaving a bounded margin on either end instead of inventing a
+                    // single identical first-observed time for every new row.
+                    var span = Math.Max(elapsed, (births - 1) * BirthStepMs);
+                    var margin = Math.Min(200, (span - (births - 1) * BirthStepMs) / (births + 1));
+                    for (var slot = 0; slot < births; slot++)
+                        rows[slot] = new(now - margin - slot * (BirthStepMs + margin), null, null, null) { BirthUncertaintyMs = (slot + 1) * margin };
+                    Array.Copy(survivors, 0, rows, births, survivors.Length);
+                    var score = prior.Score;
+                    // A uniform capture-time uncertainty leaves progressively
+                    // less support near the latest possible expiry.
+                    for (var index = ordinaryCount; index < survivorCount; index++)
+                        score += Math.Log(1 - (now - survivors[index].BornAt - model.Duration) / survivors[index].BirthUncertaintyMs);
+                    var outcomes = new int[SlotCount];
+                    for (var slot = 0; slot < SlotCount; slot++)
                     {
-                        var occupied = observation is null ? 0 : 1;
-                        score += model.EmptyLogProbability[occupied];
-                        outcomes[slot] = -1 - occupied;
+                        var observation = observations[slot];
+                        if (slot >= rows.Length)
+                        {
+                            var occupied = observation is null ? 0 : 1;
+                            score += model.EmptyLogProbability[occupied];
+                            outcomes[slot] = -1 - occupied;
+                        }
+                        else
+                        {
+                            var row = rows[slot];
+                            var age = Math.Clamp((int)Math.Floor((now - row.BornAt) / 200), 0, AgeBins - 1);
+                            var category = Category(observation, row);
+                            score += model.HeldLogProbability[age][category];
+                            if (UsesFadeEvidence && observation?.Source?.FadeEvidence is
+                                { Correlation: >= .90, ContrastRatio: >= .12 and <= .85 } fade)
+                            {
+                                // Independently isolated lifetimes put the opaque
+                                // phase near 1,000 ms and fading near 400 ms. Leave
+                                // 100 ms for capture uncertainty; penalize a proposed
+                                // row that is too young for its observed fading.
+                                // This is age evidence, not identity: indistinguishable
+                                // bright arrivals remain possible until later frames.
+                                var earliestAge = 900 + 400 * (1 - fade.ContrastRatio);
+                                var tooYoung = Math.Max(0, earliestAge - (now - row.BornAt)) / 100;
+                                score -= tooYoung * tooYoung;
+                            }
+                            outcomes[slot] = age * Categories + category;
+                            if (observation is not null) rows[slot] = Observe(row, observation);
+                        }
                     }
-                    else
-                    {
-                        var row = rows[slot];
-                        var age = Math.Clamp((int)Math.Floor((now - row.BornAt) / 200), 0, AgeBins - 1);
-                        var category = Category(observation, row);
-                        score += model.HeldLogProbability[age][category];
-                        outcomes[slot] = age * Categories + category;
-                        if (observation is not null) rows[slot] = Observe(row, observation);
-                    }
+                    if (unreadableCoverage is { } coverage &&
+                        (rows.Take(coverage.Count).Any(row => row.Name is null || row.Quantity is null) ||
+                         (coverage.OldestName is not null && (rows[coverage.Count - 1].Name, rows[coverage.Count - 1].Quantity) !=
+                         (coverage.OldestName, coverage.OldestQuantity))))
+                        continue;
+                    var state = new State(rows, retired, score, outcomes);
+                    var key = string.Join(',', rows.Select(row => row.BornAt.ToString("R", System.Globalization.CultureInfo.InvariantCulture)));
+                    if (!candidates.TryGetValue(key, out var current) || score > current.Score) candidates[key] = state;
                 }
-                var state = new State(rows, retired, score, outcomes);
-                var key = string.Join(',', rows.Select(row => row.BornAt.ToString("R", System.Globalization.CultureInfo.InvariantCulture)));
-                if (!candidates.TryGetValue(key, out var current) || score > current.Score) candidates[key] = state;
             }
         }
         if (candidates.Count == 0 && minimumCoveredSlots > 0)
@@ -621,6 +779,9 @@ public sealed class LifetimeLootReconciler
     private sealed record Reading(Observation Value, Reading? Previous);
     private sealed record LifeRow(double BornAt, Reading? Readings, string? Name, int? Quantity)
     {
+        // Latest birth still consistent with the sampled interval and the
+        // existing minimum spacing between simultaneous arrivals.
+        public double BirthUncertaintyMs { get; init; }
         public string Text { get; init; } = "";
     }
     private sealed record Finished(LifeRow Row, Finished? Previous, double? RetiredAt = null);
