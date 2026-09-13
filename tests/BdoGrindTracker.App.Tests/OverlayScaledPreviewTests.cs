@@ -67,9 +67,9 @@ public sealed class OverlayScaledPreviewTests
     }
 
     [Theory]
-    [InlineData("grid", 6, 2)]
-    [InlineData("strip", 6, 2)]
-    [InlineData("list", 6, 2)]
+    [InlineData("grid", 8, 0)]
+    [InlineData("strip", 8, 0)]
+    [InlineData("list", 8, 0)]
     [InlineData("card", 1, 7)]
     public async Task SmallLootPreviewKeepsEveryItemUpToTheLimitAndUsesSharedEffectiveSizing(string mode, int visibleCount, int hiddenCount)
     {
@@ -85,8 +85,12 @@ public sealed class OverlayScaledPreviewTests
         Assert.Equal(visibleCount, Regex.Matches(markup, "class=\"overlay-widget-item ").Count);
         Assert.Equal(visibleCount, Regex.Matches(markup, "class=\"overlay-item-name\" data-overlay-fit").Count);
         Assert.Equal(visibleCount, Regex.Matches(markup, "class=\"overlay-item-quantity\" data-overlay-fit").Count);
-        Assert.Contains("+ " + hiddenCount + " weitere", markup);
-        Assert.Contains("Maximale Items in den Moduleinstellungen erhöhen", markup);
+        if (hiddenCount > 0)
+        {
+            Assert.Contains("+ " + hiddenCount + " weitere", markup);
+            Assert.Contains("Maximale Items in den Moduleinstellungen erhöhen", markup);
+        }
+        else Assert.DoesNotContain("weitere", markup);
         Assert.DoesNotContain("is-short-card", markup);
         Assert.DoesNotContain("Modul vergrößern", markup);
         Assert.Contains("--widget-font-scale:" + Css(view.FontScale), markup);
@@ -94,7 +98,8 @@ public sealed class OverlayScaledPreviewTests
         Assert.Contains("--loot-gap:" + Css(view.Gap) + "px", markup);
         Assert.Contains("class=\"overlay-loot-viewport\"", markup);
         Assert.Contains("Vollständiger langer Gegenstandsname 1", markup);
-        Assert.DoesNotContain("Vollständiger langer Gegenstandsname 8", markup);
+        if (visibleCount == 8) Assert.Contains("Vollständiger langer Gegenstandsname 8", markup);
+        else Assert.DoesNotContain("Vollständiger langer Gegenstandsname 8", markup);
     }
 
     [Fact]

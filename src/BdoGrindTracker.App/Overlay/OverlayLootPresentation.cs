@@ -43,7 +43,8 @@ public static class OverlayLootPresentation
         };
         var items = Array.AsReadOnly(selection.ToArray());
         var view = widget.Kind == "drop-item" ? "card" : widget.ItemView;
-        var count = Math.Min(items.Count, view == "card" ? 1 : Math.Clamp(widget.ItemLimit, 1, 24));
+        var count = view == "card" ? Math.Min(items.Count, 1) : filter == "all"
+            ? items.Count : Math.Min(items.Count, Math.Clamp(widget.ItemLimit, 1, 24));
         var visible = Array.AsReadOnly(items.Take(count).ToArray());
         var hiddenCount = items.Count - count;
         var width = Math.Max(0, widget.Width - PaddingX * 2);

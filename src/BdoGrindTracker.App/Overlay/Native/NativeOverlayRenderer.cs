@@ -384,7 +384,8 @@ internal sealed class NativeOverlayRenderer : IDisposable
         var mode = widget.RotationComparison;
         var reference = RotationTimelinePresentation.Reference(rotation, mode);
         var extent = RotationTimelinePresentation.Extent(rotation, mode);
-        var graph = new RectangleF(inner.X + 2, inner.Y + 4, Math.Max(1, inner.Width - 4), Math.Max(1, inner.Height - 8));
+        var totalWidth = Math.Min(inner.Width * .25f, 56 * (float)widget.FontScale);
+        var graph = new RectangleF(inner.X + 2, inner.Y + 4, Math.Max(1, inner.Width - 4 - totalWidth), Math.Max(1, inner.Height - 8));
         float X(double seconds) => graph.Left + (float)Math.Clamp(seconds / extent, 0, 1) * graph.Width;
         using var baseline = new Pen(Color.FromArgb(70, 85, 100), 1);
         var bandHeight = Math.Max(4, graph.Height * .28f);
@@ -403,6 +404,9 @@ internal sealed class NativeOverlayRenderer : IDisposable
             var y = graph.Top + graph.Height * (row == 0 ? .25f : .78f);
             graphics.DrawLine(baseline, graph.Left, y, graph.Right, y);
             var end = row == 0 ? reference?.Duration ?? 0 : rotation.Elapsed;
+            Draw(graphics, events.Count > 0 ? RotationPhases.Duration(end) : "–",
+                new RectangleF(graph.Right+4, y-bandHeight/2, Math.Max(1,totalWidth-4), bandHeight),
+                Math.Clamp(bandHeight*.45f,11,18), Color.White, false, StringAlignment.Far, StringAlignment.Center);
             var phases = RotationPhases.Create(rotation.SpotId, events, end, widget.RotationColors);
             foreach (var phase in phases)
             {

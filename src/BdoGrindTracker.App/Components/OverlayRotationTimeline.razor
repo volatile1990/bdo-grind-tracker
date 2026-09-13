@@ -12,13 +12,14 @@
             var y = row == 0 ? 35 : 85;
             var end = row == 0 ? Reference?.Duration ?? 0 : State.Elapsed;
             var phases = RotationPhases.Create(State.SpotId, events, end, Colors);
-            <line x1="0" x2="600" y1="@y" y2="@y" stroke="#44515c" stroke-width="2" />
+            <line x1="0" x2="540" y1="@y" y2="@y" stroke="#44515c" stroke-width="2" />
+            <g><text class="rotation-total-duration" x="598" y="@(y+4)" text-anchor="end" fill="#ffffff" font-size="12"><title>@(row == 0 ? "Gesamtzeit der Referenzrotation" : "Gesamtzeit der aktuellen Rotation")</title>@(events.Count > 0 ? RotationPhases.Duration(end) : "–")</text></g>
             @foreach (var phase in phases)
             {
                 <g class="rotation-phase" data-phase="@phase.Id">
                     <title>@(phase.Name + " · " + RotationTimelinePresentation.Time(phase.Start) + "–" + RotationTimelinePresentation.Time(phase.End))</title>
                     <rect x="@X(phase.Start)" y="@(y-14)" width="@Width(phase.End-phase.Start)" height="28" rx="2" fill="@phase.Color" fill-opacity=".75" />
-                    @if ((phase.End-phase.Start)/Extent*600 >= 28)
+                    @if ((phase.End-phase.Start)/Extent*540 >= 28)
                     {
                         <g><text class="rotation-phase-duration" x="@X((phase.Start+phase.End)/2)" y="@(y+4)" text-anchor="middle" fill="#ffffff" font-size="11">@RotationPhases.Duration(phase.End-phase.Start)</text></g>
                     }
@@ -48,6 +49,6 @@
     [Parameter] public string Colors { get; set; } = "colored";
     private RotationRun? Reference => RotationTimelinePresentation.Reference(State, Mode);
     private double Extent => RotationTimelinePresentation.Extent(State, Mode);
-    private string X(double seconds) => (Math.Clamp(seconds / Extent,0,1) * 600).ToString("0.###", CultureInfo.InvariantCulture);
-    private string Width(double seconds) => Math.Max(0, Math.Clamp(seconds / Extent,0,1)*600-2).ToString("0.###", CultureInfo.InvariantCulture);
+    private string X(double seconds) => (Math.Clamp(seconds / Extent,0,1) * 540).ToString("0.###", CultureInfo.InvariantCulture);
+    private string Width(double seconds) => Math.Max(0, Math.Clamp(seconds / Extent,0,1)*540-2).ToString("0.###", CultureInfo.InvariantCulture);
 }

@@ -183,7 +183,7 @@ public sealed class OverlayMetricsTests
         var items = await RenderAsync(OverlayCatalog.CreateWidget("drops") with { ItemView = "list", ItemLimit = 2 }, OverlaySnapshot.Demo);
         Assert.Contains("Schwarzkristallfragment", items);
         Assert.Contains("assets/icons/black-crystal-fragment.png", items);
-        Assert.Contains("+ 3 weitere", items);
+        Assert.DoesNotContain("weitere", items);
         var hidden = await RenderAsync(OverlayCatalog.CreateWidget("duration") with { ShowLabel = false }, OverlaySnapshot.Demo);
         Assert.DoesNotContain("overlay-widget-label", hidden);
         Assert.DoesNotContain("overlay-widget-detail", hidden);

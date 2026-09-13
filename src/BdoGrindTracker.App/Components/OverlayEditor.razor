@@ -223,7 +223,10 @@
                             @if (selected.Kind != "drop-item")
                             {
                                 <label class="oe-field"><span>Reihenfolge</span><select aria-label="Drop-Reihenfolge" value="@selected.ItemSort" @onchange="e => ChangeWidget(w => w with { ItemSort = Text(e) })"><option value="default">@(selected.ItemFilter == "selected" ? "Eigene Auswahlreihenfolge" : "Standard")</option><option value="quantity">Größte Menge zuerst</option><option value="name">Itemname A–Z</option></select></label>
-                                <label class="oe-field"><span>Maximale Items</span><input aria-label="Maximale Overlay-Items" type="number" min="1" max="24" value="@selected.ItemLimit" @onchange='e => WidgetNumber(e, "itemLimit")' /></label>
+                                @if (selected.ItemFilter != "all" || selected.Kind == "rare-drops")
+                                {
+                                    <label class="oe-field"><span>Maximale Items</span><input aria-label="Maximale Overlay-Items" type="number" min="1" max="24" value="@selected.ItemLimit" @onchange='e => WidgetNumber(e, "itemLimit")' /></label>
+                                }
                             }
                             @{ var lootView = OverlayLootPresentation.Create(OverlayContentLayout.Create(selected, PreviewSnapshot).LayoutWidget, PreviewSnapshot); }
                             @if (lootView.HiddenCount > 0) { <p class="oe-help oe-capacity-hint"><AppIcon Name="info" />@lootView.HiddenCount weitere Items über der maximalen Anzahl.</p> }
