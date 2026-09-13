@@ -29,7 +29,7 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <Content Update="wwwroot\**\*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <!-- Native overlays and Blazor share these assets, including in referenced test builds. -->
-    <Content Include="..\..\data\**\*.png;..\..\data\**\*.jpg" Exclude="..\..\data\ocr\**\*"
+    <Content Include="..\..\data\**\*.png;..\..\data\**\*.jpg;..\..\data\**\*.webp" Exclude="..\..\data\ocr\**\*"
              Link="wwwroot\assets\%(RecursiveDir)%(Filename)%(Extension)"
              CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>

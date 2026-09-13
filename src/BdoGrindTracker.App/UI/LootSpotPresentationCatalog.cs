@@ -124,7 +124,7 @@ internal static partial class LootSpotPresentationCatalog
             recommendedDp,
             trashItemName,
             trashPrice.FixedUnitPrice.Value,
-            backgroundFileName,
+            SuppliedBackground(spotId) ?? backgroundFileName,
             iconFileName,
             recommendedCrystalName,
             recommendedCrystalFileName,
