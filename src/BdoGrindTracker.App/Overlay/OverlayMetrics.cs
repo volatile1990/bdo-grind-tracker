@@ -160,6 +160,6 @@ internal sealed class OverlayMetrics
         }
         var demoItem = snapshot.Drops.First(item => item.CanonicalName == "BON Wandering Origin Crystal");
         return snapshot with { DropMarkers = [new(TimeSpan.FromSeconds(870), demoItem), new(TimeSpan.FromSeconds(910), demoItem)],
-            Rotation = HermesiaRotationDemo.At(350) };
+            Rotation = HermesiaRotationDemo.At(350), DailyGoal = new(650_000_000, 1_000_000_000) };
     }
 }

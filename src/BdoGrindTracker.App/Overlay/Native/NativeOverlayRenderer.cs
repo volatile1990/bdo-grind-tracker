@@ -136,6 +136,21 @@ internal sealed class NativeOverlayRenderer : IDisposable
             else if (widget.Kind == "chart") DrawChart(graphics, widget, inner, snapshot);
             else if (widget.Kind == "clock") DrawClock(graphics, widget, inner, snapshot);
             else if (widget.Kind == "rotation-monitor") DrawRotation(graphics, widget, inner, snapshot.Rotation);
+            else if (widget.Kind == "daily-goal")
+            {
+                var goal = snapshot.DailyGoal;
+                if (widget.ShowLabel)
+                {
+                    Draw(graphics,"Daily Goal",new RectangleF(inner.X,inner.Y,inner.Width,14),10,Muted);
+                    inner.Y += 18; inner.Height -= 18;
+                }
+                Draw(graphics,goal.Value,new RectangleF(inner.X,inner.Y,inner.Width,Math.Max(1,inner.Height-42)),20*(float)widget.FontScale,Gold,true);
+                var bar = new RectangleF(inner.X,inner.Bottom-38,inner.Width,22);
+                FillRound(graphics,Color.FromArgb(60,Gold),bar,3);
+                if (goal.Fraction > 0) FillRound(graphics,Color.FromArgb(128,104,54),new RectangleF(bar.X,bar.Y,bar.Width*(float)goal.Fraction,bar.Height),3);
+                Draw(graphics,goal.Percentage,bar,14*(float)widget.FontScale,Color.White,true,StringAlignment.Center,StringAlignment.Center);
+                Draw(graphics,goal.Detail,new RectangleF(inner.X,inner.Bottom-13,inner.Width,13),10,Muted);
+            }
             else DrawMetric(graphics, widget, inner, snapshot);
             graphics.Restore(state);
         }
