@@ -7,7 +7,10 @@ public sealed record RotationEvent(string Kind, string Label, double Seconds, in
 {
     public string Key => Kind + ":" + Occurrence;
 }
-public sealed record RotationRun(double Duration, IReadOnlyList<RotationEvent> Events);
+public sealed record RotationRun(double Duration, IReadOnlyList<RotationEvent> Events)
+{
+    public int TimingVersion { get; init; }
+}
 public sealed record RotationMonitorSnapshot
 {
     public string? SpotId { get; init; }
@@ -25,7 +28,7 @@ public sealed record RotationMonitorSnapshot
     public string? Error { get; init; }
 }
 
-/// <summary>Only complete, continuously observed AFK-end to AFK-end runs earn records.</summary>
+/// <summary>Times the first event after grind start/AFK through the next AFK end.</summary>
 internal sealed class HermesiaRotationTracker
 {
     private static readonly string[] RequiredMechanics = ["drakania", "drakania-kill", "transfer", "mine-enter", "dragon", "afk"];
@@ -33,9 +36,10 @@ internal sealed class HermesiaRotationTracker
     private readonly List<RotationRun> _runs;
     private readonly string? _path;
     private DateTimeOffset? _start;
+    private double _finishedElapsed;
     private bool _afk;
     private string? _error;
-    private string _status = "Warte auf AFK-Ende · Hermesia";
+    private string _status = "Warte auf erstes Ereignis";
 
     internal HermesiaRotationTracker(string? path = null)
     {
@@ -46,7 +50,7 @@ internal sealed class HermesiaRotationTracker
         {
             if (new FileInfo(path).Length > 4_000_000) throw new InvalidDataException("Rotationsdatei zu groß.");
             _runs = (JsonSerializer.Deserialize<List<RotationRun>>(File.ReadAllText(path)) ?? [])
-                .Where(Valid).Take(1200).ToList();
+                .Where(Valid).Select(FromFirstEvent).Where(Valid).Take(1200).ToList();
         }
         catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException)
         { _error = "Bestzeiten konnten nicht geladen werden: " + e.Message; }
@@ -62,8 +66,15 @@ internal sealed class HermesiaRotationTracker
         run.Events[^1].Seconds == run.Duration && run.Events.Select(e => e.Key).Distinct().Count() == run.Events.Count &&
         run.Events.Zip(run.Events.Skip(1)).All(pair => pair.First.Seconds <= pair.Second.Seconds);
 
-    internal void Interrupt(string status = "Unterbrochen · warte auf nächstes AFK-Ende")
-    { _start = null; _events.Clear(); _afk = false; _status = status; }
+    internal static RotationRun FromFirstEvent(RotationRun run)
+    {
+        if (run.TimingVersion >= 2) return run;
+        var first = run.Events.FirstOrDefault(e => e.Kind != "start")?.Seconds ?? 0;
+        return new(run.Duration - first, run.Events.Select(e => e with { Seconds = Math.Max(0, e.Seconds - first) }).ToArray()) { TimingVersion = 2 };
+    }
+
+    internal void Interrupt(string status = "Warte auf erstes Ereignis")
+    { _start = null; _finishedElapsed = 0; _events.Clear(); _afk = false; _status = status; }
 
     internal void Observe(string kind, string label, DateTimeOffset at)
     {
@@ -71,19 +82,23 @@ internal sealed class HermesiaRotationTracker
         // rotation boundary after crystal absorption. Text alone is insufficient.
         if (kind == "mine-cleared" && _afk)
         {
-            if (_start is { } start && _events.Any(e => e.Kind == "dragon") && _events.Any(e => e.Kind == "afk"))
+            if (_start is { } start)
             {
                 Add("end", "AFK-Ende", (at - start).TotalSeconds);
-                var run = new RotationRun((at - start).TotalSeconds, _events.ToArray());
+                var run = new RotationRun((at - start).TotalSeconds, _events.ToArray()) { TimingVersion = 2 };
                 if (Valid(run)) { _runs.Add(run); Save(); }
             }
-            _start = at; _afk = false; _events.Clear();
-            Add("start", "Rotationsstart", 0);
-            _status = "Rotation läuft";
+            _finishedElapsed = _start is { } started ? Math.Max(0, (at - started).TotalSeconds) : 0;
+            _start = null; _afk = false;
+            _status = "AFK beendet · warte auf erstes Ereignis";
             return;
         }
         if (kind == "afk") _afk = true;
-        if (_start is null) { _status = _afk ? "AFK erkannt · synchronisiere am Ende" : "Warte auf AFK-Ende · Hermesia"; return; }
+        if (_start is null)
+        {
+            _start = at; _finishedElapsed = 0; _events.Clear();
+            Add("start", "Rotationsstart", 0);
+        }
         var seconds = (at - _start.Value).TotalSeconds;
         if (seconds < 0 || seconds > 7200) { Interrupt(); return; }
         Add(kind, label, seconds);
@@ -127,7 +142,7 @@ internal sealed class HermesiaRotationTracker
             }).ToArray();
             ideal = new(total, events);
         }
-        return new() { Elapsed = _start is { } start ? Math.Max(0, (now - start).TotalSeconds) : 0,
+        return new() { Elapsed = _start is { } start ? Math.Max(0, (now - start).TotalSeconds) : _finishedElapsed,
             Synchronized = _start is not null, IsAfk = _afk, Events = _events.ToArray(), Best = best,
             Ideal = ideal, SectorBests = sectors, Completed = _runs.Count, Status = _status, Error = _error };
     }

@@ -4,7 +4,7 @@ internal static class HermesiaRotationDemo
 {
     // Relative timings from the supplied Resolve timeline. Demonstration only;
     // these are never written into personal records.
-    internal static readonly RotationRun Reference = new(618.216667, [
+    private static readonly RotationRun Source = new(618.216667, [
         new("start", "Rotationsstart", 0),
         new("porter", "Träger-Spawn", 9.733333, 1),
         new("porter", "Träger-Spawn", 27.583333, 2),
@@ -44,6 +44,7 @@ internal static class HermesiaRotationDemo
         new("porter", "Träger-Spawn", 520.066667, 26),
         new("afk", "AFK-Beginn", 556.950000, 1),
         new("end", "AFK-Ende", 618.216667, 1)]);
+    internal static readonly RotationRun Reference = HermesiaRotationTracker.FromFirstEvent(Source);
     internal static RotationMonitorSnapshot At(double seconds)
     {
         seconds = Math.Clamp(seconds, 0, Reference.Duration);
@@ -55,7 +56,7 @@ internal static class HermesiaRotationDemo
         var ideal = new RotationRun(Reference.Duration * .97,
             Reference.Events.Select(e => e with { Seconds = e.Seconds * .97 }).ToArray());
         return new() { SpotId = BdoGrindTracker.Core.LootSpotCatalog.HermesiaId, SpotName = "Hermesia Inner Castle", HasProfile = true,
-            Elapsed = seconds, Synchronized = true, IsAfk = seconds >= 556.95 * .98,
+            Elapsed = seconds, Synchronized = true, IsAfk = seconds >= Reference.Events.First(e => e.Kind == "afk").Seconds * .98,
             Events = actual, Best = Reference, Ideal = ideal, SectorBests = sectors, Completed = 3,
             Status = "Demo · Aufnahme als Beispielreferenz" };
     }

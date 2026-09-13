@@ -15,10 +15,10 @@ public sealed class HermesiaRotationTests
     private static readonly DateTimeOffset Epoch = new(2026,9,13,0,0,0,TimeSpan.Zero);
 
     [Theory]
-    [InlineData("best", "Beste vollständige Rotation")]
-    [InlineData("sectors", "Bestrotation + Mechanik-Bestzeiten")]
-    [InlineData("ideal", "Ideale Rotation")]
-    public async Task WidgetUsesSelectedComparisonMode(string mode, string expected)
+    [InlineData("best")]
+    [InlineData("sectors")]
+    [InlineData("ideal")]
+    public async Task WidgetUsesSelectedComparisonModeWithoutVisibleLabels(string mode)
     {
         await using var services = new ServiceCollection().AddLogging().BuildServiceProvider();
         await using var renderer = new HtmlRenderer(services, services.GetRequiredService<ILoggerFactory>());
@@ -29,10 +29,50 @@ public sealed class HermesiaRotationTests
             }));
             return System.Net.WebUtility.HtmlDecode(component.ToHtmlString());
         });
-        Assert.Contains(expected,html);
+        var reference = RotationTimelinePresentation.Reference(OverlaySnapshot.Demo.Rotation, mode)!;
+        var spawn = reference.Events.First(e => e.Kind == "drakania");
+        Assert.Contains("Drakania-Spawn · " + RotationTimelinePresentation.Time(spawn.Seconds),html);
+        if (mode == "sectors") Assert.Contains("Bestabschnitt", html);
         Assert.Contains("AFK",html);
         Assert.Contains("Drakania",html);
-        if (mode=="sectors") Assert.Contains("Bestzeit",html);
+        Assert.Contains("rotation-phase-duration",html);
+        Assert.Contains("rotation-pack-marker",html);
+        Assert.DoesNotContain("rotation-heading",html);
+        Assert.DoesNotContain("rotation-legend",html);
+        Assert.DoesNotContain("overlay-widget-label",html);
+    }
+
+    [Fact]
+    public void FirstEventAfterGrindStartSetsZeroAndResumeStartsFresh()
+    {
+        var tracker = new HermesiaRotationTracker();
+        Assert.False(tracker.Snapshot(Epoch.AddSeconds(20)).Synchronized);
+        tracker.Observe("porter", "Träger", Epoch.AddSeconds(27));
+        Assert.Equal(0, tracker.Snapshot(Epoch.AddSeconds(27)).Elapsed);
+        Assert.Equal("porter", tracker.Snapshot(Epoch.AddSeconds(27)).Events[1].Kind);
+        Assert.Equal(5, tracker.Snapshot(Epoch.AddSeconds(32)).Elapsed);
+        tracker.Interrupt();
+        tracker.Observe("drakania", "Drakania", Epoch.AddSeconds(90));
+        Assert.Equal(0, tracker.Snapshot(Epoch.AddSeconds(90)).Elapsed);
+        Assert.DoesNotContain(tracker.Snapshot(Epoch.AddSeconds(90)).Events,e=>e.Kind=="porter");
+    }
+
+    [Fact]
+    public void LegacyRecordsRebaseToFirstObservedEventExactlyOnce()
+    {
+        var tracker = new HermesiaRotationTracker(); Start(tracker); Complete(tracker,0,10,50,60);
+        var current = tracker.Snapshot(Epoch.AddSeconds(60)).Best!;
+        var legacy = current with { TimingVersion = 0, Duration = 80,
+            Events = current.Events.Select(e=>e.Kind=="start" ? e : e with { Seconds=e.Seconds+20 }).ToArray() };
+        var path = Path.Combine(Path.GetTempPath(),Guid.NewGuid()+"-rotation.json");
+        try {
+            File.WriteAllText(path,System.Text.Json.JsonSerializer.Serialize(new[] { legacy }));
+            var migrated = new HermesiaRotationTracker(path).Snapshot(Epoch).Best!;
+            Assert.Equal(60,migrated.Duration);
+            Assert.Equal(0,migrated.Events[1].Seconds);
+            Assert.Equal(2,migrated.TimingVersion);
+            Assert.Same(migrated,HermesiaRotationTracker.FromFirstEvent(migrated));
+        } finally { File.Delete(path); }
     }
 
     [Fact]
@@ -53,28 +93,35 @@ public sealed class HermesiaRotationTests
     public void IdenticalMineMessageOnlyEndsRotationAfterAfk()
     {
         var tracker = new HermesiaRotationTracker();
-        tracker.Observe("mine-cleared", "Mine", Epoch);
-        Assert.False(tracker.Snapshot(Epoch).Synchronized);
-        tracker.Observe("afk", "AFK", Epoch.AddSeconds(1));
-        tracker.Observe("mine-cleared", "Mine", Epoch.AddSeconds(62));
-        Assert.True(tracker.Snapshot(Epoch.AddSeconds(62)).Synchronized);
-        tracker.Observe("mine-cleared", "Mine", Epoch.AddSeconds(100));
-        Assert.Equal(38,tracker.Snapshot(Epoch.AddSeconds(100)).Elapsed);
-        Assert.Equal(0,tracker.Snapshot(Epoch.AddSeconds(100)).Completed);
+        tracker.Observe("porter", "Träger", Epoch);
+        Assert.True(tracker.Snapshot(Epoch).Synchronized);
+        tracker.Observe("mine-cleared", "Mine", Epoch.AddSeconds(10));
+        Assert.Equal(10, tracker.Snapshot(Epoch.AddSeconds(10)).Elapsed);
+        tracker.Observe("afk", "AFK", Epoch.AddSeconds(20));
+        tracker.Observe("mine-cleared", "Mine", Epoch.AddSeconds(80));
+        Assert.False(tracker.Snapshot(Epoch.AddSeconds(82)).Synchronized);
+        Assert.Equal(80, tracker.Snapshot(Epoch.AddSeconds(82)).Elapsed);
+        tracker.Observe("offer", "Opfergabe", Epoch.AddSeconds(90));
+        Assert.Equal(0, tracker.Snapshot(Epoch.AddSeconds(90)).Elapsed);
+        Assert.Equal(0,tracker.Snapshot(Epoch.AddSeconds(90)).Completed);
     }
 
     [Fact]
-    public void FullRunIncludesAfkAndImmediatelyStartsNextRotation()
+    public void FullRunIncludesAfkAndWaitsForNextEvent()
     {
         var tracker = new HermesiaRotationTracker();
         Start(tracker);
         Complete(tracker,0,10,50,60);
         var snapshot = tracker.Snapshot(Epoch.AddSeconds(65));
         Assert.Equal(60,snapshot.Best!.Duration);
-        Assert.Equal(5,snapshot.Elapsed);
+        Assert.Equal(60,snapshot.Elapsed);
+        Assert.False(snapshot.Synchronized);
         Assert.Equal(1,snapshot.Completed);
         Assert.False(snapshot.IsAfk);
-        Assert.Single(snapshot.Events);
+        Assert.Equal("end",snapshot.Events[^1].Kind);
+        tracker.Observe("porter","Träger",Epoch.AddSeconds(70));
+        Assert.Equal(0,tracker.Snapshot(Epoch.AddSeconds(70)).Elapsed);
+        Assert.Equal(5,tracker.Snapshot(Epoch.AddSeconds(75)).Elapsed);
     }
 
     [Fact]
@@ -99,7 +146,7 @@ public sealed class HermesiaRotationTests
         tracker.Observe("afk","AFK",Epoch.AddSeconds(50));
         tracker.Observe("mine-cleared","Mine",Epoch.AddSeconds(60));
         Assert.Null(tracker.Snapshot(Epoch.AddSeconds(60)).Best);
-        Assert.True(tracker.Snapshot(Epoch.AddSeconds(60)).Synchronized);
+        Assert.False(tracker.Snapshot(Epoch.AddSeconds(60)).Synchronized);
     }
 
     [Fact]
@@ -165,9 +212,10 @@ public sealed class HermesiaRotationTests
     }
 
     private static void Start(HermesiaRotationTracker tracker) {
-        tracker.Observe("afk","AFK",Epoch.AddSeconds(-60)); tracker.Observe("mine-cleared","Mine",Epoch);
+        tracker.Observe("offer","Opfergabe",Epoch);
     }
     private static void Complete(HermesiaRotationTracker tracker,double offset,double dragon,double afk,double end) {
+        if (!tracker.Snapshot(Epoch.AddSeconds(offset)).Synchronized) tracker.Observe("offer","Opfergabe",Epoch.AddSeconds(offset));
         tracker.Observe("drakania","Drakania",Epoch.AddSeconds(offset+dragon*.2));
         tracker.Observe("drakania-kill","Drakania besiegt",Epoch.AddSeconds(offset+dragon*.4));
         tracker.Observe("transfer","Buff",Epoch.AddSeconds(offset+dragon*.5));

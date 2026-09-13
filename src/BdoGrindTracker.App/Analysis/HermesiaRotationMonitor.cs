@@ -92,12 +92,12 @@ internal sealed class HermesiaRotationMonitor : IRotationProfileMonitor
         lock (_sync)
         {
             if (_lastScheduled is { } last && now - last > TimeSpan.FromSeconds(4))
-                InterruptCore("Bildsignal unterbrochen · warte auf AFK-Ende");
+                InterruptCore("Bildsignal unterbrochen · warte auf erstes Ereignis");
             var snapshot = _tracker.Snapshot(now);
             return snapshot with { Error = _error ?? snapshot.Error };
         }
     }
-    public void Interrupt(string status = "Tracking pausiert · warte auf AFK-Ende")
+    public void Interrupt(string status = "Tracking pausiert · warte auf erstes Ereignis")
     { lock (_sync) InterruptCore(status); }
     private void InterruptCore(string status)
     { _epoch++; _tracker.Interrupt(status); _gate.Reset(); _lastScheduled = null; }
@@ -108,7 +108,7 @@ internal sealed class HermesiaRotationMonitor : IRotationProfileMonitor
         {
             if (_disposed || _busy || _lastScheduled is { } previous && at - previous < TimeSpan.FromMilliseconds(500)) return;
             if (_lastScheduled is { } last && at - last > TimeSpan.FromSeconds(4))
-                InterruptCore("Erkennung unterbrochen · warte auf AFK-Ende");
+                InterruptCore("Erkennung unterbrochen · warte auf erstes Ereignis");
             _lastScheduled = at;
             // Covers both centered message rows in the supplied Hermesia recording.
             var region = new Rectangle(frame.Width / 4, (int)(frame.Height * .54), frame.Width / 2, (int)(frame.Height * .16));
@@ -139,7 +139,7 @@ internal sealed class HermesiaRotationMonitor : IRotationProfileMonitor
                     lock (_sync)
                     {
                         if (!_disposed && epoch == _epoch)
-                        { InterruptCore("Erkennung unterbrochen · warte auf AFK-Ende"); _error = "Rotation: " + e.Message; }
+                        { InterruptCore("Erkennung unterbrochen · warte auf erstes Ereignis"); _error = "Rotation: " + e.Message; }
                     }
                 }
                 finally { lock (_sync) _busy = false; }

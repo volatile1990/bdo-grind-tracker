@@ -76,7 +76,7 @@ public static class OverlayCatalog
         new OverlayWidgetDefinition("drops", "Drop-Inventar", "Alle Drops als Liste oder Icons", "loot", 344, 128),
         new OverlayWidgetDefinition("rare-drops", "Seltene Drops", "Seltene Gegenstände im Blick", "spark", 344, 112),
         new OverlayWidgetDefinition("chart", "Silberverlauf", "Silber pro Stunde im Sessionverlauf", "trend", 344, 144),
-        new OverlayWidgetDefinition("rotation-monitor", "Rotation Monitor", "Mechanik-Timeline mit Playhead, Bestrotation und Sektorvergleich", "trend", 600, 240),
+        new OverlayWidgetDefinition("rotation-monitor", "Rotation Monitor", "Mechanik-Timeline mit Playhead, Bestrotation und Sektorvergleich", "trend", 600, 96),
         new OverlayWidgetDefinition("controls", "Tracking-Steuerung", "Grind starten, pausieren und fortsetzen", "play", 168, 56),
         new OverlayWidgetDefinition("status", "Tracking-Status", "Aktiv, pausiert oder Fehler", "live", 168, 56),
         new OverlayWidgetDefinition("loot-scroll", "Loot-Scroll", "Aktivstatus und erkannte Stufe", "loot", 168, 72),

@@ -229,7 +229,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         _recording = null;
         _hasSession = false;
         _sessionId = Guid.NewGuid();
-        _rotationMonitor.Interrupt("Neue Session · warte auf AFK-Ende");
+        _rotationMonitor.Interrupt("Neue Session · warte auf erstes Ereignis");
         _sessionStartedAt = null;
         _sessionSpotId = null;
         _demoMode = false;
@@ -358,6 +358,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             _experienceMonitor.Reset();
             _experienceSessionTracker.Pause(_sessionClock.Elapsed);
             _uiRunning = true;
+            _rotationMonitor.Interrupt("Grind gestartet · warte auf erstes Ereignis");
             _inactivityTimer.Start();
             _sessionClock.Start(waitForFirstDrop: true);
             _lastCaptureDesktopRegion = captureRegion;
@@ -454,7 +455,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         }
         else
         {
-            _rotationMonitor.Interrupt("Bildsignal fehlt · warte auf AFK-Ende");
+            _rotationMonitor.Interrupt("Bildsignal fehlt · warte auf erstes Ereignis");
             _agrisMonitor.Reset();
             _experienceMonitor.Reset();
         }

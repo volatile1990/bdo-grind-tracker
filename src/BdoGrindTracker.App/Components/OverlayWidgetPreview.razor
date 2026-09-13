@@ -3,7 +3,7 @@
 <div class="overlay-widget-viewport" data-content-width="@Css(Content.ReferenceWidth)" data-content-height="@Css(Content.ReferenceHeight)"
      data-min-content-width="@Css(Content.MinimumWidth)" data-min-content-height="@Css(Content.MinimumHeight)" data-content-layout="@PreviewStyle">
 <div class="overlay-widget-preview overlay-widget-@Widget.Kind @(IsLoot ? "is-loot-widget" : "") @(Metric.IsWarning ? "is-warning" : "") metric-tone-@Metric.Tone.ToString().ToLowerInvariant()" style="@PreviewStyle" title="@(IsClock ? Clock.Tooltip : IsLoot ? Loot.Detail : Metric.Tooltip ?? (Metric.IsWarning ? "Loot-Scroll ist nicht aktiv." : Metric.Detail))">
-    @if (Widget.ShowLabel)
+    @if (Widget.ShowLabel && Widget.Kind != "rotation-monitor")
     {
         <div class="overlay-widget-label" data-overlay-fit>
             @if (Widget.ShowIcon) { <AppIcon Name="@(OverlayCatalog.Find(Widget.Kind)?.Icon ?? "live")" /> }

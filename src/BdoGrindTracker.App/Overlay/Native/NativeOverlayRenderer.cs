@@ -367,62 +367,49 @@ internal sealed class NativeOverlayRenderer : IDisposable
         var mode = widget.RotationComparison;
         var reference = RotationTimelinePresentation.Reference(rotation, mode);
         var extent = RotationTimelinePresentation.Extent(rotation, mode);
-        var font = (float)widget.FontScale;
-        Draw(graphics, rotation.SpotName, new(inner.X, inner.Y, inner.Width, 16 * font), 11 * font, Muted);
-        inner.Y += 18 * font; inner.Height -= 18 * font;
-        if (!rotation.HasProfile)
-        {
-            Draw(graphics, rotation.Status, inner, 11 * font, Muted);
-            return;
-        }
-        if (widget.ShowLabel)
-        {
-            Draw(graphics, "Rotation Monitor", new(inner.X, inner.Y, inner.Width, 16 * font), 11 * font, Muted);
-            inner.Y += 18 * font; inner.Height -= 18 * font;
-        }
-        Draw(graphics, (rotation.Synchronized ? RotationTimelinePresentation.Time(rotation.Elapsed) : "—:—") + "   " + rotation.Status,
-            new(inner.X, inner.Y, inner.Width, 25 * font), 18 * font, Gold, true);
-        Draw(graphics, RotationTimelinePresentation.Mode(mode), new(inner.X, inner.Y + 28 * font, inner.Width, 14 * font), 10 * font, Muted);
-        var graph = new RectangleF(inner.X + 2, inner.Y + 48 * font, Math.Max(1, inner.Width - 4), Math.Max(20, inner.Height - (widget.ShowLabel ? 120 : 106) * font));
+        var graph = new RectangleF(inner.X + 2, inner.Y + 4, Math.Max(1, inner.Width - 4), Math.Max(1, inner.Height - 8));
         float X(double seconds) => graph.Left + (float)Math.Clamp(seconds / extent, 0, 1) * graph.Width;
         using var baseline = new Pen(Color.FromArgb(70, 85, 100), 1);
-        using var afkBrush = new SolidBrush(Color.FromArgb(55, 110, 132, 157));
+        var bandHeight = Math.Max(4, graph.Height * .28f);
+        foreach (var group in RotationPhases.Create(rotation.SpotId, reference?.Events ?? rotation.Events,
+                     reference?.Duration ?? rotation.Elapsed).GroupBy(p => p.Group))
+        {
+            using var background = new SolidBrush(Color.FromArgb(45, ColorTranslator.FromHtml(group.First().Color)));
+            using var accent = new SolidBrush(ColorTranslator.FromHtml(group.First().GroupColor));
+            var width = Math.Max(0, X(group.Last().End)-X(group.First().Start)-2);
+            graphics.FillRectangle(background, X(group.First().Start), graph.Top+2, width, graph.Height-2);
+            graphics.FillRectangle(accent, X(group.First().Start), graph.Top+2, width, 2);
+        }
         for (var row = 0; row < 2; row++)
         {
             var events = row == 0 ? reference?.Events ?? [] : rotation.Events;
             var y = graph.Top + graph.Height * (row == 0 ? .25f : .78f);
             graphics.DrawLine(baseline, graph.Left, y, graph.Right, y);
-            var afk = events.FirstOrDefault(e => e.Kind == "afk");
-            if (afk is not null)
+            var end = row == 0 ? reference?.Duration ?? 0 : rotation.Elapsed;
+            var phases = RotationPhases.Create(rotation.SpotId, events, end);
+            foreach (var phase in phases)
             {
-                var end = row == 0 ? reference?.Duration ?? extent : rotation.Elapsed;
-                graphics.FillRectangle(afkBrush, X(afk.Seconds), y - 6, Math.Max(0, X(end) - X(afk.Seconds)), 12);
+                using var fill = new SolidBrush(Color.FromArgb(190, ColorTranslator.FromHtml(phase.Color)));
+                var width = Math.Max(0, X(phase.End)-X(phase.Start)-2);
+                var bounds = new RectangleF(X(phase.Start), y-bandHeight/2, width, bandHeight);
+                graphics.FillRectangle(fill, bounds);
+                if (width >= 28 && bandHeight >= 12)
+                    Draw(graphics, RotationPhases.Duration(phase.End-phase.Start), bounds,
+                        Math.Clamp(bandHeight*.45f, 11, 18), Color.White, false, StringAlignment.Center, StringAlignment.Center);
             }
             using var pen = new Pen(row == 0 ? Gold : Color.FromArgb(102,216,199), 2);
-            foreach (var e in events)
+            foreach (var e in events.Where(e => e.Seconds <= end && e.Kind is "porter" or "offer"))
             {
-                graphics.DrawLine(pen, X(e.Seconds), y - (e.Kind is "porter" or "offer" ? 3 : 7), X(e.Seconds), y + 7);
-                var mark = RotationTimelinePresentation.Mark(e);
-                if (mark.Length > 0)
-                {
-                    var lift = e.Kind is "drakania-kill" or "mine-cleared" ? 10 : e.Kind == "transfer" ? 20 : 0;
-                    Draw(graphics, mark, new(Math.Clamp(X(e.Seconds) - 10, graph.Left, Math.Max(graph.Left, graph.Right - 20)), y - 20 - lift, 20, 10),
-                        8, row == 0 ? Gold : Color.FromArgb(102,216,199), horizontal: StringAlignment.Center);
-                }
+                graphics.DrawLine(pen, X(e.Seconds), y-bandHeight/2-4, X(e.Seconds), y-bandHeight/2+3);
+
             }
         }
-        if (rotation.Synchronized)
+        if (rotation.Synchronized || rotation.Events.Count > 0)
         {
             using var playhead = new Pen(Color.White, 2);
             graphics.DrawLine(playhead, X(rotation.Elapsed), graph.Top, X(rotation.Elapsed), graph.Bottom);
         }
-        Draw(graphics, "0:00    ·    " + (reference is null ? "Noch keine persönliche Bestrotation" : "Referenz " + RotationTimelinePresentation.Time(reference.Duration)) +
-            "    ·    " + RotationTimelinePresentation.Time(extent), new(inner.X, graph.Bottom + 4, inner.Width, 14 * font), 10 * font, Muted);
-        Draw(graphics, RotationTimelinePresentation.Delta(rotation, mode), new(inner.X, graph.Bottom + 21 * font, inner.Width, 15 * font), 11 * font, Color.White);
-        Draw(graphics, rotation.Error ?? (mode == "sectors" ? RotationTimelinePresentation.Sector(rotation) : "Oben: Referenz · Unten: Aktuell · Fläche: AFK · Linie: Playhead"),
-            new(inner.X, graph.Bottom + 38 * font, inner.Width, 14 * font), 9 * font, Muted);
-        if (widget.ShowLabel) Draw(graphics, RotationTimelinePresentation.Legend,
-            new(inner.X, graph.Bottom + 52 * font, inner.Width, 12 * font), 8 * font, Muted);
+
     }
 
     private void DrawIcon(Graphics graphics, OverlayLootItem item, RectangleF rectangle)
