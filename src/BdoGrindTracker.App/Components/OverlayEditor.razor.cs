@@ -293,6 +293,19 @@ public partial class OverlayEditor
     }
 
     [JSInvokable]
+    public async Task CommitCanvasCorner(double width, double height, string corner)
+    {
+        if (_disposed || !double.IsFinite(width) || !double.IsFinite(height)) return;
+        await Change(s => {
+            var resized = OverlayLayout.ResizeCanvas(s, width, height);
+            var dx = corner.Contains('w') ? resized.Width-s.Width : 0;
+            var dy = corner.Contains('n') ? resized.Height-s.Height : 0;
+            return resized with { Widgets = s.Widgets.Select(w => w with { X = Math.Max(0,w.X+dx), Y = Math.Max(0,w.Y+dy) }).ToArray() };
+        });
+        StateHasChanged();
+    }
+
+    [JSInvokable]
     public async Task NudgeWidget(string id, double dx, double dy)
     {
         if (_disposed || !double.IsFinite(dx) || !double.IsFinite(dy)) return;

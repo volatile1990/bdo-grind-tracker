@@ -15,6 +15,22 @@ namespace BdoGrindTracker.App.Tests;
 public sealed class OverlayMetricsTests
 {
     [Fact]
+    public async Task ExperienceShowsSessionGainAndHourlyEvenWithoutHeading()
+    {
+        var state = Session() with { Elapsed = TimeSpan.FromMinutes(30),
+            ExperienceGainedPercentagePoints = 1.25m, ExperienceObservedDuration = TimeSpan.FromMinutes(30) };
+        var snapshot = new OverlayMetrics().Update(state, new());
+        Assert.Equal("+1,250 %", snapshot.Metrics["experience"].Value);
+        Assert.Equal("+2,500 % / h", snapshot.Metrics["experience"].Detail);
+        var markup = await RenderAsync(OverlayCatalog.CreateWidget("experience") with { ShowLabel = false }, snapshot);
+        Assert.Contains("+1,250 %", markup);
+        Assert.Contains("+2,500 % / h", markup);
+        var missing = new OverlayMetrics().Update(new TrackerState(), new()).Metrics["experience"];
+        Assert.Equal("—", missing.Value);
+        Assert.Equal("— / h", missing.Detail);
+    }
+
+    [Fact]
     public void MetricsUseCanonicalTotalsAndLocalizeOnlyDisplayedNames()
     {
         var state = Session() with

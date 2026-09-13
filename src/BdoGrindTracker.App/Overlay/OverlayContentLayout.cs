@@ -23,7 +23,7 @@ public sealed record OverlayContentLayout(OverlayWidget LayoutWidget, double Sca
             _ when OverlayCatalog.IsLootWidget(widget.Kind) => 48,
             _ => 16 + (widget.ShowLabel ? 18 * fontScale : 0) +
                 (widget.Kind is "spot" or "status" or "loot-scroll" or "grind-rating" ? 20 : 26) * fontScale +
-                (widget.ShowLabel && widget.Kind != "status" && !string.IsNullOrEmpty(metric?.Detail) ? 12 * fontScale : 0),
+                ((widget.ShowLabel || widget.Kind == "experience") && widget.Kind != "status" && !string.IsNullOrEmpty(metric?.Detail) ? 12 * fontScale : 0),
         };
         const double minimumWidth = 80;
         var scale = Math.Min(Math.Min(width / referenceWidth, height / referenceHeight),

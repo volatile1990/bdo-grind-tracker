@@ -77,6 +77,8 @@ internal sealed class OverlayMetrics
         var metrics = new Dictionary<string, OverlayMetric>(StringComparer.Ordinal)
         {
             ["duration"] = new("Aktive Zeit", session.Duration, session.DurationNote, Tooltip: session.DurationDescription),
+            ["experience"] = new("Erfahrung", session.Experience.Gain, session.Experience.Hourly + " / h",
+                Tooltip: session.Experience.Description),
             ["spot"] = new("Grindspot", Presentation.SpotName(state.SpotId), state.CharacterLabel),
             ["silver"] = new("Silber netto", session.Silver + (session.PartialSilver ? " *" : ""), valuationDetail),
             ["silver-hour"] = new("Silber / Stunde", rateText, incomplete ? valuationDetail : "Ø aktive Grindzeit"),
@@ -132,6 +134,9 @@ internal sealed class OverlayMetrics
             HasSession = true, IsRunning = true, CanPause = true, IsDemo = true, AnalyzerAvailable = true,
             SpotId = LootSpotCatalog.HermesiaId, CharacterLabel = "Agent", DetectedGameLanguage = "de",
             Status = "Beispieldaten · keine echte Session",
+            ExperienceGainedPercentagePoints = 1.25m,
+            ExperienceObservedDuration = TimeSpan.FromMinutes(15),
+            ExperienceStartLevel = 64, ExperienceEndLevel = 64,
             LootScroll = new(LootScrollStatus.Active, Level: 2),
             GrindBenchmark = GarmothGrindBenchmarks.Find(LootSpotCatalog.HermesiaId),
             Loot = new LootSessionSnapshot(new Dictionary<string, long>(StringComparer.Ordinal)

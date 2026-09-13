@@ -72,6 +72,7 @@ public static class OverlayCatalog
         new OverlayWidgetDefinition("clock", "Uhrzeit & Tag/Nacht", "Lokale Uhrzeit, BDO-Zeit und Zeit bis zum Wechsel", "clock", 248, 128),
         new OverlayWidgetDefinition("spot", "Grindspot", "Automatisch erkannter Spot", "pin", 344, 64),
         new OverlayWidgetDefinition("silver", "Silber netto", "Wert nach Marktsteuern", "silver", 168, 72),
+        new OverlayWidgetDefinition("experience", "Erfahrung", "EXP-Zuwachs der Session und EXP pro Stunde", "trend", 200, 88),
         new OverlayWidgetDefinition("silver-hour", "Silber / Stunde", "Durchschnitt der Session", "trend", 168, 72),
         new OverlayWidgetDefinition("trash", "Trashloot", "Gesammelte Trashmenge", "loot", 168, 72),
         new OverlayWidgetDefinition("trash-hour", "Trash / Stunde", "Trashmenge pro aktiver Stunde", "trend", 168, 72),

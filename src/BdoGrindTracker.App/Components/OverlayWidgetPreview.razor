@@ -106,7 +106,7 @@
             @if (Widget.Kind == "status") { <span class="overlay-status-dot @(Snapshot.IsRunning ? "is-running" : "")"></span> }
             <span class="overlay-value-text">@Metric.Value</span>
         </strong>
-        @if (Widget.ShowLabel && Metric.Detail is not null && Widget.Kind is not "status")
+        @if ((Widget.ShowLabel || Widget.Kind == "experience") && Metric.Detail is not null && Widget.Kind is not "status")
         {
             <span class="overlay-widget-detail" data-overlay-fit>@Metric.Detail</span>
         }

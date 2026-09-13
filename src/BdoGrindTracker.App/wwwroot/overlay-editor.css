@@ -35,3 +35,4 @@
 @media(max-width:1050px){.oe-window-fields{grid-template-columns:1fr 1fr}.oe-window-actions{grid-column:1/-1}.oe-window-heading>span{margin-left:0}}
 @media(max-width:700px){.oe-window-manager{padding:14px}.oe-window-fields{grid-template-columns:1fr}.oe-window-heading>span{flex-basis:100%}.oe-window-actions{gap:7px}}
 .oe-stage-content{position:absolute;inset:0;overflow:hidden;border-radius:inherit}.oe-shortcuts-title>small{font-size:11px;color:var(--muted)}
+.oe-canvas-resize-nw{left:-5px;top:-5px;right:auto;bottom:auto}.oe-canvas-resize-ne{right:-5px;top:-5px;bottom:auto;cursor:nesw-resize}.oe-canvas-resize-sw{left:-5px;bottom:-5px;right:auto;cursor:nesw-resize}.oe-canvas-resize-nw::after{transform:rotate(180deg)}.oe-canvas-resize-ne::after{transform:rotate(270deg)}.oe-canvas-resize-sw::after{transform:rotate(90deg)}.oe-resizing-reverse,.oe-resizing-reverse *{cursor:nesw-resize!important}

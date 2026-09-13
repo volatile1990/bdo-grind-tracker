@@ -202,7 +202,7 @@ internal sealed class NativeOverlayRenderer : IDisposable
             OverlayMetricTone.Accent => Gold,
             _ => Text,
         };
-        if (widget.ShowLabel && widget.Kind != "status" && metric.Detail is { Length: > 0 })
+        if ((widget.ShowLabel || widget.Kind == "experience") && widget.Kind != "status" && metric.Detail is { Length: > 0 })
         {
             var height = 12 * fontScale;
             Draw(graphics, metric.Detail, new RectangleF(inner.X, inner.Bottom - height, inner.Width, height), 9 * fontScale, Muted);
@@ -500,7 +500,7 @@ internal sealed class NativeOverlayRenderer : IDisposable
         graphics.TranslateTransform(bounds.X, bounds.Y);
         graphics.ScaleTransform(bounds.Width / 16, bounds.Height / 16);
         using var pen = new Pen(Gold, 1.3f) { StartCap = LineCap.Round, EndCap = LineCap.Round, LineJoin = LineJoin.Round };
-        if (kind is "silver-hour" or "trash-hour" or "chart" or "grind-rating")
+        if (kind is "silver-hour" or "trash-hour" or "chart" or "grind-rating" or "experience")
         {
             graphics.DrawLines(pen, [new PointF(1, 12), new(6, 7), new(9, 9), new(14, 3)]);
             graphics.DrawLines(pen, [new PointF(10, 3), new(14, 3), new(14, 7)]);
