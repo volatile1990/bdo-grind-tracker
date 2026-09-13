@@ -83,7 +83,11 @@
                     <code>@configuration.Path</code>
                     @if (preview.UsesSessionGeometry) { <p class="field-note">Erfassungsbereiche der pausierten Session. Eine geänderte Datei lässt sich für eine neue Session übernehmen.</p> }
                     <p class="field-note">Einzelaufnahme. Zum Vergleichen die Lootanzeigen im Spiel einblenden und die Vorschau aktualisieren.</p>
-                    <div class="capture-legend"><span class="capture-normal-color">Türkis: normales Droplog</span><span class="capture-rare-color">Gold: Special-Droplog</span></div>
+                    <div class="capture-legend"><span class="capture-normal-color">Türkis: normales Droplog</span><span class="capture-rare-color">Gold: Special-Droplog · Textbereich</span></div>
+                    @if (configuration.RareBounds is not null)
+                    {
+                        <p class="field-note">Prüfe mit einer tatsächlichen Dropmeldung, ob Gegenstandsname und Menge vollständig im goldenen Rahmen liegen. Das Gegenstandssymbol und die Verzierung dürfen abgeschnitten sein. Die graue Fläche aus „UI bearbeiten“ muss nicht genau zum Rahmen passen.</p>
+                    }
                     <svg class="capture-full-image" viewBox="@($"0 0 {configuration.ScreenWidth} {configuration.ScreenHeight}")" role="img" aria-label="Spielbild mit markierten Erfassungsbereichen">
                         <image href="@preview.ImageDataUrl" x="0" y="0" width="@configuration.ScreenWidth" height="@configuration.ScreenHeight" />
                         @if (configuration.NormalBounds is { } normal)
@@ -92,7 +96,7 @@
                         }
                         @if (configuration.RareBounds is { } rare)
                         {
-                            <rect class="capture-rare-rect" x="@rare.X" y="@rare.Y" width="@rare.Width" height="@rare.Height" fill="none" stroke="#efce91" stroke-width="3" vector-effect="non-scaling-stroke"><title>Special-Droplog: @BoundsLabel(rare)</title></rect>
+                            <rect class="capture-rare-rect" x="@rare.X" y="@rare.Y" width="@rare.Width" height="@rare.Height" fill="none" stroke="#efce91" stroke-width="3" vector-effect="non-scaling-stroke"><title>Special-Droplog · Textbereich: @BoundsLabel(rare)</title></rect>
                         }
                     </svg>
                     <div class="capture-crops">
@@ -102,7 +106,7 @@
                         }
                         @if (preview.RareImageDataUrl is { } rareImage)
                         {
-                            <figure class="capture-rare-crop"><figcaption>Special-Droplog</figcaption><div><img src="@rareImage" alt="Genauer Bildausschnitt des Special-Droplogs" /></div></figure>
+                            <figure class="capture-rare-crop"><figcaption>Special-Droplog · Textbereich</figcaption><div><img src="@rareImage" alt="Erfasster Textbereich des Special-Droplogs" /></div></figure>
                         }
                         else { <p class="field-note">Special-Droplog: @configuration.RareStatus</p> }
                     </div>

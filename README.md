@@ -4,7 +4,7 @@ Grindcrest ist ein lokaler, passiver Loot-Tracker für Black Desert auf Windows.
 Er erkennt Drops aus dem Spielfenster und zeigt Lootmengen, aktive Grindzeit,
 Silber und Stundenwerte im Dashboard und in anpassbaren Ingame-Overlays.
 
-**Version 1.4.2:** [Änderungen und Fehlerbehebungen](docs/release-notes/1.4.2.md).
+**Version 1.4.3:** [Änderungen und Fehlerbehebungen](docs/release-notes/1.4.3.md).
 
 ## Funktionen
 
@@ -78,6 +78,12 @@ das Tracking pausieren, die Lootanzeigen in BDO unter **UI bearbeiten** einblend
 und **Vorschau aktualisieren** wählen. Eine passende Auflösung allein bestätigt
 noch nicht, dass die gespeicherte Position zur aktuellen Spieloberfläche passt.
 
+Der goldene Rahmen zeigt den **Textbereich** des Special-Droplogs. Prüfe mit einer
+tatsächlichen Dropmeldung, ob Gegenstandsname und Menge vollständig darin liegen.
+Das Gegenstandssymbol und die Verzierung dürfen abgeschnitten sein; sie werden
+für die Texterkennung nicht benötigt. Die graue Fläche aus **UI bearbeiten** muss
+nicht genau zum goldenen Rahmen passen.
+
 Die Konfigurationssuche listet alle `gameVariable.xml` unter dem BDO-`UserCache`,
 einschließlich Unterordnern, mit Speicherzeit, Auflösung, UI-Skalierung,
 Erfassungspositionen und Special-Droplog-Status. Die kompakte Tabelle zeigt
@@ -150,12 +156,12 @@ Paketinhalte. Mit **`-RequireWindowsOcr`** schlagen sie bei fehlenden nativen
 OCR-Voraussetzungen fehl. Beispiel für den Store:
 
 ```powershell
-./scripts/Build-StoreRelease.ps1 -Version 1.4.2 -RequireWindowsOcr
+./scripts/Build-StoreRelease.ps1 -Version 1.4.3 -RequireWindowsOcr
 ```
 
 Das erzeugte MSIX wird anschließend im Partner Center eingereicht. Ein lokaler
 Paketbuild veröffentlicht nichts. Für den GitHub-Installer dient
-`./scripts/Build-Release.ps1 -Version 1.4.2 -RequireWindowsOcr`.
+`./scripts/Build-Release.ps1 -Version 1.4.3 -RequireWindowsOcr`.
 [GitHub-Releases](docs/RELEASING.md) · [Store-Paketierung](docs/MICROSOFT_STORE.md).
 
 Weitere Details: [Silberbewertung](docs/SILVER_VALUATION.md),
