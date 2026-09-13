@@ -11,6 +11,7 @@ public sealed record OverlaySnapshot
     public IReadOnlyList<OverlayLootItem> RareDrops { get; init; } = [];
     public IReadOnlyList<OverlayLootItem> ItemCatalog { get; init; } = [];
     public IReadOnlyList<SessionSilverSample> SilverHistory { get; init; } = [];
+    public IReadOnlyList<OverlayDropMarker> DropMarkers { get; init; } = [];
     public LootScrollState LootScroll { get; init; } = LootScrollState.Unknown;
     public string Status { get; init; } = "Bereit";
     public bool IsRunning { get; init; }
@@ -21,6 +22,8 @@ public sealed record OverlaySnapshot
 }
 
 public enum OverlayMetricTone { Default, Muted, Positive, Accent }
+
+public sealed record OverlayDropMarker(TimeSpan Elapsed, OverlayLootItem Item);
 
 public sealed record OverlayMetric(string Label, string Value, string? Detail = null, bool IsWarning = false,
     OverlayMetricTone Tone = OverlayMetricTone.Default, string? Tooltip = null);

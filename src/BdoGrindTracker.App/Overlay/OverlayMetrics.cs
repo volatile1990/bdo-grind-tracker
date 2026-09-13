@@ -39,7 +39,7 @@ internal sealed class OverlayMetrics
         "White Primordial Pigment - Edana", "White Primordial Luster - Edana",
     };
 
-    internal OverlaySnapshot Update(TrackerState state, TrackerPreferences preferences)
+    internal OverlaySnapshot Update(TrackerState state, TrackerPreferences preferences, LootPriceSnapshot? prices = null)
     {
         ArgumentNullException.ThrowIfNull(state);
         ArgumentNullException.ThrowIfNull(preferences);
@@ -97,6 +97,12 @@ internal sealed class OverlayMetrics
             RareDrops = Array.AsReadOnly(drops.Where(item => item.IsRare).ToArray()),
             ItemCatalog = _itemCatalog,
             SilverHistory = state.SilverHistory,
+            DropMarkers = Array.AsReadOnly(state.DropHistory
+                .Where(drop => preferences.FavoriteItems.Contains(drop.ItemName, StringComparer.Ordinal) ||
+                    prices is not null && prices.TryGetQuote(drop.ItemName, out var quote) && quote.UnitPrice > 200_000_000m)
+                .Select(drop => new OverlayDropMarker(drop.Elapsed, new OverlayLootItem(drop.ItemName,
+                    ItemLocalizationCatalog.DisplayName(drop.ItemName, language), Presentation.Number(drop.Quantity),
+                    Presentation.ItemIcon(drop.ItemName), true, drop.Quantity))).ToArray()),
             LootScroll = state.LootScroll,
             Status = state.Status,
             IsRunning = state.IsRunning,
@@ -141,6 +147,7 @@ internal sealed class OverlayMetrics
             state = state with { Elapsed = elapsed, Silver = new(value, value, 5, [], [], false) };
             snapshot = metrics.Update(state with { SilverHistory = history.Update(state) }, preferences);
         }
-        return snapshot;
+        var demoItem = snapshot.Drops.First(item => item.CanonicalName == "BON Wandering Origin Crystal");
+        return snapshot with { DropMarkers = [new(TimeSpan.FromSeconds(870), demoItem), new(TimeSpan.FromSeconds(910), demoItem)] };
     }
 }

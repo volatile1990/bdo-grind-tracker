@@ -11,6 +11,7 @@ internal sealed class PreviewTrackerSession : ITrackerSession
 {
     private readonly List<LootHistoryEntry> _history = [];
     private readonly SessionSilverHistory _silverHistory = new();
+    private readonly SessionDropHistory _dropHistory = new();
     public event Action? Changed;
     public TrackerState State { get; private set; } = new() { AnalyzerAvailable = true, IsDemo = true,
         DetectedGameLanguage = "en", GameLanguageStatus = "Vorschau: Englisch · keine BDO-Konfiguration gelesen" };
@@ -75,7 +76,7 @@ internal sealed class PreviewTrackerSession : ITrackerSession
         State = state with { CanPause = state.IsRunning, DetectedGameLanguage = "en",
             GrindBenchmark = GarmothGrindBenchmarks.Find(state.SpotId),
             GameLanguageStatus = "Vorschau: Englisch · keine BDO-Konfiguration gelesen" };
-        State = State with { SilverHistory = _silverHistory.Update(State) };
+        State = State with { SilverHistory = _silverHistory.Update(State), DropHistory = _dropHistory.Update(State) };
         Changed?.Invoke();
     }
     public Task<TrackerCommandResult> ToggleTrackingAsync() { Change(State with { IsRunning = !State.IsRunning, HasSession = true, Status = "Vorschau · Tracking wird nur simuliert." }); return Task.FromResult(TrackerCommandResult.Success); }

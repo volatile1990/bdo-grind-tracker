@@ -102,7 +102,7 @@ internal sealed class NativeOverlayHost(IOverlayService service, ITrackerSession
             var position = NativeOverlayGeometry.RelativePosition(bounds, _window.MonitorBounds);
             // Commit exactly the layout already shown during the corner drag.
             var result = resized is not null
-                ? await service.SaveAsync(resized)
+                ? await service.SaveAsync(resized with { PositionX = position.X, PositionY = position.Y })
                 : await service.SavePositionAsync(position.X, position.Y);
             if (!result.Succeeded) throw new InvalidOperationException(result.Error);
         });

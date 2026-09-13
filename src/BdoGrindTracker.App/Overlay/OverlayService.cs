@@ -23,7 +23,7 @@ internal sealed class OverlayService : IOverlayService
         Templates = templateStore?.Load() ?? Array.Empty<OverlayTemplate>();
         TemplateError = _templateLoadError = templateStore?.LoadError;
         Settings = store?.Load() ?? new();
-        Snapshot = _metrics.Update(tracker.State, tracker.Preferences);
+        Snapshot = _metrics.Update(tracker.State, tracker.Preferences, tracker.Prices);
         tracker.Changed += TrackerChanged;
     }
 
@@ -152,7 +152,7 @@ internal sealed class OverlayService : IOverlayService
     private void TrackerChanged()
     {
         if (_disposed) return;
-        Snapshot = _metrics.Update(_tracker.State, _tracker.Preferences);
+        Snapshot = _metrics.Update(_tracker.State, _tracker.Preferences, _tracker.Prices);
         Changed?.Invoke();
     }
 

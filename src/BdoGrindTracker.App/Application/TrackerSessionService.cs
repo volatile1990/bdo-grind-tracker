@@ -41,6 +41,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
     private readonly List<LootHistoryEntry> _historyEntries;
     private readonly FrameUiMailbox _uiMailbox = new();
     private readonly SessionSilverHistory _silverHistory = new();
+    private readonly SessionDropHistory _dropHistory = new();
     private readonly GarmothUploadIntervals _garmothIntervals = new();
     private readonly CancellationTokenSource _priceLifetime = new();
     private readonly AsyncLocal<CommandOutcome?> _commandOutcome = new();
@@ -645,7 +646,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             AutomaticSuspended = _garmothIntervals.AutomaticSuspended,
             ShutdownFailed = _shutdownFailed,
         };
-        State = State with { SilverHistory = _silverHistory.Update(State) };
+        State = State with { SilverHistory = _silverHistory.Update(State), DropHistory = _dropHistory.Update(State) };
         if (_historyChanged)
         {
             History = Array.AsReadOnly(_historyEntries.Select(entry => entry with

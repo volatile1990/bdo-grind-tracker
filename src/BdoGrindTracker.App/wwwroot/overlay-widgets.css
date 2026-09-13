@@ -66,6 +66,7 @@
 .overlay-widget-chart { justify-content: flex-start; }
 .overlay-widget-chart .overlay-widget-value { font-size: calc(20px * var(--widget-font-scale, 1) * var(--line-fit, 1)); }
 svg.overlay-widget-chart { display: block; width: 100%; min-height: 15px; flex: 1 1 60px; overflow: visible; }
+.overlay-chart-drop-icon { display: block; width: 100%; height: 100%; object-fit: contain; }
 .overlay-chart-baseline { stroke: #91a6b333; stroke-width: 1; }
 .overlay-chart-area { fill: #f1cc7a1c; }
 .overlay-chart-line { fill: none; stroke: #f1cc7a; stroke-width: 2; }

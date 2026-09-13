@@ -277,7 +277,7 @@ internal sealed class NativeOverlayRenderer : IDisposable
         Draw(graphics, text, bounds, requestedSize, color, true, horizontal, vertical);
     }
 
-    private static void DrawChart(Graphics graphics, OverlayWidget widget, RectangleF inner, OverlaySnapshot snapshot)
+    private void DrawChart(Graphics graphics, OverlayWidget widget, RectangleF inner, OverlaySnapshot snapshot)
     {
         var fontScale = (float)widget.FontScale;
         if (widget.ShowLabel)
@@ -305,7 +305,7 @@ internal sealed class NativeOverlayRenderer : IDisposable
             return;
         }
         var highest = Math.Max(1m, snapshot.SilverHistory.Max(point => point.SilverPerHour));
-        var first = snapshot.SilverHistory[0].Elapsed.Ticks;
+        var first = OverlayChartMarkers.FirstTick(snapshot);
         var span = Math.Max(1, snapshot.SilverHistory[^1].Elapsed.Ticks - first);
         var points = snapshot.SilverHistory.Select(point => new PointF(
             inner.X + (float)((decimal)(point.Elapsed.Ticks - first) / span) * inner.Width,
@@ -314,6 +314,19 @@ internal sealed class NativeOverlayRenderer : IDisposable
         graphics.FillPolygon(fill, [new PointF(inner.Left, inner.Bottom), .. points, new PointF(inner.Right, inner.Bottom)]);
         using var line = new Pen(Gold, 1.6f);
         graphics.DrawLines(line, points);
+        foreach (var marker in OverlayChartMarkers.Create(snapshot))
+        {
+            var x = inner.Left + (float)marker.X * inner.Width;
+            var y = inner.Top + (float)marker.Y * inner.Height;
+            graphics.DrawLine(line, x, y, x, inner.Bottom);
+            var size = Math.Min(24 * fontScale, Math.Min(inner.Width, inner.Height));
+            var iconX = Math.Clamp(x - size / 2, inner.Left, inner.Right - size);
+            var iconY = Math.Clamp((y + inner.Bottom - size) / 2, inner.Top, inner.Bottom - size);
+            var iconBounds = new RectangleF(iconX, iconY, size, size);
+            using var background = new SolidBrush(Color.FromArgb(255, 37, 45, 51));
+            graphics.FillRectangle(background, iconBounds);
+            DrawIcon(graphics, marker.Drop.Item, iconBounds);
+        }
     }
 
     private void DrawIcon(Graphics graphics, OverlayLootItem item, RectangleF rectangle)
