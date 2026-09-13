@@ -21,10 +21,10 @@ Der Produktlink ist erst nach der Veröffentlichung öffentlich verfügbar. Für
 Windows, PowerShell 7.2+, .NET SDK 9.0.318 oder neuer aus der 9er-Reihe, Node.js 24 und das Windows SDK ab 10.0.19041.0 mit `MakeAppx.exe` und `MakePri.exe` sind erforderlich.
 
 ```powershell
-./scripts/Build-StoreRelease.ps1 -Version 1.4.3 -RequireWindowsOcr
+./scripts/Build-StoreRelease.ps1 -Version 1.5.0 -RequireWindowsOcr
 ```
 
-Das Skript führt .NET- und JavaScript-Tests aus, veröffentlicht .NET samt Desktop-/Blazor-Laufzeit, erzeugt Logos aus der bestehenden Marke, erstellt den Shell-Ressourcenindex mit MakePri und das MSIX mit der Manifestprüfung des Windows SDK. Anschließend prüft es Identität, Inhalt, Runtime-Mindestversion, Icontransparenz und Ressourcen-Zuordnungen. Das Ergebnis liegt unter `artifacts/store/1.4.3/Grindcrest-1.4.3.0-x64.msix`, zusammen mit SHA-256-Prüfsumme sowie MakePri- und MakeAppx-Protokollen. Das Ausgabeverzeichnis muss leer sein; zum Wiederholen einen neuen `-OutputDirectory` angeben. `-SkipTests` ist nur für lokale Paketierungsdiagnosen gedacht.
+Das Skript führt .NET- und JavaScript-Tests aus, veröffentlicht .NET samt Desktop-/Blazor-Laufzeit, erzeugt Logos aus der bestehenden Marke, erstellt den Shell-Ressourcenindex mit MakePri und das MSIX mit der Manifestprüfung des Windows SDK. Anschließend prüft es Identität, Inhalt, Runtime-Mindestversion, Icontransparenz und Ressourcen-Zuordnungen. Das Ergebnis liegt unter `artifacts/store/1.5.0/Grindcrest-1.5.0.0-x64.msix`, zusammen mit SHA-256-Prüfsumme sowie MakePri- und MakeAppx-Protokollen. Das Ausgabeverzeichnis muss leer sein; zum Wiederholen einen neuen `-OutputDirectory` angeben. `-SkipTests` ist nur für lokale Paketierungsdiagnosen gedacht.
 
 `-RequireWindowsOcr` verlangt, dass die nativen OCR-Tests tatsächlich laufen;
 die Windows-OCR-Sprachpakete für `en-US` und `de-DE` müssen auf dem Testrechner
@@ -32,8 +32,8 @@ vorhanden sein. Ohne den Schalter erscheinen fehlende Voraussetzungen sichtbar
 als übersprungene Tests in Konsole und TRX. Das gilt auch für gehostete CI-Runner:
 deren grüner Lauf mit Skips ersetzt keine native Prüfung auf einem passenden Windows-PC.
 
-Die [Versionshinweise für 1.4.3](release-notes/1.4.3.md) und der
-[Text für den Store-Eintrag](release-notes/1.4.3-store.txt) beschreiben dieses Release.
+Die [Versionshinweise für 1.5.0](release-notes/1.5.0.md) und der
+[Text für den Store-Eintrag](release-notes/1.5.0-store.txt) beschreiben dieses Release.
 
 Für Taskleiste, Start und Alt+Tab enthält das Paket transparente `Square44x44Logo.targetsize-*`-Icons in 15 Größen, jeweils als Standard-, `altform-unplated`- und `altform-lightunplated`-Variante. MakePri ordnet diese im mitgelieferten `resources.pri` dem Manifestlogo zu. `BackgroundColor="transparent"` allein verhindert die von Windows ergänzte farbige Hintergrundfläche nicht. Der PNG-Master und das EXE-Icon bleiben unverändert.
 

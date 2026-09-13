@@ -213,7 +213,7 @@ public sealed class CaptureConfigurationSettingsTests
     public async Task FiftyFilesDefaultToUsableAndFiltersDistinguishBothLogsFromNormalOnly()
     {
         var files = ManyFiles();
-        var session = new Session { Candidates = files.Reverse().ToArray(), Preferences = new() { CaptureConfigurationPath = files[35].Path } };
+        var session = new Session { Candidates = files.AsEnumerable().Reverse().ToArray(), Preferences = new() { CaptureConfigurationPath = files[35].Path } };
         await Render(session, async (component, markup) =>
         {
             await Invoke(component, "ToggleOpen");
@@ -242,13 +242,13 @@ public sealed class CaptureConfigurationSettingsTests
     public async Task FiftyFilesCanBeSearchedByPathOrLabelAndSortedByDateOrPath()
     {
         var files = ManyFiles();
-        var session = new Session { Candidates = files.Reverse().ToArray(), Preferences = new() { CaptureConfigurationPath = files[35].Path } };
+        var session = new Session { Candidates = files.AsEnumerable().Reverse().ToArray(), Preferences = new() { CaptureConfigurationPath = files[35].Path } };
         await Render(session, async (component, markup) =>
         {
             await Invoke(component, "ToggleOpen");
             await Invoke(component, "SetFilter", "all");
             await Invoke(component, "SetSort", "recent");
-            Assert.Equal(files.Reverse().Select(file => file.Path), VisiblePaths(markup()));
+            Assert.Equal(files.AsEnumerable().Reverse().Select(file => file.Path), VisiblePaths(markup()));
             await Invoke(component, "SetSort", "path");
             Assert.Equal(files.Select(file => file.Path), VisiblePaths(markup()));
             await Invoke(component, "SetQuery", "PROFILE-0");
