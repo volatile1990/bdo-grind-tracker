@@ -87,8 +87,11 @@ public sealed partial class TrackerSessionServiceTests
     public async Task PausesDoNotRefreshAndEachActiveHourDoes()
     {
         var provider = new SyntheticBenchmarks();
-        await using var fixture = new Fixture(autoUpload: false, benchmarkProvider: provider);
+        var capture = new PassiveCaptureSession(_ => new Bitmap(2, 2), frameInterval: TimeSpan.FromDays(1));
+        await using var fixture = new Fixture(autoUpload: false, benchmarkProvider: provider, suppliedCapture: capture);
         Assert.True((await fixture.Service.ToggleTrackingAsync()).Succeeded);
+        // Synthetic frames and time advances must not race the real producer.
+        await capture.StopAsync();
         Assert.Single(provider.Tokens);
         await fixture.ProcessAfter(TimeSpan.Zero, ("Black Crystal Fragment", 1));
         await fixture.ProcessAfter(TimeSpan.FromMinutes(59) + TimeSpan.FromSeconds(59), ("Black Crystal Fragment", 1));
@@ -104,6 +107,7 @@ public sealed partial class TrackerSessionServiceTests
         await fixture.Service.TickAsync();
         Assert.Equal(2, provider.Tokens.Count);
         Assert.True((await fixture.Service.ToggleTrackingAsync()).Succeeded);
+        await capture.StopAsync();
         Assert.Equal(2, provider.Tokens.Count);
         await fixture.ProcessAfter(TimeSpan.Zero, ("Black Crystal Fragment", 1));
         await fixture.ProcessAfter(TimeSpan.FromHours(1), ("Black Crystal Fragment", 1));
