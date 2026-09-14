@@ -7,6 +7,7 @@ using OpenCvSharp;
 
 namespace BdoGrindTracker.App.Tests;
 
+[Collection("Timing-sensitive integration")]
 public sealed class BackgroundLootRowReviewIntegrationTests
 {
     [Fact]

@@ -10,26 +10,22 @@ public sealed class HermesiaBufferedSearchTests
         Enumerable.Range(0, count).Select(i => Epoch.AddSeconds(start + i * .5)).ToArray();
 
     [Fact]
-    public void MonitorBuffersBetweenThreeSecondProbesWithoutInterruptingRotation()
+    public async Task MonitorBuffersBetweenThreeSecondProbesWithoutInterruptingRotation()
     {
         var reads = 0;
         using var frame = new System.Drawing.Bitmap(320, 200);
         using var monitor = new HermesiaRotationMonitor(recognize: _ => { Interlocked.Increment(ref reads); return Dragon; });
         monitor.Observe(frame, Epoch);
-        Assert.True(SpinWait.SpinUntil(() => Volatile.Read(ref reads) == 1, TimeSpan.FromSeconds(5)));
+        await monitor.PendingAnalysis.WaitAsync(TimeSpan.FromSeconds(30));
         for (var i = 1; i < 6; i++) monitor.Observe(frame, Epoch.AddSeconds(i * .5));
         Assert.Equal(1, Volatile.Read(ref reads));
-        // Wait for the asynchronous probe to commit, then retry at the same
-        // capture cadence until the first event has been confirmed.
-        for (var i = 6; i <= 12; i++)
-        {
-            monitor.Observe(frame, Epoch.AddSeconds(i * .5));
-            if (SpinWait.SpinUntil(() => monitor.Snapshot(Epoch.AddSeconds(i * .5)).Synchronized,
-                    TimeSpan.FromMilliseconds(100))) break;
-        }
+        monitor.Observe(frame, Epoch.AddSeconds(3));
+        await monitor.PendingAnalysis.WaitAsync(TimeSpan.FromSeconds(30));
+        Assert.True(monitor.Snapshot(Epoch.AddSeconds(3)).Synchronized);
+        for (var i = 7; i <= 12; i++) monitor.Observe(frame, Epoch.AddSeconds(i * .5));
+        await monitor.PendingAnalysis.WaitAsync(TimeSpan.FromSeconds(30));
         Assert.True(monitor.Snapshot(Epoch.AddSeconds(6)).Synchronized);
     }
-
     [Fact]
     public void EmptyProbeOnlyReadsNewestSample()
     {

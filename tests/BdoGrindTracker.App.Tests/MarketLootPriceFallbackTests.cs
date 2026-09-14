@@ -7,6 +7,7 @@ using BdoGrindTracker.App.Pricing;
 
 namespace BdoGrindTracker.App.Tests;
 
+[Collection("Timing-sensitive integration")]
 public sealed class MarketLootPriceFallbackTests
 {
     [Fact]

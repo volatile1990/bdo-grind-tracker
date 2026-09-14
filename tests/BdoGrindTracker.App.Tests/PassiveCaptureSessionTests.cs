@@ -3,6 +3,7 @@ using BdoGrindTracker.App.Capture;
 
 namespace BdoGrindTracker.App.Tests;
 
+[Collection("Timing-sensitive integration")]
 public sealed class PassiveCaptureSessionTests
 {
     [Fact]
