@@ -128,6 +128,8 @@ internal sealed class HermesiaRotationMonitor : IRotationProfileMonitor
     private DateTimeOffset? _lastFrame, _lastSample, _lastProbe;
     private long _epoch;
     private bool _busy, _disposed;
+    private Task _pending = Task.CompletedTask;
+    internal Task PendingAnalysis { get { lock (_sync) return _pending; } }
     private string? _error;
 
     private sealed class Sample(Bitmap pixels, DateTimeOffset at)
@@ -186,7 +188,7 @@ internal sealed class HermesiaRotationMonitor : IRotationProfileMonitor
             var epoch = _epoch;
             var search = _search;
             _busy = true;
-            _ = Task.Run(() =>
+            _pending = Task.Run(() =>
             {
                 try
                 {
