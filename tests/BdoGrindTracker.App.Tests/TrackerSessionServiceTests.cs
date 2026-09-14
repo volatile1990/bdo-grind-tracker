@@ -21,6 +21,7 @@ namespace BdoGrindTracker.App.Tests;
 /// a monotonic test clock, mock HTTP and private temporary persistence. No game
 /// capture, WebView, message pump or user configuration is involved.
 /// </summary>
+[Collection("Timing-sensitive integration")]
 public sealed partial class TrackerSessionServiceTests
 {
     [Fact]
@@ -1459,4 +1460,3 @@ public sealed partial class TrackerSessionServiceTests
         public void Advance(TimeSpan duration) => _timestamp += duration.Ticks;
     }
 }
-

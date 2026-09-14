@@ -11,15 +11,15 @@ public sealed partial class TrackerSessionServiceTests
     {
         var detector = new SessionAgrisDetector(() => new(AgrisStatus.Active));
         var monitor = new AgrisMonitor(detector);
-        await using var fixture = new Fixture(autoUpload: false, agrisMonitor: monitor, lootScrollVisible: _ => true);
+        await using var fixture = CreateAgrisReplayFixture(monitor, _ => true);
         BeginAgrisSession(fixture);
         fixture.Time.Advance(TimeSpan.FromSeconds(12));
-        var now = DateTimeOffset.UtcNow;
+        var now = AgrisReplayNow;
         foreach (var secondsAgo in new[] { 10, 5, 0 })
             await ProcessAgrisFrame(fixture, monitor, now.AddSeconds(-secondsAgo));
         var active = fixture.Service.State.AgrisActiveDuration;
         Assert.Equal(AgrisStatus.Active, fixture.Service.State.Agris.Status);
-        Assert.InRange(active.TotalSeconds, 8, 10);
+        Assert.Equal(TimeSpan.FromSeconds(10), active);
         Assert.Equal(active, fixture.Service.State.AgrisObservedDuration);
         Assert.Equal(30, fixture.Service.State.Loot.TotalQuantity);
         Assert.True(fixture.Service.State.IsRunning);
@@ -42,14 +42,14 @@ public sealed partial class TrackerSessionServiceTests
         var visible = true;
         var detector = new SessionAgrisDetector(() => new(AgrisStatus.Active));
         var monitor = new AgrisMonitor(detector);
-        await using var fixture = new Fixture(autoUpload: false, agrisMonitor: monitor, lootScrollVisible: _ => visible);
+        await using var fixture = CreateAgrisReplayFixture(monitor, _ => visible);
         BeginAgrisSession(fixture);
         fixture.Time.Advance(TimeSpan.FromSeconds(12));
-        var now = DateTimeOffset.UtcNow;
+        var now = AgrisReplayNow;
         await ProcessAgrisFrame(fixture, monitor, now.AddSeconds(-10));
         await ProcessAgrisFrame(fixture, monitor, now.AddSeconds(-5));
         var active = fixture.Service.State.AgrisActiveDuration;
-        Assert.True(active > TimeSpan.Zero);
+        Assert.Equal(TimeSpan.FromSeconds(5), active);
         visible = false;
         fixture.Service.RefreshPendingState();
         Assert.Equal(AgrisState.Unknown, fixture.Service.State.Agris);
@@ -66,10 +66,10 @@ public sealed partial class TrackerSessionServiceTests
     public async Task OptionalAgrisFailureNeverChangesLootOrBlocksTracking()
     {
         var monitor = new AgrisMonitor(new SessionAgrisDetector(() => throw new InvalidOperationException("Synthetic Agris failure")));
-        await using var fixture = new Fixture(autoUpload: false, agrisMonitor: monitor, lootScrollVisible: _ => true);
+        await using var fixture = CreateAgrisReplayFixture(monitor, _ => true);
         BeginAgrisSession(fixture);
         fixture.Time.Advance(TimeSpan.FromSeconds(12));
-        await ProcessAgrisFrame(fixture, monitor, DateTimeOffset.UtcNow);
+        await ProcessAgrisFrame(fixture, monitor, AgrisReplayNow);
         Assert.Equal(AgrisState.Unknown, fixture.Service.State.Agris);
         Assert.Equal(TimeSpan.Zero, fixture.Service.State.AgrisObservedDuration);
         Assert.Equal(10, fixture.Service.State.Loot.TotalQuantity);
@@ -89,14 +89,14 @@ public sealed partial class TrackerSessionServiceTests
         // Use a short sampling interval to replay a complete foreground gap
         // inside the normal 15-second freshness window without wall-clock waits.
         var monitor = new AgrisMonitor(detector, TimeSpan.FromSeconds(1));
-        await using var fixture = new Fixture(autoUpload: false, agrisMonitor: monitor, lootScrollVisible: _ => true);
+        await using var fixture = CreateAgrisReplayFixture(monitor, _ => true);
         BeginAgrisSession(fixture);
         fixture.Time.Advance(TimeSpan.FromSeconds(20));
-        var now = DateTimeOffset.UtcNow;
+        var now = AgrisReplayNow;
         await ProcessAgrisFrame(fixture, monitor, now.AddSeconds(-12));
         await ProcessAgrisFrame(fixture, monitor, now.AddSeconds(-8));
         var beforeGap = fixture.Service.State.AgrisActiveDuration;
-        Assert.InRange(beforeGap.TotalSeconds, 3, 4);
+        Assert.Equal(TimeSpan.FromSeconds(4), beforeGap);
 
         // Simulate an occupied UI while capture observes either a hidden HUD
         // or an unknown glyph, followed by another valid active observation.
@@ -112,18 +112,31 @@ public sealed partial class TrackerSessionServiceTests
         Assert.Equal(beforeGap, fixture.Service.State.AgrisActiveDuration);
         Assert.Equal(beforeGap, fixture.Service.State.AgrisObservedDuration);
         await ProcessAgrisFrame(fixture, monitor, now);
-        Assert.InRange((fixture.Service.State.AgrisActiveDuration - beforeGap).TotalSeconds, 1, 2);
+        Assert.Equal(TimeSpan.FromSeconds(2), fixture.Service.State.AgrisActiveDuration - beforeGap);
         Assert.Equal(fixture.Service.State.AgrisActiveDuration, fixture.Service.State.AgrisObservedDuration);
         Assert.Equal(50, fixture.Service.State.Loot.TotalQuantity);
         Assert.True(fixture.Service.State.IsRunning);
+    }
+
+    private static readonly DateTimeOffset AgrisReplayNow = DateTimeOffset.UnixEpoch.AddHours(1);
+
+    private static Fixture CreateAgrisReplayFixture(AgrisMonitor monitor, Func<Rectangle, bool> visible)
+    {
+        // Replay advances the session clock explicitly. Freeze the capture clock
+        // too, so time spent scheduling OCR cannot shorten observed intervals.
+        var captureTime = new ManualTimeProvider();
+        captureTime.Advance(TimeSpan.FromHours(1));
+        var capture = new PassiveCaptureSession(_ => new Bitmap(2, 2), captureTime);
+        return new Fixture(autoUpload: false, agrisMonitor: monitor, lootScrollVisible: visible,
+            suppliedCapture: capture);
     }
 
     private static void BeginAgrisSession(Fixture fixture)
     {
         fixture.Begin();
         SetField(fixture.Service, "_lastCaptureDesktopRegion", new Rectangle(0, 0, 1920, 1080));
-        // Construction and Begin publish Unknown at real wall-clock time. This
-        // fixture replays frames captured just before that time, so start its
+        // Construction and Begin publish Unknown at the current capture time.
+        // This fixture replays frames captured just before it, so start its
         // Agris timeline after setup instead of treating replay as stale input.
         var field = fixture.Service.GetType().GetField("_agrisSessionTracker",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
