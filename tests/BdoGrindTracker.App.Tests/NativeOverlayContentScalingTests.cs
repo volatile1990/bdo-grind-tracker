@@ -178,6 +178,56 @@ public sealed class NativeOverlayContentScalingTests
         }
     }
 
+    [Theory]
+    [InlineData(128, 1)]
+    [InlineData(480, 1)]
+    [InlineData(480, 1.5)]
+    public void ChartCurveAndDropMarkersShareTheSameVerticalProjection(int height, double dpi)
+    {
+        var widget = OverlayCatalog.CreateWidget("chart", 0, 0) with
+        {
+            Width = 400, Height = height, ShowLabel = false, ShowIcon = false
+        };
+        var snapshot = new OverlaySnapshot
+        {
+            SilverHistory = [new(TimeSpan.Zero, 100), new(TimeSpan.FromSeconds(30), 200), new(TimeSpan.FromSeconds(60), 100)],
+            DropMarkers = [new(TimeSpan.FromSeconds(30), new("Item", "Item", "1"))]
+        };
+        var marker = Assert.Single(OverlayChartMarkers.Create(snapshot));
+        using var renderer = new NativeOverlayRenderer();
+        // Render the curve alone so a misplaced marker cannot mask its peak.
+        using var image = renderer.Render(new Size((int)(400 * dpi), (int)(height * dpi)),
+            Settings(400, height, widget), snapshot with { DropMarkers = [] }, out _);
+        var x = (int)((10 + marker.X * 380) * dpi);
+        var peak = Enumerable.Range(0, image.Height).First(y => image.GetPixel(x, y).A > 128);
+        var expectedY = (8 + marker.Y * (height - 16)) * dpi;
+
+        Assert.InRange(peak, expectedY - 2, expectedY + 2);
+    }
+
+    [Theory]
+    [InlineData("best", false)]
+    [InlineData("sectors", true)]
+    public void SectorComparisonRendersBestTimeChangesInASmallHighFontScaleWidget(string mode, bool changesImage)
+    {
+        var widget = OverlayCatalog.CreateWidget("rotation-monitor", 0, 0) with
+        {
+            Width = 400, Height = 64, FontScale = 2, RotationComparison = mode
+        };
+        var rotation = new RotationMonitorSnapshot
+        {
+            Elapsed = 60, Events = [new("start", "Start", 0), new("drakania", "Drakania", 30)],
+            SectorBests = new Dictionary<string, double> { ["drakania:1"] = 25 }
+        };
+        using var renderer = new NativeOverlayRenderer();
+        using var first = renderer.Render(new Size(400, 64), Settings(400, 64, widget),
+            new() { Rotation = rotation }, out _);
+        using var second = renderer.Render(new Size(400, 64), Settings(400, 64, widget),
+            new() { Rotation = rotation with { SectorBests = new Dictionary<string, double> { ["drakania:1"] = 35 } } }, out _);
+
+        Assert.Equal(changesImage, !Pixels(first).SequenceEqual(Pixels(second)));
+    }
+
     private static OverlaySettings Settings(double width, double height, OverlayWidget widget) => new()
     {
         Width = width, Height = height, Widgets = [widget], BackgroundOpacity = 0,

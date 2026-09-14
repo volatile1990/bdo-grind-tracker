@@ -75,7 +75,8 @@
 .overlay-widget-chart .overlay-widget-value { font-size: calc(20px * var(--widget-font-scale, 1) * var(--line-fit, 1)); }
 svg.overlay-widget-chart { display: block; width: 100%; min-height: 15px; flex: 1 1 60px; overflow: visible; }
 .overlay-chart-drop-icon { display: block; width: 100%; height: 100%; object-fit: contain; }
-.rotation-timeline { display:flex; flex-direction:column; flex:1; min-height:0; gap:5px; font-size:11px; }
+.rotation-timeline { display:flex; flex-direction:column; flex:1; min-height:0; gap:calc(5px * var(--widget-font-scale, 1)); font-size:11px; }
+.rotation-sector { flex:0 0 calc(13px * var(--widget-font-scale, 1)); min-width:0; white-space:nowrap; color:#93a7b6; font-size:calc(10px * var(--widget-font-scale, 1) * var(--line-fit, 1)); line-height:calc(13px * var(--widget-font-scale, 1)); font-variant-numeric:tabular-nums; }
 .rotation-spot { color:#c4d0d9; font-size:11px; font-weight:600; }
 .rotation-heading { display:flex; align-items:baseline; gap:12px; min-width:0; }
 .rotation-heading strong { color:#f1cc7a; font-size:25px; font-variant-numeric:tabular-nums; }

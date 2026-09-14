@@ -399,6 +399,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         }
         SetStatus("Wird pausiert. Die letzten Drops werden noch übernommen …");
         await _captureSession.StopAsync();
+        await _rotationMonitor.FlushAsync();
         if (automatic)
             _sessionClock.Pause(_inactivityTimer.PauseAndGetIdleDuration());
         CompleteCaptureSegment(DateTimeOffset.UtcNow);
@@ -697,7 +698,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             ShutdownFailed = _shutdownFailed,
         };
         State = State with { SilverHistory = _silverHistory.Update(State), DropHistory = _dropHistory.Update(State),
-            Rotation = _rotationMonitor.Snapshot(DateTimeOffset.UtcNow, _sessionSpotId) };
+            Rotation = _rotationMonitor.Snapshot(_captureSession.ObservationTime, _sessionSpotId) };
         if (_historyChanged)
         {
             History = Array.AsReadOnly(_historyEntries.Select(entry => entry with
@@ -761,6 +762,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         try
         {
             await _captureSession.StopAsync();
+            await _rotationMonitor.FlushAsync();
+            _rotationMonitor.Interrupt();
             CompleteCaptureSegment(DateTimeOffset.UtcNow);
             _uiRunning = false;
             // A possibly committed HTTP request must settle before disposing its

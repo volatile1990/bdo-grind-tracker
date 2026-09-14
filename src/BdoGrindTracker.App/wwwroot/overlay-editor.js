@@ -178,9 +178,14 @@
                 }
                 if (drag.type === "canvas") {
                     const west = drag.corner.includes("w"), north = drag.corner.includes("n");
+                    const widgets = Array.from(stage.querySelectorAll(".oe-widget"));
+                    const minWidth = west && widgets.length ? Math.max(160, drag.canvas.width - Math.min(...widgets.map(element => number(element, "x")))) : 160;
+                    const minHeight = north && widgets.length ? Math.max(64, drag.canvas.height - Math.min(...widgets.map(element => number(element, "y")))) : 64;
+                    const maxWidth = west && widgets.length ? Math.min(1600, drag.canvas.width + 1600 - Math.max(...widgets.map(element => number(element, "x") + number(element, "width")))) : 1600;
+                    const maxHeight = north && widgets.length ? Math.min(1200, drag.canvas.height + 1200 - Math.max(...widgets.map(element => number(element, "y") + number(element, "height")))) : 1200;
                     document.body.classList.toggle("oe-resizing-reverse", west !== north);
-                    drag.newWidth = clamp(grid(drag.canvas.width + (west ? -dx : dx)), 160, 1600);
-                    drag.newHeight = clamp(grid(drag.canvas.height + (north ? -dy : dy)), 64, 1200);
+                    drag.newWidth = clamp(grid(drag.canvas.width + (west ? -dx : dx)), minWidth, maxWidth);
+                    drag.newHeight = clamp(grid(drag.canvas.height + (north ? -dy : dy)), minHeight, maxHeight);
                     wrap.style.position = "relative";
                     wrap.style.left = "0px"; wrap.style.top = "0px";
                     stage.style.width = `${drag.newWidth}px`; stage.style.height = `${drag.newHeight}px`;
@@ -188,9 +193,9 @@
                     const layoutRect = wrap.getBoundingClientRect();
                     wrap.style.left = `${drag.wrapRect.left-layoutRect.left+(west ? (drag.canvas.width-drag.newWidth)*drag.scale : 0)}px`;
                     wrap.style.top = `${drag.wrapRect.top-layoutRect.top+(north ? (drag.canvas.height-drag.newHeight)*drag.scale : 0)}px`;
-                    stage.querySelectorAll(".oe-widget").forEach(element => {
-                        element.style.left = `${Math.max(0,number(element,"x")+(west ? drag.newWidth-drag.canvas.width : 0))}px`;
-                        element.style.top = `${Math.max(0,number(element,"y")+(north ? drag.newHeight-drag.canvas.height : 0))}px`;
+                    widgets.forEach(element => {
+                        element.style.left = `${number(element,"x")+(west ? drag.newWidth-drag.canvas.width : 0)}px`;
+                        element.style.top = `${number(element,"y")+(north ? drag.newHeight-drag.canvas.height : 0)}px`;
                     });
                     return;
                 }

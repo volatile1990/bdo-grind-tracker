@@ -12,6 +12,45 @@ namespace BdoGrindTracker.App.Tests;
 
 public sealed class OverlayScaledPreviewTests
 {
+    [Fact]
+    public async Task ShortRotationWidgetReservesTheWholeTimelineBeforeScaling()
+    {
+        var widget = OverlayCatalog.CreateWidget("rotation-monitor") with { Width = 600, Height = 24 };
+        var content = OverlayContentLayout.Create(widget, OverlaySnapshot.Demo);
+        var markup = await Render(widget, OverlaySnapshot.Demo);
+
+        // CSS reserves 40px for the SVG, with 7px padding + 1px border per edge.
+        Assert.True(content.LayoutWidget.Height - 16 >= 40);
+        Assert.Equal(widget.Height, content.LayoutWidget.Height * content.Scale, 6);
+        Assert.Contains("data-min-content-height=\"56\"", markup);
+        Assert.Contains("class=\"rotation-track\"", markup);
+    }
+
+    [Theory]
+    [InlineData(.7)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public async Task ShortSectorComparisonKeepsTimelineAndBestTimeVisible(double fontScale)
+    {
+        var widget = OverlayCatalog.CreateWidget("rotation-monitor") with
+        {
+            Width = 600, Height = 24, FontScale = fontScale, RotationComparison = "sectors"
+        };
+        var rotation = new RotationMonitorSnapshot
+        {
+            Events = [new("start", "Start", 0), new("drakania", "Drakania", 30)],
+            SectorBests = new Dictionary<string, double> { ["drakania:1"] = 25 }
+        };
+        var snapshot = new OverlaySnapshot { Rotation = rotation };
+        var content = OverlayContentLayout.Create(widget, snapshot);
+        var markup = await Render(widget, snapshot);
+
+        Assert.True(content.LayoutWidget.Height - 16 - 18 * fontScale >= 40 - .000001);
+        Assert.Contains("class=\"rotation-sector\" data-overlay-fit", markup);
+        Assert.Contains(RotationTimelinePresentation.Sector(rotation), markup);
+        Assert.Contains("Bestzeit 00:25.0", markup);
+    }
+
     [Theory]
     [InlineData("duration")]
     [InlineData("spot")]

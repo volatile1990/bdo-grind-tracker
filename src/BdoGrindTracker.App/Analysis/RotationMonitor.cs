@@ -10,6 +10,7 @@ internal interface IRotationProfileMonitor : IDisposable
     void Interrupt(string status);
     RotationMonitorSnapshot Snapshot(DateTimeOffset now);
     (DateTimeOffset StartedAt, RotationRun Run)[] DrainCompleted() => [];
+    Task FlushAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }
 
 /// <summary>Each spot owns its message recognition, rotation rules and records.</summary>
@@ -92,6 +93,16 @@ internal sealed class RotationMonitor : IDisposable
     }
     internal void Interrupt(string status = "Tracking pausiert · warte auf Rotationsstart")
     { lock (_sync) _profile?.Interrupt(status); }
+    internal async Task FlushAsync(TimeSpan? timeout = null)
+    {
+        IRotationProfileMonitor? profile;
+        lock (_sync) profile = _disposed ? null : _profile;
+        if (profile is null) return;
+        using var deadline = new CancellationTokenSource(timeout ?? TimeSpan.FromSeconds(5));
+        try { await profile.FlushAsync(deadline.Token).WaitAsync(deadline.Token).ConfigureAwait(false); }
+        catch (OperationCanceledException) when (deadline.IsCancellationRequested)
+        { /* A stuck optional OCR worker must never prevent pause or shutdown. */ }
+    }
     public void Dispose()
     { lock (_sync) { _disposed = true; _profile?.Dispose(); _profile = null; } }
 }

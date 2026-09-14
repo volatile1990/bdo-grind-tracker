@@ -28,6 +28,39 @@ public sealed class OverlayCanvasResizeInteractionTests
     });
 
     [Theory]
+    [InlineData("nw", 380, 276)]
+    [InlineData("ne", 160, 276)]
+    [InlineData("sw", 380, 64)]
+    public Task ReverseCornerShrinkStopsAtFirstModuleAndReExpansionRestoresTheLayout(string corner, double width, double height) => Render(async (editor, overlay, markup) =>
+    {
+        var original = overlay.Settings;
+        await editor.CommitCanvasCorner(160, 64, corner);
+
+        Assert.Equal(width, overlay.Settings.Width);
+        Assert.Equal(height, overlay.Settings.Height);
+        Assert.Equal(160, overlay.Settings.Widgets[1].X - overlay.Settings.Widgets[0].X);
+        Assert.Equal(88, overlay.Settings.Widgets[1].Y - overlay.Settings.Widgets[0].Y);
+        Assert.All(overlay.Settings.Widgets, widget => Assert.True(widget.X >= 0 && widget.Y >= 0));
+
+        await editor.CommitCanvasCorner(original.Width, original.Height, corner);
+        Assert.Equal(original.Widgets, overlay.Settings.Widgets);
+    });
+
+    [Fact]
+    public Task ReverseCornerExpansionPreservesModulesAlreadyAtTheGlobalGeometryLimit() => Render(async (editor, overlay, markup) =>
+    {
+        var original = overlay.Settings;
+        await editor.CommitCanvasCorner(800, 600, "nw");
+
+        Assert.Equal(original.Width, overlay.Settings.Width);
+        Assert.Equal(original.Height, overlay.Settings.Height);
+        Assert.Equal(original.Widgets, overlay.Settings.Widgets);
+    }, InitialLayout() with { Widgets = [
+        OverlayCatalog.CreateWidget("duration", 20, 24) with { Width = 120, Height = 64 },
+        OverlayCatalog.CreateWidget("drop-grid", 1400, 1040) with { Width = 200, Height = 160 },
+    ] });
+
+    [Theory]
     [InlineData(true)]
     [InlineData(false)]
     public Task CanvasDimensionFieldKeepsEveryModuleAtItsExistingSizeAndPosition(bool width) => Render(async (editor, overlay, markup) =>

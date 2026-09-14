@@ -122,7 +122,7 @@
             </div>
             <div class="oe-canvas-dimensions"><label>Breite <input aria-label="Overlay-Breite" type="number" min="160" max="1600" step="8" value="@Css(_settings.Width)" @onchange="e => CanvasDimension(e, true)" /></label><span>×</span><label>Höhe <input aria-label="Overlay-Höhe" type="number" min="64" max="1200" step="8" value="@Css(_settings.Height)" @onchange="e => CanvasDimension(e, false)" /></label><span>px</span><span class="oe-fit-label">Vorschau passt sich der Fläche an</span></div>
             <p class="oe-canvas-help">Modul auswählen, am Griff verschieben und an der Ecke vergrößern. Pfeiltasten verschieben das ausgewählte Modul; Umschalt bewegt es um 8 px.</p>
-            <p class="oe-canvas-help">Breite, Höhe und der Eckgriff ändern nur die Fensterfläche. Module behalten Position und Größe. Inhalte außerhalb der Fläche werden ausgeblendet und beim Vergrößern wieder sichtbar.</p>
+            <p class="oe-canvas-help">Breite, Höhe und die Ecke unten rechts ändern nur die Fensterfläche. Inhalte außerhalb der Fläche werden ausgeblendet und beim Vergrößern wieder sichtbar. Links und oben lässt sich die Fläche bis zum ersten Modul verkleinern; Größe und Abstände der Module bleiben erhalten.</p>
         </section>
 
         <section class="panel oe-inspector" aria-labelledby="oe-inspector-title">

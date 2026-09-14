@@ -273,7 +273,12 @@ internal sealed partial class TrackerSessionService
                 {
                     _uiMailbox.AdjustQuantity(canonicalName, quantity, originalQuantity, snapshot =>
                     {
-                        var previousSummary = _sessionSummary;
+                        // Read the pre-edit aggregate under the mailbox's existing
+                        // producer lock. Pending OCR must become observed drops before
+                        // a manual delta shares its confirmed-event count.
+                        var previousSummary = _uiMailbox.ReadSnapshot(current => current);
+                        _sessionSummary = previousSummary;
+                        _dropHistory.Update(State with { Loot = previousSummary, Elapsed = _sessionClock.Elapsed });
                         var previousHistory = _historyEntries.ToArray();
                         var previousManual = _sessionManualLootItems.ToArray();
                         var previousModified = _sessionGarmothLocallyModified;

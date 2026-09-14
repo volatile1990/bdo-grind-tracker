@@ -374,7 +374,7 @@ internal sealed class NativeOverlayRenderer : IDisposable
         var span = Math.Max(1, snapshot.SilverHistory[^1].Elapsed.Ticks - first);
         var points = snapshot.SilverHistory.Select(point => new PointF(
             inner.X + (float)((decimal)(point.Elapsed.Ticks - first) / span) * inner.Width,
-            inner.Bottom - 2 - (float)(Math.Max(0m, point.SilverPerHour) / highest) * Math.Max(1, inner.Height - 5))).ToArray();
+            inner.Top + (float)((70m - Math.Clamp(point.SilverPerHour / highest, 0, 1) * 64m) / 72m) * inner.Height)).ToArray();
         using var fill = new SolidBrush(Color.FromArgb(40, Gold));
         graphics.FillPolygon(fill, [new PointF(inner.Left, inner.Bottom), .. points, new PointF(inner.Right, inner.Bottom)]);
         using var line = new Pen(Gold, 1.6f);
@@ -397,6 +397,14 @@ internal sealed class NativeOverlayRenderer : IDisposable
     private static void DrawRotation(Graphics graphics, OverlayWidget widget, RectangleF inner, RotationMonitorSnapshot rotation)
     {
         var mode = widget.RotationComparison;
+        if (mode == "sectors")
+        {
+            var fontScale = (float)widget.FontScale;
+            Draw(graphics, RotationTimelinePresentation.Sector(rotation),
+                new RectangleF(inner.X, inner.Bottom - 13 * fontScale, inner.Width, 13 * fontScale),
+                10 * fontScale, Muted);
+            inner.Height -= 18 * fontScale;
+        }
         var reference = RotationTimelinePresentation.Reference(rotation, mode);
         var extent = RotationTimelinePresentation.Extent(rotation, mode);
         var totalWidth = Math.Min(inner.Width * .25f, 56 * (float)widget.FontScale);

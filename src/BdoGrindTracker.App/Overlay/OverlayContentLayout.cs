@@ -16,7 +16,8 @@ public sealed record OverlayContentLayout(OverlayWidget LayoutWidget, double Sca
         // modules still show them, at a smaller size, instead of dropping lines.
         var minimumHeight = widget.Kind switch
         {
-            "rotation-monitor" => 48,
+            // The timeline SVG needs 40px plus the widget's 16px vertical inset.
+            "rotation-monitor" => 56 + (widget.RotationComparison == "sectors" ? 18 * fontScale : 0),
             "daily-goal" => 88 + (widget.ShowLabel ? 18 * fontScale : 0),
             "controls" => 16 + (widget.ShowLabel ? 18 * fontScale : 0) + (widget.ShowNewSession ? 60 : 28) * fontScale,
             "chart" => 16 + (widget.ShowLabel ? 20 * fontScale : 0) + 33 * fontScale + 24 + 16 * fontScale,

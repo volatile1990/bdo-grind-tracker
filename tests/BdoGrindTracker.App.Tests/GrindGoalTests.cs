@@ -46,14 +46,80 @@ public sealed class GrindGoalTests
         Assert.Equal(1, drops[new DateOnly(2026,9,15)].Single(d => d.Key == "rare").Value);
     }
 
-    [Fact]
-    public void InvalidFileCannotBeOverwrittenByEditingGoals()
+    [Theory]
+    [InlineData("broken")]
+    [InlineData("null")]
+    [InlineData("{\"2026-09-14\":0}")]
+    [InlineData("{\"2026-09-14\":-1}")]
+    public void InvalidFileCannotBeOverwrittenByEditingGoals(string json)
     {
         var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid()+".json");
-        try { File.WriteAllText(path,"broken"); var store = new GrindGoalStore(path); store.Load();
+        try { File.WriteAllText(path,json); var store = new GrindGoalStore(path); store.Load();
             Assert.NotNull(store.Error);
             Assert.Throws<IOException>(() => store.Set([new DateOnly(2026,9,14)],100));
-            Assert.Equal("broken",File.ReadAllText(path)); }
+            Assert.Equal(json,File.ReadAllText(path)); }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public void EditingWithoutAnExplicitLoadPreservesOtherSavedGoals()
+    {
+        var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid()+".json");
+        var monday = new DateOnly(2026, 9, 14);
+        try
+        {
+            File.WriteAllText(path, "{\"2026-09-14\":100}");
+            var store = new GrindGoalStore(path);
+            store.Set([monday.AddDays(1)], 200);
+            var reloaded = new GrindGoalStore(path);
+            reloaded.Load();
+            Assert.Equal(100, reloaded.Goals[monday]);
+            Assert.Equal(200, reloaded.Goals[monday.AddDays(1)]);
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public void ReadFailureIsNotTreatedAsAnEmptyFileAndCanRecoverOnReload()
+    {
+        var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid()+".json");
+        var date = new DateOnly(2026, 9, 14);
+        try
+        {
+            // An existing directory must report an I/O error, not silently use defaults.
+            Directory.CreateDirectory(path);
+            var store = new GrindGoalStore(path);
+            store.Load();
+            Assert.NotNull(store.Error);
+            Assert.Throws<IOException>(() => store.Set([date], 200));
+            Directory.Delete(path);
+            File.WriteAllText(path, "{\"2026-09-14\":100}");
+            store.Load();
+            Assert.Null(store.Error);
+            Assert.Equal(100, store.Goals[date]);
+        }
+        finally { if (Directory.Exists(path)) Directory.Delete(path); else File.Delete(path); }
+    }
+
+    [Fact]
+    public void ReloadingADeletedFileClearsStaleGoalsAndPriorLoadErrors()
+    {
+        var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid()+".json");
+        var monday = new DateOnly(2026, 9, 14);
+        try
+        {
+            var store = new GrindGoalStore(path);
+            store.Set([monday], 100);
+            File.WriteAllText(path, "broken");
+            store.Load();
+            Assert.NotNull(store.Error);
+            File.Delete(path);
+            store.Load();
+            Assert.Null(store.Error);
+            Assert.Empty(store.Goals);
+            store.Set([monday.AddDays(1)], 200);
+            Assert.Single(store.Goals);
+        }
         finally { File.Delete(path); }
     }
 }

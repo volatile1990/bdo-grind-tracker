@@ -44,6 +44,7 @@ internal sealed class HermesiaRotationTracker
     }
     private readonly string? _path;
     private DateTimeOffset? _start;
+    private DateTimeOffset? _lastBoundary;
     private double _finishedElapsed;
     private bool _afk;
     private string? _error;
@@ -82,23 +83,34 @@ internal sealed class HermesiaRotationTracker
     }
 
     internal void Interrupt(string status = "Warte auf erstes Ereignis")
-    { _start = null; _finishedElapsed = 0; _events.Clear(); _afk = false; _status = status; }
+    { _start = _lastBoundary = null; _finishedElapsed = 0; _events.Clear(); _afk = false; _status = status; }
 
     internal void Observe(string kind, string label, DateTimeOffset at)
     {
+        if (_lastBoundary is { } boundary && at < boundary) return;
         // The same suspension message means mine-cleared during combat and the
         // rotation boundary after crystal absorption. Text alone is insufficient.
-        if (kind == "mine-cleared" && _afk)
+        if (kind == "mine-cleared" && _afk && _start is { } currentStart &&
+            _events.Any(e => e.Kind == "afk" && e.Seconds <= (at - currentStart).TotalSeconds))
         {
+            List<(RotationEvent Event, DateTimeOffset At)> following = [];
             if (_start is { } start)
             {
-                Add("end", "AFK-Ende", (at - start).TotalSeconds);
-                var run = new RotationRun((at - start).TotalSeconds, _events.ToArray()) { TimingVersion = 2 };
+                var duration = (at - start).TotalSeconds;
+                // A later probe can confirm the AFK end after a new porter
+                // banner. Keep that already observed event in the next run.
+                following = _events.Where(e => e.Seconds > duration)
+                    .Select(e => (e, start.AddSeconds(e.Seconds))).ToList();
+                _events.RemoveAll(e => e.Seconds > duration);
+                Add("end", "AFK-Ende", duration);
+                var run = new RotationRun(duration, _events.ToArray()) { TimingVersion = 2 };
                 if (Valid(run)) { _completed.Add((start, run)); _runs.Add(run); Save(); }
             }
             _finishedElapsed = _start is { } started ? Math.Max(0, (at - started).TotalSeconds) : 0;
             _start = null; _afk = false;
+            _lastBoundary = at;
             _status = "AFK beendet · warte auf erstes Ereignis";
+            foreach (var next in following) Observe(next.Event.Kind, next.Event.Label, next.At);
             return;
         }
         if (kind == "afk") _afk = true;
@@ -108,13 +120,30 @@ internal sealed class HermesiaRotationTracker
             Add("start", "Rotationsstart", 0);
         }
         var seconds = (at - _start.Value).TotalSeconds;
-        if (seconds < 0 || seconds > 7200) { Interrupt(); return; }
+        if (seconds < 0)
+        {
+            // Buffered confirmation can arrive in a later probe even though
+            // its first visible frame predates an event already on the timeline.
+            for (var i = 1; i < _events.Count; i++)
+                _events[i] = _events[i] with { Seconds = _events[i].Seconds - seconds };
+            _start = at;
+            seconds = 0;
+        }
+        if (seconds > 7200 || _events.Any(e => e.Seconds > 7200)) { Interrupt(); return; }
         Add(kind, label, seconds);
-        _status = _afk ? "AFK-Phase · Uhr läuft weiter" : label;
+        _status = _afk ? "AFK-Phase · Uhr läuft weiter" : _events[^1].Label;
     }
 
-    private void Add(string kind, string label, double seconds) =>
-        _events.Add(new(kind, label, seconds, _events.Count(e => e.Kind == kind) + 1));
+    private void Add(string kind, string label, double seconds)
+    {
+        var index = _events.FindIndex(e => e.Seconds > seconds);
+        _events.Insert(index < 0 ? _events.Count : index, new(kind, label, seconds));
+        // Occurrence keys describe chronological order, including when OCR
+        // confirms the first of two identical messages after the second.
+        var occurrence = 0;
+        for (var i = 0; i < _events.Count; i++)
+            if (_events[i].Kind == kind) _events[i] = _events[i] with { Occurrence = ++occurrence };
+    }
 
     internal RotationMonitorSnapshot Snapshot(DateTimeOffset now)
     {

@@ -5,23 +5,33 @@ namespace BdoGrindTracker.App.Persistence;
 internal sealed class GrindGoalStore(string? path)
 {
     private Dictionary<DateOnly, decimal> _goals = [];
+    private bool _loaded;
     public string? Error { get; private set; }
     public IReadOnlyDictionary<DateOnly, decimal> Goals => _goals;
     public event Action? Changed;
     public void Load()
     {
-        if (path is null || !File.Exists(path)) return;
+        _loaded = true;
+        if (path is null) return;
         try
         {
-            var loaded = JsonSerializer.Deserialize<Dictionary<DateOnly,decimal>>(File.ReadAllText(path)) ?? [];
+            // File.Exists hides access errors; only actual absence permits empty defaults.
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+            var loaded = JsonSerializer.Deserialize<Dictionary<DateOnly,decimal>>(stream)
+                ?? throw new InvalidDataException("Die Zieldatei enthält keine Ziele.");
             if (loaded.Values.Any(v => v <= 0)) throw new InvalidDataException("Ungültiger Zielwert.");
             _goals = loaded; Error = null;
         }
-        catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException)
+        catch (Exception e) when (e is FileNotFoundException or DirectoryNotFoundException)
+        { _goals = []; Error = null; }
+        catch (Exception e) when (e is IOException or JsonException or InvalidDataException or UnauthorizedAccessException or ArgumentException)
         { Error = "Grind Goals konnten nicht geladen werden: " + e.Message; }
+        Changed?.Invoke();
     }
     public void Set(IEnumerable<DateOnly> dates, decimal? amount)
     {
+        ArgumentNullException.ThrowIfNull(dates);
+        if (!_loaded) Load();
         if (Error is not null) throw new IOException(Error);
         if (amount is <= 0) throw new ArgumentOutOfRangeException(nameof(amount));
         var next = new Dictionary<DateOnly,decimal>(_goals);

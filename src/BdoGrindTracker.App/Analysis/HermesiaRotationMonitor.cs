@@ -128,6 +128,7 @@ internal sealed class HermesiaRotationMonitor : IRotationProfileMonitor
     private DateTimeOffset? _lastFrame, _lastSample, _lastProbe;
     private long _epoch;
     private bool _busy, _disposed;
+    private int _flushes;
     private Task _pending = Task.CompletedTask;
     internal Task PendingAnalysis { get { lock (_sync) return _pending; } }
     private string? _error;
@@ -148,7 +149,7 @@ internal sealed class HermesiaRotationMonitor : IRotationProfileMonitor
     {
         lock (_sync)
         {
-            if (_lastFrame is { } last && now - last > TimeSpan.FromSeconds(4))
+            if (_flushes == 0 && _lastFrame is { } last && now - last > TimeSpan.FromSeconds(4))
                 InterruptCore("Bildsignal unterbrochen · warte auf erstes Ereignis");
             var snapshot = _tracker.Snapshot(now);
             return snapshot with { Error = _error ?? snapshot.Error };
@@ -182,7 +183,42 @@ internal sealed class HermesiaRotationMonitor : IRotationProfileMonitor
             while (_buffer.Count > 21 || at - _buffer[0].At > TimeSpan.FromSeconds(10))
             { _buffer[0].Release(); _buffer.RemoveAt(0); }
             if (_busy || _lastProbe is { } probe && at - probe < ProbeInterval) return;
-            _lastProbe = at;
+            StartProbe();
+        }
+    }
+
+    // Capture has stopped before this call. Let an in-flight confirmation land,
+    // then inspect the last buffered frame even if the regular probe is not due.
+    public async Task FlushAsync(CancellationToken cancellationToken)
+    {
+        Task pending;
+        long epoch;
+        lock (_sync)
+        {
+            if (_disposed) return;
+            epoch = _epoch;
+            pending = _pending;
+            _flushes++;
+        }
+        try
+        {
+            await pending.WaitAsync(cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            lock (_sync)
+            {
+                if (_disposed || epoch != _epoch) return;
+                if (!_busy && _buffer.Count > 0 && _lastProbe != _buffer[^1].At) StartProbe();
+                pending = _pending;
+            }
+            await pending.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+        finally { lock (_sync) _flushes--; }
+    }
+
+    // Called only while holding _sync, with a nonempty buffer and no worker.
+    private void StartProbe()
+    {
+            _lastProbe = _buffer[^1].At;
             var samples = _buffer.ToArray();
             foreach (var sample in samples) sample.Retain();
             var epoch = _epoch;
@@ -224,7 +260,6 @@ internal sealed class HermesiaRotationMonitor : IRotationProfileMonitor
                     lock (_sync) _busy = false;
                 }
             });
-        }
     }
     public void Dispose()
     { lock (_sync) { _disposed = true; InterruptCore("Rotation Monitor beendet"); } }

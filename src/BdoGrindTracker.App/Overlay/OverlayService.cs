@@ -354,7 +354,7 @@ internal sealed class OverlayService : IOverlayService
 
     public void RefreshClock()
     {
-        if (_disposed || !Overlays.Any(overlay => overlay.Settings.Widgets.Any(widget => widget.Kind == "clock"))) return;
+        if (_disposed || !Overlays.Any(overlay => overlay.Settings.Widgets.Any(widget => widget.Kind is "clock" or "daily-goal"))) return;
         var now = DateTimeOffset.UtcNow;
         if (now.ToUnixTimeSeconds() == Snapshot.ClockUtcNow.ToUnixTimeSeconds()) return;
         Snapshot = WithDailyGoal(Snapshot with { ClockUtcNow = now });

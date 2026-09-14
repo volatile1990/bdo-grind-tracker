@@ -21,7 +21,10 @@ internal sealed class NativeOverlayRenderState
                 _snapshot.CanToggleTracking != snapshot.CanToggleTracking ||
                 _snapshot.CanNewSession != snapshot.CanNewSession ||
                 _snapshot.TrackingButtonLabel != snapshot.TrackingButtonLabel)) return false;
-            if (widget.Kind == "chart" && !_snapshot.SilverHistory.SequenceEqual(snapshot.SilverHistory)) return false;
+            if (widget.Kind == "chart" && (!_snapshot.SilverHistory.SequenceEqual(snapshot.SilverHistory) ||
+                !_snapshot.DropMarkers.SequenceEqual(snapshot.DropMarkers))) return false;
+            if (widget.Kind == "rotation-monitor" && !SameRotation(_snapshot.Rotation, snapshot.Rotation,
+                widget.RotationComparison)) return false;
             if (widget.Kind == "daily-goal" && _snapshot.DailyGoal != snapshot.DailyGoal) return false;
             if (OverlayCatalog.IsLootWidget(widget.Kind) &&
                 (!_snapshot.Drops.SequenceEqual(snapshot.Drops) || !_snapshot.RareDrops.SequenceEqual(snapshot.RareDrops) ||
@@ -38,4 +41,14 @@ internal sealed class NativeOverlayRenderState
 
     internal void Remember(OverlaySettings settings, OverlaySnapshot snapshot, Size size) =>
         (_settings, _snapshot, _size) = (settings, snapshot, size);
+
+    private static bool SameRotation(RotationMonitorSnapshot before, RotationMonitorSnapshot after, string mode) =>
+        before.SpotId == after.SpotId && before.Elapsed == after.Elapsed &&
+        before.Synchronized == after.Synchronized && before.Events.SequenceEqual(after.Events) &&
+        SameRun(RotationTimelinePresentation.Reference(before, mode), RotationTimelinePresentation.Reference(after, mode)) &&
+        (mode != "sectors" || RotationTimelinePresentation.Sector(before) == RotationTimelinePresentation.Sector(after));
+
+    private static bool SameRun(RotationRun? before, RotationRun? after) =>
+        before is null ? after is null : after is not null && before.Duration == after.Duration &&
+            before.Events.SequenceEqual(after.Events);
 }

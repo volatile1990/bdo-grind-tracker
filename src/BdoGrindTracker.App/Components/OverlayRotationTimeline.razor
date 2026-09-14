@@ -42,6 +42,10 @@
             <path d="@($"M {X(State.Elapsed-Extent*.008)} 0 H {X(State.Elapsed+Extent*.008)} L {X(State.Elapsed)} 7 Z")" fill="#ffffff" />
         }
     </svg>
+    @if (Mode == "sectors")
+    {
+        <div class="rotation-sector" data-overlay-fit>@RotationTimelinePresentation.Sector(State)</div>
+    }
 </div>
 @code {
     [Parameter] public RotationMonitorSnapshot State { get; set; } = new();

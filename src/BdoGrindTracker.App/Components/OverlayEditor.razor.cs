@@ -298,9 +298,22 @@ public partial class OverlayEditor
         if (_disposed || !double.IsFinite(width) || !double.IsFinite(height)) return;
         await Change(s => {
             var resized = OverlayLayout.ResizeCanvas(s, width, height);
-            var dx = corner.Contains('w') ? resized.Width-s.Width : 0;
-            var dy = corner.Contains('n') ? resized.Height-s.Height : 0;
-            return resized with { Widgets = s.Widgets.Select(w => w with { X = Math.Max(0,w.X+dx), Y = Math.Max(0,w.Y+dy) }).ToArray() };
+            var west = corner is "nw" or "sw";
+            var north = corner is "nw" or "ne";
+            if (s.Widgets.Count > 0)
+            {
+                // Translate the complete layout together; clamping individual
+                // origins would collapse modules onto each other when shrinking.
+                if (west) resized = resized with { Width = Math.Clamp(resized.Width,
+                    Math.Max(160, s.Width - s.Widgets.Min(w => w.X)),
+                    Math.Min(1600, s.Width + 1600 - s.Widgets.Max(w => w.X + w.Width))) };
+                if (north) resized = resized with { Height = Math.Clamp(resized.Height,
+                    Math.Max(64, s.Height - s.Widgets.Min(w => w.Y)),
+                    Math.Min(1200, s.Height + 1200 - s.Widgets.Max(w => w.Y + w.Height))) };
+            }
+            var dx = west ? resized.Width - s.Width : 0;
+            var dy = north ? resized.Height - s.Height : 0;
+            return resized with { Widgets = s.Widgets.Select(w => w with { X = w.X + dx, Y = w.Y + dy }).ToArray() };
         });
         StateHasChanged();
     }
