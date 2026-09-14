@@ -81,7 +81,9 @@ public sealed class BrowserOverlayInteractionTests
                 .SetValue(component, false);
             await overlay.SetPreviewAsync(false);
             Assert.Same(overlay.Snapshot, widget.Snapshot);
-            Assert.False(widget.Snapshot.Rotation.HasProfile);
+            Assert.True(widget.Snapshot.Rotation.HasProfile);
+            Assert.Equal(LootSpotCatalog.AphrodonId, widget.Snapshot.Rotation.SpotId);
+            Assert.Empty(widget.Snapshot.Rotation.Events);
             Assert.DoesNotContain("rotation-playhead\"", rendered.ToHtmlString());
 
             await overlay.SaveAsync(overlay.Settings with { Widgets = [OverlayCatalog.CreateWidget("duration")] });

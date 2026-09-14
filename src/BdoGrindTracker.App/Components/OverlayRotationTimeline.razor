@@ -1,5 +1,12 @@
 @using BdoGrindTracker.App.Overlay
 <div class="rotation-timeline" title="@(State.SpotName + " · " + State.Status + (State.Error is null ? "" : " · " + State.Error))">
+    @if (State.Error is not null) { <div class="rotation-sector" role="status">@State.Error</div> }
+    @if (RotationTimelinePresentation.ShowSetup(State))
+    {
+        <div class="rotation-setup" role="status"><strong>@RotationTimelinePresentation.SetupCount(State)</strong><span>@RotationTimelinePresentation.SetupHint</span></div>
+    }
+    else
+    {
     <svg viewBox="0 0 600 120" preserveAspectRatio="none" class="rotation-track" role="img" aria-label="Rotation Monitor: Referenz oben, aktuelle Rotation unten">
         @foreach (var group in RotationPhases.Create(State.SpotId, Reference?.Events ?? State.Events, Reference?.Duration ?? State.Elapsed, Colors).GroupBy(p => p.Group))
         {
@@ -29,9 +36,9 @@
             {
                 <g>
                     <title>@(e.Label + " · " + RotationTimelinePresentation.Time(e.Seconds) + (Mode == "sectors" && State.SectorBests.TryGetValue(e.Key, out var sector) ? " · Bestabschnitt " + RotationTimelinePresentation.Time(sector) : ""))</title>
-                    @if (e.Kind is "porter" or "offer")
+                    @if (e.Kind is "porter" or "offer" or "hog" or "agris" or "failure")
                     {
-                        <line class="rotation-pack-marker" x1="@X(e.Seconds)" x2="@X(e.Seconds)" y1="@(y-18)" y2="@(y-11)" stroke="@RotationPhases.MarkerColor(Colors, row == 1)" stroke-width="2" vector-effect="non-scaling-stroke" />
+                        <line class="rotation-pack-marker" x1="@X(e.Seconds)" x2="@X(e.Seconds)" y1="@(y-18)" y2="@(y-11)" stroke="@(e.Kind == "failure" ? "#E87C79" : RotationPhases.MarkerColor(Colors, row == 1))" stroke-width="2" vector-effect="non-scaling-stroke" />
                     }
                 </g>
             }
@@ -45,6 +52,7 @@
     @if (Mode == "sectors")
     {
         <div class="rotation-sector" data-overlay-fit>@RotationTimelinePresentation.Sector(State)</div>
+    }
     }
 </div>
 @code {

@@ -8,7 +8,7 @@ namespace BdoGrindTracker.App.Analysis;
 // which cannot load the Windows image recognition implementations.
 internal static partial class RotationProfiles
 {
-    internal static bool Supports(string? spotId) => spotId == LootSpotCatalog.HermesiaId;
+    internal static bool Supports(string? spotId) => spotId is LootSpotCatalog.HermesiaId or LootSpotCatalog.AphrodonId;
 
     internal static RotationMonitorSnapshot Present(string? spotId, RotationMonitorSnapshot? snapshot = null)
     {

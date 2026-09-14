@@ -11,7 +11,7 @@ public sealed class RotationMonitorSpotTests
     public void UnknownAndUnsupportedSpotsNeverShowHermesiaRecords()
     {
         var demo = HermesiaRotationDemo.At(350);
-        foreach (var spot in new string?[] { null, LootSpotCatalog.AphrodonId })
+        foreach (var spot in new string?[] { null, "unsupported-spot" })
         {
             var snapshot = new OverlayMetrics().Update(new TrackerState { SpotId = spot, Rotation = demo }, new());
             Assert.Equal(spot, snapshot.Rotation.SpotId);
@@ -45,7 +45,7 @@ public sealed class RotationMonitorSpotTests
         });
         var now = DateTimeOffset.UtcNow;
         Assert.True(monitor.Snapshot(now, LootSpotCatalog.HermesiaId).HasProfile);
-        Assert.False(monitor.Snapshot(now, LootSpotCatalog.AphrodonId).HasProfile);
+        Assert.False(monitor.Snapshot(now, "unsupported-spot").HasProfile);
         Assert.True(created[0].Disposed);
         Assert.True(monitor.Snapshot(now, LootSpotCatalog.HermesiaId).HasProfile);
         Assert.Equal(2, created.Count);

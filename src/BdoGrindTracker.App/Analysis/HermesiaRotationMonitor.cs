@@ -75,7 +75,7 @@ internal sealed class HermesiaMessageGate
 }
 
 /// <summary>Searches cached samples only when a regular probe finds a new banner.</summary>
-internal sealed class HermesiaBufferedSearch
+internal class BufferedRotationSearch(Func<string, IReadOnlyList<(string Kind, string Label)>> parse)
 {
     private readonly Dictionary<string, (DateTimeOffset First, DateTimeOffset Last)> _emitted = [];
 
@@ -85,7 +85,7 @@ internal sealed class HermesiaBufferedSearch
         List<(string Kind, string Label, DateTimeOffset At)> result = [];
         if (times.Count == 0) return result;
         var now = times[^1];
-        foreach (var (kind, label) in HermesiaMessages.Parse(text(times.Count - 1)))
+        foreach (var (kind, label) in parse(text(times.Count - 1)))
         {
             if (_emitted.TryGetValue(kind, out var previous) &&
                 (now - previous.First < TimeSpan.FromSeconds(8) || now - previous.Last <= TimeSpan.FromSeconds(4)))
@@ -100,7 +100,7 @@ internal sealed class HermesiaBufferedSearch
             {
                 // A capture gap must never join separate occurrences.
                 if (times[i + 1] - times[i] > TimeSpan.FromSeconds(2)) break;
-                if (HermesiaMessages.Parse(text(i)).Any(e => e.Kind == kind))
+                if (parse(text(i)).Any(e => e.Kind == kind))
                 { first = times[i]; matches++; misses = 0; }
                 else if (++misses >= 2) break;
             }
@@ -115,15 +115,16 @@ internal sealed class HermesiaBufferedSearch
 }
 
 /// <summary>Buffers only rotation crops; OCR never blocks the loot capture pipeline.</summary>
-internal sealed class HermesiaRotationMonitor : IRotationProfileMonitor
+internal class BufferedRotationProfileMonitor : IRotationProfileMonitor
 {
     internal static readonly TimeSpan SampleInterval = TimeSpan.FromMilliseconds(500);
     internal static readonly TimeSpan ProbeInterval = TimeSpan.FromSeconds(3);
     private readonly object _sync = new();
-    private readonly HermesiaRotationTracker _tracker;
+    private readonly IRotationEventTracker _tracker;
+    private readonly RotationMessageProfile _profile;
     private readonly Func<Bitmap, string>? _recognize;
     private readonly List<Sample> _buffer = [];
-    private HermesiaBufferedSearch _search = new();
+    private BufferedRotationSearch _search;
     private CompanionWindowsOcrRecognizer? _ocr;
     private DateTimeOffset? _lastFrame, _lastSample, _lastProbe;
     private long _epoch;
@@ -143,8 +144,8 @@ internal sealed class HermesiaRotationMonitor : IRotationProfileMonitor
         internal void Release() { if (Interlocked.Decrement(ref _references) == 0) Pixels.Dispose(); }
     }
 
-    internal HermesiaRotationMonitor(string? path = null, Func<Bitmap, string>? recognize = null)
-    { _tracker = new(path); _recognize = recognize; }
+    internal BufferedRotationProfileMonitor(IRotationEventTracker tracker, RotationMessageProfile profile, Func<Bitmap, string>? recognize = null)
+    { _tracker = tracker; _profile = profile; _search = new(profile.Parse); _recognize = recognize; }
     public RotationMonitorSnapshot Snapshot(DateTimeOffset now)
     {
         lock (_sync)
@@ -161,7 +162,7 @@ internal sealed class HermesiaRotationMonitor : IRotationProfileMonitor
     { lock (_sync) InterruptCore(status); }
     private void InterruptCore(string status)
     {
-        _epoch++; _tracker.Interrupt(status); _search = new();
+        _epoch++; _tracker.Interrupt(status); _search = new(_profile.Parse);
         _lastFrame = _lastSample = _lastProbe = null;
         foreach (var sample in _buffer) sample.Release();
         _buffer.Clear();
@@ -176,7 +177,7 @@ internal sealed class HermesiaRotationMonitor : IRotationProfileMonitor
                 InterruptCore("Bildsignal unterbrochen · warte auf erstes Ereignis");
             _lastFrame = at;
             if (_lastSample is { } sampled && at - sampled < SampleInterval) return;
-            var region = new Rectangle(frame.Width / 4, (int)(frame.Height * .54), frame.Width / 2, (int)(frame.Height * .16));
+            var region = _profile.Crop(frame.Width, frame.Height);
             if (region.Width < 32 || region.Height < 16) return;
             _buffer.Add(new Sample(frame.Clone(region, System.Drawing.Imaging.PixelFormat.Format24bppRgb), at));
             _lastSample = at;
@@ -236,7 +237,7 @@ internal sealed class HermesiaRotationMonitor : IRotationProfileMonitor
                         _ocr ??= CompanionWindowsOcrRecognizer.TryCreate("en-US", requirePreferredLanguage: true);
                         if (_ocr is null) throw new InvalidOperationException("Englische Windows-Texterkennung fehlt.");
                         using var pixels = CompanionFrameDecoder.Decode(sample.Pixels);
-                        return sample.Text = HermesiaMessages.Recognize(pixels, _ocr);
+                        return sample.Text = _profile.Recognize(pixels, _ocr);
                     }
                     var events = search.Read(samples.Select(s => s.At).ToArray(), Read);
                     lock (_sync)
@@ -264,3 +265,8 @@ internal sealed class HermesiaRotationMonitor : IRotationProfileMonitor
     public void Dispose()
     { lock (_sync) { _disposed = true; InterruptCore("Rotation Monitor beendet"); } }
 }
+
+internal sealed class HermesiaBufferedSearch() : BufferedRotationSearch(HermesiaMessages.Parse);
+
+internal sealed class HermesiaRotationMonitor(string? path = null, Func<Bitmap, string>? recognize = null)
+    : BufferedRotationProfileMonitor(new HermesiaRotationTracker(path), RotationMessageProfile.Hermesia, recognize);

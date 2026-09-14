@@ -49,6 +49,8 @@ internal sealed class NativeOverlayRenderState
 
     private static bool SameRotation(RotationMonitorSnapshot before, RotationMonitorSnapshot after, string mode) =>
         before.SpotId == after.SpotId && before.Elapsed == after.Elapsed &&
+        before.SmallScarecrows == after.SmallScarecrows &&
+        before.Error == after.Error &&
         before.Synchronized == after.Synchronized && before.Events.SequenceEqual(after.Events) &&
         SameRun(RotationTimelinePresentation.Reference(before, mode), RotationTimelinePresentation.Reference(after, mode)) &&
         (mode != "sectors" || RotationTimelinePresentation.Sector(before) == RotationTimelinePresentation.Sector(after));

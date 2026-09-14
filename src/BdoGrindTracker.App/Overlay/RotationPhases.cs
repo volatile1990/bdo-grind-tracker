@@ -22,6 +22,7 @@ public static class RotationPhases
     }
     public static IReadOnlyList<RotationPhase> Create(string? spotId, IReadOnlyList<RotationEvent> events, double elapsed, string? colors = "colored")
     {
+        if (spotId == LootSpotCatalog.AphrodonId) return CreateAphrodon(events, elapsed, colors);
         if (spotId != LootSpotCatalog.HermesiaId || events.Count == 0 || !double.IsFinite(elapsed) || elapsed <= 0) return [];
         var phases = new List<RotationPhase>();
         string? active = null;
@@ -69,6 +70,30 @@ public static class RotationPhases
     }
 
     private static readonly string[] Order = ["startup", "drakania", "mine-1-1", "mine-1-2", "mine-2-1", "mine-2-2", "dragon", "afk"];
+    private static IReadOnlyList<RotationPhase> CreateAphrodon(IReadOnlyList<RotationEvent> events, double elapsed, string? colors)
+    {
+        if (!double.IsFinite(elapsed) || elapsed <= 0) return [];
+        var result = new List<RotationPhase>();
+        var boundaries = events.Where(e => e.Kind is "start" or "hog" or "agris" or "afk" or "end" or "failure")
+            .Where(e => double.IsFinite(e.Seconds) && e.Seconds >= 0 && e.Seconds <= elapsed).OrderBy(e => e.Seconds).ToArray();
+        var wave = 0;
+        for (var i = 0; i < boundaries.Length; i++)
+        {
+            var e = boundaries[i];
+            if (e.Kind is "end" or "failure") break;
+            if (e.Kind is "hog" or "agris") wave++;
+            var end = i + 1 < boundaries.Length ? boundaries[i + 1].Seconds : elapsed;
+            if (end <= e.Seconds) continue;
+            var color = e.Kind switch { "agris" => "#9275BE", "hog" => "#A58B48", "big-scarecrow" => "#32788F", "afk" => "#4D6275", _ => "#78643C" };
+            color = NormalizeColors(colors) switch {
+                "gold" => i % 2 == 0 ? "#78643C" : "#948052",
+                "slate" => i % 2 == 0 ? "#45535E" : "#61717E",
+                "minimal" => i % 2 == 0 ? "#39434B" : "#505B64", _ => color };
+            var name = e.Kind switch { "start" => "Anlauf", "hog" => $"{wave}. Hog + Scarecrow", "agris" => $"{wave}. Agris + Scarecrow", "big-scarecrow" => "Vogelscheuche", _ => "AFK" };
+            result.Add(new(e.Key, e.Kind is "start" or "afk" ? e.Kind : $"wave-{wave}", name, e.Seconds, end, color, color));
+        }
+        return result;
+    }
     private static (string Group, string Name, string Color, string GroupColor) Style(string id) => id switch
     {
         "startup" => ("startup", "Startup · 5 Porter", "#A58B48", "#D8BD75"),

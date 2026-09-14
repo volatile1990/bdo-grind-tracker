@@ -13,6 +13,38 @@ namespace BdoGrindTracker.BrowserPreview.Tests;
 public sealed class RotationPreviewTests
 {
     [Theory]
+    [InlineData(0)] [InlineData(1)] [InlineData(2)]
+    public async Task AphrodonSetupReplacesTimelineEvenAfterAFailedRun(int count)
+    {
+        var state = AphrodonRotationDemo.At(300) with { Synchronized = false, SmallScarecrows = count };
+        await using var provider = new ServiceCollection().AddLogging().BuildServiceProvider();
+        await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
+        var markup = await renderer.Dispatcher.InvokeAsync(async () => WebUtility.HtmlDecode(
+            (await renderer.RenderComponentAsync<OverlayRotationTimeline>(ParameterView.FromDictionary(
+                new Dictionary<string, object?> { ["State"] = state }))).ToHtmlString()));
+        Assert.Contains($"{count}/3 Small Scarecrows spawned", markup);
+        Assert.Contains(RotationTimelinePresentation.SetupHint, markup);
+        Assert.DoesNotContain("<svg", markup);
+    }
+    [Fact]
+    public async Task AphrodonRendersNineWaveGroupsAndAfkInTheSharedOverlay()
+    {
+        var state = AphrodonRotationDemo.At(700);
+        await using var provider = new ServiceCollection().AddLogging().BuildServiceProvider();
+        await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
+        var markup = await renderer.Dispatcher.InvokeAsync(async () => WebUtility.HtmlDecode(
+            (await renderer.RenderComponentAsync<OverlayRotationTimeline>(ParameterView.FromDictionary(
+                new Dictionary<string, object?> { ["State"] = state }))).ToHtmlString()));
+        Assert.Contains("Aphrodon Temple", markup);
+        Assert.Contains("9. Hog", markup);
+        Assert.Contains("6. Agris", markup);
+        Assert.Contains("AFK", markup);
+        Assert.Contains("rotation-playhead", markup);
+        Assert.Contains("12:44", markup);
+        Assert.DoesNotContain("Drakania", markup);
+    }
+
+    [Theory]
     [InlineData("best", "2:00")]
     [InlineData("ideal", "1:50")]
     [InlineData("sectors", "2:00")]
@@ -53,7 +85,7 @@ public sealed class RotationPreviewTests
         }, new());
 
         Assert.Equal(spotId, snapshot.Rotation.SpotId);
-        Assert.False(snapshot.Rotation.HasProfile);
+        Assert.Equal(spotId == LootSpotCatalog.AphrodonId, snapshot.Rotation.HasProfile);
         Assert.False(snapshot.Rotation.Synchronized);
         Assert.Null(snapshot.Rotation.Best);
         Assert.Null(snapshot.Rotation.Ideal);

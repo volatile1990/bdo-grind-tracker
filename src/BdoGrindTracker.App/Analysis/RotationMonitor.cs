@@ -19,6 +19,8 @@ internal static partial class RotationProfiles
         new Dictionary<string, Func<IRotationProfileMonitor>>(StringComparer.Ordinal)
         {
             [LootSpotCatalog.HermesiaId] = () => new HermesiaRotationMonitor(HermesiaRotationTracker.DefaultPath),
+            [LootSpotCatalog.AphrodonId] = () => new BufferedRotationProfileMonitor(
+                new AphrodonRotationTracker(AphrodonRotationTracker.DefaultPath), RotationMessageProfile.Aphrodon),
         };
 
     internal static IRotationProfileMonitor? Create(string? spotId) =>

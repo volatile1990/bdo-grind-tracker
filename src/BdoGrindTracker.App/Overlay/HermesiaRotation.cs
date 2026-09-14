@@ -14,6 +14,7 @@ public sealed record RotationRun(double Duration, IReadOnlyList<RotationEvent> E
 public sealed record SessionRotation(string SpotId, DateTimeOffset StartedAt, RotationRun Run);
 public sealed record RotationMonitorSnapshot
 {
+    public int? SmallScarecrows { get; init; }
     public string? SpotId { get; init; }
     public string SpotName { get; init; } = "Noch kein Spot erkannt";
     public bool HasProfile { get; init; }
@@ -30,13 +31,13 @@ public sealed record RotationMonitorSnapshot
 }
 
 /// <summary>Times the first event after grind start/AFK through the next AFK end.</summary>
-internal sealed class HermesiaRotationTracker
+internal sealed class HermesiaRotationTracker : IRotationEventTracker
 {
     private static readonly string[] RequiredMechanics = ["drakania", "drakania-kill", "transfer", "mine-enter", "dragon", "afk"];
     private readonly List<RotationEvent> _events = [];
     private readonly List<RotationRun> _runs;
     private readonly List<(DateTimeOffset StartedAt, RotationRun Run)> _completed = [];
-    internal (DateTimeOffset StartedAt, RotationRun Run)[] DrainCompleted()
+    public (DateTimeOffset StartedAt, RotationRun Run)[] DrainCompleted()
     {
         var result = _completed.ToArray();
         _completed.Clear();
@@ -82,10 +83,10 @@ internal sealed class HermesiaRotationTracker
         return new(run.Duration - first, run.Events.Select(e => e with { Seconds = Math.Max(0, e.Seconds - first) }).ToArray()) { TimingVersion = 2 };
     }
 
-    internal void Interrupt(string status = "Warte auf erstes Ereignis")
+    public void Interrupt(string status = "Warte auf erstes Ereignis")
     { _start = _lastBoundary = null; _finishedElapsed = 0; _events.Clear(); _afk = false; _status = status; }
 
-    internal void Observe(string kind, string label, DateTimeOffset at)
+    public void Observe(string kind, string label, DateTimeOffset at)
     {
         if (_lastBoundary is { } boundary && at < boundary) return;
         // The same suspension message means mine-cleared during combat and the
@@ -145,7 +146,7 @@ internal sealed class HermesiaRotationTracker
             if (_events[i].Kind == kind) _events[i] = _events[i] with { Occurrence = ++occurrence };
     }
 
-    internal RotationMonitorSnapshot Snapshot(DateTimeOffset now)
+    public RotationMonitorSnapshot Snapshot(DateTimeOffset now)
     {
         var best = _runs.MinBy(run => run.Duration);
         var sectors = new Dictionary<string, double>();
@@ -212,7 +213,10 @@ internal sealed class HermesiaRotationTracker
 
 public static class RotationTimelinePresentation
 {
-    public static bool IsCheckpoint(RotationEvent e) => e.Kind is not "porter" and not "offer";
+    public static bool ShowSetup(RotationMonitorSnapshot state) => state.SpotId == BdoGrindTracker.Core.LootSpotCatalog.AphrodonId && !state.Synchronized;
+    public const string SetupHint = "Rotation tracking startet, sobald alle 3 Scarecrows aufgestellt sind.";
+    public static string SetupCount(RotationMonitorSnapshot state) => $"{Math.Clamp(state.SmallScarecrows ?? 0, 0, 3)}/3 Small Scarecrows spawned";
+    public static bool IsCheckpoint(RotationEvent e) => e.Kind is not "porter" and not "offer" and not "big-scarecrow";
     public static string Mark(RotationEvent e) => e.Kind switch {
         "drakania" => "D", "drakania-kill" => "D✓", "transfer" => "B", "mine-enter" => "M" + e.Occurrence,
         "mine-second" => "P2", "mine-cleared" => "M✓", "dragon" => "R", "afk" => "AFK", "end" => "E", _ => "" };

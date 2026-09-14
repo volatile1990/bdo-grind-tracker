@@ -527,6 +527,21 @@ internal sealed class NativeOverlayRenderer : IDisposable
 
     private void DrawRotation(Graphics graphics, OverlayWidget widget, RectangleF inner, RotationMonitorSnapshot rotation)
     {
+        if (rotation.Error is not null)
+        {
+            Draw(graphics, rotation.Error, new RectangleF(inner.X, inner.Y, inner.Width, 16), 10, Muted);
+            inner.Y += 18; inner.Height = Math.Max(1, inner.Height - 18);
+        }
+        if (RotationTimelinePresentation.ShowSetup(rotation))
+        {
+            Draw(graphics, RotationTimelinePresentation.SetupCount(rotation),
+                new RectangleF(inner.X, inner.Y + inner.Height * .15f, inner.Width, inner.Height * .35f),
+                20 * (float)widget.FontScale, Gold, true, StringAlignment.Center, StringAlignment.Center);
+            Draw(graphics, RotationTimelinePresentation.SetupHint,
+                new RectangleF(inner.X, inner.Y + inner.Height * .5f, inner.Width, inner.Height * .4f),
+                12 * (float)widget.FontScale, Muted, false, StringAlignment.Center, StringAlignment.Center);
+            return;
+        }
         var mode = widget.RotationComparison;
         if (mode == "sectors")
         {
@@ -573,9 +588,10 @@ internal sealed class NativeOverlayRenderer : IDisposable
                         Math.Clamp(bandHeight*.45f, 11, 18), Color.White, false, StringAlignment.Center, StringAlignment.Center);
             }
             using var pen = new Pen(ColorTranslator.FromHtml(RotationPhases.MarkerColor(widget.RotationColors, row == 1)), 2);
-            foreach (var e in events.Where(e => e.Seconds <= end && e.Kind is "porter" or "offer"))
+            using var failurePen = new Pen(ColorTranslator.FromHtml("#E87C79"), 2);
+            foreach (var e in events.Where(e => e.Seconds <= end && e.Kind is "porter" or "offer" or "hog" or "agris" or "failure"))
             {
-                graphics.DrawLine(pen, X(e.Seconds), y-bandHeight/2-4, X(e.Seconds), y-bandHeight/2+3);
+                graphics.DrawLine(e.Kind == "failure" ? failurePen : pen, X(e.Seconds), y-bandHeight/2-4, X(e.Seconds), y-bandHeight/2+3);
 
             }
         }
