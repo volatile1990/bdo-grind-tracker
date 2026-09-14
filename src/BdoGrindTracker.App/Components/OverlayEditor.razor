@@ -13,7 +13,7 @@
     <div class="page-heading oe-heading">
         <div><h1>Ingame-Overlays</h1></div>
         <div class="page-actions">
-            <button class="button secondary" aria-pressed="@Overlay.State.Previewing" @onclick="TogglePreview"><AppIcon Name="monitor" />@(Overlay.State.Previewing ? "Vorschau beenden" : "Auf Bildschirm testen")</button>
+            <button class="button secondary" aria-pressed="@Overlay.State.Previewing" @onclick="TogglePreview"><AppIcon Name="monitor" />@(Overlay.State.Previewing ? "Vorschau beenden" : IsBrowserPreview ? "Im Browser ansehen" : "Auf Bildschirm testen")</button>
             <label class="oe-enable"><span>Overlay aktiv</span><input type="checkbox" class="switch" checked="@_settings.Enabled" @onchange="e => Change(s => s with { Enabled = Checked(e) })" /></label>
         </div>
     </div>
@@ -29,7 +29,7 @@
                 <button type="button" class="icon-button" aria-label="Ausgewähltes Overlay löschen" title="Overlay löschen" @onclick="RequestOverlayDelete" disabled="@(WindowActionsBusy || Overlay.Overlays.Count <= 1)"><AppIcon Name="delete" /></button>
             </div>
         </div>
-        <p class="oe-help">Jedes aktive Overlay erscheint als eigenes Fenster mit eigenem Layout, Position und Verhalten. Hier bearbeitest du „@SelectedOverlayName“.</p>
+        <p class="oe-help">@(IsBrowserPreview ? "Hier kannst du jedes Layout bearbeiten und einzeln im Browser ansehen. Eigene Desktop-Fenster und Bildschirmfunktionen sind nur unter Windows verfügbar." : "Jedes aktive Overlay erscheint als eigenes Fenster mit eigenem Layout, Position und Verhalten.") Hier bearbeitest du „@SelectedOverlayName“.</p>
     </section>
 
     @if (_error is not null) { <div class="notice error-notice" role="alert"><AppIcon Name="info" /><span>@_error</span></div> }
@@ -41,7 +41,7 @@
     </div>
 
     <section class="panel oe-shortcuts" aria-label="Globale Overlay-Tastenkürzel">
-        <div class="oe-shortcuts-title"><strong>Tastenkürzel</strong><small>Für alle Overlays</small><span class="oe-shortcuts-state @(Overlay.Hotkeys.Enabled ? "enabled" : "")">@(Overlay.Hotkeys.Enabled ? "Global aktiv" : "Deaktiviert")</span></div>
+        <div class="oe-shortcuts-title"><strong>Tastenkürzel</strong><small>Für alle Overlays</small><span class="oe-shortcuts-state @(Overlay.Hotkeys.Enabled && !IsBrowserPreview ? "enabled" : "")">@(IsBrowserPreview ? "Nur Vorschau" : Overlay.Hotkeys.Enabled ? "Global aktiv" : "Deaktiviert")</span></div>
         <button type="button" class="oe-shortcut" @onclick="OpenHotkeyEditor" aria-label="Tastenkürzel für alle Overlays ein/aus ändern"><span>Alle Overlays ein / aus</span><kbd>@Overlay.Hotkeys.ToggleOverlay.DisplayText</kbd></button>
         <button type="button" class="oe-shortcut" @onclick="OpenHotkeyEditor" aria-label="Tastenkürzel für Mausbedienung aller Overlays ändern"><span>Verschieben / Klicks ans Spiel</span><kbd>@Overlay.Hotkeys.ToggleInteraction.DisplayText</kbd></button>
         <button type="button" class="button secondary" @onclick="OpenHotkeyEditor">Anpassen</button>
@@ -100,8 +100,9 @@
             <div class="oe-canvas-toolbar"><h2 id="oe-canvas-title">Layout</h2><label class="oe-check"><input type="checkbox" checked="@_settings.SnapToGrid" @onchange="e => Change(s => s with { SnapToGrid = Checked(e) })" /><span>8-px-Raster</span></label><span class="oe-data-kind">@(_demo ? "Beispieldaten" : "Live-Daten")</span></div>
             <div class="oe-stage-viewport" @ref="_viewport">
                 <div class="oe-stage-wrap">
-                    <div class="oe-stage @(_settings.ShowBorder ? "has-border" : "")" data-overlay-id="@_editingOverlayId" data-width="@Css(_settings.Width)" data-height="@Css(_settings.Height)" data-snap="@_settings.SnapToGrid.ToString().ToLowerInvariant()" style="@StageStyle" @onclick="ClearSelection">
-                        <div class="oe-stage-content">
+                    <div class="oe-stage @(_settings.ShowBorder ? "has-border" : "") @(Chrome.HasTitleBar ? "has-window-chrome" : "")" data-overlay-id="@_editingOverlayId" data-width="@Css(_settings.Width)" data-height="@Css(_settings.Height)" data-chrome-x="@Css(Chrome.Horizontal)" data-chrome-y="@Css(Chrome.Vertical)" data-snap="@_settings.SnapToGrid.ToString().ToLowerInvariant()" style="@StageStyle" @onclick="ClearSelection">
+                        @if (Chrome.HasTitleBar) { <OverlayWindowTitle Title="@SelectedOverlayName" /> }
+                        <div class="oe-stage-content" style="@ContentStyle">
                         @if (_settings.Widgets.Count == 0) { <div class="oe-canvas-empty"><AppIcon Name="plus" /><strong>Dein Layout</strong><span>Füge das erste Modul hinzu.</span></div> }
                         @foreach (var widget in _settings.Widgets)
                         {
@@ -123,6 +124,7 @@
             <div class="oe-canvas-dimensions"><label>Breite <input aria-label="Overlay-Breite" type="number" min="160" max="1600" step="8" value="@Css(_settings.Width)" @onchange="e => CanvasDimension(e, true)" /></label><span>×</span><label>Höhe <input aria-label="Overlay-Höhe" type="number" min="64" max="1200" step="8" value="@Css(_settings.Height)" @onchange="e => CanvasDimension(e, false)" /></label><span>px</span><span class="oe-fit-label">Vorschau passt sich der Fläche an</span></div>
             <p class="oe-canvas-help">Modul auswählen, am Griff verschieben und an der Ecke vergrößern. Pfeiltasten verschieben das ausgewählte Modul; Umschalt bewegt es um 8 px.</p>
             <p class="oe-canvas-help">Breite, Höhe und die Ecke unten rechts ändern nur die Fensterfläche. Inhalte außerhalb der Fläche werden ausgeblendet und beim Vergrößern wieder sichtbar. Links und oben lässt sich die Fläche bis zum ersten Modul verkleinern; Größe und Abstände der Module bleiben erhalten.</p>
+            @if (Chrome.HasTitleBar) { <p class="oe-canvas-help">Titelleiste und Rahmen kommen außen hinzu. Die Maße oben beziehen sich auf die Inhaltsfläche.</p> }
         </section>
 
         <section class="panel oe-inspector" aria-labelledby="oe-inspector-title">
@@ -167,7 +169,6 @@
                             <label class="oe-check"><input type="checkbox" checked="@selected.ShowRealTime" disabled="@(!selected.ShowGameTime && !selected.ShowDayNightCountdown)" @onchange="e => ChangeWidget(w => w with { ShowRealTime = Checked(e) })" /><span>Echte Uhrzeit</span></label>
                             <label class="oe-check"><input type="checkbox" checked="@selected.ShowGameTime" disabled="@(!selected.ShowRealTime && !selected.ShowDayNightCountdown)" @onchange="e => ChangeWidget(w => w with { ShowGameTime = Checked(e) })" /><span>BDO-Ingame-Zeit</span></label>
                             <label class="oe-check"><input type="checkbox" checked="@selected.ShowDayNightCountdown" disabled="@(!selected.ShowRealTime && !selected.ShowGameTime)" @onchange="e => ChangeWidget(w => w with { ShowDayNightCountdown = Checked(e) })" /><span>Countdown bis Tag / Nacht</span></label>
-                            <label class="oe-check"><input type="checkbox" checked="@selected.ClockShowSeconds" @onchange="e => ChangeWidget(w => w with { ClockShowSeconds = Checked(e) })" /><span>Sekunden anzeigen</span></label>
                             <label class="oe-field"><span>BDO-Zeitkorrektur (reale Minuten)</span><input type="number" aria-label="BDO-Zeitkorrektur" min="-240" max="240" step="1" value="@selected.ClockOffsetMinutes" @onchange='e => WidgetNumber(e, "clockOffset")' /><small>Positiv stellt die BDO-Zeit vor, negativ zurück.</small></label>
                             <p class="oe-help">Echte Uhrzeit: lokale Windows-Zeit. Die BDO-Zeit wird aus dem regulären EU/NA-Zyklus berechnet: 200 Minuten Tag, 40 Minuten Nacht. Bei einer abweichenden Serverzeit kannst du die Berechnung korrigieren. Der Countdown zählt reale Zeit.</p>
                         </div>

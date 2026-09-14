@@ -1,52 +1,121 @@
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Drawing.Text;
+using BdoGrindTracker.App.Theming;
 
 namespace BdoGrindTracker.App.Overlay.Native;
 
 internal sealed class NativeOverlayRenderer : IDisposable
 {
-    private static readonly Color Gold = Color.FromArgb(242, 199, 108);
-    private static readonly Color Text = Color.FromArgb(237, 241, 245);
-    private static readonly Color Muted = Color.FromArgb(154, 175, 190);
-    private static readonly Color Positive = Color.FromArgb(125, 211, 181);
+    // A renderer belongs to one overlay window and is used on that window's UI thread.
+    // Reset the palette on every frame so a live theme switch never retains old styling.
+    private bool _blackDesert, _light, _cats;
+    private int _backgroundAlpha;
+    private Color Gold => _light ? Color.FromArgb(54, 95, 145) : _cats ? Color.FromArgb(237, 179, 202) :
+        _blackDesert ? Color.FromArgb(211, 182, 117) : Color.FromArgb(242, 199, 108);
+    private Color Text => _light ? Color.FromArgb(36, 50, 68) : _cats ? Color.FromArgb(244, 231, 238) :
+        _blackDesert ? Color.FromArgb(230, 223, 205) : Color.FromArgb(237, 241, 245);
+    private Color Muted => _light ? Color.FromArgb(82, 100, 120) : _cats ? Color.FromArgb(188, 169, 189) :
+        _blackDesert ? Color.FromArgb(172, 166, 149) : Color.FromArgb(154, 175, 190);
+    private Color Positive => _light ? Color.FromArgb(35, 117, 87) : _cats ? Color.FromArgb(166, 215, 186) :
+        _blackDesert ? Color.FromArgb(164, 191, 131) : Color.FromArgb(125, 211, 181);
+    private Color Warning => _light ? Color.FromArgb(133, 87, 33) :
+        _blackDesert ? Color.FromArgb(228, 206, 145) : Gold;
+    private Color SlotSurface => _light ? Color.White : Color.FromArgb(32, 26, 39);
+    private Color SlotEdge => _light ? Color.FromArgb(157, 172, 190) : Color.FromArgb(119, 96, 121);
+    private Color RareEdge => _light ? Color.FromArgb(148, 108, 39) : Gold;
+    private Color Heading => _blackDesert ? Gold : Muted;
+    private static readonly Color Brass = Color.FromArgb(96, 90, 73);
     private readonly Dictionary<string, Image?> _icons = new(StringComparer.OrdinalIgnoreCase);
 
     internal Bitmap Render(Size size, OverlaySettings settings, OverlaySnapshot snapshot,
-        out IReadOnlyDictionary<string, RectangleF> actions)
+        out IReadOnlyDictionary<string, RectangleF> actions, string title = "Grindcrest")
     {
+        var theme = AppThemes.Normalize(snapshot.ThemeId);
+        _blackDesert = theme == AppThemes.BlackDesert;
+        _light = theme == AppThemes.Light;
+        _cats = theme == AppThemes.Cats;
         var bitmap = new Bitmap(Math.Max(1, size.Width), Math.Max(1, size.Height), PixelFormat.Format32bppPArgb);
         using var graphics = Graphics.FromImage(bitmap);
         graphics.Clear(Color.Transparent);
         graphics.SmoothingMode = SmoothingMode.AntiAlias;
         graphics.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
-        var scale = (float)Math.Min(size.Width / settings.Width, size.Height / settings.Height);
+        var chrome = OverlayWindowChrome.For(snapshot.ThemeId, settings.ShowBorder);
+        var scale = (float)Math.Min(size.Width / chrome.OuterWidth(settings.Width),
+            size.Height / chrome.OuterHeight(settings.Height));
         graphics.ScaleTransform(scale, scale);
         var canvas = new RectangleF(0, 0, size.Width / scale, size.Height / scale);
         // Keep even a fully transparent background draggable. Alpha zero is a
         // hole in a layered window; alpha one remains visually transparent.
-        var alpha = Math.Max(settings.Interaction == "move" ? 1 : 0, (int)Math.Round(settings.BackgroundOpacity * 255));
-        FillRound(graphics, Color.FromArgb(alpha, 23, 29, 34), canvas, 10);
-        if (settings.ShowBorder)
+        var alpha = _backgroundAlpha = Math.Max(settings.Interaction == "move" ? 1 : 0,
+            (int)Math.Round(settings.BackgroundOpacity * 255));
+        if (_blackDesert)
+        {
+            FillRound(graphics, Color.FromArgb(alpha, 37, 37, 38), canvas, 1);
+            if (settings.ShowBorder) DrawBevel(graphics, canvas, Brass, 170);
+            if (chrome.HasTitleBar) DrawTitleBar(graphics, canvas, (float)chrome.Top, title, alpha);
+        }
+        else if (_light)
+            FillRound(graphics, Color.FromArgb(alpha, 245, 246, 248), canvas, 10);
+        else if (_cats)
+        {
+            FillRound(graphics, Color.FromArgb(alpha, 41, 35, 47), canvas, 10);
+            if (chrome.HasTitleBar) DrawCatTitleBar(graphics, canvas, (float)chrome.Top, title, alpha);
+        }
+        else
+            FillRound(graphics, Color.FromArgb(alpha, 23, 29, 34), canvas, 10);
+        if (!_blackDesert && settings.ShowBorder)
         {
             using var border = new Pen(Color.FromArgb(135, Gold), 1);
             using var path = Round(new RectangleF(.5f, .5f, canvas.Width - 1, canvas.Height - 1), 10);
             graphics.DrawPath(border, path);
         }
         var controls = new Dictionary<string, RectangleF>();
+        var contentHitBounds = new RectangleF((float)chrome.Left * scale, (float)chrome.Top * scale,
+            (float)(canvas.Width - chrome.Horizontal) * scale, (float)(canvas.Height - chrome.Vertical) * scale);
+        var contentState = graphics.Save();
+        graphics.TranslateTransform((float)chrome.Left, (float)chrome.Top);
+        if (chrome.HasTitleBar)
+            graphics.SetClip(new RectangleF(0, 0, (float)(canvas.Width - chrome.Horizontal),
+                (float)(canvas.Height - chrome.Vertical)));
         foreach (var placedWidget in settings.Widgets)
         {
             var rectangle = new RectangleF((float)placedWidget.X, (float)placedWidget.Y, (float)placedWidget.Width, (float)placedWidget.Height);
-            controls["widget:" + placedWidget.Id] = new RectangleF(rectangle.X * scale, rectangle.Y * scale,
+            var widgetHitBounds = new RectangleF((rectangle.X + (float)chrome.Left) * scale,
+                (rectangle.Y + (float)chrome.Top) * scale,
                 rectangle.Width * scale, rectangle.Height * scale);
+            controls["widget:" + placedWidget.Id] = chrome.HasTitleBar
+                ? RectangleF.Intersect(widgetHitBounds, contentHitBounds) : widgetHitBounds;
             var state = graphics.Save();
-            graphics.SetClip(rectangle);
-            FillRound(graphics, Color.FromArgb((int)(alpha * .11), 182, 201, 213), rectangle, 6);
-            if (snapshot.Metrics.TryGetValue(placedWidget.Kind, out var widgetMetric) && widgetMetric.IsWarning)
+            graphics.SetClip(rectangle, chrome.HasTitleBar ? CombineMode.Intersect : CombineMode.Replace);
+            // Faint square edges divide the shared window without competing
+            // with its title bar or the brighter inventory slots.
+            if (_blackDesert)
             {
-                FillRound(graphics, Color.FromArgb(13, Gold), rectangle, 6);
-                using var warningBorder = new Pen(Color.FromArgb(112, Gold), 1);
-                using var warningPath = Round(RectangleF.Inflate(rectangle, -.5f, -.5f), 6);
+                using var fill = new SolidBrush(Color.FromArgb((int)(alpha * .14), 8, 9, 11));
+                graphics.FillRectangle(fill, rectangle);
+                if (rectangle.Width > 1 && rectangle.Height > 1)
+                {
+                    using var edge = new Pen(Color.FromArgb((int)(alpha * .2), 155, 146, 126), 1);
+                    graphics.DrawRectangle(edge, rectangle.X + .5f, rectangle.Y + .5f, rectangle.Width - 1, rectangle.Height - 1);
+                }
+            }
+            else if (_light || _cats)
+            {
+                var radius = _cats ? 10 : 8;
+                FillRound(graphics, _light ? Color.FromArgb((int)(alpha * .65), Color.White) :
+                    Color.FromArgb((int)(alpha * .3), 57, 43, 61), rectangle, radius);
+                using var edge = new Pen(Color.FromArgb((int)(alpha * .18), SlotEdge), 1);
+                using var path = Round(RectangleF.Inflate(rectangle, -.5f, -.5f), radius);
+                graphics.DrawPath(edge, path);
+            }
+            else
+                FillRound(graphics, Color.FromArgb((int)(alpha * .11), 182, 201, 213), rectangle, 6);
+            if (!_blackDesert && snapshot.Metrics.TryGetValue(placedWidget.Kind, out var widgetMetric) && widgetMetric.IsWarning)
+            {
+                FillRound(graphics, Color.FromArgb(_light || _cats ? (int)(alpha * .05) : 13, Warning), rectangle, _cats ? 10 : 6);
+                using var warningBorder = new Pen(Color.FromArgb(_light || _cats ? (int)(alpha * .44) : 112, Warning), 1);
+                using var warningPath = Round(RectangleF.Inflate(rectangle, -.5f, -.5f), _cats ? 10 : 6);
                 graphics.DrawPath(warningBorder, warningPath);
             }
             var content = OverlayContentLayout.Create(placedWidget, snapshot);
@@ -66,7 +135,7 @@ internal sealed class NativeOverlayRenderer : IDisposable
                     var fontScale = (float)widget.FontScale;
                     var labelInset = widget.ShowIcon ? 17 * fontScale : 0;
                     if (widget.ShowIcon) DrawGlyph(graphics, "status", new RectangleF(inner.X, inner.Y + fontScale, 12 * fontScale, 12 * fontScale));
-                    Draw(graphics, "Tracking", new RectangleF(inner.X + labelInset, inner.Y, inner.Width - labelInset, 14 * fontScale), 10 * fontScale, Muted);
+                    Draw(graphics, "Tracking", new RectangleF(inner.X + labelInset, inner.Y, inner.Width - labelInset, 14 * fontScale), 10 * fontScale, Heading);
                     inner.Y += 18 * fontScale; inner.Height -= 18 * fontScale;
                 }
                 if (inner.Height <= 0)
@@ -88,16 +157,30 @@ internal sealed class NativeOverlayRenderer : IDisposable
                         PointF[] corners = [next.Location, new(next.Right,next.Bottom)];
                         using var transform = graphics.Transform;
                         transform.TransformPoints(corners);
-                        controls["new-session:"+widget.Id] = RectangleF.FromLTRB(corners[0].X,corners[0].Y,corners[1].X,corners[1].Y);
+                        var action = RectangleF.FromLTRB(corners[0].X,corners[0].Y,corners[1].X,corners[1].Y);
+                        if (chrome.HasTitleBar) action = RectangleF.Intersect(action, contentHitBounds);
+                        if (action.Width > 0 && action.Height > 0) controls["new-session:"+widget.Id] = action;
                     }
                     inner.Height = half;
                 }
                 var buttonHeight = Math.Min(inner.Height, 28 * (float)widget.FontScale);
                 inner.Y += (inner.Height - buttonHeight) / 2;
                 inner.Height = buttonHeight;
-                FillRound(graphics, Color.FromArgb(enabled ? 24 : 12, Gold), inner, 5);
-                using (var outline = new Pen(Color.FromArgb(enabled ? 100 : 50, Gold), 1))
-                using (var path = Round(inner, 5)) graphics.DrawPath(outline, path);
+                if (_blackDesert)
+                {
+                    FillPanel(graphics, inner, Color.FromArgb(enabled ? 240 : 160, 46, 45, 39),
+                        Color.FromArgb(enabled ? 240 : 160, 22, 23, 22));
+                    DrawBevel(graphics, inner, Gold, enabled ? 165 : 75);
+                }
+                else
+                {
+                    var fillAlpha = _light || _cats ? (enabled ? 24 : 12) * alpha / 255 : enabled ? 24 : 12;
+                    var outlineAlpha = _light || _cats ? (enabled ? 100 : 50) * alpha / 255 : enabled ? 100 : 50;
+                    FillRound(graphics, Color.FromArgb(fillAlpha, Gold), inner, _cats ? 9 : 5);
+                    using var outline = new Pen(Color.FromArgb(outlineAlpha, Gold), 1);
+                    using var path = Round(inner, _cats ? 9 : 5);
+                    graphics.DrawPath(outline, path);
+                }
                 var textBounds = inner;
                 var buttonColor = enabled ? Gold : Color.FromArgb(130, Gold);
                 var buttonTextBounds = new RectangleF(0, 0, Math.Max(0, inner.Width - 8), Math.Max(0, inner.Height - 4));
@@ -128,7 +211,11 @@ internal sealed class NativeOverlayRenderer : IDisposable
                     PointF[] corners = [inner.Location, new(inner.Right, inner.Bottom)];
                     using var transform = graphics.Transform;
                     transform.TransformPoints(corners);
-                    controls["toggle-tracking:" + widget.Id] = RectangleF.FromLTRB(corners[0].X, corners[0].Y, corners[1].X, corners[1].Y);
+                    var action = RectangleF.FromLTRB(corners[0].X, corners[0].Y, corners[1].X, corners[1].Y);
+                    // The visible content ends before the title/border. Cropped
+                    // controls must not remain clickable on that window chrome.
+                    if (chrome.HasTitleBar) action = RectangleF.Intersect(action, contentHitBounds);
+                    if (action.Width > 0 && action.Height > 0) controls["toggle-tracking:" + widget.Id] = action;
                 }
             }
             else if (OverlayCatalog.IsLootWidget(widget.Kind))
@@ -146,14 +233,19 @@ internal sealed class NativeOverlayRenderer : IDisposable
                 }
                 Draw(graphics,goal.Value,new RectangleF(inner.X,inner.Y,inner.Width,Math.Max(1,inner.Height-42)),20*(float)widget.FontScale,Gold,true);
                 var bar = new RectangleF(inner.X,inner.Bottom-38,inner.Width,22);
-                FillRound(graphics,Color.FromArgb(60,Gold),bar,3);
-                if (goal.Fraction > 0) FillRound(graphics,Color.FromArgb(128,104,54),new RectangleF(bar.X,bar.Y,bar.Width*(float)goal.Fraction,bar.Height),3);
-                Draw(graphics,goal.Percentage,bar,14*(float)widget.FontScale,Color.White,true,StringAlignment.Center,StringAlignment.Center);
+                var goalTrack = _light ? Color.FromArgb(231, 237, 245) : _cats ? Color.FromArgb(73, 55, 77) :
+                    _blackDesert ? Color.FromArgb(61, 57, 47) : Color.FromArgb(60, Gold);
+                var goalFill = _light ? Color.FromArgb(178, 201, 227) : _cats ? Color.FromArgb(119, 81, 110) :
+                    _blackDesert ? Color.FromArgb(101, 83, 49) : Color.FromArgb(128, 104, 54);
+                FillRound(graphics,goalTrack,bar,3);
+                if (goal.Fraction > 0) FillRound(graphics,goalFill,new RectangleF(bar.X,bar.Y,bar.Width*(float)goal.Fraction,bar.Height),3);
+                Draw(graphics,goal.Percentage,bar,14*(float)widget.FontScale,Text,true,StringAlignment.Center,StringAlignment.Center);
                 Draw(graphics,goal.Detail,new RectangleF(inner.X,inner.Bottom-13,inner.Width,13),10,Muted);
             }
             else DrawMetric(graphics, widget, inner, snapshot);
             graphics.Restore(state);
         }
+        graphics.Restore(contentState);
         if (settings.Interaction == "move")
         {
             using var grip = new Pen(Color.FromArgb(130, Gold), 1);
@@ -165,7 +257,7 @@ internal sealed class NativeOverlayRenderer : IDisposable
         return bitmap;
     }
 
-    private static void DrawClock(Graphics graphics, OverlayWidget widget, RectangleF inner, OverlaySnapshot snapshot)
+    private void DrawClock(Graphics graphics, OverlayWidget widget, RectangleF inner, OverlaySnapshot snapshot)
     {
         var clock = OverlayClockPresentation.Create(widget, snapshot.ClockUtcNow);
         var fontScale = (float)widget.FontScale;
@@ -173,7 +265,7 @@ internal sealed class NativeOverlayRenderer : IDisposable
         {
             var inset = widget.ShowIcon ? 17 * fontScale : 0;
             if (widget.ShowIcon) DrawGlyph(graphics, "clock", new RectangleF(inner.X, inner.Y + fontScale, 12 * fontScale, 12 * fontScale));
-            Draw(graphics, clock.Label, new RectangleF(inner.X + inset, inner.Y, inner.Width - inset, 15 * fontScale), 10 * fontScale, Muted);
+            Draw(graphics, clock.Label, new RectangleF(inner.X + inset, inner.Y, inner.Width - inset, 15 * fontScale), 10 * fontScale, Heading);
             inner.Y += 18 * fontScale; inner.Height -= 18 * fontScale;
         }
         var rowHeight = 26 * fontScale;
@@ -196,7 +288,7 @@ internal sealed class NativeOverlayRenderer : IDisposable
         }
     }
 
-    private static void DrawMetric(Graphics graphics, OverlayWidget widget, RectangleF inner, OverlaySnapshot snapshot)
+    private void DrawMetric(Graphics graphics, OverlayWidget widget, RectangleF inner, OverlaySnapshot snapshot)
     {
         if (!snapshot.Metrics.TryGetValue(widget.Kind, out var metric)) return;
         var fontScale = (float)widget.FontScale;
@@ -205,12 +297,13 @@ internal sealed class NativeOverlayRenderer : IDisposable
             var iconWidth = widget.ShowIcon ? 17 * fontScale : 0;
             if (widget.ShowIcon) DrawGlyph(graphics, widget.Kind, new RectangleF(inner.X, inner.Y + fontScale, 12 * fontScale, 12 * fontScale));
             Draw(graphics, metric.Label, new RectangleF(inner.X + iconWidth, inner.Y, inner.Width - iconWidth, 15 * fontScale),
-                10 * fontScale, Muted);
+                10 * fontScale, Heading);
             inner.Y += 18 * fontScale;
             inner.Height -= 18 * fontScale;
         }
         var font = widget.Kind is "spot" or "status" or "loot-scroll" or "grind-rating" ? 16 : 23;
-        var color = metric.IsWarning || widget.Kind is "silver" or "silver-hour" ? Gold : metric.Tone switch
+        var color = metric.IsWarning ? Warning :
+            widget.Kind is "silver" or "silver-hour" ? Gold : metric.Tone switch
         {
             OverlayMetricTone.Muted => Muted,
             OverlayMetricTone.Positive => Positive,
@@ -247,7 +340,13 @@ internal sealed class NativeOverlayRenderer : IDisposable
             {
                 if (widget.ShowIcon) DrawGlyph(graphics, "drops", new RectangleF(inner.X, inner.Y + fontScale, 12 * fontScale, 12 * fontScale));
                 Draw(graphics, view.Label, new RectangleF(inner.X + inset, inner.Y, inner.Width - inset, labelHeight),
-                    10 * fontScale, Muted);
+                    10 * fontScale, Heading);
+                if (_blackDesert)
+                {
+                    using var separator = new Pen(Color.FromArgb(46, 157, 140, 109), fontScale);
+                    var y = inner.Y + (float)view.HeaderHeight - 4 * fontScale;
+                    graphics.DrawLine(separator, inner.X, y, inner.Right, y);
+                }
             }
             inner.Y += (float)view.HeaderHeight;
             inner.Height -= (float)view.HeaderHeight;
@@ -279,27 +378,56 @@ internal sealed class NativeOverlayRenderer : IDisposable
             else if (presentation == "card") DrawLootCard(graphics, item, cell, widget.ShowIcon, fontScale, (float)view.ItemSize, itemFit);
             else DrawLootTile(graphics, item, cell, widget.ShowIcon, fontScale, itemFit);
         }
+        var emptySlots = OverlayLootPresentation.EmptySlotCount(widget, snapshot, view);
+        for (var index = view.VisibleItems.Count; index < view.VisibleItems.Count + emptySlots; index++)
+        {
+            var cell = new RectangleF(inner.X + index % view.Columns * (cellWidth + gap),
+                inner.Y + index / view.Columns * (cellHeight + gap), cellWidth, cellHeight);
+            FillRound(graphics, Color.FromArgb(184, 11, 12, 15), cell, .5f * itemFit);
+            DrawInventoryBorder(graphics, cell, rare: false, thickness: itemFit, alpha: 107, empty: true);
+        }
     }
 
     private void DrawLootTile(Graphics graphics, OverlayLootItem item, RectangleF cell, bool showIcon, float fontScale, float fit)
     {
-        FillRound(graphics, Color.FromArgb(170, 16, 21, 25), cell, 2 * fit);
+        if (_blackDesert)
+            FillRound(graphics, Color.FromArgb(235, 14, 14, 18), cell, .5f * fit);
+        else if (_light || _cats)
+            FillRound(graphics, Color.FromArgb(235 * _backgroundAlpha / 255, SlotSurface), cell, (_cats ? 7 : 3) * fit);
+        else
+            FillRound(graphics, Color.FromArgb(170, 16, 21, 25), cell, 2 * fit);
         if (showIcon)
-            DrawIcon(graphics, item, RectangleF.Inflate(cell, -2 * fit, -2 * fit));
+            DrawIcon(graphics, item, RectangleF.Inflate(cell, (_blackDesert ? -1 : -2) * fit,
+                (_blackDesert ? -1 : -2) * fit), inventorySlot: false);
         else
             Draw(graphics, item.Name, new RectangleF(cell.X + 4 * fit, cell.Y + 3 * fit, cell.Width - 8 * fit, cell.Height * .55f),
                 10 * fontScale, Text, vertical: StringAlignment.Center);
         var countHeight = Math.Min(cell.Height, Math.Max(17 * fit, 18 * fontScale));
         var countBounds = new RectangleF(cell.X, cell.Bottom - countHeight, cell.Width, countHeight);
-        using (var shade = new LinearGradientBrush(countBounds, Color.FromArgb(0, 12, 16, 20),
-                   Color.FromArgb(230, 12, 16, 20), LinearGradientMode.Vertical))
+        if (!_blackDesert)
+        {
+            var shadeColor = _light ? Color.White : _cats ? SlotSurface : Color.FromArgb(12, 16, 20);
+            using var shade = new LinearGradientBrush(countBounds, Color.FromArgb(0, shadeColor),
+                Color.FromArgb(_light || _cats ? 230 * _backgroundAlpha / 255 : 230, shadeColor), LinearGradientMode.Vertical);
             graphics.FillRectangle(shade, countBounds);
+        }
         var quantity = new RectangleF(cell.X + 3 * fit, countBounds.Y, cell.Width - 6 * fit, countHeight - fit);
-        var shadow = quantity; shadow.Offset(fit, fit);
-        DrawQuantity(graphics, item.QuantityText, shadow, 12 * fontScale, Color.Black, StringAlignment.Far, StringAlignment.Far);
-        DrawQuantity(graphics, item.QuantityText, quantity, 12 * fontScale, Text, StringAlignment.Far, StringAlignment.Far);
-        using var border = new Pen(Color.FromArgb(item.IsRare ? 190 : 100, item.IsRare ? Gold : Muted), fit);
-        graphics.DrawRectangle(border, cell.X + .5f * fit, cell.Y + .5f * fit, cell.Width - fit, cell.Height - fit);
+        if (!_blackDesert && !_light)
+        {
+            var shadow = quantity; shadow.Offset(fit, fit);
+            DrawQuantity(graphics, item.QuantityText, shadow, 12 * fontScale, Color.Black, StringAlignment.Far, StringAlignment.Far);
+        }
+        DrawQuantity(graphics, item.QuantityText, quantity, 12 * fontScale,
+            _blackDesert ? Color.FromArgb(225, 225, 223) : Text, StringAlignment.Far, StringAlignment.Far);
+        if (_blackDesert)
+            DrawInventoryBorder(graphics, cell, item.IsRare, fit);
+        else if (_light || _cats)
+            DrawSoftSlotBorder(graphics, cell, item.IsRare, fit);
+        else
+        {
+            using var border = new Pen(Color.FromArgb(item.IsRare ? 190 : 100, item.IsRare ? Gold : Muted), fit);
+            graphics.DrawRectangle(border, cell.X + .5f * fit, cell.Y + .5f * fit, cell.Width - fit, cell.Height - fit);
+        }
     }
 
     private void DrawLootRow(Graphics graphics, OverlayLootItem item, RectangleF cell, bool showIcon, float fontScale, float fit)
@@ -312,7 +440,7 @@ internal sealed class NativeOverlayRenderer : IDisposable
         Draw(graphics, item.Name, new RectangleF(cell.X + iconSpace, cell.Y, cell.Width - iconSpace - quantityWidth - 4 * fit, cell.Height),
             11 * fontScale, Text, vertical: StringAlignment.Center);
         DrawQuantity(graphics, item.QuantityText, new RectangleF(cell.Right - quantityWidth, cell.Y, quantityWidth, cell.Height),
-            12 * fontScale, item.IsRare ? Gold : Text, StringAlignment.Far, StringAlignment.Center);
+            12 * fontScale, item.IsRare ? (_light ? RareEdge : Gold) : Text, StringAlignment.Far, StringAlignment.Center);
         using var line = new Pen(Color.FromArgb(25, Muted), fit);
         graphics.DrawLine(line, cell.Left, cell.Bottom - .5f * fit, cell.Right, cell.Bottom - .5f * fit);
     }
@@ -336,10 +464,10 @@ internal sealed class NativeOverlayRenderer : IDisposable
             11 * fontScale, Muted);
     }
 
-    private static void DrawQuantity(Graphics graphics, string text, RectangleF bounds, float requestedSize, Color color,
+    private void DrawQuantity(Graphics graphics, string text, RectangleF bounds, float requestedSize, Color color,
         StringAlignment horizontal, StringAlignment vertical)
     {
-        Draw(graphics, text, bounds, requestedSize, color, true, horizontal, vertical);
+        Draw(graphics, text, bounds, requestedSize, color, !_blackDesert, horizontal, vertical, lightOutline: _light);
     }
 
     private void DrawChart(Graphics graphics, OverlayWidget widget, RectangleF inner, OverlaySnapshot snapshot)
@@ -349,7 +477,7 @@ internal sealed class NativeOverlayRenderer : IDisposable
         {
             var inset = widget.ShowIcon ? 17 * fontScale : 0;
             if (widget.ShowIcon) DrawGlyph(graphics, "chart", new RectangleF(inner.X, inner.Y + fontScale, 12 * fontScale, 12 * fontScale));
-            Draw(graphics, "Silber / Stunde · Verlauf", new RectangleF(inner.X + inset, inner.Y, inner.Width - inset, 16 * fontScale), 10 * fontScale, Muted);
+            Draw(graphics, "Silber / Stunde · Verlauf", new RectangleF(inner.X + inset, inner.Y, inner.Width - inset, 16 * fontScale), 10 * fontScale, Heading);
             inner.Y += 20 * fontScale; inner.Height -= 20 * fontScale;
         }
         if (snapshot.Metrics.TryGetValue("chart", out var metric))
@@ -394,7 +522,7 @@ internal sealed class NativeOverlayRenderer : IDisposable
         }
     }
 
-    private static void DrawRotation(Graphics graphics, OverlayWidget widget, RectangleF inner, RotationMonitorSnapshot rotation)
+    private void DrawRotation(Graphics graphics, OverlayWidget widget, RectangleF inner, RotationMonitorSnapshot rotation)
     {
         var mode = widget.RotationComparison;
         if (mode == "sectors")
@@ -410,7 +538,7 @@ internal sealed class NativeOverlayRenderer : IDisposable
         var totalWidth = Math.Min(inner.Width * .25f, 56 * (float)widget.FontScale);
         var graph = new RectangleF(inner.X + 2, inner.Y + 4, Math.Max(1, inner.Width - 4 - totalWidth), Math.Max(1, inner.Height - 8));
         float X(double seconds) => graph.Left + (float)Math.Clamp(seconds / extent, 0, 1) * graph.Width;
-        using var baseline = new Pen(Color.FromArgb(70, 85, 100), 1);
+        using var baseline = new Pen(Color.FromArgb(150, Muted), 1);
         var bandHeight = Math.Max(4, graph.Height * .28f);
         foreach (var group in RotationPhases.Create(rotation.SpotId, reference?.Events ?? rotation.Events,
                      reference?.Duration ?? rotation.Elapsed, widget.RotationColors).GroupBy(p => p.Group))
@@ -429,7 +557,7 @@ internal sealed class NativeOverlayRenderer : IDisposable
             var end = row == 0 ? reference?.Duration ?? 0 : rotation.Elapsed;
             Draw(graphics, events.Count > 0 ? RotationPhases.Duration(end) : "–",
                 new RectangleF(graph.Right+4, y-bandHeight/2, Math.Max(1,totalWidth-4), bandHeight),
-                Math.Clamp(bandHeight*.45f,11,18), Color.White, false, StringAlignment.Far, StringAlignment.Center);
+                Math.Clamp(bandHeight*.45f,11,18), Text, false, StringAlignment.Far, StringAlignment.Center);
             var phases = RotationPhases.Create(rotation.SpotId, events, end, widget.RotationColors);
             foreach (var phase in phases)
             {
@@ -450,18 +578,37 @@ internal sealed class NativeOverlayRenderer : IDisposable
         }
         if (rotation.Synchronized || rotation.Events.Count > 0)
         {
-            using var playhead = new Pen(Color.White, 2);
+            using var playhead = new Pen(Text, 2);
             graphics.DrawLine(playhead, X(rotation.Elapsed), graph.Top, X(rotation.Elapsed), graph.Bottom);
         }
 
     }
 
-    private void DrawIcon(Graphics graphics, OverlayLootItem item, RectangleF rectangle)
+    private void DrawIcon(Graphics graphics, OverlayLootItem item, RectangleF rectangle, bool inventorySlot = true)
     {
+        if (rectangle.Width <= 0 || rectangle.Height <= 0) return;
+        var imageBounds = rectangle;
+        if (_blackDesert && inventorySlot)
+        {
+            FillRound(graphics, Color.FromArgb(235, 14, 14, 18), rectangle, .5f);
+            imageBounds = RectangleF.Inflate(rectangle, -1, -1);
+        }
+        else if ((_light || _cats) && inventorySlot)
+        {
+            FillRound(graphics, Color.FromArgb(235 * _backgroundAlpha / 255, SlotSurface), rectangle, _cats ? 6 : 3);
+            imageBounds = RectangleF.Inflate(rectangle, -2, -2);
+        }
         var icon = LoadIcon(item.IconPath);
-        if (icon is not null) graphics.DrawImage(icon, rectangle);
-        else Draw(graphics, item.Name.Length > 0 ? item.Name[..1] : "·", rectangle, 18, item.IsRare ? Gold : Muted,
-            true, StringAlignment.Center, StringAlignment.Center);
+        if (imageBounds.Width > 0 && imageBounds.Height > 0)
+        {
+            if (icon is not null) graphics.DrawImage(icon, imageBounds);
+            else Draw(graphics, item.Name.Length > 0 ? item.Name[..1] : "·", imageBounds, 18, item.IsRare ? Gold : Muted,
+                true, StringAlignment.Center, StringAlignment.Center);
+        }
+        if (_blackDesert && inventorySlot)
+            DrawInventoryBorder(graphics, rectangle, item.IsRare);
+        else if ((_light || _cats) && inventorySlot)
+            DrawSoftSlotBorder(graphics, rectangle, item.IsRare);
     }
 
     private Image? LoadIcon(string? relative)
@@ -487,14 +634,35 @@ internal sealed class NativeOverlayRenderer : IDisposable
         return image;
     }
 
-    private static void Draw(Graphics graphics, string text, RectangleF bounds, float size, Color color,
-        bool bold = false, StringAlignment horizontal = StringAlignment.Near, StringAlignment vertical = StringAlignment.Near)
+    private void Draw(Graphics graphics, string text, RectangleF bounds, float size, Color color,
+        bool bold = false, StringAlignment horizontal = StringAlignment.Near, StringAlignment vertical = StringAlignment.Near,
+        string fontFamily = "Segoe UI", bool lightOutline = false)
     {
         if (bounds.Width <= 0 || bounds.Height <= 0 || string.IsNullOrEmpty(text)) return;
-        using var font = new Font("Segoe UI", FitTextSize(graphics, text, bounds, size, bold),
+        using var font = new Font(fontFamily, FitTextSize(graphics, text, bounds, size, bold, fontFamily: fontFamily),
             bold ? FontStyle.Bold : FontStyle.Regular, GraphicsUnit.Pixel);
         using var brush = new SolidBrush(color);
         using var format = TextFormat(horizontal, vertical);
+        if (lightOutline)
+        {
+            // Keep dark Light-theme quantities readable over the item's own
+            // artwork even when the user makes the slot background transparent.
+            using var halo = new SolidBrush(Color.FromArgb(225 * color.A / 255, Color.White));
+            foreach (var offset in new PointF[] { new(-.75f, 0), new(.75f, 0), new(0, -.75f), new(0, .75f) })
+            {
+                var haloBounds = bounds;
+                haloBounds.Offset(offset);
+                graphics.DrawString(text, font, halo, haloBounds, format);
+            }
+        }
+        if (_blackDesert)
+        {
+            // Small dark offset is the game's high-contrast HUD lettering treatment.
+            var shadowBounds = bounds;
+            shadowBounds.Offset(.75f, .75f);
+            using var shadow = new SolidBrush(Color.FromArgb(200 * color.A / 255, 0, 0, 0));
+            graphics.DrawString(text, font, shadow, shadowBounds, format);
+        }
         graphics.DrawString(text, font, brush, bounds, format);
     }
 
@@ -506,10 +674,10 @@ internal sealed class NativeOverlayRenderer : IDisposable
     };
 
     private static float FitTextSize(Graphics graphics, string text, RectangleF bounds, float requestedSize,
-        bool bold, float additionalWidth = 0)
+        bool bold, float additionalWidth = 0, string fontFamily = "Segoe UI")
     {
         var size = Math.Max(.1f, requestedSize);
-        using var font = new Font("Segoe UI", size, bold ? FontStyle.Bold : FontStyle.Regular, GraphicsUnit.Pixel);
+        using var font = new Font(fontFamily, size, bold ? FontStyle.Bold : FontStyle.Regular, GraphicsUnit.Pixel);
         using var format = TextFormat();
         var measured = graphics.MeasureString(text, font, 100000, format);
         var fit = Math.Min(1, Math.Min(Math.Max(.1f, bounds.Width - 2) / Math.Max(.1f, measured.Width + additionalWidth),
@@ -517,7 +685,7 @@ internal sealed class NativeOverlayRenderer : IDisposable
         return Math.Max(.1f, size * fit);
     }
 
-    private static void DrawGlyph(Graphics graphics, string kind, RectangleF bounds)
+    private void DrawGlyph(Graphics graphics, string kind, RectangleF bounds)
     {
         var state = graphics.Save();
         graphics.TranslateTransform(bounds.X, bounds.Y);
@@ -549,6 +717,119 @@ internal sealed class NativeOverlayRenderer : IDisposable
             else graphics.DrawEllipse(pen, 5, 3, 6, 10);
         }
         graphics.Restore(state);
+    }
+
+    private void DrawTitleBar(Graphics graphics, RectangleF canvas, float height, string title, int alpha)
+    {
+        var header = new RectangleF(2, 2, Math.Max(0, canvas.Width - 4), Math.Max(0, height - 2));
+        FillPanel(graphics, header, Color.FromArgb(alpha, 128, 102, 66), Color.FromArgb(alpha, 103, 81, 54));
+        using var rim = new Pen(Color.FromArgb(184, 202, 181, 142), 1);
+        graphics.DrawLine(rim, 2, 2.5f, canvas.Right - 2, 2.5f);
+        var state = graphics.Save();
+        graphics.SetClip(header);
+        using (var motif = new Pen(Color.FromArgb((int)(alpha * .14), 220, 207, 183), 3))
+            for (var index = 0; index < 4; index++)
+            {
+                var right = canvas.Right - 10 - index * 15;
+                graphics.DrawLines(motif, [new PointF(right, -2), new(right - 17, height / 2), new(right, height + 2)]);
+            }
+        graphics.Restore(state);
+        using var separator = new Pen(Color.FromArgb(210, 51, 45, 38), 1);
+        graphics.DrawLine(separator, 2, height - .5f, canvas.Right - 2, height - .5f);
+        Draw(graphics, title, new RectangleF(12, 3, Math.Max(0, canvas.Width - 24), height - 5),
+            14, Text, vertical: StringAlignment.Center, fontFamily: "Georgia");
+    }
+
+    private void DrawCatTitleBar(Graphics graphics, RectangleF canvas, float height, string title, int alpha)
+    {
+        var header = new RectangleF(2, 2, Math.Max(0, canvas.Width - 4), Math.Max(0, height - 2));
+        using (var path = Round(header, 8))
+        using (var fill = new LinearGradientBrush(header, Color.FromArgb(alpha, 73, 54, 77),
+                   Color.FromArgb(alpha, 57, 44, 64), LinearGradientMode.Vertical))
+            graphics.FillPath(fill, path);
+        using var separator = new Pen(Color.FromArgb((int)(alpha * .38), Gold), 1);
+        graphics.DrawLine(separator, 10, height - .5f, canvas.Right - 10, height - .5f);
+        DrawCatFace(graphics, new RectangleF(10, 5, 24, 24));
+        Draw(graphics, title, new RectangleF(42, 3, Math.Max(0, canvas.Width - 78), height - 5),
+            13, Text, true, vertical: StringAlignment.Center);
+        var right = canvas.Right - 23;
+        using var paw = new SolidBrush(Color.FromArgb(100, Gold));
+        graphics.FillEllipse(paw, right - 5, 16, 11, 8);
+        graphics.FillEllipse(paw, right - 8, 11, 4, 5);
+        graphics.FillEllipse(paw, right - 3, 8, 4, 5);
+        graphics.FillEllipse(paw, right + 2, 9, 4, 5);
+        graphics.FillEllipse(paw, right + 6, 12, 4, 5);
+    }
+
+    private void DrawCatFace(Graphics graphics, RectangleF bounds)
+    {
+        var state = graphics.Save();
+        graphics.TranslateTransform(bounds.X, bounds.Y);
+        graphics.ScaleTransform(bounds.Width / 24, bounds.Height / 24);
+        using var outline = new Pen(Gold, 1.3f) { LineJoin = LineJoin.Round, StartCap = LineCap.Round, EndCap = LineCap.Round };
+        using var face = new GraphicsPath();
+        face.AddLines([new PointF(4, 9), new(3, 2), new(9, 6), new(15, 6), new(21, 2), new(20, 9)]);
+        face.AddBezier(new PointF(20, 9), new PointF(24, 15), new PointF(19, 21), new PointF(12, 21));
+        face.AddBezier(new PointF(12, 21), new PointF(5, 21), new PointF(0, 15), new PointF(4, 9));
+        face.CloseFigure();
+        using var tint = new SolidBrush(Color.FromArgb(22, Gold));
+        graphics.FillPath(tint, face);
+        graphics.DrawPath(outline, face);
+        using var detail = new SolidBrush(Gold);
+        graphics.FillEllipse(detail, 7, 11, 2, 3);
+        graphics.FillEllipse(detail, 15, 11, 2, 3);
+        graphics.FillPolygon(detail, [new PointF(10.5f, 15), new(13.5f, 15), new(12, 17)]);
+        graphics.DrawLine(outline, 2, 14, 6, 15);
+        graphics.DrawLine(outline, 2, 18, 6, 17);
+        graphics.DrawLine(outline, 18, 15, 22, 14);
+        graphics.DrawLine(outline, 18, 17, 22, 18);
+        graphics.Restore(state);
+    }
+
+    private void DrawSoftSlotBorder(Graphics graphics, RectangleF rectangle, bool rare, float thickness = 1)
+    {
+        if (rectangle.Width <= thickness || rectangle.Height <= thickness) return;
+        using var edge = new Pen(Color.FromArgb((rare ? 220 : 145) * _backgroundAlpha / 255,
+            rare ? RareEdge : SlotEdge), thickness);
+        using var path = Round(RectangleF.Inflate(rectangle, -thickness * .5f, -thickness * .5f),
+            (_cats ? 7 : 3) * thickness);
+        graphics.DrawPath(edge, path);
+    }
+
+    private static void DrawInventoryBorder(Graphics graphics, RectangleF rectangle, bool rare, float thickness = 1,
+        int alpha = 210, bool empty = false)
+    {
+        if (rectangle.Width <= thickness || rectangle.Height <= thickness) return;
+        var color = empty ? Color.FromArgb(112, 111, 116) :
+            rare ? Color.FromArgb(194, 166, 107) : Color.FromArgb(166, 175, 194);
+        using var edge = new Pen(Color.FromArgb(alpha, color), thickness);
+        graphics.DrawRectangle(edge, rectangle.X + thickness * .5f, rectangle.Y + thickness * .5f,
+            rectangle.Width - thickness, rectangle.Height - thickness);
+    }
+
+    private static void FillPanel(Graphics graphics, RectangleF rectangle, Color top, Color bottom)
+    {
+        if (rectangle.Width <= 0 || rectangle.Height <= 0) return;
+        using var fill = new LinearGradientBrush(rectangle, top, bottom, LinearGradientMode.Vertical);
+        graphics.FillRectangle(fill, rectangle);
+    }
+
+    private static void DrawBevel(Graphics graphics, RectangleF rectangle, Color border, int alpha,
+        float thickness = 1, bool inset = false)
+    {
+        if (rectangle.Width <= thickness * 3 || rectangle.Height <= thickness * 3 || alpha <= 0) return;
+        var outer = RectangleF.Inflate(rectangle, -thickness * .5f, -thickness * .5f);
+        using var outline = new Pen(Color.FromArgb(alpha, border), thickness);
+        graphics.DrawRectangle(outline, outer.X, outer.Y, outer.Width, outer.Height);
+        var inner = RectangleF.Inflate(outer, -thickness, -thickness);
+        using var light = new Pen(Color.FromArgb((int)(alpha * .5), 207, 194, 157), thickness);
+        using var dark = new Pen(Color.FromArgb((int)(alpha * .85), 0, 0, 0), thickness);
+        var leading = inset ? dark : light;
+        var trailing = inset ? light : dark;
+        graphics.DrawLine(leading, inner.Left, inner.Bottom, inner.Left, inner.Top);
+        graphics.DrawLine(leading, inner.Left, inner.Top, inner.Right, inner.Top);
+        graphics.DrawLine(trailing, inner.Right, inner.Top, inner.Right, inner.Bottom);
+        graphics.DrawLine(trailing, inner.Right, inner.Bottom, inner.Left, inner.Bottom);
     }
 
     private static void FillRound(Graphics graphics, Color color, RectangleF rectangle, float radius)

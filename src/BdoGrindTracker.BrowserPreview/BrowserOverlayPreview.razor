@@ -1,0 +1,121 @@
+@implements IAsyncDisposable
+@inject IOverlayService Overlay
+@inject IJSRuntime JS
+
+<dialog id="browser-overlay-preview" class="browser-overlay-dialog" data-theme="@Overlay.Snapshot.ThemeId" aria-labelledby="browser-overlay-title" @onclose="Close" @oncancel="Close">
+    <header class="browser-overlay-toolbar">
+        <div><h1 id="browser-overlay-title">@SelectedName</h1><p>Overlay-Vorschau · @Css(Settings.Width) × @Css(Settings.Height) px</p></div>
+        <label>Hintergrund
+            <select aria-label="Vorschau-Hintergrund" @bind="_background">
+                <option value="scene">Spotbild</option><option value="dark">Dunkel</option><option value="light">Hell</option><option value="grid">Transparenzraster</option>
+            </select>
+        </label>
+        @if (HasRotationWidget)
+        {
+            <label class="oe-check" title="Hermesia-Beispieldaten nur für diese Vorschau; deine Session bleibt unverändert.">
+                <input type="checkbox" @bind="_rotationExample" /><span>Rotationsbeispiel</span>
+            </label>
+        }
+        <button type="button" class="button secondary" @onclick="Close" autofocus>Zurück zum Editor</button>
+    </header>
+    <div class="browser-overlay-stage background-@_background">
+        <div class="oe-stage-viewport">
+            <div class="oe-stage-wrap">
+                <div class="oe-stage @(Settings.ShowBorder ? "has-border" : "") @(Chrome.HasTitleBar ? "has-window-chrome" : "")" data-overlay-id="@Overlay.SelectedOverlayId" data-width="@Css(Settings.Width)" data-height="@Css(Settings.Height)" data-chrome-x="@Css(Chrome.Horizontal)" data-chrome-y="@Css(Chrome.Vertical)" style="@StageStyle">
+                    @if (Chrome.HasTitleBar) { <OverlayWindowTitle Title="@SelectedName" /> }
+                    <div class="oe-stage-content" style="@ContentStyle">
+                        @foreach (var widget in Settings.Widgets)
+                        {
+                            <div @key="widget.Id" class="oe-widget" data-widget-id="@widget.Id" data-x="@Css(widget.X)" data-y="@Css(widget.Y)" data-width="@Css(widget.Width)" data-height="@Css(widget.Height)" style="@WidgetStyle(widget)">
+                                <div class="oe-widget-content"><OverlayWidgetPreview Widget="widget" Snapshot="PreviewSnapshot" Interactive="true" OnToggleTracking="ToggleTracking" OnNewSession="NewSession" /></div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+        @if (Settings.Widgets.Count == 0) { <p class="browser-overlay-empty">Dieses Overlay ist leer. Füge im Editor Module hinzu oder wähle eine Vorlage.</p> }
+    </div>
+    <footer class="browser-overlay-footer">Die Ansicht wird bei Bedarf verkleinert. Schrift und Details können unter Windows abweichen. Globale Tastenkürzel und Klickdurchleitung sind hier nicht aktiv.</footer>
+    @if (_error is not null) { <p role="alert">@_error</p> }
+</dialog>
+
+@code {
+    private const string DialogId = "browser-overlay-preview";
+    private string _background = "scene";
+    private string? _error;
+    private bool _shown, _disposed, _startingSession;
+    private bool _rotationExample = true;
+    private double _rotationExampleSeconds = 350;
+    private OverlaySettings Settings => Overlay.Settings;
+    private bool HasRotationWidget => Settings.Widgets.Any(widget => widget.Kind == "rotation-monitor");
+    private OverlaySnapshot PreviewSnapshot => _rotationExample && HasRotationWidget
+        ? Overlay.Snapshot with { Rotation = HermesiaRotationDemo.At(_rotationExampleSeconds) }
+        : Overlay.Snapshot;
+    private string SelectedName => Overlay.Overlays.First(overlay => overlay.Id == Overlay.SelectedOverlayId).Name;
+    private static string Css(double value) => value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+    private OverlayWindowChrome Chrome => OverlayWindowChrome.For(Overlay.Snapshot.ThemeId, Settings.ShowBorder);
+    private string StageStyle => $"width:{Css(Chrome.OuterWidth(Settings.Width))}px;height:{Css(Chrome.OuterHeight(Settings.Height))}px;--overlay-opacity:{Css(Settings.BackgroundOpacity)};background:rgba(var(--overlay-surface-rgb,23,29,34),{Css(Settings.BackgroundOpacity)})";
+    private string ContentStyle => $"inset:{Css(Chrome.Top)}px {Css(Chrome.Right)}px {Css(Chrome.Bottom)}px {Css(Chrome.Left)}px";
+    private static string WidgetStyle(OverlayWidget widget) => $"left:{Css(widget.X)}px;top:{Css(widget.Y)}px;width:{Css(widget.Width)}px;height:{Css(widget.Height)}px";
+
+    protected override void OnInitialized() => Overlay.Changed += OnChanged;
+    private void OnChanged()
+    {
+        if (!_disposed) _ = InvokeAsync(() => { if (!_disposed) StateHasChanged(); });
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var visible = Overlay.State.Previewing;
+        if (_shown == visible) return;
+        _shown = visible;
+        if (visible)
+        {
+            await JS.InvokeVoidAsync("grindcrest.showDialog", DialogId);
+            await JS.InvokeVoidAsync("grindcrestOverlayEditor.mount", DialogId, null, true);
+        }
+        else
+        {
+            await JS.InvokeVoidAsync("grindcrestOverlayEditor.unmount", DialogId);
+            await JS.InvokeVoidAsync("grindcrest.closeDialog", DialogId);
+        }
+    }
+
+    private Task Close() => Overlay.SetPreviewAsync(false);
+    // Called by the shell's existing one-second tick, including rotation-only layouts.
+    internal void AdvanceRotationExample()
+    {
+        if (_disposed || !Overlay.State.Previewing || !_rotationExample || !HasRotationWidget) return;
+        _rotationExampleSeconds = (_rotationExampleSeconds + 1) % HermesiaRotationDemo.Reference.Duration;
+        StateHasChanged();
+    }
+
+    private async Task ToggleTracking()
+    {
+        try { _error = null; await Overlay.ToggleTrackingAsync(); }
+        catch (InvalidOperationException error) { _error = error.Message; }
+    }
+
+    private async Task NewSession()
+    {
+        if (_disposed || _startingSession || !Overlay.Snapshot.CanNewSession) return;
+        _startingSession = true;
+        try
+        {
+            _error = null;
+            if (await JS.InvokeAsync<bool>("confirm", "Neue Session beginnen? Die bisherige Session wird abgeschlossen."))
+                await Overlay.NewSessionAsync();
+        }
+        catch (Exception error) when (error is InvalidOperationException or JSException) { _error = error.Message; }
+        finally { _startingSession = false; }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        Overlay.Changed -= OnChanged;
+        try { await JS.InvokeVoidAsync("grindcrestOverlayEditor.unmount", DialogId); }
+        catch (JSDisconnectedException) { }
+    }
+}

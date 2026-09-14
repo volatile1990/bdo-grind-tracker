@@ -2,9 +2,10 @@
 @inherits TrackerComponentBase
 @inject IJSRuntime JS
 @inject NavigationManager Navigation
+@using BdoGrindTracker.App.Theming
 
 <CascadingValue Name="ShowStoreUpdateDialog" Value="@EventCallback.Factory.Create(this, ShowStoreUpdateDialog)">
-<div class="app-shell" data-app-ready="true">
+<div class="app-shell" data-app-ready="true" data-theme="@ThemeId">
     <aside class="sidebar" aria-label="Hauptnavigation">
         <a class="brand" href="#" aria-label="Grindcrest · Live-Session" @onclick="() => Navigate(Page.Live)" @onclick:preventDefault>
             <AssetImage Src="assets/branding/grindcrest-header.png" Alt="" Class="brand-mark" Fallback="spark" />
@@ -62,6 +63,8 @@
     private StoreUpdateDialog? _storeUpdateDialog;
     private Task ShowStoreUpdateDialog() => _storeUpdateDialog?.OpenAsync() ?? Task.CompletedTask;
     private bool _scrollPending;
+    private string? _requestedTheme;
+    private string ThemeId => AppThemes.Normalize(Tracker.Preferences.ThemeId);
     private string _scrollKey = "";
     private Page _page
     {
@@ -104,6 +107,20 @@
     }
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (_requestedTheme != ThemeId)
+        {
+            var theme = ThemeId;
+            // A newer render may run while the browser acknowledgement is pending.
+            // Record the request now so switching back still sends the newer theme.
+            _requestedTheme = theme;
+            try { await JS.InvokeVoidAsync("grindcrest.setTheme", theme); }
+            catch (Exception exception) when (exception is JSDisconnectedException or TaskCanceledException)
+            {
+                // A disconnected browser can retry on its next render. An older
+                // failed request must not discard a different, newer selection.
+                if (_requestedTheme == theme) _requestedTheme = null;
+            }
+        }
         if (!_scrollPending) return;
         _scrollPending = false;
         await JS.InvokeVoidAsync("grindcrest.scrollTop", false);

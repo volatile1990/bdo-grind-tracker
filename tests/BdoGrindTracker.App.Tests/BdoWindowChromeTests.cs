@@ -59,6 +59,30 @@ public sealed class BdoWindowChromeTests
         });
     }
 
+    [Fact]
+    public void ChromeSwitchesBetweenLightAndDarkWithoutDisablingScreenshotCapture()
+    {
+        RunInSta(() =>
+        {
+            using var form = new Form();
+            _ = form.Handle;
+            BdoWindowChrome.Apply(form, darkMode: false);
+            // Older Windows versions may not expose immersive title-bar styling.
+            if (DwmGetWindowAttribute(form.Handle, 20, out var darkMode, sizeof(int)) != 0) return;
+            Assert.Equal(0, darkMode);
+
+            BdoWindowChrome.Apply(form);
+            Assert.Equal(0, DwmGetWindowAttribute(form.Handle, 20, out darkMode, sizeof(int)));
+            Assert.Equal(1, darkMode);
+
+            BdoWindowChrome.Apply(form, darkMode: false);
+            Assert.Equal(0, DwmGetWindowAttribute(form.Handle, 20, out darkMode, sizeof(int)));
+            Assert.Equal(0, darkMode);
+            AssertScreenshotCaptureEnabled(form);
+            Assert.False(form.Visible);
+        });
+    }
+
     private static void RunInSta(Action action)
     {
         Exception? error = null;
@@ -80,4 +104,7 @@ public sealed class BdoWindowChromeTests
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SetWindowDisplayAffinity(IntPtr window, uint affinity);
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmGetWindowAttribute(IntPtr window, int attribute, out int value, int size);
 }

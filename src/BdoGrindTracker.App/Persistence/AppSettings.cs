@@ -1,4 +1,5 @@
 ﻿using BdoGrindTracker.App.Pricing;
+using BdoGrindTracker.App.Theming;
 
 namespace BdoGrindTracker.App.Persistence;
 
@@ -15,6 +16,7 @@ internal sealed class AppSettings
     public string? MonitorDeviceName { get; set; }
     public string? CaptureConfigurationPath { get; set; }
     public string GameLanguage { get; set; } = "auto";
+    public string ThemeId { get; set; } = AppThemes.Grindcrest;
 
     public string? SpotId { get; set; }
 
@@ -37,6 +39,7 @@ internal sealed class AppSettings
 
     public void UpgradeDefaults()
     {
+        ThemeId = AppThemes.Normalize(ThemeId);
         if (GameLanguage is not ("auto" or "en" or "de")) GameLanguage = "auto";
         if (AutoPauseMinutes is < MinimumAutoPauseMinutes or > MaximumAutoPauseMinutes)
         {

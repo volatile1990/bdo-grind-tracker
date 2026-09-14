@@ -11,6 +11,7 @@ using BdoGrindTracker.App.Persistence;
 using BdoGrindTracker.App.Overlay;
 using BdoGrindTracker.App.Overlay.Native;
 using BdoGrindTracker.App.Integrations.Garmoth;
+using BdoGrindTracker.App.Theming;
 
 namespace BdoGrindTracker.App.UI;
 
@@ -40,6 +41,7 @@ internal sealed class HybridMainForm : Form
     private bool _storePreparing;
     private bool _storeInstalling;
     private DateTimeOffset _nextStoreCheck;
+    private string? _appliedTheme;
 
     public int ExitCode { get; private set; }
 
@@ -56,7 +58,7 @@ internal sealed class HybridMainForm : Form
         _hidden = smokeTest || hidden;
         Text = AppBranding.WindowTitle + (preview ? " · Vorschau" : "");
         Icon = AppBranding.CreateWindowIcon();
-        BackColor = Color.FromArgb(13, 17, 24);
+        ApplyTheme();
         AutoScaleDimensions = new SizeF(96, 96);
         AutoScaleMode = AutoScaleMode.Dpi;
         MinimumSize = new Size(860, 640);
@@ -108,7 +110,7 @@ internal sealed class HybridMainForm : Form
         _web.BlazorWebViewInitialized += (_, args) =>
         {
             _webReady = true;
-            args.WebView.DefaultBackgroundColor = BackColor;
+            ApplyTheme(force: true);
             args.WebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
             args.WebView.CoreWebView2.Settings.AreDevToolsEnabled = debugPort is not null;
             args.WebView.CoreWebView2.Settings.IsStatusBarEnabled = false;
@@ -154,7 +156,22 @@ internal sealed class HybridMainForm : Form
     protected override void OnHandleCreated(EventArgs e)
     {
         base.OnHandleCreated(e);
-        BdoWindowChrome.Apply(this);
+        ApplyTheme(force: true);
+    }
+
+    private void ApplyTheme(bool force = false)
+    {
+        var theme = AppThemes.Normalize(_session.Preferences.ThemeId);
+        if (!force && theme == _appliedTheme) return;
+        BackColor = theme switch
+        {
+            AppThemes.Light => Color.FromArgb(245, 246, 248),
+            AppThemes.Cats => Color.FromArgb(41, 35, 47),
+            _ => Color.FromArgb(13, 17, 24),
+        };
+        if (_webReady) _web.WebView.DefaultBackgroundColor = BackColor;
+        BdoWindowChrome.Apply(this, darkMode: theme != AppThemes.Light);
+        _appliedTheme = theme;
     }
 
     protected override void WndProc(ref Message message)
@@ -186,6 +203,7 @@ internal sealed class HybridMainForm : Form
         _ticking = true;
         try
         {
+            ApplyTheme();
             if (!_renderReady)
             {
                 if (_startup.Elapsed > TimeSpan.FromSeconds(30))

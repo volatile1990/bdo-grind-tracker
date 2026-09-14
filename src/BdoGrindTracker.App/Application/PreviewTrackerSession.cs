@@ -1,6 +1,7 @@
 using BdoGrindTracker.App.Persistence;
 using BdoGrindTracker.App.Integrations.Garmoth;
 using BdoGrindTracker.App.Pricing;
+using BdoGrindTracker.App.Theming;
 using BdoGrindTracker.App.UI;
 using BdoGrindTracker.Core;
 
@@ -90,6 +91,9 @@ internal sealed class PreviewTrackerSession : ITrackerSession
     public Task<PreferenceSaveResult> SavePreferencesAsync(TrackerPreferences preferences, string? apiKey = null,
         bool resumeAutomaticUpload = false)
     {
+        ArgumentNullException.ThrowIfNull(preferences);
+        if (!AppThemes.IsKnown(preferences.ThemeId))
+            return Task.FromResult(new PreferenceSaveResult("Bitte wähle ein bekanntes Theme aus der Liste."));
         var hasApiKey = apiKey is null ? State.HasApiKey : !string.IsNullOrWhiteSpace(apiKey);
         Preferences = preferences with { AutoUpload = preferences.AutoUpload && hasApiKey };
         Prices = LootPriceCatalog.FixedSnapshot(preferences.MarketRegion);

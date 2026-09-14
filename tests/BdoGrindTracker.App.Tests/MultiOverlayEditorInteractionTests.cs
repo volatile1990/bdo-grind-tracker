@@ -523,7 +523,7 @@ public sealed class MultiOverlayEditorInteractionTests
         Assert.Contains("Echte Uhrzeit", html);
         Assert.Contains("BDO-Ingame-Zeit", html);
         Assert.Contains("Countdown bis Tag / Nacht", html);
-        Assert.Contains("Sekunden anzeigen", html);
+        Assert.DoesNotContain("Sekunden anzeigen", html);
         Assert.Contains("aria-label=\"BDO-Zeitkorrektur\"", html);
         Assert.Contains("overlay-clock-row is-real", html);
         Assert.Contains("overlay-clock-row is-game", html);
@@ -531,7 +531,7 @@ public sealed class MultiOverlayEditorInteractionTests
 
         await Invoke(editor, "ChangeWidget", new Func<OverlayWidget, OverlayWidget>(widget => widget with
         {
-            ShowRealTime = false, ShowGameTime = true, ShowDayNightCountdown = false, ClockShowSeconds = false,
+            ShowRealTime = false, ShowGameTime = true, ShowDayNightCountdown = false,
         }));
         await Invoke(editor, "WidgetNumber", new ChangeEventArgs { Value = "20" }, "clockOffset");
         await Invoke(editor, "CreateOverlay");
@@ -541,7 +541,6 @@ public sealed class MultiOverlayEditorInteractionTests
         Assert.False(saved.ShowRealTime);
         Assert.True(saved.ShowGameTime);
         Assert.False(saved.ShowDayNightCountdown);
-        Assert.False(saved.ClockShowSeconds);
         Assert.Equal(20, saved.ClockOffsetMinutes);
         html = markup();
         Assert.Contains("overlay-clock-row is-game", html);

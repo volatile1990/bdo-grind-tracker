@@ -1,5 +1,6 @@
 // Dialog focus stays in the desktop surface; no external content or network calls.
 window.grindcrest = {
+    setTheme: function (themeId) { document.documentElement.dataset.theme = themeId; },
     showDialog: function (id) {
         const dialog = document.getElementById(id);
         if (dialog && !dialog.open) {

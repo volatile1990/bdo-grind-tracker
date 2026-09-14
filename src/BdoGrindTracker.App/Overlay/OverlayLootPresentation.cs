@@ -14,6 +14,13 @@ public static class OverlayLootPresentation
     public const double PaddingY = 8;
     public const double Gap = 4;
 
+    // Empty inventory wells finish the visible row without inventing loot or
+    // changing the layout, selected items, hidden count or configured capacity.
+    public static int EmptySlotCount(OverlayWidget widget, OverlaySnapshot snapshot, OverlayLootView view) =>
+        snapshot.ThemeId == Theming.AppThemes.BlackDesert && widget.Kind != "drop-item" &&
+        widget.ItemView == "grid" && view.VisibleItems.Count > 0
+            ? (view.Columns - view.VisibleItems.Count % view.Columns) % view.Columns : 0;
+
     public static OverlayLootView Create(OverlayWidget widget, OverlaySnapshot snapshot)
     {
         var source = snapshot.Drops;

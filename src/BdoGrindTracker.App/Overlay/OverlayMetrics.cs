@@ -98,6 +98,7 @@ internal sealed class OverlayMetrics
 
         return new()
         {
+            ThemeId = BdoGrindTracker.App.Theming.AppThemes.Normalize(preferences.ThemeId),
             Metrics = new ReadOnlyDictionary<string, OverlayMetric>(metrics),
             Drops = Array.AsReadOnly(drops),
             RareDrops = Array.AsReadOnly(drops.Where(item => item.IsRare).ToArray()),

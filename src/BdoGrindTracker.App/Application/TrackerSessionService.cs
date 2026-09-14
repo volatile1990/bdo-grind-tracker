@@ -157,6 +157,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         _priceStatus = FormatPriceStatus(Prices);
         Preferences = new TrackerPreferences
         {
+            ThemeId = _settings.ThemeId,
             MonitorDeviceName = Monitors.FirstOrDefault(m => m.DeviceName == _settings.MonitorDeviceName)?.DeviceName
                 ?? Monitors.FirstOrDefault(m => m.IsPrimary)?.DeviceName ?? Monitors.FirstOrDefault()?.DeviceName,
             AutoPauseMinutes = _settings.AutoPauseMinutes,

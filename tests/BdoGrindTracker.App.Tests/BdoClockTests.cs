@@ -1,8 +1,9 @@
 using System.Globalization;
 using System.Net;
+using System.Text.Json;
 using BdoGrindTracker.App.Components;
 using BdoGrindTracker.App.Overlay;
-using BdoGrindTracker.App.Overlay.Native;
+using BdoGrindTracker.App.Services;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
@@ -61,22 +62,22 @@ public sealed class BdoClockTests
         var now = Parse("2026-09-13T00:20:00Z");
         var widget = OverlayCatalog.CreateWidget("clock") with { ClockOffsetMinutes = -40 };
         var view = OverlayClockPresentation.Create(widget, now, TimeZoneInfo.Utc);
-        Assert.Equal("00:20:00", view.Rows[0].Value);
-        Assert.Equal("22:00:00", view.Rows[1].Value);
+        Assert.Equal("00:20", view.Rows[0].Value);
+        Assert.Equal("22:00", view.Rows[1].Value);
         Assert.Equal("Tag in", view.Rows[2].Label);
-        Assert.Equal("00:40:00", view.Rows[2].Value);
+        Assert.Equal("00:40", view.Rows[2].Value);
         Assert.Equal(BdoClock.At(now), BdoClock.At(now, 240));
         Assert.Equal(BdoClock.At(now), BdoClock.At(now, -240));
     }
 
     [Theory]
-    [InlineData(true, "00:00:01")]
-    [InlineData(false, "00:01")]
-    public void CountdownRoundsUpWithoutShowingZeroBeforeActualTransition(bool seconds, string expected)
+    [InlineData("2026-09-13T03:38:59Z", "00:02")]
+    [InlineData("2026-09-13T03:39:00Z", "00:01")]
+    [InlineData("2026-09-13T03:39:59.9999999Z", "00:01")]
+    public void CountdownRoundsUpToMinutesWithoutShowingZeroBeforeActualTransition(string instant, string expected)
     {
-        var widget = OverlayCatalog.CreateWidget("clock") with { ClockShowSeconds = seconds };
-        var now = Parse("2026-09-13T03:40:00Z").AddTicks(-1);
-        var view = OverlayClockPresentation.Create(widget, now, TimeZoneInfo.Utc);
+        var widget = OverlayCatalog.CreateWidget("clock");
+        var view = OverlayClockPresentation.Create(widget, Parse(instant), TimeZoneInfo.Utc);
         Assert.Equal("Nacht in", view.Rows[^1].Label);
         Assert.Equal(expected, view.Rows[^1].Value);
     }
@@ -88,17 +89,17 @@ public sealed class BdoClockTests
         var widget = OverlayCatalog.CreateWidget("clock");
         var before = OverlayClockPresentation.Create(widget, Parse("2026-10-25T00:20:00Z"), berlin);
         var after = OverlayClockPresentation.Create(widget, Parse("2026-10-25T01:20:00Z"), berlin);
-        Assert.Equal("02:20:00", before.Rows[0].Value);
-        Assert.Equal("02:20:00", after.Rows[0].Value);
-        Assert.Equal("07:00:00", before.Rows[1].Value);
-        Assert.Equal("11:30:00", after.Rows[1].Value);
+        Assert.Equal("02:20", before.Rows[0].Value);
+        Assert.Equal("02:20", after.Rows[0].Value);
+        Assert.Equal("07:00", before.Rows[1].Value);
+        Assert.Equal("11:30", after.Rows[1].Value);
     }
 
     [Fact]
     public void DisabledRowsStayHiddenAndInvalidSettingsRetainOneRow()
     {
         var now = Parse("2026-09-13T03:40:00Z");
-        var widget = OverlayCatalog.CreateWidget("clock") with { ShowRealTime = false, ShowGameTime = false, ClockShowSeconds = false };
+        var widget = OverlayCatalog.CreateWidget("clock") with { ShowRealTime = false, ShowGameTime = false };
         var row = Assert.Single(OverlayClockPresentation.Create(widget, now).Rows);
         Assert.Equal("Tag in", row.Label);
         Assert.Equal("00:40", row.Value);
@@ -121,29 +122,50 @@ public sealed class BdoClockTests
         Assert.Contains("Lokal", markup);
         Assert.Contains("BDO", markup);
         Assert.Contains("Tag in", markup);
-        Assert.Contains("22:00:00", markup);
-        Assert.Contains("00:40:00", markup);
+        Assert.Contains("22:00", markup);
+        Assert.Contains("00:40", markup);
+        Assert.DoesNotMatch(@"\d{2}:\d{2}:\d{2}", markup);
         Assert.Contains("data-min-content-height=\"208\"", markup);
     }
 
     [Fact]
-    public async Task PreviewOmitsDeselectedClockRowsAndNativeRenderingChangesWithSnapshotTime()
+    public async Task PreviewOmitsDeselectedClockRows()
     {
         var widget = OverlayCatalog.CreateWidget("clock", 0, 0) with
             { ShowRealTime = false, ShowGameTime = false, ShowIcon = false, ShowLabel = false };
-        var before = new OverlaySnapshot { ClockUtcNow = Parse("2026-09-13T03:40:00Z").AddSeconds(-1) };
-        var after = before with { ClockUtcNow = before.ClockUtcNow.AddSeconds(1) };
-        var markup = await Render(widget, after);
+        var snapshot = new OverlaySnapshot { ClockUtcNow = Parse("2026-09-13T03:40:00Z") };
+        var markup = await Render(widget, snapshot);
         Assert.DoesNotContain("is-real", markup);
         Assert.DoesNotContain("is-game", markup);
         Assert.Contains("Tag in", markup);
-        Assert.Contains("00:40:00", markup);
-        var settings = new OverlaySettings { Width = widget.Width, Height = widget.Height, Widgets = [widget] };
-        using var renderer = new NativeOverlayRenderer();
-        using var earlier = renderer.Render(new((int)widget.Width, (int)widget.Height), settings, before, out _);
-        using var later = renderer.Render(new((int)widget.Width, (int)widget.Height), settings, after, out _);
-        Assert.Contains(Enumerable.Range(0, earlier.Height), y =>
-            Enumerable.Range(0, earlier.Width).Any(x => earlier.GetPixel(x, y) != later.GetPixel(x, y)));
+        Assert.Contains("00:40", markup);
+        Assert.DoesNotMatch(@"\d{2}:\d{2}:\d{2}", markup);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void LegacySecondsPreferenceCannotRestoreSecondsInAnyClockRow(bool legacySeconds)
+    {
+        var json = "{\"Widgets\":[{\"Kind\":\"clock\",\"ClockShowSeconds\":" +
+            (legacySeconds ? "true" : "false") + "}]}";
+        var settings = OverlayLayout.Normalize(JsonSerializer.Deserialize<OverlaySettings>(json));
+        var clock = OverlayClockPresentation.Create(Assert.Single(settings.Widgets), Parse("2026-09-13T00:20:02Z"), TimeZoneInfo.Utc);
+
+        Assert.Equal(new[] { "00:20", "07:00", "03:20" }, clock.Rows.Select(row => row.Value));
+        Assert.DoesNotContain("ClockShowSeconds", JsonSerializer.Serialize(settings));
+    }
+
+    [Fact]
+    public async Task ActiveSessionDurationKeepsItsSeconds()
+    {
+        var snapshot = new OverlayMetrics().Update(new TrackerState
+        {
+            HasSession = true, IsRunning = true, Elapsed = new TimeSpan(1, 2, 3),
+        }, new TrackerPreferences());
+
+        Assert.Equal("01:02:03", snapshot.Metrics["duration"].Value);
+        Assert.Contains("01:02:03", await Render(OverlayCatalog.CreateWidget("duration"), snapshot));
     }
 
     private static DateTimeOffset Parse(string value) => DateTimeOffset.Parse(value, CultureInfo.InvariantCulture);

@@ -1,3 +1,5 @@
+using BdoGrindTracker.App.Theming;
+
 namespace BdoGrindTracker.App.Overlay.Native;
 
 /// <summary>Compare the values drawn by this window, independent of new tracker snapshot instances.</summary>
@@ -6,14 +8,17 @@ internal sealed class NativeOverlayRenderState
     private OverlaySettings? _settings;
     private OverlaySnapshot? _snapshot;
     private Size _size;
+    private string _title = "Grindcrest";
 
     internal void Invalidate() => _settings = null;
 
-    internal bool Matches(OverlaySettings settings, OverlaySnapshot snapshot, Size size)
+    internal bool Matches(OverlaySettings settings, OverlaySnapshot snapshot, Size size, string title = "Grindcrest")
     {
         if (_settings is null || _snapshot is null || size != _size ||
+            AppThemes.Normalize(_snapshot.ThemeId) != AppThemes.Normalize(snapshot.ThemeId) ||
             _settings with { Widgets = settings.Widgets } != settings ||
             !_settings.Widgets.SequenceEqual(settings.Widgets)) return false;
+        if (OverlayWindowChrome.For(snapshot.ThemeId, settings.ShowBorder).HasTitleBar && _title != title) return false;
         foreach (var widget in settings.Widgets)
         {
             if (_snapshot.Metrics.GetValueOrDefault(widget.Kind) != snapshot.Metrics.GetValueOrDefault(widget.Kind)) return false;
@@ -39,8 +44,8 @@ internal sealed class NativeOverlayRenderState
         return true;
     }
 
-    internal void Remember(OverlaySettings settings, OverlaySnapshot snapshot, Size size) =>
-        (_settings, _snapshot, _size) = (settings, snapshot, size);
+    internal void Remember(OverlaySettings settings, OverlaySnapshot snapshot, Size size, string title = "Grindcrest") =>
+        (_settings, _snapshot, _size, _title) = (settings, snapshot, size, title);
 
     private static bool SameRotation(RotationMonitorSnapshot before, RotationMonitorSnapshot after, string mode) =>
         before.SpotId == after.SpotId && before.Elapsed == after.Elapsed &&

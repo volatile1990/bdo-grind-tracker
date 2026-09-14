@@ -1,5 +1,6 @@
 @page "/settings"
 @inherits TrackerComponentBase
+@using BdoGrindTracker.App.Theming
 
 <div class="page settings-page">
     <div class="page-heading"><h1>Einstellungen</h1></div>
@@ -8,6 +9,9 @@
         <fieldset class="autosave-fields" disabled="@(Acting || State.IsBusy)">
         <div class="settings-layout">
             <div class="settings-column">
+                <section class="panel settings-panel theme-settings"><div class="settings-heading"><div class="settings-icon"><AppIcon Name="spark" /></div><h2>Erscheinungsbild</h2></div>
+                    <label class="field"><span>Theme für Oberfläche und Overlay</span><select id="appearance-theme" @bind:get="SelectedThemeId" @bind:set="ThemeChanged"><option value="@AppThemes.Grindcrest">Grindcrest</option><option value="@AppThemes.BlackDesert">Black Desert</option><option value="@AppThemes.Light">Light</option><option value="@AppThemes.Cats">Katzen</option></select><small>@ThemeDescription</small></label>
+                </section>
                 <section class="panel settings-panel"><div class="settings-heading"><div class="settings-icon"><AppIcon Name="monitor" /></div><h2>Erfassung</h2></div>
                     @if (Tracker.CapturesGameWindow) { <p class="field-note">Das Black-Desert-Spielfenster wird automatisch für die Aufnahme ausgewählt.</p> }
                     <label class="field"><span>@(Tracker.CapturesGameWindow ? "Overlay-Bildschirm ohne erkanntes Spiel" : "Spielbildschirm")</span><select @bind="_monitor" @bind:after="MonitorChanged" disabled="@State.HasSession">@foreach (var monitor in Tracker.Monitors) { <option value="@monitor.DeviceName">@monitor.Label</option> }</select></label>
@@ -45,6 +49,14 @@
     private bool _recordLoot, _valuePack, _merchantRing;
     private string _region = "eu";
     private string _gameLanguage = "auto";
+    private string SelectedThemeId => AppThemes.Normalize(Tracker.Preferences.ThemeId);
+    private string ThemeDescription => SelectedThemeId switch
+    {
+        AppThemes.BlackDesert => "Dunkle Spielfenster, dezente Goldkanten und Loot-Elemente im Stil von Black Desert.",
+        AppThemes.Light => "Helle Flächen, dunkle Schrift und ruhige blaue Akzente.",
+        AppThemes.Cats => "Dunkle Pflaumentöne, Rosé-Akzente und dezente Katzenmotive.",
+        _ => "Das ursprüngliche Grindcrest-Design mit dunklen Flächen und goldenen Akzenten.",
+    };
     private string? _autoPauseError, _familyFameError;
     private string TaxPreview => new SilverTaxOptions(_valuePack, _merchantRing, int.TryParse(_familyFame, out var fame) ? Math.Max(0, fame) : 0).MarketReturnRate.ToString("P2", German);
     protected override void OnInitialized()
@@ -62,6 +74,7 @@
         _familyFame = preferences.FamilyFame.ToString(System.Globalization.CultureInfo.InvariantCulture);
     }
     private Task MonitorChanged() => Save(p => p with { MonitorDeviceName = _monitor });
+    private Task ThemeChanged(string themeId) => Save(p => p with { ThemeId = themeId });
     private Task GameLanguageChanged() => Save(p => p with { GameLanguage = _gameLanguage });
     private Task CharacterChanged() => Save(p => p with { CharacterClassId = string.IsNullOrEmpty(_characterClass) ? null : _characterClass });
     private Task RecordingChanged() => Save(p => p with { RecordLoot = _recordLoot });

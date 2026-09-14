@@ -25,7 +25,6 @@ public sealed record OverlayWidget
     public bool ShowRealTime { get; init; } = true;
     public bool ShowGameTime { get; init; } = true;
     public bool ShowDayNightCountdown { get; init; } = true;
-    public bool ClockShowSeconds { get; init; } = true;
     // Real minutes added to the regular NA/EU cycle for server calibration.
     public int ClockOffsetMinutes { get; init; }
     public string RotationComparison { get; init; } = "best";

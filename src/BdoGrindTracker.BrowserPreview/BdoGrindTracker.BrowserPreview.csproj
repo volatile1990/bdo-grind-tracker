@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <RootNamespace>BdoGrindTracker.BrowserPreview</RootNamespace>
+    <Version>1.5.1</Version>
+    <!-- Static files are copied from the same sources for both run and publish. -->
+    <StaticWebAssetsEnabled>false</StaticWebAssetsEnabled>
+  </PropertyGroup>
+
+  <!-- Compile the actual desktop UI in a portable host, without referencing the
+       Windows executable, capture/OCR code or native overlay renderer. -->
+  <ItemGroup>
+    <ProjectReference Include="../BdoGrindTracker.Core/BdoGrindTracker.Core.csproj" />
+    <Using Include="System.Drawing" />
+    <InternalsVisibleTo Include="BdoGrindTracker.BrowserPreview.Tests" />
+    <Content Update="wwwroot/**/*" CopyToOutputDirectory="PreserveNewest" />
+    <Compile Include="../BdoGrindTracker.App/AppBranding.cs" Link="Shared/AppBranding.cs" />
+    <Compile Include="../BdoGrindTracker.App/Theming/*.cs" Link="Shared/Theming/%(Filename)%(Extension)" />
+    <Compile Include="../BdoGrindTracker.App/Components/**/*.cs" Link="Components/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Content Include="../BdoGrindTracker.App/Components/**/*.razor" Link="Components/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="../BdoGrindTracker.App/Application/TrackerContracts.cs;../BdoGrindTracker.App/Application/CaptureConfigurationContracts.cs;../BdoGrindTracker.App/Application/PreviewTrackerSession.cs;../BdoGrindTracker.App/Application/AssetNames.cs" Link="Shared/Application/%(Filename)%(Extension)" />
+    <Compile Include="../BdoGrindTracker.App/Analysis/RotationProfiles.Presentation.cs" Link="Shared/Analysis/RotationProfiles.Presentation.cs" />
+    <Compile Include="../BdoGrindTracker.App/Character/CompanionCharacterClassCatalog.cs" Link="Shared/Character/%(Filename)%(Extension)" />
+    <Compile Include="../BdoGrindTracker.App/Pricing/LootPrice*.cs;../BdoGrindTracker.App/Pricing/SilverValuation.cs" Link="Shared/Pricing/%(Filename)%(Extension)" />
+    <Compile Include="../BdoGrindTracker.App/UI/AgrisState.cs;../BdoGrindTracker.App/UI/ExperienceState.cs;../BdoGrindTracker.App/UI/LootScrollState.cs;../BdoGrindTracker.App/UI/GrindBenchmark.cs;../BdoGrindTracker.App/UI/GrindRatingEvaluator.cs;../BdoGrindTracker.App/UI/LiveDetectionDebugSnapshot.cs;../BdoGrindTracker.App/UI/LootSessionSnapshot.cs;../BdoGrindTracker.App/UI/LootSpotPresentationCatalog*.cs;../BdoGrindTracker.App/UI/SessionSilverHistory.cs;../BdoGrindTracker.App/UI/SessionDropHistory.cs" Link="Shared/UI/%(Filename)%(Extension)" />
+    <Compile Include="../BdoGrindTracker.App/Persistence/LootHistoryEntry.cs;../BdoGrindTracker.App/Persistence/GrindGoalStore.cs;../BdoGrindTracker.App/Persistence/AtomicFile.cs" Link="Shared/Persistence/%(Filename)%(Extension)" />
+    <Compile Include="../BdoGrindTracker.App/Integrations/Garmoth/GarmothCatalog*.cs;../BdoGrindTracker.App/Integrations/Garmoth/GarmothGrindBenchmarks.cs;../BdoGrindTracker.App/Integrations/Garmoth/GarmothSessionPayload.cs;../BdoGrindTracker.App/Integrations/Garmoth/GarmothUploadPreview.cs;../BdoGrindTracker.App/Integrations/Garmoth/GarmothUploadClient.cs" Link="Shared/Garmoth/%(Filename)%(Extension)" />
+    <Compile Include="../BdoGrindTracker.App/Overlay/*.cs" Link="Shared/Overlay/%(Filename)%(Extension)" />
+    <Compile Include="../BdoGrindTracker.App/Updates/IAppUpdates.cs" Link="Shared/Updates/%(Filename)%(Extension)" />
+    <Content Include="../BdoGrindTracker.App/wwwroot/*.css;../BdoGrindTracker.App/wwwroot/*.js" Link="wwwroot/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../../data/**/*.png;../../data/**/*.jpg;../../data/**/*.webp" Exclude="../../data/ocr/**/*" Link="wwwroot/assets/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../../data/branding/grindcrest.ico" Link="wwwroot/assets/branding/grindcrest.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../../data/icons/catalog.json" Link="data/icons/catalog.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

@@ -38,6 +38,16 @@ Unter **Overlay** lassen sich Fenster erstellen, konfigurieren und am Desktop
 vorab ansehen. Neue Overlay-Fenster sind zunächst ausgeschaltet.
 [Bedienung der Overlays](docs/OVERLAY.md).
 
+Unter **Einstellungen → Erscheinungsbild** lässt sich das Theme für die gesamte
+Oberfläche und alle Overlays wechseln. **Grindcrest** behält das bisherige Design
+bei und bleibt die Voreinstellung. **Black Desert** verwendet dunkle, kantige
+Spielfenster, feine Rahmen, helle Schrift und eingelassene Inventarfelder.
+**Light** bietet helle Flächen mit dunkler Schrift und blauen Akzenten.
+**Katzen** kombiniert dunkle Pflaumentöne mit Rosa, weichen Konturen und Katzenmotiven.
+Die Auswahl gilt sofort, auch während einer Session, und wird in der Windows-App
+gespeichert. In der Browser-Vorschau gilt sie bis zum Neuladen.
+[Themes und Darstellung](docs/THEMES.md).
+
 Grindcrest merkt sich beim Beenden Position, Größe und Maximierung des
 Hauptfensters. Beim nächsten Start wird diese Anordnung wiederhergestellt;
 ist der bisherige Bildschirm nicht mehr angeschlossen, bleibt das Fenster
@@ -130,6 +140,35 @@ Garmoth-Uploads; eine Cloud-Synchronisierung des Verlaufs findet nicht statt.
 [Sicherheitsgrenze](docs/SAFETY.md) · [Garmoth-Integration](docs/GARMOTH_INTEGRATION.md).
 
 ## Entwickeln und prüfen
+
+### Browser-Vorschau auf macOS, Linux und Windows
+
+Die Oberfläche und der Overlay-Editor können mit Beispieldaten im Browser gestartet
+werden. Benötigt wird nur das **.NET-SDK 9.0.318 oder neuer**; Windows, BDO und OCR
+sind für die Vorschau nicht erforderlich.
+
+```sh
+dotnet run --project src/BdoGrindTracker.BrowserPreview
+```
+
+Auf macOS/Linux alternativ `./scripts/Start-BrowserPreview.sh`. Das Skript findet
+auch ein lokal unter `.artifacts/dotnet` installiertes SDK.
+Anschließend **http://127.0.0.1:5180** öffnen. Unter **Overlay → Im Browser ansehen**
+erscheint das ausgewählte Overlay ohne Bearbeitungsgriffe, vor einem Spotbild oder
+einem hellen, dunklen bzw. karierten Hintergrund. Der Editor unterstützt weiterhin
+Module, Größen, Positionen, Vorlagen und mehrere Overlay-Layouts. Mit **Strg+C**
+wird der Vorschauprozess beendet.
+
+Dashboard, Verlauf, Einstellungen und Overlay-Widgets stammen aus denselben
+Razor-, CSS- und JavaScript-Dateien wie die Windows-App. Änderungen und eigene
+Vorlagen gelten nur für die aktuelle Browser-Verbindung und gehen beim Neuladen
+verloren; andere Tabs starten unabhängig. Echte Tracker-Daten werden nicht geöffnet.
+Aufnahme, OCR und Uploads sind simuliert, Updates deaktiviert. Die Overlay-Vorschau
+verwendet die gemeinsame Layoutlogik, aber keine nativen Windows-Fenster: Schrift,
+Rendering, globale Tastenkürzel und Klickdurchleitung müssen unter Windows geprüft
+werden. [Technik und Prüfung](docs/BROWSER_PREVIEW.md).
+
+### Windows-App
 
 Zusätzlich zu den Laufzeitvoraussetzungen werden das **.NET-SDK 9.0.318 oder neuer**, **PowerShell
 7.2+** und **Node.js** für die JavaScript-Interaktionstests benötigt. CI verwendet

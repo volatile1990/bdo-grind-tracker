@@ -1,0 +1,826 @@
+/*
+ * Optional theme overrides. Grindcrest is intentionally defined only by the
+ * existing stylesheets; removing data-theme restores its exact appearance.
+ *
+ * Black Desert references (Pearl Abyss Adventurer's Guide, inspected 2026-09-14):
+ * Settings: https://s1.pearlcdn.com/SEA/Upload/WIKI/8e501b5a6b820190312102307744.png
+ * Storage:  https://s1.pearlcdn.com/SEA/Upload/WIKI/ec1bf1db7d220190308220740411.png
+ * HUD:      https://s1.pearlcdn.com/SEA/Upload/WIKI/5b0aa91fe6720190506114905843.png
+ * Menu windows use graphite bevels and inset controls; HUD text has a faint
+ * charcoal backing, and inventory slots carry the stronger frame. No game
+ * artwork, fonts or interface textures are downloaded by this stylesheet.
+ * Keep overlay dimensions/font metrics in overlay-widgets.css and the shared
+ * layout engine; these overrides change paint without moving hit targets.
+ */
+
+[data-theme="black-desert"] {
+    color-scheme: dark;
+    --bg: #101112;
+    --panel: #1c1d20;
+    --panel-raised: #292a2d;
+    --line: #45433d;
+    --muted: #aca695;
+    --dim: #928d81;
+    --text: #e6dfcd;
+    --gold: #d3b675;
+    --gold-bright: #e4ce91;
+    --teal: #a4bf83;
+    --red: #e19b92;
+    --radius: 2px;
+    --shadow: 0 3px 12px #0007;
+    --bdo-border: #605a49;
+    --bdo-inset: inset 0 1px 0 #ffffff0a, inset 0 0 0 1px #0009;
+    --bdo-bevel: inset 0 1px 0 #ffffff10, inset 0 -1px 0 #0009;
+    --overlay-surface-rgb: 18, 19, 21;
+    color: var(--text);
+}
+
+html[data-theme="black-desert"],
+[data-theme="black-desert"] .boot-screen {
+    background: var(--bg);
+}
+
+[data-theme="black-desert"] ::selection { background: #9f804b70; }
+[data-theme="black-desert"] ::-webkit-scrollbar-thumb { background: #71634c; border-radius: 1px; }
+[data-theme="black-desert"] :is(h1, h2, h3) { color: var(--text); text-shadow: 0 1px 2px #0009; }
+[data-theme="black-desert"] :is(.panel-heading h2, .loot-table-title h2, .oe-section-title h2, .oe-canvas-toolbar h2) { color: var(--gold-bright); }
+
+/* Main window and navigation retain the existing responsive structure. */
+[data-theme="black-desert"] .workspace {
+    background: radial-gradient(ellipse at 70% 0%, #71614a0d, transparent 60%), var(--bg);
+}
+[data-theme="black-desert"] .sidebar {
+    background: linear-gradient(90deg, #202124, #191a1c);
+    border-color: var(--bdo-border);
+    box-shadow: inset -3px 0 0 #0004, inset -4px 0 0 #c0ae7c0d;
+}
+[data-theme="black-desert"] :is(.topbar, .statusbar, .browser-preview-banner) {
+    color: var(--muted);
+    background: linear-gradient(#2b2c30, #212225);
+    border-color: #555046;
+    box-shadow: var(--bdo-bevel);
+}
+[data-theme="black-desert"] :is(.brand strong, .browser-preview-banner strong) { color: var(--gold-bright); }
+[data-theme="black-desert"] :is(.brand small, .breadcrumb strong, .local-note strong) { color: #c7c1b1; }
+[data-theme="black-desert"] .nav-item {
+    color: #c3bdaf;
+    border-radius: 1px;
+    background: #0e0e101a;
+    border-bottom-color: #ffffff04;
+}
+[data-theme="black-desert"] .nav-item:hover {
+    color: var(--text);
+    background: linear-gradient(#373737, #282827);
+    border-color: #75664b;
+    box-shadow: var(--bdo-bevel);
+}
+[data-theme="black-desert"] .nav-item.active {
+    color: var(--gold-bright);
+    background: linear-gradient(90deg, #69543266, #39332855);
+    border-color: #8c77504d;
+    box-shadow: inset 2px 0 0 #d3b675, var(--bdo-bevel);
+}
+[data-theme="black-desert"] :is(.region-badge, .nav-count, .count-pill, .badge, .item-tag, .trait-list span, .spot-session-count, .hero-badge, .live-session-status) {
+    border-radius: 1px;
+    border-color: #82755755;
+    background: #141517a6;
+    color: #c8bfa8;
+}
+[data-theme="black-desert"] :is(.nav-caption, .eyebrow, .metric-label, .metric-label .icon, .hero-kicker) { color: #bbae8c; }
+[data-theme="black-desert"] :is(.status-dot.running, .nav-live-dot) { background: var(--teal); box-shadow: 0 0 5px #a4bf8326; }
+
+/* Native-style flat window bodies and shallow, beveled title bands. */
+[data-theme="black-desert"] :is(.panel, .metric-card, .spot-card, .chronological-session-card, .settings-savebar, .oe-custom-templates, .garmoth-current) {
+    border-radius: 2px;
+    border-color: var(--bdo-border);
+    background: linear-gradient(135deg, #242528, #191a1c 80%);
+    box-shadow: var(--bdo-inset), 0 2px 6px #0003;
+}
+[data-theme="black-desert"] :is(.panel-heading, .loot-table-header, .oe-canvas-toolbar, .oe-section-title, .oe-behavior > summary, .browser-overlay-toolbar) {
+    background: linear-gradient(#2b2c30cc, #23242688);
+    box-shadow: inset 0 1px 0 #fff04, inset 0 -1px 0 #0003;
+}
+[data-theme="black-desert"] :is(.gold-metric, .oe-shortcuts, .oe-window-manager) {
+    border-color: #786847;
+    background: linear-gradient(100deg, #51412b24, #1c1d20 75%);
+}
+[data-theme="black-desert"] .chronological-history { background: transparent; border: 0; box-shadow: none; }
+[data-theme="black-desert"] :is(.session-expanded, .session-expanded .loot-panel, .tax-preview, .confirm-summary, .subtle-box, .garmoth-auto-rule, .garmoth-history-footnote) {
+    border-radius: 1px;
+    background: #10111280;
+    border-color: #5a534044;
+    color: var(--muted);
+    box-shadow: inset 0 1px 3px #0004;
+}
+[data-theme="black-desert"] :is(.spot-hero, .live-session-header, .garmoth-session-banner) {
+    border-color: #7b6c4b88;
+    border-radius: 2px;
+    box-shadow: var(--bdo-inset);
+}
+[data-theme="black-desert"] .live-session-header {
+    background-color: #20211e;
+    background-image: linear-gradient(90deg, #141415f2, #151516bf 37%, #17161466 65%, #151516e0), linear-gradient(0deg, #15151666, transparent), var(--live-session-artwork);
+}
+[data-theme="black-desert"] .live-page .live-session-metrics {
+    border-color: #a7926040;
+    background: #121315eb;
+    box-shadow: inset 0 1px 0 #0008;
+}
+[data-theme="black-desert"] .live-session-metrics .metric-card {
+    border-color: #a7926029;
+    background: transparent;
+    border-radius: 0;
+    box-shadow: none;
+}
+[data-theme="black-desert"] .hero-shade { background: linear-gradient(90deg, #131414ef, #151615cc 35%, #15151366 72%, #10111399); }
+[data-theme="black-desert"] :is(.hero-identity h2, .live-spot-copy h2, .chronological-spot strong) { color: var(--gold-bright); }
+[data-theme="black-desert"] :is(.hero-identity p, .hero-bottom, .live-session-meta, .live-page .live-session-title-row h1) { color: #c8c4b7; }
+
+/* Text stays at the accessible sizes chosen by the application. */
+[data-theme="black-desert"] :is(.table-footnote, .field-note, .price-status, .recording-path, .subtle-label, .history-secondary-metrics span, .spot-card-stats span, .spot-card-footer, .field small, .field-note code, .oe-field small, .oe-help, .oe-canvas-help, .oe-status-row, .oe-fit-label, .oe-canvas-dimensions, .oe-shortcuts-title > small, .browser-overlay-footer, .browser-overlay-toolbar p) { color: var(--muted); }
+[data-theme="black-desert"] :is(.field > span, .oe-field, .oe-check, .oe-shortcut, .oe-module strong, .oe-hotkey-field > legend, .oe-custom-templates > label, .quantity, .detail-list dd, .spot-session-table .session-duration-column, .spot-session-table .session-loot-quantity, .empty-state h3, .chronological-session-actions) { color: var(--text); }
+[data-theme="black-desert"] :is(.item-cell small, .chronological-identity small, .chronological-silver small, .chronological-duration, .chronological-session-header small, .oe-module small, .oe-module-group-label, .oe-section-title > span, .oe-canvas-empty, .oe-module > .icon:last-child) { color: var(--muted); }
+[data-theme="black-desert"] :is(.silver-cell, .chronological-session-silver, .favorite-tag, .session-favorite-star, .spot-card-stats strong, .history-secondary-metrics strong, .oe-module > .icon:first-child, .oe-window-heading > .icon, .oe-module-group-label:first-child, .oe-canvas-empty strong) { color: var(--gold); }
+[data-theme="black-desert"] :is(.oe-save-state, .settings-autosave, .settings-savebar > span, .oe-shortcuts-state.enabled) { color: var(--teal); }
+
+/* Dark metal controls instead of filled gold pills. Preserve focus/disabled states. */
+[data-theme="black-desert"] :is(.button, .icon-button, .session-favorite-button, .quantity-edit-trigger, .oe-module, .oe-item-action, .oe-item-result, .oe-modifier, .oe-widget-delete) { border-radius: 1px; }
+[data-theme="black-desert"] :is(.button.secondary, .live-session-actions .button.secondary, .oe-item-action, .oe-modifier) {
+    background: linear-gradient(#424247, #2b2b30 52%, #303035);
+    color: var(--text);
+    border-color: #666153;
+    box-shadow: var(--bdo-bevel), 0 1px 2px #0005;
+    text-shadow: 0 1px 2px #000;
+}
+[data-theme="black-desert"] :is(.button.secondary, .live-session-actions .button.secondary, .oe-item-action):hover:not(:disabled) {
+    background: linear-gradient(#555149, #39372f);
+    border-color: #ad9869;
+    color: #f2e6c6;
+}
+[data-theme="black-desert"] .button.primary {
+    color: #f0dfb4;
+    border-color: #ad9661;
+    background: linear-gradient(#6a593a, #443823 55%, #51432b);
+    box-shadow: inset 0 1px 0 #dfc88a40, inset 0 0 0 1px #0008, 0 1px 3px #0005;
+    text-shadow: 0 1px 2px #000;
+}
+[data-theme="black-desert"] .button.primary:hover:not(:disabled) { background: linear-gradient(#83704c, #55432b); border-color: #e4ce91; }
+[data-theme="black-desert"] .button.danger { color: #efd0c7; border-color: #987069; background: linear-gradient(#614342, #392727); box-shadow: var(--bdo-bevel); }
+[data-theme="black-desert"] .button.danger:hover:not(:disabled) { background: linear-gradient(#79534d, #49302b); }
+[data-theme="black-desert"] .icon-button:hover:not(:disabled) { color: var(--gold-bright); border-color: #8e7b5366; background: #a88b4814; }
+[data-theme="black-desert"] .icon-button.danger-hover:hover:not(:disabled) { color: var(--red); border-color: #9c635966; background: #873a2d22; }
+[data-theme="black-desert"] :is(.segmented, .key-input, .search-field, .oe-item-results, .oe-hotkey-field) { border-radius: 1px; border-color: var(--bdo-border); background: #101113; box-shadow: inset 0 1px 3px #0009; }
+[data-theme="black-desert"] .segmented button { border-radius: 1px; color: var(--muted); }
+[data-theme="black-desert"] .segmented button.selected { color: var(--gold-bright); background: linear-gradient(#514b3d, #332f27); box-shadow: inset 0 1px 0 #c9b06c30, inset 0 0 0 1px #8c775055; }
+[data-theme="black-desert"] :is(.field input, .field select, .filter-field select, .sort-field select, .oe-field input:not([type="range"]), .oe-field select, .oe-canvas-dimensions input, .oe-custom-templates select, .edit-loot-row input, .loot-quantity-editor input, .loot-add-form input, .loot-add-form select, .live-spot-variant select, .browser-overlay-toolbar select) {
+    color: var(--text);
+    border-radius: 1px;
+    border-color: #666153;
+    background: #101113;
+    box-shadow: inset 0 1px 4px #000a, inset 0 -1px 0 #fff06;
+}
+[data-theme="black-desert"] input::placeholder { color: #928d81; }
+[data-theme="black-desert"] .search-field:focus-within { border-color: var(--gold); }
+[data-theme="black-desert"] .search-field input { color: var(--text); background: transparent; box-shadow: none; }
+[data-theme="black-desert"] .key-input input { color: var(--text); background: transparent; }
+[data-theme="black-desert"] :is(.switch, .switch:after) { border-color: #817457; }
+[data-theme="black-desert"] .switch { background: linear-gradient(#0b0c0f, #353536); }
+[data-theme="black-desert"] .switch:after { background: linear-gradient(#e3ded0, #9b968b); box-shadow: 0 1px 2px #000; }
+[data-theme="black-desert"] .switch:checked { background: linear-gradient(#ddc56e, #9a792f); border-color: #c9b572; }
+[data-theme="black-desert"] .switch:checked:after { background: #fff4c9; }
+[data-theme="black-desert"] :is(.settings-icon, .settings-icon.gold-icon, .empty-symbol, .garmoth-transfer-icon) { color: var(--gold); background: #a58b5912; border-color: #a58b5940; border-radius: 2px; }
+[data-theme="black-desert"] :is(.oe-shortcuts kbd, .oe-hotkey-field kbd) { color: var(--gold-bright); background: linear-gradient(#363638, #1a1b1d); border-color: #817457; border-radius: 2px; box-shadow: inset 0 1px 0 #fff12; }
+[data-theme="black-desert"] .oe-modifier:has(input:checked) { color: var(--gold-bright); border-color: #a58b59; background: linear-gradient(#514531, #332d23); }
+[data-theme="black-desert"] :is(.oe-module:hover:not(:disabled), .oe-item-result:hover) { color: var(--text); background: #ac915417; border-color: #8f7b55; }
+[data-theme="black-desert"] .quantity-edit-trigger:hover:not(:disabled),
+[data-theme="black-desert"] .quantity-edit-trigger:focus-visible { border-color: #a58b59; background: #0f1011; }
+
+/* Data rows and item images echo the inventory's dark, inset square slots. */
+[data-theme="black-desert"] :is(.item-image, .asset-fallback, .session-identity) {
+    border-radius: 1px;
+    border-color: #706a5b99;
+    background: linear-gradient(135deg, #242429, #0d0e10);
+    box-shadow: inset 0 1px 0 #c2bda229, inset 0 0 0 1px #0009;
+}
+[data-theme="black-desert"] :is(.loot-table th, .spot-session-table th, .spot-session-table thead .session-fixed, .spot-session-table thead .session-actions-column, .session-column-labels, .garmoth-upload-table th, .garmoth-confirm-loot th) { color: #bfb59b; background: #101113; border-color: #514a3d; }
+[data-theme="black-desert"] :is(.loot-table td, .spot-session-table td, .spot-session-table .session-fixed, .spot-session-table .session-actions-column) { border-color: #4b46364d; }
+[data-theme="black-desert"] :is(.spot-session-table, .spot-session-table td, .spot-session-table .session-fixed, .spot-session-table .session-actions-column) { background: #1c1d20; }
+[data-theme="black-desert"] .spot-session-table tbody tr:nth-child(even) :is(td, .session-fixed, .session-actions-column) { background: #222326; }
+[data-theme="black-desert"] .spot-session-table tbody tr:hover :is(td, .session-fixed, .session-actions-column) { background: #333027; }
+[data-theme="black-desert"] :is(.loot-table tbody tr:hover, .garmoth-upload-table tbody tr:hover, .history-session-row:hover, .chronological-row:hover) { background: #a38a5010; }
+[data-theme="black-desert"] :is(.table-footnote, .detail-list > div, .history-session + .history-session, .chronological-session-details, .chronological-row, .spot-session-table-scroll) { border-color: #504b3e66; }
+[data-theme="black-desert"] .session-favorite-button.is-favorite { border-color: #b5a16d; background: #c6aa571a; }
+[data-theme="black-desert"] .favorite-loot-row { background: #b09c570b; }
+
+/* Notices keep their semantic colours; general information follows the window. */
+[data-theme="black-desert"] :is(.notice, .update-banner) { border-radius: 2px; background: #242528; border-color: #69624f; color: var(--text); box-shadow: var(--bdo-bevel); }
+[data-theme="black-desert"] .notice span { color: #c1b9a8; }
+[data-theme="black-desert"] .notice > .icon { color: var(--gold); }
+[data-theme="black-desert"] :is(.demo-notice, .success-notice, .oe-enable, .oe-data-kind, .garmoth-key-state.has-key, .garmoth-form-feedback.is-success) { border-color: #8c9a674d; background: #6b784815; color: #bccb9c; border-radius: 2px; }
+[data-theme="black-desert"] :is(.demo-notice, .success-notice) > .icon { color: var(--teal); }
+[data-theme="black-desert"] :is(.warning-notice, .oe-capacity-hint, .garmoth-inline-warning) { border-color: #b1985d66; background: #8c68351a; color: #dbc79b; border-radius: 2px; }
+[data-theme="black-desert"] :is(.error-notice, .garmoth-form-feedback.is-error, .statusbar.has-error) { border-color: #b47a6666; background: #4d2b2566; color: var(--red); }
+[data-theme="black-desert"] .error-notice > .icon { color: var(--red); }
+[data-theme="black-desert"] .oe-selected-item { border-color: #9b865550; background: #b2984e14; border-radius: 1px; }
+
+/* Modal windows mirror the game's squared, lightly bevelled menu frame. */
+[data-theme="black-desert"] .modal,
+[data-theme="black-desert"] .browser-overlay-dialog,
+.browser-overlay-dialog[data-theme="black-desert"] {
+    color: var(--text);
+    border-radius: 2px;
+    border-color: #877653;
+    background: linear-gradient(135deg, #28292c, #1a1b1e 80%);
+    box-shadow: inset 0 0 0 1px #c6b58212, 0 0 0 1px #090909, 0 18px 70px #000b;
+}
+[data-theme="black-desert"] .modal::backdrop,
+[data-theme="black-desert"] .browser-overlay-dialog::backdrop,
+.browser-overlay-dialog[data-theme="black-desert"]::backdrop { background: #070808c9; }
+
+/* Editor canvas: a restrained neutral grid distinguishes editing from the HUD. */
+[data-theme="black-desert"] .oe-stage-viewport {
+    background-color: #101113;
+    background-image: linear-gradient(#bbaa7608 1px, transparent 1px), linear-gradient(90deg, #bbaa7608 1px, transparent 1px);
+}
+[data-theme="black-desert"] .oe-stage {
+    --overlay-surface-rgb: 37, 37, 38;
+    border-radius: 1px;
+    border-color: #77736640;
+    box-shadow: 0 3px 12px #0005;
+}
+[data-theme="black-desert"] .oe-stage.has-border {
+    border-color: rgba(151, 142, 122, calc(var(--overlay-opacity, .85) * .8));
+    box-shadow: inset 0 0 0 1px #080909b3, inset 0 2px 0 #c6bdab26, 0 1px 4px #0006;
+}
+[data-theme="black-desert"] .oe-stage.has-window-chrome {
+    border-width: 0;
+    box-shadow: inset 0 0 0 1px rgba(151, 142, 122, calc(var(--overlay-opacity, .85) * .8)), inset 0 0 0 2px #080909b3, 0 1px 4px #0006;
+}
+[data-theme="black-desert"] :is(.oe-widget, .oe-widget-content) { border-radius: 1px; }
+[data-theme="black-desert"] .oe-widget-grip { border-radius: 1px; background: #4d4230; border-color: #b5a16d; color: #f1e2bc; }
+[data-theme="black-desert"] .oe-canvas-resize { border-radius: 1px; background: #292a27; }
+[data-theme="black-desert"] .oe-drag-ghost { border-radius: 1px; color: var(--gold-bright); border-color: #a58b59; background: #232425f5; }
+[data-theme="black-desert"] .browser-overlay-dialog .oe-stage-viewport,
+.browser-overlay-dialog[data-theme="black-desert"] .oe-stage-viewport { background: none; }
+[data-theme="black-desert"] .browser-overlay-dialog .oe-stage,
+.browser-overlay-dialog[data-theme="black-desert"] .oe-stage { box-shadow: none; }
+[data-theme="black-desert"] .browser-overlay-dialog .oe-stage.has-border,
+.browser-overlay-dialog[data-theme="black-desert"] .oe-stage.has-border { box-shadow: inset 0 0 0 1px rgba(151, 142, 122, calc(var(--overlay-opacity, .85) * .8)), inset 0 0 0 2px #080909b3; }
+[data-theme="black-desert"] .browser-overlay-stage.background-dark { background: #111214; }
+[data-theme="black-desert"] .browser-overlay-empty { color: var(--text); background: #131415df; }
+
+/* Current PC references, inspected 2026-09-14:
+ * Official September 2026 game-window chrome (Black Spirit's Scheduler):
+ * https://s1.pearlcdn.com/NAEU/Upload/News/b509982e25820260908141838833.png
+ * Inventory after the March 2025 item-frame update (unmodified player capture
+ * on the official PC forum; its comparison/proposed variant is NOT used):
+ * https://s1.pearlcdn.com/NAEU/Upload/Community/5950eacae8220250313153105767.png
+ * The overlay is one game window. Faint square module edges separate its
+ * contents. Bronze is reserved for its title band, item outlines follow the
+ * inventory's neutral/rare treatment, and quantities sit on the icons.
+ * Fills follow the opacity slider, including at zero; content stays legible.
+ */
+[data-theme="black-desert"] .overlay-window-titlebar {
+    position: absolute;
+    inset: 0 0 auto;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow: hidden;
+    padding: 0 12px;
+    border-top: 1px solid rgba(202, 181, 142, calc(var(--overlay-opacity, .85) * .72));
+    border-bottom: 1px solid rgba(51, 45, 38, var(--overlay-opacity, .85));
+    background: linear-gradient(rgba(128, 102, 66, var(--overlay-opacity, .85)), rgba(103, 81, 54, var(--overlay-opacity, .85)));
+    box-shadow: inset 0 -1px 0 rgba(185, 153, 108, calc(var(--overlay-opacity, .85) * .25));
+    color: #e6dfcd;
+    pointer-events: none;
+    user-select: none;
+}
+[data-theme="black-desert"] .overlay-window-titlebar::after {
+    content: "";
+    position: absolute;
+    right: 23px;
+    top: -21px;
+    width: 72px;
+    height: 72px;
+    border: 8px double rgba(220, 198, 151, calc(var(--overlay-opacity, .85) * .13));
+    transform: rotate(45deg);
+    pointer-events: none;
+}
+[data-theme="black-desert"] .overlay-window-title {
+    position: relative;
+    z-index: 1;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    color: #e6dfcd;
+    font: 400 14px/1.3 Georgia, "Times New Roman", serif;
+    letter-spacing: 0;
+    text-shadow: 0 1px 1px #0008;
+}
+[data-theme="black-desert"] .overlay-window-titlebar > .icon { width: 16px; height: 16px; color: #d2c7ae; }
+[data-theme="black-desert"] .overlay-widget-preview {
+    color: #e6dfcd;
+    font-family: "Segoe UI", sans-serif;
+    border-radius: 0;
+    border-color: rgba(155, 146, 126, calc(var(--overlay-opacity, .85) * .2));
+    background: rgba(8, 9, 11, calc(var(--overlay-opacity, .85) * .14));
+    box-shadow: none;
+    text-shadow: 0 1px 1px #000c;
+}
+[data-theme="black-desert"] :is(.overlay-widget-label, .overlay-clock-row-label) { color: #c4bfaf; }
+[data-theme="black-desert"] .overlay-widget-label .icon { color: #b9b09a; }
+[data-theme="black-desert"] :is(.overlay-widget-detail, .overlay-widget-empty, .overlay-widget-more) { color: #aca695; }
+[data-theme="black-desert"] .overlay-widget-value { color: #e6dfcd; }
+[data-theme="black-desert"] .overlay-widget-value > .icon { color: #c3bba7; }
+[data-theme="black-desert"] :is(.overlay-widget-silver, .overlay-widget-silver-hour, .overlay-widget-chart, .overlay-widget-preview.metric-tone-accent) .overlay-widget-value,
+[data-theme="black-desert"] :is(.overlay-clock-row.is-countdown strong, .overlay-clock-row > .icon) { color: #d3b675; }
+[data-theme="black-desert"] .overlay-widget-preview.metric-tone-muted .overlay-widget-value { color: #aca695; }
+[data-theme="black-desert"] .overlay-widget-preview.metric-tone-positive .overlay-widget-value { color: #a4bf83; }
+[data-theme="black-desert"] .overlay-widget-preview.is-warning .overlay-widget-value { color: #e4ce91; }
+[data-theme="black-desert"] .overlay-status-dot { background: #969286; }
+[data-theme="black-desert"] .overlay-status-dot.is-running { background: #a4bf83; box-shadow: 0 0 4px #a4bf8340; }
+[data-theme="black-desert"] :is(.overlay-widget-preview.is-loot-widget, .overlay-widget-clock) {
+    border-radius: 0;
+    box-shadow: inset 0 0 0 1px rgba(155, 146, 126, calc(var(--overlay-opacity, .85) * .2));
+}
+[data-theme="black-desert"] .is-loot-widget > .overlay-widget-label {
+    color: #d7cfba;
+    background: linear-gradient(90deg, rgba(157, 140, 109, calc(var(--overlay-opacity, .85) * .18)), transparent 92%) left bottom / 100% 1px no-repeat;
+}
+[data-theme="black-desert"] .overlay-tracking-button {
+    color: #e6dfcd;
+    border-radius: 1px;
+    border-color: #877653;
+    background: linear-gradient(rgba(66, 66, 71, var(--overlay-opacity, .85)), rgba(28, 29, 31, var(--overlay-opacity, .85)));
+    box-shadow: inset 0 1px 0 #dfc88a21, inset 0 0 0 1px #0009;
+    text-shadow: 0 1px 2px #000;
+}
+[data-theme="black-desert"] .overlay-tracking-button:not(:disabled):hover { color: #f0dfb4; border-color: #d3b675; background: linear-gradient(rgba(89, 76, 51, var(--overlay-opacity, .85)), rgba(44, 37, 25, var(--overlay-opacity, .85))); }
+[data-theme="black-desert"] :is(.overlay-widget-items.is-grid, .overlay-widget-items.is-strip) .overlay-widget-item {
+    --bdo-slot-edge: #a6afc2;
+    border-radius: 0;
+    border-color: var(--bdo-slot-edge);
+    background: linear-gradient(rgba(20, 20, 24, var(--overlay-opacity, .85)), rgba(13, 14, 18, var(--overlay-opacity, .85)));
+    box-shadow: inset 0 0 0 1px #06070bc7, 0 0 0 1px #101115b3;
+}
+[data-theme="black-desert"] :is(.overlay-widget-items.is-grid, .overlay-widget-items.is-strip) .overlay-widget-item.is-rare {
+    --bdo-slot-edge: #c2a66b;
+    border-color: var(--bdo-slot-edge);
+    background: linear-gradient(rgba(26, 24, 21, var(--overlay-opacity, .85)), rgba(13, 14, 18, var(--overlay-opacity, .85)));
+    box-shadow: inset 0 0 0 1px #06070bc7, 0 0 0 1px #101115b3;
+}
+[data-theme="black-desert"] :is(.overlay-widget-items.is-grid, .overlay-widget-items.is-strip) .overlay-item-icon { padding: calc(var(--loot-gap, 4px) * .25); }
+[data-theme="black-desert"] :is(.overlay-widget-items.is-grid, .overlay-widget-items.is-strip) .overlay-item-quantity {
+    bottom: calc(var(--loot-gap, 4px) * .25);
+    right: calc(var(--loot-gap, 4px) * .5);
+    color: #e1e1df;
+    font-weight: 400;
+    text-shadow: 0 1px 1px #000, 1px 0 1px #000, -1px 0 1px #000, 0 -1px 1px #000;
+}
+[data-theme="black-desert"] :is(.overlay-widget-items.is-grid, .overlay-widget-items.is-strip) .overlay-widget-item::after { content: none; }
+[data-theme="black-desert"] .overlay-widget-items.is-grid .overlay-widget-item.is-empty-slot {
+    --bdo-slot-edge: rgba(112, 111, 116, calc(var(--overlay-opacity, .85) * .42));
+    background: rgba(11, 12, 15, calc(var(--overlay-opacity, .85) * .72));
+    box-shadow: inset 0 1px 2px #0005, inset 0 0 0 1px #0003;
+}
+[data-theme="black-desert"] .overlay-widget-items.is-grid .overlay-widget-item.is-empty-slot::after { content: none; }
+[data-theme="black-desert"] .overlay-widget-items.is-list .overlay-widget-item { border-color: #b3ae9d1a; }
+[data-theme="black-desert"] :is(.overlay-widget-items.is-list, .overlay-widget-items.is-card) .overlay-item-icon { border-radius: 0; background: rgba(13, 14, 18, var(--overlay-opacity, .85)); box-shadow: inset 0 0 0 1px #a6afc2b3, inset 0 0 0 2px #07080ac7; }
+[data-theme="black-desert"] :is(.overlay-widget-items.is-list, .overlay-widget-items.is-card) .is-rare .overlay-item-icon { box-shadow: inset 0 0 0 1px #c2a66bb3, inset 0 0 0 2px #07080ac7; }
+[data-theme="black-desert"] .overlay-widget-items.is-card .overlay-item-name { color: #c3bba7; }
+[data-theme="black-desert"] :is(.overlay-widget-items.is-card, .overlay-widget-items.is-list) .overlay-item-quantity { color: #d3b675; }
+[data-theme="black-desert"] .overlay-chart-baseline { stroke: #9b906e40; }
+[data-theme="black-desert"] .overlay-chart-area { fill: #d3b6751c; }
+[data-theme="black-desert"] .overlay-chart-line { stroke: #d3b675; }
+
+/* Light and Katzen share the same UI components and dimensions. Their tokens
+ * also cover the original hard-coded dark surfaces, including native dialogs.
+ * All cat illustrations below are decorative SVG linework authored here. */
+[data-theme="light"] {
+    color-scheme: light;
+    --bg: #f5f6f8;
+    --panel: #ffffff;
+    --panel-raised: #eef2f7;
+    --line: #d0d8e2;
+    --muted: #526478;
+    --dim: #617084;
+    --text: #243244;
+    --gold: #365f91;
+    --gold-bright: #244c7d;
+    --teal: #237557;
+    --red: #a43d43;
+    --radius: 10px;
+    --shadow: 0 4px 18px #2432440c;
+    --theme-side: #eef1f5;
+    --theme-header: #f9fafc;
+    --theme-input: #ffffff;
+    --theme-inset: #edf1f6;
+    --theme-hover: #e9eff7;
+    --theme-selected: #dce8f6;
+    --theme-control-line: #a8b7c9;
+    --theme-accent-ink: #ffffff;
+    --theme-button: #365f91;
+    --theme-button-hover: #294f7e;
+    --theme-info: #edf3fa;
+    --theme-info-line: #b2c4da;
+    --theme-positive-bg: #edf6f0;
+    --theme-positive-line: #abcab8;
+    --theme-warning: #805a20;
+    --theme-warning-bg: #fff7e5;
+    --theme-warning-line: #d7bd81;
+    --theme-danger-bg: #fff0f0;
+    --theme-danger-line: #d8a0a3;
+    --theme-art-shade: linear-gradient(90deg, #f7f9fcf5, #edf2f7e3 40%, #eef1f6ae 75%, #f7f9fce8);
+    --overlay-surface-rgb: 245, 246, 248;
+    --overlay-panel-rgb: 255, 255, 255;
+    --overlay-panel-opacity: .65;
+    --overlay-slot-rgb: 255, 255, 255;
+    --overlay-line-rgb: 157, 172, 190;
+    --overlay-rare: #946c27;
+    --overlay-ink: #243244;
+    --overlay-muted: #526478;
+    --overlay-shadow: none;
+    --overlay-corner: 8px;
+    color: var(--text);
+}
+[data-theme="cats"] {
+    color-scheme: dark;
+    --bg: #29232f;
+    --panel: #342b3d;
+    --panel-raised: #403347;
+    --line: #604d68;
+    --muted: #bca9bd;
+    --dim: #b19bb4;
+    --text: #f4e7ee;
+    --gold: #edb3ca;
+    --gold-bright: #ffd4e4;
+    --teal: #a6d7ba;
+    --red: #f0a5ad;
+    --radius: 15px;
+    --shadow: 0 5px 20px #160f222b;
+    --theme-side: #251f2c;
+    --theme-header: #312838;
+    --theme-input: #251f2e;
+    --theme-inset: #2b2333;
+    --theme-hover: #49364e;
+    --theme-selected: #5c3d55;
+    --theme-control-line: #8b7090;
+    --theme-accent-ink: #392632;
+    --theme-button: #edb3ca;
+    --theme-button-hover: #ffd0e0;
+    --theme-info: #393044;
+    --theme-info-line: #766383;
+    --theme-positive-bg: #2a3c38;
+    --theme-positive-line: #597d6f;
+    --theme-warning: #f0ce94;
+    --theme-warning-bg: #43373a;
+    --theme-warning-line: #8b7359;
+    --theme-danger-bg: #4a2c3c;
+    --theme-danger-line: #956075;
+    --theme-art-shade: linear-gradient(90deg, #2c2233f5, #322637dc 40%, #30223688 75%, #292030e8);
+    --overlay-surface-rgb: 41, 35, 47;
+    --overlay-panel-rgb: 57, 43, 61;
+    --overlay-panel-opacity: .30;
+    --overlay-slot-rgb: 32, 26, 39;
+    --overlay-line-rgb: 119, 96, 121;
+    --overlay-rare: #edb3ca;
+    --overlay-ink: #f4e7ee;
+    --overlay-muted: #bca9bd;
+    --overlay-shadow: 0 1px 1px #1b1029cc;
+    --overlay-corner: 10px;
+    --cat-paw: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cg fill='none' stroke='%23edb3ca' stroke-width='1.6' stroke-linejoin='round'%3E%3Cpath d='M20 21c-4-1-5 2-8 5s-3 7 1 8c3 1 4-1 7-1s5 2 8 0c4-3 0-6-2-8s-3-5-6-4Z'/%3E%3Cellipse cx='8' cy='18' rx='3' ry='4' transform='rotate(-25 8 18)'/%3E%3Cellipse cx='17' cy='12' rx='3' ry='4' transform='rotate(-8 17 12)'/%3E%3Cellipse cx='26' cy='13' rx='3' ry='4' transform='rotate(15 26 13)'/%3E%3Cellipse cx='33' cy='20' rx='3' ry='4' transform='rotate(30 33 20)'/%3E%3C/g%3E%3C/svg%3E");
+    --cat-face: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cg fill='none' stroke='%23edb3ca' stroke-width='1.55' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 13-1-9 8 5a14 14 0 0 1 6 0l8-5-1 9c4 12-1 15-10 15S2 25 6 13Z'/%3E%3Cpath d='M10 17h1m10 0h1m-8 3 2 2 2-2m-2 2v2m-9-4-5-1m5 4-5 1m23-4 5-1m-5 4 5 1'/%3E%3C/g%3E%3C/svg%3E");
+    color: var(--text);
+}
+
+/* Shell, cards, page furniture and all supporting text. */
+:is([data-theme="light"], [data-theme="cats"]) { --text-muted: var(--muted); }
+html:is([data-theme="light"], [data-theme="cats"]) { background: var(--bg); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.workspace, .boot-screen) { background: var(--bg); }
+:is([data-theme="light"], [data-theme="cats"]) .sidebar { background: var(--theme-side); border-color: var(--line); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.topbar, .statusbar, .browser-preview-banner) { background: var(--theme-header); border-color: var(--line); color: var(--muted); }
+:is([data-theme="light"], [data-theme="cats"]) ::selection { color: var(--text); background: var(--theme-selected); }
+:is([data-theme="light"], [data-theme="cats"]) ::-webkit-scrollbar-thumb { background: var(--theme-control-line); border-color: var(--bg); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.brand strong, .browser-preview-banner strong, .eyebrow, .hero-kicker) { color: var(--gold); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.brand small, .breadcrumb strong, .local-note strong, .nav-caption, .sidebar-version) { color: var(--muted); }
+:is([data-theme="light"], [data-theme="cats"]) .nav-item { background: transparent; color: var(--muted); border-radius: var(--radius); }
+:is([data-theme="light"], [data-theme="cats"]) .nav-item:hover { color: var(--text); background: var(--theme-hover); border-color: var(--line); }
+:is([data-theme="light"], [data-theme="cats"]) .nav-item.active { background: var(--theme-selected); color: var(--gold-bright); border-color: var(--theme-control-line); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.status-dot.running, .nav-live-dot) { background: var(--teal); box-shadow: none; }
+:is([data-theme="light"], [data-theme="cats"]) .status-dot.error { background: var(--red); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.region-badge, .nav-count, .count-pill, .badge, .item-tag, .trait-list span, .spot-session-count, .hero-badge, .live-session-status) { border-color: var(--line); background: var(--theme-inset); color: var(--muted); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.panel, .metric-card, .spot-card, .chronological-session-card, .settings-savebar, .oe-custom-templates, .garmoth-current) { border-color: var(--line); border-radius: var(--radius); background: var(--panel); box-shadow: var(--shadow); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.panel-heading, .loot-table-header, .oe-canvas-toolbar, .oe-section-title, .oe-behavior > summary) { background: transparent; }
+:is([data-theme="light"], [data-theme="cats"]) :is(.gold-metric, .oe-shortcuts, .oe-window-manager) { background: var(--theme-info); border-color: var(--theme-info-line); }
+:is([data-theme="light"], [data-theme="cats"]) .chronological-history { background: transparent; border: 0; box-shadow: none; }
+:is([data-theme="light"], [data-theme="cats"]) :is(.session-expanded, .session-expanded .loot-panel, .tax-preview, .confirm-summary, .subtle-box, .garmoth-auto-rule, .garmoth-history-footnote, .garmoth-key-state) { color: var(--muted); background: var(--theme-inset); border-color: var(--line); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.table-footnote, .field-note, .price-status, .recording-path, .subtle-label, .history-secondary-metrics span, .history-overview-stats span, .spot-card-stats span, .spot-card-footer, .field small, .field-note code, .oe-field small, .oe-help, .oe-canvas-help, .oe-status-row, .oe-fit-label, .oe-canvas-dimensions, .oe-shortcuts-title > small, .browser-overlay-footer, .browser-overlay-toolbar p, .tax-preview > span, .tax-preview small, .toggle-row small) { color: var(--muted); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.field > span, .oe-field, .oe-check, .oe-shortcut, .oe-module strong, .oe-hotkey-field > legend, .oe-custom-templates > label, .quantity, .detail-list dd, .spot-session-table .session-duration-column, .spot-session-table .session-loot-quantity, .empty-state h3, .chronological-session-actions, .toggle-row strong, .garmoth-current-title, .metric-value) { color: var(--text); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.metric-label, .metric-label .icon, .item-cell small, .chronological-identity small, .chronological-silver small, .chronological-duration, .chronological-session-header small, .oe-module small, .oe-module-group-label, .oe-section-title > span, .oe-canvas-empty, .oe-module > .icon:last-child, .sort-field, .filter-field, .garmoth-history-footnote, .garmoth-upload-table small) { color: var(--muted); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.silver-cell, .chronological-session-silver, .favorite-tag, .session-favorite-star, .spot-card-stats strong, .history-secondary-metrics strong, .oe-module > .icon:first-child, .oe-window-heading > .icon, .oe-module-group-label:first-child, .oe-canvas-empty strong, .gold-metric .metric-value, .spot-session-table .session-silver-column, .garmoth-transfer-icon, .session-loot-column small) { color: var(--gold-bright); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.oe-save-state, .settings-autosave, .settings-savebar > span, .oe-shortcuts-state.enabled) { color: var(--teal); }
+:is([data-theme="light"], [data-theme="cats"]) .spot-card-footer > span:last-child { color: var(--gold-bright); }
+:is([data-theme="light"], [data-theme="cats"]) .agris-live-value small { color: var(--muted); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.filter-count, .spot-detail-identity p, .spot-guidance span, .spot-guidance small, .session-identity small, .session-duration, .session-agris-time, .chronological-session-duration .session-agris-time, .experience-hourly, .garmoth-key-explainer, .garmoth-connection-actions .text-button, .garmoth-session-identity > div > span, .garmoth-session-state, .garmoth-total-caption span, .garmoth-current-metrics span, .garmoth-valuation, .garmoth-current-transfer p, .garmoth-current-actions > span, .garmoth-history-count, .garmoth-history-identity small, .garmoth-history-identity small.garmoth-history-class, .garmoth-duration, .garmoth-history-status small, .garmoth-history-footnote p, .garmoth-confirm-note, .garmoth-status-label.is-pending) { color: var(--muted); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.garmoth-session-identity h3, .garmoth-current-transfer strong) { color: var(--text); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.garmoth-silver, .garmoth-total-caption, .garmoth-history-footnote p > span) { color: var(--gold); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.garmoth-status-label.is-transferred, .garmoth-history-identity .garmoth-live-marker, .session-experience-column .experience-gain, .chronological-session-experience .experience-gain) { color: var(--teal); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.garmoth-status-label.is-blocked, .session-local-correction) { color: var(--theme-warning); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.garmoth-upload-table td, .garmoth-current-transfer, .garmoth-current-metrics > div) { border-color: var(--line); }
+:is([data-theme="light"], [data-theme="cats"]) .garmoth-transfer-icon { background: var(--theme-info); border-color: var(--theme-info-line); }
+
+/* Image-backed session headers use a theme-specific veil for text contrast. */
+:is([data-theme="light"], [data-theme="cats"]) :is(.spot-hero, .live-session-header, .garmoth-session-banner) { border-color: var(--line); border-radius: var(--radius); }
+:is([data-theme="light"], [data-theme="cats"]) .live-session-header { background-color: var(--panel); background-image: var(--theme-art-shade), var(--live-session-artwork); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.hero-shade, .spot-detail-hero .hero-shade, .garmoth-banner-shade) { background: var(--theme-art-shade); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.hero-identity h2, .live-spot-copy h2) { color: var(--text); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.hero-identity p, .hero-bottom, .live-session-meta, .live-session-meta .icon, .live-page .live-session-title-row h1, .valuation-note) { color: var(--muted); }
+:is([data-theme="light"], [data-theme="cats"]) .live-page .live-session-metrics { background: var(--panel); border-color: var(--line); }
+:is([data-theme="light"], [data-theme="cats"]) .live-session-metrics .metric-card { background: transparent; border-color: var(--line); border-radius: 0; box-shadow: none; }
+:is([data-theme="light"], [data-theme="cats"]) .spot-card-art::before { background: linear-gradient(0deg, #171523ee, transparent 100%); }
+:is([data-theme="light"], [data-theme="cats"]) .spot-card-art h3 { color: #f8f3f6; }
+:is([data-theme="light"], [data-theme="cats"]) .spot-card-art .eyebrow { color: #e6d5b1; }
+[data-theme="light"] :is(.chronological-session-header, .chronological-session-header strong, .chronological-session-header small) { color: #f7f1eb; }
+
+/* Controls keep readable focus outlines and distinguish disabled, warning and
+ * error states in both palettes. Input heights and hit areas stay unchanged. */
+:is([data-theme="light"], [data-theme="cats"]) :is(.button.secondary, .live-session-actions .button.secondary, .oe-item-action, .oe-modifier) { color: var(--text); background: var(--panel-raised); border-color: var(--theme-control-line); box-shadow: none; }
+:is([data-theme="light"], [data-theme="cats"]) :is(.button.secondary, .live-session-actions .button.secondary, .oe-item-action):hover:not(:disabled) { color: var(--gold-bright); background: var(--theme-hover); border-color: var(--gold); }
+:is([data-theme="light"], [data-theme="cats"]) .button.primary { color: var(--theme-accent-ink); background: var(--theme-button); border-color: var(--theme-button); box-shadow: none; }
+:is([data-theme="light"], [data-theme="cats"]) .button.primary:hover:not(:disabled) { color: var(--theme-accent-ink); background: var(--theme-button-hover); border-color: var(--theme-button-hover); }
+:is([data-theme="light"], [data-theme="cats"]) .button.danger { color: var(--red); background: var(--theme-danger-bg); border-color: var(--theme-danger-line); }
+:is([data-theme="light"], [data-theme="cats"]) .button.danger:hover:not(:disabled) { color: var(--theme-danger-bg); background: var(--red); border-color: var(--red); }
+:is([data-theme="light"], [data-theme="cats"]) .icon-button { color: var(--muted); }
+:is([data-theme="light"], [data-theme="cats"]) .icon-button:hover:not(:disabled) { color: var(--gold-bright); border-color: var(--theme-control-line); background: var(--theme-hover); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.icon-button.danger-hover, .session-delete-button):hover:not(:disabled) { color: var(--red); background: var(--theme-danger-bg); border-color: var(--theme-danger-line); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.segmented, .key-input, .search-field, .oe-item-results, .oe-hotkey-field) { border-color: var(--theme-control-line); background: var(--theme-input); }
+:is([data-theme="light"], [data-theme="cats"]) .segmented button { color: var(--muted); }
+:is([data-theme="light"], [data-theme="cats"]) .segmented button.selected { color: var(--gold-bright); background: var(--theme-selected); box-shadow: none; }
+:is([data-theme="light"], [data-theme="cats"]) .segmented button:hover:not(.selected):not(:disabled) { color: var(--text); background: var(--theme-hover); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.field input, .field select, .filter-field select, .sort-field select, .oe-field input:not([type="range"]), .oe-field select, .oe-canvas-dimensions input, .oe-custom-templates select, .edit-loot-row input, .loot-quantity-editor input, .loot-add-form input, .loot-add-form select, .live-spot-variant select, .browser-overlay-toolbar select) { color: var(--text); background: var(--theme-input); border-color: var(--theme-control-line); }
+:is([data-theme="light"], [data-theme="cats"]) input::placeholder { color: var(--dim); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.search-field, .key-input):focus-within { border-color: var(--gold); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.search-field input, .key-input input) { color: var(--text); background: transparent; }
+:is([data-theme="light"], [data-theme="cats"]) :is(.search-field .icon, .key-input .icon) { color: var(--muted); }
+:is([data-theme="light"], [data-theme="cats"]) .switch { background: var(--theme-input); border-color: var(--theme-control-line); }
+:is([data-theme="light"], [data-theme="cats"]) .switch::after { background: var(--muted); }
+:is([data-theme="light"], [data-theme="cats"]) .switch:checked { background: var(--gold); border-color: var(--gold); }
+:is([data-theme="light"], [data-theme="cats"]) .switch:checked::after { background: var(--theme-accent-ink); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.settings-icon, .settings-icon.gold-icon, .empty-symbol) { color: var(--gold); background: var(--theme-info); border-color: var(--theme-info-line); }
+:is([data-theme="light"], [data-theme="cats"]) .empty-symbol .icon { color: var(--gold); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.oe-shortcuts kbd, .oe-hotkey-field kbd) { color: var(--gold-bright); background: var(--theme-inset); border-color: var(--theme-control-line); }
+:is([data-theme="light"], [data-theme="cats"]) .oe-modifier:has(input:checked) { color: var(--gold-bright); border-color: var(--gold); background: var(--theme-selected); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.oe-module:hover:not(:disabled), .oe-item-result:hover) { color: var(--text); background: var(--theme-hover); border-color: var(--theme-control-line); }
+:is([data-theme="light"], [data-theme="cats"]) .quantity-edit-trigger:hover:not(:disabled),
+:is([data-theme="light"], [data-theme="cats"]) .quantity-edit-trigger:focus-visible { border-color: var(--theme-control-line); background: var(--theme-input); }
+
+/* Tables, item images and feedback panels also follow the selected theme. */
+:is([data-theme="light"], [data-theme="cats"]) :is(.item-image, .asset-fallback, .session-identity) { color: var(--muted); border-color: var(--line); background: var(--theme-inset); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.loot-table th, .spot-session-table th, .spot-session-table thead .session-fixed, .spot-session-table thead .session-actions-column, .session-column-labels, .garmoth-upload-table th, .garmoth-confirm-loot th) { color: var(--muted); background: var(--theme-inset); border-color: var(--line); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.loot-table td, .spot-session-table td, .spot-session-table .session-fixed, .spot-session-table .session-actions-column) { border-color: var(--line); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.spot-session-table, .spot-session-table td, .spot-session-table .session-fixed, .spot-session-table .session-actions-column) { background: var(--panel); color: var(--text); }
+:is([data-theme="light"], [data-theme="cats"]) .spot-session-table tbody tr:nth-child(even) :is(td, .session-fixed, .session-actions-column) { background: var(--theme-header); }
+:is([data-theme="light"], [data-theme="cats"]) .spot-session-table tbody tr:hover :is(td, .session-fixed, .session-actions-column) { background: var(--theme-hover); }
+:is([data-theme="light"], [data-theme="cats"]) .spot-session-table .session-silver-column { color: var(--gold-bright); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.loot-table tbody tr:hover, .garmoth-upload-table tbody tr:hover, .history-session-row:hover, .chronological-row:hover) { background: var(--theme-hover); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.table-footnote, .detail-list > div, .history-session + .history-session, .chronological-session-details, .chronological-row, .spot-session-table-scroll, .toggle-row) { border-color: var(--line); }
+:is([data-theme="light"], [data-theme="cats"]) .spot-session-table-scroll { scrollbar-color: var(--theme-control-line) var(--theme-input); }
+:is([data-theme="light"], [data-theme="cats"]) .spot-session-table-scroll::-webkit-scrollbar-track { background: var(--theme-input); border-color: var(--line); }
+:is([data-theme="light"], [data-theme="cats"]) .spot-session-table-scroll::-webkit-scrollbar-thumb { background: var(--theme-control-line); border-color: var(--theme-input); }
+:is([data-theme="light"], [data-theme="cats"]) .session-favorite-button.is-favorite { border-color: var(--gold); background: var(--theme-selected); }
+:is([data-theme="light"], [data-theme="cats"]) .favorite-loot-row { background: var(--theme-info); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.notice, .update-banner) { color: var(--text); background: var(--theme-info); border-color: var(--theme-info-line); }
+:is([data-theme="light"], [data-theme="cats"]) .notice span { color: var(--muted); }
+:is([data-theme="light"], [data-theme="cats"]) .notice > .icon { color: var(--gold); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.demo-notice, .success-notice, .oe-enable, .oe-data-kind, .teal-badge, .garmoth-key-state.has-key, .garmoth-form-feedback.is-success) { color: var(--teal); border-color: var(--theme-positive-line); background: var(--theme-positive-bg); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.demo-notice, .success-notice) > .icon { color: var(--teal); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.warning-notice, .oe-capacity-hint, .garmoth-inline-warning) { color: var(--theme-warning); border-color: var(--theme-warning-line); background: var(--theme-warning-bg); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.error-notice, .garmoth-form-feedback.is-error, .statusbar.has-error) { color: var(--red); border-color: var(--theme-danger-line); background: var(--theme-danger-bg); }
+:is([data-theme="light"], [data-theme="cats"]) .error-notice > .icon { color: var(--red); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.quantity-edit-error, .field .field-error) { color: var(--red); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.oe-replace-note, .oe-shortcut-error, .oe-selection-empty, .inline-warning) { color: var(--theme-warning); }
+:is([data-theme="light"], [data-theme="cats"]) .oe-selected-item { border-color: var(--theme-control-line); background: var(--theme-selected); }
+
+/* Browser modal backgrounds are explicit so light mode never mixes light text
+ * with the original dark dialog chrome. The chosen test scene stays unchanged. */
+:is([data-theme="light"], [data-theme="cats"]) .modal,
+:is([data-theme="light"], [data-theme="cats"]) .browser-overlay-dialog,
+.browser-overlay-dialog:is([data-theme="light"], [data-theme="cats"]) { color: var(--text); border-radius: var(--radius); border-color: var(--theme-control-line); background: var(--panel); box-shadow: 0 18px 70px #10121b44; }
+:is([data-theme="light"], [data-theme="cats"]) .modal::backdrop,
+:is([data-theme="light"], [data-theme="cats"]) .browser-overlay-dialog::backdrop,
+.browser-overlay-dialog:is([data-theme="light"], [data-theme="cats"])::backdrop { background: #171a245f; }
+:is([data-theme="light"], [data-theme="cats"]) .browser-overlay-toolbar { background: var(--theme-header); border-color: var(--line); }
+:is([data-theme="light"], [data-theme="cats"]) .oe-stage-viewport { background-color: var(--theme-inset); background-image: linear-gradient(rgba(var(--overlay-line-rgb), .09) 1px, transparent 1px), linear-gradient(90deg, rgba(var(--overlay-line-rgb), .09) 1px, transparent 1px); }
+:is([data-theme="light"], [data-theme="cats"]) .oe-stage { border-radius: var(--overlay-corner); border-color: rgba(var(--overlay-line-rgb), .6); box-shadow: 0 3px 14px #12131b12; }
+:is([data-theme="light"], [data-theme="cats"]) .oe-stage.has-border { border-color: var(--theme-control-line); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.oe-widget, .oe-widget-content) { border-radius: var(--overlay-corner); }
+:is([data-theme="light"], [data-theme="cats"]) .oe-widget-grip { background: var(--gold); border-color: var(--gold-bright); color: var(--theme-accent-ink); }
+:is([data-theme="light"], [data-theme="cats"]) .oe-widget-delete { background: var(--theme-danger-bg); color: var(--red); border-color: var(--theme-danger-line); }
+:is([data-theme="light"], [data-theme="cats"]) .oe-canvas-resize { background: var(--panel-raised); border-color: var(--gold); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.oe-widget-resize, .oe-canvas-resize)::after { border-color: var(--gold); }
+:is([data-theme="light"], [data-theme="cats"]) .oe-drag-ghost { color: var(--gold-bright); border-color: var(--gold); background: var(--panel); }
+:is([data-theme="light"], [data-theme="cats"]) .browser-overlay-dialog .oe-stage-viewport,
+.browser-overlay-dialog:is([data-theme="light"], [data-theme="cats"]) .oe-stage-viewport { background: none; }
+:is([data-theme="light"], [data-theme="cats"]) .browser-overlay-dialog .oe-stage,
+.browser-overlay-dialog:is([data-theme="light"], [data-theme="cats"]) .oe-stage { box-shadow: none; }
+:is([data-theme="light"], [data-theme="cats"]) .browser-overlay-empty { color: var(--text); background: var(--panel); }
+
+/* Light and Katzen HUD paint. Text and quantity colours explicitly override
+ * the original white count labels. Fills honour the existing opacity setting. */
+:is([data-theme="light"], [data-theme="cats"]) .overlay-widget-preview {
+    color: var(--overlay-ink);
+    border-radius: var(--overlay-corner);
+    border-color: rgba(var(--overlay-line-rgb), calc(var(--overlay-opacity, .85) * .18));
+    background: rgba(var(--overlay-panel-rgb), calc(var(--overlay-opacity, .85) * var(--overlay-panel-opacity)));
+    text-shadow: var(--overlay-shadow);
+    box-shadow: none;
+}
+:is([data-theme="light"], [data-theme="cats"]) :is(.overlay-widget-label, .overlay-clock-row-label, .overlay-widget-detail, .overlay-widget-empty, .overlay-widget-more) { color: var(--overlay-muted); }
+:is([data-theme="light"], [data-theme="cats"]) .overlay-widget-label .icon { color: var(--gold); }
+:is([data-theme="light"], [data-theme="cats"]) .overlay-widget-value { color: var(--overlay-ink); }
+:is([data-theme="light"], [data-theme="cats"]) .overlay-widget-value > .icon { color: var(--overlay-muted); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.overlay-widget-silver, .overlay-widget-silver-hour, .overlay-widget-chart, .overlay-widget-preview.metric-tone-accent) .overlay-widget-value,
+:is([data-theme="light"], [data-theme="cats"]) :is(.overlay-clock-row.is-countdown strong, .overlay-clock-row > .icon) { color: var(--gold); }
+:is([data-theme="light"], [data-theme="cats"]) .overlay-widget-preview.metric-tone-muted .overlay-widget-value { color: var(--overlay-muted); }
+:is([data-theme="light"], [data-theme="cats"]) .overlay-widget-preview.metric-tone-positive .overlay-widget-value { color: var(--teal); }
+:is([data-theme="light"], [data-theme="cats"]) .overlay-widget-preview.is-warning { border-color: var(--theme-warning-line); background: rgba(var(--overlay-panel-rgb), calc(var(--overlay-opacity, .85) * var(--overlay-panel-opacity))); }
+:is([data-theme="light"], [data-theme="cats"]) .overlay-widget-preview.is-warning .overlay-widget-value { color: var(--theme-warning); }
+:is([data-theme="light"], [data-theme="cats"]) .overlay-status-dot { background: var(--overlay-muted); }
+:is([data-theme="light"], [data-theme="cats"]) .overlay-status-dot.is-running { background: var(--teal); box-shadow: none; }
+:is([data-theme="light"], [data-theme="cats"]) :is(.overlay-widget-preview.is-loot-widget, .overlay-widget-clock) { border-radius: var(--overlay-corner); box-shadow: inset 0 0 0 1px rgba(var(--overlay-line-rgb), calc(var(--overlay-opacity, .85) * .18)); }
+:is([data-theme="light"], [data-theme="cats"]) .is-loot-widget > .overlay-widget-label { color: var(--gold); }
+:is([data-theme="light"], [data-theme="cats"]) .overlay-tracking-button { color: var(--gold-bright); border-radius: var(--overlay-corner); border-color: var(--gold); background: rgba(var(--overlay-panel-rgb), var(--overlay-opacity, .85)); box-shadow: none; text-shadow: var(--overlay-shadow); }
+:is([data-theme="light"], [data-theme="cats"]) .overlay-tracking-button:not(:disabled):hover { color: var(--theme-accent-ink); background: var(--theme-button); border-color: var(--theme-button); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.overlay-widget-items.is-grid, .overlay-widget-items.is-strip) .overlay-widget-item {
+    border-radius: calc(var(--overlay-corner) * .6);
+    border-color: rgba(var(--overlay-line-rgb), .85);
+    background: rgba(var(--overlay-slot-rgb), var(--overlay-opacity, .85));
+    box-shadow: inset 0 0 0 1px rgba(var(--overlay-line-rgb), .12);
+}
+:is([data-theme="light"], [data-theme="cats"]) :is(.overlay-widget-items.is-grid, .overlay-widget-items.is-strip) .overlay-widget-item.is-rare { border-color: var(--overlay-rare); background: rgba(var(--overlay-slot-rgb), var(--overlay-opacity, .85)); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.overlay-widget-items.is-grid, .overlay-widget-items.is-strip) .overlay-widget-item::after { content: none; }
+:is([data-theme="light"], [data-theme="cats"]) :is(.overlay-widget-items.is-grid, .overlay-widget-items.is-strip) .overlay-item-quantity { color: var(--overlay-ink); text-shadow: var(--overlay-shadow); }
+[data-theme="light"] :is(.overlay-widget-items.is-grid, .overlay-widget-items.is-strip) .overlay-item-quantity {
+    text-shadow: 1px 0 1px #fff, -1px 0 1px #fff, 0 1px 1px #fff, 0 -1px 1px #fff;
+    /* A fine white halo protects dark numerals on dark item artwork, including
+     * when the window opacity is zero, without changing their fitted width. */
+}
+:is([data-theme="light"], [data-theme="cats"]) .overlay-widget-items.is-grid .overlay-widget-item.is-empty-slot { border-color: rgba(var(--overlay-line-rgb), calc(var(--overlay-opacity, .85) * .3)); background: rgba(var(--overlay-slot-rgb), calc(var(--overlay-opacity, .85) * .5)); box-shadow: none; }
+:is([data-theme="light"], [data-theme="cats"]) .overlay-widget-items.is-list .overlay-widget-item { border-color: rgba(var(--overlay-line-rgb), .2); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.overlay-widget-items.is-list, .overlay-widget-items.is-card) .overlay-item-icon { border-radius: calc(var(--overlay-corner) * .6); background: rgba(var(--overlay-slot-rgb), var(--overlay-opacity, .85)); box-shadow: inset 0 0 0 1px rgba(var(--overlay-line-rgb), .6); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.overlay-widget-items.is-list, .overlay-widget-items.is-card) .is-rare .overlay-item-icon { box-shadow: inset 0 0 0 1px var(--overlay-rare); }
+:is([data-theme="light"], [data-theme="cats"]) .overlay-widget-items.is-card .overlay-item-name { color: var(--overlay-muted); }
+:is([data-theme="light"], [data-theme="cats"]) :is(.overlay-widget-items.is-card, .overlay-widget-items.is-list) .overlay-item-quantity { color: var(--gold); }
+:is([data-theme="light"], [data-theme="cats"]) .overlay-chart-baseline { stroke: rgba(var(--overlay-line-rgb), .55); }
+:is([data-theme="light"], [data-theme="cats"]) .overlay-chart-area { fill: var(--gold); fill-opacity: .13; }
+:is([data-theme="light"], [data-theme="cats"]) .overlay-chart-line { stroke: var(--gold); }
+
+/* Katzen: small paw and ear motifs live in the existing navigation/header
+ * space. Decorations are noninteractive and never overlap the content canvas. */
+[data-theme="cats"] .sidebar { position: relative; }
+[data-theme="cats"] .sidebar .brand { position: relative; }
+[data-theme="cats"] .sidebar .brand::after {
+    content: "";
+    position: absolute;
+    right: 7px;
+    bottom: -35px;
+    width: 28px;
+    height: 28px;
+    background: var(--cat-paw) center / contain no-repeat;
+    opacity: .48;
+    transform: rotate(20deg);
+    pointer-events: none;
+}
+[data-theme="cats"] .settings-icon:has(.icon) { position: relative; }
+[data-theme="cats"] .theme-settings .settings-icon {
+    color: transparent;
+    background: var(--cat-face) center / 27px 27px no-repeat, var(--theme-info);
+    border-color: #a6809b;
+}
+[data-theme="cats"] :is(.button, .oe-module, .notice, .segmented, .settings-icon) { border-radius: 10px; }
+[data-theme="cats"] .oe-stage.has-border { border-radius: 10px; border-color: #9d7893; box-shadow: inset 0 0 0 1px #edb3ca1a; }
+[data-theme="cats"] .oe-stage.has-window-chrome { border-width: 0; box-shadow: inset 0 0 0 1px #9d7893, inset 0 0 0 2px #edb3ca1a; }
+[data-theme="cats"] .oe-stage.has-border .oe-stage-content { border-radius: 0 0 8px 8px; }
+[data-theme="cats"] .overlay-window-titlebar {
+    position: absolute;
+    inset: 0 0 auto;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow: hidden;
+    padding: 0 44px 0 10px;
+    border-radius: 9px 9px 0 0;
+    border-top: 1px solid rgba(237, 179, 202, calc(var(--overlay-opacity, .85) * .45));
+    border-bottom: 1px solid rgba(119, 96, 121, var(--overlay-opacity, .85));
+    background: linear-gradient(rgba(73, 54, 77, var(--overlay-opacity, .85)), rgba(57, 44, 64, var(--overlay-opacity, .85)));
+    color: #f4e7ee;
+    pointer-events: none;
+    user-select: none;
+}
+[data-theme="cats"] .overlay-window-titlebar::before {
+    content: "";
+    width: 23px;
+    height: 23px;
+    flex: 0 0 23px;
+    background: var(--cat-face) center / contain no-repeat;
+}
+[data-theme="cats"] .overlay-window-titlebar::after {
+    content: "";
+    position: absolute;
+    right: 11px;
+    top: 2px;
+    width: 27px;
+    height: 27px;
+    background: var(--cat-paw) center / contain no-repeat;
+    opacity: .6;
+    transform: rotate(15deg);
+}
+[data-theme="cats"] .overlay-window-title {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    color: #f4e7ee;
+    font: 700 13px/1.3 "Segoe UI", sans-serif;
+    text-shadow: 0 1px 1px #21182799;
+}
+
+/* Goals and rotation modules use the same page and overlay palettes. The
+   original Grindcrest calendar and timeline keep their shared default styles. */
+[data-theme="black-desert"] {
+    --goal-hover: #333027;
+    --goal-selected: #3d382a;
+    --goal-inset: #151619;
+    --goal-count-background: #101113eb;
+    --goal-week-background: #b29a5d0e;
+    --daily-track: #3d392f;
+    --daily-fill: #655331;
+    --daily-ink: #e6dfcd;
+    --rotation-line: #696657;
+}
+:is([data-theme="light"], [data-theme="cats"]) {
+    --goal-hover: var(--theme-hover);
+    --goal-selected: var(--theme-selected);
+    --goal-inset: var(--theme-inset);
+    --goal-count-background: var(--panel);
+    --goal-week-background: var(--theme-info);
+    --rotation-line: var(--theme-control-line);
+}
+[data-theme="light"] { --daily-track: #e7edf5; --daily-fill: #b2c9e3; --daily-ink: #243244; }
+[data-theme="cats"] { --daily-track: #49374d; --daily-fill: #77516e; --daily-ink: #f4e7ee; }
+
+:is([data-theme="black-desert"], [data-theme="light"], [data-theme="cats"]) :is(.gg-toolbar > span, .gg-labels, .gg-day small, .gg-editor small, .gg-editor > p, .gg-day-summary .valuation-note) { color: var(--muted); }
+:is([data-theme="black-desert"], [data-theme="light"], [data-theme="cats"]) .gg-week.selected { background: var(--goal-week-background); }
+:is([data-theme="black-desert"], [data-theme="light"], [data-theme="cats"]) .gg-week-select { color: var(--gold); border-radius: var(--radius); }
+:is([data-theme="black-desert"], [data-theme="light"], [data-theme="cats"]) .gg-week-select:hover { background: var(--goal-hover); }
+:is([data-theme="black-desert"], [data-theme="light"], [data-theme="cats"]) .gg-week-select[aria-pressed="true"] { color: var(--gold-bright); font-weight: 700; }
+:is([data-theme="black-desert"], [data-theme="light"], [data-theme="cats"]) .gg-day { color: var(--text); background: var(--panel-raised); border-color: var(--line); border-radius: min(var(--radius), 10px); }
+[data-theme="light"] .gg-day { background: var(--panel); }
+:is([data-theme="black-desert"], [data-theme="light"], [data-theme="cats"]) .gg-day.outside { opacity: 1; background: var(--goal-inset); color: var(--muted); }
+:is([data-theme="black-desert"], [data-theme="light"], [data-theme="cats"]) .gg-day:hover { background: var(--goal-hover); }
+:is([data-theme="black-desert"], [data-theme="light"], [data-theme="cats"]) .gg-day.chosen { color: var(--text); border-color: var(--gold); background: var(--goal-selected); box-shadow: inset 0 0 0 1px var(--gold); }
+:is([data-theme="black-desert"], [data-theme="light"], [data-theme="cats"]) .gg-day.reached { border-bottom-color: var(--teal); }
+:is([data-theme="black-desert"], [data-theme="light"], [data-theme="cats"]) :is(.gg-day, .gg-week-select):focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+:is([data-theme="black-desert"], [data-theme="light"], [data-theme="cats"]) :is(.gg-day strong, .gg-editor > p strong, .gg-day-summary .gold) { color: var(--gold-bright); }
+:is([data-theme="black-desert"], [data-theme="light"], [data-theme="cats"]) .gg-day.outside:not(.chosen) strong { color: var(--muted); }
+:is([data-theme="black-desert"], [data-theme="light"], [data-theme="cats"]) .gg-editor > p[role="status"] { color: var(--teal); }
+:is([data-theme="black-desert"], [data-theme="light"], [data-theme="cats"]) .gg-day progress { accent-color: var(--gold); background: var(--goal-inset); border: 0; border-radius: 2px; overflow: hidden; }
+:is([data-theme="black-desert"], [data-theme="light"], [data-theme="cats"]) .gg-day progress::-webkit-progress-bar { background: var(--goal-inset); }
+:is([data-theme="black-desert"], [data-theme="light"], [data-theme="cats"]) .gg-day progress::-webkit-progress-value { background: var(--gold); }
+:is([data-theme="black-desert"], [data-theme="light"], [data-theme="cats"]) .gg-day progress::-moz-progress-bar { background: var(--gold); }
+:is([data-theme="black-desert"], [data-theme="light"], [data-theme="cats"]) .gg-day.reached progress { accent-color: var(--teal); }
+:is([data-theme="black-desert"], [data-theme="light"], [data-theme="cats"]) .gg-day.reached progress::-webkit-progress-value { background: var(--teal); }
+:is([data-theme="black-desert"], [data-theme="light"], [data-theme="cats"]) .gg-day.reached progress::-moz-progress-bar { background: var(--teal); }
+:is([data-theme="black-desert"], [data-theme="light"], [data-theme="cats"]) .gg-drop { background: var(--goal-inset); border-color: var(--line); border-radius: min(var(--radius), 5px); }
+:is([data-theme="black-desert"], [data-theme="light"], [data-theme="cats"]) .gg-drop-count { color: var(--text); background: var(--goal-count-background); }
+:is([data-theme="black-desert"], [data-theme="light"], [data-theme="cats"]) .gg-drop-star { color: var(--gold-bright); }
+[data-theme="light"] .gg-drop-star { color: var(--theme-warning); text-shadow: 0 1px 1px #fff, 0 0 2px #fff; }
+[data-theme="black-desert"] .gg-day { box-shadow: var(--bdo-bevel); }
+[data-theme="black-desert"] .gg-day.chosen { box-shadow: var(--bdo-bevel), inset 0 0 0 1px var(--gold); }
+
+:is([data-theme="black-desert"], [data-theme="light"], [data-theme="cats"]) :is(.rotation-spot, .rotation-heading span, .rotation-delta) { color: var(--text); }
+:is([data-theme="black-desert"], [data-theme="light"], [data-theme="cats"]) :is(.rotation-sector, .rotation-comparison, .rotation-range, .rotation-legend) { color: var(--muted); }
+:is([data-theme="black-desert"], [data-theme="light"], [data-theme="cats"]) :is(.rotation-heading strong, .rotation-legend span:first-child) { color: var(--gold); }
+:is([data-theme="black-desert"], [data-theme="light"], [data-theme="cats"]) .rotation-legend span:nth-child(2) { color: var(--teal); }
+:is([data-theme="black-desert"], [data-theme="light"], [data-theme="cats"]) .rotation-error { color: var(--red); }
+:is([data-theme="black-desert"], [data-theme="light"], [data-theme="cats"]) .rotation-total-duration { fill: var(--text); }
+:is([data-theme="black-desert"], [data-theme="light"], [data-theme="cats"]) .rotation-baseline { stroke: var(--rotation-line); }
+:is([data-theme="black-desert"], [data-theme="light"], [data-theme="cats"]) .rotation-playhead { stroke: var(--text); }
+:is([data-theme="black-desert"], [data-theme="light"], [data-theme="cats"]) .rotation-playhead-tip { fill: var(--text); }
+/* Retain the selected mechanic palette; a dark text edge keeps the light
+   theme's phase durations readable on every colored or neutral phase fill. */
+[data-theme="light"] .rotation-phase-duration { fill: #fff; stroke: #18212b; stroke-width: 1.8px; stroke-linejoin: round; paint-order: stroke fill; text-shadow: none; }
+[data-theme="light"] .rotation-pack-marker { filter: brightness(.58); }
+[data-theme="light"] :is(.rotation-playhead, .rotation-playhead-tip) { filter: drop-shadow(0 0 1px #fff); }
+
+:is([data-theme="black-desert"], [data-theme="light"], [data-theme="cats"]) .overlay-widget-daily-goal .overlay-widget-value { color: var(--gold); }
+:is([data-theme="black-desert"], [data-theme="light"], [data-theme="cats"]) .overlay-daily-bar { background: var(--daily-track); border-radius: min(var(--radius), 4px); box-shadow: inset 0 0 0 1px var(--line); }
+:is([data-theme="black-desert"], [data-theme="light"], [data-theme="cats"]) .overlay-daily-fill { background: var(--daily-fill); }
+:is([data-theme="black-desert"], [data-theme="light"], [data-theme="cats"]) .overlay-daily-bar > span { color: var(--daily-ink); text-shadow: none; }
+:is([data-theme="black-desert"], [data-theme="light"], [data-theme="cats"]) .overlay-daily-progress { accent-color: var(--gold); }
+:is([data-theme="black-desert"], [data-theme="light"], [data-theme="cats"]) .overlay-chart-drop-stem { stroke: var(--gold); }
+:is([data-theme="black-desert"], [data-theme="light"], [data-theme="cats"]) .overlay-chart-drop-marker { background: var(--goal-inset) !important; border-radius: min(var(--radius), 4px) !important; box-shadow: inset 0 0 0 1px var(--line); }

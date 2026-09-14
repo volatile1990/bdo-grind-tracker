@@ -28,6 +28,10 @@
                         <strong class="overlay-item-quantity" data-overlay-fit>@item.QuantityText</strong>
                     </div>
                 }
+                @for (var slot = 0; slot < OverlayLootPresentation.EmptySlotCount(Widget, Snapshot, Loot); slot++)
+                {
+                    <div class="overlay-widget-item is-empty-slot" aria-hidden="true"></div>
+                }
             </div>
             </div>
             @if (Loot.HiddenCount > 0) { <span class="overlay-widget-more" data-overlay-fit title="Maximale Items in den Moduleinstellungen erhöhen">+ @Loot.HiddenCount weitere</span> }
@@ -90,12 +94,12 @@
                 <polyline points="@ChartPoints" class="overlay-chart-line" />
                 @foreach (var marker in OverlayChartMarkers.Create(Snapshot))
                 {
-                    <line x1="@Css(marker.X * 300)" x2="@Css(marker.X * 300)" y1="@Css(marker.Y * 72)" y2="72" stroke="#f5ce73" stroke-width="2" vector-effect="non-scaling-stroke" />
+                    <line class="overlay-chart-drop-stem" x1="@Css(marker.X * 300)" x2="@Css(marker.X * 300)" y1="@Css(marker.Y * 72)" y2="72" stroke="#f5ce73" stroke-width="2" vector-effect="non-scaling-stroke" />
                 }
             </svg>
             @foreach (var marker in OverlayChartMarkers.Create(Snapshot))
             {
-                <div style="position:absolute;left:clamp(12px,@Css(marker.X * 100)%,calc(100% - 12px));top:clamp(12px,@Css((marker.Y + 1) * 50)%,calc(100% - 12px));transform:translate(-50%,-50%);width:24px;height:24px;background:#252d33;border-radius:4px"
+                <div class="overlay-chart-drop-marker" style="position:absolute;left:clamp(12px,@Css(marker.X * 100)%,calc(100% - 12px));top:clamp(12px,@Css((marker.Y + 1) * 50)%,calc(100% - 12px));transform:translate(-50%,-50%);width:24px;height:24px;background:#252d33;border-radius:4px"
                      title="@(marker.Drop.Item.Name + " × " + marker.Drop.Item.QuantityText + " · " + marker.Drop.Elapsed.ToString(@"hh\:mm\:ss"))">
                     <AssetImage Src="@marker.Drop.Item.IconPath" Alt="@marker.Drop.Item.Name" Class="overlay-chart-drop-icon" />
                 </div>

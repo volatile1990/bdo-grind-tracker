@@ -103,12 +103,16 @@ internal sealed class NativeOverlayWindowHost(string id, IOverlayService service
     private string? _captureError, _commandError;
     private double _dpi = 96;
     private OverlaySettings _lastSettings = new();
+    private string _lastName = "Grindcrest";
     private OverlaySettings Settings => service.Overlays.FirstOrDefault(overlay => overlay.Id == id)?.Settings ?? _lastSettings;
+
+    private string Title => service.Overlays.FirstOrDefault(overlay => overlay.Id == id)?.Name ?? _lastName;
 
     internal void Tick(OverlayInstance overlay, (Screen? Screen, bool Foreground) gameLocation)
     {
         if (_disposed) return;
         var settings = _lastSettings = overlay.Settings;
+        _lastName = overlay.Name;
         var preview = service.GetState(id).Previewing;
         try
         {
@@ -142,11 +146,12 @@ internal sealed class NativeOverlayWindowHost(string id, IOverlayService service
                 foreground, tracker.State.HasSession);
             if (visible)
             {
-                var bounds = NativeOverlayGeometry.Place(screen.Bounds, settings.Width, settings.Height,
-                    settings.PositionX, settings.PositionY, settings.Scale, _dpi);
                 var snapshot = service.Snapshot;
-                _window.Present(bounds, repaint: !_renderState.Matches(settings, snapshot, bounds.Size));
-                _renderState.Remember(settings, snapshot, bounds.Size);
+                var chrome = OverlayWindowChrome.For(snapshot.ThemeId, settings.ShowBorder);
+                var bounds = NativeOverlayGeometry.Place(screen.Bounds, chrome.OuterWidth(settings.Width),
+                    chrome.OuterHeight(settings.Height), settings.PositionX, settings.PositionY, settings.Scale, _dpi);
+                _window.Present(bounds, repaint: !_renderState.Matches(settings, snapshot, bounds.Size, overlay.Name));
+                _renderState.Remember(settings, snapshot, bounds.Size, overlay.Name);
             }
             else _window.Hide();
             var status = preview ? "Desktop-Vorschau aktiv." : !settings.Enabled ? "Overlay ausgeschaltet." :
@@ -169,11 +174,12 @@ internal sealed class NativeOverlayWindowHost(string id, IOverlayService service
         if (_window is not null) return;
         _window = new NativeOverlayForm();
         _window.HandleCreated += (_, _) => { _captureExcluded = null; _renderState.Invalidate(); };
-        _window.CreateResize = bounds => new NativeOverlayResize(Settings, bounds, _window.MonitorBounds, _dpi);
+        _window.CreateResize = bounds => new NativeOverlayResize(Settings, bounds, _window.MonitorBounds, _dpi,
+            OverlayWindowChrome.For(service.Snapshot.ThemeId, Settings.ShowBorder));
         _window.RenderBitmap = size =>
         {
             var settings = _window.ResizePreview ?? Settings;
-            var bitmap = _renderer.Render(size, settings, service.Snapshot, out var actions);
+            var bitmap = _renderer.Render(size, settings, service.Snapshot, out var actions, Title);
             _window!.SetActions(actions);
             return bitmap;
         };

@@ -5,6 +5,7 @@ namespace BdoGrindTracker.App.Overlay;
 /// <summary>Presentation-only values shared by the editor and the native overlay.</summary>
 public sealed record OverlaySnapshot
 {
+    public string ThemeId { get; init; } = BdoGrindTracker.App.Theming.AppThemes.Grindcrest;
     public DateTimeOffset ClockUtcNow { get; init; } = DateTimeOffset.UtcNow;
     public IReadOnlyDictionary<string, OverlayMetric> Metrics { get; init; } =
         new Dictionary<string, OverlayMetric>();

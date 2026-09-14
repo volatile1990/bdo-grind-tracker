@@ -1,0 +1,33 @@
+@inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment HostEnvironment
+
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
+    <base href="/" />
+    <title>Grindcrest · Browser-Vorschau</title>
+    <link rel="icon" href="assets/branding/grindcrest.ico" />
+    <link rel="stylesheet" href="app.css" />
+    <link rel="stylesheet" href="garmoth.css" />
+    <link rel="stylesheet" href="grind-goals.css" />
+    <link rel="stylesheet" href="updates.css" />
+    <link rel="stylesheet" href="overlay-editor.css" />
+    <link rel="stylesheet" href="overlay-widgets.css" />
+    <link rel="stylesheet" href="browser-preview.css" />
+    <link rel="stylesheet" href="@ThemeStylesheet" />
+</head>
+<body>
+    <div id="app"><PreviewShell @rendermode="@(new InteractiveServerRenderMode(prerender: false))" /></div>
+    <div id="blazor-error-ui" role="alert">Die Vorschau wurde unterbrochen. <a href="">Neu laden</a></div>
+    <script src="app.js"></script>
+    <script src="overlay-editor.js"></script>
+    <script src="_framework/blazor.web.js"></script>
+</body>
+</html>
+
+@code {
+    // A republished theme must replace the browser's cached stylesheet on reload.
+    private string ThemeStylesheet => $"themes.css?v={System.IO.File.GetLastWriteTimeUtc(System.IO.Path.Combine(HostEnvironment.WebRootPath, "themes.css")).Ticks}";
+}

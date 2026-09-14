@@ -1,4 +1,3 @@
-using BdoGrindTracker.App.Components;
 using BdoGrindTracker.App.Overlay;
 using BdoGrindTracker.Core;
 
@@ -14,7 +13,7 @@ internal interface IRotationProfileMonitor : IDisposable
 }
 
 /// <summary>Each spot owns its message recognition, rotation rules and records.</summary>
-internal static class RotationProfiles
+internal static partial class RotationProfiles
 {
     private static readonly IReadOnlyDictionary<string, Func<IRotationProfileMonitor>> Factories =
         new Dictionary<string, Func<IRotationProfileMonitor>>(StringComparer.Ordinal)
@@ -22,21 +21,8 @@ internal static class RotationProfiles
             [LootSpotCatalog.HermesiaId] = () => new HermesiaRotationMonitor(HermesiaRotationTracker.DefaultPath),
         };
 
-    internal static bool Supports(string? spotId) => spotId is not null && Factories.ContainsKey(spotId);
     internal static IRotationProfileMonitor? Create(string? spotId) =>
         spotId is not null && Factories.TryGetValue(spotId, out var create) ? create() : null;
-    internal static RotationMonitorSnapshot Present(string? spotId, RotationMonitorSnapshot? snapshot = null)
-    {
-        var supported = Supports(spotId);
-        var current = supported && snapshot is not null && snapshot.SpotId == spotId ? snapshot : new RotationMonitorSnapshot();
-        return current with
-        {
-            SpotId = spotId, SpotName = spotId is null ? "Noch kein Spot erkannt" : Presentation.SpotName(spotId),
-            HasProfile = supported,
-            Status = spotId is null ? "Warte auf Spot-Erkennung" : !supported ?
-                "Für diesen Spot sind noch keine Rotationsdaten hinterlegt" : current.Status,
-        };
-    }
 }
 
 /// <summary>Follows the tracker's selected/detected spot without leaking a previous spot's run.</summary>

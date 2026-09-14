@@ -9,7 +9,7 @@ internal static class BdoWindowChrome
     private const int RoundCornerPreference = 2;
     private const uint WdaNone = 0;
 
-    public static void Apply(Form form)
+    public static void Apply(Form form, bool darkMode = true)
     {
         if (!OperatingSystem.IsWindows() || !form.IsHandleCreated)
         {
@@ -18,7 +18,7 @@ internal static class BdoWindowChrome
 
         try
         {
-            var enabled = 1;
+            var enabled = darkMode ? 1 : 0;
             _ = DwmSetWindowAttribute(
                 form.Handle,
                 DwmUseImmersiveDarkMode,

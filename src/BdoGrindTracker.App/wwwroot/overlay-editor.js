@@ -5,7 +5,7 @@
     const clamp = (value, min, max) => Math.min(Math.max(value, min), Math.max(min, max));
 
     window.grindcrestOverlayEditor = {
-        mount(id, dotnet) {
+        mount(id, dotnet, readOnly = false) {
             this.unmount(id);
             const root = document.getElementById(id);
             if (!root) return;
@@ -34,7 +34,7 @@
                 }
                 const style = getComputedStyle(viewport);
                 const available = viewport.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
-                const width = number(stage, "width"), height = number(stage, "height");
+                const width = number(stage, "width") + number(stage, "chromeX"), height = number(stage, "height") + number(stage, "chromeY");
                 const scale = Math.max(.2, Math.min(1, (available - 8) / Math.max(1, width)));
                 stage.style.transform = `scale(${scale})`;
                 wrap.style.width = `${width * scale}px`;
@@ -100,7 +100,10 @@
                 content.style.transform = `scale(${scale})`;
                 scheduleContentFit();
             };
-            const snapshot = () => ({ width: number(stage, "width"), height: number(stage, "height"), rect: stage.getBoundingClientRect() });
+            const snapshot = () => ({ width: number(stage, "width"), height: number(stage, "height"),
+                chromeX: number(stage, "chromeX"), chromeY: number(stage, "chromeY"), rect: stage.getBoundingClientRect() });
+            const contentRect = () => number(stage, "chromeY") > 0
+                ? stage.querySelector(".oe-stage-content").getBoundingClientRect() : stage.getBoundingClientRect();
             const grid = value => stage.dataset.snap === "true" ? Math.round(value / 8) * 8 : Math.round(value);
             const restoreWidget = widget => {
                 widget.element.style.left = `${widget.x}px`;
@@ -113,8 +116,8 @@
                 if (current.element) {
                     restoreWidget(current);
                 } else if (current.type === "canvas") {
-                    stage.style.width = `${current.canvas.width}px`;
-                    stage.style.height = `${current.canvas.height}px`;
+                    stage.style.width = `${current.canvas.width + current.canvas.chromeX}px`;
+                    stage.style.height = `${current.canvas.height + current.canvas.chromeY}px`;
                     stage.querySelectorAll(".oe-widget").forEach(element => {
                         element.style.left = `${number(element,"x")}px`;
                         element.style.top = `${number(element,"y")}px`;
@@ -140,7 +143,7 @@
                 if (!capture || capture.disabled || !root.contains(capture)) return;
                 const canvas = snapshot();
                 const type = module ? "add" : grip ? "move" : resize ? "resize" : "canvas";
-                drag = { type, canvas, capture, corner: canvasResize?.dataset.canvasResize || "se", overlayId: stage.dataset.overlayId, pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, moved: false, scale: canvas.rect.width / canvas.width };
+                drag = { type, canvas, capture, corner: canvasResize?.dataset.canvasResize || "se", overlayId: stage.dataset.overlayId, pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, moved: false, scale: canvas.rect.width / (canvas.width + canvas.chromeX) };
                 drag.wrapRect = wrap.getBoundingClientRect();
                 if (module) {
                     drag.kind = module.dataset.moduleKind;
@@ -172,7 +175,7 @@
                         ghost.textContent = drag.label; document.body.appendChild(ghost);
                     }
                     ghost.style.left = `${e.clientX + 12}px`; ghost.style.top = `${e.clientY + 12}px`;
-                    const rect = stage.getBoundingClientRect();
+                    const rect = contentRect();
                     stage.classList.toggle("is-drop-target", e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom);
                     return;
                 }
@@ -188,8 +191,9 @@
                     drag.newHeight = clamp(grid(drag.canvas.height + (north ? -dy : dy)), minHeight, maxHeight);
                     wrap.style.position = "relative";
                     wrap.style.left = "0px"; wrap.style.top = "0px";
-                    stage.style.width = `${drag.newWidth}px`; stage.style.height = `${drag.newHeight}px`;
-                    wrap.style.width = `${drag.newWidth * drag.scale}px`; wrap.style.height = `${drag.newHeight * drag.scale}px`;
+                    const outerWidth = drag.newWidth + drag.canvas.chromeX, outerHeight = drag.newHeight + drag.canvas.chromeY;
+                    stage.style.width = `${outerWidth}px`; stage.style.height = `${outerHeight}px`;
+                    wrap.style.width = `${outerWidth * drag.scale}px`; wrap.style.height = `${outerHeight * drag.scale}px`;
                     const layoutRect = wrap.getBoundingClientRect();
                     wrap.style.left = `${drag.wrapRect.left-layoutRect.left+(west ? (drag.canvas.width-drag.newWidth)*drag.scale : 0)}px`;
                     wrap.style.top = `${drag.wrapRect.top-layoutRect.top+(north ? (drag.canvas.height-drag.newHeight)*drag.scale : 0)}px`;
@@ -221,7 +225,7 @@
                     setTimeout(() => suppressClick = false, 0);
                     if (cancelled) restore(current);
                     else if (current.type === "add") {
-                        const rect = stage.getBoundingClientRect();
+                        const rect = contentRect();
                         if (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom)
                             invoke("AddModuleAt", current.kind, grid((e.clientX - rect.left) / current.scale), grid((e.clientY - rect.top) / current.scale));
                     } else if (current.type === "canvas") invoke("CommitCanvasCorner", current.newWidth, current.newHeight, current.corner);
@@ -258,18 +262,20 @@
                 const field = e.target.closest("input[type=number], input[type=range], select");
                 if (field && field === document.activeElement) field.blur();
             };
-            root.addEventListener("pointerdown", down);
-            root.addEventListener("pointermove", move);
-            root.addEventListener("pointerup", up);
-            root.addEventListener("pointercancel", up);
-            root.addEventListener("click", click, true);
-            root.addEventListener("keydown", key);
-            root.addEventListener("wheel", wheel, { capture: true, passive: true });
-            document.addEventListener("click", outsideClick);
+            if (!readOnly) {
+                root.addEventListener("pointerdown", down);
+                root.addEventListener("pointermove", move);
+                root.addEventListener("pointerup", up);
+                root.addEventListener("pointercancel", up);
+                root.addEventListener("click", click, true);
+                root.addEventListener("keydown", key);
+                root.addEventListener("wheel", wheel, { capture: true, passive: true });
+                document.addEventListener("click", outsideClick);
+            }
             const resizeObserver = new ResizeObserver(fit); resizeObserver.observe(viewport);
             const mutationObserver = new MutationObserver(fit);
             mutationObserver.observe(stage, { attributes: true, subtree: true, childList: true, characterData: true,
-                attributeFilter: ["data-overlay-id", "data-width", "data-height", "data-content-width", "data-content-height", "data-min-content-width", "data-min-content-height", "data-content-layout"] });
+                attributeFilter: ["data-overlay-id", "data-width", "data-height", "data-chrome-x", "data-chrome-y", "data-content-width", "data-content-height", "data-min-content-width", "data-min-content-height", "data-content-layout"] });
             fit();
             editors.set(id, () => {
                 disposed = true;

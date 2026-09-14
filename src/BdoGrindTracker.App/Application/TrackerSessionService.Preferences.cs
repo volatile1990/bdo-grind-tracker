@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using BdoGrindTracker.App.Character;
 using BdoGrindTracker.App.Persistence;
 using BdoGrindTracker.App.Pricing;
+using BdoGrindTracker.App.Theming;
 
 namespace BdoGrindTracker.App.Services;
 
@@ -20,6 +21,8 @@ internal sealed partial class TrackerSessionService
         var result = await RunOperationAsync(async () =>
         {
             ArgumentNullException.ThrowIfNull(preferences);
+            if (!AppThemes.IsKnown(preferences.ThemeId))
+                throw new ArgumentException("Bitte wähle ein bekanntes Theme aus der Liste.");
             // A form populated from fallback values must never overwrite an unread file.
             if (_settingsStore.LoadError is { } loadError) throw new IOException(loadError);
             var captureConfigurationChanged = !string.Equals(preferences.CaptureConfigurationPath,
@@ -119,6 +122,7 @@ internal sealed partial class TrackerSessionService
             return false;
         }
         _settings.UpdateCapturePreferences(Preferences.MonitorDeviceName);
+        _settings.ThemeId = Preferences.ThemeId;
         _settings.CaptureConfigurationPath = Preferences.CaptureConfigurationPath;
         _settings.AutoPauseMinutes = Preferences.AutoPauseMinutes;
         _settings.GameLanguage = Preferences.GameLanguage;
@@ -153,6 +157,7 @@ internal sealed partial class TrackerSessionService
         _settings = recovered;
         Preferences = Preferences with
         {
+            ThemeId = recovered.ThemeId,
             MonitorDeviceName = _hasSession ? Preferences.MonitorDeviceName
                 : Monitors.FirstOrDefault(monitor => monitor.DeviceName == recovered.MonitorDeviceName)?.DeviceName
                     ?? Monitors.FirstOrDefault(monitor => monitor.IsPrimary)?.DeviceName ?? Monitors.FirstOrDefault()?.DeviceName,

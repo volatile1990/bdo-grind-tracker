@@ -1,0 +1,38 @@
+@implements IAsyncDisposable
+@inject IOverlayService Overlay
+
+<CascadingValue Name="IsBrowserPreview" Value="true" IsFixed="true">
+    <div class="browser-preview-banner" role="note"><strong>Browser-Vorschau</strong><span>Beispieldaten · Änderungen gelten bis zum Neuladen · Aufnahme und Uploads werden simuliert</span></div>
+    <TrackerApp />
+    <BrowserOverlayPreview @ref="_overlayPreview" />
+</CascadingValue>
+
+@code {
+    private readonly CancellationTokenSource _stop = new();
+    private Task? _clock;
+    private BrowserOverlayPreview? _overlayPreview;
+
+    protected override void OnInitialized() => _clock = RunClockAsync();
+
+    private async Task RunClockAsync()
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(_stop.Token))
+                await InvokeAsync(() =>
+                {
+                    Overlay.RefreshClock();
+                    _overlayPreview?.AdvanceRotationExample();
+                });
+        }
+        catch (OperationCanceledException) when (_stop.IsCancellationRequested) { }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await _stop.CancelAsync();
+        if (_clock is not null) await _clock;
+        _stop.Dispose();
+    }
+}

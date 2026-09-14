@@ -7,6 +7,7 @@ namespace BdoGrindTracker.App.Components;
 
 public partial class OverlayEditor
 {
+    [CascadingParameter(Name = "IsBrowserPreview")] public bool IsBrowserPreview { get; set; }
     private OverlaySettings _settings = new();
     private string? _selectedId, _error;
     private string _itemSearch = "";
@@ -29,10 +30,11 @@ public partial class OverlayEditor
     });
     private static IReadOnlyList<OverlayWidgetDefinition> Modules => OverlayCatalog.Widgets;
     private OverlayWidget? SelectedWidget => _settings.Widgets.FirstOrDefault(w => w.Id == _selectedId);
-    private OverlaySnapshot PreviewSnapshot => _demo ? OverlaySnapshot.Demo with {
-        Rotation = HermesiaRotationDemo.At((350 + _rotationDemoClock.Elapsed.TotalSeconds) % HermesiaRotationDemo.Reference.Duration)
-    } : Overlay.Snapshot;
-    private string StageStyle => $"width:{Css(_settings.Width)}px;height:{Css(_settings.Height)}px;--overlay-opacity:{Css(_settings.BackgroundOpacity)};background:rgba(17,23,30,{Css(_settings.BackgroundOpacity)})";
+    private OverlaySnapshot PreviewSnapshot => _demo ? OverlaySnapshot.Demo with { ThemeId = Overlay.Snapshot.ThemeId,
+        Rotation = HermesiaRotationDemo.At((350 + _rotationDemoClock.Elapsed.TotalSeconds) % HermesiaRotationDemo.Reference.Duration) } : Overlay.Snapshot;
+    private OverlayWindowChrome Chrome => OverlayWindowChrome.For(PreviewSnapshot.ThemeId, _settings.ShowBorder);
+    private string StageStyle => $"width:{Css(Chrome.OuterWidth(_settings.Width))}px;height:{Css(Chrome.OuterHeight(_settings.Height))}px;--overlay-opacity:{Css(_settings.BackgroundOpacity)};background:rgba(var(--overlay-surface-rgb,17,23,30),{Css(_settings.BackgroundOpacity)})";
+    private string ContentStyle => $"inset:{Css(Chrome.Top)}px {Css(Chrome.Right)}px {Css(Chrome.Bottom)}px {Css(Chrome.Left)}px";
     private static string WidgetStyle(OverlayWidget widget) => $"left:{Css(widget.X)}px;top:{Css(widget.Y)}px;width:{Css(widget.Width)}px;height:{Css(widget.Height)}px";
     private static string Css(double value) => value.ToString("0.##", CultureInfo.InvariantCulture);
     private static string Percent(double value) => value.ToString("P0", CultureInfo.GetCultureInfo("de-DE"));
@@ -417,7 +419,7 @@ public partial class OverlayEditor
         _rotationDemoTimer?.Dispose();
         Overlay.Changed -= OverlayChanged;
         try { await JS.InvokeVoidAsync("grindcrestOverlayEditor.unmount", "overlay-editor"); }
-        catch (Exception exception) when (exception is JSException or TaskCanceledException or InvalidOperationException) { }
+        catch (Exception exception) when (exception is JSException or JSDisconnectedException or TaskCanceledException or InvalidOperationException) { }
         _reference?.Dispose();
         await _saveGate.WaitAsync();
         _saveGate.Release();

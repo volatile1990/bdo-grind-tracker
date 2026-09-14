@@ -1,6 +1,7 @@
 using BdoGrindTracker.App.Overlay;
 using BdoGrindTracker.App.Overlay.Native;
 using BdoGrindTracker.App.UI;
+using BdoGrindTracker.App.Theming;
 
 namespace BdoGrindTracker.App.Tests;
 
@@ -24,6 +25,23 @@ public sealed class NativeOverlayRenderStateTests
         Assert.False(state.Matches(settings with { BackgroundOpacity = .1 }, refreshed, new(360, 260)));
         state.Invalidate();
         Assert.False(state.Matches(settings, snapshot, new(360, 260)));
+    }
+
+    [Fact]
+    public void ThemeChangesInvalidateEvenAnEmptyOverlayAndUnknownThemesUseTheDefault()
+    {
+        var state = new NativeOverlayRenderState();
+        var settings = new OverlaySettings { Widgets = [] };
+        var snapshot = new OverlaySnapshot { ThemeId = AppThemes.Grindcrest };
+        state.Remember(settings, snapshot, new(360, 260));
+        Assert.True(state.Matches(settings, snapshot with { ThemeId = "removed-theme" }, new(360, 260)));
+        foreach (var themeId in new[] { AppThemes.BlackDesert, AppThemes.Light, AppThemes.Cats, AppThemes.Grindcrest })
+        {
+            var themed = snapshot with { ThemeId = themeId };
+            Assert.False(state.Matches(settings, themed, new(360, 260)));
+            state.Remember(settings, themed, new(360, 260));
+            Assert.True(state.Matches(settings, themed, new(360, 260)));
+        }
     }
 
     [Fact]

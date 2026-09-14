@@ -1,0 +1,23 @@
+.browser-preview-banner { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 9px 20px; color: #c4d0d8; background: #202b32; border-bottom: 1px solid #394a55; font-size: 12px; }
+.browser-preview-banner strong { color: #e5c277; }
+#app { display: flex; flex-direction: column; height: 100dvh; }
+#app > .app-shell { flex: 1; min-height: 0; height: auto; }
+.browser-overlay-dialog { width: min(1500px, 96vw); max-width: 96vw; max-height: 94dvh; padding: 0; border: 1px solid #53606a; border-radius: 12px; background: #12191f; color: #e0e8ee; }
+.browser-overlay-dialog::backdrop { background: #02060bd9; }
+.browser-overlay-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 18px 24px; border-bottom: 1px solid #ffffff18; }
+.browser-overlay-toolbar > div { flex: 1; }
+.browser-overlay-toolbar h1 { font-size: 20px; margin: 0 0 5px; }
+.browser-overlay-toolbar p { color: #a8b7c3; font-size: 12px; margin: 0; }
+.browser-overlay-toolbar label { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+.browser-overlay-stage { position: relative; min-height: 350px; background-position: center; background-size: cover; }
+.browser-overlay-stage.background-scene { background-image: url('assets/spot-backgrounds/aphrodon.jpg'); }
+.browser-overlay-stage.background-dark { background: #0b1017; }
+.browser-overlay-stage.background-light { background: #ddd9ce; }
+.browser-overlay-stage.background-grid { background-color: #a7abb0; background-image: conic-gradient(#7c8186 25%, transparent 0 50%, #7c8186 0 75%, transparent 0); background-size: 24px 24px; }
+.browser-overlay-dialog .oe-stage-viewport { padding: 48px 24px; background: none; border: 0; min-height: 350px; }
+.browser-overlay-dialog .oe-stage-wrap { margin: auto; }
+.browser-overlay-dialog .oe-stage { box-shadow: none; outline: none; }
+.browser-overlay-dialog .oe-widget { border: 0; outline: 0; cursor: default; box-shadow: none; }
+.browser-overlay-dialog .oe-widget-content { pointer-events: auto; }
+.browser-overlay-footer { padding: 14px 24px; color: #a8b7c3; font-size: 12px; line-height: 1.6; }
+.browser-overlay-empty { position: absolute; inset: 40% 24px auto; text-align: center; padding: 20px; color: #fff; background: #12191fd9; }

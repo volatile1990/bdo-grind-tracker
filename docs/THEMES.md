@@ -1,0 +1,93 @@
+# Themes
+
+**Einstellungen → Erscheinungsbild → Theme für Oberfläche und Overlay** bietet:
+
+- **Grindcrest:** das bisherige Design, weiterhin Standard bei neuen und
+  bestehenden Installationen.
+- **Black Desert:** dunkle Spielfenster mit bronzefarbener Titelleiste,
+  elfenbeinfarbener Schrift und kantigen Buttons. Drops erscheinen in quadratischen
+  Inventarplätzen mit hellen, kühlen Konturen und schmalen Mengenzahlen unten rechts.
+  Dezente kantige Konturen und eine leichte Abdunklung grenzen die einzelnen
+  Komponenten innerhalb des gemeinsamen Fensters ab.
+- **Light:** helle Flächen, dunkle Schrift und blaue Akzente für eine ruhige,
+  gut lesbare Oberfläche und helle Overlay-Module.
+- **Katzen:** dunkle Pflaumentöne, rosafarbene Akzente, weiche Konturen und
+  dezente Katzen- und Pfotenmotive in Oberfläche und Overlay.
+
+Der Wechsel gilt sofort für alle Seiten, Dialoge, den Overlay-Editor und alle
+nativen Overlay-Fenster. Layouts, Transparenzeinstellungen, Lootmengen und der
+Zustand der Session bleiben erhalten. Die Windows-App speichert die Auswahl in
+den bestehenden Einstellungen; die Browser-Vorschau hält sie wie ihre anderen
+Demo-Einstellungen nur für die aktuelle Verbindung im Arbeitsspeicher.
+
+Beim Black-Desert-Overlay ergänzt **Rahmen anzeigen** eine Titelleiste mit dem
+jeweiligen Overlay-Namen. Sie liegt außerhalb der gespeicherten Inhaltsfläche:
+links/rechts/unten kommen 2 px, oben 32 px hinzu. Breite, Höhe und Modulkoordinaten
+im Editor bleiben Inhaltsmaße. Skalierung, Verschieben und Größenänderung rechnen
+diesen zusätzlichen Rahmen mit ein. Ohne Rahmen entfällt auch die Titelleiste.
+Das Katzen-Overlay verwendet dieselben Rahmenmaße mit einer eigenen Katzen-Titelleiste.
+Light verwendet wie Grindcrest die bisherige Inhaltsfläche ohne zusätzliche Titelleiste.
+Die letzte Reihe eines Drop-Rasters wird mit dekorativen leeren Inventarplätzen
+ergänzt; diese erhöhen keine Lootmenge und keine angezeigte Itemanzahl.
+
+Das Modul **Uhrzeit & Tag/Nacht** zeigt in beiden Themes Stunden und Minuten.
+Der Countdown wird auf die nächste volle Minute aufgerundet. Die aktive
+Sessiondauer zeigt weiterhin Sekunden.
+
+## Umsetzung
+
+`Theming/AppThemes.cs` definiert die stabilen IDs `grindcrest`, `black-desert`,
+`light` und `cats`.
+Fehlende oder unbekannte gespeicherte IDs fallen auf `grindcrest` zurück. Neue
+ungültige Eingaben werden vor dem Speichern abgewiesen.
+
+Die gemeinsame Blazor-Oberfläche setzt das Theme auf dem HTML-Wurzelelement.
+`wwwroot/themes.css` ergänzt eigene Regeln für Black Desert, Light und Katzen; die bisherigen
+Styles bleiben die Grundlage von Grindcrest. Der Browser-Host lädt dieselbe Datei.
+Die globale Präferenz wird über `OverlayMetrics` in jeden `OverlaySnapshot`
+übernommen. `NativeOverlayRenderer` zeichnet die entsprechende Darstellung;
+der Rendercache berücksichtigt Theme-Wechsel auch bei pausierten oder leeren
+Overlays. Der Windows-Renderer und die Browser-Widgets teilen Layoutdaten und
+eine abgestimmte Farbpalette, verwenden aber weiterhin verschiedene Zeichensysteme.
+`OverlayWindowChrome` teilt die Rahmengeometrie zwischen Editor, Browser und Windows.
+
+## Visuelle Referenzen
+
+Das Overlay orientiert sich an zwei visuell geprüften PC-Referenzen:
+
+- [Black Spirit's Scheduler aus den offiziellen Patchnotes vom 10.09.2026](https://www.naeu.playblackdesert.com/en-US/News/Detail?countryType=en-US&groupContentNo=10577),
+  [Fensteraufnahme](https://s1.pearlcdn.com/NAEU/Upload/News/b509982e25820260908141838833.png):
+  Bronze-Titelband, feiner heller Rand, dunkler Fensterkörper und dezentes Eckornament.
+- [Inventaraufnahme vom März 2025 im offiziellen PC-Forum](https://s1.pearlcdn.com/NAEU/Upload/Community/5950eacae8220250313153105767.png):
+  quadratische Slots, kühle helle Konturen, große Itembilder und rechtsbündige Mengen
+  mit dunkler Schriftkontur. Die Quelle ist eine Spieleraufnahme des tatsächlichen
+  Inventars; eine daneben diskutierte Designänderung wurde nicht übernommen.
+
+Die übrige Black-Desert-Gestaltung orientiert sich an den offiziellen Beispielen für
+[Spieloptionen](https://blackdesert.pearlabyss.com/Asia/en-US/Game/Wiki?_masterWikiNo=12),
+[Inventar und Lager](https://blackdesert.pearlabyss.com/Asia/en-US/Game/Wiki?_masterWikiNo=11)
+und [HUD/Interface](https://blackdesert.pearlabyss.com/Asia/en-US/Game/Wiki?_masterWikiNo=7).
+Rahmen und Oberflächen werden mit CSS bzw. dem nativen Zeichenpfad erzeugt;
+es werden keine Referenzscreenshots als UI-Texturen eingebunden. Die Darstellung
+ist an das Spiel angelehnt; Schrift-Rasterung und native Fensterdetails hängen
+weiterhin vom Betriebssystem ab.
+Die goldene Hervorhebung verwendet weiterhin Grindcrests vorhandene Klassifikation
+für seltene Drops; sie stellt keine vollständige Zuordnung der BDO-Itemqualitäten dar.
+
+## Prüfung
+
+Portable Tests prüfen Defaults, alte Einstellungsdateien, JSON-Roundtrips,
+Theme-Auswahl in den Einstellungen, getrennte Browser-Verbindungen und die
+Weitergabe an Overlays. Der native Rendercache wird ebenfalls auf dem Mac geprüft.
+Tests für Rahmengeometrie prüfen Größenänderung bei mehreren DPI-Stufen und das
+Einpassen auf den Monitor. JavaScript-Tests prüfen Drop-Koordinaten, Größenänderung,
+Abbruch und unverändertes Verhalten ohne Titelleiste.
+Windows-Tests prüfen zusätzlich das Laden der gespeicherten Auswahl,
+Theme-Wechsel während einer Session, Rückkehr zur ursprünglichen Darstellung,
+Transparenz und unveränderte Klickbereiche bei mehreren DPI-Skalierungen.
+
+```sh
+dotnet test tests/BdoGrindTracker.BrowserPreview.Tests -c Release
+# Unter Windows:
+dotnet test tests/BdoGrindTracker.App.Tests -c Release
+```

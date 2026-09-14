@@ -2,6 +2,7 @@ using BdoGrindTracker.App.Persistence;
 using BdoGrindTracker.App.Pricing;
 using BdoGrindTracker.App.UI;
 using BdoGrindTracker.App.Integrations.Garmoth;
+using BdoGrindTracker.App.Theming;
 
 namespace BdoGrindTracker.App.Services;
 
@@ -20,6 +21,7 @@ internal sealed record TrackerCommandResult(string? Error = null)
 
 internal sealed record TrackerPreferences
 {
+    public string ThemeId { get; init; } = AppThemes.Grindcrest;
     public IReadOnlyList<string> FavoriteItems { get; init; } = [];
     public IReadOnlyDictionary<string, string[]> LootColumnOrders { get; init; } = new Dictionary<string, string[]>();
     public string? MonitorDeviceName { get; init; }
