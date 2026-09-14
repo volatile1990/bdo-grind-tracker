@@ -50,6 +50,15 @@
     {
         <OverlayRotationTimeline State="Snapshot.Rotation" Mode="@Widget.RotationComparison" Colors="@Widget.RotationColors" />
     }
+    else if (Widget.Kind == "daily-goal")
+    {
+        <strong class="overlay-widget-value" data-overlay-fit>@Snapshot.DailyGoal.Value</strong>
+        <div class="overlay-daily-bar" role="progressbar" aria-label="Fortschritt Tagesziel" aria-valuenow="@(Snapshot.DailyGoal.Fraction*100)" aria-valuemin="0" aria-valuemax="100">
+            <div class="overlay-daily-fill" style="width:@Css(Snapshot.DailyGoal.Fraction*100)%"></div>
+            <span>@Snapshot.DailyGoal.Percentage</span>
+        </div>
+        <span class="overlay-widget-detail" data-overlay-fit>@Snapshot.DailyGoal.Detail</span>
+    }
     else if (Widget.Kind == "controls")
     {
         <button type="button" class="overlay-tracking-button" data-overlay-fit disabled="@(!Interactive || !Snapshot.CanToggleTracking)"

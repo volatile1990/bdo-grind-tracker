@@ -80,8 +80,10 @@ internal sealed class HybridMainForm : Form
         var services = new ServiceCollection();
         services.AddWindowsFormsBlazorWebView();
         services.AddSingleton<ITrackerSession>(session);
+        var grindGoals = new GrindGoalStore(preview || smokeTest ? null : Path.Combine(AppDataPaths.Current.BaseDirectory, "grind-goals.json"));
+        services.AddSingleton(grindGoals);
         _overlay = new OverlayService(session, preview || smokeTest ? null : new OverlaySettingsStore(),
-            preview || smokeTest ? null : new OverlayTemplateStore());
+            preview || smokeTest ? null : new OverlayTemplateStore(), grindGoals);
         services.AddSingleton<IOverlayService>(_overlay);
         _nativeOverlay = new NativeOverlayHost(_overlay, session, this, validationMode: preview || smokeTest);
         _updates = AppUpdateService.Create(!preview && !smokeTest,

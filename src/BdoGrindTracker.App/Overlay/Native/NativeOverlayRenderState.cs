@@ -22,6 +22,7 @@ internal sealed class NativeOverlayRenderState
                 _snapshot.CanNewSession != snapshot.CanNewSession ||
                 _snapshot.TrackingButtonLabel != snapshot.TrackingButtonLabel)) return false;
             if (widget.Kind == "chart" && !_snapshot.SilverHistory.SequenceEqual(snapshot.SilverHistory)) return false;
+            if (widget.Kind == "daily-goal" && _snapshot.DailyGoal != snapshot.DailyGoal) return false;
             if (OverlayCatalog.IsLootWidget(widget.Kind) &&
                 (!_snapshot.Drops.SequenceEqual(snapshot.Drops) || !_snapshot.RareDrops.SequenceEqual(snapshot.RareDrops) ||
                  !_snapshot.ItemCatalog.SequenceEqual(snapshot.ItemCatalog))) return false;

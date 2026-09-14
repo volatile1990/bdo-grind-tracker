@@ -6,6 +6,7 @@ namespace BdoGrindTracker.App.Overlay;
 internal sealed class OverlayService : IOverlayService
 {
     private readonly ITrackerSession _tracker;
+    private readonly Persistence.GrindGoalStore? _goals;
     private readonly OverlaySettingsStore? _store;
     private readonly OverlayTemplateStore? _templateStore;
     private readonly string? _templateLoadError;
@@ -17,15 +18,18 @@ internal sealed class OverlayService : IOverlayService
     private string? _hotkeyStatus, _sharedSaveError;
     private bool _disposed;
 
-    public OverlayService(ITrackerSession tracker, OverlaySettingsStore? store = null, OverlayTemplateStore? templateStore = null)
+    public OverlayService(ITrackerSession tracker, OverlaySettingsStore? store = null, OverlayTemplateStore? templateStore = null, Persistence.GrindGoalStore? goals = null)
     {
         _tracker = tracker;
+        _goals = goals;
+        if (_goals is not null) { _goals.Load(); _goals.Changed += TrackerChanged; }
         _store = store;
         _templateStore = templateStore;
         Templates = templateStore?.Load() ?? Array.Empty<OverlayTemplate>();
         TemplateError = _templateLoadError = templateStore?.LoadError;
         _collection = OverlaySettingsStore.NormalizeCollection(store?.LoadCollection() ?? new());
         Snapshot = _metrics.Update(tracker.State, tracker.Preferences, tracker.Prices);
+        Snapshot = WithDailyGoal(Snapshot);
         tracker.Changed += TrackerChanged;
     }
 
@@ -332,10 +336,19 @@ internal sealed class OverlayService : IOverlayService
         Changed?.Invoke();
     }
 
+    private OverlaySnapshot WithDailyGoal(OverlaySnapshot snapshot)
+    {
+        var today = DateOnly.FromDateTime(snapshot.ClockUtcNow.LocalDateTime);
+        var earned = Persistence.GrindGoalStore.DailyNet(_tracker.History).GetValueOrDefault(today);
+        decimal? target = _goals?.Goals.TryGetValue(today, out var value) == true ? value : null;
+        return snapshot with { DailyGoal = new(earned, target, _goals?.Error) };
+    }
+
     private void TrackerChanged()
     {
         if (_disposed) return;
         Snapshot = _metrics.Update(_tracker.State, _tracker.Preferences, _tracker.Prices);
+        Snapshot = WithDailyGoal(Snapshot);
         Changed?.Invoke();
     }
 
@@ -344,7 +357,7 @@ internal sealed class OverlayService : IOverlayService
         if (_disposed || !Overlays.Any(overlay => overlay.Settings.Widgets.Any(widget => widget.Kind == "clock"))) return;
         var now = DateTimeOffset.UtcNow;
         if (now.ToUnixTimeSeconds() == Snapshot.ClockUtcNow.ToUnixTimeSeconds()) return;
-        Snapshot = Snapshot with { ClockUtcNow = now };
+        Snapshot = WithDailyGoal(Snapshot with { ClockUtcNow = now });
         Changed?.Invoke();
     }
 
@@ -353,6 +366,7 @@ internal sealed class OverlayService : IOverlayService
         if (_disposed) return;
         _disposed = true;
         _tracker.Changed -= TrackerChanged;
+        if (_goals is not null) _goals.Changed -= TrackerChanged;
         Changed = null;
     }
 }

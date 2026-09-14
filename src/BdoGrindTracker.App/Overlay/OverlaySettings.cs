@@ -73,6 +73,7 @@ public static class OverlayCatalog
         new OverlayWidgetDefinition("spot", "Grindspot", "Automatisch erkannter Spot", "pin", 344, 64),
         new OverlayWidgetDefinition("silver", "Silber netto", "Wert nach Marktsteuern", "silver", 168, 72),
         new OverlayWidgetDefinition("experience", "Erfahrung", "EXP-Zuwachs der Session und EXP pro Stunde", "trend", 200, 88),
+        new OverlayWidgetDefinition("daily-goal", "Daily Goal", "Fortschritt zum heutigen Netto-Silberziel", "trend", 280, 104),
         new OverlayWidgetDefinition("silver-hour", "Silber / Stunde", "Durchschnitt der Session", "trend", 168, 72),
         new OverlayWidgetDefinition("trash", "Trashloot", "Gesammelte Trashmenge", "loot", 168, 72),
         new OverlayWidgetDefinition("trash-hour", "Trash / Stunde", "Trashmenge pro aktiver Stunde", "trend", 168, 72),

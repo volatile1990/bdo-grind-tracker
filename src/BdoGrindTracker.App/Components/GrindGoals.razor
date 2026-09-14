@@ -1,0 +1,102 @@
+@page "/grind-goals"
+@inherits TrackerComponentBase
+@inject GrindGoalStore Goals
+
+@{ var dailyDrops = GrindGoalStore.DailyDrops(Tracker.History, name =>
+    Tracker.Preferences.FavoriteItems.Contains(name, StringComparer.Ordinal) ||
+    Tracker.Prices.TryGetQuote(name, out var quote) && quote.UnitPrice > 200_000_000m); }
+
+<div class="page grind-goals">
+    <div class="page-heading"><div><span class="eyebrow">DEINE ZIELE</span><h1>Grind Goals</h1><p>Plane deinen Grind und verfolge deinen täglichen Netto-Silbergewinn.</p></div></div>
+    @if (_error is not null || Goals.Error is not null) { <div class="notice error-notice" role="alert">@(_error ?? Goals.Error)</div> }
+    <div class="gg-toolbar">
+        <button class="button secondary" aria-label="Vorheriger Monat" @onclick="() => MoveMonth(-1)">‹</button>
+        <h2>@_month.ToString("MMMM yyyy", CultureInfo.GetCultureInfo("de-DE"))</h2>
+        <button class="button secondary" aria-label="Nächster Monat" @onclick="() => MoveMonth(1)">›</button>
+        <span>@MonthReached / @MonthPlanned Tagesziele erreicht</span>
+    </div>
+    <div class="gg-layout">
+        <section class="panel gg-calendar" aria-label="Monatsübersicht">
+            <div class="gg-week gg-labels"><span>Woche</span>@foreach (var day in new[] { "Mo", "Di", "Mi", "Do", "Fr", "Sa", "So" }) { <span>@day</span> }</div>
+            @for (var row = 0; row < WeekCount; row++)
+            {
+                var start = GridStart.AddDays(row*7);
+                <div class="gg-week @(start == _week ? "selected" : "")">
+                    <button class="gg-week-select" aria-label="@("Woche ab " + start.ToString("dd.MM."))" aria-pressed="@(start == _week)" @onclick="() => SelectWeek(start)">KW @ISOWeek.GetWeekOfYear(start.ToDateTime(TimeOnly.MinValue))</button>
+                    @for (var column = 0; column < 7; column++)
+                    {
+                        var date = start.AddDays(column); var goal = Goals.Goals.GetValueOrDefault(date); var net = Daily.GetValueOrDefault(date);
+                        <button class="gg-day @(date.Month != _month.Month ? "outside" : "") @(date == _day ? "chosen" : "") @(goal > 0 && net >= goal ? "reached" : "")" aria-pressed="@(date == _day)" @onclick="() => SelectDay(date)">
+                            <span>@date.Day</span><strong>@Silver(net)</strong><small>@(goal > 0 ? "von " + Silver(goal) : "Kein Ziel")</small>
+                            @if (goal > 0) { <progress value="@Math.Clamp(net,0,goal)" max="@goal" aria-label="Zielfortschritt"></progress> }
+                            @if (dailyDrops.TryGetValue(date, out var drops) && drops.Length > 0)
+                            {
+                                <span class="gg-drops">
+                                    @foreach (var drop in drops)
+                                    {
+                                        var favorite = Tracker.Preferences.FavoriteItems.Contains(drop.Key, StringComparer.Ordinal);
+                                        var label = ItemLabel(drop.Key) + " · " + Number(drop.Value) + (favorite ? " · Favorit" : "");
+                                        <span class="gg-drop" title="@label" aria-label="@label">
+                                            <AssetImage Src="@ItemIcon(drop.Key)" Alt="" Class="gg-drop-icon" Fallback="loot" />
+                                            <span class="gg-drop-count">@Number(drop.Value)</span>
+                                            @if (favorite) { <span class="gg-drop-star" aria-hidden="true">★</span> }
+                                        </span>
+                                    }
+                                </span>
+                            }
+                        </button>
+                    }
+                </div>
+            }
+        </section>
+        <section class="panel gg-editor">
+            <h2>@_day.ToString("dddd, dd.MM.", CultureInfo.GetCultureInfo("de-DE"))</h2>
+            <p>Netto: <strong>@Silver(Daily.GetValueOrDefault(_day))</strong></p>
+            <label class="oe-field"><span>Tagesziel in Mio. Silber</span><input type="number" min="0.001" step="1" @bind="_millions" /></label>
+            <label class="oe-field"><span>Anwenden auf</span><select @bind="_scope"><option value="day">Ausgewählter Tag</option><option value="work">Arbeitstage · Mo–Fr</option><option value="weekend">Wochenendtage · Sa–So</option><option value="all">Alle Tage</option></select></label>
+            @if (_scope != "day") { <label class="oe-field"><span>Zeitraum</span><select @bind="_period"><option value="week">Ausgewählte Woche</option><option value="month">Angezeigter Monat</option></select></label> }
+            <button class="button primary" @onclick="Save">Ziel speichern</button>
+            <button class="button secondary" @onclick="Remove">Ziel entfernen</button>
+            @if (_saved is not null) { <p role="status">@_saved</p> }
+            <small>Sessions zählen zum lokalen Tag ihres Starts. Grundlage ist Silber netto aus dem gespeicherten Verlauf. Wochenaktionen gelten innerhalb des angezeigten Monats.</small>
+        </section>
+    </div>
+    <GrindGoalDaySummary Day="_day" />
+    @if (Tracker.History.Any(s => !s.SilverIsComplete && DateOnly.FromDateTime(s.StartedAt.LocalDateTime).Month == _month.Month && s.StartedAt.LocalDateTime.Year == _month.Year))
+    { <p class="notice">Einige Sessions enthalten unvollständige Silberwerte. Ihr bisher bekannter Nettowert zählt zum Fortschritt.</p> }
+</div>
+
+@code {
+    private DateOnly _month = new(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private DateOnly _day = DateOnly.FromDateTime(DateTime.Today), _week;
+    private decimal _millions = 1000;
+    private string _scope = "day", _period = "week";
+    private string? _error, _saved;
+    private Dictionary<DateOnly,decimal> Daily => GrindGoalStore.DailyNet(Tracker.History);
+    private DateOnly GridStart => Monday(_month);
+    private int WeekCount => (DateTime.DaysInMonth(_month.Year,_month.Month)+_month.DayNumber-GridStart.DayNumber+6)/7;
+    private int MonthPlanned => Goals.Goals.Count(g => g.Key.Year == _month.Year && g.Key.Month == _month.Month);
+    private int MonthReached => Goals.Goals.Count(g => g.Key.Year == _month.Year && g.Key.Month == _month.Month && Daily.GetValueOrDefault(g.Key) >= g.Value);
+    private static DateOnly Monday(DateOnly date) => date.AddDays(-((int)date.DayOfWeek+6)%7);
+    protected override void OnInitialized() { base.OnInitialized(); Goals.Load(); SelectDay(_day); }
+    private void MoveMonth(int delta) { _month = _month.AddMonths(delta); SelectDay(_month); }
+    private void SelectDay(DateOnly date) { _day = date; _week = Monday(date); _millions = Goals.Goals.GetValueOrDefault(date,1_000_000_000)/1_000_000; _saved = null; }
+    private void SelectWeek(DateOnly date) { SelectDay(date < _month ? _month : date); }
+    private IEnumerable<DateOnly> SelectedDates()
+    {
+        if (_scope == "day") return [_day];
+        var start = _period == "month" ? _month : _week;
+        var count = _period == "month" ? DateTime.DaysInMonth(_month.Year,_month.Month) : 7;
+        return Enumerable.Range(0,count).Select(start.AddDays).Where(d => d.Month == _month.Month && d.Year == _month.Year)
+            .Where(d => _scope == "all" || (_scope == "weekend") == (d.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday));
+    }
+    private void Save() => Apply(false);
+    private void Remove() => Apply(true);
+    private void Apply(bool remove)
+    {
+        try { if (!remove && _millions <= 0) throw new ArgumentException("Bitte ein Tagesziel größer als 0 eingeben.");
+            var dates = SelectedDates().ToArray(); Goals.Set(dates, remove ? null : checked(_millions*1_000_000));
+            _error = null; _saved = $"{dates.Length} Tagesziele " + (remove ? "entfernt." : "gespeichert."); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException or OverflowException) { _error = e.Message; _saved = null; }
+    }
+}

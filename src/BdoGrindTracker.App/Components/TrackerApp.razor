@@ -16,6 +16,7 @@
             <button class="nav-item @(_page == Page.History ? "active" : "")" aria-label="Verlauf" title="Verlauf" aria-current="@(_page == Page.History ? "page" : null)" @onclick="() => Navigate(Page.History)"><AppIcon Name="history" /><span>Verlauf</span><span class="nav-count">@Tracker.History.Count</span></button>
             <button class="nav-item @(_page == Page.Garmoth ? "active" : "")" aria-label="Garmoth" title="Garmoth" aria-current="@(_page == Page.Garmoth ? "page" : null)" @onclick="() => Navigate(Page.Garmoth)"><AppIcon Name="upload" /><span>Garmoth</span></button>
             <button class="nav-item @(_page == Page.Overlay ? "active" : "")" aria-label="Overlay" title="Overlay" aria-current="@(_page == Page.Overlay ? "page" : null)" @onclick="() => Navigate(Page.Overlay)"><AppIcon Name="monitor" /><span>Overlay</span></button>
+            <button class="nav-item @(_page == Page.Goals ? "active" : "")" aria-label="Grind Goals" aria-current="@(_page == Page.Goals ? "page" : null)" @onclick="() => Navigate(Page.Goals)"><AppIcon Name="trend" /><span>Grind Goals</span></button>
             <button class="nav-item @(_page == Page.Settings ? "active" : "")" aria-label="Einstellungen" title="Einstellungen" aria-current="@(_page == Page.Settings ? "page" : null)" @onclick="() => Navigate(Page.Settings)"><AppIcon Name="settings" /><span>Einstellungen</span></button>
         </nav>
         <div class="sidebar-bottom">
@@ -57,7 +58,7 @@
 </CascadingValue>
 
 @code {
-    private enum Page { Live, History, Garmoth, Overlay, Settings }
+    private enum Page { Live, History, Garmoth, Overlay, Goals, Settings }
     private StoreUpdateDialog? _storeUpdateDialog;
     private Task ShowStoreUpdateDialog() => _storeUpdateDialog?.OpenAsync() ?? Task.CompletedTask;
     private bool _scrollPending;
@@ -67,7 +68,7 @@
         get
         {
             var path = Navigation.ToBaseRelativePath(Navigation.Uri).Split('?', '#')[0].TrimEnd('/');
-            return path == "settings" ? Page.Settings : path == "overlay" ? Page.Overlay : path == "garmoth" ? Page.Garmoth : path == "history" || path.StartsWith("history/", StringComparison.Ordinal) ? Page.History : Page.Live;
+            return path == "grind-goals" ? Page.Goals : path == "settings" ? Page.Settings : path == "overlay" ? Page.Overlay : path == "garmoth" ? Page.Garmoth : path == "history" || path.StartsWith("history/", StringComparison.Ordinal) ? Page.History : Page.Live;
         }
     }
     protected override void OnInitialized()
@@ -78,7 +79,7 @@
     }
     private void Navigate(Page page)
     {
-        var path = page switch { Page.History => "/history", Page.Garmoth => "/garmoth", Page.Overlay => "/overlay", Page.Settings => "/settings", _ => "/" };
+        var path = page switch { Page.History => "/history", Page.Garmoth => "/garmoth", Page.Overlay => "/overlay", Page.Goals => "/grind-goals", Page.Settings => "/settings", _ => "/" };
         if (Navigation.Uri != Navigation.ToAbsoluteUri(path).AbsoluteUri)
             Navigation.NavigateTo(path);
     }
@@ -112,6 +113,6 @@
         Navigation.LocationChanged -= LocationChanged;
         base.Dispose();
     }
-    private string PageLabel => _page switch { Page.History => "Verlauf", Page.Garmoth => "Garmoth", Page.Overlay => "Overlay", Page.Settings => "Einstellungen", _ => "Live-Session" };
+    private string PageLabel => _page switch { Page.History => "Verlauf", Page.Garmoth => "Garmoth", Page.Overlay => "Overlay", Page.Goals => "Grind Goals", Page.Settings => "Einstellungen", _ => "Live-Session" };
     private static string Version => AppBranding.Version;
 }
