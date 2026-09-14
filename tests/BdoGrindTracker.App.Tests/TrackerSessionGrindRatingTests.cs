@@ -1,3 +1,4 @@
+using BdoGrindTracker.App.Capture;
 using BdoGrindTracker.App.Integrations.Garmoth;
 using BdoGrindTracker.App.Services;
 using BdoGrindTracker.App.UI;
@@ -48,7 +49,8 @@ public sealed partial class TrackerSessionServiceTests
     {
         var response = new TaskCompletionSource<GarmothBenchmarkSnapshot>(TaskCreationOptions.RunContinuationsAsynchronously);
         var provider = new SyntheticBenchmarks { Fetch = _ => response.Task };
-        await using var fixture = new Fixture(autoUpload: false, benchmarkProvider: provider);
+        var capture = new PassiveCaptureSession(_ => new Bitmap(2, 2), frameInterval: TimeSpan.FromDays(1));
+        await using var fixture = new Fixture(autoUpload: false, benchmarkProvider: provider, suppliedCapture: capture);
         Assert.Empty(provider.Tokens);
         try
         {
@@ -57,6 +59,10 @@ public sealed partial class TrackerSessionServiceTests
             Assert.True(fixture.Service.State.IsRunning);
             Assert.Single(provider.Tokens);
             Assert.Contains("aktualisiert", fixture.Service.State.GrindBenchmarkStatus);
+            // Feed controlled frames only after the background producer has stopped.
+            // Otherwise its first frame can consume NextResult or publish an old spot
+            // after the synthetic spot switch below. The service itself stays active.
+            await capture.StopAsync();
             await fixture.ProcessAfter(TimeSpan.FromMinutes(1), ("Black Crystal Fragment", 100));
             Assert.Equal(GarmothGrindBenchmarks.Find(LootSpotCatalog.HermesiaId), fixture.Service.State.GrindBenchmark);
 
@@ -65,8 +71,12 @@ public sealed partial class TrackerSessionServiceTests
             await AwaitBenchmarkRefreshesAsync(fixture.Service);
             Assert.Equal(refreshed.Find(LootSpotCatalog.HermesiaId), fixture.Service.State.GrindBenchmark);
             Assert.Equal(refreshed.Status, fixture.Service.State.GrindBenchmarkStatus);
-            SetField(fixture.Service, "_sessionSpotId", LootSpotCatalog.MagaiaId);
+            fixture.Analyzer.NextResult = Analysis() with { SpotId = LootSpotCatalog.MagaiaId };
+            using (var frame = new Bitmap(2, 2))
+                await fixture.Service.ProcessFrameAsync(frame, new CapturedFrameMetadata(2, fixture.Time.GetUtcNow()), CancellationToken.None);
             fixture.Service.RefreshPendingState();
+            Assert.True(fixture.Service.State.IsRunning);
+            Assert.Equal(LootSpotCatalog.MagaiaId, fixture.Service.State.SpotId);
             Assert.Equal(refreshed.Find(LootSpotCatalog.MagaiaId), fixture.Service.State.GrindBenchmark);
             Assert.Single(provider.Tokens);
         }
