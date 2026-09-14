@@ -398,7 +398,7 @@ html[data-theme="black-desert"],
 
 /* Light and Katzen share the same UI components and dimensions. Their tokens
  * also cover the original hard-coded dark surfaces, including native dialogs.
- * All cat illustrations below are decorative SVG linework authored here. */
+ * Katzen gives each area its own kitten illustration and embroidered details. */
 [data-theme="light"] {
     color-scheme: light;
     --bg: #f5f6f8;
@@ -448,51 +448,52 @@ html[data-theme="black-desert"],
 }
 [data-theme="cats"] {
     color-scheme: dark;
-    --bg: #29232f;
-    --panel: #342b3d;
-    --panel-raised: #403347;
-    --line: #604d68;
-    --muted: #bca9bd;
-    --dim: #b19bb4;
-    --text: #f4e7ee;
-    --gold: #edb3ca;
-    --gold-bright: #ffd4e4;
-    --teal: #a6d7ba;
-    --red: #f0a5ad;
+    --bg: #25221f;
+    --panel: #302a25;
+    --panel-raised: #3c352e;
+    --line: #60513f;
+    --muted: #bcaf99;
+    --dim: #b0a38f;
+    --text: #f5eddf;
+    --gold: #e0b97f;
+    --gold-bright: #f4d5a7;
+    --teal: #aacbaa;
+    --red: #eaa999;
     --radius: 15px;
-    --shadow: 0 5px 20px #160f222b;
-    --theme-side: #251f2c;
-    --theme-header: #312838;
-    --theme-input: #251f2e;
-    --theme-inset: #2b2333;
-    --theme-hover: #49364e;
-    --theme-selected: #5c3d55;
-    --theme-control-line: #8b7090;
-    --theme-accent-ink: #392632;
-    --theme-button: #edb3ca;
-    --theme-button-hover: #ffd0e0;
-    --theme-info: #393044;
-    --theme-info-line: #766383;
-    --theme-positive-bg: #2a3c38;
-    --theme-positive-line: #597d6f;
-    --theme-warning: #f0ce94;
-    --theme-warning-bg: #43373a;
-    --theme-warning-line: #8b7359;
-    --theme-danger-bg: #4a2c3c;
-    --theme-danger-line: #956075;
-    --theme-art-shade: linear-gradient(90deg, #2c2233f5, #322637dc 40%, #30223688 75%, #292030e8);
-    --overlay-surface-rgb: 41, 35, 47;
-    --overlay-panel-rgb: 57, 43, 61;
-    --overlay-panel-opacity: .30;
-    --overlay-slot-rgb: 32, 26, 39;
-    --overlay-line-rgb: 119, 96, 121;
-    --overlay-rare: #edb3ca;
-    --overlay-ink: #f4e7ee;
-    --overlay-muted: #bca9bd;
-    --overlay-shadow: 0 1px 1px #1b1029cc;
+    --shadow: 0 5px 20px #18130e30;
+    --theme-side: #211e1a;
+    --theme-header: #2c2620;
+    --theme-input: #211e1a;
+    --theme-inset: #28231f;
+    --theme-hover: #493d2e;
+    --theme-selected: #54432e;
+    --theme-control-line: #85735c;
+    --theme-accent-ink: #30261b;
+    --theme-button: #e0b97f;
+    --theme-button-hover: #f4d5a7;
+    --theme-info: #37352b;
+    --theme-info-line: #77745a;
+    --theme-positive-bg: #2c382c;
+    --theme-positive-line: #627e5d;
+    --theme-warning: #edcc94;
+    --theme-warning-bg: #433526;
+    --theme-warning-line: #8b7354;
+    --theme-danger-bg: #482e27;
+    --theme-danger-line: #936958;
+    --theme-art-shade: linear-gradient(90deg, #29241ff5, #302a22dc 40%, #302a2288 75%, #25221fe8);
+    --overlay-surface-rgb: 37, 34, 31;
+    --overlay-panel-rgb: 60, 53, 46;
+    --overlay-panel-opacity: .60;
+    --overlay-slot-rgb: 29, 27, 25;
+    --overlay-line-rgb: 133, 115, 92;
+    --overlay-rare: #e0b97f;
+    --overlay-ink: #f5eddf;
+    --overlay-muted: #bcaf99;
+    --overlay-shadow: 0 1px 1px #19140dcc;
     --overlay-corner: 10px;
-    --cat-paw: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cg fill='none' stroke='%23edb3ca' stroke-width='1.6' stroke-linejoin='round'%3E%3Cpath d='M20 21c-4-1-5 2-8 5s-3 7 1 8c3 1 4-1 7-1s5 2 8 0c4-3 0-6-2-8s-3-5-6-4Z'/%3E%3Cellipse cx='8' cy='18' rx='3' ry='4' transform='rotate(-25 8 18)'/%3E%3Cellipse cx='17' cy='12' rx='3' ry='4' transform='rotate(-8 17 12)'/%3E%3Cellipse cx='26' cy='13' rx='3' ry='4' transform='rotate(15 26 13)'/%3E%3Cellipse cx='33' cy='20' rx='3' ry='4' transform='rotate(30 33 20)'/%3E%3C/g%3E%3C/svg%3E");
-    --cat-face: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cg fill='none' stroke='%23edb3ca' stroke-width='1.55' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 13-1-9 8 5a14 14 0 0 1 6 0l8-5-1 9c4 12-1 15-10 15S2 25 6 13Z'/%3E%3Cpath d='M10 17h1m10 0h1m-8 3 2 2 2-2m-2 2v2m-9-4-5-1m5 4-5 1m23-4 5-1m-5 4 5 1'/%3E%3C/g%3E%3C/svg%3E");
+    --cat-illustration: url("assets/themes/cats/kitten-lounge.png");
+    --cat-paw: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cg fill='none' stroke='%23e0b97f' stroke-width='1.6' stroke-linejoin='round'%3E%3Cpath d='M20 21c-4-1-5 2-8 5s-3 7 1 8c3 1 4-1 7-1s5 2 8 0c4-3 0-6-2-8s-3-5-6-4Z'/%3E%3Cellipse cx='8' cy='18' rx='3' ry='4' transform='rotate(-25 8 18)'/%3E%3Cellipse cx='17' cy='12' rx='3' ry='4' transform='rotate(-8 17 12)'/%3E%3Cellipse cx='26' cy='13' rx='3' ry='4' transform='rotate(15 26 13)'/%3E%3Cellipse cx='33' cy='20' rx='3' ry='4' transform='rotate(30 33 20)'/%3E%3C/g%3E%3C/svg%3E");
+    --cat-face: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cg fill='none' stroke='%23e0b97f' stroke-width='1.55' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 13-1-9 8 5a14 14 0 0 1 6 0l8-5-1 9c4 12-1 15-10 15S2 25 6 13Z'/%3E%3Cpath d='M10 17h1m10 0h1m-8 3 2 2 2-2m-2 2v2m-9-4-5-1m5 4-5 1m23-4 5-1m-5 4 5 1'/%3E%3C/g%3E%3C/svg%3E");
     color: var(--text);
 }
 
@@ -678,32 +679,115 @@ html:is([data-theme="light"], [data-theme="cats"]) { background: var(--bg); }
 :is([data-theme="light"], [data-theme="cats"]) .overlay-chart-area { fill: var(--gold); fill-opacity: .13; }
 :is([data-theme="light"], [data-theme="cats"]) .overlay-chart-line { stroke: var(--gold); }
 
-/* Katzen: small paw and ear motifs live in the existing navigation/header
- * space. Decorations are noninteractive and never overlap the content canvas. */
-[data-theme="cats"] .sidebar { position: relative; }
-[data-theme="cats"] .sidebar .brand { position: relative; }
-[data-theme="cats"] .sidebar .brand::after {
-    content: "";
-    position: absolute;
-    right: 7px;
-    bottom: -35px;
-    width: 28px;
-    height: 28px;
-    background: var(--cat-paw) center / contain no-repeat;
-    opacity: .48;
-    transform: rotate(20deg);
-    pointer-events: none;
+/* Distinct kitten companions, linen seams and paw trails give Katzen its identity.
+ * Decorative layers never receive input or change overlay canvas geometry. */
+[data-theme="cats"] .sidebar {
+    position: relative;
+    /* The illustration must shrink inside the shell's grid track instead of
+       increasing the minimum row height and pushing the status bar offscreen. */
+    min-height: 0;
+    overflow-y: auto;
+    background-image: repeating-linear-gradient(0deg, #f4d5a703 0 1px, transparent 1px 4px);
 }
-[data-theme="cats"] .settings-icon:has(.icon) { position: relative; }
+[data-theme="cats"] .sidebar > :is(.brand, nav, .sidebar-bottom) { flex-shrink: 0; }
+[data-theme="cats"] .nav-caption { margin-top: 30px; }
+[data-theme="cats"] .nav-item.active { border-style: dashed; }
+[data-theme="cats"] .cats-sidebar-scene {
+    position: relative;
+    flex: 1 1 160px;
+    min-height: 90px;
+    max-height: 220px;
+    margin: 18px -8px 0;
+    pointer-events: none;
+    user-select: none;
+}
+[data-theme="cats"] .cats-sidebar-scene img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: center bottom; }
+[data-theme="cats"] .sidebar-bottom { padding-top: 12px; }
+[data-theme="cats"] .sidebar-version { border-top-style: dashed; }
+[data-theme="cats"] .workspace { position: relative; isolation: isolate; background-image: radial-gradient(ellipse at 95% 80%, #9b795629, transparent 65%); }
+[data-theme="cats"] .cats-workspace-scene {
+    position: absolute;
+    inset: 64px 0 32px;
+    overflow: hidden;
+    z-index: -1;
+    pointer-events: none;
+    user-select: none;
+}
+[data-theme="cats"] .cats-workspace-scene img { position: absolute; bottom: 0; right: 0; width: min(650px, 68%); opacity: .22; }
+[data-theme="cats"] :is(.panel, .metric-card, .spot-card, .chronological-session-card, .oe-custom-templates) {
+    outline: 1px dashed #d3b78a2d;
+    outline-offset: -6px;
+}
+[data-theme="cats"] .live-session-metrics .metric-card { outline: none; }
+[data-theme="cats"] .settings-icon { position: relative; }
 [data-theme="cats"] .theme-settings .settings-icon {
     color: transparent;
     background: var(--cat-face) center / 27px 27px no-repeat, var(--theme-info);
-    border-color: #a6809b;
+    border-color: #a88b5e;
+    border-radius: 8px 8px 16px 16px;
 }
+[data-theme="cats"] .theme-settings .settings-icon::before,
+[data-theme="cats"] .theme-settings .settings-icon::after {
+    content: "";
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    top: -5px;
+    background: var(--theme-info);
+    border-top: 1px solid #a88b5e;
+    border-left: 1px solid #a88b5e;
+    transform: rotate(45deg);
+    pointer-events: none;
+}
+[data-theme="cats"] .theme-settings .settings-icon::before { left: 3px; }
+[data-theme="cats"] .theme-settings .settings-icon::after { right: 3px; }
+[data-theme="cats"] .cats-theme-scene {
+    position: relative;
+    height: 170px;
+    margin: 8px -10px -10px;
+    border-radius: 12px;
+    background: radial-gradient(ellipse at 50% 75%, #ab8b592b, transparent 70%);
+    pointer-events: none;
+    user-select: none;
+}
+[data-theme="cats"] .cats-theme-scene img { width: 100%; height: 100%; object-fit: contain; }
+[data-theme="cats"] .cats-theme-scene::before,
+[data-theme="cats"] .cats-theme-scene::after { content: ""; position: absolute; width: 30px; height: 30px; background: var(--cat-paw) center / contain no-repeat; opacity: .32; }
+[data-theme="cats"] .cats-theme-scene::before { left: 8%; top: 25px; transform: rotate(-22deg); }
+[data-theme="cats"] .cats-theme-scene::after { right: 6%; top: 8px; transform: rotate(24deg); }
 [data-theme="cats"] :is(.button, .oe-module, .notice, .segmented, .settings-icon) { border-radius: 10px; }
-[data-theme="cats"] .oe-stage.has-border { border-radius: 10px; border-color: #9d7893; box-shadow: inset 0 0 0 1px #edb3ca1a; }
-[data-theme="cats"] .oe-stage.has-window-chrome { border-width: 0; box-shadow: inset 0 0 0 1px #9d7893, inset 0 0 0 2px #edb3ca1a; }
+[data-theme="cats"] .oe-stage.has-border { border-radius: 10px; border-color: rgba(var(--overlay-line-rgb), var(--overlay-opacity, .85)); box-shadow: inset 0 0 0 1px rgba(224, 185, 127, calc(var(--overlay-opacity, .85) * .1)); }
+[data-theme="cats"] .oe-stage.has-window-chrome { border-width: 0; box-shadow: inset 0 0 0 1px rgba(var(--overlay-line-rgb), var(--overlay-opacity, .85)), inset 0 0 0 2px rgba(224, 185, 127, calc(var(--overlay-opacity, .85) * .1)); }
 [data-theme="cats"] .oe-stage.has-border .oe-stage-content { border-radius: 0 0 8px 8px; }
+[data-theme="cats"] .oe-stage-content { isolation: isolate; }
+[data-theme="cats"] .oe-stage-content::before {
+    content: "";
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: min(76%, 440px);
+    height: 82%;
+    background: var(--cat-illustration) right bottom / contain no-repeat;
+    opacity: calc(var(--overlay-opacity, .85) * .72);
+    z-index: -1;
+    pointer-events: none;
+}
+[data-theme="cats"] .oe-stage-content::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 96px;
+    height: 100px;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 100'%3E%3Cdefs%3E%3Cg id='p' fill='none' stroke='%23e0b97f' stroke-width='1.6' stroke-linejoin='round'%3E%3Cpath d='M20 21c-4-1-5 2-8 5s-3 7 1 8c3 1 4-1 7-1s5 2 8 0c4-3 0-6-2-8s-3-5-6-4Z'/%3E%3Cellipse cx='8' cy='18' rx='3' ry='4' transform='rotate(-25 8 18)'/%3E%3Cellipse cx='17' cy='12' rx='3' ry='4'/%3E%3Cellipse cx='26' cy='13' rx='3' ry='4'/%3E%3Cellipse cx='33' cy='20' rx='3' ry='4' transform='rotate(30 33 20)'/%3E%3C/g%3E%3C/defs%3E%3Cuse href='%23p' transform='translate(16 60) scale(.45) rotate(-20 20 20)' opacity='.13'/%3E%3Cuse href='%23p' transform='translate(43 42) scale(.35) rotate(20 20 20)' opacity='.10'/%3E%3Cuse href='%23p' transform='translate(68 22) scale(.30) rotate(-20 20 20)' opacity='.08'/%3E%3C/svg%3E") center / contain no-repeat;
+    opacity: var(--overlay-opacity, .85);
+    z-index: -1;
+    pointer-events: none;
+}
+[data-theme="cats"] .overlay-widget-preview {
+    outline: 1px dashed rgba(var(--overlay-line-rgb), calc(var(--overlay-opacity, .85) * .35));
+    outline-offset: -4px;
+}
 [data-theme="cats"] .overlay-window-titlebar {
     position: absolute;
     inset: 0 0 auto;
@@ -712,12 +796,12 @@ html:is([data-theme="light"], [data-theme="cats"]) { background: var(--bg); }
     align-items: center;
     gap: 8px;
     overflow: hidden;
-    padding: 0 44px 0 10px;
+    padding: 0 12px 0 10px;
     border-radius: 9px 9px 0 0;
-    border-top: 1px solid rgba(237, 179, 202, calc(var(--overlay-opacity, .85) * .45));
-    border-bottom: 1px solid rgba(119, 96, 121, var(--overlay-opacity, .85));
-    background: linear-gradient(rgba(73, 54, 77, var(--overlay-opacity, .85)), rgba(57, 44, 64, var(--overlay-opacity, .85)));
-    color: #f4e7ee;
+    border-top: 1px solid rgba(224, 185, 127, calc(var(--overlay-opacity, .85) * .45));
+    border-bottom: 1px solid rgba(224, 185, 127, calc(var(--overlay-opacity, .85) * .38));
+    background: linear-gradient(rgba(75, 61, 48, var(--overlay-opacity, .85)), rgba(52, 46, 39, var(--overlay-opacity, .85)));
+    color: var(--overlay-ink);
     pointer-events: none;
     user-select: none;
 }
@@ -727,26 +811,35 @@ html:is([data-theme="light"], [data-theme="cats"]) { background: var(--bg); }
     height: 23px;
     flex: 0 0 23px;
     background: var(--cat-face) center / contain no-repeat;
+    opacity: var(--overlay-opacity, .85);
 }
 [data-theme="cats"] .overlay-window-titlebar::after {
     content: "";
     position: absolute;
-    right: 11px;
-    top: 2px;
-    width: 27px;
-    height: 27px;
-    background: var(--cat-paw) center / contain no-repeat;
-    opacity: .6;
-    transform: rotate(15deg);
+    inset: 4.5px 12px 3.5px 42px;
+    background: repeating-linear-gradient(90deg, rgba(224, 185, 127, calc(var(--overlay-opacity, .85) * .38)) 0 4px, transparent 4px 7px) top / 100% 1px no-repeat,
+                repeating-linear-gradient(90deg, rgba(224, 185, 127, calc(var(--overlay-opacity, .85) * .38)) 0 4px, transparent 4px 7px) bottom / 100% 1px no-repeat;
 }
 [data-theme="cats"] .overlay-window-title {
     min-width: 0;
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
-    color: #f4e7ee;
+    color: var(--overlay-ink);
     font: 700 13px/1.3 "Segoe UI", sans-serif;
-    text-shadow: 0 1px 1px #21182799;
+    text-shadow: 0 1px 1px #211a1299;
+}
+
+@media (max-width: 1050px) {
+    [data-theme="cats"] .cats-sidebar-scene { display: none; }
+    [data-theme="cats"] .cats-workspace-scene img { width: min(560px, 90%); }
+}
+@media (max-height: 740px) and (min-width: 1051px) {
+    [data-theme="cats"] .cats-sidebar-scene { min-height: 70px; margin-top: 4px; }
+    [data-theme="cats"] .sidebar { padding-top: 18px; padding-bottom: 12px; }
+    [data-theme="cats"] .nav-caption { margin-top: 20px; }
+    [data-theme="cats"] .sidebar-bottom { padding-top: 0; }
+    [data-theme="cats"] .local-note { padding-top: 10px; padding-bottom: 13px; }
 }
 
 /* Goals and rotation modules use the same page and overlay palettes. The
@@ -771,7 +864,7 @@ html:is([data-theme="light"], [data-theme="cats"]) { background: var(--bg); }
     --rotation-line: var(--theme-control-line);
 }
 [data-theme="light"] { --daily-track: #e7edf5; --daily-fill: #b2c9e3; --daily-ink: #243244; }
-[data-theme="cats"] { --daily-track: #49374d; --daily-fill: #77516e; --daily-ink: #f4e7ee; }
+[data-theme="cats"] { --daily-track: #453c30; --daily-fill: #786039; --daily-ink: #f5eddf; }
 
 :is([data-theme="black-desert"], [data-theme="light"], [data-theme="cats"]) :is(.gg-toolbar > span, .gg-labels, .gg-day small, .gg-editor small, .gg-editor > p, .gg-day-summary .valuation-note) { color: var(--muted); }
 :is([data-theme="black-desert"], [data-theme="light"], [data-theme="cats"]) .gg-week.selected { background: var(--goal-week-background); }

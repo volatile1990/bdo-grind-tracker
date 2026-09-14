@@ -11,8 +11,9 @@
   Komponenten innerhalb des gemeinsamen Fensters ab.
 - **Light:** helle Flächen, dunkle Schrift und blaue Akzente für eine ruhige,
   gut lesbare Oberfläche und helle Overlay-Module.
-- **Katzen:** dunkle Pflaumentöne, rosafarbene Akzente, weiche Konturen und
-  dezente Katzen- und Pfotenmotive in Oberfläche und Overlay.
+- **Katzen:** große Kitten-Illustrationen, eine gemütliche Katzenecke in der
+  Seitenleiste, Pfotenspuren und Ziernähte auf warmen Espresso- und Leinenflächen.
+  Das Overlay verwendet dieselbe Illustration hinter den gut lesbaren Modulen.
 
 Der Wechsel gilt sofort für alle Seiten, Dialoge, den Overlay-Editor und alle
 nativen Overlay-Fenster. Layouts, Transparenzeinstellungen, Lootmengen und der
@@ -50,6 +51,18 @@ der Rendercache berücksichtigt Theme-Wechsel auch bei pausierten oder leeren
 Overlays. Der Windows-Renderer und die Browser-Widgets teilen Layoutdaten und
 eine abgestimmte Farbpalette, verwenden aber weiterhin verschiedene Zeichensysteme.
 `OverlayWindowChrome` teilt die Rahmengeometrie zwischen Editor, Browser und Windows.
+
+Die freigestellten Katzenillustrationen liegen unter `data/themes/cats/` und
+werden lokal mit beiden Anwendungen ausgeliefert. Jeder Bereich besitzt sein
+eigenes Motiv: `sidebar-napping-kitten.png` (schlafendes Kätzchen auf Büchern),
+`workspace-playful-kitten.png` (spielendes Kätzchen mit Blättern),
+`settings-ribbon-kitten.png` (Kätzchen mit Stoffbändern) und `kitten-lounge.png`
+(Kittengruppe, ausschließlich im Overlay). Die Bilder werden nicht zwischen
+diesen Bereichen wiederholt. Browser und Windows-Overlay
+passen das Hintergrundmotiv an die Inhaltsfläche an; seine Deckkraft folgt der
+eingestellten Hintergrundtransparenz. Das Bild verändert keine Modulpositionen
+oder Klickflächen. Der native Renderer lädt es über seinen vorhandenen Bildcache.
+Herkunft und Generierungsprompts stehen in [SOURCES.md](../data/themes/cats/SOURCES.md).
 
 ## Visuelle Referenzen
 

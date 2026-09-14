@@ -43,7 +43,8 @@ Oberfläche und alle Overlays wechseln. **Grindcrest** behält das bisherige Des
 bei und bleibt die Voreinstellung. **Black Desert** verwendet dunkle, kantige
 Spielfenster, feine Rahmen, helle Schrift und eingelassene Inventarfelder.
 **Light** bietet helle Flächen mit dunkler Schrift und blauen Akzenten.
-**Katzen** kombiniert dunkle Pflaumentöne mit Rosa, weichen Konturen und Katzenmotiven.
+**Katzen** zeigt große Kitten-Illustrationen auf warmen Espresso- und Leinenflächen,
+mit Pfotenspuren und Ziernähten in Oberfläche und Overlay.
 Die Auswahl gilt sofort, auch während einer Session, und wird in der Windows-App
 gespeichert. In der Browser-Vorschau gilt sie bis zum Neuladen.
 [Themes und Darstellung](docs/THEMES.md).

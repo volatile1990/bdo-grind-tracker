@@ -233,7 +233,7 @@ public sealed class NativeOverlayThemeTests
 
     [Theory]
     [InlineData(AppThemes.Light, 245, 246, 248)]
-    [InlineData(AppThemes.Cats, 41, 35, 47)]
+    [InlineData(AppThemes.Cats, 37, 34, 31)]
     public void NewThemesRespectCanvasAndModuleBackgroundTransparency(string themeId, int red, int green, int blue)
     {
         var settings = new OverlaySettings
@@ -244,11 +244,11 @@ public sealed class NativeOverlayThemeTests
         var snapshot = new OverlaySnapshot { ThemeId = themeId };
         using var renderer = new NativeOverlayRenderer();
         using var solid = renderer.Render(new(160, 64), settings, snapshot, out _);
-        Assert.Equal(Color.FromArgb(red, green, blue).ToArgb(), solid.GetPixel(80, 32).ToArgb());
+        Assert.Equal(Color.FromArgb(red, green, blue).ToArgb(), solid.GetPixel(8, 8).ToArgb());
         using var transparent = renderer.Render(new(160, 64), settings with { BackgroundOpacity = 0 }, snapshot, out _);
         Assert.All(Pixels(transparent), pixel => Assert.Equal(0, pixel));
         using var move = renderer.Render(new(160, 64), settings with { BackgroundOpacity = 0, Interaction = "move" }, snapshot, out _);
-        Assert.Equal(1, move.GetPixel(80, 32).A);
+        Assert.Equal(1, move.GetPixel(8, 8).A);
 
         var widget = OverlayCatalog.CreateWidget("loot-scroll", 0, 0) with
         {
@@ -259,6 +259,26 @@ public sealed class NativeOverlayThemeTests
         using var warning = renderer.Render(new(160, 64), settings with { BackgroundOpacity = 0, Widgets = [widget] }, snapshot, out _);
         Assert.Equal(0, warning.GetPixel(2, 2).A);
         Assert.Contains(Pixels(warning), pixel => Color.FromArgb(pixel).A > 200);
+    }
+
+    [Fact]
+    public void CatIllustrationIsBundledAndVisibleWithoutLeavingDecorationAtZeroOpacity()
+    {
+        Assert.True(File.Exists(Path.Combine(AppContext.BaseDirectory, "wwwroot", "assets", "themes", "cats", "kitten-lounge.png")));
+        var settings = new OverlaySettings
+        {
+            Width = 480, Height = 320, Widgets = [], ShowBorder = true,
+            BackgroundOpacity = 1, Interaction = "passthrough"
+        };
+        var snapshot = new OverlaySnapshot { ThemeId = AppThemes.Cats };
+        using var renderer = new NativeOverlayRenderer();
+        using var decorated = renderer.Render(new(484, 354), settings, snapshot, out var actions, "");
+        // The lower right must contain the illustration's detailed shading,
+        // rather than silently falling back to a flat surface in native builds.
+        Assert.True(Region(decorated, new(340, 182, 120, 130)).Distinct().Count() > 100);
+        Assert.Empty(actions);
+        using var transparent = renderer.Render(new(484, 354), settings with { BackgroundOpacity = 0 }, snapshot, out _, "");
+        Assert.All(Pixels(transparent), pixel => Assert.Equal(0, pixel));
     }
 
     [Theory]

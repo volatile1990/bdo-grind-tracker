@@ -11,6 +11,10 @@
             <div class="settings-column">
                 <section class="panel settings-panel theme-settings"><div class="settings-heading"><div class="settings-icon"><AppIcon Name="spark" /></div><h2>Erscheinungsbild</h2></div>
                     <label class="field"><span>Theme für Oberfläche und Overlay</span><select id="appearance-theme" @bind:get="SelectedThemeId" @bind:set="ThemeChanged"><option value="@AppThemes.Grindcrest">Grindcrest</option><option value="@AppThemes.BlackDesert">Black Desert</option><option value="@AppThemes.Light">Light</option><option value="@AppThemes.Cats">Katzen</option></select><small>@ThemeDescription</small></label>
+                    @if (SelectedThemeId == AppThemes.Cats)
+                    {
+                        <div class="cats-theme-scene" aria-hidden="true"><img src="assets/themes/cats/settings-ribbon-kitten.png" alt="" draggable="false" /></div>
+                    }
                 </section>
                 <section class="panel settings-panel"><div class="settings-heading"><div class="settings-icon"><AppIcon Name="monitor" /></div><h2>Erfassung</h2></div>
                     @if (Tracker.CapturesGameWindow) { <p class="field-note">Das Black-Desert-Spielfenster wird automatisch für die Aufnahme ausgewählt.</p> }
@@ -54,7 +58,7 @@
     {
         AppThemes.BlackDesert => "Dunkle Spielfenster, dezente Goldkanten und Loot-Elemente im Stil von Black Desert.",
         AppThemes.Light => "Helle Flächen, dunkle Schrift und ruhige blaue Akzente.",
-        AppThemes.Cats => "Dunkle Pflaumentöne, Rosé-Akzente und dezente Katzenmotive.",
+        AppThemes.Cats => "Große Katzenmotive, Pfotenspuren und feine Ziernähte – auf warmen Espresso- und Leinentönen.",
         _ => "Das ursprüngliche Grindcrest-Design mit dunklen Flächen und goldenen Akzenten.",
     };
     private string? _autoPauseError, _familyFameError;

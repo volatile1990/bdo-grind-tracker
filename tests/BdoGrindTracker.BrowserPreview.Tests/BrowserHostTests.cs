@@ -47,6 +47,10 @@ public sealed class BrowserHostTests : IClassFixture<WebApplicationFactory<Progr
     [InlineData("/assets/spot-backgrounds/aphrodon.jpg", "image/jpeg")]
     [InlineData("/assets/spot-backgrounds/gavinya-coastal-cliff.webp", "image/webp")]
     [InlineData("/assets/icons/ancient-spirit-dust.png", "image/png")]
+    [InlineData("/assets/themes/cats/kitten-lounge.png", "image/png")]
+    [InlineData("/assets/themes/cats/sidebar-napping-kitten.png", "image/png")]
+    [InlineData("/assets/themes/cats/workspace-playful-kitten.png", "image/png")]
+    [InlineData("/assets/themes/cats/settings-ribbon-kitten.png", "image/png")]
     public async Task SharedAssetsAreServedByTheRealHost(string path, string mediaType)
     {
         using var client = _factory.CreateClient();

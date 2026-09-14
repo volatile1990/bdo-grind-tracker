@@ -11,18 +11,18 @@ internal sealed class NativeOverlayRenderer : IDisposable
     // Reset the palette on every frame so a live theme switch never retains old styling.
     private bool _blackDesert, _light, _cats;
     private int _backgroundAlpha;
-    private Color Gold => _light ? Color.FromArgb(54, 95, 145) : _cats ? Color.FromArgb(237, 179, 202) :
+    private Color Gold => _light ? Color.FromArgb(54, 95, 145) : _cats ? Color.FromArgb(224, 185, 127) :
         _blackDesert ? Color.FromArgb(211, 182, 117) : Color.FromArgb(242, 199, 108);
-    private Color Text => _light ? Color.FromArgb(36, 50, 68) : _cats ? Color.FromArgb(244, 231, 238) :
+    private Color Text => _light ? Color.FromArgb(36, 50, 68) : _cats ? Color.FromArgb(245, 237, 223) :
         _blackDesert ? Color.FromArgb(230, 223, 205) : Color.FromArgb(237, 241, 245);
-    private Color Muted => _light ? Color.FromArgb(82, 100, 120) : _cats ? Color.FromArgb(188, 169, 189) :
+    private Color Muted => _light ? Color.FromArgb(82, 100, 120) : _cats ? Color.FromArgb(188, 175, 153) :
         _blackDesert ? Color.FromArgb(172, 166, 149) : Color.FromArgb(154, 175, 190);
-    private Color Positive => _light ? Color.FromArgb(35, 117, 87) : _cats ? Color.FromArgb(166, 215, 186) :
+    private Color Positive => _light ? Color.FromArgb(35, 117, 87) : _cats ? Color.FromArgb(170, 203, 170) :
         _blackDesert ? Color.FromArgb(164, 191, 131) : Color.FromArgb(125, 211, 181);
     private Color Warning => _light ? Color.FromArgb(133, 87, 33) :
         _blackDesert ? Color.FromArgb(228, 206, 145) : Gold;
-    private Color SlotSurface => _light ? Color.White : Color.FromArgb(32, 26, 39);
-    private Color SlotEdge => _light ? Color.FromArgb(157, 172, 190) : Color.FromArgb(119, 96, 121);
+    private Color SlotSurface => _light ? Color.White : _cats ? Color.FromArgb(29, 27, 25) : Color.FromArgb(32, 26, 39);
+    private Color SlotEdge => _light ? Color.FromArgb(157, 172, 190) : _cats ? Color.FromArgb(133, 115, 92) : Color.FromArgb(119, 96, 121);
     private Color RareEdge => _light ? Color.FromArgb(148, 108, 39) : Gold;
     private Color Heading => _blackDesert ? Gold : Muted;
     private static readonly Color Brass = Color.FromArgb(96, 90, 73);
@@ -59,14 +59,16 @@ internal sealed class NativeOverlayRenderer : IDisposable
             FillRound(graphics, Color.FromArgb(alpha, 245, 246, 248), canvas, 10);
         else if (_cats)
         {
-            FillRound(graphics, Color.FromArgb(alpha, 41, 35, 47), canvas, 10);
+            FillRound(graphics, Color.FromArgb(alpha, 37, 34, 31), canvas, 10);
+            DrawCatBackdrop(graphics, canvas, new RectangleF((float)chrome.Left, (float)chrome.Top,
+                (float)(canvas.Width - chrome.Horizontal), (float)(canvas.Height - chrome.Vertical)), alpha);
             if (chrome.HasTitleBar) DrawCatTitleBar(graphics, canvas, (float)chrome.Top, title, alpha);
         }
         else
             FillRound(graphics, Color.FromArgb(alpha, 23, 29, 34), canvas, 10);
         if (!_blackDesert && settings.ShowBorder)
         {
-            using var border = new Pen(Color.FromArgb(135, Gold), 1);
+            using var border = new Pen(Color.FromArgb(_cats ? 135 * alpha / 255 : 135, Gold), 1);
             using var path = Round(new RectangleF(.5f, .5f, canvas.Width - 1, canvas.Height - 1), 10);
             graphics.DrawPath(border, path);
         }
@@ -104,8 +106,9 @@ internal sealed class NativeOverlayRenderer : IDisposable
             {
                 var radius = _cats ? 10 : 8;
                 FillRound(graphics, _light ? Color.FromArgb((int)(alpha * .65), Color.White) :
-                    Color.FromArgb((int)(alpha * .3), 57, 43, 61), rectangle, radius);
-                using var edge = new Pen(Color.FromArgb((int)(alpha * .18), SlotEdge), 1);
+                    Color.FromArgb((int)(alpha * .6), 60, 53, 46), rectangle, radius);
+                using var edge = new Pen(Color.FromArgb((int)(alpha * (_cats ? .35 : .18)), SlotEdge), 1);
+                if (_cats) edge.DashPattern = [4, 3];
                 using var path = Round(RectangleF.Inflate(rectangle, -.5f, -.5f), radius);
                 graphics.DrawPath(edge, path);
             }
@@ -233,9 +236,9 @@ internal sealed class NativeOverlayRenderer : IDisposable
                 }
                 Draw(graphics,goal.Value,new RectangleF(inner.X,inner.Y,inner.Width,Math.Max(1,inner.Height-42)),20*(float)widget.FontScale,Gold,true);
                 var bar = new RectangleF(inner.X,inner.Bottom-38,inner.Width,22);
-                var goalTrack = _light ? Color.FromArgb(231, 237, 245) : _cats ? Color.FromArgb(73, 55, 77) :
+                var goalTrack = _light ? Color.FromArgb(231, 237, 245) : _cats ? Color.FromArgb(69, 60, 48) :
                     _blackDesert ? Color.FromArgb(61, 57, 47) : Color.FromArgb(60, Gold);
-                var goalFill = _light ? Color.FromArgb(178, 201, 227) : _cats ? Color.FromArgb(119, 81, 110) :
+                var goalFill = _light ? Color.FromArgb(178, 201, 227) : _cats ? Color.FromArgb(120, 96, 57) :
                     _blackDesert ? Color.FromArgb(101, 83, 49) : Color.FromArgb(128, 104, 54);
                 FillRound(graphics,goalTrack,bar,3);
                 if (goal.Fraction > 0) FillRound(graphics,goalFill,new RectangleF(bar.X,bar.Y,bar.Width*(float)goal.Fraction,bar.Height),3);
@@ -740,25 +743,70 @@ internal sealed class NativeOverlayRenderer : IDisposable
             14, Text, vertical: StringAlignment.Center, fontFamily: "Georgia");
     }
 
+    private void DrawCatBackdrop(Graphics graphics, RectangleF canvas, RectangleF content, int alpha)
+    {
+        if (alpha <= 0 || content.Width <= 0 || content.Height <= 0) return;
+        var state = graphics.Save();
+        using var outline = Round(canvas, 10);
+        graphics.SetClip(outline);
+        graphics.SetClip(content, CombineMode.Intersect);
+
+        // The same packaged illustration and contain sizing are used by the
+        // browser overlay. LoadIcon caches the decoded image for this window.
+        var kittens = LoadIcon("assets/themes/cats/kitten-lounge.png");
+        if (kittens is not null)
+        {
+            var scale = Math.Min(Math.Min(content.Width * .76f, 440) / kittens.Width,
+                content.Height * .82f / kittens.Height);
+            var width = kittens.Width * scale;
+            var height = kittens.Height * scale;
+            using var attributes = new ImageAttributes();
+            attributes.SetColorMatrix(new ColorMatrix { Matrix33 = .72f * alpha / 255 });
+            graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+            graphics.DrawImage(kittens, Rectangle.Round(new RectangleF(content.Right - width, content.Bottom - height,
+                width, height)), 0, 0, kittens.Width, kittens.Height, GraphicsUnit.Pixel, attributes);
+        }
+        DrawCatPaw(graphics, new(content.Left + 16, content.Bottom - 40, 18, 18), -20, (int)(alpha * .13));
+        DrawCatPaw(graphics, new(content.Left + 43, content.Bottom - 58, 14, 14), 20, (int)(alpha * .10));
+        DrawCatPaw(graphics, new(content.Left + 68, content.Bottom - 78, 12, 12), -20, (int)(alpha * .08));
+        graphics.Restore(state);
+    }
+
+    private void DrawCatPaw(Graphics graphics, RectangleF bounds, float angle, int alpha)
+    {
+        var state = graphics.Save();
+        graphics.TranslateTransform(bounds.X + bounds.Width / 2, bounds.Y + bounds.Height / 2);
+        graphics.RotateTransform(angle);
+        graphics.ScaleTransform(bounds.Width / 24, bounds.Height / 24);
+        graphics.TranslateTransform(-12, -12);
+        using var paw = new SolidBrush(Color.FromArgb(alpha, Gold));
+        graphics.FillEllipse(paw, 7, 12, 11, 8);
+        graphics.FillEllipse(paw, 4, 7, 4, 5);
+        graphics.FillEllipse(paw, 9, 4, 4, 5);
+        graphics.FillEllipse(paw, 14, 5, 4, 5);
+        graphics.FillEllipse(paw, 18, 8, 4, 5);
+        graphics.Restore(state);
+    }
+
     private void DrawCatTitleBar(Graphics graphics, RectangleF canvas, float height, string title, int alpha)
     {
         var header = new RectangleF(2, 2, Math.Max(0, canvas.Width - 4), Math.Max(0, height - 2));
         using (var path = Round(header, 8))
-        using (var fill = new LinearGradientBrush(header, Color.FromArgb(alpha, 73, 54, 77),
-                   Color.FromArgb(alpha, 57, 44, 64), LinearGradientMode.Vertical))
+        using (var fill = new LinearGradientBrush(header, Color.FromArgb(alpha, 75, 61, 48),
+                   Color.FromArgb(alpha, 52, 46, 39), LinearGradientMode.Vertical))
             graphics.FillPath(fill, path);
         using var separator = new Pen(Color.FromArgb((int)(alpha * .38), Gold), 1);
         graphics.DrawLine(separator, 10, height - .5f, canvas.Right - 10, height - .5f);
+        if (canvas.Width > 54)
+        {
+            using var stitch = new Pen(Color.FromArgb((int)(alpha * .38), Gold), 1) { DashPattern = [4, 3] };
+            graphics.DrawLine(stitch, 42, 5.5f, canvas.Right - 12, 5.5f);
+            graphics.DrawLine(stitch, 42, height - 4.5f, canvas.Right - 12, height - 4.5f);
+        }
         DrawCatFace(graphics, new RectangleF(10, 5, 24, 24));
         Draw(graphics, title, new RectangleF(42, 3, Math.Max(0, canvas.Width - 78), height - 5),
             13, Text, true, vertical: StringAlignment.Center);
-        var right = canvas.Right - 23;
-        using var paw = new SolidBrush(Color.FromArgb(100, Gold));
-        graphics.FillEllipse(paw, right - 5, 16, 11, 8);
-        graphics.FillEllipse(paw, right - 8, 11, 4, 5);
-        graphics.FillEllipse(paw, right - 3, 8, 4, 5);
-        graphics.FillEllipse(paw, right + 2, 9, 4, 5);
-        graphics.FillEllipse(paw, right + 6, 12, 4, 5);
+        DrawCatPaw(graphics, new RectangleF(canvas.Right - 34, 3, 26, 26), 14, (int)(alpha * .39));
     }
 
     private void DrawCatFace(Graphics graphics, RectangleF bounds)
@@ -766,16 +814,16 @@ internal sealed class NativeOverlayRenderer : IDisposable
         var state = graphics.Save();
         graphics.TranslateTransform(bounds.X, bounds.Y);
         graphics.ScaleTransform(bounds.Width / 24, bounds.Height / 24);
-        using var outline = new Pen(Gold, 1.3f) { LineJoin = LineJoin.Round, StartCap = LineCap.Round, EndCap = LineCap.Round };
+        using var outline = new Pen(Color.FromArgb(_backgroundAlpha, Gold), 1.3f) { LineJoin = LineJoin.Round, StartCap = LineCap.Round, EndCap = LineCap.Round };
         using var face = new GraphicsPath();
         face.AddLines([new PointF(4, 9), new(3, 2), new(9, 6), new(15, 6), new(21, 2), new(20, 9)]);
         face.AddBezier(new PointF(20, 9), new PointF(24, 15), new PointF(19, 21), new PointF(12, 21));
         face.AddBezier(new PointF(12, 21), new PointF(5, 21), new PointF(0, 15), new PointF(4, 9));
         face.CloseFigure();
-        using var tint = new SolidBrush(Color.FromArgb(22, Gold));
+        using var tint = new SolidBrush(Color.FromArgb(22 * _backgroundAlpha / 255, Gold));
         graphics.FillPath(tint, face);
         graphics.DrawPath(outline, face);
-        using var detail = new SolidBrush(Gold);
+        using var detail = new SolidBrush(Color.FromArgb(_backgroundAlpha, Gold));
         graphics.FillEllipse(detail, 7, 11, 2, 3);
         graphics.FillEllipse(detail, 15, 11, 2, 3);
         graphics.FillPolygon(detail, [new PointF(10.5f, 15), new(13.5f, 15), new(12, 17)]);
