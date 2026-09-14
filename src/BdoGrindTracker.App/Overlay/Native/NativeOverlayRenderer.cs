@@ -75,6 +75,23 @@ internal sealed class NativeOverlayRenderer : IDisposable
                     continue;
                 }
                 var enabled = snapshot.CanToggleTracking && settings.Interaction != "passthrough";
+                if (widget.ShowNewSession)
+                {
+                    var half = Math.Max(1, (inner.Height-4)/2);
+                    var next = new RectangleF(inner.X, inner.Y+half+4, inner.Width, half);
+                    var newEnabled = snapshot.CanNewSession && settings.Interaction != "passthrough";
+                    FillRound(graphics, Color.FromArgb(newEnabled ? 24 : 12, Gold), next, 5);
+                    Draw(graphics, "Neue Session", next, 12*(float)widget.FontScale,
+                        newEnabled ? Gold : Color.FromArgb(130, Gold), true, StringAlignment.Center, StringAlignment.Center);
+                    if (newEnabled)
+                    {
+                        PointF[] corners = [next.Location, new(next.Right,next.Bottom)];
+                        using var transform = graphics.Transform;
+                        transform.TransformPoints(corners);
+                        controls["new-session:"+widget.Id] = RectangleF.FromLTRB(corners[0].X,corners[0].Y,corners[1].X,corners[1].Y);
+                    }
+                    inner.Height = half;
+                }
                 var buttonHeight = Math.Min(inner.Height, 28 * (float)widget.FontScale);
                 inner.Y += (inner.Height - buttonHeight) / 2;
                 inner.Height = buttonHeight;
@@ -118,6 +135,7 @@ internal sealed class NativeOverlayRenderer : IDisposable
                 DrawLoot(graphics, widget, inner, snapshot);
             else if (widget.Kind == "chart") DrawChart(graphics, widget, inner, snapshot);
             else if (widget.Kind == "clock") DrawClock(graphics, widget, inner, snapshot);
+            else if (widget.Kind == "rotation-monitor") DrawRotation(graphics, widget, inner, snapshot.Rotation);
             else DrawMetric(graphics, widget, inner, snapshot);
             graphics.Restore(state);
         }
@@ -184,7 +202,7 @@ internal sealed class NativeOverlayRenderer : IDisposable
             OverlayMetricTone.Accent => Gold,
             _ => Text,
         };
-        if (widget.ShowLabel && widget.Kind != "status" && metric.Detail is { Length: > 0 })
+        if ((widget.ShowLabel || widget.Kind == "experience") && widget.Kind != "status" && metric.Detail is { Length: > 0 })
         {
             var height = 12 * fontScale;
             Draw(graphics, metric.Detail, new RectangleF(inner.X, inner.Bottom - height, inner.Width, height), 9 * fontScale, Muted);
@@ -309,7 +327,7 @@ internal sealed class NativeOverlayRenderer : IDisposable
         Draw(graphics, text, bounds, requestedSize, color, true, horizontal, vertical);
     }
 
-    private static void DrawChart(Graphics graphics, OverlayWidget widget, RectangleF inner, OverlaySnapshot snapshot)
+    private void DrawChart(Graphics graphics, OverlayWidget widget, RectangleF inner, OverlaySnapshot snapshot)
     {
         var fontScale = (float)widget.FontScale;
         if (widget.ShowLabel)
@@ -337,7 +355,7 @@ internal sealed class NativeOverlayRenderer : IDisposable
             return;
         }
         var highest = Math.Max(1m, snapshot.SilverHistory.Max(point => point.SilverPerHour));
-        var first = snapshot.SilverHistory[0].Elapsed.Ticks;
+        var first = OverlayChartMarkers.FirstTick(snapshot);
         var span = Math.Max(1, snapshot.SilverHistory[^1].Elapsed.Ticks - first);
         var points = snapshot.SilverHistory.Select(point => new PointF(
             inner.X + (float)((decimal)(point.Elapsed.Ticks - first) / span) * inner.Width,
@@ -346,6 +364,73 @@ internal sealed class NativeOverlayRenderer : IDisposable
         graphics.FillPolygon(fill, [new PointF(inner.Left, inner.Bottom), .. points, new PointF(inner.Right, inner.Bottom)]);
         using var line = new Pen(Gold, 1.6f);
         graphics.DrawLines(line, points);
+        foreach (var marker in OverlayChartMarkers.Create(snapshot))
+        {
+            var x = inner.Left + (float)marker.X * inner.Width;
+            var y = inner.Top + (float)marker.Y * inner.Height;
+            graphics.DrawLine(line, x, y, x, inner.Bottom);
+            var size = Math.Min(24 * fontScale, Math.Min(inner.Width, inner.Height));
+            var iconX = Math.Clamp(x - size / 2, inner.Left, inner.Right - size);
+            var iconY = Math.Clamp((y + inner.Bottom - size) / 2, inner.Top, inner.Bottom - size);
+            var iconBounds = new RectangleF(iconX, iconY, size, size);
+            using var background = new SolidBrush(Color.FromArgb(255, 37, 45, 51));
+            graphics.FillRectangle(background, iconBounds);
+            DrawIcon(graphics, marker.Drop.Item, iconBounds);
+        }
+    }
+
+    private static void DrawRotation(Graphics graphics, OverlayWidget widget, RectangleF inner, RotationMonitorSnapshot rotation)
+    {
+        var mode = widget.RotationComparison;
+        var reference = RotationTimelinePresentation.Reference(rotation, mode);
+        var extent = RotationTimelinePresentation.Extent(rotation, mode);
+        var totalWidth = Math.Min(inner.Width * .25f, 56 * (float)widget.FontScale);
+        var graph = new RectangleF(inner.X + 2, inner.Y + 4, Math.Max(1, inner.Width - 4 - totalWidth), Math.Max(1, inner.Height - 8));
+        float X(double seconds) => graph.Left + (float)Math.Clamp(seconds / extent, 0, 1) * graph.Width;
+        using var baseline = new Pen(Color.FromArgb(70, 85, 100), 1);
+        var bandHeight = Math.Max(4, graph.Height * .28f);
+        foreach (var group in RotationPhases.Create(rotation.SpotId, reference?.Events ?? rotation.Events,
+                     reference?.Duration ?? rotation.Elapsed, widget.RotationColors).GroupBy(p => p.Group))
+        {
+            using var background = new SolidBrush(Color.FromArgb(45, ColorTranslator.FromHtml(group.First().Color)));
+            using var accent = new SolidBrush(ColorTranslator.FromHtml(group.First().GroupColor));
+            var width = Math.Max(0, X(group.Last().End)-X(group.First().Start)-2);
+            graphics.FillRectangle(background, X(group.First().Start), graph.Top+2, width, graph.Height-2);
+            graphics.FillRectangle(accent, X(group.First().Start), graph.Top+2, width, 2);
+        }
+        for (var row = 0; row < 2; row++)
+        {
+            var events = row == 0 ? reference?.Events ?? [] : rotation.Events;
+            var y = graph.Top + graph.Height * (row == 0 ? .25f : .78f);
+            graphics.DrawLine(baseline, graph.Left, y, graph.Right, y);
+            var end = row == 0 ? reference?.Duration ?? 0 : rotation.Elapsed;
+            Draw(graphics, events.Count > 0 ? RotationPhases.Duration(end) : "–",
+                new RectangleF(graph.Right+4, y-bandHeight/2, Math.Max(1,totalWidth-4), bandHeight),
+                Math.Clamp(bandHeight*.45f,11,18), Color.White, false, StringAlignment.Far, StringAlignment.Center);
+            var phases = RotationPhases.Create(rotation.SpotId, events, end, widget.RotationColors);
+            foreach (var phase in phases)
+            {
+                using var fill = new SolidBrush(Color.FromArgb(190, ColorTranslator.FromHtml(phase.Color)));
+                var width = Math.Max(0, X(phase.End)-X(phase.Start)-2);
+                var bounds = new RectangleF(X(phase.Start), y-bandHeight/2, width, bandHeight);
+                graphics.FillRectangle(fill, bounds);
+                if (width >= 28 && bandHeight >= 12)
+                    Draw(graphics, RotationPhases.Duration(phase.End-phase.Start), bounds,
+                        Math.Clamp(bandHeight*.45f, 11, 18), Color.White, false, StringAlignment.Center, StringAlignment.Center);
+            }
+            using var pen = new Pen(ColorTranslator.FromHtml(RotationPhases.MarkerColor(widget.RotationColors, row == 1)), 2);
+            foreach (var e in events.Where(e => e.Seconds <= end && e.Kind is "porter" or "offer"))
+            {
+                graphics.DrawLine(pen, X(e.Seconds), y-bandHeight/2-4, X(e.Seconds), y-bandHeight/2+3);
+
+            }
+        }
+        if (rotation.Synchronized || rotation.Events.Count > 0)
+        {
+            using var playhead = new Pen(Color.White, 2);
+            graphics.DrawLine(playhead, X(rotation.Elapsed), graph.Top, X(rotation.Elapsed), graph.Bottom);
+        }
+
     }
 
     private void DrawIcon(Graphics graphics, OverlayLootItem item, RectangleF rectangle)
@@ -415,7 +500,7 @@ internal sealed class NativeOverlayRenderer : IDisposable
         graphics.TranslateTransform(bounds.X, bounds.Y);
         graphics.ScaleTransform(bounds.Width / 16, bounds.Height / 16);
         using var pen = new Pen(Gold, 1.3f) { StartCap = LineCap.Round, EndCap = LineCap.Round, LineJoin = LineJoin.Round };
-        if (kind is "silver-hour" or "trash-hour" or "chart" or "grind-rating")
+        if (kind is "silver-hour" or "trash-hour" or "chart" or "grind-rating" or "experience")
         {
             graphics.DrawLines(pen, [new PointF(1, 12), new(6, 7), new(9, 9), new(14, 3)]);
             graphics.DrawLines(pen, [new PointF(10, 3), new(14, 3), new(14, 7)]);

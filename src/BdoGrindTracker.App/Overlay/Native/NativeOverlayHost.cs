@@ -182,7 +182,7 @@ internal sealed class NativeOverlayWindowHost(string id, IOverlayService service
             var position = NativeOverlayGeometry.RelativePosition(bounds, _window.MonitorBounds);
             // Commit exactly the layout already shown during the corner drag.
             var result = resized is not null
-                ? await service.SaveAsync(id, resized)
+                ? await service.SaveAsync(id, resized with { PositionX = position.X, PositionY = position.Y })
                 : await service.SavePositionAsync(id, position.X, position.Y);
             if (!result.Succeeded) throw new InvalidOperationException(result.Error);
         });
@@ -190,6 +190,13 @@ internal sealed class NativeOverlayWindowHost(string id, IOverlayService service
         {
             if (action.StartsWith("toggle-tracking:", StringComparison.Ordinal) && service.Snapshot.CanToggleTracking)
                 _ = RunCommandAsync(service.ToggleTrackingAsync);
+            if (action.StartsWith("new-session:", StringComparison.Ordinal) && service.Snapshot.CanNewSession)
+                _ = RunCommandAsync(async () =>
+                {
+                    if (MessageBox.Show(_window, "Neue Session beginnen? Die bisherige Session wird abgeschlossen.",
+                            "Neue Session", MessageBoxButtons.OKCancel, MessageBoxIcon.Question) == DialogResult.OK)
+                        await service.NewSessionAsync();
+                });
         };
     }
 

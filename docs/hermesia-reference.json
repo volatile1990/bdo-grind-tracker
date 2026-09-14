@@ -1,0 +1,197 @@
+{
+  "source": "Timeline 1.drt",
+  "framesPerSecond": 60,
+  "timeOrigin": "Start of supplied timeline; not a verified AFK-end boundary",
+  "events": [
+    {
+      "label": "Porter Spawn",
+      "timelineSeconds": 9.733333333333333,
+      "sourceSeconds": 1863.1666666666667
+    },
+    {
+      "label": "Porter Spawn",
+      "timelineSeconds": 27.583333333333332,
+      "sourceSeconds": 1881.0166666666667
+    },
+    {
+      "label": "Porter Spawn",
+      "timelineSeconds": 45.333333333333336,
+      "sourceSeconds": 1898.7666666666667
+    },
+    {
+      "label": "Porter Spawn",
+      "timelineSeconds": 60.9,
+      "sourceSeconds": 1914.3333333333333
+    },
+    {
+      "label": "Porter Spawn",
+      "timelineSeconds": 90.6,
+      "sourceSeconds": 1944.0333333333333
+    },
+    {
+      "label": "Drakania Spawn",
+      "timelineSeconds": 102.35,
+      "sourceSeconds": 1955.7833333333333
+    },
+    {
+      "label": "Porter Spawn",
+      "timelineSeconds": 102.35,
+      "sourceSeconds": 1955.7833333333333
+    },
+    {
+      "label": "Drakania Kill",
+      "timelineSeconds": 137.2,
+      "sourceSeconds": 1990.6333333333334
+    },
+    {
+      "label": "Buff Transfer Message",
+      "timelineSeconds": 137.91666666666666,
+      "sourceSeconds": 1991.35
+    },
+    {
+      "label": "Mine enter confirmation",
+      "timelineSeconds": 140.23333333333332,
+      "sourceSeconds": 1993.6666666666667
+    },
+    {
+      "label": "Full Duration",
+      "timelineSeconds": 150.0,
+      "sourceSeconds": 2003.4333333333334
+    },
+    {
+      "label": "Porter Spawn",
+      "timelineSeconds": 167.81666666666666,
+      "sourceSeconds": 2021.25
+    },
+    {
+      "label": "Porter Spawn",
+      "timelineSeconds": 186.38333333333333,
+      "sourceSeconds": 2039.8166666666666
+    },
+    {
+      "label": "Porter Spawn",
+      "timelineSeconds": 201.98333333333332,
+      "sourceSeconds": 2055.4166666666665
+    },
+    {
+      "label": "Porter Spawn",
+      "timelineSeconds": 220.18333333333334,
+      "sourceSeconds": 2073.616666666667
+    },
+    {
+      "label": "2nd Mine Phase",
+      "timelineSeconds": 230.66666666666666,
+      "sourceSeconds": 2084.1
+    },
+    {
+      "label": "Porter Spawn",
+      "timelineSeconds": 238.73333333333332,
+      "sourceSeconds": 2092.1666666666665
+    },
+    {
+      "label": "Porter Spawn",
+      "timelineSeconds": 257.06666666666666,
+      "sourceSeconds": 2110.5
+    },
+    {
+      "label": "Porter Spawn",
+      "timelineSeconds": 275.3333333333333,
+      "sourceSeconds": 2128.766666666667
+    },
+    {
+      "label": "Porter Spawn",
+      "timelineSeconds": 292.75,
+      "sourceSeconds": 2146.1833333333334
+    },
+    {
+      "label": "Porter Spawn",
+      "timelineSeconds": 308.73333333333335,
+      "sourceSeconds": 2162.1666666666665
+    },
+    {
+      "label": "Mine Cleared",
+      "timelineSeconds": 318.78333333333336,
+      "sourceSeconds": 2172.2166666666667
+    },
+    {
+      "label": "Mine enter confirmation",
+      "timelineSeconds": 324.53333333333336,
+      "sourceSeconds": 2177.9666666666667
+    },
+    {
+      "label": "Porter Spawn",
+      "timelineSeconds": 334.28333333333336,
+      "sourceSeconds": 2187.7166666666667
+    },
+    {
+      "label": "Porter Spawn",
+      "timelineSeconds": 352.23333333333335,
+      "sourceSeconds": 2205.6666666666665
+    },
+    {
+      "label": "Porter Spawn",
+      "timelineSeconds": 371.21666666666664,
+      "sourceSeconds": 2224.65
+    },
+    {
+      "label": "Porter Spawn",
+      "timelineSeconds": 387.8666666666667,
+      "sourceSeconds": 2241.3
+    },
+    {
+      "label": "Porter Spawn",
+      "timelineSeconds": 407.9166666666667,
+      "sourceSeconds": 2261.35
+    },
+    {
+      "label": "2nd Mine Phase",
+      "timelineSeconds": 418.3833333333333,
+      "sourceSeconds": 2271.8166666666666
+    },
+    {
+      "label": "Porter Spawn",
+      "timelineSeconds": 428.2,
+      "sourceSeconds": 2281.633333333333
+    },
+    {
+      "label": "Porter Spawn",
+      "timelineSeconds": 445.8833333333333,
+      "sourceSeconds": 2299.3166666666666
+    },
+    {
+      "label": "Porter Spawn",
+      "timelineSeconds": 464.15,
+      "sourceSeconds": 2317.5833333333335
+    },
+    {
+      "label": "Porter Spawn",
+      "timelineSeconds": 484.15,
+      "sourceSeconds": 2337.5833333333335
+    },
+    {
+      "label": "Porter Spawn",
+      "timelineSeconds": 500.8333333333333,
+      "sourceSeconds": 2354.266666666667
+    },
+    {
+      "label": "Dragon Spawn",
+      "timelineSeconds": 509.05,
+      "sourceSeconds": 2362.483333333333
+    },
+    {
+      "label": "Porter Spawn",
+      "timelineSeconds": 520.0666666666667,
+      "sourceSeconds": 2373.5
+    },
+    {
+      "label": "Start AFK Phase",
+      "timelineSeconds": 556.95,
+      "sourceSeconds": 2410.383333333333
+    },
+    {
+      "label": "End AFK Phase",
+      "timelineSeconds": 618.2166666666667,
+      "sourceSeconds": 2471.65
+    }
+  ]
+}

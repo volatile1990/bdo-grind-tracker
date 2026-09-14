@@ -6,6 +6,7 @@ namespace BdoGrindTracker.App.Persistence;
 internal sealed record LootHistoryEntry
 {
     public required Guid SessionId { get; init; }
+    public IReadOnlyList<BdoGrindTracker.App.Overlay.SessionRotation> Rotations { get; init; } = [];
     public required DateTimeOffset StartedAt { get; init; }
     public required DateTimeOffset UpdatedAt { get; init; }
     public required TimeSpan Duration { get; init; }
@@ -34,7 +35,7 @@ internal sealed record LootHistoryEntry
 internal sealed class LootHistoryStore
 {
     internal const int MaximumEntries = 500;
-    private const long MaximumFileBytes = 8 * 1024 * 1024;
+    private const long MaximumFileBytes = 64 * 1024 * 1024;
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
@@ -95,6 +96,8 @@ internal sealed class LootHistoryStore
             Version = 1,
             Entries = normalized.ToList()
         }, JsonOptions);
+        if (System.Text.Encoding.UTF8.GetByteCount(json) > MaximumFileBytes)
+            throw new InvalidDataException("Die Verlaufsdatei ist größer als das unterstützte Dateilimit.");
         AtomicFile.WriteAllText(_historyPath, json);
     }
 
@@ -111,6 +114,7 @@ internal sealed class LootHistoryStore
                 validSpotIds.Contains(entry.SpotId))
             .Select(static entry => entry with
             {
+                Rotations = entry.Rotations ?? [],
                 CharacterClass = string.IsNullOrWhiteSpace(entry.CharacterClass)
                     ? null
                     : entry.CharacterClass.Trim(),
@@ -126,7 +130,7 @@ internal sealed class LootHistoryStore
             })
             .Select(NormalizeAgrisDurations)
             .Select(NormalizeExperience)
-            .Where(static entry => entry.Totals.Count > 0)
+            .Where(static entry => entry.Totals.Count > 0 || entry.Rotations.Count > 0)
             .OrderByDescending(static entry => entry.UpdatedAt)
             .DistinctBy(static entry => entry.SessionId)
             .Take(MaximumEntries)

@@ -14,6 +14,20 @@ namespace BdoGrindTracker.App.Tests;
 public sealed class OverlayCanvasResizeInteractionTests
 {
     [Theory]
+    [InlineData("nw", 100, 80)]
+    [InlineData("ne", 0, 80)]
+    [InlineData("sw", 100, 0)]
+    [InlineData("se", 0, 0)]
+    public Task CornerExpansionAddsSpaceAtTheDraggedEdges(string corner, double dx, double dy) => Render(async (editor, overlay, markup) =>
+    {
+        await editor.CommitCanvasCorner(500, 380, corner);
+        AssertGeometry(overlay.Settings.Widgets[0], (20+dx, 24+dy, 120, 64));
+        AssertGeometry(overlay.Settings.Widgets[1], (180+dx, 112+dy, 200, 160));
+        Assert.Equal(500, overlay.Settings.Width);
+        Assert.Equal(380, overlay.Settings.Height);
+    });
+
+    [Theory]
     [InlineData(true)]
     [InlineData(false)]
     public Task CanvasDimensionFieldKeepsEveryModuleAtItsExistingSizeAndPosition(bool width) => Render(async (editor, overlay, markup) =>

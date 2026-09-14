@@ -11,6 +11,8 @@ public partial class OverlayEditor
     private string? _selectedId, _error;
     private string _itemSearch = "";
     private bool _demo, _saving, _disposed;
+    private readonly System.Diagnostics.Stopwatch _rotationDemoClock = System.Diagnostics.Stopwatch.StartNew();
+    private System.Threading.Timer? _rotationDemoTimer;
     private ElementReference _viewport;
     private DotNetObjectReference<OverlayEditor>? _reference;
     private readonly SemaphoreSlim _saveGate = new(1, 1);
@@ -23,11 +25,13 @@ public partial class OverlayEditor
     private string LayoutConfirmationAction => PendingClearLayout ? "Layout leeren" : "Vorlage anwenden";
     private string PendingPresetLabel => _pendingLayoutChange?.Template?.Name ?? (_pendingLayoutChange?.Preset switch
     {
-        "loot" => "Loot-Inventar", "loot-strip" => "Loot-Leiste", "compact" => "Kompakt", "dashboard" => "Dashboard", _ => "Vorlage"
+        "loot" => "Loot-Inventar", "loot-strip" => "Loot-Leiste", "compact" => "Kompakt", "dashboard" => "Dashboard", "rotation-monitor" => "Rotation Monitor", _ => "Vorlage"
     });
     private static IReadOnlyList<OverlayWidgetDefinition> Modules => OverlayCatalog.Widgets;
     private OverlayWidget? SelectedWidget => _settings.Widgets.FirstOrDefault(w => w.Id == _selectedId);
-    private OverlaySnapshot PreviewSnapshot => _demo ? OverlaySnapshot.Demo : Overlay.Snapshot;
+    private OverlaySnapshot PreviewSnapshot => _demo ? OverlaySnapshot.Demo with {
+        Rotation = HermesiaRotationDemo.At((350 + _rotationDemoClock.Elapsed.TotalSeconds) % HermesiaRotationDemo.Reference.Duration)
+    } : Overlay.Snapshot;
     private string StageStyle => $"width:{Css(_settings.Width)}px;height:{Css(_settings.Height)}px;--overlay-opacity:{Css(_settings.BackgroundOpacity)};background:rgba(17,23,30,{Css(_settings.BackgroundOpacity)})";
     private static string WidgetStyle(OverlayWidget widget) => $"left:{Css(widget.X)}px;top:{Css(widget.Y)}px;width:{Css(widget.Width)}px;height:{Css(widget.Height)}px";
     private static string Css(double value) => value.ToString("0.##", CultureInfo.InvariantCulture);
@@ -48,6 +52,11 @@ public partial class OverlayEditor
     {
         LoadSelectedOverlay();
         Overlay.Changed += OverlayChanged;
+        _rotationDemoTimer = new System.Threading.Timer(_ =>
+        {
+            if (_demo && !_disposed && _settings.Widgets.Any(w => w.Kind == "rotation-monitor"))
+                _ = InvokeAsync(() => { if (!_disposed) StateHasChanged(); });
+        }, null, 500, 500);
     }
 
     private void OverlayChanged()
@@ -284,6 +293,19 @@ public partial class OverlayEditor
     }
 
     [JSInvokable]
+    public async Task CommitCanvasCorner(double width, double height, string corner)
+    {
+        if (_disposed || !double.IsFinite(width) || !double.IsFinite(height)) return;
+        await Change(s => {
+            var resized = OverlayLayout.ResizeCanvas(s, width, height);
+            var dx = corner.Contains('w') ? resized.Width-s.Width : 0;
+            var dy = corner.Contains('n') ? resized.Height-s.Height : 0;
+            return resized with { Widgets = s.Widgets.Select(w => w with { X = Math.Max(0,w.X+dx), Y = Math.Max(0,w.Y+dy) }).ToArray() };
+        });
+        StateHasChanged();
+    }
+
+    [JSInvokable]
     public async Task NudgeWidget(string id, double dx, double dy)
     {
         if (_disposed || !double.IsFinite(dx) || !double.IsFinite(dy)) return;
@@ -311,7 +333,7 @@ public partial class OverlayEditor
         }
         var preset = OverlayCatalog.Preset(name);
         _selectedId = null;
-        await Change(s => s with { Width = preset.Width, Height = preset.Height, Widgets = preset.Widgets });
+        await Change(s => name == "rotation-monitor" ? new OverlayTemplate { Layout = preset }.ApplyTo(s) : s with { Width = preset.Width, Height = preset.Height, Widgets = preset.Widgets });
     }
 
     private async Task ClearLayout()
@@ -352,7 +374,7 @@ public partial class OverlayEditor
             else if (change.Preset is { } name)
             {
                 var preset = OverlayCatalog.Preset(name);
-                await Change(s => s with { Width = preset.Width, Height = preset.Height, Widgets = preset.Widgets });
+                await Change(s => name == "rotation-monitor" ? new OverlayTemplate { Layout = preset }.ApplyTo(s) : s with { Width = preset.Width, Height = preset.Height, Widgets = preset.Widgets });
             }
             else await Change(s => s with { Widgets = [] });
             if (_error is null)
@@ -379,6 +401,7 @@ public partial class OverlayEditor
     public async ValueTask DisposeAsync()
     {
         _disposed = true;
+        _rotationDemoTimer?.Dispose();
         Overlay.Changed -= OverlayChanged;
         try { await JS.InvokeVoidAsync("grindcrestOverlayEditor.unmount", "overlay-editor"); }
         catch (Exception exception) when (exception is JSException or TaskCanceledException or InvalidOperationException) { }

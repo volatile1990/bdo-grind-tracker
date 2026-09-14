@@ -14,6 +14,7 @@ public sealed record OverlayWidget
     public double? ContentHeight { get; init; }
     public bool ShowLabel { get; init; } = true;
     public bool ShowIcon { get; init; } = true;
+    public bool ShowNewSession { get; init; } = true;
     public double FontScale { get; init; } = 1;
     public int ItemLimit { get; init; } = 8;
     public string ItemView { get; init; } = "grid";
@@ -27,6 +28,8 @@ public sealed record OverlayWidget
     public bool ClockShowSeconds { get; init; } = true;
     // Real minutes added to the regular NA/EU cycle for server calibration.
     public int ClockOffsetMinutes { get; init; }
+    public string RotationComparison { get; init; } = "best";
+    public string RotationColors { get; init; } = "colored";
 }
 
 public sealed record OverlaySettings
@@ -69,25 +72,29 @@ public static class OverlayCatalog
         new OverlayWidgetDefinition("clock", "Uhrzeit & Tag/Nacht", "Lokale Uhrzeit, BDO-Zeit und Zeit bis zum Wechsel", "clock", 248, 128),
         new OverlayWidgetDefinition("spot", "Grindspot", "Automatisch erkannter Spot", "pin", 344, 64),
         new OverlayWidgetDefinition("silver", "Silber netto", "Wert nach Marktsteuern", "silver", 168, 72),
+        new OverlayWidgetDefinition("experience", "Erfahrung", "EXP-Zuwachs der Session und EXP pro Stunde", "trend", 200, 88),
         new OverlayWidgetDefinition("silver-hour", "Silber / Stunde", "Durchschnitt der Session", "trend", 168, 72),
         new OverlayWidgetDefinition("trash", "Trashloot", "Gesammelte Trashmenge", "loot", 168, 72),
         new OverlayWidgetDefinition("trash-hour", "Trash / Stunde", "Trashmenge pro aktiver Stunde", "trend", 168, 72),
         new OverlayWidgetDefinition("drops", "Drop-Inventar", "Alle Drops als Liste oder Icons", "loot", 344, 128),
         new OverlayWidgetDefinition("rare-drops", "Seltene Drops", "Seltene Gegenstände im Blick", "spark", 344, 112),
         new OverlayWidgetDefinition("chart", "Silberverlauf", "Silber pro Stunde im Sessionverlauf", "trend", 344, 144),
+        new OverlayWidgetDefinition("rotation-monitor", "Rotation Monitor", "Mechanik-Timeline mit Playhead, Bestrotation und Sektorvergleich", "trend", 600, 96),
         new OverlayWidgetDefinition("controls", "Tracking-Steuerung", "Grind starten, pausieren und fortsetzen", "play", 168, 56),
         new OverlayWidgetDefinition("status", "Tracking-Status", "Aktiv, pausiert oder Fehler", "live", 168, 56),
         new OverlayWidgetDefinition("loot-scroll", "Loot-Scroll", "Aktivstatus und erkannte Stufe", "loot", 168, 72),
         new OverlayWidgetDefinition("grind-rating", "Grind-Bewertung", "Trash / Stunde im Spotvergleich", "trend", 168, 72),
     });
 
-    public static OverlayWidgetDefinition? Find(string kind) => Widgets.FirstOrDefault(value => value.Kind == kind);
+    public static OverlayWidgetDefinition? Find(string kind) => Widgets.FirstOrDefault(value => value.Kind ==
+        (kind == "hermesia-rotation" ? "rotation-monitor" : kind));
 
     public static bool IsLootWidget(string kind) => kind is "drops" or "rare-drops" or
         "drop-grid" or "drop-strip" or "drop-list" or "drop-item";
 
     public static OverlayWidget CreateWidget(string kind, double x = 8, double y = 8)
     {
+        if (kind == "hermesia-rotation") kind = "rotation-monitor";
         var definition = Find(kind) ?? throw new ArgumentException("Unbekanntes Overlay-Modul.", nameof(kind));
         return new()
         {
@@ -107,6 +114,17 @@ public static class OverlayCatalog
 
     public static OverlaySettings Preset(string name) => name switch
     {
+        "rotation-monitor" => new()
+        {
+            Width = 1088, Height = 160, Scale = 1, BackgroundOpacity = .85, ShowBorder = false, SnapToGrid = true,
+            Widgets = [
+                CreateWidget("rotation-monitor", 8, 8) with { Width = 696, Height = 152, ContentWidth = 600, ContentHeight = 240, ShowLabel = false, ShowIcon = false },
+                CreateWidget("duration", 704, 8) with { Width = 168, Height = 72 },
+                CreateWidget("grind-rating", 704, 80) with { Width = 168, Height = 80, ContentWidth = 168, ContentHeight = 72 },
+                CreateWidget("experience", 872, 80) with { Width = 216, Height = 80, ContentWidth = 200, ContentHeight = 88 },
+                CreateWidget("clock", 872, 8) with { Width = 216, Height = 72, ContentWidth = 248, ContentHeight = 128, ShowLabel = false, FontScale = 1.65, ShowGameTime = false },
+            ]
+        },
         "compact" => new(),
         "dashboard" => new()
         {
@@ -189,8 +207,9 @@ public static class OverlayLayout
         }
         var ids = new HashSet<string>(StringComparer.Ordinal);
         var widgets = new List<OverlayWidget>();
-        foreach (var widget in (settings.Widgets ?? []).Take(OverlayCatalog.MaximumWidgets))
+        foreach (var savedWidget in (settings.Widgets ?? []).Take(OverlayCatalog.MaximumWidgets))
         {
+            var widget = savedWidget?.Kind == "hermesia-rotation" ? savedWidget with { Kind = "rotation-monitor" } : savedWidget;
             if (widget is null || OverlayCatalog.Find(widget.Kind) is not { } definition) continue;
             var id = Guid.TryParse(widget.Id, out var parsed) ? parsed.ToString("N") : Guid.NewGuid().ToString("N");
             if (!ids.Add(id)) continue;
@@ -214,6 +233,8 @@ public static class OverlayLayout
                 ItemNames = NormalizeNames(widget),
                 ShowRealTime = widget.ShowRealTime || (!widget.ShowGameTime && !widget.ShowDayNightCountdown),
                 ClockOffsetMinutes = Math.Clamp(widget.ClockOffsetMinutes, -240, 240),
+                RotationComparison = widget.RotationComparison is "sectors" or "ideal" ? widget.RotationComparison : "best",
+                RotationColors = RotationPhases.NormalizeColors(widget.RotationColors),
             });
         }
         return settings with

@@ -1,0 +1,54 @@
+@using BdoGrindTracker.App.Overlay
+<div class="rotation-timeline" title="@(State.SpotName + " · " + State.Status + (State.Error is null ? "" : " · " + State.Error))">
+    <svg viewBox="0 0 600 120" preserveAspectRatio="none" class="rotation-track" role="img" aria-label="Rotation Monitor: Referenz oben, aktuelle Rotation unten">
+        @foreach (var group in RotationPhases.Create(State.SpotId, Reference?.Events ?? State.Events, Reference?.Duration ?? State.Elapsed, Colors).GroupBy(p => p.Group))
+        {
+            <rect x="@X(group.First().Start)" y="12" width="@Width(group.Last().End-group.First().Start)" height="98" rx="4" fill="@group.First().Color" fill-opacity=".18" />
+            <rect x="@X(group.First().Start)" y="12" width="@Width(group.Last().End-group.First().Start)" height="3" fill="@group.First().GroupColor" />
+        }
+        @foreach (var row in new[] { 0, 1 })
+        {
+            var events = row == 0 ? Reference?.Events ?? [] : State.Events;
+            var y = row == 0 ? 35 : 85;
+            var end = row == 0 ? Reference?.Duration ?? 0 : State.Elapsed;
+            var phases = RotationPhases.Create(State.SpotId, events, end, Colors);
+            <line x1="0" x2="540" y1="@y" y2="@y" stroke="#44515c" stroke-width="2" />
+            <g><text class="rotation-total-duration" x="598" y="@(y+4)" text-anchor="end" fill="#ffffff" font-size="12"><title>@(row == 0 ? "Gesamtzeit der Referenzrotation" : "Gesamtzeit der aktuellen Rotation")</title>@(events.Count > 0 ? RotationPhases.Duration(end) : "–")</text></g>
+            @foreach (var phase in phases)
+            {
+                <g class="rotation-phase" data-phase="@phase.Id">
+                    <title>@(phase.Name + " · " + RotationTimelinePresentation.Time(phase.Start) + "–" + RotationTimelinePresentation.Time(phase.End))</title>
+                    <rect x="@X(phase.Start)" y="@(y-14)" width="@Width(phase.End-phase.Start)" height="28" rx="2" fill="@phase.Color" fill-opacity=".75" />
+                    @if ((phase.End-phase.Start)/Extent*540 >= 28)
+                    {
+                        <g><text class="rotation-phase-duration" x="@X((phase.Start+phase.End)/2)" y="@(y+4)" text-anchor="middle" fill="#ffffff" font-size="11">@RotationPhases.Duration(phase.End-phase.Start)</text></g>
+                    }
+                </g>
+            }
+            @foreach (var e in events.Where(e => e.Seconds <= end))
+            {
+                <g>
+                    <title>@(e.Label + " · " + RotationTimelinePresentation.Time(e.Seconds) + (Mode == "sectors" && State.SectorBests.TryGetValue(e.Key, out var sector) ? " · Bestabschnitt " + RotationTimelinePresentation.Time(sector) : ""))</title>
+                    @if (e.Kind is "porter" or "offer")
+                    {
+                        <line class="rotation-pack-marker" x1="@X(e.Seconds)" x2="@X(e.Seconds)" y1="@(y-18)" y2="@(y-11)" stroke="@RotationPhases.MarkerColor(Colors, row == 1)" stroke-width="2" vector-effect="non-scaling-stroke" />
+                    }
+                </g>
+            }
+        }
+        @if (State.Synchronized || State.Events.Count > 0)
+        {
+            <line x1="@X(State.Elapsed)" x2="@X(State.Elapsed)" y1="0" y2="120" stroke="#ffffff" stroke-width="2" vector-effect="non-scaling-stroke" />
+            <path d="@($"M {X(State.Elapsed-Extent*.008)} 0 H {X(State.Elapsed+Extent*.008)} L {X(State.Elapsed)} 7 Z")" fill="#ffffff" />
+        }
+    </svg>
+</div>
+@code {
+    [Parameter] public RotationMonitorSnapshot State { get; set; } = new();
+    [Parameter] public string Mode { get; set; } = "best";
+    [Parameter] public string Colors { get; set; } = "colored";
+    private RotationRun? Reference => RotationTimelinePresentation.Reference(State, Mode);
+    private double Extent => RotationTimelinePresentation.Extent(State, Mode);
+    private string X(double seconds) => (Math.Clamp(seconds / Extent,0,1) * 540).ToString("0.###", CultureInfo.InvariantCulture);
+    private string Width(double seconds) => Math.Max(0, Math.Clamp(seconds / Extent,0,1)*540-2).ToString("0.###", CultureInfo.InvariantCulture);
+}

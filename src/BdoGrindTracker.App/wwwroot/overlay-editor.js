@@ -115,9 +115,15 @@
                 } else if (current.type === "canvas") {
                     stage.style.width = `${current.canvas.width}px`;
                     stage.style.height = `${current.canvas.height}px`;
+                    stage.querySelectorAll(".oe-widget").forEach(element => {
+                        element.style.left = `${number(element,"x")}px`;
+                        element.style.top = `${number(element,"y")}px`;
+                    });
                 }
             };
             const cleanupDrag = () => {
+                wrap.style.position = ""; wrap.style.left = ""; wrap.style.top = "";
+                document.body.classList.remove("oe-resizing-reverse");
                 ghost?.remove(); ghost = null;
                 stage.classList.remove("is-drop-target");
                 document.body.classList.remove("oe-dragging", "oe-resizing");
@@ -134,7 +140,8 @@
                 if (!capture || capture.disabled || !root.contains(capture)) return;
                 const canvas = snapshot();
                 const type = module ? "add" : grip ? "move" : resize ? "resize" : "canvas";
-                drag = { type, canvas, capture, overlayId: stage.dataset.overlayId, pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, moved: false, scale: canvas.rect.width / canvas.width };
+                drag = { type, canvas, capture, corner: canvasResize?.dataset.canvasResize || "se", overlayId: stage.dataset.overlayId, pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, moved: false, scale: canvas.rect.width / canvas.width };
+                drag.wrapRect = wrap.getBoundingClientRect();
                 if (module) {
                     drag.kind = module.dataset.moduleKind;
                     drag.label = module.querySelector("strong")?.textContent || "Modul";
@@ -170,10 +177,21 @@
                     return;
                 }
                 if (drag.type === "canvas") {
-                    drag.newWidth = clamp(grid(drag.canvas.width + dx), 160, 1600);
-                    drag.newHeight = clamp(grid(drag.canvas.height + dy), 64, 1200);
+                    const west = drag.corner.includes("w"), north = drag.corner.includes("n");
+                    document.body.classList.toggle("oe-resizing-reverse", west !== north);
+                    drag.newWidth = clamp(grid(drag.canvas.width + (west ? -dx : dx)), 160, 1600);
+                    drag.newHeight = clamp(grid(drag.canvas.height + (north ? -dy : dy)), 64, 1200);
+                    wrap.style.position = "relative";
+                    wrap.style.left = "0px"; wrap.style.top = "0px";
                     stage.style.width = `${drag.newWidth}px`; stage.style.height = `${drag.newHeight}px`;
                     wrap.style.width = `${drag.newWidth * drag.scale}px`; wrap.style.height = `${drag.newHeight * drag.scale}px`;
+                    const layoutRect = wrap.getBoundingClientRect();
+                    wrap.style.left = `${drag.wrapRect.left-layoutRect.left+(west ? (drag.canvas.width-drag.newWidth)*drag.scale : 0)}px`;
+                    wrap.style.top = `${drag.wrapRect.top-layoutRect.top+(north ? (drag.canvas.height-drag.newHeight)*drag.scale : 0)}px`;
+                    stage.querySelectorAll(".oe-widget").forEach(element => {
+                        element.style.left = `${Math.max(0,number(element,"x")+(west ? drag.newWidth-drag.canvas.width : 0))}px`;
+                        element.style.top = `${Math.max(0,number(element,"y")+(north ? drag.newHeight-drag.canvas.height : 0))}px`;
+                    });
                     return;
                 }
                 if (drag.type === "move") {
@@ -201,7 +219,7 @@
                         const rect = stage.getBoundingClientRect();
                         if (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom)
                             invoke("AddModuleAt", current.kind, grid((e.clientX - rect.left) / current.scale), grid((e.clientY - rect.top) / current.scale));
-                    } else if (current.type === "canvas") invoke("CommitCanvasSize", current.newWidth, current.newHeight);
+                    } else if (current.type === "canvas") invoke("CommitCanvasCorner", current.newWidth, current.newHeight, current.corner);
                     else invoke("CommitWidgetGeometry", current.id, current.newX ?? current.x, current.newY ?? current.y, current.newWidth ?? current.width, current.newHeight ?? current.height);
                 }
                 cleanupDrag();

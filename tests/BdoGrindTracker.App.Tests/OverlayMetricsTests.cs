@@ -15,6 +15,22 @@ namespace BdoGrindTracker.App.Tests;
 public sealed class OverlayMetricsTests
 {
     [Fact]
+    public async Task ExperienceShowsSessionGainAndHourlyEvenWithoutHeading()
+    {
+        var state = Session() with { Elapsed = TimeSpan.FromMinutes(30),
+            ExperienceGainedPercentagePoints = 1.25m, ExperienceObservedDuration = TimeSpan.FromMinutes(30) };
+        var snapshot = new OverlayMetrics().Update(state, new());
+        Assert.Equal("+1,250 %", snapshot.Metrics["experience"].Value);
+        Assert.Equal("+2,500 % / h", snapshot.Metrics["experience"].Detail);
+        var markup = await RenderAsync(OverlayCatalog.CreateWidget("experience") with { ShowLabel = false }, snapshot);
+        Assert.Contains("+1,250 %", markup);
+        Assert.Contains("+2,500 % / h", markup);
+        var missing = new OverlayMetrics().Update(new TrackerState(), new()).Metrics["experience"];
+        Assert.Equal("—", missing.Value);
+        Assert.Equal("— / h", missing.Detail);
+    }
+
+    [Fact]
     public void MetricsUseCanonicalTotalsAndLocalizeOnlyDisplayedNames()
     {
         var state = Session() with
@@ -183,7 +199,7 @@ public sealed class OverlayMetricsTests
         var items = await RenderAsync(OverlayCatalog.CreateWidget("drops") with { ItemView = "list", ItemLimit = 2 }, OverlaySnapshot.Demo);
         Assert.Contains("Schwarzkristallfragment", items);
         Assert.Contains("assets/icons/black-crystal-fragment.png", items);
-        Assert.Contains("+ 3 weitere", items);
+        Assert.DoesNotContain("weitere", items);
         var hidden = await RenderAsync(OverlayCatalog.CreateWidget("duration") with { ShowLabel = false }, OverlaySnapshot.Demo);
         Assert.DoesNotContain("overlay-widget-label", hidden);
         Assert.DoesNotContain("overlay-widget-detail", hidden);

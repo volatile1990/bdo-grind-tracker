@@ -49,6 +49,7 @@ internal interface IOverlayService : IDisposable
     Task SetPreviewAsync(string id, bool enabled);
     Task ResetPositionAsync();
     Task ToggleTrackingAsync();
+    Task NewSessionAsync() => Task.CompletedTask;
     void UpdateRuntime(OverlayRuntimeState state);
     void UpdateRuntime(string id, OverlayRuntimeState state);
 }

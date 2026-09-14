@@ -43,7 +43,7 @@ internal sealed class OverlayMetrics
         "White Primordial Pigment - Edana", "White Primordial Luster - Edana",
     };
 
-    internal OverlaySnapshot Update(TrackerState state, TrackerPreferences preferences)
+    internal OverlaySnapshot Update(TrackerState state, TrackerPreferences preferences, LootPriceSnapshot? prices = null)
     {
         ArgumentNullException.ThrowIfNull(state);
         ArgumentNullException.ThrowIfNull(preferences);
@@ -77,6 +77,8 @@ internal sealed class OverlayMetrics
         var metrics = new Dictionary<string, OverlayMetric>(StringComparer.Ordinal)
         {
             ["duration"] = new("Aktive Zeit", session.Duration, session.DurationNote, Tooltip: session.DurationDescription),
+            ["experience"] = new("Erfahrung", session.Experience.Gain, session.Experience.Hourly + " / h",
+                Tooltip: session.Experience.Description),
             ["spot"] = new("Grindspot", Presentation.SpotName(state.SpotId), state.CharacterLabel),
             ["silver"] = new("Silber netto", session.Silver + (session.PartialSilver ? " *" : ""), valuationDetail),
             ["silver-hour"] = new("Silber / Stunde", rateText, incomplete ? valuationDetail : "Ø aktive Grindzeit"),
@@ -101,9 +103,17 @@ internal sealed class OverlayMetrics
             RareDrops = Array.AsReadOnly(drops.Where(item => item.IsRare).ToArray()),
             ItemCatalog = _itemCatalog,
             SilverHistory = state.SilverHistory,
+            Rotation = BdoGrindTracker.App.Analysis.RotationProfiles.Present(state.SpotId, state.Rotation),
+            DropMarkers = Array.AsReadOnly(state.DropHistory
+                .Where(drop => preferences.FavoriteItems.Contains(drop.ItemName, StringComparer.Ordinal) ||
+                    prices is not null && prices.TryGetQuote(drop.ItemName, out var quote) && quote.UnitPrice > 200_000_000m)
+                .Select(drop => new OverlayDropMarker(drop.Elapsed, new OverlayLootItem(drop.ItemName,
+                    ItemLocalizationCatalog.DisplayName(drop.ItemName, language), Presentation.Number(drop.Quantity),
+                    Presentation.ItemIcon(drop.ItemName), true, drop.Quantity))).ToArray()),
             LootScroll = state.LootScroll,
             Status = state.Status,
             IsRunning = state.IsRunning,
+            CanNewSession = !state.IsRunning && !state.IsBusy,
             CanToggleTracking = state.IsRunning ? state.CanPause :
                 !state.IsBusy && !state.IsSubmitted && !state.IsInstallingOcrLanguage &&
                 state.AnalyzerAvailable && state.TrackingBlockedReason is null &&
@@ -124,6 +134,9 @@ internal sealed class OverlayMetrics
             HasSession = true, IsRunning = true, CanPause = true, IsDemo = true, AnalyzerAvailable = true,
             SpotId = LootSpotCatalog.HermesiaId, CharacterLabel = "Agent", DetectedGameLanguage = "de",
             Status = "Beispieldaten · keine echte Session",
+            ExperienceGainedPercentagePoints = 1.25m,
+            ExperienceObservedDuration = TimeSpan.FromMinutes(15),
+            ExperienceStartLevel = 64, ExperienceEndLevel = 64,
             LootScroll = new(LootScrollStatus.Active, Level: 2),
             GrindBenchmark = GarmothGrindBenchmarks.Find(LootSpotCatalog.HermesiaId),
             Loot = new LootSessionSnapshot(new Dictionary<string, long>(StringComparer.Ordinal)
@@ -145,6 +158,8 @@ internal sealed class OverlayMetrics
             state = state with { Elapsed = elapsed, Silver = new(value, value, 5, [], [], false) };
             snapshot = metrics.Update(state with { SilverHistory = history.Update(state) }, preferences);
         }
-        return snapshot;
+        var demoItem = snapshot.Drops.First(item => item.CanonicalName == "BON Wandering Origin Crystal");
+        return snapshot with { DropMarkers = [new(TimeSpan.FromSeconds(870), demoItem), new(TimeSpan.FromSeconds(910), demoItem)],
+            Rotation = HermesiaRotationDemo.At(350) };
     }
 }

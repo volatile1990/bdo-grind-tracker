@@ -35,7 +35,7 @@ public sealed class HistoryDashboardRegressionTests
     }
 
     [Fact]
-    public async Task NewlyAddedSpotShowsKnownCapWithoutInventedRecommendationsOrImages()
+    public async Task NewlyAddedSpotShowsSuppliedBackgroundAndKnownCapWithoutInventedRecommendations()
     {
         var markup = WebUtility.HtmlDecode(await RenderAsync(new() { History = [] }, "/history/spots/tungrad-ruins"));
 
@@ -44,7 +44,7 @@ public sealed class HistoryDashboardRegressionTests
         Assert.Contains("assets/spot-icons/tungrad-ruins.png", markup);
         Assert.DoesNotContain("EMPFOHLENE DP", markup);
         Assert.DoesNotContain("KRISTALL-EMPFEHLUNG", markup);
-        Assert.DoesNotContain("assets/spot-backgrounds/", markup);
+        Assert.Contains("assets/spot-backgrounds/tungrad-ruins.jpg", markup);
     }
 
     [Theory]

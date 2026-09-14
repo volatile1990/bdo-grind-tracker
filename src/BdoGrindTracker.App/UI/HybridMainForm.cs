@@ -118,6 +118,7 @@ internal sealed class HybridMainForm : Form
         _timer.Tick += Tick;
         Shown += (_, _) => _timer.Start();
         FormClosing += CloseAsync;
+        ResizeEnd += (_, _) => SaveWindowPlacement();
     }
 
     protected override bool ShowWithoutActivation => _hidden;

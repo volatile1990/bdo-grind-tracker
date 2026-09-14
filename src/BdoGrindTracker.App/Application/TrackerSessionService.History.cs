@@ -80,12 +80,12 @@ internal sealed partial class TrackerSessionService
     private void PersistCurrentHistory(DateTimeOffset updatedAt, bool throwOnError,
         Guid? pendingGarmothCorrectionInterval)
     {
-        if (!_hasSession || _demoMode || _sessionSpotId is null ||
-            _sessionClock.Elapsed < TimeSpan.Zero || _sessionSummary.Totals.Count == 0)
+        if (!_hasSession || _demoMode || _sessionSpotId is null || _sessionClock.Elapsed < TimeSpan.Zero)
             return;
+        var rotations = _rotationMonitor.ExportSession();
         var totals = _sessionSummary.Totals.Where(static pair => pair.Value >= 0)
             .ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.OrdinalIgnoreCase);
-        if (totals.Count == 0) return;
+        if (totals.Count == 0 && rotations.Length == 0) return;
         var valuation = SilverValuation.Calculate(totals, Prices, Preferences.Tax);
         UpdateAgrisSession();
         UpdateExperienceSession();
@@ -95,6 +95,7 @@ internal sealed partial class TrackerSessionService
         var entry = new LootHistoryEntry
         {
             SessionId = _sessionId,
+            Rotations = rotations,
             StartedAt = _sessionStartedAt ?? updatedAt - _sessionClock.Elapsed,
             UpdatedAt = updatedAt,
             Duration = duration,

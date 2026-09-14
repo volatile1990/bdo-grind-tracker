@@ -16,13 +16,14 @@ public sealed record OverlayContentLayout(OverlayWidget LayoutWidget, double Sca
         // modules still show them, at a smaller size, instead of dropping lines.
         var minimumHeight = widget.Kind switch
         {
-            "controls" => 16 + (widget.ShowLabel ? 18 * fontScale : 0) + 28 * fontScale,
+            "rotation-monitor" => 48,
+            "controls" => 16 + (widget.ShowLabel ? 18 * fontScale : 0) + (widget.ShowNewSession ? 60 : 28) * fontScale,
             "chart" => 16 + (widget.ShowLabel ? 20 * fontScale : 0) + 33 * fontScale + 24 + 16 * fontScale,
             "clock" => 16 + (widget.ShowLabel ? 18 * fontScale : 0) + OverlayClockPresentation.RowCount(widget) * 26 * fontScale,
             _ when OverlayCatalog.IsLootWidget(widget.Kind) => 48,
             _ => 16 + (widget.ShowLabel ? 18 * fontScale : 0) +
                 (widget.Kind is "spot" or "status" or "loot-scroll" or "grind-rating" ? 20 : 26) * fontScale +
-                (widget.ShowLabel && widget.Kind != "status" && !string.IsNullOrEmpty(metric?.Detail) ? 12 * fontScale : 0),
+                ((widget.ShowLabel || widget.Kind == "experience") && widget.Kind != "status" && !string.IsNullOrEmpty(metric?.Detail) ? 12 * fontScale : 0),
         };
         const double minimumWidth = 80;
         var scale = Math.Min(Math.Min(width / referenceWidth, height / referenceHeight),

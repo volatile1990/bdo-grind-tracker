@@ -25,7 +25,7 @@ internal sealed class OverlayService : IOverlayService
         Templates = templateStore?.Load() ?? Array.Empty<OverlayTemplate>();
         TemplateError = _templateLoadError = templateStore?.LoadError;
         _collection = OverlaySettingsStore.NormalizeCollection(store?.LoadCollection() ?? new());
-        Snapshot = _metrics.Update(tracker.State, tracker.Preferences);
+        Snapshot = _metrics.Update(tracker.State, tracker.Preferences, tracker.Prices);
         tracker.Changed += TrackerChanged;
     }
 
@@ -305,6 +305,13 @@ internal sealed class OverlayService : IOverlayService
         if (!result.Succeeded) throw new InvalidOperationException(result.Error);
     }
 
+    public async Task NewSessionAsync()
+    {
+        if (_disposed || !Snapshot.CanNewSession) return;
+        var result = await _tracker.NewSessionAsync();
+        if (!result.Succeeded) throw new InvalidOperationException(result.Error);
+    }
+
     public void UpdateRuntime(OverlayRuntimeState state) => UpdateRuntime(SelectedOverlayId, state);
 
     public void UpdateRuntime(string id, OverlayRuntimeState state)
@@ -328,7 +335,7 @@ internal sealed class OverlayService : IOverlayService
     private void TrackerChanged()
     {
         if (_disposed) return;
-        Snapshot = _metrics.Update(_tracker.State, _tracker.Preferences);
+        Snapshot = _metrics.Update(_tracker.State, _tracker.Preferences, _tracker.Prices);
         Changed?.Invoke();
     }
 

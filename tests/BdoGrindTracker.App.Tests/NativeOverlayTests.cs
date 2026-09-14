@@ -222,7 +222,7 @@ public sealed class NativeOverlayTests
     }
 
     [Fact]
-    public void ItemLimitShowsOverflowFooterInsteadOfSilentlyOmittingDrops()
+    public void AllItemsIncludesRareDropsDespiteLegacyItemLimit()
     {
         using var renderer = new NativeOverlayRenderer();
         var widget = OverlayCatalog.CreateWidget("drop-grid", 0, 0) with
@@ -237,14 +237,16 @@ public sealed class NativeOverlayTests
         };
         var snapshot = LootSnapshot(6);
         var presentation = OverlayLootPresentation.Create(widget, snapshot);
-        Assert.Equal(4, presentation.HiddenCount);
+        Assert.Equal(0, presentation.HiddenCount);
+        Assert.Equal(6, presentation.VisibleItems.Count);
+        Assert.Equal(2, presentation.VisibleItems.Count(item => item.IsRare));
         using var image = renderer.Render(new Size(240, 160), settings, snapshot, out _);
         using var noOverflow = renderer.Render(new Size(240, 160), settings, LootSnapshot(2), out _);
         var footerPixels = Enumerable.Range(138, 14)
             .Sum(y => Enumerable.Range(10, 220).Count(x => image.GetPixel(x, y).A > 128));
         var emptyFooterPixels = Enumerable.Range(138, 14)
             .Sum(y => Enumerable.Range(10, 220).Count(x => noOverflow.GetPixel(x, y).A > 128));
-        Assert.True(footerPixels > 10, "The native overlay must visibly disclose hidden items.");
+        Assert.Equal(0, footerPixels);
         Assert.Equal(0, emptyFooterPixels);
     }
 

@@ -3,7 +3,7 @@
 <div class="overlay-widget-viewport" data-content-width="@Css(Content.ReferenceWidth)" data-content-height="@Css(Content.ReferenceHeight)"
      data-min-content-width="@Css(Content.MinimumWidth)" data-min-content-height="@Css(Content.MinimumHeight)" data-content-layout="@PreviewStyle">
 <div class="overlay-widget-preview overlay-widget-@Widget.Kind @(IsLoot ? "is-loot-widget" : "") @(Metric.IsWarning ? "is-warning" : "") metric-tone-@Metric.Tone.ToString().ToLowerInvariant()" style="@PreviewStyle" title="@(IsClock ? Clock.Tooltip : IsLoot ? Loot.Detail : Metric.Tooltip ?? (Metric.IsWarning ? "Loot-Scroll ist nicht aktiv." : Metric.Detail))">
-    @if (Widget.ShowLabel)
+    @if (Widget.ShowLabel && Widget.Kind != "rotation-monitor")
     {
         <div class="overlay-widget-label" data-overlay-fit>
             @if (Widget.ShowIcon) { <AppIcon Name="@(OverlayCatalog.Find(Widget.Kind)?.Icon ?? "live")" /> }
@@ -46,6 +46,10 @@
             }
         </div>
     }
+    else if (Widget.Kind == "rotation-monitor")
+    {
+        <OverlayRotationTimeline State="Snapshot.Rotation" Mode="@Widget.RotationComparison" Colors="@Widget.RotationColors" />
+    }
     else if (Widget.Kind == "controls")
     {
         <button type="button" class="overlay-tracking-button" data-overlay-fit disabled="@(!Interactive || !Snapshot.CanToggleTracking)"
@@ -53,6 +57,14 @@
             @if (Widget.ShowIcon) { <AppIcon Name="@(Snapshot.IsRunning ? "pause" : "play")" /> }
             <span>@Snapshot.TrackingButtonLabel</span>
         </button>
+        @if (Widget.ShowNewSession)
+        {
+            <button type="button" class="overlay-tracking-button" data-overlay-fit disabled="@(!Interactive || !Snapshot.CanNewSession)"
+                    @onclick="OnNewSession" @onclick:stopPropagation @onpointerdown:stopPropagation>
+                @if (Widget.ShowIcon) { <AppIcon Name="plus" /> }
+                <span>Neue Session</span>
+            </button>
+        }
     }
     else if (Widget.Kind == "chart")
     {
@@ -62,11 +74,24 @@
         </strong>
         @if (Snapshot.SilverHistory.Count >= 2)
         {
-            <svg class="overlay-widget-chart" viewBox="0 0 300 72" preserveAspectRatio="none" role="img" aria-label="Verlauf des durchschnittlichen Silberwerts pro Stunde">
+            <div style="position:relative;flex:1;min-height:0;overflow:hidden">
+            <svg class="overlay-widget-chart" style="width:100%;height:100%;display:block" viewBox="0 0 300 72" preserveAspectRatio="none" role="img" aria-label="Verlauf des durchschnittlichen Silberwerts pro Stunde mit wertvollen Drops und Favoriten">
                 <path d="M 0 71 H 300" class="overlay-chart-baseline" />
                 <polygon points="@("0,72 " + ChartPoints + " 300,72")" class="overlay-chart-area" />
                 <polyline points="@ChartPoints" class="overlay-chart-line" />
+                @foreach (var marker in OverlayChartMarkers.Create(Snapshot))
+                {
+                    <line x1="@Css(marker.X * 300)" x2="@Css(marker.X * 300)" y1="@Css(marker.Y * 72)" y2="72" stroke="#f5ce73" stroke-width="2" vector-effect="non-scaling-stroke" />
+                }
             </svg>
+            @foreach (var marker in OverlayChartMarkers.Create(Snapshot))
+            {
+                <div style="position:absolute;left:clamp(12px,@Css(marker.X * 100)%,calc(100% - 12px));top:clamp(12px,@Css((marker.Y + 1) * 50)%,calc(100% - 12px));transform:translate(-50%,-50%);width:24px;height:24px;background:#252d33;border-radius:4px"
+                     title="@(marker.Drop.Item.Name + " × " + marker.Drop.Item.QuantityText + " · " + marker.Drop.Elapsed.ToString(@"hh\:mm\:ss"))">
+                    <AssetImage Src="@marker.Drop.Item.IconPath" Alt="@marker.Drop.Item.Name" Class="overlay-chart-drop-icon" />
+                </div>
+            }
+            </div>
             <span class="overlay-widget-detail" data-overlay-fit>@Metric.Detail</span>
         }
         else
@@ -81,7 +106,7 @@
             @if (Widget.Kind == "status") { <span class="overlay-status-dot @(Snapshot.IsRunning ? "is-running" : "")"></span> }
             <span class="overlay-value-text">@Metric.Value</span>
         </strong>
-        @if (Widget.ShowLabel && Metric.Detail is not null && Widget.Kind is not "status")
+        @if ((Widget.ShowLabel || Widget.Kind == "experience") && Metric.Detail is not null && Widget.Kind is not "status")
         {
             <span class="overlay-widget-detail" data-overlay-fit>@Metric.Detail</span>
         }
@@ -94,6 +119,7 @@
     [Parameter, EditorRequired] public OverlaySnapshot Snapshot { get; set; } = new();
     [Parameter] public bool Interactive { get; set; }
     [Parameter] public EventCallback OnToggleTracking { get; set; }
+    [Parameter] public EventCallback OnNewSession { get; set; }
 
     private OverlayMetric Metric => Snapshot.Metrics.GetValueOrDefault(Widget.Kind) ?? new(OverlayCatalog.Find(Widget.Kind)?.Label ?? "Modul", "—");
     private bool IsLoot => OverlayCatalog.IsLootWidget(Widget.Kind);
@@ -133,7 +159,7 @@
             var values = Snapshot.SilverHistory;
             if (values.Count == 0) return "";
             var maximum = Math.Max(1m, values.Max(point => point.SilverPerHour));
-            var first = values[0].Elapsed.Ticks;
+            var first = OverlayChartMarkers.FirstTick(Snapshot);
             var span = Math.Max(1, values[^1].Elapsed.Ticks - first);
             return string.Join(" ", values.Select(point =>
                 (300m * (point.Elapsed.Ticks - first) / span).ToString("0.##", CultureInfo.InvariantCulture) + "," +

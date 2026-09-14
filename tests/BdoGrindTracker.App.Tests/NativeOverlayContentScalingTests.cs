@@ -81,7 +81,7 @@ public sealed class NativeOverlayContentScalingTests
     {
         var widget = OverlayLayout.ResizeWidget(OverlayCatalog.CreateWidget("controls", 37, 29) with
         {
-            Width = 200, Height = 80, ShowLabel = true, FontScale = 1
+            Width = 200, Height = 80, ShowLabel = true, FontScale = 1, ShowNewSession = false
         }, 300, 120);
         var settings = Settings(500, 300, widget) with { Interaction = "locked" };
         using var renderer = new NativeOverlayRenderer();
@@ -158,6 +158,24 @@ public sealed class NativeOverlayContentScalingTests
 
         Assert.NotEqual(Pixels(firstImage), Pixels(secondImage));
         Assert.Equal(firstActions["toggle-tracking:" + widget.Id], secondActions["toggle-tracking:" + widget.Id]);
+    }
+
+    [Theory]
+    [InlineData(true, "locked", true)]
+    [InlineData(false, "locked", false)]
+    [InlineData(true, "passthrough", false)]
+    public void NewSessionHitboxRespectsAvailabilityAndDoesNotOverlapToggle(bool available, string interaction, bool expected)
+    {
+        var widget = OverlayCatalog.CreateWidget("controls", 0, 0) with { Width = 200, Height = 100 };
+        using var renderer = new NativeOverlayRenderer();
+        using var image = renderer.Render(new Size(200,100), Settings(200,100,widget) with { Interaction = interaction },
+            OverlaySnapshot.Demo with { CanToggleTracking = true, CanNewSession = available }, out var actions);
+        Assert.Equal(expected, actions.ContainsKey("new-session:"+widget.Id));
+        if (expected)
+        {
+            Assert.False(actions["new-session:"+widget.Id].IntersectsWith(actions["toggle-tracking:"+widget.Id]));
+            Assert.True(actions["widget:"+widget.Id].Contains(actions["new-session:"+widget.Id]));
+        }
     }
 
     private static OverlaySettings Settings(double width, double height, OverlayWidget widget) => new()

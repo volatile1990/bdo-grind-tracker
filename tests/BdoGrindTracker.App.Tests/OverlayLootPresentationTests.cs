@@ -106,14 +106,14 @@ public sealed class OverlayLootPresentationTests
 
         var view = OverlayLootPresentation.Create(widget, snapshot);
 
-        var count = mode == "card" ? 1 : 6;
+        var count = mode == "card" ? 1 : 31;
         Assert.Equal(count, view.VisibleItems.Count);
         Assert.Equal(31 - count, view.HiddenCount);
         Assert.Equal(snapshot.Drops.OrderByDescending(item => item.Quantity).Take(count), view.VisibleItems);
         Assert.True(view.ItemSize < widget.ItemSize);
         Assert.True(view.FontScale < widget.FontScale);
         Assert.Equal(18 * view.FontScale, view.HeaderHeight, 10);
-        Assert.Equal(18 * view.FontScale, view.FooterHeight, 10);
+        Assert.Equal(mode == "card" ? 18 * view.FontScale : 0, view.FooterHeight, 10);
         AssertFitted(widget, view);
     }
 
@@ -225,8 +225,8 @@ public sealed class OverlayLootPresentationTests
             var content = OverlayContentLayout.Create(physical, snapshot);
             var view = OverlayLootPresentation.Create(content.LayoutWidget, snapshot);
 
-            Assert.Equal(mode == "card" ? 1 : 24, view.VisibleItems.Count);
-            Assert.Equal(mode == "card" ? 30 : 7, view.HiddenCount);
+            Assert.Equal(mode == "card" ? 1 : 31, view.VisibleItems.Count);
+            Assert.Equal(mode == "card" ? 30 : 0, view.HiddenCount);
             AssertFitted(content.LayoutWidget, view);
         }
     }

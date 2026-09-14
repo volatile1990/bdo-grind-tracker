@@ -12,16 +12,21 @@ public sealed record OverlaySnapshot
     public IReadOnlyList<OverlayLootItem> RareDrops { get; init; } = [];
     public IReadOnlyList<OverlayLootItem> ItemCatalog { get; init; } = [];
     public IReadOnlyList<SessionSilverSample> SilverHistory { get; init; } = [];
+    public IReadOnlyList<OverlayDropMarker> DropMarkers { get; init; } = [];
+    public RotationMonitorSnapshot Rotation { get; init; } = new();
     public LootScrollState LootScroll { get; init; } = LootScrollState.Unknown;
     public string Status { get; init; } = "Bereit";
     public bool IsRunning { get; init; }
     public bool CanToggleTracking { get; init; }
+    public bool CanNewSession { get; init; }
     public string TrackingButtonLabel { get; init; } = "Tracking starten";
 
     public static OverlaySnapshot Demo => OverlayMetrics.Demo;
 }
 
 public enum OverlayMetricTone { Default, Muted, Positive, Accent }
+
+public sealed record OverlayDropMarker(TimeSpan Elapsed, OverlayLootItem Item);
 
 public sealed record OverlayMetric(string Label, string Value, string? Detail = null, bool IsWarning = false,
     OverlayMetricTone Tone = OverlayMetricTone.Default, string? Tooltip = null);
