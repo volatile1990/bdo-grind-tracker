@@ -116,13 +116,13 @@ public static class OverlayCatalog
     {
         "rotation-monitor" => new()
         {
-            Width = 1088, Height = 160, Scale = 1, BackgroundOpacity = .85, ShowBorder = false, SnapToGrid = true,
+            Width = 1080, Height = 152, Scale = 1, BackgroundOpacity = .85, ShowBorder = false, SnapToGrid = true,
             Widgets = [
-                CreateWidget("rotation-monitor", 8, 8) with { Width = 696, Height = 152, ContentWidth = 600, ContentHeight = 240, ShowLabel = false, ShowIcon = false },
-                CreateWidget("duration", 704, 8) with { Width = 168, Height = 72 },
-                CreateWidget("grind-rating", 704, 80) with { Width = 168, Height = 80, ContentWidth = 168, ContentHeight = 72 },
-                CreateWidget("experience", 872, 80) with { Width = 216, Height = 80, ContentWidth = 200, ContentHeight = 88 },
-                CreateWidget("clock", 872, 8) with { Width = 216, Height = 72, ContentWidth = 248, ContentHeight = 128, ShowLabel = false, FontScale = 1.65, ShowGameTime = false },
+                CreateWidget("rotation-monitor", 0, 0) with { Width = 696, Height = 152, ContentWidth = 600, ContentHeight = 240, ShowLabel = false, ShowIcon = false },
+                CreateWidget("duration", 696, 0) with { Width = 168, Height = 72 },
+                CreateWidget("grind-rating", 696, 72) with { Width = 168, Height = 80, ContentWidth = 168, ContentHeight = 72 },
+                CreateWidget("experience", 864, 72) with { Width = 216, Height = 80, ContentWidth = 200, ContentHeight = 88 },
+                CreateWidget("clock", 864, 0) with { Width = 216, Height = 72, ContentWidth = 248, ContentHeight = 128, ShowLabel = false, FontScale = 1.65, ShowGameTime = false },
             ]
         },
         "compact" => new(),
