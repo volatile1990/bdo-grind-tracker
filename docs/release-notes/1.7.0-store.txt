@@ -1,0 +1,9 @@
+Neu in Grindcrest 1.7.0:
+
+• Rotation Monitor für den Aphrodon-Tempel: Verfolge Hog- und Agris-Ereignisse, große Vogelscheuchen und die AFK-Phase. Vergleiche deine laufende Rotation mit deiner Bestrotation oder einer idealen Rotation.
+• Aufbauhilfe: Ein Zähler zeigt die drei kleinen Vogelscheuchen vor dem Start. Fehlgeschlagene Versuche setzen den Monitor in den Aufbau zurück; nach dem AFK-Ende startet die nächste Rotation automatisch.
+• Verlässliche Referenzen: Nur vollständig erfasste Rotationen werden übernommen. Bestabschnitte und ideale Rotationen berücksichtigen passende Ereignisfolgen. Unvollständige Abschlüsse erhalten einen Hinweis.
+• Der Overlay-Editor bietet eine passende Aphrodon-Demo. Die Rotation-Monitor-Vorlage schließt jetzt bündig mit dem Rand ab.
+• Wird eine bisher unbekannte Klasse der aktuellen Session später erkannt, wird sie sofort auch im Verlauf gespeichert – einschließlich pausierter Sessions. Die Einstellungen helfen bei fehlender automatischer Erkennung.
+
+Die Rotationserkennung für Aphrodon und Hermesia benötigt derzeit englische Systemmeldungen im Spiel und die englische Windows-Texterkennung.

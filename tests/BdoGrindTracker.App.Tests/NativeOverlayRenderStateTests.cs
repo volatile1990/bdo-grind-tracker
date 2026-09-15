@@ -45,7 +45,7 @@ public sealed class NativeOverlayRenderStateTests
     }
 
     [Fact]
-    public void ControlsLootChartsAndClockInvalidateTheirDisplayedData()
+    public void ControlsLootAndChartsInvalidateTheirDisplayedData()
     {
         static void Changed(string kind, OverlaySnapshot before, OverlaySnapshot after)
         {
@@ -59,7 +59,34 @@ public sealed class NativeOverlayRenderStateTests
         Changed("drop-grid", snapshot, snapshot with { Drops = [new("Caphras Stone", "Caphras-Stein", "1")] });
         Changed("chart", snapshot, snapshot with { SilverHistory = [new SessionSilverSample(TimeSpan.FromSeconds(10), 100m)] });
         Changed("chart", snapshot, snapshot with { DropMarkers = [new(TimeSpan.FromSeconds(10), new("Rare drop", "Rare drop", "1"))] });
-        Changed("clock", snapshot, snapshot with { ClockUtcNow = snapshot.ClockUtcNow.AddSeconds(10) });
+    }
+
+    [Theory]
+    [InlineData(true, false, false, 59, 60)]
+    [InlineData(false, true, false, 13, 14)]
+    [InlineData(false, false, true, 59, 60)]
+    [InlineData(true, true, true, 13, 14)]
+    public void ClockRepaintsOnlyWhenItsVisibleMinutePrecisionDisplayChanges(
+        bool realTime, bool gameTime, bool countdown, int lastUnchangedSecond, int firstChangedSecond)
+    {
+        var widget = OverlayCatalog.CreateWidget("clock") with
+        {
+            ShowRealTime = realTime, ShowGameTime = gameTime, ShowDayNightCountdown = countdown
+        };
+        var settings = new OverlaySettings { Widgets = [widget] };
+        // At dawn, the game clock starts at 07:00 and advances 4.5 game seconds
+        // per real second. Local time and the rounded countdown change at 60s.
+        var dawn = new DateTimeOffset(2026, 9, 13, 0, 20, 0, TimeSpan.Zero);
+        var snapshot = new OverlaySnapshot { ClockUtcNow = dawn.AddSeconds(1) };
+        var state = new NativeOverlayRenderState();
+        state.Remember(settings, snapshot, new(360, 260));
+
+        Assert.True(state.Matches(settings,
+            snapshot with { ClockUtcNow = dawn.AddSeconds(lastUnchangedSecond) }, new(360, 260)));
+        var changed = snapshot with { ClockUtcNow = dawn.AddSeconds(firstChangedSecond) };
+        Assert.False(state.Matches(settings, changed, new(360, 260)));
+        state.Remember(settings, changed, new(360, 260));
+        Assert.True(state.Matches(settings, changed, new(360, 260)));
     }
 
     [Fact]

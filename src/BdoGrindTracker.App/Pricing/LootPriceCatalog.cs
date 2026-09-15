@@ -64,6 +64,7 @@ internal static partial class LootPriceCatalog
         Fixed("HAN Wandering Origin Crystal", 2_000_000_000),
         Fixed("Hardened Lava Chunk", 126_980),
         Market("Herald's Crystal", 821250),
+        Fixed("Intricately Patterned Mystical Shard", 50_000),
         Fixed("JIN Crystal of Dusky Ruin", 800_000_000),
         Fixed("JIN Crystal of Ruin", 8_000_000),
         Fixed("JIN Origin Shard", 17_000_000),

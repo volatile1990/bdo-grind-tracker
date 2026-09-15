@@ -1,0 +1,70 @@
+{
+  "recording": "loot-20260914-210046-876e580f104e42d3961fe7f2b5892d69",
+  "journalSha256": "6C3F04126DE07D0B0EC1CEC7CC50D3D392CC13627531F91CE6358A519BEF23E0",
+  "fixtures": [
+    {
+      "fixture": "aresion-010320-y200.png",
+      "source": "010320-normal.png",
+      "sourceSha256": "62CC3D6457AC14EC63746EB37E499134A29D97560A3F88DA163706EB6F077F35",
+      "rectangle": {
+        "x": 40,
+        "y": 200,
+        "width": 385,
+        "height": 50
+      },
+      "fixtureSha256": "DC2BABC44B7488BED90CCEE024760595C2A03E901397B1A6576C5757A68105C3",
+      "expectedQuantity": 10,
+      "uiScale": 1,
+      "font": "StrongSword",
+      "transform": "Lossless rectangular crop only; every pixel compared to source, with no scaling, masking, redraw, or color transformation."
+    },
+    {
+      "fixture": "aresion-010324-y200.png",
+      "source": "010324-normal.png",
+      "sourceSha256": "D82CA5C7A233B543D4C6436C28264D0DD9DE627982BF1B21817619E0DEC998BB",
+      "rectangle": {
+        "x": 40,
+        "y": 200,
+        "width": 385,
+        "height": 50
+      },
+      "fixtureSha256": "C9EFC3B69E75F6CE2DA43635D2FEEA94898C5AD2F8C31A42D0CF540C7B635E97",
+      "expectedQuantity": 10,
+      "uiScale": 1,
+      "font": "StrongSword",
+      "transform": "Lossless rectangular crop only; every pixel compared to source, with no scaling, masking, redraw, or color transformation."
+    },
+    {
+      "fixture": "aresion-001355-y250.png",
+      "source": "001355-normal.png",
+      "sourceSha256": "D5BFB61C584B7543231DC73AE3C40AA1C899F3BDB2F20D333E04DAAC6EB0FA88",
+      "rectangle": {
+        "x": 40,
+        "y": 250,
+        "width": 385,
+        "height": 50
+      },
+      "fixtureSha256": "E23A5213CB63755B5E5F8C882B48CEC36563805D8F51BCAB0B5469660C018148",
+      "expectedQuantity": 30,
+      "uiScale": 1,
+      "font": "StrongSword",
+      "transform": "Lossless rectangular crop only; every pixel compared to source, with no scaling, masking, redraw, or color transformation."
+    },
+    {
+      "fixture": "aresion-000655-y250.png",
+      "source": "000655-normal.png",
+      "sourceSha256": "23AB5F6364D1403C98B8C9C39300FFA7CCA6E6D859559CCF72B42F0F972A9120",
+      "rectangle": {
+        "x": 40,
+        "y": 250,
+        "width": 385,
+        "height": 50
+      },
+      "fixtureSha256": "2719E80AA86A3E22720A2B251C7A1571AB3D72121DBD9F438966B0855196C295",
+      "expectedQuantity": 6,
+      "uiScale": 1,
+      "font": "StrongSword",
+      "transform": "Lossless rectangular crop only; every pixel compared to source, with no scaling, masking, redraw, or color transformation."
+    }
+  ]
+}

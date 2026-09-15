@@ -36,5 +36,7 @@
              CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\fixtures\normal-appearance\*.png" Link="fixtures\normal-appearance\%(Filename)%(Extension)"
              CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\fixtures\quantity-confidence\*.png" Link="fixtures\quantity-confidence\%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

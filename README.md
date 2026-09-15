@@ -4,7 +4,7 @@ Grindcrest ist ein lokaler, passiver Loot-Tracker für Black Desert auf Windows.
 Er erkennt Drops aus dem Spielfenster und zeigt Lootmengen, aktive Grindzeit,
 Silber und Stundenwerte im Dashboard und in anpassbaren Ingame-Overlays.
 
-**Version 1.5.1:** [Trackingstart ohne zusätzlichen Erklärdialog](docs/release-notes/1.5.1.md).
+**Version 1.7.0:** [Rotation Monitor für Aphrodon und aktualisierte Klassenangaben im Verlauf](docs/release-notes/1.7.0.md).
 
 ## Funktionen
 
@@ -31,7 +31,7 @@ eigenen Installations- und Updateweg.
 1. Black Desert öffnen und nicht minimieren. Den Haupt-Droplog in der BDO-Oberfläche sichtbar und eindeutig positionieren; die UI-Konfiguration speichern.
 2. Grindcrest starten und unter **Live-Session** auf **Tracking starten** klicken. Falls angeboten, **OCR-Sprachpaket installieren** wählen und der Windows-Abfrage zustimmen. Der Fortschritt stammt von Windows; erst die erfolgreiche OCR-Prüfung gibt das Tracking frei.
 3. Ab dem ersten neu gezählten Drop läuft die aktive Zeit. Aus dem Trashloot wird der Spot erkannt. Bei Varianten mit gleichem Trashloot das konkrete Gebiet vor einem Garmoth-Upload auswählen.
-4. **Pausieren** erhält die Session; **Fortsetzen** zählt ab dem nächsten neuen Drop weiter. Ohne neue Drops pausiert Grindcrest standardmäßig nach drei Minuten und zieht die abschließende Leerlaufzeit ab. Das Intervall ist einstellbar.
+4. **Pausieren** erhält die Session und zieht die Zeit seit dem letzten erkannten Drop ab; **Fortsetzen** zählt ab dem nächsten neuen Drop weiter. Ohne neue Drops pausiert Grindcrest standardmäßig nach drei Minuten und zieht ebenfalls die abschließende Leerlaufzeit ab. Das Intervall ist einstellbar.
 5. Vor einem Spot- oder Charakterwechsel **Neue Session** wählen. Beim nächsten Programmstart wird die zuletzt gespeicherte aktuelle Session pausiert geladen.
 
 Unter **Overlay** lassen sich Fenster erstellen, konfigurieren und am Desktop
@@ -196,12 +196,12 @@ Paketinhalte. Mit **`-RequireWindowsOcr`** schlagen sie bei fehlenden nativen
 OCR-Voraussetzungen fehl. Beispiel für den Store:
 
 ```powershell
-./scripts/Build-StoreRelease.ps1 -Version 1.5.1 -RequireWindowsOcr
+./scripts/Build-StoreRelease.ps1 -Version 1.7.0 -RequireWindowsOcr
 ```
 
 Das erzeugte MSIX wird anschließend im Partner Center eingereicht. Ein lokaler
 Paketbuild veröffentlicht nichts. Für den GitHub-Installer dient
-`./scripts/Build-Release.ps1 -Version 1.5.1 -RequireWindowsOcr`.
+`./scripts/Build-Release.ps1 -Version 1.7.0 -RequireWindowsOcr`.
 [GitHub-Releases](docs/RELEASING.md) · [Store-Paketierung](docs/MICROSOFT_STORE.md).
 
 Weitere Details: [Silberbewertung](docs/SILVER_VALUATION.md),

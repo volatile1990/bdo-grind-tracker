@@ -108,10 +108,13 @@ public sealed class NativeOverlayThemeTests
         var button = actions["toggle-tracking:" + widget.Id];
         var unframedButton = borderlessActions["toggle-tracking:" + widget.Id];
         unframedButton.Offset(2, 32);
-        Assert.Equal(unframedButton.X, button.X, precision: 3);
-        Assert.Equal(unframedButton.Y, button.Y, precision: 3);
-        Assert.Equal(unframedButton.Width, button.Width, precision: 3);
-        Assert.Equal(unframedButton.Height, button.Height, precision: 3);
+        // Transforming and clipping float corners can round differently from Offset.
+        // Keep the tolerance far below a pixel; the rendered regions remain exact below.
+        const float tolerance = .0001f;
+        Assert.InRange(button.X, unframedButton.X - tolerance, unframedButton.X + tolerance);
+        Assert.InRange(button.Y, unframedButton.Y - tolerance, unframedButton.Y + tolerance);
+        Assert.InRange(button.Width, unframedButton.Width - tolerance, unframedButton.Width + tolerance);
+        Assert.InRange(button.Height, unframedButton.Height - tolerance, unframedButton.Height + tolerance);
         Assert.NotEqual(Region(framed, new(0, 0, 164, 32)), Region(renamed, new(0, 0, 164, 32)));
         Assert.Equal(Region(framed, new(4, 34, 156, 60)), Region(renamed, new(4, 34, 156, 60)));
         Assert.Equal(Region(borderless, new(2, 2, 156, 60)), Region(framed, new(4, 34, 156, 60)));

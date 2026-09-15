@@ -59,6 +59,7 @@ public sealed class DropQuantityCatalogTests
     [InlineData("Caphras Stone", 100u)]
     [InlineData("Ancient Spirit Dust", 100u)]
     [InlineData("Laila's Petal", 10u)]
+    [InlineData("Intricately Patterned Mystical Shard", 1u)]
     public void LatestGlobalUserRangesApplyBeforeAndAfterLockInEverySpot(string item, uint maximum)
     {
         var expected = new DropQuantityBounds(1, maximum);
@@ -141,7 +142,7 @@ public sealed class DropQuantityCatalogTests
             LootSpotCatalog.OrbitaId, LootSpotCatalog.TenebraumId, LootSpotCatalog.ZephyrosId,
             LootSpotCatalog.DarkEnergyFloodlandsId };
         var entries = DropQuantityCatalog.Entries.Where(entry => outer.Contains(entry.SpotId)
-            && entry.ItemName != "Empty Picture Frame").ToArray();
+            && entry.ItemName is not ("Empty Picture Frame" or "Intricately Patterned Mystical Shard")).ToArray();
         Assert.Equal(110, entries.Length);
         Assert.All(entries, entry =>
         {

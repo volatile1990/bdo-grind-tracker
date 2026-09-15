@@ -1,0 +1,8 @@
+Neu in Grindcrest 1.6.0:
+
+• Grindziele: Plane tägliche Silberziele im Monatskalender, sieh Sessions und Drops pro Tag und verfolge deinen Tagesfortschritt direkt im Overlay.
+• Rotation Monitor für Hermesia: Vergleiche deine laufende Rotation mit deiner Bestrotation oder einer idealen Rotation. Mit Phasen, Ereignismarkierungen, Farbvarianten und gespeicherten Rotationen. Aktuell für englische Systemmeldungen.
+• Neue Themes: Black Desert, Light und Katzen für App und Overlay sowie zusätzliche Spot-Hintergründe.
+• Mehr Overlay-Funktionen: Erfahrung und EXP pro Stunde, neue Session direkt aus dem Overlay, wertvolle Drops im Silberverlauf und alle gesammelten Items in der Dropansicht.
+• Erweiterte Loot-Erkennung berücksichtigt verblassende und vorübergehend unlesbare Lootzeilen.
+• Der Intricately Patterned Mystical Shard ist jetzt im globalen Lootpool enthalten: genau ein Stück pro Drop, mit Icon, deutscher Bezeichnung und NPC-Wert von 50.000 Silber.

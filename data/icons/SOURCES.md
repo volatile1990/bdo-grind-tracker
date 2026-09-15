@@ -351,3 +351,9 @@ Multiple source keys with the same visible canonical name share the first verifi
 | Guardian Spirit Stone | https://bdocodex.com/us/item/45300/ |
 | Silver | https://bdocodex.com/us/item/1/ |
 | Tainted Cadry's Token | https://bdocodex.com/us/item/44525/ |
+
+## Global loot addition (2026-09-14)
+
+| Item | BDO Codex source |
+| --- | --- |
+| Intricately Patterned Mystical Shard | https://bdocodex.com/us/item/9776/ |

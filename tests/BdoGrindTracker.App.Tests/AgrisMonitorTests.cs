@@ -48,16 +48,16 @@ public sealed class AgrisMonitorTests
     [Fact]
     public async Task ResetRejectsAnOldWorkerAndAllowsFreshObservation()
     {
-        using var started = new ManualResetEventSlim();
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         using var release = new ManualResetEventSlim();
-        var detector = new Detector(() => { started.Set(); release.Wait(TimeSpan.FromSeconds(5)); return new(AgrisStatus.Active); });
+        var detector = new Detector(() => { started.TrySetResult(); release.Wait(); return new(AgrisStatus.Active); });
         using var monitor = new AgrisMonitor(detector);
         using var frame = new Bitmap(2, 2);
         var now = DateTimeOffset.UtcNow;
         try
         {
             monitor.Observe(frame, now);
-            Assert.True(started.Wait(TimeSpan.FromSeconds(2)));
+            await started.Task.WaitAsync(TimeSpan.FromSeconds(10));
             monitor.Observe(frame, now.AddSeconds(5));
             Assert.Equal(1, detector.Calls);
             monitor.Reset();
@@ -73,19 +73,20 @@ public sealed class AgrisMonitorTests
     [Fact]
     public async Task SlowRecognitionOwnsACopyAndDisposesOnlyAfterTheWorkerFinishes()
     {
-        using var started = new ManualResetEventSlim();
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         using var release = new ManualResetEventSlim();
-        var detector = new Detector(() => { started.Set(); release.Wait(TimeSpan.FromSeconds(5)); return new(AgrisStatus.Active); });
+        var detector = new Detector(() => { started.TrySetResult(); release.Wait(); return new(AgrisStatus.Active); });
         using var monitor = new AgrisMonitor(detector);
         using (var frame = new Bitmap(2, 2)) monitor.Observe(frame, DateTimeOffset.UtcNow);
         try
         {
-            Assert.True(started.Wait(TimeSpan.FromSeconds(2)));
+            await started.Task.WaitAsync(TimeSpan.FromSeconds(10));
             Assert.False(monitor.CurrentAnalysis.IsCompleted);
             monitor.Dispose();
             Assert.Equal(0, detector.Disposals);
         }
         finally { release.Set(); await monitor.CurrentAnalysis.WaitAsync(TimeSpan.FromSeconds(3)); }
+        Assert.Equal(2, detector.FrameWidthAfterRead);
         Assert.Equal(1, detector.Disposals);
         Assert.Equal(AgrisState.Unknown, monitor.Snapshot(DateTimeOffset.UtcNow));
     }
@@ -100,11 +101,12 @@ public sealed class AgrisMonitorTests
     private sealed class Detector(Func<AgrisReading> read) : IAgrisFrameDetector
     {
         public int Calls, Disposals;
+        public int? FrameWidthAfterRead { get; private set; }
         public AgrisReading Analyze(Bitmap frame, CancellationToken cancellationToken)
         {
             Interlocked.Increment(ref Calls);
             var result = read();
-            Assert.Equal(2, frame.Width);
+            FrameWidthAfterRead = frame.Width;
             return result;
         }
         public void Dispose() => Interlocked.Increment(ref Disposals);

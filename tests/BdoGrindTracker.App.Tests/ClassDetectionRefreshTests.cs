@@ -1,6 +1,7 @@
 using System.Reflection;
 using BdoGrindTracker.App.Character;
 using BdoGrindTracker.App.Persistence;
+using BdoGrindTracker.App.Pricing;
 using BdoGrindTracker.App.Services;
 
 namespace BdoGrindTracker.App.Tests;
@@ -65,6 +66,77 @@ public sealed partial class TrackerSessionServiceTests
 
         Assert.Equal("hashashin-awakening", fixture.Service.State.CharacterClassId);
         Assert.Equal(!paused, fixture.Service.State.IsRunning);
+    }
+
+    [Fact]
+    public async Task ClassDetectedAfterPausingUpdatesHistoryAndCurrentSessionTogether()
+    {
+        await using var fixture = new Fixture(autoUpload: false);
+        fixture.Begin();
+        SetField(fixture.Service, "_sessionClass", null!);
+        SetField(fixture.Service, "_classDetection", CharacterClassDetection.Unknown);
+        await fixture.ProcessAfter(TimeSpan.FromMinutes(1), ("Black Crystal Fragment", 10));
+        await fixture.Service.PauseAsync();
+        var original = Assert.Single(fixture.HistoryStore.Load());
+        Assert.Null(original.CharacterClass);
+
+        fixture.ClassDetection = DetectedClass("hashashin-awakening");
+        await fixture.Service.TickAsync();
+        await AwaitClassRefresh(fixture.Service);
+
+        Assert.Equal("hashashin-awakening", fixture.Service.State.CharacterClassId);
+        var checkpoint = new CurrentSessionStore(Path.Combine(fixture.DirectoryPath, CurrentSessionStore.FileName)).Load();
+        Assert.NotNull(checkpoint);
+        Assert.Equal("hashashin-awakening", checkpoint.CharacterClassId);
+        Assert.Equal("Hashashin · Awakening", Assert.Single(fixture.Service.History).CharacterClass);
+        var saved = Assert.Single(fixture.HistoryStore.Load());
+        Assert.Equal("Hashashin · Awakening", saved.CharacterClass);
+        Assert.Equal(original.SessionId, saved.SessionId);
+        Assert.Equal(original.Duration, saved.Duration);
+        Assert.Equal(original.Totals, saved.Totals);
+        Assert.False(fixture.Service.State.IsRunning);
+    }
+
+    [Fact]
+    public async Task AutomaticClassRecoveryWaitsUntilAnInFlightSessionOperationFinishes()
+    {
+        await using var fixture = new Fixture(autoUpload: false);
+        fixture.Begin();
+        SetField(fixture.Service, "_sessionClass", null!);
+        SetField(fixture.Service, "_classDetection", CharacterClassDetection.Unknown);
+        await fixture.ProcessAfter(TimeSpan.FromMinutes(1), ("Black Crystal Fragment", 10));
+        await fixture.Service.PauseAsync();
+
+        var pendingPrices = new TaskCompletionSource<LootPriceSnapshot>(TaskCreationOptions.RunContinuationsAsynchronously);
+        fixture.Prices.Fetch = _ => pendingPrices.Task;
+        var upload = fixture.Service.UploadAsync();
+        try
+        {
+            Assert.False(upload.IsCompleted);
+            fixture.ClassDetection = DetectedClass("hashashin-awakening");
+            await fixture.Service.TickAsync();
+            await AwaitClassRefresh(fixture.Service);
+
+            Assert.Null(fixture.Service.State.CharacterClassId);
+            Assert.Null(Assert.Single(fixture.Service.History).CharacterClass);
+            Assert.Null(Assert.Single(fixture.HistoryStore.Load()).CharacterClass);
+            Assert.Null(new CurrentSessionStore(Path.Combine(fixture.DirectoryPath, CurrentSessionStore.FileName))
+                .Load()!.CharacterClassId);
+        }
+        finally
+        {
+            // End preparation before dispatching a remote request.
+            pendingPrices.TrySetException(new InvalidOperationException("Synthetic upload preparation failure."));
+            await upload.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+
+        SetField(fixture.Service, "_nextClassDetectionAt", DateTimeOffset.MinValue);
+        await fixture.Service.TickAsync();
+        await AwaitClassRefresh(fixture.Service);
+
+        Assert.Empty(fixture.Requests);
+        Assert.Equal("hashashin-awakening", fixture.Service.State.CharacterClassId);
+        Assert.Equal("Hashashin · Awakening", Assert.Single(fixture.HistoryStore.Load()).CharacterClass);
     }
 
     [Theory]

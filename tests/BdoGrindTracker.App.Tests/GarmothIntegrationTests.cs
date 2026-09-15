@@ -190,7 +190,8 @@ public sealed class GarmothIntegrationTests
         var totals = names.ToDictionary(static name => name, static _ => 1L);
         var drops = GarmothSessionPayload.GetUploadableDrops(spotId, totals);
         Assert.Equal(count, drops.Count);
-        Assert.Equal(["Empty Picture Frame", "Laila's Petal", "Pure Black Stone"], GarmothSessionPayload.GetOmittedItems(spotId, totals));
+        Assert.Equal(["Empty Picture Frame", "Intricately Patterned Mystical Shard", "Laila's Petal", "Pure Black Stone"],
+            GarmothSessionPayload.GetOmittedItems(spotId, totals));
     }
 
     [Theory]

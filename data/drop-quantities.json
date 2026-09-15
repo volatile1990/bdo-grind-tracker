@@ -4,6 +4,13 @@
   "entries": [
     {
       "spotId": "aphrodon",
+      "itemName": "Intricately Patterned Mystical Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Nutzervorgabe vom 14.09.2026: globaler Lootpool, Minimum 1, Maximum 1"
+    },
+    {
+      "spotId": "aphrodon",
       "itemName": "Empty Picture Frame",
       "minimumQuantity": 1,
       "maximumQuantity": 10,
@@ -204,6 +211,13 @@
       "minimumQuantity": 1,
       "maximumQuantity": 1,
       "source": "Eingabe!C37:D37"
+    },
+    {
+      "spotId": "hermesia",
+      "itemName": "Intricately Patterned Mystical Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Nutzervorgabe vom 14.09.2026: globaler Lootpool, Minimum 1, Maximum 1"
     },
     {
       "spotId": "hermesia",
@@ -421,6 +435,13 @@
       "minimumQuantity": 1,
       "maximumQuantity": 1,
       "source": "Eingabe!C67:D67"
+    },
+    {
+      "spotId": "magaia",
+      "itemName": "Intricately Patterned Mystical Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Nutzervorgabe vom 14.09.2026: globaler Lootpool, Minimum 1, Maximum 1"
     },
     {
       "spotId": "magaia",
@@ -652,6 +673,13 @@
       "minimumQuantity": 1,
       "maximumQuantity": 1,
       "source": "Eingabe!C99:D99"
+    },
+    {
+      "spotId": "aresion",
+      "itemName": "Intricately Patterned Mystical Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Nutzervorgabe vom 14.09.2026: globaler Lootpool, Minimum 1, Maximum 1"
     },
     {
       "spotId": "aresion",
@@ -928,6 +956,13 @@
     },
     {
       "spotId": "scales-of-judgment",
+      "itemName": "Intricately Patterned Mystical Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Nutzervorgabe vom 14.09.2026: globaler Lootpool, Minimum 1, Maximum 1"
+    },
+    {
+      "spotId": "scales-of-judgment",
       "itemName": "Empty Picture Frame",
       "minimumQuantity": 1,
       "maximumQuantity": 10,
@@ -1198,6 +1233,13 @@
       "minimumQuantity": 1,
       "maximumQuantity": 1,
       "source": "Eingabe!C175:D175"
+    },
+    {
+      "spotId": "event-horizon",
+      "itemName": "Intricately Patterned Mystical Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Nutzervorgabe vom 14.09.2026: globaler Lootpool, Minimum 1, Maximum 1"
     },
     {
       "spotId": "event-horizon",
@@ -1565,6 +1607,13 @@
     },
     {
       "spotId": "aetherion",
+      "itemName": "Intricately Patterned Mystical Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Nutzervorgabe vom 14.09.2026: globaler Lootpool, Minimum 1, Maximum 1"
+    },
+    {
+      "spotId": "aetherion",
       "itemName": "Empty Picture Frame",
       "minimumQuantity": 1,
       "maximumQuantity": 10,
@@ -1719,6 +1768,13 @@
     },
     {
       "spotId": "nymphamare",
+      "itemName": "Intricately Patterned Mystical Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Nutzervorgabe vom 14.09.2026: globaler Lootpool, Minimum 1, Maximum 1"
+    },
+    {
+      "spotId": "nymphamare",
       "itemName": "Empty Picture Frame",
       "minimumQuantity": 1,
       "maximumQuantity": 10,
@@ -1828,6 +1884,13 @@
       "minimumQuantity": 1,
       "maximumQuantity": 1,
       "source": "Dropmengen-Outer-Edania-Eingabe.xlsx; Eingabe!D64:E64; Nutzervorgabe vom 13.09.2026"
+    },
+    {
+      "spotId": "orbita",
+      "itemName": "Intricately Patterned Mystical Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Nutzervorgabe vom 14.09.2026: globaler Lootpool, Minimum 1, Maximum 1"
     },
     {
       "spotId": "orbita",
@@ -1971,6 +2034,13 @@
     },
     {
       "spotId": "tenebraum",
+      "itemName": "Intricately Patterned Mystical Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Nutzervorgabe vom 14.09.2026: globaler Lootpool, Minimum 1, Maximum 1"
+    },
+    {
+      "spotId": "tenebraum",
       "itemName": "Empty Picture Frame",
       "minimumQuantity": 1,
       "maximumQuantity": 10,
@@ -2111,6 +2181,13 @@
     },
     {
       "spotId": "zephyros",
+      "itemName": "Intricately Patterned Mystical Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Nutzervorgabe vom 14.09.2026: globaler Lootpool, Minimum 1, Maximum 1"
+    },
+    {
+      "spotId": "zephyros",
       "itemName": "Empty Picture Frame",
       "minimumQuantity": 1,
       "maximumQuantity": 10,
@@ -2241,6 +2318,13 @@
       "minimumQuantity": 1,
       "maximumQuantity": 1,
       "source": "Dropmengen-Outer-Edania-Eingabe.xlsx; Eingabe!D112:E112; Nutzervorgabe vom 13.09.2026"
+    },
+    {
+      "spotId": "dark-energy-floodlands",
+      "itemName": "Intricately Patterned Mystical Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Nutzervorgabe vom 14.09.2026: globaler Lootpool, Minimum 1, Maximum 1"
     },
     {
       "spotId": "dark-energy-floodlands",
@@ -2381,6 +2465,13 @@
       "minimumQuantity": null,
       "maximumQuantity": null,
       "source": "Screenshot-Spots 13.09.2026: Dropmenge nicht verifiziert."
+    },
+    {
+      "spotId": "gavinya-coastal-cliff",
+      "itemName": "Intricately Patterned Mystical Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Nutzervorgabe vom 14.09.2026: globaler Lootpool, Minimum 1, Maximum 1"
     },
     {
       "spotId": "gavinya-coastal-cliff",
@@ -2587,6 +2678,13 @@
     },
     {
       "spotId": "stars-end",
+      "itemName": "Intricately Patterned Mystical Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Nutzervorgabe vom 14.09.2026: globaler Lootpool, Minimum 1, Maximum 1"
+    },
+    {
+      "spotId": "stars-end",
       "itemName": "Empty Picture Frame",
       "minimumQuantity": 1,
       "maximumQuantity": 10,
@@ -2675,6 +2773,13 @@
       "minimumQuantity": null,
       "maximumQuantity": null,
       "source": "Screenshot-Spots 13.09.2026: Dropmenge nicht verifiziert."
+    },
+    {
+      "spotId": "sycraia-abyssal-ruins-lower",
+      "itemName": "Intricately Patterned Mystical Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Nutzervorgabe vom 14.09.2026: globaler Lootpool, Minimum 1, Maximum 1"
     },
     {
       "spotId": "sycraia-abyssal-ruins-lower",
@@ -2944,6 +3049,13 @@
     },
     {
       "spotId": "elvia-orzekea",
+      "itemName": "Intricately Patterned Mystical Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Nutzervorgabe vom 14.09.2026: globaler Lootpool, Minimum 1, Maximum 1"
+    },
+    {
+      "spotId": "elvia-orzekea",
       "itemName": "Empty Picture Frame",
       "minimumQuantity": 1,
       "maximumQuantity": 10,
@@ -3081,6 +3193,13 @@
       "minimumQuantity": null,
       "maximumQuantity": null,
       "source": "Screenshot-Spots 13.09.2026: Dropmenge nicht verifiziert."
+    },
+    {
+      "spotId": "dehkia-gyfin-rhasia-temple-upper",
+      "itemName": "Intricately Patterned Mystical Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Nutzervorgabe vom 14.09.2026: globaler Lootpool, Minimum 1, Maximum 1"
     },
     {
       "spotId": "dehkia-gyfin-rhasia-temple-upper",
@@ -3364,6 +3483,13 @@
     },
     {
       "spotId": "tungrad-ruins",
+      "itemName": "Intricately Patterned Mystical Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Nutzervorgabe vom 14.09.2026: globaler Lootpool, Minimum 1, Maximum 1"
+    },
+    {
+      "spotId": "tungrad-ruins",
       "itemName": "Empty Picture Frame",
       "minimumQuantity": 1,
       "maximumQuantity": 10,
@@ -3522,6 +3648,13 @@
       "minimumQuantity": null,
       "maximumQuantity": null,
       "source": "Screenshot-Spots 13.09.2026: Dropmenge nicht verifiziert."
+    },
+    {
+      "spotId": "darkseekers-retreat",
+      "itemName": "Intricately Patterned Mystical Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Nutzervorgabe vom 14.09.2026: globaler Lootpool, Minimum 1, Maximum 1"
     },
     {
       "spotId": "darkseekers-retreat",
@@ -3690,6 +3823,13 @@
       "minimumQuantity": 1,
       "maximumQuantity": 100,
       "source": "Nutzervorgabe vom 13.09.2026: bestehende Trash-Minima erhalten; neue Spots Trash 1–1000; Trash-Maximum überall 1000; Black Stone/Caphras Stone/Ancient Spirit Dust 1–100; Laila's Petal 1–10"
+    },
+    {
+      "spotId": "fortunate-golden-pig-cave",
+      "itemName": "Intricately Patterned Mystical Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Nutzervorgabe vom 14.09.2026: globaler Lootpool, Minimum 1, Maximum 1"
     },
     {
       "spotId": "fortunate-golden-pig-cave",
@@ -3886,6 +4026,13 @@
       "minimumQuantity": null,
       "maximumQuantity": null,
       "source": "Screenshot-Spots 13.09.2026: Dropmenge nicht verifiziert."
+    },
+    {
+      "spotId": "dehkia-mirumok-ruins",
+      "itemName": "Intricately Patterned Mystical Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Nutzervorgabe vom 14.09.2026: globaler Lootpool, Minimum 1, Maximum 1"
     },
     {
       "spotId": "dehkia-mirumok-ruins",
@@ -4176,6 +4323,13 @@
     },
     {
       "spotId": "winter-tree-fossil-280",
+      "itemName": "Intricately Patterned Mystical Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Nutzervorgabe vom 14.09.2026: globaler Lootpool, Minimum 1, Maximum 1"
+    },
+    {
+      "spotId": "winter-tree-fossil-280",
       "itemName": "Empty Picture Frame",
       "minimumQuantity": 1,
       "maximumQuantity": 10,
@@ -4428,6 +4582,13 @@
     },
     {
       "spotId": "unlucky-golden-pig-cave",
+      "itemName": "Intricately Patterned Mystical Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Nutzervorgabe vom 14.09.2026: globaler Lootpool, Minimum 1, Maximum 1"
+    },
+    {
+      "spotId": "unlucky-golden-pig-cave",
       "itemName": "Empty Picture Frame",
       "minimumQuantity": 1,
       "maximumQuantity": 10,
@@ -4579,6 +4740,13 @@
       "minimumQuantity": null,
       "maximumQuantity": null,
       "source": "Screenshot-Spots 13.09.2026: Dropmenge nicht verifiziert."
+    },
+    {
+      "spotId": "dehkia-ii-ash-forest",
+      "itemName": "Intricately Patterned Mystical Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Nutzervorgabe vom 14.09.2026: globaler Lootpool, Minimum 1, Maximum 1"
     },
     {
       "spotId": "dehkia-ii-ash-forest",
@@ -4736,6 +4904,13 @@
     },
     {
       "spotId": "dehkia-ii-oluns-valley",
+      "itemName": "Intricately Patterned Mystical Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Nutzervorgabe vom 14.09.2026: globaler Lootpool, Minimum 1, Maximum 1"
+    },
+    {
+      "spotId": "dehkia-ii-oluns-valley",
       "itemName": "Empty Picture Frame",
       "minimumQuantity": 1,
       "maximumQuantity": 10,
@@ -4859,6 +5034,13 @@
       "minimumQuantity": null,
       "maximumQuantity": null,
       "source": "Screenshot-Spots 13.09.2026: Dropmenge nicht verifiziert."
+    },
+    {
+      "spotId": "yzrahid-highlands",
+      "itemName": "Intricately Patterned Mystical Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Nutzervorgabe vom 14.09.2026: globaler Lootpool, Minimum 1, Maximum 1"
     },
     {
       "spotId": "yzrahid-highlands",
@@ -5009,6 +5191,13 @@
     },
     {
       "spotId": "elvia-hexe-sanctuary",
+      "itemName": "Intricately Patterned Mystical Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Nutzervorgabe vom 14.09.2026: globaler Lootpool, Minimum 1, Maximum 1"
+    },
+    {
+      "spotId": "elvia-hexe-sanctuary",
       "itemName": "Empty Picture Frame",
       "minimumQuantity": 1,
       "maximumQuantity": 10,
@@ -5125,6 +5314,13 @@
       "minimumQuantity": null,
       "maximumQuantity": null,
       "source": "Screenshot-Spots 13.09.2026: Dropmenge nicht verifiziert."
+    },
+    {
+      "spotId": "elvia-quint-hill",
+      "itemName": "Intricately Patterned Mystical Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Nutzervorgabe vom 14.09.2026: globaler Lootpool, Minimum 1, Maximum 1"
     },
     {
       "spotId": "elvia-quint-hill",
@@ -5261,6 +5457,13 @@
     },
     {
       "spotId": "dokkebi-forest",
+      "itemName": "Intricately Patterned Mystical Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Nutzervorgabe vom 14.09.2026: globaler Lootpool, Minimum 1, Maximum 1"
+    },
+    {
+      "spotId": "dokkebi-forest",
       "itemName": "Empty Picture Frame",
       "minimumQuantity": 1,
       "maximumQuantity": 10,
@@ -5356,6 +5559,13 @@
       "minimumQuantity": null,
       "maximumQuantity": null,
       "source": "Screenshot-Spots 13.09.2026: Dropmenge nicht verifiziert."
+    },
+    {
+      "spotId": "dehkia-thornwood-forest",
+      "itemName": "Intricately Patterned Mystical Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Nutzervorgabe vom 14.09.2026: globaler Lootpool, Minimum 1, Maximum 1"
     },
     {
       "spotId": "dehkia-thornwood-forest",
@@ -5667,6 +5877,13 @@
     },
     {
       "spotId": "city-of-the-dead",
+      "itemName": "Intricately Patterned Mystical Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Nutzervorgabe vom 14.09.2026: globaler Lootpool, Minimum 1, Maximum 1"
+    },
+    {
+      "spotId": "city-of-the-dead",
       "itemName": "Empty Picture Frame",
       "minimumQuantity": 1,
       "maximumQuantity": 10,
@@ -5825,6 +6042,13 @@
       "minimumQuantity": null,
       "maximumQuantity": null,
       "source": "Screenshot-Spots 13.09.2026: Dropmenge nicht verifiziert."
+    },
+    {
+      "spotId": "dehkia-cadry-ruins",
+      "itemName": "Intricately Patterned Mystical Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Nutzervorgabe vom 14.09.2026: globaler Lootpool, Minimum 1, Maximum 1"
     },
     {
       "spotId": "dehkia-cadry-ruins",
@@ -6077,6 +6301,13 @@
       "minimumQuantity": null,
       "maximumQuantity": null,
       "source": "Screenshot-Spots 13.09.2026: Dropmenge nicht verifiziert."
+    },
+    {
+      "spotId": "dehkia-ash-forest",
+      "itemName": "Intricately Patterned Mystical Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Nutzervorgabe vom 14.09.2026: globaler Lootpool, Minimum 1, Maximum 1"
     },
     {
       "spotId": "dehkia-ash-forest",
@@ -6353,6 +6584,13 @@
     },
     {
       "spotId": "dehkia-crescent-shrine",
+      "itemName": "Intricately Patterned Mystical Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Nutzervorgabe vom 14.09.2026: globaler Lootpool, Minimum 1, Maximum 1"
+    },
+    {
+      "spotId": "dehkia-crescent-shrine",
       "itemName": "Empty Picture Frame",
       "minimumQuantity": 1,
       "maximumQuantity": 10,
@@ -6619,6 +6857,13 @@
     },
     {
       "spotId": "dehkia-cyclops-land",
+      "itemName": "Intricately Patterned Mystical Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Nutzervorgabe vom 14.09.2026: globaler Lootpool, Minimum 1, Maximum 1"
+    },
+    {
+      "spotId": "dehkia-cyclops-land",
       "itemName": "Empty Picture Frame",
       "minimumQuantity": 1,
       "maximumQuantity": 10,
@@ -6735,6 +6980,13 @@
       "minimumQuantity": null,
       "maximumQuantity": null,
       "source": "Screenshot-Spots 13.09.2026: Dropmenge nicht verifiziert."
+    },
+    {
+      "spotId": "jade-starlight-forest",
+      "itemName": "Intricately Patterned Mystical Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Nutzervorgabe vom 14.09.2026: globaler Lootpool, Minimum 1, Maximum 1"
     },
     {
       "spotId": "jade-starlight-forest",
@@ -7008,6 +7260,13 @@
       "minimumQuantity": null,
       "maximumQuantity": null,
       "source": "Screenshot-Spots 13.09.2026: Dropmenge nicht verifiziert."
+    },
+    {
+      "spotId": "dehkia-tunkuta",
+      "itemName": "Intricately Patterned Mystical Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Nutzervorgabe vom 14.09.2026: globaler Lootpool, Minimum 1, Maximum 1"
     },
     {
       "spotId": "dehkia-tunkuta",
@@ -7319,6 +7578,13 @@
     },
     {
       "spotId": "dehkia-hystria-ruins",
+      "itemName": "Intricately Patterned Mystical Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Nutzervorgabe vom 14.09.2026: globaler Lootpool, Minimum 1, Maximum 1"
+    },
+    {
+      "spotId": "dehkia-hystria-ruins",
       "itemName": "Empty Picture Frame",
       "minimumQuantity": 1,
       "maximumQuantity": 10,
@@ -7592,6 +7858,13 @@
     },
     {
       "spotId": "dark-energy-floodlands-great-red-sea",
+      "itemName": "Intricately Patterned Mystical Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Nutzervorgabe vom 14.09.2026: globaler Lootpool, Minimum 1, Maximum 1"
+    },
+    {
+      "spotId": "dark-energy-floodlands-great-red-sea",
       "itemName": "Empty Picture Frame",
       "minimumQuantity": 1,
       "maximumQuantity": 10,
@@ -7704,6 +7977,13 @@
     },
     {
       "spotId": "dark-energy-floodlands-orbita",
+      "itemName": "Intricately Patterned Mystical Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Nutzervorgabe vom 14.09.2026: globaler Lootpool, Minimum 1, Maximum 1"
+    },
+    {
+      "spotId": "dark-energy-floodlands-orbita",
       "itemName": "Empty Picture Frame",
       "minimumQuantity": 1,
       "maximumQuantity": 10,
@@ -7813,6 +8093,13 @@
       "minimumQuantity": 1,
       "maximumQuantity": 1,
       "source": "Dropmengen-Outer-Edania-Eingabe.xlsx; Eingabe!D112:E112; Nutzervorgabe vom 13.09.2026"
+    },
+    {
+      "spotId": "dark-energy-floodlands-zephyros",
+      "itemName": "Intricately Patterned Mystical Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Nutzervorgabe vom 14.09.2026: globaler Lootpool, Minimum 1, Maximum 1"
     },
     {
       "spotId": "dark-energy-floodlands-zephyros",
@@ -7967,6 +8254,13 @@
       "minimumQuantity": null,
       "maximumQuantity": null,
       "source": "Screenshot-Spots 13.09.2026: Dropmenge nicht verifiziert."
+    },
+    {
+      "spotId": "dehkia-ash-forest-unspecified",
+      "itemName": "Intricately Patterned Mystical Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Nutzervorgabe vom 14.09.2026: globaler Lootpool, Minimum 1, Maximum 1"
     },
     {
       "spotId": "dehkia-ash-forest-unspecified",
@@ -8254,6 +8548,13 @@
       "minimumQuantity": null,
       "maximumQuantity": null,
       "source": "Screenshot-Spots 13.09.2026: Dropmenge nicht verifiziert."
+    },
+    {
+      "spotId": "winter-tree-fossil-unspecified",
+      "itemName": "Intricately Patterned Mystical Shard",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "source": "Nutzervorgabe vom 14.09.2026: globaler Lootpool, Minimum 1, Maximum 1"
     },
     {
       "spotId": "winter-tree-fossil-unspecified",

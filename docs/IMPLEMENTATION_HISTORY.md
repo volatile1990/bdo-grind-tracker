@@ -284,7 +284,9 @@ ein neues Wartefenster. Bei der automatischen Pause wird die gesamte Zeit seit d
 letzten neuen Drop im aktuellen Laufabschnitt von der Sessiondauer abgezogen –
 auch bei einer verspäteten Timerprüfung, nicht nur die eingestellte Minutenzahl.
 Ohne Drop seit Start/Fortsetzen trägt dieser Abschnitt keine Zeit bei; zuvor
-gesammelte aktive Zeit bleibt erhalten. Manuelles Pausieren zieht keine Zeit ab.
+gesammelte aktive Zeit bleibt erhalten. **Pausieren** zieht ebenfalls die Zeit
+seit dem letzten erkannten Drop ab und stoppt die Uhr unmittelbar beim Drücken.
+Noch ausstehende OCR-Ergebnisse werden übernommen, starten die Uhr aber nicht erneut.
 Der Garmoth-Upload verwendet ebenfalls die so korrigierte Sessiondauer.
 
 Die Klasse einschließlich Spezialisierung wird aus den gespeicherten Skill-Slots

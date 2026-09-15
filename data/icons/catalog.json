@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedAtUtc": "2026-09-02T18:09:05.4827749+00:00",
-  "updatedAtUtc": "2026-09-13T11:33:16.484783+00:00",
+  "updatedAtUtc": "2026-09-14T13:23:28.6550681+00:00",
   "items": [
     {
       "itemId": "11733",
@@ -2751,6 +2751,17 @@
       "width": 42,
       "height": 42,
       "addedAtUtc": "2026-09-13T11:33:16.484783+00:00"
+    },
+    {
+      "itemId": "9776",
+      "name": "Intricately Patterned Mystical Shard",
+      "file": "intricately-patterned-mystical-shard.png",
+      "page": "https://bdocodex.com/us/item/9776/",
+      "sourceIcon": "https://bdocodex.com/items/new_icon/03_etc/07_productmaterial/00009776.webp",
+      "sha256": "5ce60b42c894c471e761e4c020dba822767015c339ac6c0b1f1764c89d4e468e",
+      "width": 44,
+      "height": 44,
+      "addedAtUtc": "2026-09-14T13:23:28.6550681+00:00"
     }
   ]
 }

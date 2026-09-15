@@ -196,13 +196,13 @@ internal sealed partial class TrackerSessionService : ITrackerSession
     public Task<TrackerCommandResult> ToggleTrackingAsync() => _uiRunning ? PauseAsync() : RunOperationAsync(async () =>
     {
         if (_demoMode) ClearDemo();
-        if (_uiRunning) await StopTrackingAsync();
+        if (_uiRunning) await StopTrackingAsync(excludeTrailingIdle: true);
         else await StartTrackingAsync();
     });
 
     public Task<TrackerCommandResult> PauseAsync() => RunOperationAsync(async () =>
     {
-        if (_uiRunning) await StopTrackingAsync();
+        if (_uiRunning) await StopTrackingAsync(excludeTrailingIdle: true);
     }, allowDuringUpload: true);
 
     public Task<TrackerCommandResult> NewSessionAsync() => RunOperationAsync(() =>
@@ -389,14 +389,16 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         }
     }
 
-    private async Task StopTrackingAsync(bool automatic = false)
+    private async Task StopTrackingAsync(bool automatic = false, bool excludeTrailingIdle = false)
     {
         UpdateAgrisSession();
         UpdateExperienceSession();
         if (!automatic)
         {
-            _sessionClock.Pause();
-            _inactivityTimer.Pause();
+            // Freeze at the user's pause request, before draining outstanding
+            // OCR. Later results may update loot but must not restart the timer.
+            var idleDuration = _inactivityTimer.PauseAndGetIdleDuration();
+            _sessionClock.Pause(excludeTrailingIdle ? idleDuration : TimeSpan.Zero);
         }
         SetStatus("Wird pausiert. Die letzten Drops werden noch übernommen …");
         await _captureSession.StopAsync();

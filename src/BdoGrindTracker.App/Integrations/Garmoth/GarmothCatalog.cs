@@ -67,6 +67,7 @@ internal static partial class GarmothCatalog
             ["HAN Wandering Origin Crystal"] = "15297_0",
             ["Hardened Lava Chunk"] = "767248_0",
             ["Herald's Crystal"] = "821250_0",
+            ["Intricately Patterned Mystical Shard"] = "9776_0",
             ["JIN Crystal of Dusky Ruin"] = "15290_0",
             ["JIN Crystal of Ruin"] = "821319_0",
             ["JIN Origin Shard"] = "821432_0",

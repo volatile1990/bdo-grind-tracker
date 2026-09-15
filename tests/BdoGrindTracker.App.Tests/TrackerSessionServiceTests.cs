@@ -703,17 +703,28 @@ public sealed partial class TrackerSessionServiceTests
         Assert.Null(recording.LastError);
     }
 
-    [Fact]
-    public async Task ManualPauseRetainsTheTimeAfterTheLastDropAndResetKeepsHistory()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ManualPauseRemovesTimeAfterTheLastDropAndResetKeepsHistory(bool toggle)
     {
         await using var fixture = new Fixture(autoUpload: false);
         fixture.Begin();
         var id = fixture.Service.State.SessionId;
         await fixture.ProcessAfter(TimeSpan.FromMinutes(2), ("Black Crystal Fragment", 3));
         fixture.Time.Advance(TimeSpan.FromMinutes(1));
-        await fixture.Service.PauseAsync();
-        Assert.Equal(TimeSpan.FromMinutes(3), fixture.Service.State.Elapsed);
-        Assert.Equal(id, Assert.Single(fixture.Service.History).SessionId);
+        Assert.True((await (toggle ? fixture.Service.ToggleTrackingAsync() : fixture.Service.PauseAsync())).Succeeded);
+        Assert.Equal(TimeSpan.FromMinutes(2), fixture.Service.State.Elapsed);
+        var history = Assert.Single(fixture.Service.History);
+        Assert.Equal(id, history.SessionId);
+        Assert.Equal(TimeSpan.FromMinutes(2), history.Duration);
+        Assert.Equal(TimeSpan.FromMinutes(2), Assert.Single(fixture.HistoryStore.Load()).Duration);
+        var saved = new CurrentSessionStore(Path.Combine(fixture.DirectoryPath, CurrentSessionStore.FileName)).Load();
+        Assert.NotNull(saved);
+        Assert.Equal(TimeSpan.FromMinutes(2), saved.Duration);
+        fixture.Time.Advance(TimeSpan.FromMinutes(5));
+        Assert.True((await fixture.Service.PauseAsync()).Succeeded);
+        Assert.Equal(TimeSpan.FromMinutes(2), fixture.Service.State.Elapsed);
         await fixture.Service.NewSessionAsync();
 
         Assert.NotEqual(id, fixture.Service.State.SessionId);

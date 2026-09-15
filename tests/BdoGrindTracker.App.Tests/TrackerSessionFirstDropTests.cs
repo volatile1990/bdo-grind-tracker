@@ -38,7 +38,8 @@ public sealed partial class TrackerSessionServiceTests
         await using var fixture = new Fixture(autoUpload: false);
         await StartWaitingForDrop(fixture);
         await fixture.ProcessAfter(TimeSpan.FromSeconds(30), ("Black Crystal Fragment", 3));
-        fixture.Time.Advance(TimeSpan.FromSeconds(20));
+        await fixture.ProcessAfter(TimeSpan.FromSeconds(20), ("Black Crystal Fragment", 1));
+        fixture.Time.Advance(TimeSpan.FromSeconds(15));
         Assert.True((await fixture.Service.PauseAsync()).Succeeded);
         fixture.Time.Advance(TimeSpan.FromHours(1));
 
@@ -46,6 +47,9 @@ public sealed partial class TrackerSessionServiceTests
         await fixture.ProcessAfter(TimeSpan.FromMinutes(2));
         Assert.True(fixture.Service.State.IsWaitingForFirstDrop);
         Assert.Equal(TimeSpan.FromSeconds(20), fixture.Service.State.Elapsed);
+        Assert.True((await fixture.Service.PauseAsync()).Succeeded);
+        Assert.Equal(TimeSpan.FromSeconds(20), fixture.Service.State.Elapsed);
+        await StartWaitingForDrop(fixture);
         await fixture.ProcessAfter(TimeSpan.Zero, ("Black Crystal Fragment", 1));
         await fixture.ProcessAfter(TimeSpan.FromSeconds(5));
         Assert.False(fixture.Service.State.IsWaitingForFirstDrop);
@@ -68,25 +72,29 @@ public sealed partial class TrackerSessionServiceTests
         Assert.Equal(TimeSpan.FromSeconds(2), fixture.Service.State.Elapsed);
         Assert.Equal(4, fixture.Service.State.Loot.TotalQuantity);
         Assert.True((await fixture.Service.PauseAsync()).Succeeded);
+        Assert.Equal(TimeSpan.Zero, fixture.Service.State.Elapsed);
         await StartWaitingForDrop(fixture);
 
         // Re-reading the same projection on resume must not start another segment.
         await ProcessProjectionAfter(fixture, TimeSpan.FromSeconds(45), 1, 4, 1, arrival);
         Assert.True(fixture.Service.State.IsWaitingForFirstDrop);
-        Assert.Equal(TimeSpan.FromSeconds(2), fixture.Service.State.Elapsed);
+        Assert.Equal(TimeSpan.Zero, fixture.Service.State.Elapsed);
         await ProcessProjectionAfter(fixture, TimeSpan.Zero, 2, 8, 2, fixture.Time.GetUtcNow());
         Assert.False(fixture.Service.State.IsWaitingForFirstDrop);
         await ProcessProjectionAfter(fixture, TimeSpan.FromSeconds(2), 2, 8, 2, fixture.Time.GetUtcNow().AddSeconds(-2));
-        Assert.Equal(TimeSpan.FromSeconds(4), fixture.Service.State.Elapsed);
+        Assert.Equal(TimeSpan.FromSeconds(2), fixture.Service.State.Elapsed);
     }
 
-    [Fact]
-    public async Task AutomaticPauseStillStopsCaptureWhenNoFirstDropArrives()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task PauseWithoutAnyFirstDropAddsNoTime(bool automatic)
     {
         await using var fixture = new Fixture(autoUpload: false);
         await StartWaitingForDrop(fixture);
-        fixture.Time.Advance(TimeSpan.FromMinutes(3));
-        await fixture.Service.TickAsync();
+        fixture.Time.Advance(automatic ? TimeSpan.FromMinutes(3) : TimeSpan.FromSeconds(30));
+        if (automatic) await fixture.Service.TickAsync();
+        else Assert.True((await fixture.Service.PauseAsync()).Succeeded);
         Assert.False(fixture.Service.State.IsRunning);
         Assert.False(fixture.Service.State.IsWaitingForFirstDrop);
         Assert.False(fixture.Clock.IsRunning);

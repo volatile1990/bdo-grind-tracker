@@ -22,6 +22,10 @@ public sealed record SecondaryLootOcrResult(
     // Optional for existing callers and other recognizers. Coordinates refer to
     // this exact prepared image, not the original capture or normalized row.
     public IReadOnlyList<SecondaryLootOcrWord> Words { get; init; } = [];
+
+    // Optional recognition evidence, indexed by UTF-16 position in Text after
+    // trimming. An empty list means the engine does not supply character scores.
+    public IReadOnlyList<float> CharacterConfidences { get; init; } = [];
 }
 
 public sealed record SecondaryLootOcrWord(string Text, CompanionOcrWordGeometry Geometry);

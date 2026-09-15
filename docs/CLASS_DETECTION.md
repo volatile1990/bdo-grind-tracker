@@ -8,6 +8,11 @@ geprüft. Auch beim Wechsel von einer manuellen Klasse zurück auf Automatik wir
 frisch gelesen. Die Anwendung bedient das Spiel nicht und untersucht keinen
 Spielprozess.
 
+Loot-Drops liefern keine zusätzlichen Klasseninformationen. Die automatische
+Wiederholung liest dieselben gespeicherten Skillbelegungen; sie erkennt die
+Klasse nicht aus dem Livebild. Ist die jüngste Charakterdatei unbekannt, reicht
+eine laufende Grind-Session allein deshalb nicht zur Erkennung aus.
+
 Die sichtbaren Spezialisierungsnamen sind überall **Awakening** und **Succession**,
 auch bei deutscher Oberfläche: zum Beispiel `Maegu · Awakening` oder
 `Corsair · Succession`. Klassen mit nur einer Spielweise behalten ausschließlich
@@ -65,6 +70,10 @@ eine Klasse korrigiert werden; beim Upload wird sie nochmals angezeigt.
 
 Die Klassenwahl einer begonnenen Sitzung wird durch spätere automatische Lesungen
 nicht überschrieben. Für einen Charakterwechsel eine neue Sitzung beginnen.
+War die Klasse bisher unbekannt und wird sie später erkannt, werden Klasse,
+Verlauf und Wiederherstellungsstand gemeinsam gespeichert, auch während einer
+Pause. Abgeschlossene ältere Sessions werden dadurch nicht rückwirkend geändert;
+deren Klasse lässt sich über **Verlauf → Session bearbeiten** ergänzen.
 „Agent“ ist im Garmoth-Metadatensatz enthalten, jedoch nicht in der Skilltabelle
 des untersuchten Companion: deshalb nur manuell auswählbar.
 

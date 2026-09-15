@@ -1,4 +1,4 @@
-# Lootpools – Prüfstand 2026-09-13
+# Lootpools – Prüfstand 2026-09-14
 
 Der Tracker unterstützt alle 40 konkret angefragten Screenshot-Spots. Für die automatische Erkennung gibt es zusätzlich drei Sammelprofile bei nicht unterscheidbarem Trashloot. [Ergänzte Spots und Grenzen](SCREENSHOT_SPOTS.md). Die bisherigen zwölf Edania-Zonen bleiben erhalten. Inner Edania umfasst Aphrodon Temple,
 Hermesia Inner Castle, Magaia Temple, Aresion Temple, Scales of Judgment und Event
@@ -32,6 +32,7 @@ Die Ereigniszählung bleibt erhalten. Die Texterkennung berücksichtigt zusätzl
 | Black Stone | Offiziell als direkter Inner-Edania-Monsterdrop belegt; bewusst als gemeinsames Material zugelassen. |
 | Caphras Stone | Dieselbe Einordnung wie Black Stone. |
 | Empty Picture Frame | Auf Nutzervorgabe vom 11.09.2026 global zugelassen; Drop über Allan Serbins Landschaftsgemälde. Minimum 1 und Maximum 10 pro Drop gelten an allen unterstützten Spots. |
+| Intricately Patterned Mystical Shard | Nutzervorgabe und Spieltooltip vom 14.09.2026: seltener Monsterdrop in jeder Region; Minimum = Maximum = 1 an allen unterstützten Spots. |
 | Laila's Petal | Pearl Abyss beschreibt Monsterbeute unabhängig von der Region. |
 | Pure Black Stone | Historisch als sehr seltener Worlddrop beschrieben; vorsorglich als theoretisch mögliche Beute zugelassen. Kein neuer offizieller Nachweis für jede der sechs Zonen. |
 
@@ -44,6 +45,13 @@ bewusst auf mögliche Beute ausgerichtete Produkteinstellung.
 
 Die [offizielle Fairy-GM-Note](https://blackdesert.pearlabyss.com/Asia/en-US/News/Notice/Detail?_boardNo=844)
 belegt den regionsübergreifenden Erwerb von Laila's Petal.
+
+Intricately Patterned Mystical Shard heißt auf Deutsch
+[Kompliziert gemusterter mystischer Splitter](https://bdocodex.com/de/item/9776/)
+(Item 9776). Der vom Nutzer bereitgestellte Spieltooltip nennt 50.000 Silber als
+Verkaufswert; dieser ist als fester NPC-Wert hinterlegt. Der vorhandene
+Garmoth-Metadatenstand enthält den Itemschlüssel `9776_0`, aber keine Spotzuordnung;
+der lokale globale Pool erweitert daher keine Garmoth-Uploadliste.
 
 Der [offizielle Guide zu Allan Serbins Landschaftsgemälde](https://blackdesert.pearlabyss.com/Console/th-TH/Game/Wiki?_masterWikiNo=577)
 beschreibt Empty Picture Frame als zusätzlichen Drop bei aktiviertem Gemälde.

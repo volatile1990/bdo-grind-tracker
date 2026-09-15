@@ -16,6 +16,10 @@ Die anschließende Nutzervorgabe vom 13. September gilt für alle Spots:
 | Ancient Spirit Dust | 1 | 100 |
 | Laila's Petal | 1 | 10 |
 
+Die Nutzervorgabe vom 14. September ergänzt **Intricately Patterned Mystical Shard**
+als globalen Drop mit **Minimum 1 und Maximum 1** an allen unterstützten Spots.
+Diese feste Einermenge gilt auch vor der Spoterkennung und in beiden Lootkanälen.
+
 Aphrodon und Hermesia behalten Trash-Minimum 4; Magaia, Aresion, Scales of Judgment
 und Event Horizon behalten Minimum 2. Die bisherigen Outer-Edania-Minima bleiben 1.
 Das Maximum von Scales of Judgment ist nun ebenfalls 1000. Empty Picture Frame

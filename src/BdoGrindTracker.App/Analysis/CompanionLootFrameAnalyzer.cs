@@ -751,7 +751,7 @@ internal sealed class CompanionLootFrameAnalyzer : ILootFrameAnalyzer
             accepted.Length == 0 ? 0 : accepted.Average(row => row.NameConfidence),
             (_normalRecovery is null ? ExactVariantName : RecoveryVariantName) +
                 (isToneMapped ? "+tone-mapped-normal-v1" : string.Empty) +
-                (_rowReview is null ? string.Empty : "+paddle-review-v2" +
+                (_rowReview is null ? string.Empty : "+paddle-review-v3" +
                     (_reconciliation.UsesRawText ? string.Empty : "+alignment-review-v1")) +
                 (_rowReview is not null && _trashQuantityAnomalies is not null ? "+trash-quantity-anomaly-v1" : string.Empty) +
                 (UsesTemporalTracking ? "+" + _reconciliation.AlgorithmName :

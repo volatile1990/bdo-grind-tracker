@@ -204,10 +204,19 @@ internal sealed partial class TrackerSessionService
             var detected = await Task.Run(_detectCharacterClass);
             if (_shutdownStarted || _disposed) return;
             _classDetection = detected;
-            if (!_sessionSubmitted && (!_hasSession || _sessionClass is null))
+            // Start and preference commands apply the detection themselves after
+            // awaiting it. Periodic recovery must not save over an in-flight
+            // session operation or upload; an unknown class can retry afterwards.
+            if (!_sessionSubmitted && (!_hasSession || (_sessionClass is null && !IsBusy)))
             {
                 _sessionClass = SelectedCharacterClass;
-                if (_hasSession) PersistCurrentSessionCheckpoint(DateTimeOffset.UtcNow);
+                if (_hasSession && _sessionClass is not null)
+                {
+                    // A paused session has no periodic history save. Commit its
+                    // recovered class to history and checkpoint together now.
+                    RefreshPendingState(publish: false);
+                    PersistCurrentSession(DateTimeOffset.UtcNow);
+                }
             }
             PublishState();
         }

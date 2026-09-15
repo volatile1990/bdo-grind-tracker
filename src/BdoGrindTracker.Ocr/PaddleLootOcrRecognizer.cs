@@ -113,6 +113,7 @@ public sealed class PaddleLootOcrRecognizer : ISecondaryLootOcrRecognizer
         if (characters.Count < 2 || probabilities.Length % characters.Count != 0)
             throw new InvalidDataException("Ungültige CTC-Ausgabe.");
         var text = new StringBuilder();
+        var characterConfidences = new List<float>();
         var previous = -1;
         var score = 0d;
         var count = 0;
@@ -124,14 +125,26 @@ public sealed class PaddleLootOcrRecognizer : ISecondaryLootOcrRecognizer
             if (best != 0 && best != previous)
             {
                 text.Append(characters[best]);
+                // A dictionary token can contain multiple UTF-16 code units.
+                // Keep scores aligned with regex/string indices, including surrogates.
+                for (var character = 0; character < characters[best].Length; character++)
+                    characterConfidences.Add(probabilities[offset + best]);
                 score += probabilities[offset + best];
                 count++;
             }
             previous = best;
         }
+        var untrimmed = text.ToString();
+        var start = 0;
+        while (start < untrimmed.Length && char.IsWhiteSpace(untrimmed[start])) start++;
+        var end = untrimmed.Length;
+        while (end > start && char.IsWhiteSpace(untrimmed[end - 1])) end--;
         // Recognition-only CTC does not supply trustworthy word boxes. Do not fabricate them.
-        return new(text.ToString().Trim(), count == 0 ? 0 : (float)Math.Clamp(score / count, 0, 1),
-            new(CompanionOcrGeometryStatus.Missing, 0, 0, 0, 0));
+        return new(untrimmed[start..end], count == 0 ? 0 : (float)Math.Clamp(score / count, 0, 1),
+            new(CompanionOcrGeometryStatus.Missing, 0, 0, 0, 0))
+        {
+            CharacterConfidences = Array.AsReadOnly(characterConfidences.GetRange(start, end - start).ToArray()),
+        };
     }
 
     public void Dispose()

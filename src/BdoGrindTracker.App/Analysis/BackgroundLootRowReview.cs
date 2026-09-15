@@ -19,7 +19,10 @@ internal sealed record LootRowReviewInput(LootObservation? Baseline, LootSource 
 internal sealed record PrimaryLootQuantityRead(CompanionOcrResult Reading, float NameScale, float NormalizedNameTop = 0);
 
 internal sealed record LootRowReviewReading(string Variant, string Text, double Confidence,
-    string? ItemName, int? Quantity);
+    string? ItemName, int? Quantity)
+{
+    public double? QuantityConfidence { get; init; }
+}
 
 internal sealed record LootRowReviewDiagnostics(LootSource Source, int NativeY, string Reason,
     string Backend, string Language, string Outcome, double ElapsedMilliseconds,
@@ -48,6 +51,7 @@ internal sealed class BackgroundLootRowReview : ILootRowReview
     internal const double NameReviewThreshold = .80;
     internal const float TrustedTemplateScore = .90f;
     internal const double MinimumReadingConfidence = .95;
+    internal const float MinimumQuantityReplacementConfidence = .90f;
     internal static readonly TimeSpan RowBudget = TimeSpan.FromSeconds(2);
     private readonly CompanionItemMatcher _matcher;
     private readonly Func<string, ISecondaryLootOcrRecognizer> _createRecognizer;
@@ -183,11 +187,29 @@ internal sealed class BackgroundLootRowReview : ILootRowReview
                 var suffix = System.Text.RegularExpressions.Regex.Match(read.Text, @"[xX×]\s*([0-9]{1,9})\s*\.?$");
                 int? quantity = suffix.Success ? int.Parse(suffix.Groups[1].Value,
                     System.Globalization.CultureInfo.InvariantCulture) : null;
+                var quantityConfidence = suffix.Success
+                    ? ReadQuantityConfidence(read, suffix.Groups[1].Index, suffix.Groups[1].Length) : null;
                 var name = suffix.Success ? read.Text[..suffix.Index].TrimEnd(' ', '-', '\'', '’') : read.Text;
                 var candidate = Match(name, quantity, read.Confidence);
+                if (candidate is not null)
+                {
+                    // A long, confidently read item name can hide a weak extra digit
+                    // in the whole-row mean. Overwriting an existing amount needs
+                    // reliable digits; filling a missing amount keeps its usual rules.
+                    if (input.Baseline is { ItemName: not null, RejectionReason: null, Quantity: > 0 } existing &&
+                        candidate.Name == existing.ItemName && candidate.Quantity != existing.Quantity &&
+                        candidate.Bounds?.IsFixedUnit != true &&
+                        quantityConfidence < MinimumQuantityReplacementConfidence)
+                        candidate = candidate with { Quantity = null };
+                    candidate = candidate with
+                    {
+                        QuantityConfidence = candidate.Bounds?.IsFixedUnit == true ? candidate.Confidence
+                            : Math.Min(candidate.Confidence, quantityConfidence ?? candidate.Confidence),
+                    };
+                }
                 readings.Add(new(grayscale ? "grayscale" : "original", read.Text,
                     float.IsFinite(read.Confidence) ? Math.Clamp(read.Confidence, 0, 1) : 0,
-                    candidate?.Name, candidate?.Quantity));
+                    candidate?.Name, candidate?.Quantity) { QuantityConfidence = quantityConfidence });
                 if (candidate is not null) candidates.Add(candidate);
             }
             // Both views must establish the same catalog item. An OCR engine score alone
@@ -216,7 +238,7 @@ internal sealed class BackgroundLootRowReview : ILootRowReview
                 {
                     RawText = readings[0].Text,
                     Quantity = correction,
-                    QuantityConfidence = Math.Min(candidates[0].Confidence, candidates[1].Confidence),
+                    QuantityConfidence = Math.Min(candidates[0].QuantityConfidence, candidates[1].QuantityConfidence),
                     QuantityBounds = input.Bounds(baseline.ItemName!),
                     UsesImplicitUnitQuantity = false,
                     UsesFixedUnitQuantity = false,
@@ -253,7 +275,8 @@ internal sealed class BackgroundLootRowReview : ILootRowReview
                     ?? baseline?.RawText ?? readings[0].Text,
                 ItemName = winner.Name, Quantity = amount, RejectionReason = null,
                 NameConfidence = Math.Min(candidates[0].NameConfidence, candidates[1].NameConfidence),
-                QuantityConfidence = Math.Min(candidates[0].Confidence, candidates[1].Confidence),
+                QuantityConfidence = candidates.Where(candidate => candidate.Quantity == amount)
+                    .Select(candidate => candidate.QuantityConfidence).DefaultIfEmpty(baseline?.QuantityConfidence ?? 0).Min(),
                 QuantityBounds = winner.Bounds, UsesImplicitUnitQuantity = false,
                 UsesFixedUnitQuantity = winner.Bounds?.IsFixedUnit == true,
                 Source = input.Source, Slot = input.Slot, NativeY = input.NativeY,
@@ -293,7 +316,24 @@ internal sealed class BackgroundLootRowReview : ILootRowReview
     }
 
     private sealed record Candidate(string Name, int? Quantity, double NameConfidence,
-        double Confidence, DropQuantityBounds? Bounds);
+        double Confidence, DropQuantityBounds? Bounds)
+    {
+        public double QuantityConfidence { get; init; }
+    }
+
+    private static double? ReadQuantityConfidence(SecondaryLootOcrResult reading, int start, int length)
+    {
+        if (reading.CharacterConfidences.Count == 0) return null;
+        if (reading.CharacterConfidences.Count != reading.Text.Length) return 0;
+        var minimum = 1f;
+        for (var index = start; index < start + length; index++)
+        {
+            var confidence = reading.CharacterConfidences[index];
+            if (!float.IsFinite(confidence) || confidence is < 0 or > 1) return 0;
+            minimum = Math.Min(minimum, confidence);
+        }
+        return minimum;
+    }
 
     public void Dispose()
     {

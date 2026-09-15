@@ -37,6 +37,7 @@ internal sealed class GraphicsWindowFrameSource : IWindowFrameSource
                 _session = _pool.CreateCaptureSession(_item);
                 _session.IsCursorCaptureEnabled = false;
                 IsCaptureBorderSuppressed = WindowCaptureDevice.TryDisableCaptureBorder(_session);
+                GraphicsCaptureRateLimiter.TryApply(_session);
                 _item.Closed += OnClosed;
                 _session.StartCapture();
             }
@@ -69,7 +70,7 @@ internal sealed class GraphicsWindowFrameSource : IWindowFrameSource
             if (frame is not null && frame.SystemRelativeTime >= requestedAt)
             {
                 var crop = geometry.ClientCrop(new Size(frame.ContentSize.Width, frame.ContentSize.Height));
-                var bitmap = _device.CopyClient(frame.Surface, crop);
+                var bitmap = _device.CopyClient(frame.Surface, crop, cancellationToken);
                 try
                 {
                     // A geometry or visibility transition during GPU readback cannot
@@ -105,6 +106,7 @@ internal sealed class GraphicsWindowFrameSource : IWindowFrameSource
 
 internal sealed unsafe class WindowCaptureDevice : IDisposable
 {
+    private static readonly GpuReadbackWaiter ReadbackWaiter = new();
     private static readonly Guid DxgiDeviceId = new("54ec77fa-1377-44e6-8c32-88fd5f44c84c");
     private static readonly Guid TextureId = new("6f15aaf2-d208-4e89-9ab4-489535d34f9c");
     private static readonly Guid SurfaceAccessId = new("a9b3d012-3df2-4ee3-b8d1-8695f457d3c1");
@@ -234,8 +236,9 @@ internal sealed unsafe class WindowCaptureDevice : IDisposable
         }
     }
 
-    internal Bitmap CopyClient(IDirect3DSurface surface, Rectangle crop)
+    internal Bitmap CopyClient(IDirect3DSurface surface, Rectangle crop, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         nint access = 0, texture = 0;
         var mapped = false;
         using var surfaceReference = WinRT.MarshalInterface<IDirect3DSurface>.CreateMarshaler(surface);
@@ -266,12 +269,20 @@ internal sealed unsafe class WindowCaptureDevice : IDisposable
             }
             var box = new TextureBox { Left = checked((uint)crop.Left), Top = checked((uint)crop.Top),
                 Right = checked((uint)crop.Right), Bottom = checked((uint)crop.Bottom), Back = 1 };
+            cancellationToken.ThrowIfCancellationRequested();
             var copy = (delegate* unmanaged[Stdcall]<nint, nint, uint, uint, uint, uint, nint, uint, TextureBox*, void>)Method(_context, 46);
             copy(_context, _staging, 0, 0, 0, 0, texture, 0, &box);
             MappedTexture data = default;
             var map = (delegate* unmanaged[Stdcall]<nint, nint, uint, uint, uint, MappedTexture*, int>)Method(_context, 14);
-            Marshal.ThrowExceptionForHR(map(_context, _staging, 0, 1, 0, &data));
+            ReadbackWaiter.Wait(() =>
+            {
+                MappedTexture attempt = default;
+                var result = map(_context, _staging, 0, 1, GpuReadbackWaiter.DoNotWait, &attempt);
+                if (result >= 0) data = attempt;
+                return result;
+            }, Flush, GetDeviceRemovedReason, cancellationToken);
             mapped = true;
+            cancellationToken.ThrowIfCancellationRequested();
             return DesktopPixelConverter.CopyBitmap(data.Data, data.RowPitch, crop.Width, crop.Height, _stagingFormat);
         }
         finally
@@ -281,6 +292,12 @@ internal sealed unsafe class WindowCaptureDevice : IDisposable
             Release(ref access);
         }
     }
+
+    // Windows SDK d3d11.h: ID3D11DeviceContext::Flush = 111,
+    // ID3D11Device::GetDeviceRemovedReason = 39. These calls stay on the capture
+    // worker under PassiveWindowCapture's lock, including error cleanup.
+    private void Flush() => ((delegate* unmanaged[Stdcall]<nint, void>)Method(_context, 111))(_context);
+    private int GetDeviceRemovedReason() => ((delegate* unmanaged[Stdcall]<nint, int>)Method(_device, 39))(_device);
 
     public void Dispose()
     {

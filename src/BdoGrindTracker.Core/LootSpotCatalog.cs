@@ -79,6 +79,7 @@ public static partial class LootSpotCatalog
         "Black Stone",
         "Caphras Stone",
         "Empty Picture Frame",
+        "Intricately Patterned Mystical Shard",
         "Laila's Petal",
         // Historically documented world drop; included for possible loot rather
         // than assuming an incomplete Main Loot table proves it impossible.
@@ -319,7 +320,11 @@ public static partial class LootSpotCatalog
                 "Fusion Shard",
                 "Corrupt Oil of Immortality",
                 "Broken Gloves of the Void")),
-        .. CreateScreenshotSpots(),
+        .. CreateScreenshotSpots().Select(spot => new LootSpot(
+            spot.Id,
+            spot.DisplayName,
+            spot.AllowedItems.Concat(SharedGlobalItemNames),
+            spot.PrimaryTrashItemName)),
     ];
 
     private static readonly HashSet<string> EventItemSet = new(
