@@ -37,14 +37,17 @@ internal static class HermesiaMessages
         ("mine-second", "Zweite Minenphase", "quarry quota was not met"),
         ("mine-cleared", "Mine abgeschlossen", "work in the mine is suspended"),
         ("dragon", "Drachen-Spawn", "patrol descends"),
-        ("afk", "AFK-Beginn", "begins absorbing nearby black crystals")
+        ("afk", "AFK-Beginn", "begins absorbing nearby black crystals"),
+        // Either sentence of the two-part banner is enough when OCR garbles the other.
+        ("failure", "Rotation Failed", "intruder alert in effect"),
+        ("failure", "Rotation Failed", "valid authorization not confirmed")
     ];
 
     internal static IReadOnlyList<(string Kind, string Label)> Parse(string text)
     {
         var normalized = Regex.Replace(text.ToLowerInvariant(), "[^a-z0-9]+", " ").Trim();
         return Definitions.Where(d => normalized.Contains(d.Phrase, StringComparison.Ordinal))
-            .Select(d => (d.Kind, d.Label)).ToArray();
+            .Select(d => (d.Kind, d.Label)).Distinct().ToArray();
     }
 }
 

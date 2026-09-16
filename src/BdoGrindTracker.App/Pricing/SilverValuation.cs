@@ -89,8 +89,7 @@ internal static class SilverValuation
                 // truncate a line's or session's total instead. Decimal avoids
                 // binary floating-point drift while retaining this rounding.
                 var unitBeforeTax = decimal.Truncate(quote.UnitPrice);
-                var unitAfterTax = decimal.Truncate(
-                    quote.TaxableUnitPrice * tax.MarketReturnRate + quote.UntaxedUnitPrice);
+                var unitAfterTax = UnitAfterTax(quote, tax);
                 var nextBeforeTax = checked(beforeTax + unitBeforeTax * quantity);
                 var nextAfterTax = checked(afterTax + unitAfterTax * quantity);
                 beforeTax = nextBeforeTax;
@@ -111,4 +110,8 @@ internal static class SilverValuation
         return new SilverValuationResult(beforeTax, afterTax, valuedItemCount,
             missing.AsReadOnly(), overflow.AsReadOnly(), isStale);
     }
+
+    /// <summary>Net proceeds of one item; the taxed unit price is truncated before any quantity is applied.</summary>
+    public static decimal UnitAfterTax(LootPriceQuote quote, SilverTaxOptions? tax = null) =>
+        decimal.Truncate(quote.TaxableUnitPrice * (tax ?? SilverTaxOptions.Default).MarketReturnRate + quote.UntaxedUnitPrice);
 }

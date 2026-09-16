@@ -159,6 +159,37 @@
                         </label>
                         <p class="oe-help">Der Rotation Monitor übernimmt den Spot automatisch aus dem Tracker. Mechaniken und Bestzeiten gehören zum jeweiligen Spot-Profil. Aktuell verfügbar: Hermesia (englische Meldungen, Rotationsgrenze: AFK-Ende). Weitere Spots werden nach und nach ergänzt.</p>
                     }
+                    @if (selected.Kind == "chart")
+                    {
+                        <label class="oe-field"><span>Darstellung</span>
+                            <select aria-label="Silberverlauf-Darstellung" value="@selected.ChartMode" @onchange='e => ChangeWidget(w => w with { ChartMode = Text(e) })'>
+                                <option value="average">Session-Durchschnitt Silber / Stunde</option>
+                                <option value="sections">Silber je Zeitabschnitt als Kurve</option>
+                            </select>
+                        </label>
+                        @if (selected.ChartMode == OverlayChartSections.SectionsMode)
+                        {
+                            <label class="oe-field"><span>Zeitraum</span>
+                                <select aria-label="Silberverlauf-Zeitraum" value="@selected.ChartRangeMinutes" @onchange='e => ChangeWidget(w => w with { ChartRangeMinutes = WholeNumber(e, w.ChartRangeMinutes) })'>
+                                    @foreach (var minutes in OverlayChartSections.RangeMinutes.Where(minutes => minutes > 0)) { <option value="@minutes">Letzte @minutes Minuten</option> }
+                                    <option value="0">Ganze Session</option>
+                                </select>
+                            </label>
+                            <label class="oe-field"><span>Abschnittslänge</span>
+                                <select aria-label="Silberverlauf-Abschnittslänge" value="@selected.ChartSectionSeconds" @onchange='e => ChangeWidget(w => w with { ChartSectionSeconds = WholeNumber(e, w.ChartSectionSeconds) })'>
+                                    @foreach (var seconds in OverlayChartSections.SectionSeconds) { <option value="@seconds">@seconds Sekunden</option> }
+                                </select>
+                            </label>
+                            <label class="oe-field"><span>Wertvolle Drops</span>
+                                <select aria-label="Silberverlauf-Spitzen" value="@selected.ChartPeakMode" @onchange='e => ChangeWidget(w => w with { ChartPeakMode = Text(e) })'>
+                                    <option value="clip">Spitzen kappen</option>
+                                    <option value="exclude">Aus der Kurve herausrechnen</option>
+                                    <option value="log">Logarithmische Höhe</option>
+                                </select>
+                            </label>
+                            <p class="oe-help">Die Kurve zeigt das netto verdiente Silber je Abschnitt aktiver Grindzeit, bewertet mit den aktuellen Marktpreisen. Wertvolle Drops (Favoriten und Items über 200 Mio.) erscheinen als Icon. @PeakHelp(selected.ChartPeakMode) Die große Zahl bleibt der Session-Durchschnitt.</p>
+                        }
+                    }
                     @if (selected.Kind == "controls")
                     {
                         <label class="oe-check"><input type="checkbox" checked="@selected.ShowNewSession" @onchange="e => ChangeWidget(w => w with { ShowNewSession = Checked(e) })" /><span>Neue Session</span></label>

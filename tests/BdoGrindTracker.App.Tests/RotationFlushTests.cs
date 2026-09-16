@@ -12,13 +12,13 @@ public sealed class RotationFlushTests
         using var frames = new RotationFlushFrames(DateTimeOffset.UnixEpoch);
         using var monitor = new RotationMonitor(_ => frames.Profile);
         monitor.Snapshot(frames.Epoch, LootSpotCatalog.HermesiaId);
-        await frames.FeedThroughAsync(71);
-        Assert.Empty(monitor.ExportSession()); // Regular probes ran at 69, next due at 72.
+        await frames.FeedThroughAsync(101);
+        Assert.Empty(monitor.ExportSession()); // Regular probes ran at 99, next due at 102.
 
         await monitor.FlushAsync();
         monitor.Interrupt();
-        Assert.Equal(70, Assert.Single(monitor.ExportSession()).Run.Duration);
-        Assert.False(monitor.Snapshot(frames.Epoch.AddSeconds(71), LootSpotCatalog.HermesiaId).Synchronized);
+        Assert.Equal(100, Assert.Single(monitor.ExportSession()).Run.Duration);
+        Assert.False(monitor.Snapshot(frames.Epoch.AddSeconds(101), LootSpotCatalog.HermesiaId).Synchronized);
     }
 
     [Fact]
@@ -28,7 +28,7 @@ public sealed class RotationFlushTests
         using var release = new ManualResetEventSlim();
         using var frames = new RotationFlushFrames(DateTimeOffset.UnixEpoch, code =>
         {
-            if (code != 8) return;
+            if (code != RotationFlushFrames.EndCode) return;
             entered.TrySetResult();
             if (!release.Wait(TimeSpan.FromSeconds(30))) throw new TimeoutException("Test did not release OCR.");
         });
@@ -36,17 +36,17 @@ public sealed class RotationFlushTests
         monitor.Snapshot(frames.Epoch, LootSpotCatalog.HermesiaId);
         try
         {
-            await frames.FeedThroughAsync(69);
-            for (var time = 69.5; time <= 72; time += .5) frames.Observe(time);
+            await frames.FeedThroughAsync(99);
+            for (var time = 99.5; time <= 102; time += .5) frames.Observe(time);
             await entered.Task.WaitAsync(TimeSpan.FromSeconds(30));
             var flush = monitor.FlushAsync();
             Assert.False(flush.IsCompleted);
             // A UI refresh while stopping must not expire the pending run.
-            Assert.True(monitor.Snapshot(frames.Epoch.AddSeconds(80), LootSpotCatalog.HermesiaId).Synchronized);
+            Assert.True(monitor.Snapshot(frames.Epoch.AddSeconds(110), LootSpotCatalog.HermesiaId).Synchronized);
             release.Set();
             await flush.WaitAsync(TimeSpan.FromSeconds(30));
             monitor.Interrupt();
-            Assert.Equal(70, Assert.Single(monitor.ExportSession()).Run.Duration);
+            Assert.Equal(100, Assert.Single(monitor.ExportSession()).Run.Duration);
         }
         finally { release.Set(); await frames.Profile.PendingAnalysis.WaitAsync(TimeSpan.FromSeconds(30)); }
     }
@@ -58,7 +58,7 @@ public sealed class RotationFlushTests
         using var release = new ManualResetEventSlim();
         using var frames = new RotationFlushFrames(DateTimeOffset.UnixEpoch, code =>
         {
-            if (code != 8) return;
+            if (code != RotationFlushFrames.EndCode) return;
             entered.TrySetResult();
             if (!release.Wait(TimeSpan.FromSeconds(30))) throw new TimeoutException("Test did not release OCR.");
         });
@@ -66,8 +66,8 @@ public sealed class RotationFlushTests
         monitor.Snapshot(frames.Epoch, LootSpotCatalog.HermesiaId);
         try
         {
-            await frames.FeedThroughAsync(69);
-            for (var time = 69.5; time <= 72; time += .5) frames.Observe(time);
+            await frames.FeedThroughAsync(99);
+            for (var time = 99.5; time <= 102; time += .5) frames.Observe(time);
             await entered.Task.WaitAsync(TimeSpan.FromSeconds(30));
             await monitor.FlushAsync(TimeSpan.Zero).WaitAsync(TimeSpan.FromSeconds(30));
             monitor.Interrupt();
@@ -75,7 +75,7 @@ public sealed class RotationFlushTests
             release.Set();
             await frames.Profile.PendingAnalysis.WaitAsync(TimeSpan.FromSeconds(30));
             Assert.Empty(monitor.ExportSession());
-            Assert.False(monitor.Snapshot(frames.Epoch.AddSeconds(72), LootSpotCatalog.HermesiaId).Synchronized);
+            Assert.False(monitor.Snapshot(frames.Epoch.AddSeconds(102), LootSpotCatalog.HermesiaId).Synchronized);
         }
         finally { release.Set(); await frames.Profile.PendingAnalysis.WaitAsync(TimeSpan.FromSeconds(30)); }
     }
@@ -93,23 +93,26 @@ public sealed partial class TrackerSessionServiceTests
         var monitor = new RotationMonitor(_ => frames.Profile);
         SetField(fixture.Service, "_rotationMonitor", monitor);
         fixture.Begin();
-        await frames.FeedThroughAsync(71);
-        clock.UtcNow = frames.Epoch.AddSeconds(71);
+        await frames.FeedThroughAsync(101);
+        clock.UtcNow = frames.Epoch.AddSeconds(101);
         Assert.Empty(monitor.ExportSession());
 
         Assert.True((await fixture.Service.PauseAsync()).Succeeded);
         Assert.False(fixture.Service.State.IsRunning);
         var saved = Assert.Single(Assert.Single(fixture.HistoryStore.Load()).Rotations);
         Assert.Equal(LootSpotCatalog.HermesiaId, saved.SpotId);
-        Assert.Equal(70, saved.Run.Duration);
+        Assert.Equal(100, saved.Run.Duration);
     }
 }
 
 internal sealed class RotationFlushFrames : IDisposable
 {
-    private static readonly string[] Messages = ["", "porters gather to offer", "who dares interferes with our work",
-        "f father", "authority over two mines transferred", "quarry management authority confirmed",
-        "patrol descends", "begins absorbing nearby black crystals", "work in the mine is suspended"];
+    // Five offering orders complete the startup; Drakania's death and the transfer share one banner stack.
+    private static readonly string[] Messages = ["", .. Enumerable.Repeat("overseer orders the black crystals", 5),
+        "who dares interferes with our work", "f father authority over two mines transferred",
+        "quarry management authority confirmed", "patrol descends", "begins absorbing nearby black crystals",
+        "work in the mine is suspended"];
+    internal static int EndCode => Messages.Length - 1;
     private readonly Bitmap _frame = new(320, 200);
     internal DateTimeOffset Epoch { get; }
     internal HermesiaRotationMonitor Profile { get; }
@@ -128,7 +131,7 @@ internal sealed class RotationFlushFrames : IDisposable
     internal void Observe(double seconds)
     {
         var eventIndex = (int)(seconds / 10);
-        var code = seconds % 10 < 6.5 && eventIndex < 8 ? eventIndex + 1 : 0;
+        var code = seconds % 10 < 6.5 && eventIndex < EndCode ? eventIndex + 1 : 0;
         // Encode the synthetic OCR result in the first pixel of the real crop.
         _frame.SetPixel(80, 108, Color.FromArgb(code, 0, 0));
         Profile.Observe(_frame, Epoch.AddSeconds(seconds));

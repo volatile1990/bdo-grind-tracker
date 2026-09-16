@@ -222,7 +222,7 @@ public sealed class OverlayMetricsTests
     [Fact]
     public async Task PreviewChartUsesActualSessionSampleTimes()
     {
-        var chart = await RenderAsync(OverlayCatalog.CreateWidget("chart"), new()
+        var chart = await RenderAsync(OverlayCatalog.CreateWidget("chart") with { ChartMode = OverlayChartSections.AverageMode }, new()
         {
             SilverHistory = [new(TimeSpan.FromSeconds(10), 100), new(TimeSpan.FromSeconds(20), 100),
                 new(TimeSpan.FromSeconds(110), 100)],

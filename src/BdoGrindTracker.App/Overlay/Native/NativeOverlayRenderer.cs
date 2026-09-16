@@ -476,12 +476,18 @@ internal sealed class NativeOverlayRenderer : IDisposable
     private void DrawChart(Graphics graphics, OverlayWidget widget, RectangleF inner, OverlaySnapshot snapshot)
     {
         var fontScale = (float)widget.FontScale;
+        var sections = widget.ChartMode == OverlayChartSections.SectionsMode ? OverlayChartSections.Create(widget, snapshot) : null;
         if (widget.ShowLabel)
         {
             var inset = widget.ShowIcon ? 17 * fontScale : 0;
             if (widget.ShowIcon) DrawGlyph(graphics, "chart", new RectangleF(inner.X, inner.Y + fontScale, 12 * fontScale, 12 * fontScale));
-            Draw(graphics, "Silber / Stunde · Verlauf", new RectangleF(inner.X + inset, inner.Y, inner.Width - inset, 16 * fontScale), 10 * fontScale, Heading);
+            Draw(graphics, sections?.Title ?? "Silber / Stunde · Verlauf", new RectangleF(inner.X + inset, inner.Y, inner.Width - inset, 16 * fontScale), 10 * fontScale, Heading);
             inner.Y += 20 * fontScale; inner.Height -= 20 * fontScale;
+        }
+        if (sections is not null)
+        {
+            DrawSectionChart(graphics, widget, inner, snapshot, sections);
+            return;
         }
         if (snapshot.Metrics.TryGetValue("chart", out var metric))
         {
@@ -522,6 +528,64 @@ internal sealed class NativeOverlayRenderer : IDisposable
             using var background = new SolidBrush(Color.FromArgb(255, 37, 45, 51));
             graphics.FillRectangle(background, iconBounds);
             DrawIcon(graphics, marker.Drop.Item, iconBounds);
+        }
+    }
+
+    private void DrawSectionChart(Graphics graphics, OverlayWidget widget, RectangleF inner, OverlaySnapshot snapshot,
+        OverlaySectionChart chart)
+    {
+        var fontScale = (float)widget.FontScale;
+        if (snapshot.Metrics.TryGetValue("chart", out var metric))
+        {
+            var inset = !widget.ShowLabel && widget.ShowIcon ? 21 * fontScale : 0;
+            if (inset > 0) DrawGlyph(graphics, "chart", new RectangleF(inner.X, inner.Y + 5 * fontScale, 15 * fontScale, 15 * fontScale));
+            Draw(graphics, metric.Value, new RectangleF(inner.X + inset, inner.Y, inner.Width - inset, 27 * fontScale), 21 * fontScale, Gold, true);
+            inner.Y += 33 * fontScale; inner.Height -= 33 * fontScale;
+        }
+        if (chart.Detail is { Length: > 0 })
+        {
+            Draw(graphics, chart.Detail, new RectangleF(inner.X, inner.Bottom - 13 * fontScale, inner.Width, 13 * fontScale), 9 * fontScale, Muted);
+            inner.Height -= 16 * fontScale;
+        }
+        if (!chart.HasData || inner.Height < 8)
+        {
+            Draw(graphics, "Verlauf entsteht während der Session", inner, 10, Muted, vertical: StringAlignment.Center);
+            return;
+        }
+        var points = chart.Points.Select(point => new PointF(inner.X + (float)chart.X(point.Elapsed) * inner.Width,
+            inner.Top + (float)chart.Y(point.Silver) * inner.Height)).ToArray();
+        using var fill = new SolidBrush(Color.FromArgb(40, Gold));
+        graphics.FillPolygon(fill, [new PointF(points[0].X, inner.Bottom), .. points, new PointF(points[^1].X, inner.Bottom)]);
+        using var line = new Pen(Gold, 1.6f);
+        graphics.DrawLines(line, points);
+        foreach (var point in chart.Points.Where(chart.IsClipped))
+        {
+            // Two slanted strokes: this section rises beyond the scale of the regular loot.
+            var x = inner.Left + (float)chart.X(point.Elapsed) * inner.Width;
+            var top = inner.Top + (float)chart.Y(point.Silver) * inner.Height;
+            for (var offset = 5; offset <= 11; offset += 6)
+                graphics.DrawLine(line, x - 7 * fontScale, top + (offset + 4) * fontScale, x + 7 * fontScale, top + offset * fontScale);
+        }
+        foreach (var marker in chart.Markers)
+        {
+            var x = inner.Left + (float)marker.X * inner.Width;
+            var y = inner.Top + (float)marker.Y * inner.Height;
+            graphics.DrawLine(line, x, y, x, inner.Bottom);
+            // Several rare drops of one section sit next to each other, centered on its peak.
+            var gap = 2 * fontScale;
+            var count = marker.Drops.Count;
+            var size = Math.Min(Math.Min(24 * fontScale, Math.Min(inner.Width, inner.Height)),
+                (inner.Width - (count - 1) * gap) / count);
+            var width = count * size + (count - 1) * gap;
+            var left = Math.Clamp(x - width / 2, inner.Left, Math.Max(inner.Left, inner.Right - width));
+            var top = Math.Clamp((y + inner.Bottom - size) / 2, inner.Top, inner.Bottom - size);
+            using var background = new SolidBrush(Color.FromArgb(255, 37, 45, 51));
+            for (var index = 0; index < count; index++)
+            {
+                var iconBounds = new RectangleF(left + index * (size + gap), top, size, size);
+                graphics.FillRectangle(background, iconBounds);
+                DrawIcon(graphics, marker.Drops[index].Item, iconBounds);
+            }
         }
     }
 
@@ -710,7 +774,7 @@ internal sealed class NativeOverlayRenderer : IDisposable
         graphics.TranslateTransform(bounds.X, bounds.Y);
         graphics.ScaleTransform(bounds.Width / 16, bounds.Height / 16);
         using var pen = new Pen(Gold, 1.3f) { StartCap = LineCap.Round, EndCap = LineCap.Round, LineJoin = LineJoin.Round };
-        if (kind is "silver-hour" or "trash-hour" or "chart" or "grind-rating" or "experience")
+        if (kind is "silver-hour" or "trash-hour" or "chart" or "grind-rating" or "experience" or "rotations-hour")
         {
             graphics.DrawLines(pen, [new PointF(1, 12), new(6, 7), new(9, 9), new(14, 3)]);
             graphics.DrawLines(pen, [new PointF(10, 3), new(14, 3), new(14, 7)]);
@@ -732,7 +796,7 @@ internal sealed class NativeOverlayRenderer : IDisposable
         else
         {
             graphics.DrawEllipse(pen, 1, 1, 14, 14);
-            if (kind is "duration" or "clock") graphics.DrawLines(pen, [new PointF(8, 4), new(8, 8), new(11, 9)]);
+            if (kind is "duration" or "clock" or "rotation-count") graphics.DrawLines(pen, [new PointF(8, 4), new(8, 8), new(11, 9)]);
             else graphics.DrawEllipse(pen, 5, 3, 6, 10);
         }
         graphics.Restore(state);

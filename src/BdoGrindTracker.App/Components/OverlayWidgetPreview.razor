@@ -7,7 +7,7 @@
     {
         <div class="overlay-widget-label" data-overlay-fit>
             @if (Widget.ShowIcon) { <AppIcon Name="@(OverlayCatalog.Find(Widget.Kind)?.Icon ?? "live")" /> }
-            <span>@(IsClock ? Clock.Label : IsLoot ? Loot.Label : Metric.Label)</span>
+            <span>@(IsClock ? Clock.Label : IsLoot ? Loot.Label : Widget.Kind == "chart" && Widget.ChartMode == OverlayChartSections.SectionsMode ? Sections.Title : Metric.Label)</span>
         </div>
     }
     @if (IsLoot)
@@ -85,7 +85,46 @@
             @if (!Widget.ShowLabel && Widget.ShowIcon) { <AppIcon Name="trend" /> }
             <span class="overlay-value-text">@Metric.Value</span>
         </strong>
-        @if (Snapshot.SilverHistory.Count >= 2)
+        @if (Widget.ChartMode == OverlayChartSections.SectionsMode)
+        {
+            @if (Sections.HasData)
+            {
+                <div style="position:relative;flex:1;min-height:0;overflow:hidden">
+                <svg class="overlay-widget-chart" style="width:100%;height:100%;display:block" viewBox="0 0 300 72" preserveAspectRatio="none" role="img" aria-label="@(Sections.Description + " mit wertvollen Drops und Favoriten")">
+                    <path d="M 0 71 H 300" class="overlay-chart-baseline" />
+                    <polygon points="@($"{Css(Sections.X(Sections.Points[0].Elapsed) * 300)},72 {SectionPoints} {Css(Sections.X(Sections.Points[^1].Elapsed) * 300)},72")" class="overlay-chart-area" />
+                    <polyline points="@SectionPoints" class="overlay-chart-line" />
+                    @foreach (var marker in Sections.Markers)
+                    {
+                        <line class="overlay-chart-drop-stem" x1="@Css(marker.X * 300)" x2="@Css(marker.X * 300)" y1="@Css(marker.Y * 72)" y2="72" stroke="#f5ce73" stroke-width="2" vector-effect="non-scaling-stroke" />
+                    }
+                </svg>
+                @foreach (var point in Sections.Points.Where(Sections.IsClipped))
+                {
+                    <div class="overlay-chart-clip" title="Oben gekappt: wertvoller Drop" style="position:absolute;left:@Css(Sections.X(point.Elapsed) * 100)%;top:@Css(Sections.Y(point.Silver) * 100)%;width:14px;height:10px;margin-top:5px;transform:translateX(-50%) skewY(-16deg);border-top:2px solid #f5ce73;border-bottom:2px solid #f5ce73;box-sizing:border-box"></div>
+                }
+                @foreach (var marker in Sections.Markers)
+                {
+                    var halfWidth = Css((marker.Drops.Count * 24 + (marker.Drops.Count - 1) * 2) / 2d);
+                    <div class="overlay-chart-drop-group" style="position:absolute;left:clamp(@(halfWidth)px,@Css(marker.X * 100)%,calc(100% - @(halfWidth)px));top:clamp(12px,@Css((marker.Y + 1) * 50)%,calc(100% - 12px));transform:translate(-50%,-50%);display:flex;gap:2px">
+                        @foreach (var drop in marker.Drops)
+                        {
+                            <div class="overlay-chart-drop-marker" style="width:24px;height:24px;flex:0 0 24px;background:#252d33;border-radius:4px"
+                                 title="@(drop.Item.Name + " × " + drop.Item.QuantityText + " · " + drop.Elapsed.ToString(@"hh\:mm\:ss"))">
+                                <AssetImage Src="@drop.Item.IconPath" Alt="@drop.Item.Name" Class="overlay-chart-drop-icon" />
+                            </div>
+                        }
+                    </div>
+                }
+                </div>
+                <span class="overlay-widget-detail" data-overlay-fit>@Sections.Detail</span>
+            }
+            else
+            {
+                <div class="overlay-widget-empty" data-overlay-fit>Verlauf entsteht während des Grindens</div>
+            }
+        }
+        else if (Snapshot.SilverHistory.Count >= 2)
         {
             <div style="position:relative;flex:1;min-height:0;overflow:hidden">
             <svg class="overlay-widget-chart" style="width:100%;height:100%;display:block" viewBox="0 0 300 72" preserveAspectRatio="none" role="img" aria-label="Verlauf des durchschnittlichen Silberwerts pro Stunde mit wertvollen Drops und Favoriten">
@@ -144,7 +183,12 @@
     private OverlayWidget LayoutWidget => Content.LayoutWidget;
     private OverlayLootView? _loot;
     private OverlayLootView Loot => _loot ??= OverlayLootPresentation.Create(LayoutWidget, Snapshot);
-    protected override void OnParametersSet() { _loot = null; _content = null; _clock = null; }
+    protected override void OnParametersSet() { _loot = null; _content = null; _clock = null; _sections = null; }
+    private OverlaySectionChart? _sections;
+    private OverlaySectionChart Sections => _sections ??= OverlayChartSections.Create(Widget, Snapshot);
+    private string SectionPoints => string.Join(" ", Sections.Points.Select(point =>
+        ((decimal)Sections.X(point.Elapsed) * 300m).ToString("0.##", CultureInfo.InvariantCulture) + "," +
+        ((decimal)Sections.Y(point.Silver) * 72m).ToString("0.##", CultureInfo.InvariantCulture)));
     private string PreviewStyle => $"width:{Css(LayoutWidget.Width)}px;height:{Css(LayoutWidget.Height)}px;transform:scale({Css(Content.Scale)});--widget-font-scale:{FontScale}" +
         (IsLoot ? $";--loot-item-size:{Css(Loot.ItemSize)}px;--loot-gap:{Css(Loot.Gap)}px;--loot-columns:{Math.Max(1, Loot.Columns)};--loot-cell-width:{Css(Loot.CellWidth)}px;--loot-cell-height:{Css(Loot.CellHeight)}px;--loot-header-height:{Css(Loot.HeaderHeight)}px;--loot-footer-height:{Css(Loot.FooterHeight)}px;--loot-layout-width:{Css(LootWidth)}px;--loot-layout-height:{Css(LootHeight)}px" : "");
     private int LootRows => (int)Math.Ceiling((double)Loot.VisibleItems.Count / Math.Max(1, Loot.Columns));

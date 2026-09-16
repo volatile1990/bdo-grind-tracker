@@ -74,6 +74,7 @@ internal sealed class OverlayMetrics
 
         var rateText = session.SilverPerHour + (session.PartialSilverHourly ? " *" : "");
         var grindRating = session.GrindRating;
+        var rotation = BdoGrindTracker.App.Analysis.RotationProfiles.Present(state.SpotId, state.Rotation);
         var metrics = new Dictionary<string, OverlayMetric>(StringComparer.Ordinal)
         {
             ["duration"] = new("Aktive Zeit", session.Duration, session.DurationNote, Tooltip: session.DurationDescription),
@@ -94,6 +95,8 @@ internal sealed class OverlayMetrics
             ["loot-scroll"] = new("Loot-Scroll", session.LootScroll, IsWarning: session.LootScrollWarning),
             ["grind-rating"] = new("Grind-Bewertung", grindRating.Label, grindRating.Detail,
                 Tone: grindRating.Tone, Tooltip: grindRating.Description),
+            ["rotations-hour"] = RotationsPerHour(rotation),
+            ["rotation-count"] = RotationCount(rotation),
         };
 
         return new()
@@ -104,10 +107,11 @@ internal sealed class OverlayMetrics
             RareDrops = Array.AsReadOnly(drops.Where(item => item.IsRare).ToArray()),
             ItemCatalog = _itemCatalog,
             SilverHistory = state.SilverHistory,
-            Rotation = BdoGrindTracker.App.Analysis.RotationProfiles.Present(state.SpotId, state.Rotation),
+            SessionElapsed = session.Elapsed,
+            SilverDrops = SilverDrops(state, preferences, prices),
+            Rotation = rotation,
             DropMarkers = Array.AsReadOnly(state.DropHistory
-                .Where(drop => preferences.FavoriteItems.Contains(drop.ItemName, StringComparer.Ordinal) ||
-                    prices is not null && prices.TryGetQuote(drop.ItemName, out var quote) && quote.UnitPrice > 200_000_000m)
+                .Where(drop => IsMarked(drop.ItemName, preferences, prices))
                 .Select(drop => new OverlayDropMarker(drop.Elapsed, new OverlayLootItem(drop.ItemName,
                     ItemLocalizationCatalog.DisplayName(drop.ItemName, language), Presentation.Number(drop.Quantity),
                     Presentation.ItemIcon(drop.ItemName), true, drop.Quantity))).ToArray()),
@@ -122,6 +126,60 @@ internal sealed class OverlayMetrics
             TrackingButtonLabel = state.IsRunning ? "Pausieren" : state.HasSession ? "Fortsetzen" : "Tracking starten",
         };
     }
+
+    // The recent tempo, not the whole session: earlier slow rotations stop affecting the estimate.
+    internal const int RotationTempoSample = 3;
+
+    private static OverlayMetric RotationsPerHour(RotationMonitorSnapshot rotation)
+    {
+        const string label = "Rotations / h";
+        const string tooltip = "Volle Rotationen pro Stunde beim aktuellen Tempo: 60 Minuten geteilt durch die " +
+            "durchschnittliche Zeit der letzten bis zu drei in dieser Session vollständig abgeschlossenen Rotationen, " +
+            "jeweils einschließlich Rückweg bis zum Start der nächsten Rotation. Bis die nächste Rotation beginnt, gilt " +
+            "der durchschnittliche Rückweg dieser Session. Pausen über zwei Minuten, Aufbau und abgebrochene Versuche zählen nicht.";
+        if (!rotation.HasProfile) return new(label, "—", "Kein Rotationsprofil für diesen Spot", Tooltip: tooltip);
+        var completed = rotation.SessionRotations.Where(timing => double.IsFinite(timing.Duration) && timing.Duration > 0).ToArray();
+        var recent = completed.TakeLast(RotationTempoSample).ToArray();
+        if (recent.Length == 0) return new(label, "—", "Nach der ersten vollständigen Rotation", Tooltip: tooltip);
+        var walks = completed.Where(timing => timing.WalkBack is { } walk && double.IsFinite(walk))
+            .Select(timing => timing.WalkBack!.Value).ToArray();
+        double? averageWalk = walks.Length > 0 ? walks.Average() : null;
+        var average = recent.Average(timing => timing.Duration + (timing.WalkBack ?? averageWalk ?? 0));
+        var rate = 3600 / average;
+        return new(label, Presentation.Number((decimal)Math.Floor(rate)),
+            $"{rate.ToString("0.0", Presentation.German)} / h · Ø {RotationPhases.Duration(average)} · " +
+            (averageWalk is null ? "ohne Rückweg" : recent.Length == 1 ? "1 Rotation" : $"letzte {recent.Length}"), Tooltip: tooltip);
+    }
+
+    private static OverlayMetric RotationCount(RotationMonitorSnapshot rotation)
+    {
+        const string label = "Rotation Counter";
+        const string tooltip = "Vollständig abgeschlossene Rotationen am aktuellen Spot in dieser Session. " +
+            "Abgebrochene oder unvollständig erkannte Rotationen zählen nicht.";
+        if (!rotation.HasProfile) return new(label, "—", "Kein Rotationsprofil für diesen Spot", Tooltip: tooltip);
+        var rotations = rotation.SessionRotations;
+        return new(label, Presentation.Number(rotations.Count),
+            rotations.Count == 0 ? "In dieser Session" : $"Zuletzt {RotationPhases.Duration(rotations[^1].Duration)}", Tooltip: tooltip);
+    }
+
+    /// <summary>Each recorded loot increase valued with the current prices, so a price update revalues the whole curve.</summary>
+    private static IReadOnlyList<OverlaySilverDrop> SilverDrops(TrackerState state, TrackerPreferences preferences, LootPriceSnapshot? prices)
+    {
+        if (prices is null || state.DropHistory.Count == 0) return [];
+        var tax = preferences.Tax;
+        return Array.AsReadOnly(state.DropHistory.Select(drop =>
+        {
+            var marked = IsMarked(drop.ItemName, preferences, prices);
+            if (!prices.TryGetQuote(drop.ItemName, out var quote)) return new OverlaySilverDrop(drop.Elapsed, 0, marked);
+            try { return new OverlaySilverDrop(drop.Elapsed, checked(SilverValuation.UnitAfterTax(quote, tax) * drop.Quantity), marked); }
+            catch (OverflowException) { return new OverlaySilverDrop(drop.Elapsed, 0, marked); }
+        }).ToArray());
+    }
+
+    /// <summary>Favorites and items worth more than 200 million appear as chart markers.</summary>
+    private static bool IsMarked(string itemName, TrackerPreferences preferences, LootPriceSnapshot? prices) =>
+        preferences.FavoriteItems.Contains(itemName, StringComparer.Ordinal) ||
+        prices is not null && prices.TryGetQuote(itemName, out var quote) && quote.UnitPrice > 200_000_000m;
 
     internal static OverlaySnapshot Demo { get; } = CreateDemo();
 
@@ -160,7 +218,17 @@ internal sealed class OverlayMetrics
             snapshot = metrics.Update(state with { SilverHistory = history.Update(state) }, preferences);
         }
         var demoItem = snapshot.Drops.First(item => item.CanonicalName == "BON Wandering Origin Crystal");
+        // Regular trash income every few seconds with the two valuable drops shown as markers.
+        var random = new Random(15);
+        var silverDrops = new List<OverlaySilverDrop>();
+        for (var seconds = 831.0; seconds < 940; seconds += 1.5 + random.NextDouble() * 3)
+            silverDrops.Add(new(TimeSpan.FromSeconds(seconds), 2_500_000m + random.Next(0, 3_000_000)));
+        silverDrops.AddRange([new(TimeSpan.FromSeconds(870), 180_000_000m, true), new(TimeSpan.FromSeconds(910), 180_000_000m, true)]);
+        var rotation = HermesiaRotationDemo.At(350);
+        snapshot = metrics.Update(state with { SilverHistory = history.Update(state), SpotId = LootSpotCatalog.HermesiaId, Rotation = rotation },
+            preferences);
         return snapshot with { DropMarkers = [new(TimeSpan.FromSeconds(870), demoItem), new(TimeSpan.FromSeconds(910), demoItem)],
-            Rotation = HermesiaRotationDemo.At(350), DailyGoal = new(650_000_000, 1_000_000_000) };
+            SilverDrops = Array.AsReadOnly(silverDrops.OrderBy(drop => drop.Elapsed).ToArray()),
+            Rotation = rotation, DailyGoal = new(650_000_000, 1_000_000_000) };
     }
 }

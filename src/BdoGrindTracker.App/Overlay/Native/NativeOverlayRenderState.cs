@@ -27,6 +27,8 @@ internal sealed class NativeOverlayRenderState
                 _snapshot.CanNewSession != snapshot.CanNewSession ||
                 _snapshot.TrackingButtonLabel != snapshot.TrackingButtonLabel)) return false;
             if (widget.Kind == "chart" && (!_snapshot.SilverHistory.SequenceEqual(snapshot.SilverHistory) ||
+                widget.ChartMode == OverlayChartSections.SectionsMode && (_snapshot.SessionElapsed != snapshot.SessionElapsed ||
+                    !_snapshot.SilverDrops.SequenceEqual(snapshot.SilverDrops)) ||
                 !_snapshot.DropMarkers.SequenceEqual(snapshot.DropMarkers))) return false;
             if (widget.Kind == "rotation-monitor" && !SameRotation(_snapshot.Rotation, snapshot.Rotation,
                 widget.RotationComparison)) return false;

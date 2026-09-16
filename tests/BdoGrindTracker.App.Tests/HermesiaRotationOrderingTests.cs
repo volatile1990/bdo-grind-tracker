@@ -11,7 +11,7 @@ public sealed class HermesiaRotationOrderingTests
     public void ConfirmationFromLaterProbeKeepsOriginalEventTimeAndValidRun()
     {
         var tracker = new HermesiaRotationTracker();
-        Observe(tracker, "porter", 0);
+        foreach (var offer in new[] { 0d, 2, 4, 6, 8 }) Observe(tracker, "offer", offer);
         Observe(tracker, "drakania", 10);
         Observe(tracker, "transfer", 21);
         Observe(tracker, "drakania-kill", 20); // Confirmed by the next probe.
@@ -82,7 +82,7 @@ public sealed class HermesiaRotationOrderingTests
     {
         var tracker = new HermesiaRotationTracker();
         foreach (var e in HermesiaRotationDemo.Reference.Events.Where(e => e.Kind is not "start" and not "end"))
-            tracker.Observe(e.Kind, e.Label, Epoch.AddSeconds(e.Seconds));
+            tracker.Observe(e.Kind == "porter" ? "offer" : e.Kind, e.Label, Epoch.AddSeconds(e.Seconds));
         var end = HermesiaRotationDemo.Reference.Duration;
         Observe(tracker, "porter", end + 2);
         Observe(tracker, "mine-cleared", end);

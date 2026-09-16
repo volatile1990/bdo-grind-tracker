@@ -12,6 +12,9 @@ public sealed record RotationRun(double Duration, IReadOnlyList<RotationEvent> E
     public int TimingVersion { get; init; }
 }
 public sealed record SessionRotation(string SpotId, DateTimeOffset StartedAt, RotationRun Run);
+/// <param name="Duration">Seconds from the rotation start to its end.</param>
+/// <param name="WalkBack">Seconds from its end to the start of the next rotation; null until that start or after a break.</param>
+public sealed record SessionRotationTiming(double Duration, double? WalkBack = null);
 public sealed record RotationMonitorSnapshot
 {
     public int? SmallScarecrows { get; init; }
@@ -27,6 +30,8 @@ public sealed record RotationMonitorSnapshot
     public RotationRun? Ideal { get; init; }
     public IReadOnlyDictionary<string, double> SectorBests { get; init; } = new Dictionary<string, double>();
     public int Completed { get; init; }
+    /// <summary>The rotations completed at this spot in the current session, oldest first.</summary>
+    public IReadOnlyList<SessionRotationTiming> SessionRotations { get; init; } = [];
     public string? Error { get; init; }
 }
 
@@ -34,8 +39,12 @@ public sealed record RotationMonitorSnapshot
 internal sealed class HermesiaRotationTracker : IRotationEventTracker
 {
     private static readonly string[] RequiredMechanics = ["drakania", "drakania-kill", "transfer", "mine-enter", "dragon", "afk"];
+    // Drakania spawns after the fifth offering order of the startup.
+    internal const int StartupOffers = 5;
     private readonly List<RotationEvent> _events = [];
     private readonly List<RotationRun> _runs;
+    // Records saved before the startup check stay in the file but never serve as a reference.
+    private readonly List<RotationRun> _incompleteStartups = [];
     private readonly List<(DateTimeOffset StartedAt, RotationRun Run)> _completed = [];
     public (DateTimeOffset StartedAt, RotationRun Run)[] DrainCompleted()
     {
@@ -48,8 +57,10 @@ internal sealed class HermesiaRotationTracker : IRotationEventTracker
     private DateTimeOffset? _lastBoundary;
     private double _finishedElapsed;
     private bool _afk;
+    private bool _awaitingOffer;
     private string? _error;
     private string _status = "Warte auf erstes Ereignis";
+    private const string FailedStatus = "Rotation Failed · warte auf Opfergabe-Befehl";
 
     internal HermesiaRotationTracker(string? path = null)
     {
@@ -59,8 +70,10 @@ internal sealed class HermesiaRotationTracker : IRotationEventTracker
         try
         {
             if (new FileInfo(path).Length > 4_000_000) throw new InvalidDataException("Rotationsdatei zu groß.");
-            _runs = (JsonSerializer.Deserialize<List<RotationRun>>(File.ReadAllText(path)) ?? [])
-                .Where(Valid).Select(FromFirstEvent).Where(Valid).Take(1200).ToList();
+            var runs = (JsonSerializer.Deserialize<List<RotationRun>>(File.ReadAllText(path)) ?? [])
+                .Where(Valid).Select(FromFirstEvent).Where(Valid).Take(1200).ToLookup(HasCompleteStartup);
+            _runs = runs[true].ToList();
+            _incompleteStartups = runs[false].ToList();
         }
         catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException)
         { _error = "Bestzeiten konnten nicht geladen werden: " + e.Message; }
@@ -76,6 +89,20 @@ internal sealed class HermesiaRotationTracker : IRotationEventTracker
         run.Events[^1].Seconds == run.Duration && run.Events.Select(e => e.Key).Distinct().Count() == run.Events.Count &&
         run.Events.Zip(run.Events.Skip(1)).All(pair => pair.First.Seconds <= pair.Second.Seconds);
 
+    /// <summary>Offering orders up to the first Drakania spawn, or all of them while Drakania has not spawned.</summary>
+    internal static int StartupOfferCount(IReadOnlyList<RotationEvent> events)
+    {
+        var drakania = events.FirstOrDefault(e => e.Kind == "drakania");
+        return events.Count(e => e.Kind == "offer" && (drakania is null || e.Seconds <= drakania.Seconds));
+    }
+
+    /// <summary>
+    /// A rotation whose tracking began after part of the startup would look faster
+    /// than it was, so it only counts with all offering orders before Drakania.
+    /// </summary>
+    internal static bool HasCompleteStartup(RotationRun run) =>
+        run.Events.Any(e => e.Kind == "drakania") && StartupOfferCount(run.Events) >= StartupOffers;
+
     internal static RotationRun FromFirstEvent(RotationRun run)
     {
         if (run.TimingVersion >= 2) return run;
@@ -83,12 +110,32 @@ internal sealed class HermesiaRotationTracker : IRotationEventTracker
         return new(run.Duration - first, run.Events.Select(e => e with { Seconds = Math.Max(0, e.Seconds - first) }).ToArray()) { TimingVersion = 2 };
     }
 
+    // A failed rotation stays failed in the game while tracking pauses or the image drops out.
     public void Interrupt(string status = "Warte auf erstes Ereignis")
-    { _start = _lastBoundary = null; _finishedElapsed = 0; _events.Clear(); _afk = false; _status = status; }
+    { _start = _lastBoundary = null; _finishedElapsed = 0; _events.Clear(); _afk = false; _status = _awaitingOffer ? FailedStatus : status; }
 
     public void Observe(string kind, string label, DateTimeOffset at)
     {
         if (_lastBoundary is { } boundary && at < boundary) return;
+        if (kind == "failure")
+        {
+            // The intruder alert ends the attempt without a record. Only the
+            // overseer's next offering order starts the following rotation.
+            if (_start is { } failed)
+            {
+                _finishedElapsed = Math.Max(0, (at - failed).TotalSeconds);
+                Add(kind, label, _finishedElapsed);
+            }
+            _start = null; _afk = false; _awaitingOffer = true;
+            _lastBoundary = at;
+            _status = FailedStatus;
+            return;
+        }
+        if (_awaitingOffer)
+        {
+            if (kind != "offer") return;
+            _awaitingOffer = false;
+        }
         // The same suspension message means mine-cleared during combat and the
         // rotation boundary after crystal absorption. Text alone is insufficient.
         if (kind == "mine-cleared" && _afk && _start is { } currentStart &&
@@ -105,12 +152,14 @@ internal sealed class HermesiaRotationTracker : IRotationEventTracker
                 _events.RemoveAll(e => e.Seconds > duration);
                 Add("end", "AFK-Ende", duration);
                 var run = new RotationRun(duration, _events.ToArray()) { TimingVersion = 2 };
-                if (Valid(run)) { _completed.Add((start, run)); _runs.Add(run); Save(); }
+                if (Valid(run) && HasCompleteStartup(run)) { _completed.Add((start, run)); _runs.Add(run); Save(); }
             }
             _finishedElapsed = _start is { } started ? Math.Max(0, (at - started).TotalSeconds) : 0;
             _start = null; _afk = false;
             _lastBoundary = at;
-            _status = "AFK beendet · warte auf erstes Ereignis";
+            _status = DiscardsStartup(_events)
+                ? $"AFK beendet · Startup unvollständig ({StartupOfferCount(_events)} / {StartupOffers} Opfergaben), Rotation nicht gezählt · warte auf erstes Ereignis"
+                : "AFK beendet · warte auf erstes Ereignis";
             foreach (var next in following) Observe(next.Event.Kind, next.Event.Label, next.At);
             return;
         }
@@ -180,10 +229,20 @@ internal sealed class HermesiaRotationTracker : IRotationEventTracker
             }).ToArray();
             ideal = new(total, events);
         }
+        // An incomplete startup is dropped from the current timeline once Drakania shows it can no longer be completed.
+        var drakania = _events.FindIndex(e => e.Kind == "drakania");
+        var discarded = DiscardsStartup(_events);
+        var status = _start is null ? _status
+            : drakania < 0 ? $"Startup · {Math.Min(StartupOfferCount(_events), StartupOffers)} / {StartupOffers} Opfergaben"
+            : discarded ? $"{_status} · Startup verworfen ({StartupOfferCount(_events)} / {StartupOffers} Opfergaben), zählt nicht als vollständige Rotation"
+            : _status;
         return new() { Elapsed = _start is { } start ? Math.Max(0, (now - start).TotalSeconds) : _finishedElapsed,
-            Synchronized = _start is not null, IsAfk = _afk, Events = _events.ToArray(), Best = best,
-            Ideal = ideal, SectorBests = sectors, Completed = _runs.Count, Status = _status, Error = _error };
+            Synchronized = _start is not null, IsAfk = _afk, Events = (discarded ? _events.Skip(drakania) : _events).ToArray(), Best = best,
+            Ideal = ideal, SectorBests = sectors, Completed = _runs.Count, Status = status, Error = _error };
     }
+
+    private static bool DiscardsStartup(IReadOnlyList<RotationEvent> events) =>
+        events.Any(e => e.Kind == "drakania") && StartupOfferCount(events) < StartupOffers;
 
     private void Save()
     {
@@ -202,7 +261,7 @@ internal sealed class HermesiaRotationTracker : IRotationEventTracker
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(_path))!);
-            File.WriteAllText(_path + ".tmp", JsonSerializer.Serialize(_runs));
+            File.WriteAllText(_path + ".tmp", JsonSerializer.Serialize(_runs.Concat(_incompleteStartups)));
             File.Move(_path + ".tmp", _path, true);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)

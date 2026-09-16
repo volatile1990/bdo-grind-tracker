@@ -186,7 +186,7 @@ public sealed class NativeOverlayContentScalingTests
     {
         var widget = OverlayCatalog.CreateWidget("chart", 0, 0) with
         {
-            Width = 400, Height = height, ShowLabel = false, ShowIcon = false
+            Width = 400, Height = height, ShowLabel = false, ShowIcon = false, ChartMode = OverlayChartSections.AverageMode
         };
         var snapshot = new OverlaySnapshot
         {

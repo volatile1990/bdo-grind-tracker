@@ -58,6 +58,7 @@ internal static class HermesiaRotationDemo
         return new() { SpotId = BdoGrindTracker.Core.LootSpotCatalog.HermesiaId, SpotName = "Hermesia Inner Castle", HasProfile = true,
             Elapsed = seconds, Synchronized = true, IsAfk = seconds >= Reference.Events.First(e => e.Kind == "afk").Seconds * .98,
             Events = actual, Best = Reference, Ideal = ideal, SectorBests = sectors, Completed = 3,
+            SessionRotations = [new(Reference.Duration * 1.04, 18), new(Reference.Duration * 1.01, 21)],
             Status = "Demo · Aufnahme als Beispielreferenz" };
     }
 }

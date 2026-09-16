@@ -54,6 +54,63 @@ public sealed class RotationMonitorSpotTests
     }
 
     [Fact]
+    public void BeforeTheSpotIsKnownEveryProfileWatchesAndTheDetectedSpotKeepsItsOwn()
+    {
+        var created = new Dictionary<string, Profile>();
+        using var monitor = new RotationMonitor(spot => spot is null ? null : created[spot] = new Profile());
+        using var frame = new Bitmap(4, 4);
+        var now = DateTimeOffset.UtcNow;
+
+        monitor.Observe(frame, now, null);
+        monitor.Observe(frame, now.AddSeconds(1), null);
+        Assert.Equal(RotationProfiles.SupportedSpotIds.Order(), created.Keys.Order());
+        Assert.All(created.Values, profile => Assert.Equal(2, profile.Observed));
+        Assert.False(monitor.Snapshot(now.AddSeconds(1), null).HasProfile);
+
+        var hermesia = created[LootSpotCatalog.HermesiaId];
+        var aphrodon = created[LootSpotCatalog.AphrodonId];
+        monitor.Observe(frame, now.AddSeconds(2), LootSpotCatalog.HermesiaId);
+        Assert.Equal(3, hermesia.Observed);
+        Assert.False(hermesia.Disposed);
+        Assert.True(aphrodon.Disposed);
+        Assert.Equal(2, created.Count);
+        Assert.Equal("Vorläufig", monitor.Snapshot(now.AddSeconds(2), LootSpotCatalog.HermesiaId).Events.Single().Label);
+    }
+
+    [Fact]
+    public async Task TheFirstOfferingOrderBeforeTheFirstDropStartsTheRotation()
+    {
+        var text = "The overseer orders the Black Crystals to be offered up.";
+        HermesiaRotationMonitor? hermesia = null;
+        using var monitor = new RotationMonitor(spot => spot switch
+        {
+            LootSpotCatalog.HermesiaId => hermesia = new HermesiaRotationMonitor(recognize: _ => text),
+            LootSpotCatalog.AphrodonId => new BufferedRotationProfileMonitor(new AphrodonRotationTracker(),
+                RotationMessageProfile.Aphrodon, _ => text),
+            _ => null,
+        });
+        using var frame = new Bitmap(320, 200);
+        var start = DateTimeOffset.UnixEpoch;
+        async Task Observe(double seconds, string? spot)
+        {
+            monitor.Observe(frame, start.AddSeconds(seconds), spot);
+            await hermesia!.PendingAnalysis.WaitAsync(TimeSpan.FromSeconds(30));
+        }
+        // The banner is visible before any loot identifies the spot.
+        for (var seconds = 0d; seconds <= 6; seconds += .5) await Observe(seconds, null);
+        text = "";
+        for (var seconds = 6.5d; seconds <= 9.5; seconds += .5) await Observe(seconds, null);
+
+        // The first trash drop reveals Hermesia ten seconds after the offering order.
+        await Observe(10, LootSpotCatalog.HermesiaId);
+        var state = monitor.Snapshot(start.AddSeconds(10), LootSpotCatalog.HermesiaId);
+        Assert.True(state.Synchronized);
+        Assert.Equal(10, state.Elapsed);
+        Assert.Equal(new[] { "start", "offer" }, state.Events.Select(e => e.Kind));
+        Assert.Contains("1 / 5", state.Status);
+    }
+
+    [Fact]
     public void ExistingModuleMigratesWithoutLosingGeometryOrComparison()
     {
         var widget = new OverlayWidget { Kind = "hermesia-rotation", X = 20, Y = 40, Width = 500,
@@ -70,9 +127,10 @@ public sealed class RotationMonitorSpotTests
     private sealed class Profile : IRotationProfileMonitor
     {
         public bool Disposed { get; private set; }
-        public void Observe(Bitmap frame, DateTimeOffset at) { }
+        public int Observed { get; private set; }
+        public void Observe(Bitmap frame, DateTimeOffset at) => Observed++;
         public void Interrupt(string status) { }
-        public RotationMonitorSnapshot Snapshot(DateTimeOffset now) => new();
+        public RotationMonitorSnapshot Snapshot(DateTimeOffset now) => new() { Events = [new("offer", "Vorläufig", 0)] };
         public void Dispose() => Disposed = true;
     }
 }

@@ -28,6 +28,8 @@ internal static class AphrodonRotationDemo
             Elapsed = seconds, Synchronized = true, IsAfk = seconds >= Reference.Events[^2].Seconds,
             Events = Reference.Events.Where(e => e.Seconds <= seconds).ToArray(), Best = Reference,
             Ideal = Reference, SectorBests = Reference.Events.Skip(1).Select((e, i) => (e.Key, Duration: e.Seconds - Reference.Events[i].Seconds))
-                .ToDictionary(e => e.Key, e => e.Duration), Status = "Demo · Aufnahme als Beispielreferenz" };
+                .ToDictionary(e => e.Key, e => e.Duration),
+            SessionRotations = [new(Reference.Duration * 1.03, 0), new(Reference.Duration, 0)],
+            Status = "Demo · Aufnahme als Beispielreferenz" };
     }
 }

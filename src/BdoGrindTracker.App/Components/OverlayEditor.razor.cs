@@ -42,6 +42,14 @@ public partial class OverlayEditor
     private static string Percent(double value) => value.ToString("P0", CultureInfo.GetCultureInfo("de-DE"));
     private static string Text(ChangeEventArgs e) => e.Value?.ToString() ?? "";
     private static bool Checked(ChangeEventArgs e) => e.Value is true;
+    private static int WholeNumber(ChangeEventArgs e, int current) =>
+        int.TryParse(Text(e), NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) ? value : current;
+    private static string PeakHelp(string mode) => mode switch
+    {
+        OverlayChartSections.ExcludePeaks => "Ihr Silber fließt nicht in die Kurve ein; so bleibt nur der übrige Loot sichtbar.",
+        OverlayChartSections.LogarithmicPeaks => "Große Werte werden gestaucht: ein Hundertstel des höchsten Abschnitts erreicht noch die halbe Höhe.",
+        _ => "Die Höhe richtet sich nach den Abschnitten ohne wertvolle Drops; höhere Abschnitte werden oben gekappt und mit zwei Strichen markiert.",
+    };
     private static string Label(string kind) => OverlayCatalog.Find(kind)?.Label ?? "Modul";
     private string InteractionLabel => _settings.Interaction switch { "passthrough" => "Klicks gehen ans Spiel", "locked" => "Position gesperrt", _ => "Verschiebbar" };
     private string VisibilityLabel => _settings.Visibility switch { "session" => "Während der Session", "always" => "Immer sichtbar", _ => "Im Spiel sichtbar" };

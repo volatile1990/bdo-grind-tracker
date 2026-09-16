@@ -41,7 +41,7 @@ public static class RotationPhases
                 "afk" => "afk",
                 _ => null,
             };
-            if (e.Kind == "end") { Finish(e.Seconds); active = null; break; }
+            if (e.Kind is "end" or "failure") { Finish(e.Seconds); active = null; break; }
             if (next is null || next == active) continue;
             var rank = Array.IndexOf(Order, next);
             // Repeated or late OCR messages must not send a phase backwards.

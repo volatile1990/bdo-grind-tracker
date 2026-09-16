@@ -92,9 +92,46 @@ Alle Einstellungen werden automatisch gespeichert. Bestehende Layouts bleiben er
 
 Verfügbare Module: aktive Zeit, Uhrzeit, Grindspot, Silber netto, Silber pro Stunde,
 Trashloot, Trash pro Stunde, Drop-Inventar, seltene Drops, Silberverlauf,
-Tracking-Status, Loot-Scroll, Grind-Bewertung und Start-/Pause-Steuerung. Der Filter für seltene Drops ist eine
+Rotations / h, Rotation Counter, Tracking-Status, Loot-Scroll, Grind-Bewertung und
+Start-/Pause-Steuerung. Der Filter für seltene Drops ist eine
 explizite Auswahl bekannter seltener Gegenstände, keine neue Klassifizierung durch
 OCR. Das Drop-Inventar enthält weiterhin alle gezählten Gegenstände.
+
+**Silberverlauf** zeigt entweder den Session-Durchschnitt Silber / Stunde oder, als Standard
+für neu hinzugefügte Module, **Silber je Zeitabschnitt als Kurve** (ganze Session,
+10 Sekunden, logarithmische Höhe). Bestehende Module ohne gespeicherte Darstellung behalten
+den Session-Durchschnitt. Die Zeitabschnitt-Kurve zeigt das netto verdiente
+Silber je Abschnitt von 5, 10 (Standard) oder 30 Sekunden aktiver Grindzeit. Der
+Zeitraum umfasst die letzten 10, 20, 30, 40, 50 oder 60 Minuten oder die ganze Session.
+Jeder gezählte Lootzuwachs wird mit den aktuellen Marktpreisen und Steuereinstellungen
+bewertet; ändern sich Preise, wird die ganze Kurve neu bewertet. Ein wertvoller Drop
+erscheint dadurch unabhängig vom Zeitpunkt als eigene Spitze. Das Icon eines Rare Drops
+steht zentriert über der Spitze seines Abschnitts; mehrere Rare Drops im selben Abschnitt
+stehen dort nebeneinander. Als wertvoll gelten Favoriten und Items über 200 Mio. Silber.
+Wie sie die Kurve formen, legt die Einstellung **Wertvolle Drops** fest:
+**Spitzen kappen** richtet die Höhe nach den Abschnitten ohne wertvolle Drops;
+höhere Abschnitte enden am oberen Rand und tragen zwei schräge Striche. Ohne solche
+Abschnitte bestimmt der höchste Abschnitt die Höhe. **Aus der Kurve herausrechnen** lässt
+das Silber wertvoller Drops weg, ihre Icons bleiben. **Logarithmische Höhe** (Standard) staucht große
+Werte, ohne zu kappen; ein Hundertstel des höchsten Abschnitts erreicht noch die halbe Höhe.
+Die Skala bezieht sich immer auf den sichtbaren Zeitraum. Lange Verläufe werden auf höchstens
+800 Punkte verdichtet, ohne einzelne Spitzen zu verlieren. Die große Zahl bleibt der
+Session-Durchschnitt. Nach einem App-Neustart beginnt die Kurve beim wiederhergestellten
+Stand, weil frühere Lootzeitpunkte nicht gespeichert sind. Nachträgliche Mengenkorrekturen
+nach unten verändern bereits gezählte Abschnitte nicht.
+
+**Rotations / h** zeigt, wie viele volle Rotationen beim aktuellen Tempo in einer Stunde
+möglich sind: 60 Minuten geteilt durch die durchschnittliche Zeit der letzten bis zu drei
+in dieser Session vollständig abgeschlossenen Rotationen am aktuellen Spot. Anders als die
+Rotationsdauer im Rotation Monitor (ab dem Rotationsstart) enthält diese Zeit den Rückweg bis
+zum Start der nächsten Rotation. Solange die nächste Rotation noch nicht begonnen hat, gilt für
+die zuletzt beendete der durchschnittliche Rückweg dieser Session; ist noch keiner bekannt,
+steht „ohne Rückweg“ in der Detailzeile. Lücken über zwei Minuten gelten als Pause und zählen
+nicht als Rückweg. Die Detailzeile nennt den genauen Wert und die Durchschnittszeit. Aufbau und
+abgebrochene Versuche zählen nicht. **Rotation Counter** zeigt die in der Session vollständig
+abgeschlossenen Rotationen am aktuellen Spot und die Dauer der letzten. Beide Module
+benötigen einen Spot mit Rotationsprofil (derzeit Hermesia und Aphrodon) und verwenden
+dieselben gespeicherten Rotationen wie der Rotation Monitor.
 
 **Grind-Bewertung** vergleicht den Trash-pro-Stunde-Wert der vollständigen
 Live-Session mit den Garmoth-Referenzen des erkannten Spots. Es zeigt Unter Average,
