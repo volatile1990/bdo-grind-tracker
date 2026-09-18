@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using BdoGrindTracker.App.Diagnostics;
 using BdoGrindTracker.App.Overlay;
 using BdoGrindTracker.Ocr;
 using OpenCvSharp;
@@ -9,35 +10,31 @@ internal static class HermesiaMessages
 {
     internal static string Recognize(Mat pixels, CompanionWindowsOcrRecognizer engine)
     {
-        var lines = new List<string> { engine.Recognize(pixels).Text };
+        var raw = engine.Recognize(pixels).Text;
+        // The crop holds only the banner stack, so one enlarged black-and-white pass
+        // reads messages the raw pass misses under a bright background or boss dialogue.
         using var gray = new Mat();
-        Cv2.CvtColor(pixels, gray, ColorConversionCodes.BGR2GRAY);
         using var enlarged = new Mat();
-        var scale = Math.Min(2.5, 2400d / pixels.Width);
+        using var binary = new Mat();
+        Cv2.CvtColor(pixels, gray, ColorConversionCodes.BGR2GRAY);
+        var scale = Math.Min(2.5, 1300d / pixels.Width);
         Cv2.Resize(gray, enlarged, new OpenCvSharp.Size(), scale, scale, InterpolationFlags.Cubic);
-        // Independent overlapping strips keep the red boss dialogue from causing
-        // Windows OCR to omit the gold system message immediately beneath it.
-        for (var row = 0; row < 3; row++)
-        {
-            var y = row * enlarged.Height / 4;
-            using var strip = new Mat(enlarged, new Rect(0, y, enlarged.Width, enlarged.Height / 2));
-            using var binary = new Mat();
-            Cv2.Threshold(strip, binary, 145, 255, ThresholdTypes.Binary);
-            lines.Add(engine.Recognize(binary).Text);
-        }
-        return string.Join("\n", lines);
+        Cv2.Threshold(enlarged, binary, 145, 255, ThresholdTypes.Binary);
+        return raw + "\n" + engine.Recognize(binary).Text;
     }
+    // Short phrases: skill hints beside the banners can merge into a line's first word,
+    // and the AFK banner's last word can touch the crop edge.
     internal static readonly (string Kind, string Label, string Phrase)[] Definitions = [
-        ("offer", "Opfergabe angeordnet", "overseer orders the black crystals"),
+        ("offer", "Opfergabe angeordnet", "overseer orders the black"),
         ("porter", "Träger-Spawn", "porters gather to offer"),
-        ("drakania", "Drakania-Spawn", "who dares interferes with our work"),
-        ("drakania-kill", "Drakania besiegt", "f father"),
-        ("transfer", "Minenrechte übertragen", "authority over two mines transferred"),
-        ("mine-enter", "Mine betreten", "quarry management authority confirmed"),
+        ("drakania", "Drakania-Spawn", "who dares interfere"),
+        ("drakania-kill", "Drakania besiegt", "father"),
+        ("transfer", "Minenrechte übertragen", "authority over two mines"),
+        ("mine-enter", "Mine betreten", "quarry management authority"),
         ("mine-second", "Zweite Minenphase", "quarry quota was not met"),
         ("mine-cleared", "Mine abgeschlossen", "work in the mine is suspended"),
         ("dragon", "Drachen-Spawn", "patrol descends"),
-        ("afk", "AFK-Beginn", "begins absorbing nearby black crystals"),
+        ("afk", "AFK-Beginn", "begins absorbing nearby"),
         // Either sentence of the two-part banner is enough when OCR garbles the other.
         ("failure", "Rotation Failed", "intruder alert in effect"),
         ("failure", "Rotation Failed", "valid authorization not confirmed")
@@ -136,12 +133,16 @@ internal class BufferedRotationProfileMonitor : IRotationProfileMonitor
     private Task _pending = Task.CompletedTask;
     internal Task PendingAnalysis { get { lock (_sync) return _pending; } }
     private string? _error;
+    private RotationDiagnosticRecording? _diagnostics;
+    private string _diagnosticSpot = "";
 
-    private sealed class Sample(Bitmap pixels, DateTimeOffset at)
+    private sealed class Sample(Bitmap pixels, DateTimeOffset at, System.Drawing.Size frame, Rectangle region)
     {
         private int _references = 1;
         internal Bitmap Pixels { get; } = pixels;
         internal DateTimeOffset At { get; } = at;
+        internal System.Drawing.Size Frame { get; } = frame;
+        internal Rectangle Region { get; } = region;
         internal string? Text { get; set; }
         internal void Retain() => Interlocked.Increment(ref _references);
         internal void Release() { if (Interlocked.Decrement(ref _references) == 0) Pixels.Dispose(); }
@@ -163,8 +164,12 @@ internal class BufferedRotationProfileMonitor : IRotationProfileMonitor
     { lock (_sync) return _tracker.DrainCompleted(); }
     public void Interrupt(string status = "Tracking pausiert · warte auf erstes Ereignis")
     { lock (_sync) InterruptCore(status); }
+    public void AttachDiagnostics(RotationDiagnosticRecording? recording, string spotId)
+    { lock (_sync) (_diagnostics, _diagnosticSpot) = (recording, spotId); }
     private void InterruptCore(string status)
     {
+        // Every frame without HUD interrupts again; only the first one ends an observation.
+        if (_lastFrame is { } observed) _diagnostics?.Note(_diagnosticSpot, observed, "interrupt", status);
         _epoch++; _tracker.Interrupt(status); _search = new(_profile.Parse);
         _lastFrame = _lastSample = _lastProbe = null;
         foreach (var sample in _buffer) sample.Release();
@@ -182,7 +187,7 @@ internal class BufferedRotationProfileMonitor : IRotationProfileMonitor
             if (_lastSample is { } sampled && at - sampled < SampleInterval) return;
             var region = _profile.Crop(frame.Width, frame.Height);
             if (region.Width < 32 || region.Height < 16) return;
-            _buffer.Add(new Sample(frame.Clone(region, System.Drawing.Imaging.PixelFormat.Format24bppRgb), at));
+            _buffer.Add(new Sample(frame.Clone(region, System.Drawing.Imaging.PixelFormat.Format24bppRgb), at, frame.Size, region));
             _lastSample = at;
             while (_buffer.Count > 21 || at - _buffer[0].At > TimeSpan.FromSeconds(10))
             { _buffer[0].Release(); _buffer.RemoveAt(0); }
@@ -227,26 +232,39 @@ internal class BufferedRotationProfileMonitor : IRotationProfileMonitor
             foreach (var sample in samples) sample.Retain();
             var epoch = _epoch;
             var search = _search;
+            var (diagnostics, spot) = (_diagnostics, _diagnosticSpot);
             _busy = true;
             _pending = Task.Run(() =>
             {
+                var probedAt = samples[^1].At;
                 try
                 {
+                    diagnostics?.Probe(spot, probedAt, samples[^1].Pixels, samples[^1].Frame, samples[^1].Region);
                     string Read(int index)
                     {
                         var sample = samples[index];
                         if (sample.Text is not null) return sample.Text;
-                        if (_recognize is not null) return sample.Text = _recognize(sample.Pixels);
-                        _ocr ??= CompanionWindowsOcrRecognizer.TryCreate("en-US", requirePreferredLanguage: true);
-                        if (_ocr is null) throw new InvalidOperationException("Englische Windows-Texterkennung fehlt.");
-                        using var pixels = CompanionFrameDecoder.Decode(sample.Pixels);
-                        return sample.Text = _profile.Recognize(pixels, _ocr);
+                        if (_recognize is not null) sample.Text = _recognize(sample.Pixels);
+                        else
+                        {
+                            _ocr ??= CompanionWindowsOcrRecognizer.TryCreate("en-US", requirePreferredLanguage: true);
+                            if (_ocr is null) throw new InvalidOperationException("Englische Windows-Texterkennung fehlt.");
+                            using var pixels = CompanionFrameDecoder.Decode(sample.Pixels);
+                            sample.Text = _profile.Recognize(pixels, _ocr);
+                        }
+                        diagnostics?.Read(spot, sample.At, sample.Text, _profile.Parse(sample.Text).Select(match => match.Kind));
+                        return sample.Text;
                     }
                     var events = search.Read(samples.Select(s => s.At).ToArray(), Read);
                     lock (_sync)
                     {
                         if (_disposed || epoch != _epoch) return;
-                        foreach (var e in events) _tracker.Observe(e.Kind, e.Label, e.At);
+                        foreach (var e in events)
+                        {
+                            _tracker.Observe(e.Kind, e.Label, e.At);
+                            diagnostics?.Event(spot, e.Kind, e.Label, e.At, probedAt);
+                            diagnostics?.State(spot, probedAt, _tracker.Snapshot(probedAt));
+                        }
                         _error = null;
                     }
                 }
@@ -255,7 +273,10 @@ internal class BufferedRotationProfileMonitor : IRotationProfileMonitor
                     lock (_sync)
                     {
                         if (!_disposed && epoch == _epoch)
-                        { InterruptCore("Erkennung unterbrochen · warte auf erstes Ereignis"); _error = "Rotation: " + e.Message; }
+                        {
+                            diagnostics?.Note(spot, probedAt, "error", e.Message);
+                            InterruptCore("Erkennung unterbrochen · warte auf erstes Ereignis"); _error = "Rotation: " + e.Message;
+                        }
                     }
                 }
                 finally

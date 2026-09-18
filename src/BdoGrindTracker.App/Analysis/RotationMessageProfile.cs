@@ -19,8 +19,11 @@ internal sealed record RotationMessageProfile(
         Cv2.Resize(gray, enlarged, new OpenCvSharp.Size(), 2, 2, InterpolationFlags.Cubic);
         return text + "\n" + engine.Recognize(enlarged).Text;
     }
-    internal static readonly RotationMessageProfile Hermesia = new(HermesiaMessages.Parse,
-        (w, h) => new(w / 4, (int)(h * .54), w / 2, (int)(h * .16)));
+    // Up to three stacked banners, centered: the widest (AFK) spans 37.9–62 % of the width,
+    // the lines 54.7–63.5 % of the height. Measured on the reference video and a live session.
+    internal static readonly RotationMessageProfile Hermesia = new(HermesiaMessages.Parse, (w, h) =>
+        Rectangle.FromLTRB((int)Math.Floor(w * .365), (int)Math.Floor(h * .54),
+            (int)Math.Ceiling(w * .635), (int)Math.Ceiling(h * .65)));
 
     // Resolve crop: left 0.40625, right 0.4072916667,
     // top 0.6166666667, bottom 0.3611111111. Verified on the source video.

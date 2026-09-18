@@ -30,6 +30,7 @@ internal sealed record TrackerPreferences
     public string? CharacterClassId { get; init; }
     public int AutoPauseMinutes { get; init; } = 3;
     public bool RecordLoot { get; init; }
+    public bool RecordRotation { get; init; }
     public bool AutoUpload { get; init; }
     public string MarketRegion { get; init; } = "eu";
     public bool ValuePack { get; init; }
@@ -88,6 +89,8 @@ internal sealed record TrackerState
     public bool IsError { get; init; }
     public string? RecordingPath { get; init; }
     public bool IsRecording { get; init; }
+    public string? RotationRecordingPath { get; init; }
+    public bool IsRecordingRotation { get; init; }
     public bool HasApiKey { get; init; }
     public bool UploadBlocked { get; init; }
     public bool AutomaticSuspended { get; init; }

@@ -59,7 +59,10 @@
         </main>
         <footer class="statusbar @(State.IsError ? "has-error" : "")" role="status" aria-live="polite">
             <span class="status-message"><span class="status-dot @(State.IsError ? "error" : State.IsRunning ? "running" : "")"></span>@State.Status</span>
-            @if (State.IsRecording) { <span class="recording-badge" title="@State.RecordingPath"><span class="record-dot"></span>Aufzeichnung</span> }
+            @if (State.IsRecording || State.IsRecordingRotation)
+            {
+                <span class="recording-badge" title="@RecordingTitle"><span class="record-dot"></span>Aufzeichnung</span>
+            }
         </footer>
     </div>
 </div>
@@ -68,6 +71,7 @@
 
 @code {
     private enum Page { Live, History, Garmoth, Overlay, Goals, Settings }
+    private string RecordingTitle => string.Join("\n", new[] { State.RecordingPath, State.RotationRecordingPath }.OfType<string>());
     private StoreUpdateDialog? _storeUpdateDialog;
     private Task ShowStoreUpdateDialog() => _storeUpdateDialog?.OpenAsync() ?? Task.CompletedTask;
     private bool _scrollPending;

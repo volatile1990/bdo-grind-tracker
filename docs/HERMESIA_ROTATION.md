@@ -27,11 +27,22 @@ Zusätzlich werden alle neu abgeschlossenen, gültigen Rotationen in der jeweili
 
 ## Erkennung und Grenzen
 
-Die Erkennung ist auf die **englischen Systemmeldungen und die mittlere untere Meldungsposition der gelieferten Aufnahme** abgestimmt. Sie liest einen eigenen Ausschnitt (25–75 % der Bildbreite, 54–70 % der Bildhöhe). Andere Sprachen oder verschobene Meldungsbereiche sind noch nicht kalibriert.
+Die Erkennung ist auf die **englischen Systemmeldungen und die mittlere untere Meldungsposition der gelieferten Aufnahme** abgestimmt. Sie liest einen eigenen Ausschnitt (36,5–63,5 % der Bildbreite, 54–65 % der Bildhöhe), der genau den Stapel aus bis zu drei Meldungsbannern enthält; neue Meldungen erscheinen unten und rücken nach oben. Andere Sprachen oder verschobene Meldungsbereiche sind noch nicht kalibriert.
 
-Ein separater Hintergrundauftrag beobachtet höchstens alle 500 ms. Zwei Beobachtungen bestätigen ein Ereignis; der erste beobachtete Zeitpunkt wird behalten. Das liefert ungefähr eine Abtastperiode Zeitauflösung, keine framegenaue Messung. Rohbild sowie überlappende vergrößerte Schwarzweißstreifen berücksichtigen gleichzeitig sichtbaren Bossdialog und Systemmeldung. Während des sichtbaren Banners verhindert eine Wiederholungssperre doppelte Ereignisse.
+Ein separater Hintergrundauftrag beobachtet höchstens alle 500 ms. Zwei Beobachtungen bestätigen ein Ereignis; der erste beobachtete Zeitpunkt wird behalten. Das liefert ungefähr eine Abtastperiode Zeitauflösung, keine framegenaue Messung. Je Bild laufen zwei Texterkennungen: das Rohbild und ein vergrößertes Schwarzweißbild. Die Suchbegriffe sind kurz gehalten, weil Skill-Hinweise neben den Bannern mit dem ersten Wort verschmelzen können und die AFK-Meldung bis an den Ausschnittrand reicht. Gegenüber dem früheren Ausschnitt (25–75 % × 54–70 %) mit vier Erkennungsdurchgängen sinkt die Rechenzeit je Bild von etwa 55 auf 21 ms (2560 × 1440); im Referenzvideo werden weiterhin alle 37 Meldungen ohne Fehlalarm erkannt. Während des sichtbaren Banners verhindert eine Wiederholungssperre doppelte Ereignisse.
 
 `Work in the mine is suspended …` steht sowohl für einen Minenabschluss als auch für das AFK-Ende. Nur nach `… begins absorbing nearby Black Crystals` wird daraus eine Rotationsgrenze. Die Erkennung benötigt sichtbare Spiel-HUD-Bilder aus der vorhandenen Capture-Pipeline; sie liest keine Spielspeicher und greift nicht in das Spiel ein.
+
+## Diagnose
+
+Unter **Einstellungen → Diagnose** zeichnet **Rotation-Monitor-Diagnose aufzeichnen** die Rotationserkennung einer Session auf. Wie die Loot-Diagnose lässt sich der Schalter nur vor einer neuen Session ändern; nach einem App-Neustart und für jede neue Session ist er ausgeschaltet. Pausen setzen dieselbe Aufnahme fort.
+
+Die Aufnahme liegt im Diagnoseordner unter `rotation-<Zeitpunkt>-<ID>`:
+
+- `rotation.jsonl` enthält je Zeile einen Eintrag: `header` (Formatversion, App-Version, Abtast- und Prüfintervall), `probe` (Zeitpunkt, Bildgröße, Ausschnitt und Bilddatei der jeweils neuesten Probe), `read` (OCR-Text und erkannte Meldungsarten jedes gelesenen Pufferbilds), `event` (bestätigte Meldung mit erstem sichtbarem Zeitpunkt und Prüfzeitpunkt), `state` (Status, Synchronisierung und Ereignisse des Trackers nach jeder Meldung), `completed` (gezählte Rotationen) und `note` (vorläufige Erkennung vor der Spot-Erkennung, Spotwechsel, Unterbrechungen, Erkennungsfehler).
+- `crops/` enthält den Meldungsausschnitt jeder Prüfung als JPEG, also etwa alle 3 Sekunden. Bei 2560 × 1440 sind das rund 55 MB pro Stunde. Nach 20.000 Bildern (rund 16 Stunden) werden Prüfungen nur noch als Text erfasst.
+
+Die Aufnahme verändert die Erkennung nicht. Schreibfehler beenden nur die Aufnahme und erscheinen in der Statuszeile.
 
 ## Referenz und Validierung
 

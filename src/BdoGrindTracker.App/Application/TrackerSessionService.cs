@@ -54,6 +54,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         public bool Completed { get; set; }
     }
     private DiagnosticRecordingSession? _recording;
+    private RotationDiagnosticRecording? _rotationRecording;
     private LootSessionSnapshot _sessionSummary = LootSessionSnapshot.Empty;
     private CharacterClassDetection _classDetection = CharacterClassDetection.Unknown;
     private CharacterClass? _sessionClass;
@@ -228,6 +229,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         _experienceSessionTracker.Reset();
         _recording?.Dispose();
         _recording = null;
+        StopRotationRecording();
         _hasSession = false;
         _sessionId = Guid.NewGuid();
         _rotationMonitor.Interrupt("Neue Session · warte auf erstes Ereignis");
@@ -237,7 +239,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         _demoMode = false;
         _sessionSubmitted = false;
         _sessionClass = null;
-        Preferences = Preferences with { CharacterClassId = null, RecordLoot = false };
+        Preferences = Preferences with { CharacterClassId = null, RecordLoot = false, RecordRotation = false };
         _garmothIntervals.Reset();
         _sessionClock.Reset();
         _inactivityTimer.Reset();
@@ -347,6 +349,12 @@ internal sealed partial class TrackerSessionService : ITrackerSession
                         targetFrameInterval: _captureSession.FrameInterval,
                         maximumQueuedFrames: _captureSession.MaximumQueuedFrames)
                     : null;
+                StopRotationRecording();
+                if (Preferences.RecordRotation)
+                {
+                    _rotationRecording = RotationDiagnosticRecording.Start(DiagnosticsDirectory);
+                    _rotationMonitor.AttachDiagnostics(_rotationRecording);
+                }
             }
             Interlocked.Exchange(ref _lastCaptureStopError, null);
             _captureSegmentCompleted = false;
@@ -387,6 +395,13 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             CompleteCaptureSegment(DateTimeOffset.UtcNow);
             throw;
         }
+    }
+
+    private void StopRotationRecording()
+    {
+        _rotationMonitor.AttachDiagnostics(null);
+        _rotationRecording?.Dispose();
+        _rotationRecording = null;
     }
 
     private async Task StopTrackingAsync(bool automatic = false, bool excludeTrailingIdle = false)
@@ -517,6 +532,11 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         if (_recording?.LastError is { } recordingError)
         {
             _status = "Aufzeichnung beendet: " + recordingError;
+            _isError = true;
+        }
+        if (_rotationRecording?.LastError is { } rotationRecordingError)
+        {
+            _status = "Rotation-Diagnose beendet: " + rotationRecordingError;
             _isError = true;
         }
         if (publish) PublishState();
@@ -695,6 +715,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             PriceStatus = _priceStatus, Status = _isInstallingOcrLanguage ? _ocrInstallationStatus! : trackingBlockedReason ?? _status,
             IsError = _isError || trackingBlockedReason is not null || _currentSessionPersistenceError is not null || _historyPersistenceError is not null || _historyStore.LoadError is not null || _garmothPersistenceError is not null || _settingsSaveError is not null,
             RecordingPath = _recording?.RecordingPath, IsRecording = _recording?.IsRecording ?? false,
+            RotationRecordingPath = _rotationRecording?.RecordingPath, IsRecordingRotation = _rotationRecording?.IsRecording ?? false,
             HasApiKey = _garmothApiKey.Length > 0, UploadBlocked = _sessionSubmitted || _garmothIntervals.IsBlocked ||
                 _garmothPersistenceError is not null || _garmothRestartBlocks.Contains(_sessionId),
             AutomaticSuspended = _garmothIntervals.AutomaticSuspended,
@@ -800,6 +821,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             await _captureSession.DisposeAsync();
             _recording?.Dispose();
             _recording = null;
+            StopRotationRecording();
             _garmothApiKey = string.Empty;
             PublishState();
             _disposed = true;

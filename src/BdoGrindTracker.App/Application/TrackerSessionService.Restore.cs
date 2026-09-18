@@ -85,6 +85,7 @@ internal sealed partial class TrackerSessionService
                 ? saved.MonitorDeviceName : Preferences.MonitorDeviceName,
             // Diagnosis recording requires a new explicit choice after restart.
             RecordLoot = false,
+            RecordRotation = false,
         };
         if (reconciledHistory || _garmothRestartBlocks.Contains(saved.SessionId)) _garmothIntervals.BlockFurtherUploads();
         _status = saved.SessionSubmitted

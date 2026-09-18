@@ -245,7 +245,7 @@ Prüfprogramm und Ergebnisse: `artifacts/paddle-consensus-fix/Probe.csproj`,
 
 ## Doppelzählungen in neuen Aufnahmen untersuchen
 
-Vor dem Start unter Einstellungen **Diese Session aufzeichnen** aktivieren.
+Vor dem Start unter Einstellungen **Loot-Diagnose aufzeichnen** aktivieren.
 Die Zählregeln bleiben unverändert. Neue Aufnahmen enthalten zusätzlich
 `reconciliationTraceVersion: 1` im Header; die Zähler-Engine bleibt bei v7.
 

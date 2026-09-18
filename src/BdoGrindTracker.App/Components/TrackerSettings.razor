@@ -24,11 +24,13 @@
                     <label class="field"><span>Automatische Pause nach</span><div class="input-with-unit"><input type="number" min="1" max="60" step="1" required @bind="_autoPause" @bind:event="oninput" @bind:after="PauseInputChanged" @onblur="SaveAutoPause" /><span>Minuten ohne neuen Loot</span></div>@if (_autoPauseError is not null) { <small class="field-error" role="alert">@_autoPauseError</small> }</label>
                     @if (State.HasSession) { <p class="field-note"><AppIcon Name="info" />Bildschirm, Spielsprache und Aufzeichnung lassen sich vor dem Start einer neuen Session ändern.</p> }
                 </section>
-                <section class="panel settings-panel"><div class="settings-heading"><div class="settings-icon"><AppIcon Name="shield" /></div><h2>Loot-Diagnose</h2></div>
-                    <label class="toggle-row"><span><strong>Diese Session aufzeichnen</strong><small>Loot-Ausschnitte und Erkennungsdaten lokal speichern.</small></span><input type="checkbox" class="switch" @bind="_recordLoot" @bind:after="RecordingChanged" disabled="@State.HasSession" /></label>
+                <section class="panel settings-panel"><div class="settings-heading"><div class="settings-icon"><AppIcon Name="shield" /></div><h2>Diagnose</h2></div>
+                    <label class="toggle-row"><span><strong>Loot-Diagnose aufzeichnen</strong><small>Loot-Ausschnitte und Erkennungsdaten dieser Session lokal speichern.</small></span><input type="checkbox" class="switch" @bind="_recordLoot" @bind:after="RecordingChanged" disabled="@State.HasSession" /></label>
+                    @if (State.IsRecording && State.RecordingPath is { } path) { <div class="recording-path"><span class="record-dot"></span><span>@path</span></div> }
+                    <label class="toggle-row"><span><strong>Rotation-Monitor-Diagnose aufzeichnen</strong><small>Alle 3 Sekunden den Meldungsausschnitt sowie erkannte Texte, Ereignisse und Rotationen speichern (etwa 55 MB pro Stunde bei 2560 × 1440).</small></span><input type="checkbox" class="switch" @bind="_recordRotation" @bind:after="RotationRecordingChanged" disabled="@State.HasSession" /></label>
+                    @if (State.IsRecordingRotation && State.RotationRecordingPath is { } rotationPath) { <div class="recording-path"><span class="record-dot"></span><span>@rotationPath</span></div> }
                     <div class="subtle-box"><AppIcon Name="info" /><span>Die Dateien bleiben lokal, bis du sie selbst teilst.</span></div>
                     <p class="field-note">Speicherort: <code>@Tracker.DiagnosticsDirectory</code></p>
-                    @if (State.IsRecording && State.RecordingPath is { } path) { <div class="recording-path"><span class="record-dot"></span><span>@path</span></div> }
                 </section>
             </div>
             <div class="settings-column">
@@ -50,7 +52,7 @@
 @code {
     private string? _monitor, _characterClass;
     private string _autoPause = "3", _familyFame = "0";
-    private bool _recordLoot, _valuePack, _merchantRing;
+    private bool _recordLoot, _recordRotation, _valuePack, _merchantRing;
     private string _region = "eu";
     private string _gameLanguage = "auto";
     private string SelectedThemeId => AppThemes.Normalize(Tracker.Preferences.ThemeId);
@@ -72,6 +74,7 @@
         _gameLanguage = preferences.GameLanguage;
         _autoPause = preferences.AutoPauseMinutes.ToString(System.Globalization.CultureInfo.InvariantCulture);
         _recordLoot = preferences.RecordLoot;
+        _recordRotation = preferences.RecordRotation;
         _region = preferences.MarketRegion;
         _valuePack = preferences.ValuePack;
         _merchantRing = preferences.MerchantRing;
@@ -82,6 +85,7 @@
     private Task GameLanguageChanged() => Save(p => p with { GameLanguage = _gameLanguage });
     private Task CharacterChanged() => Save(p => p with { CharacterClassId = string.IsNullOrEmpty(_characterClass) ? null : _characterClass });
     private Task RecordingChanged() => Save(p => p with { RecordLoot = _recordLoot });
+    private Task RotationRecordingChanged() => Save(p => p with { RecordRotation = _recordRotation });
     private Task RegionChanged() => Save(p => p with { MarketRegion = _region });
     private Task ValuePackChanged() => Save(p => p with { ValuePack = _valuePack });
     private Task MerchantRingChanged() => Save(p => p with { MerchantRing = _merchantRing });

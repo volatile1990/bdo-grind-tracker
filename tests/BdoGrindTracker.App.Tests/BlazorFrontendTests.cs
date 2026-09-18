@@ -489,7 +489,8 @@ public sealed class BlazorFrontendTests
         Assert.True(IsDisabled(FieldSelectAttributes(markup, "Spielbildschirm")));
         Assert.Equal(running, IsDisabled(FieldSelectAttributes(markup, "Charakterklasse")));
         Assert.DoesNotContain("Event-Loot mitzählen", markup);
-        Assert.True(IsDisabled(ToggleAttributes(markup, "Diese Session aufzeichnen")));
+        Assert.True(IsDisabled(ToggleAttributes(markup, "Loot-Diagnose aufzeichnen")));
+        Assert.True(IsDisabled(ToggleAttributes(markup, "Rotation-Monitor-Diagnose aufzeichnen")));
     }
 
     [Theory]

@@ -133,7 +133,8 @@ internal sealed class RotationFlushFrames : IDisposable
         var eventIndex = (int)(seconds / 10);
         var code = seconds % 10 < 6.5 && eventIndex < EndCode ? eventIndex + 1 : 0;
         // Encode the synthetic OCR result in the first pixel of the real crop.
-        _frame.SetPixel(80, 108, Color.FromArgb(code, 0, 0));
+        var crop = RotationMessageProfile.Hermesia.Crop(_frame.Width, _frame.Height);
+        _frame.SetPixel(crop.X, crop.Y, Color.FromArgb(code, 0, 0));
         Profile.Observe(_frame, Epoch.AddSeconds(seconds));
     }
 

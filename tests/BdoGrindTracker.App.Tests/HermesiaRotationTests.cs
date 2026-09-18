@@ -138,6 +138,26 @@ public sealed class HermesiaRotationTests
         Assert.Equal(5,tracker.Snapshot(Epoch.AddSeconds(75)).Elapsed);
     }
 
+    [Fact]
+    public void TheMessageCropHoldsOnlyTheCenteredBannerStack()
+    {
+        Assert.Equal(new Rectangle(934, 777, 692, 159), RotationMessageProfile.Hermesia.Crop(2560, 1440));
+        Assert.Equal(new Rectangle(700, 583, 520, 119), RotationMessageProfile.Hermesia.Crop(1920, 1080));
+    }
+
+    [Theory]
+    // Recorded OCR lines: skill hints merge into the first word, the AFK banner touches the crop edge.
+    [InlineData("S+RMB Shift*LMB Shift. Father...'", "drakania-kill")]
+    [InlineData("Merkthanan's Black Crystal goes out of control and begins absorbing nearby Black Cryst", "afk")]
+    [InlineData("ShiftTLMB Who dares interfere with our work!", "drakania")]
+    [InlineData("The overseer orders the Black Crystals to be offered up.", "offer")]
+    [InlineData("Authority over two mines transferred.", "transfer")]
+    [InlineData("Quarry management authority confirmed. Alert status lifted.", "mine-enter")]
+    public void ShortPhrasesSurviveTypicalOcrNoise(string text, string kind)
+    {
+        Assert.Equal(kind, Assert.Single(HermesiaMessages.Parse(text)).Kind);
+    }
+
     [Theory]
     [InlineData("Intruder alert in effect. Valid authorization not confirmed.")]
     [InlineData("lntruder alert in effect. Valid authorization not confirmed.")]

@@ -30,7 +30,8 @@ internal sealed partial class TrackerSessionService
             if (_hasSession && (preferences.MonitorDeviceName != Preferences.MonitorDeviceName ||
                 captureConfigurationChanged ||
                 preferences.GameLanguage != Preferences.GameLanguage ||
-                preferences.RecordLoot != Preferences.RecordLoot))
+                preferences.RecordLoot != Preferences.RecordLoot ||
+                preferences.RecordRotation != Preferences.RecordRotation))
                 throw new ArgumentException("Monitor, BDO-Konfiguration, Spielsprache und Aufzeichnung können erst für eine neue Session geändert werden.");
             if (captureConfigurationChanged)
             {

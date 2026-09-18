@@ -1,3 +1,4 @@
+using BdoGrindTracker.App.Diagnostics;
 using BdoGrindTracker.App.Overlay;
 using BdoGrindTracker.Core;
 
@@ -10,6 +11,7 @@ internal interface IRotationProfileMonitor : IDisposable
     RotationMonitorSnapshot Snapshot(DateTimeOffset now);
     (DateTimeOffset StartedAt, RotationRun Run)[] DrainCompleted() => [];
     Task FlushAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    void AttachDiagnostics(RotationDiagnosticRecording? recording, string spotId) { }
 }
 
 /// <summary>Each spot owns its message recognition, rotation rules and records.</summary>
@@ -36,10 +38,25 @@ internal sealed class RotationMonitor : IDisposable
     private string? _spotId;
     private bool _disposed;
     private readonly List<SessionRotation> _sessionRotations = [];
+    private RotationDiagnosticRecording? _diagnostics;
     private void CollectCompleted()
     {
         if (_profile is null || _spotId is null) return;
-        _sessionRotations.AddRange(_profile.DrainCompleted().Select(r => new SessionRotation(_spotId, r.StartedAt, r.Run)));
+        foreach (var (startedAt, run) in _profile.DrainCompleted())
+        {
+            _sessionRotations.Add(new SessionRotation(_spotId, startedAt, run));
+            _diagnostics?.Completed(_spotId, startedAt, run);
+        }
+    }
+    /// <summary>Records the current and every later profile, including the provisional ones before spot detection.</summary>
+    internal void AttachDiagnostics(RotationDiagnosticRecording? recording)
+    {
+        lock (_sync)
+        {
+            _diagnostics = recording;
+            if (_spotId is not null) _profile?.AttachDiagnostics(recording, _spotId);
+            foreach (var (spot, candidate) in _candidates) candidate?.AttachDiagnostics(recording, spot);
+        }
     }
     internal SessionRotation[] ExportSession()
     {
@@ -69,9 +86,14 @@ internal sealed class RotationMonitor : IDisposable
         CollectCompleted();
         _profile?.Dispose();
         _spotId = spotId;
-        _profile = spotId is not null && _candidates.Remove(spotId, out var candidate) && candidate is not null
-            ? candidate : _create(spotId);
+        IRotationProfileMonitor? candidate = null;
+        var adopted = spotId is not null && _candidates.Remove(spotId, out candidate) && candidate is not null;
+        _profile = adopted ? candidate : _create(spotId);
         DisposeCandidates();
+        if (spotId is null) return;
+        _profile?.AttachDiagnostics(_diagnostics, spotId);
+        _diagnostics?.Note(spotId, DateTimeOffset.UtcNow, "spot", _profile is null ? "Spot ohne Rotationsprofil"
+            : adopted ? "Spot erkannt · vorläufig erfasste Meldungen übernommen" : "Spot erkannt · Erkennung gestartet");
     }
     internal void Observe(Bitmap frame, DateTimeOffset at, string? spotId)
     {
@@ -80,6 +102,7 @@ internal sealed class RotationMonitor : IDisposable
             if (_disposed) return;
             Select(spotId);
             if (spotId is not null) { _profile?.Observe(frame, at); return; }
+            if (_candidates.Count == 0) _diagnostics?.Note(null, at, "candidates", "Spot noch unbekannt · alle Rotationsprofile lesen vorläufig mit");
             foreach (var candidateSpot in RotationProfiles.SupportedSpotIds)
             {
                 if (!_candidates.TryGetValue(candidateSpot, out var candidate))
@@ -87,6 +110,7 @@ internal sealed class RotationMonitor : IDisposable
                     candidate = _create(candidateSpot);
                     // A factory may hand out one shared instance; it must watch each frame only once.
                     _candidates[candidateSpot] = candidate is not null && _candidates.ContainsValue(candidate) ? null : candidate;
+                    _candidates[candidateSpot]?.AttachDiagnostics(_diagnostics, candidateSpot);
                 }
                 _candidates[candidateSpot]?.Observe(frame, at);
             }

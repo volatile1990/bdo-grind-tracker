@@ -131,6 +131,9 @@ Pfad zeigt **Einstellungen**. Die Aufzeichnung ist beim Start und für jede neue
 Session ausgeschaltet. Aktivierte Aufnahmen wachsen bis zum Sessionende ohne
 Gesamtgrößenlimit. Ein kleiner lokaler Fehlernachweis `last-capture-error.json`
 kann auch ohne Aufzeichnung entstehen; er enthält keine Bilder oder OCR-Texte.
+Die ebenfalls optionale **Rotation-Monitor-Diagnose** speichert dort in einem eigenen
+Ordner `rotation-…` die Meldungsausschnitte der Rotationserkennung
+([Details](docs/HERMESIA_ROTATION.md#diagnose)).
 [Aufzeichnung, Replay und historische Formatdetails](docs/IMPLEMENTATION_HISTORY.md#lokale-diagnose-und-replay).
 
 Der Tracker verarbeitet sichtbare Pixel und liest die BDO-UI-Konfiguration.
