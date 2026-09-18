@@ -130,7 +130,7 @@ steht „ohne Rückweg“ in der Detailzeile. Lücken über zwei Minuten gelten 
 nicht als Rückweg. Die Detailzeile nennt den genauen Wert und die Durchschnittszeit. Aufbau und
 abgebrochene Versuche zählen nicht. **Rotation Counter** zeigt die in der Session vollständig
 abgeschlossenen Rotationen am aktuellen Spot und die Dauer der letzten. Beide Module
-benötigen einen Spot mit Rotationsprofil (derzeit Hermesia und Aphrodon) und verwenden
+benötigen einen Spot mit Rotationsprofil (derzeit Hermesia, Aphrodon und Event Horizon) und verwenden
 dieselben gespeicherten Rotationen wie der Rotation Monitor.
 
 **Grind-Bewertung** vergleicht den Trash-pro-Stunde-Wert der vollständigen
@@ -142,7 +142,12 @@ Bewertung wie die Live-Session. Quellen, Vergleichsbedingungen, fehlende Stufen
 und Datenstand sind in [GRIND_RATING.md](GRIND_RATING.md) dokumentiert.
 
 Der Editor zeigt standardmäßig die Live-Session. Optional zuschaltbare
-Beispieldaten helfen auch ohne laufende Session beim Anordnen.
+Beispieldaten helfen auch ohne laufende Session beim Anordnen. Sie stammen aus
+einer echten Hermesia-Session (Shai, 18.09.2026, 1:34 h, englischer Client):
+Mengen, die Marktpreise und Steuereinstellungen dieses Tages sowie sieben
+vollständige Rotationen sind aufgezeichnete Werte. Da der Tracker keine
+Drop-Zeitpunkte speichert, verteilt die Vorschau jeden Drop auf die aktive Stunde,
+in der die Session ihn gezählt hat. Loot-Scroll und Tagesziel sind Beispiele.
 **Desktop-Vorschau** blendet vorübergehend das echte Overlay ein. Änderungen an
 Layout, Verhalten und Fensterposition werden automatisch lokal in `overlay.json`
 gespeichert. Die Vorschau selbst ist vorübergehend und aktiviert das Overlay nicht

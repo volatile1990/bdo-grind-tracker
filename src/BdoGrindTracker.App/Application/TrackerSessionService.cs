@@ -446,13 +446,19 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         if (_analyzer.RequiresLootPanel && (analysis.PanelRegion is not { Width: > 0, Height: > 0 } panel ||
             !new Rectangle(Point.Empty, frame.Size).Contains(panel)))
             throw new LootPanelUnavailableException(LootPanelCaptureGuard.MissingPanelMessage);
+        var newLoot = false;
         lock (_framePublicationSync)
         {
             cancellationToken.ThrowIfCancellationRequested();
             _lastProcessedCaptureAt = metadata.CapturedAtUtc;
-            _uiMailbox.Publish(analysis, onPublished: ObserveGarmothTotals,
-                capturedAt: metadata.CapturedAtUtc);
+            _uiMailbox.Publish(analysis, onPublished: (totals, hasNewDrop) =>
+            {
+                ObserveGarmothTotals(totals, hasNewDrop);
+                newLoot = hasNewDrop;
+            }, capturedAt: metadata.CapturedAtUtc);
         }
+        // Event Horizon rotations start with the first loot after the AFK phase.
+        if (newLoot && _uiRunning) _rotationMonitor.ObserveLoot(metadata.CapturedAtUtc, _sessionSpotId);
         cancellationToken.ThrowIfCancellationRequested();
         _recording?.RecordFrame(metadata.CapturedAtUtc, analysis.Observations,
             analysis.TrackingResult, frame, analysis.PanelRegion, analysis.RareBandRegion, analysis.Recovery,

@@ -324,8 +324,8 @@ public sealed class OverlaySectionsAndRotationModulesTests
         var html = await RenderAsync(widget, snapshot);
         Assert.Contains("Silber je 10 s · Verlauf", html);
         Assert.Contains("overlay-chart-line", html);
-        // The demo's two valuable sections rise beyond its regular loot.
-        Assert.Equal(2, html.Split("overlay-chart-clip").Length - 1);
+        // The example session's five valuable drops fall into five sections above its regular loot.
+        Assert.Equal(5, html.Split("overlay-chart-clip").Length - 1);
         Assert.DoesNotContain("overlay-chart-clip",
             await RenderAsync(widget with { ChartPeakMode = OverlayChartSections.LogarithmicPeaks }, snapshot));
         Assert.Contains("Zahl Ø Session/h · ganze Session", html);
@@ -340,7 +340,8 @@ public sealed class OverlaySectionsAndRotationModulesTests
 
         var rotations = await RenderAsync(OverlayCatalog.CreateWidget("rotations-hour"), snapshot);
         Assert.Contains("Rotations / h", rotations);
-        Assert.Contains("letzte 2", rotations);
+        // Six completed rotations of the example session with walk backs of 14 to 18 seconds.
+        Assert.Contains("5,7 / h · Ø 10:35 · letzte 3", rotations);
         Assert.Contains("Rotation Counter", await RenderAsync(OverlayCatalog.CreateWidget("rotation-count"), snapshot));
     }
 

@@ -75,7 +75,7 @@ internal sealed class HermesiaMessageGate
 }
 
 /// <summary>Searches cached samples only when a regular probe finds a new banner.</summary>
-internal class BufferedRotationSearch(Func<string, IReadOnlyList<(string Kind, string Label)>> parse)
+internal class BufferedRotationSearch(Func<string, IReadOnlyList<(string Kind, string Label)>> parse, int gapSamples = 2)
 {
     private readonly Dictionary<string, (DateTimeOffset First, DateTimeOffset Last)> _emitted = [];
 
@@ -102,7 +102,7 @@ internal class BufferedRotationSearch(Func<string, IReadOnlyList<(string Kind, s
                 if (times[i + 1] - times[i] > TimeSpan.FromSeconds(2)) break;
                 if (parse(text(i)).Any(e => e.Kind == kind))
                 { first = times[i]; matches++; misses = 0; }
-                else if (++misses >= 2) break;
+                else if (++misses >= gapSamples) break;
             }
             if (matches < 2) continue;
             if (previous != default && first - previous.First < TimeSpan.FromSeconds(8))
@@ -149,7 +149,8 @@ internal class BufferedRotationProfileMonitor : IRotationProfileMonitor
     }
 
     internal BufferedRotationProfileMonitor(IRotationEventTracker tracker, RotationMessageProfile profile, Func<Bitmap, string>? recognize = null)
-    { _tracker = tracker; _profile = profile; _search = new(profile.Parse); _recognize = recognize; }
+    { _tracker = tracker; _profile = profile; _search = NewSearch(); _recognize = recognize; }
+    private BufferedRotationSearch NewSearch() => new(_profile.Parse, _profile.GapSamples);
     public RotationMonitorSnapshot Snapshot(DateTimeOffset now)
     {
         lock (_sync)
@@ -170,10 +171,24 @@ internal class BufferedRotationProfileMonitor : IRotationProfileMonitor
     {
         // Every frame without HUD interrupts again; only the first one ends an observation.
         if (_lastFrame is { } observed) _diagnostics?.Note(_diagnosticSpot, observed, "interrupt", status);
-        _epoch++; _tracker.Interrupt(status); _search = new(_profile.Parse);
+        _epoch++; _tracker.Interrupt(status); _search = NewSearch();
         _lastFrame = _lastSample = _lastProbe = null;
         foreach (var sample in _buffer) sample.Release();
         _buffer.Clear();
+    }
+
+    public void ObserveLoot(DateTimeOffset at)
+    {
+        lock (_sync)
+        {
+            if (_disposed) return;
+            // The frame gap that the following frame would report must not end the rotation this loot starts.
+            if (_lastFrame is { } last && at - last > TimeSpan.FromSeconds(4))
+                InterruptCore("Bildsignal unterbrochen · warte auf erstes Ereignis");
+            if (!_tracker.ObserveLoot(at)) return;
+            _diagnostics?.Event(_diagnosticSpot, "start", "Rotationsstart durch Loot", at, at);
+            _diagnostics?.State(_diagnosticSpot, at, _tracker.Snapshot(at));
+        }
     }
 
     public void Observe(Bitmap frame, DateTimeOffset at)

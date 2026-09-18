@@ -12,6 +12,7 @@ internal interface IRotationProfileMonitor : IDisposable
     (DateTimeOffset StartedAt, RotationRun Run)[] DrainCompleted() => [];
     Task FlushAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     void AttachDiagnostics(RotationDiagnosticRecording? recording, string spotId) { }
+    void ObserveLoot(DateTimeOffset at) { }
 }
 
 /// <summary>Each spot owns its message recognition, rotation rules and records.</summary>
@@ -23,6 +24,8 @@ internal static partial class RotationProfiles
             [LootSpotCatalog.HermesiaId] = () => new HermesiaRotationMonitor(HermesiaRotationTracker.DefaultPath),
             [LootSpotCatalog.AphrodonId] = () => new BufferedRotationProfileMonitor(
                 new AphrodonRotationTracker(AphrodonRotationTracker.DefaultPath), RotationMessageProfile.Aphrodon),
+            [LootSpotCatalog.EventHorizonId] = () => new BufferedRotationProfileMonitor(
+                new EventHorizonRotationTracker(EventHorizonRotationTracker.DefaultPath), RotationMessageProfile.EventHorizon),
         };
 
     internal static IRotationProfileMonitor? Create(string? spotId) =>
@@ -102,18 +105,36 @@ internal sealed class RotationMonitor : IDisposable
             if (_disposed) return;
             Select(spotId);
             if (spotId is not null) { _profile?.Observe(frame, at); return; }
-            if (_candidates.Count == 0) _diagnostics?.Note(null, at, "candidates", "Spot noch unbekannt · alle Rotationsprofile lesen vorläufig mit");
-            foreach (var candidateSpot in RotationProfiles.SupportedSpotIds)
+            foreach (var candidate in Candidates(at)) candidate.Observe(frame, at);
+        }
+    }
+
+    /// <summary>A new loot arrival, which starts the rotation of loot-started spots such as Event Horizon.</summary>
+    internal void ObserveLoot(DateTimeOffset at, string? spotId)
+    {
+        lock (_sync)
+        {
+            if (_disposed) return;
+            Select(spotId);
+            // The first loot usually arrives before the spot is known; every provisional profile sees it.
+            if (spotId is not null) _profile?.ObserveLoot(at);
+            else foreach (var candidate in Candidates(at)) candidate.ObserveLoot(at);
+        }
+    }
+
+    private IEnumerable<IRotationProfileMonitor> Candidates(DateTimeOffset at)
+    {
+        if (_candidates.Count == 0) _diagnostics?.Note(null, at, "candidates", "Spot noch unbekannt · alle Rotationsprofile lesen vorläufig mit");
+        foreach (var candidateSpot in RotationProfiles.SupportedSpotIds)
+        {
+            if (!_candidates.TryGetValue(candidateSpot, out var candidate))
             {
-                if (!_candidates.TryGetValue(candidateSpot, out var candidate))
-                {
-                    candidate = _create(candidateSpot);
-                    // A factory may hand out one shared instance; it must watch each frame only once.
-                    _candidates[candidateSpot] = candidate is not null && _candidates.ContainsValue(candidate) ? null : candidate;
-                    _candidates[candidateSpot]?.AttachDiagnostics(_diagnostics, candidateSpot);
-                }
-                _candidates[candidateSpot]?.Observe(frame, at);
+                candidate = _create(candidateSpot);
+                // A factory may hand out one shared instance; it must watch each frame only once.
+                _candidates[candidateSpot] = candidate is not null && _candidates.ContainsValue(candidate) ? null : candidate;
+                _candidates[candidateSpot]?.AttachDiagnostics(_diagnostics, candidateSpot);
             }
+            if (_candidates[candidateSpot] is { } watching) yield return watching;
         }
     }
     private void DisposeCandidates()

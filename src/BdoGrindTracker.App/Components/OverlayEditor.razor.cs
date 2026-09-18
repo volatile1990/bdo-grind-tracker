@@ -31,9 +31,14 @@ public partial class OverlayEditor
     private static IReadOnlyList<OverlayWidgetDefinition> Modules => OverlayCatalog.Widgets;
     private OverlayWidget? SelectedWidget => _settings.Widgets.FirstOrDefault(w => w.Id == _selectedId);
     private OverlaySnapshot PreviewSnapshot => _demo ? OverlaySnapshot.Demo with { ThemeId = Overlay.Snapshot.ThemeId,
-        Rotation = Overlay.Snapshot.Rotation.SpotId == BdoGrindTracker.Core.LootSpotCatalog.AphrodonId
-            ? AphrodonRotationDemo.At((350 + _rotationDemoClock.Elapsed.TotalSeconds) % AphrodonRotationDemo.Reference.Duration)
-            : HermesiaRotationDemo.At((350 + _rotationDemoClock.Elapsed.TotalSeconds) % HermesiaRotationDemo.Reference.Duration) } : Overlay.Snapshot;
+        Rotation = Overlay.Snapshot.Rotation.SpotId switch
+        {
+            BdoGrindTracker.Core.LootSpotCatalog.AphrodonId =>
+                AphrodonRotationDemo.At((350 + _rotationDemoClock.Elapsed.TotalSeconds) % AphrodonRotationDemo.Reference.Duration),
+            BdoGrindTracker.Core.LootSpotCatalog.EventHorizonId =>
+                EventHorizonRotationDemo.At((350 + _rotationDemoClock.Elapsed.TotalSeconds) % EventHorizonRotationDemo.Reference.Duration),
+            _ => HermesiaRotationDemo.At((350 + _rotationDemoClock.Elapsed.TotalSeconds) % HermesiaRotationDemo.Reference.Duration),
+        } } : Overlay.Snapshot;
     private OverlayWindowChrome Chrome => OverlayWindowChrome.For(PreviewSnapshot.ThemeId, _settings.ShowBorder);
     private string StageStyle => $"width:{Css(Chrome.OuterWidth(_settings.Width))}px;height:{Css(Chrome.OuterHeight(_settings.Height))}px;--overlay-opacity:{Css(_settings.BackgroundOpacity)};background:rgba(var(--overlay-surface-rgb,17,23,30),{Css(_settings.BackgroundOpacity)})";
     private string ContentStyle => $"inset:{Css(Chrome.Top)}px {Css(Chrome.Right)}px {Css(Chrome.Bottom)}px {Css(Chrome.Left)}px";

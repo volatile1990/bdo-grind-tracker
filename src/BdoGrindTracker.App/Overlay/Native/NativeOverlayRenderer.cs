@@ -653,7 +653,7 @@ internal sealed class NativeOverlayRenderer : IDisposable
             }
             using var pen = new Pen(ColorTranslator.FromHtml(RotationPhases.MarkerColor(widget.RotationColors, row == 1)), 2);
             using var failurePen = new Pen(ColorTranslator.FromHtml("#E87C79"), 2);
-            foreach (var e in events.Where(e => e.Seconds <= end && e.Kind is "porter" or "offer" or "hog" or "agris" or "failure"))
+            foreach (var e in events.Where(e => e.Seconds <= end && RotationTimelinePresentation.IsMarker(e)))
             {
                 graphics.DrawLine(e.Kind == "failure" ? failurePen : pen, X(e.Seconds), y-bandHeight/2-4, X(e.Seconds), y-bandHeight/2+3);
 

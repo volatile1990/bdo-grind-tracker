@@ -36,7 +36,7 @@
             {
                 <g>
                     <title>@(e.Label + " · " + RotationTimelinePresentation.Time(e.Seconds) + (Mode == "sectors" && State.SectorBests.TryGetValue(e.Key, out var sector) ? " · Bestabschnitt " + RotationTimelinePresentation.Time(sector) : ""))</title>
-                    @if (e.Kind is "porter" or "offer" or "hog" or "agris" or "failure")
+                    @if (RotationTimelinePresentation.IsMarker(e))
                     {
                         <line class="rotation-pack-marker" x1="@X(e.Seconds)" x2="@X(e.Seconds)" y1="@(y-18)" y2="@(y-11)" stroke="@(e.Kind == "failure" ? "#E87C79" : RotationPhases.MarkerColor(Colors, row == 1))" stroke-width="2" vector-effect="non-scaling-stroke" />
                     }

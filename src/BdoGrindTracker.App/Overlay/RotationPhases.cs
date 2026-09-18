@@ -23,6 +23,7 @@ public static class RotationPhases
     public static IReadOnlyList<RotationPhase> Create(string? spotId, IReadOnlyList<RotationEvent> events, double elapsed, string? colors = "colored")
     {
         if (spotId == LootSpotCatalog.AphrodonId) return CreateAphrodon(events, elapsed, colors);
+        if (spotId == LootSpotCatalog.EventHorizonId) return CreateEventHorizon(events, elapsed, colors);
         if (spotId != LootSpotCatalog.HermesiaId || events.Count == 0 || !double.IsFinite(elapsed) || elapsed <= 0) return [];
         var phases = new List<RotationPhase>();
         string? active = null;
@@ -94,6 +95,89 @@ public static class RotationPhases
         }
         return result;
     }
+    private static readonly string[] EventHorizonOrder = ["startup",
+        "wormhole-1-waves", "wormhole-1-debris", "wormhole-1-mobs",
+        "wormhole-2-approach", "wormhole-2-waves", "wormhole-2-debris", "wormhole-2-mobs",
+        "wormhole-3-approach", "wormhole-3-waves", "wormhole-3-debris", "wormhole-3-mobs", "boss", "afk"];
+
+    private static IReadOnlyList<RotationPhase> CreateEventHorizon(IReadOnlyList<RotationEvent> events, double elapsed, string? colors)
+    {
+        if (events.Count == 0 || !double.IsFinite(elapsed) || elapsed <= 0) return [];
+        var phases = new List<RotationPhase>();
+        string? active = null;
+        double start = 0;
+        var wormhole = 0;
+        var lastRank = -1;
+        foreach (var e in events.Where(e => double.IsFinite(e.Seconds) && e.Seconds >= 0 && e.Seconds <= elapsed).OrderBy(e => e.Seconds))
+        {
+            if (e.Kind == "anomaly") wormhole = Math.Min(3, wormhole + 1);
+            if (e.Kind == "end") { Finish(e.Seconds); active = null; break; }
+            // Debris is announced together with the halted banner: the mini AFK replaces the mob phase it opened.
+            if (e.Kind == "debris" && active == $"wormhole-{wormhole}-mobs" && e.Seconds - start < 3)
+            {
+                active = $"wormhole-{wormhole}-debris";
+                lastRank = Array.IndexOf(EventHorizonOrder, active);
+                continue;
+            }
+            var next = e.Kind switch
+            {
+                "start" => "startup",
+                "anomaly" => $"wormhole-{wormhole}-waves",
+                "halted" or "spacetime" => $"wormhole-{wormhole}-mobs",
+                "debris" => $"wormhole-{wormhole}-debris",
+                "expansion" when wormhole < 3 => $"wormhole-{wormhole + 1}-approach",
+                "boss" => "boss",
+                "boss-kill" => "afk",
+                _ => null,
+            };
+            if (next is null || next == active) continue;
+            var rank = Array.IndexOf(EventHorizonOrder, next);
+            // Repeated or late OCR messages must not send a phase backwards.
+            if (rank <= lastRank) continue;
+            Finish(e.Seconds);
+            active = next; start = e.Seconds; lastRank = rank;
+        }
+        Finish(elapsed);
+        return phases;
+
+        void Finish(double end)
+        {
+            if (active is null || end <= start) return;
+            var (group, name, color, groupColor) = EventHorizonStyle(active);
+            var index = Array.IndexOf(EventHorizonOrder, active);
+            (color, groupColor) = NormalizeColors(colors) switch
+            {
+                "gold" => (index % 2 == 0 ? "#78643C" : "#948052", "#D8BD75"),
+                "slate" => (index % 2 == 0 ? "#45535E" : "#61717E", "#A0B0BD"),
+                "minimal" => (index % 2 == 0 ? "#39434B" : "#505B64", "#C8AA67"),
+                _ => (color, groupColor)
+            };
+            phases.Add(new(active, group, name, start, end, color, groupColor));
+        }
+    }
+
+    private static (string Group, string Name, string Color, string GroupColor) EventHorizonStyle(string id)
+    {
+        if (id == "startup") return ("startup", "Erstes Pack", "#A58B48", "#D8BD75");
+        if (id == "boss") return ("boss", "Bosskampf", "#B7733E", "#E7AA6E");
+        if (id == "afk") return ("afk", "AFK-Phase", "#4D6275", "#91A3B4");
+        var parts = id.Split('-');
+        var wormhole = parts[1];
+        var (dark, light, accent) = wormhole switch
+        {
+            "1" => ("#32788F", "#519EB1", "#69C1D5"),
+            "2" => ("#665493", "#9275BE", "#B397E1"),
+            _ => ("#A25165", "#C0708A", "#DB8398"),
+        };
+        return parts[2] switch
+        {
+            "approach" => ($"wormhole-{wormhole}", $"Wurmloch {wormhole} · Anlauf", dark, accent),
+            "waves" => ($"wormhole-{wormhole}", $"Wurmloch {wormhole} · Wellen", light, accent),
+            "debris" => ($"wormhole-{wormhole}", $"Wurmloch {wormhole} · Trümmer-AFK", "#4D6275", accent),
+            _ => ($"wormhole-{wormhole}", $"Wurmloch {wormhole} · Mobs", dark, accent),
+        };
+    }
+
     private static (string Group, string Name, string Color, string GroupColor) Style(string id) => id switch
     {
         "startup" => ("startup", "Startup · 5 Porter", "#A58B48", "#D8BD75"),

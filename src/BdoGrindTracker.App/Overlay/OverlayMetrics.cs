@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using BdoGrindTracker.App.Character;
 using BdoGrindTracker.App.Components;
 using BdoGrindTracker.App.Integrations.Garmoth;
 using BdoGrindTracker.App.Pricing;
@@ -183,52 +184,49 @@ internal sealed class OverlayMetrics
 
     internal static OverlaySnapshot Demo { get; } = CreateDemo();
 
+    /// <summary>The example session of <see cref="DemoSession"/>; loot scroll and daily goal target are illustrative.</summary>
     private static OverlaySnapshot CreateDemo()
     {
         var metrics = new OverlayMetrics();
         var history = new SessionSilverHistory();
+        var prices = DemoSession.Prices;
+        var preferences = new TrackerPreferences
+        {
+            GameLanguage = "en", ValuePack = DemoSession.Tax.ValuePack, MerchantRing = DemoSession.Tax.MerchantRing,
+            FamilyFame = DemoSession.Tax.FamilyFame,
+        };
         var state = new TrackerState
         {
-            SessionId = new Guid("15a78f74-8514-4a50-b510-8eefb1c95c8e"),
+            SessionId = new Guid("45a2fa66-4b17-406e-bf52-29700850e9fc"),
             HasSession = true, IsRunning = true, CanPause = true, IsDemo = true, AnalyzerAvailable = true,
-            SpotId = LootSpotCatalog.HermesiaId, CharacterLabel = "Agent", DetectedGameLanguage = "de",
-            Status = "Beispieldaten · keine echte Session",
-            ExperienceGainedPercentagePoints = 1.25m,
-            ExperienceObservedDuration = TimeSpan.FromMinutes(15),
-            ExperienceStartLevel = 64, ExperienceEndLevel = 64,
+            SpotId = LootSpotCatalog.HermesiaId, CharacterLabel = CompanionCharacterClassCatalog.FindById("shai")?.DisplayName ?? "Shai",
+            DetectedGameLanguage = "en", Status = $"Beispieldaten · Hermesia-Session vom {DemoSession.Date}",
+            ExperienceGainedPercentagePoints = DemoSession.ExperienceGainedPercentagePoints,
+            ExperienceObservedDuration = DemoSession.ExperienceObservedDuration,
+            ExperienceStartLevel = DemoSession.ExperienceLevel, ExperienceEndLevel = DemoSession.ExperienceLevel,
             LootScroll = new(LootScrollStatus.Active, Level: 2),
             GrindBenchmark = GarmothGrindBenchmarks.Find(LootSpotCatalog.HermesiaId),
-            Loot = new LootSessionSnapshot(new Dictionary<string, long>(StringComparer.Ordinal)
-            {
-                ["Black Crystal Fragment"] = 2387,
-                ["Black Stone"] = 112,
-                ["Caphras Stone"] = 41,
-                ["BON Wandering Origin Crystal"] = 1,
-                ["Ancient Spirit Dust"] = 73,
-            }, 2614, 536),
         };
-        var preferences = new TrackerPreferences { GameLanguage = "de" };
-        OverlaySnapshot snapshot = new();
-        var rates = new decimal[] { 1660, 1540, 1810, 1730, 1910, 1850, 1990, 1940, 2070, 2040, 2110, 2090 };
-        for (var index = 0; index < rates.Length; index++)
+
+        // Replay the drop timeline in the tracker's ten-second history steps.
+        var totals = new Dictionary<string, long>(StringComparer.Ordinal);
+        var drops = DemoSession.DropHistory;
+        var next = 0;
+        for (var elapsed = TimeSpan.FromSeconds(10); ; elapsed += TimeSpan.FromSeconds(10))
         {
-            var elapsed = TimeSpan.FromSeconds(830 + index * 10);
-            var value = rates[index] * 1_000_000m * (decimal)elapsed.TotalHours;
-            state = state with { Elapsed = elapsed, Silver = new(value, value, 5, [], [], false) };
-            snapshot = metrics.Update(state with { SilverHistory = history.Update(state) }, preferences);
+            if (elapsed > DemoSession.Elapsed) elapsed = DemoSession.Elapsed;
+            for (; next < drops.Count && drops[next].Elapsed <= elapsed; next++)
+                totals[drops[next].ItemName] = totals.GetValueOrDefault(drops[next].ItemName) + drops[next].Quantity;
+            state = state with { Elapsed = elapsed, Silver = SilverValuation.Calculate(totals, prices, DemoSession.Tax) };
+            state = state with { SilverHistory = history.Update(state) };
+            if (elapsed == DemoSession.Elapsed) break;
         }
-        var demoItem = snapshot.Drops.First(item => item.CanonicalName == "BON Wandering Origin Crystal");
-        // Regular trash income every few seconds with the two valuable drops shown as markers.
-        var random = new Random(15);
-        var silverDrops = new List<OverlaySilverDrop>();
-        for (var seconds = 831.0; seconds < 940; seconds += 1.5 + random.NextDouble() * 3)
-            silverDrops.Add(new(TimeSpan.FromSeconds(seconds), 2_500_000m + random.Next(0, 3_000_000)));
-        silverDrops.AddRange([new(TimeSpan.FromSeconds(870), 180_000_000m, true), new(TimeSpan.FromSeconds(910), 180_000_000m, true)]);
-        var rotation = HermesiaRotationDemo.At(350);
-        snapshot = metrics.Update(state with { SilverHistory = history.Update(state), SpotId = LootSpotCatalog.HermesiaId, Rotation = rotation },
-            preferences);
-        return snapshot with { DropMarkers = [new(TimeSpan.FromSeconds(870), demoItem), new(TimeSpan.FromSeconds(910), demoItem)],
-            SilverDrops = Array.AsReadOnly(silverDrops.OrderBy(drop => drop.Elapsed).ToArray()),
-            Rotation = rotation, DailyGoal = new(650_000_000, 1_000_000_000) };
+        state = state with
+        {
+            Loot = new LootSessionSnapshot(DemoSession.Totals, DemoSession.Totals.Values.Sum(), DemoSession.ConfirmedEventCount),
+            DropHistory = drops, Rotation = HermesiaRotationDemo.At(350),
+        };
+        var snapshot = metrics.Update(state, preferences, prices);
+        return snapshot with { DailyGoal = new(state.Silver.AfterTax, 10_000_000_000) };
     }
 }

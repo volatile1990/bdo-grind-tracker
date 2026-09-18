@@ -197,38 +197,7 @@ internal sealed class HermesiaRotationTracker : IRotationEventTracker
 
     public RotationMonitorSnapshot Snapshot(DateTimeOffset now)
     {
-        var best = _runs.MinBy(run => run.Duration);
-        var sectors = new Dictionary<string, double>();
-        // Compare identical checkpoints only. Missing or extra OCR events never
-        // shift a sector onto an unrelated mechanic.
-        if (best is not null)
-            foreach (var run in _runs.Where(run => Checkpoints(run).Select(e => e.Key).SequenceEqual(Checkpoints(best).Select(e => e.Key))))
-            {
-                var checkpoints = Checkpoints(run);
-                for (var i = 1; i < checkpoints.Length; i++)
-                {
-                    var key = checkpoints[i].Key;
-                    var duration = checkpoints[i].Seconds - checkpoints[i - 1].Seconds;
-                    sectors[key] = Math.Min(sectors.GetValueOrDefault(key, double.MaxValue), duration);
-                }
-            }
-        RotationRun? ideal = null;
-        if (best is not null)
-        {
-            double total = 0;
-            var checkpoints = Checkpoints(best);
-            var idealTimes = checkpoints.ToDictionary(e => e.Key, e => e.Kind == "start" ? 0 : total += sectors[e.Key]);
-            var events = best.Events.Select(e =>
-            {
-                if (idealTimes.TryGetValue(e.Key, out var time)) return e with { Seconds = time };
-                var right = Array.FindIndex(checkpoints, p => p.Seconds >= e.Seconds);
-                if (right <= 0) return e with { Seconds = 0 };
-                var a = checkpoints[right - 1]; var b = checkpoints[right];
-                var fraction = (e.Seconds - a.Seconds) / Math.Max(.001, b.Seconds - a.Seconds);
-                return e with { Seconds = idealTimes[a.Key] + fraction * (idealTimes[b.Key] - idealTimes[a.Key]) };
-            }).ToArray();
-            ideal = new(total, events);
-        }
+        var (best, ideal, sectors) = RotationComparison.Compare(_runs);
         // An incomplete startup is dropped from the current timeline once Drakania shows it can no longer be completed.
         var drakania = _events.FindIndex(e => e.Kind == "drakania");
         var discarded = DiscardsStartup(_events);
@@ -275,7 +244,11 @@ public static class RotationTimelinePresentation
     public static bool ShowSetup(RotationMonitorSnapshot state) => state.SpotId == BdoGrindTracker.Core.LootSpotCatalog.AphrodonId && !state.Synchronized;
     public const string SetupHint = "Rotation tracking startet, sobald alle 3 Scarecrows aufgestellt sind.";
     public static string SetupCount(RotationMonitorSnapshot state) => $"{Math.Clamp(state.SmallScarecrows ?? 0, 0, 3)}/3 Small Scarecrows spawned";
-    public static bool IsCheckpoint(RotationEvent e) => e.Kind is not "porter" and not "offer" and not "big-scarecrow";
+    // Event Horizon's banner variants and the mini-AFK midpoint mark a moment inside a phase, not its end.
+    public static bool IsCheckpoint(RotationEvent e) =>
+        e.Kind is not "porter" and not "offer" and not "big-scarecrow" and not "reception" and not "debris" and not "distortion";
+    /// <summary>Short strokes above the band: pack spawns, wave events and moments inside a phase.</summary>
+    public static bool IsMarker(RotationEvent e) => e.Kind is "porter" or "offer" or "hog" or "agris" or "failure" or "distortion";
     public static string Mark(RotationEvent e) => e.Kind switch {
         "drakania" => "D", "drakania-kill" => "D✓", "transfer" => "B", "mine-enter" => "M" + e.Occurrence,
         "mine-second" => "P2", "mine-cleared" => "M✓", "dragon" => "R", "afk" => "AFK", "end" => "E", _ => "" };

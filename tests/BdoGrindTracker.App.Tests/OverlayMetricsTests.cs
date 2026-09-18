@@ -197,7 +197,8 @@ public sealed class OverlayMetricsTests
         Assert.Contains("disabled", controls);
         Assert.Contains("Pausieren", controls);
         var items = await RenderAsync(OverlayCatalog.CreateWidget("drops") with { ItemView = "list", ItemLimit = 2 }, OverlaySnapshot.Demo);
-        Assert.Contains("Schwarzkristallfragment", items);
+        // The example session was played with the English client.
+        Assert.Contains("Black Crystal Fragment", items);
         Assert.Contains("assets/icons/black-crystal-fragment.png", items);
         Assert.DoesNotContain("weitere", items);
         var hidden = await RenderAsync(OverlayCatalog.CreateWidget("duration") with { ShowLabel = false }, OverlaySnapshot.Demo);

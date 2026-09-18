@@ -78,9 +78,11 @@ public sealed class OverlayDropHistoryTests
     }
 
     [Fact]
-    public void DemoShowsTwoSeparateItemMarkers()
+    public void DemoMarksEveryValuableDropOfTheExampleSessionSeparately()
     {
-        Assert.Equal(2, OverlayChartMarkers.Create(OverlaySnapshot.Demo).Count);
+        // Four Twilight of the End rings and one Refined Essence of Devouring.
+        Assert.Equal(5, OverlayChartMarkers.Create(OverlaySnapshot.Demo).Count);
+        Assert.Equal(4, OverlaySnapshot.Demo.DropMarkers.Count(marker => marker.Item.CanonicalName == "Twilight of the End - Ring"));
         Assert.All(OverlaySnapshot.Demo.DropMarkers, marker => Assert.NotNull(marker.Item.IconPath));
     }
 

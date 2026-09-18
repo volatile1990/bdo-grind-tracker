@@ -4,9 +4,10 @@ using OpenCvSharp;
 
 namespace BdoGrindTracker.App.Analysis;
 
+/// <param name="GapSamples">Unreadable samples a backward search may bridge inside one banner sighting.</param>
 internal sealed record RotationMessageProfile(
     Func<string, IReadOnlyList<(string Kind, string Label)>> Parse,
-    Func<int, int, Rectangle> Crop, bool SingleLine = false)
+    Func<int, int, Rectangle> Crop, bool SingleLine = false, int GapSamples = 2)
 {
     internal string Recognize(Mat pixels, CompanionWindowsOcrRecognizer engine)
     {
@@ -19,17 +20,51 @@ internal sealed record RotationMessageProfile(
         Cv2.Resize(gray, enlarged, new OpenCvSharp.Size(), 2, 2, InterpolationFlags.Cubic);
         return text + "\n" + engine.Recognize(enlarged).Text;
     }
-    // Up to three stacked banners, centered: the widest (AFK) spans 37.9–62 % of the width,
-    // the lines 54.7–63.5 % of the height. Measured on the reference video and a live session.
-    internal static readonly RotationMessageProfile Hermesia = new(HermesiaMessages.Parse, (w, h) =>
-        Rectangle.FromLTRB((int)Math.Floor(w * .365), (int)Math.Floor(h * .54),
-            (int)Math.Ceiling(w * .635), (int)Math.Ceiling(h * .65)));
+    // The centered stack of up to three system banners. Its place is a fixed share of the screen at any
+    // resolution: the widest line (Hermesia AFK) spans 37.9–62 % of the width, the lines 54.7–63.5 % of the height.
+    // Measured on own Hermesia recordings and a live session.
+    private static Rectangle BannerStack(int w, int h) => Rectangle.FromLTRB((int)Math.Floor(w * .365), (int)Math.Floor(h * .54),
+        (int)Math.Ceiling(w * .635), (int)Math.Ceiling(h * .65));
+
+    internal static readonly RotationMessageProfile Hermesia = new(HermesiaMessages.Parse, BannerStack);
+
+    // Same banner stack as Hermesia. Teleport black screens hide a banner for about 2.5 seconds,
+    // so up to seven unreadable samples keep one sighting together.
+    internal static readonly RotationMessageProfile EventHorizon = new(EventHorizonMessages.Parse, BannerStack, GapSamples: 7);
 
     // Resolve crop: left 0.40625, right 0.4072916667,
     // top 0.6166666667, bottom 0.3611111111. Verified on the source video.
     internal static readonly RotationMessageProfile Aphrodon = new(AphrodonMessages.Parse, (w, h) =>
         Rectangle.FromLTRB((int)Math.Floor(w * .40625), (int)Math.Floor(h * 37 / 60d),
             (int)Math.Ceiling(w * (1 - 391 / 960d)), (int)Math.Ceiling(h * 23 / 36d)), SingleLine: true);
+}
+
+/// <summary>
+/// Event Horizon banners. Several are deliberately glitched in the game ("acti○ted", "Warn■g",
+/// "Spacetim○ distorti■n"), so each phrase avoids the garbled words.
+/// </summary>
+internal static class EventHorizonMessages
+{
+    internal static readonly (string Kind, string Label, string Phrase)[] Definitions = [
+        ("anomaly", "Wurmloch gestartet", "flow violation"),
+        ("halted", "Wurmloch geräumt", "anomaly removal halted"),
+        ("reception", "Will_Reception erhältlich", "will reception"),
+        ("debris", "Trümmer-AFK", "debris falling due"),
+        ("distortion", "Trümmer-AFK · Hälfte", "distortion escalated"),
+        // "Loading from the destroyed timeline" also follows Will_Reception; only the glitched first line marks the end.
+        ("spacetime", "Trümmer-AFK beendet", "spacetim"),
+        ("expansion", "Wurmloch aktiviert", "expansion create"),
+        ("boss", "Boss-Spawn", "hadum vuhura"),
+        ("boss-kill", "AFK-Beginn", "temporary damage to dimensional"),
+        ("end", "AFK-Ende", "reconstruct space"),
+    ];
+
+    internal static IReadOnlyList<(string Kind, string Label)> Parse(string text)
+    {
+        var normalized = Regex.Replace(text.ToLowerInvariant(), "[^a-z0-9]+", " ").Trim();
+        return Definitions.Where(d => normalized.Contains(d.Phrase, StringComparison.Ordinal))
+            .Select(d => (d.Kind, d.Label)).Distinct().ToArray();
+    }
 }
 
 internal static class AphrodonMessages

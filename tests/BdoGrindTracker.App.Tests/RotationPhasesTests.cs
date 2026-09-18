@@ -40,7 +40,7 @@ public sealed class RotationPhasesTests
         Assert.Equal(2, phases.Count(p => p.Group == "mine-1"));
         Assert.Equal(2, phases.Count(p => p.Group == "mine-2"));
         Assert.Equal(run.Duration, phases.Sum(p => p.End-p.Start), 5);
-        Assert.Equal(5, run.Events.Count(e => e.Kind == "porter" && e.Seconds < phases[0].End));
+        Assert.Equal(5, run.Events.Count(e => e.Kind == "offer" && e.Seconds < phases[0].End));
     }
 
     [Fact]

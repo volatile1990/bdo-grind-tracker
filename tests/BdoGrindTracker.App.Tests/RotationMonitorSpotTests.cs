@@ -68,12 +68,12 @@ public sealed class RotationMonitorSpotTests
         Assert.False(monitor.Snapshot(now.AddSeconds(1), null).HasProfile);
 
         var hermesia = created[LootSpotCatalog.HermesiaId];
-        var aphrodon = created[LootSpotCatalog.AphrodonId];
         monitor.Observe(frame, now.AddSeconds(2), LootSpotCatalog.HermesiaId);
         Assert.Equal(3, hermesia.Observed);
         Assert.False(hermesia.Disposed);
-        Assert.True(aphrodon.Disposed);
-        Assert.Equal(2, created.Count);
+        Assert.All(created.Where(pair => pair.Key != LootSpotCatalog.HermesiaId), pair => Assert.True(pair.Value.Disposed));
+        // The detected spot keeps its provisional profile instead of creating another.
+        Assert.Equal(RotationProfiles.SupportedSpotIds.Count, created.Count);
         Assert.Equal("Vorläufig", monitor.Snapshot(now.AddSeconds(2), LootSpotCatalog.HermesiaId).Events.Single().Label);
     }
 
