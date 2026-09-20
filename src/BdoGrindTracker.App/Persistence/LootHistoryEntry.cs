@@ -4,6 +4,8 @@ internal sealed record LootHistoryEntry
 {
     public required Guid SessionId { get; init; }
     public IReadOnlyList<BdoGrindTracker.App.Overlay.SessionRotation> Rotations { get; init; } = [];
+    [System.Text.Json.Serialization.JsonConverter(typeof(BdoGrindTracker.App.Overlay.RotationTimelineJsonConverter))]
+    public IReadOnlyList<BdoGrindTracker.App.Overlay.RotationTimelineEntry> RotationTimeline { get; init; } = [];
     public required DateTimeOffset StartedAt { get; init; }
     public required DateTimeOffset UpdatedAt { get; init; }
     public required TimeSpan Duration { get; init; }

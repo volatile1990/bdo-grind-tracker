@@ -13,6 +13,9 @@ internal interface IRotationProfileMonitor : IDisposable
     Task FlushAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     void AttachDiagnostics(RotationDiagnosticRecording? recording, string spotId) { }
     void ObserveLoot(DateTimeOffset at) { }
+    RotationTimelineEntry[] DrainTimeline() => [];
+    (DateTimeOffset StartedAt, RotationRun Run)? ActiveRun() => null;
+    void RestoreBoundary(DateTimeOffset at, bool cleanStart) { }
 }
 
 /// <summary>Each spot owns its message recognition, rotation rules and records.</summary>
@@ -21,12 +24,15 @@ internal static partial class RotationProfiles
     private static readonly IReadOnlyDictionary<string, Func<IRotationProfileMonitor>> Factories =
         new Dictionary<string, Func<IRotationProfileMonitor>>(StringComparer.Ordinal)
         {
-            [LootSpotCatalog.HermesiaId] = () => new HermesiaRotationMonitor(HermesiaRotationTracker.DefaultPath),
+            [LootSpotCatalog.HermesiaId] = () => CreateShared(LootSpotCatalog.HermesiaId, RotationMessageProfile.Hermesia),
             [LootSpotCatalog.AphrodonId] = () => new BufferedRotationProfileMonitor(
-                new AphrodonRotationTracker(AphrodonRotationTracker.DefaultPath), RotationMessageProfile.Aphrodon),
+                new RotationPlatform(RotationDefinition.Aphrodon, RotationPlatform.DefaultPath(LootSpotCatalog.AphrodonId)), RotationMessageProfile.Aphrodon),
             [LootSpotCatalog.EventHorizonId] = () => new BufferedRotationProfileMonitor(
-                new EventHorizonRotationTracker(EventHorizonRotationTracker.DefaultPath), RotationMessageProfile.EventHorizon),
+                new RotationPlatform(RotationDefinition.EventHorizon, RotationPlatform.DefaultPath(LootSpotCatalog.EventHorizonId)), RotationMessageProfile.EventHorizon),
         };
+
+    private static IRotationProfileMonitor CreateShared(string spot, RotationMessageProfile messages) =>
+        new BufferedRotationProfileMonitor(new RotationPlatform(RotationDefinition.For(spot), RotationPlatform.DefaultPath(spot)), messages);
 
     internal static IRotationProfileMonitor? Create(string? spotId) =>
         spotId is not null && Factories.TryGetValue(spotId, out var create) ? create() : null;
@@ -41,15 +47,19 @@ internal sealed class RotationMonitor : IDisposable
     private string? _spotId;
     private bool _disposed;
     private readonly List<SessionRotation> _sessionRotations = [];
+    private readonly List<RotationTimelineEntry> _timeline = [];
+    private readonly Dictionary<Guid, (int Revision, int Quantity)> _lootSeen = [];
     private RotationDiagnosticRecording? _diagnostics;
     private void CollectCompleted()
     {
         if (_profile is null || _spotId is null) return;
         foreach (var (startedAt, run) in _profile.DrainCompleted())
         {
+            if (run.Id != Guid.Empty) _sessionRotations.RemoveAll(r => r.Run.Id == run.Id);
             _sessionRotations.Add(new SessionRotation(_spotId, startedAt, run));
             _diagnostics?.Completed(_spotId, startedAt, run);
         }
+        _timeline.AddRange(_profile.DrainTimeline());
     }
     /// <summary>Records the current and every later profile, including the provisional ones before spot detection.</summary>
     internal void AttachDiagnostics(RotationDiagnosticRecording? recording)
@@ -63,17 +73,37 @@ internal sealed class RotationMonitor : IDisposable
     }
     internal SessionRotation[] ExportSession()
     {
-        lock (_sync) { CollectCompleted(); return _sessionRotations.ToArray(); }
+        lock (_sync)
+        {
+            CollectCompleted();
+            var active = _profile?.ActiveRun();
+            return active is { } run && _spotId is { } spot
+                ? [.. _sessionRotations.Where(r => r.Run.Id != run.Run.Id), new(spot, run.StartedAt, run.Run)]
+                : _sessionRotations.ToArray();
+        }
     }
-    internal void RestoreSession(IEnumerable<SessionRotation> rotations)
+    internal RotationTimelineEntry[] ExportTimeline()
     {
+        lock (_sync) { CollectCompleted(); return _timeline.ToArray(); }
+    }
+    internal void RestoreSession(IEnumerable<SessionRotation> rotations, IEnumerable<RotationTimelineEntry>? timeline = null)
+    {
+        var restored = rotations.ToArray();
         lock (_sync)
         {
             _profile?.Interrupt("Neue Session · warte auf erstes Ereignis");
             _profile?.DrainCompleted();
+            _profile?.Dispose(); _profile = null; _spotId = null;
             DisposeCandidates();
             _sessionRotations.Clear();
-            _sessionRotations.AddRange(rotations);
+            _sessionRotations.AddRange(restored.Select(r => r.Run.Outcome == "active"
+                ? r with { Run = r.Run with { Outcome = "aborted", Reason = "Session nach Neustart wiederhergestellt · Warte auf Erkennung" } } : r));
+            _timeline.Clear(); _timeline.AddRange(timeline ?? []); _lootSeen.Clear();
+            foreach (var run in restored.Where(r => r.Run.Outcome == "active"))
+                _timeline.Add(new(Guid.NewGuid(), run.StartedAt.AddSeconds(run.Run.Duration), run.SpotId, "decision", "finish",
+                    "aborted: Session nach Neustart wiederhergestellt · Warte auf Erkennung", run.Run.Id));
+            foreach (var entry in _timeline.Where(e => e.LootEventId is not null && e.Quantity is not null))
+                _lootSeen[entry.LootEventId!.Value] = (entry.Revision, (int)entry.Quantity!.Value);
         }
     }
 
@@ -95,6 +125,14 @@ internal sealed class RotationMonitor : IDisposable
         DisposeCandidates();
         if (spotId is null) return;
         _profile?.AttachDiagnostics(_diagnostics, spotId);
+        if (!adopted && _profile is not null)
+        {
+            var corrected = _timeline.Where(e => e.Corrects is not null).Select(e => e.Corrects!.Value).ToHashSet();
+            var boundary = _timeline.Where(e => e.SpotId == spotId && e.Type == "decision" && e.Kind == "afk-end" && !corrected.Contains(e.Id))
+                .MaxBy(e => e.At);
+            if (boundary is not null) _profile.RestoreBoundary(boundary.At,
+                !_sessionRotations.Any(r => r.SpotId == spotId && r.StartedAt >= boundary.At));
+        }
         _diagnostics?.Note(spotId, DateTimeOffset.UtcNow, "spot", _profile is null ? "Spot ohne Rotationsprofil"
             : adopted ? "Spot erkannt · vorläufig erfasste Meldungen übernommen" : "Spot erkannt · Erkennung gestartet");
     }
@@ -119,6 +157,23 @@ internal sealed class RotationMonitor : IDisposable
             // The first loot usually arrives before the spot is known; every provisional profile sees it.
             if (spotId is not null) _profile?.ObserveLoot(at);
             else foreach (var candidate in Candidates(at)) candidate.ObserveLoot(at);
+        }
+    }
+
+    internal void ObserveLootEvents(IEnumerable<LootEventView> events, string? spotId)
+    {
+        lock (_sync)
+        {
+            foreach (var loot in events)
+            {
+                var value = (loot.Revision, loot.TotalDropQuantity ?? loot.Quantity);
+                if (_lootSeen.TryGetValue(loot.EventId, out var old) && (value.Revision < old.Revision || value == old)) continue;
+                var previous = _timeline.LastOrDefault(e => e.LootEventId == loot.EventId);
+                _lootSeen[loot.EventId] = value;
+                _timeline.Add(new(Guid.NewGuid(), loot.DetectedAt, spotId, "loot", previous is null ? "drop" : "correction",
+                    previous is null ? "Loot erkannt" : "Lootmenge korrigiert", Corrects: previous?.Id,
+                    ItemName: loot.ItemName, Quantity: value.Item2, LootEventId: loot.EventId, Revision: loot.Revision));
+            }
         }
     }
 
@@ -150,7 +205,8 @@ internal sealed class RotationMonitor : IDisposable
             CollectCompleted();
             var snapshot = _profile?.Snapshot(now);
             var presented = RotationProfiles.Present(spotId, snapshot is null ? null : snapshot with { SpotId = spotId });
-            var rotations = _sessionRotations.Where(rotation => rotation.SpotId == spotId).OrderBy(rotation => rotation.StartedAt).ToArray();
+            CollectCompleted();
+            var rotations = _sessionRotations.Where(rotation => rotation.SpotId == spotId && rotation.Run.EligibleForStatistics).OrderBy(rotation => rotation.StartedAt).ToArray();
             // The running rotation's start also ends the walk back after the latest completed one.
             DateTimeOffset? running = presented.Synchronized ? now.AddSeconds(-presented.Elapsed) : null;
             return presented with

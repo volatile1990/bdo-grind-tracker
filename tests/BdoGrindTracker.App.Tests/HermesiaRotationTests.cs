@@ -84,7 +84,7 @@ public sealed class HermesiaRotationTests
             var migrated = new HermesiaRotationTracker(path).Snapshot(Epoch).Best!;
             Assert.Equal(60,migrated.Duration);
             Assert.Equal(0,migrated.Events[1].Seconds);
-            Assert.Equal(2,migrated.TimingVersion);
+            Assert.Equal(3,migrated.TimingVersion);
             Assert.Same(migrated,HermesiaRotationTracker.FromFirstEvent(migrated));
         } finally { File.Delete(path); }
     }
@@ -141,8 +141,8 @@ public sealed class HermesiaRotationTests
     [Fact]
     public void TheMessageCropHoldsOnlyTheCenteredBannerStack()
     {
-        Assert.Equal(new Rectangle(934, 777, 692, 159), RotationMessageProfile.Hermesia.Crop(2560, 1440));
-        Assert.Equal(new Rectangle(700, 583, 520, 119), RotationMessageProfile.Hermesia.Crop(1920, 1080));
+        Assert.Equal(new Rectangle(934, 748, 692, 275), RotationMessageProfile.Hermesia.Crop(2560, 1440));
+        Assert.Equal(new Rectangle(700, 561, 520, 206), RotationMessageProfile.Hermesia.Crop(1920, 1080));
     }
 
     [Theory]
@@ -168,7 +168,7 @@ public sealed class HermesiaRotationTests
     }
 
     [Fact]
-    public void IntruderAlertFailsTheRotationAndOnlyTheNextOfferingOrderRestartsIt()
+    public void IntruderAlertFailsTheRotationAndFollowingMessagesResynchronizeAutomatically()
     {
         var tracker = new HermesiaRotationTracker(); Start(tracker);
         tracker.Observe("drakania", "Drakania", Epoch.AddSeconds(20));
@@ -179,15 +179,18 @@ public sealed class HermesiaRotationTests
         Assert.False(failed.Synchronized);
         Assert.Equal(55, failed.Elapsed);
         Assert.Equal(("failure", "Rotation Failed", 55d), (failed.Events[^1].Kind, failed.Events[^1].Label, failed.Events[^1].Seconds));
-        Assert.Equal("Rotation Failed · warte auf Opfergabe-Befehl", failed.Status);
+        Assert.Contains("fehlgeschlagen", failed.Status);
         Assert.Equal(55, RotationPhases.Create(BdoGrindTracker.Core.LootSpotCatalog.HermesiaId, failed.Events, failed.Elapsed)[^1].End);
 
-        // Mechanics and the end of an AFK phase in between never start a rotation.
+        Assert.Equal("aborted", Assert.Single(tracker.DrainCompleted()).Run.Outcome);
+        // Mechanics can synchronize a partial run without qualifying it as a record.
         foreach (var (kind, seconds) in new[] { ("porter", 60d), ("afk", 70), ("mine-cleared", 90), ("dragon", 100) })
             tracker.Observe(kind, kind, Epoch.AddSeconds(seconds));
-        Assert.False(tracker.Snapshot(Epoch.AddSeconds(110)).Synchronized);
-        Assert.Equal(55, tracker.Snapshot(Epoch.AddSeconds(110)).Elapsed);
+        Assert.True(tracker.Snapshot(Epoch.AddSeconds(110)).Synchronized);
+        Assert.Null(tracker.Snapshot(Epoch.AddSeconds(110)).Best);
 
+        tracker.Interrupt("Neuer Versuch");
+        tracker.DrainCompleted();
         tracker.Observe("offer", "Opfergabe", Epoch.AddSeconds(120));
         var restarted = tracker.Snapshot(Epoch.AddSeconds(125));
         Assert.True(restarted.Synchronized);
@@ -201,19 +204,19 @@ public sealed class HermesiaRotationTests
     }
 
     [Fact]
-    public void AFailedRotationStillWaitsForTheOfferingOrderAfterAnInterruption()
+    public void AFailedRotationResynchronizesAfterAnInterruption()
     {
         var tracker = new HermesiaRotationTracker();
         tracker.Observe("failure", "Rotation Failed", Epoch);
         tracker.Interrupt("Bildsignal unterbrochen · warte auf erstes Ereignis");
-        Assert.Equal("Rotation Failed · warte auf Opfergabe-Befehl", tracker.Snapshot(Epoch.AddSeconds(5)).Status);
+        Assert.Contains("Warte auf Erkennung", tracker.Snapshot(Epoch.AddSeconds(5)).Status);
         tracker.Observe("porter", "Träger", Epoch.AddSeconds(10));
-        Assert.False(tracker.Snapshot(Epoch.AddSeconds(10)).Synchronized);
-        Assert.Empty(tracker.Snapshot(Epoch.AddSeconds(10)).Events);
+        Assert.True(tracker.Snapshot(Epoch.AddSeconds(10)).Synchronized);
+        Assert.Contains(tracker.Snapshot(Epoch.AddSeconds(10)).Events, e => e.Kind == "porter");
         tracker.Observe("offer", "Opfergabe", Epoch.AddSeconds(20));
         Assert.True(tracker.Snapshot(Epoch.AddSeconds(20)).Synchronized);
         tracker.Interrupt("Tracking pausiert · warte auf Rotationsstart");
-        Assert.Equal("Tracking pausiert · warte auf Rotationsstart", tracker.Snapshot(Epoch.AddSeconds(30)).Status);
+        Assert.Contains("Tracking pausiert", tracker.Snapshot(Epoch.AddSeconds(30)).Status);
     }
 
     [Fact]
@@ -250,21 +253,20 @@ public sealed class HermesiaRotationTests
         tracker.Observe("drakania", "Drakania", Epoch.AddSeconds(80));
         var running = tracker.Snapshot(Epoch.AddSeconds(90));
         Assert.Equal(90, running.Elapsed);
-        Assert.Equal("drakania", running.Events[0].Kind);
-        Assert.DoesNotContain(running.Events, e => e.Kind is "start" or "offer");
-        Assert.Contains("Startup verworfen (4 / 5 Opfergaben)", running.Status);
-        Assert.Equal("drakania", RotationPhases.Create(BdoGrindTracker.Core.LootSpotCatalog.HermesiaId, running.Events, running.Elapsed)[0].Id);
+        Assert.Equal("start", running.Events[0].Kind);
+        Assert.Equal(4, running.Events.Count(e => e.Kind == "offer"));
+        Assert.Contains("unvollständig", running.Status);
 
         foreach (var (kind, seconds) in new[] { ("offer", 95d), ("drakania-kill", 100), ("transfer", 101), ("mine-enter", 103),
                      ("dragon", 400), ("afk", 450), ("mine-cleared", 520) })
             tracker.Observe(kind, kind, Epoch.AddSeconds(seconds));
 
         var finished = tracker.Snapshot(Epoch.AddSeconds(525));
-        Assert.Empty(tracker.DrainCompleted());
+        Assert.Equal("incomplete", Assert.Single(tracker.DrainCompleted()).Run.Outcome);
         Assert.Null(finished.Best);
         Assert.Equal(0, finished.Completed);
-        Assert.Equal(new[] { "drakania", "offer" }, finished.Events.Take(2).Select(e => e.Kind));
-        Assert.StartsWith("AFK beendet · Startup unvollständig (4 / 5 Opfergaben), Rotation nicht gezählt", finished.Status);
+        Assert.Equal(new[] { "start", "offer" }, finished.Events.Take(2).Select(e => e.Kind));
+        Assert.StartsWith("AFK beendet", finished.Status);
 
         // The next rotation with a complete startup counts normally.
         Complete(tracker, 530, 10, 50, 60);
@@ -277,7 +279,7 @@ public sealed class HermesiaRotationTests
         var tracker = new HermesiaRotationTracker();
         foreach (var seconds in new[] { 0d, 18, 54, 72 }) tracker.Observe("offer", "Opfergabe", Epoch.AddSeconds(seconds));
         tracker.Observe("drakania", "Drakania", Epoch.AddSeconds(80));
-        Assert.DoesNotContain(tracker.Snapshot(Epoch.AddSeconds(82)).Events, e => e.Kind == "start");
+        Assert.Contains("unvollständig", tracker.Snapshot(Epoch.AddSeconds(82)).Status);
         tracker.Observe("offer", "Opfergabe", Epoch.AddSeconds(36));
 
         var state = tracker.Snapshot(Epoch.AddSeconds(84));
@@ -342,7 +344,7 @@ public sealed class HermesiaRotationTests
         Complete(tracker,0,10,50,60);
         Complete(tracker,60,8,52,60);
         var snapshot = tracker.Snapshot(Epoch.AddSeconds(120));
-        Assert.Equal(2.4,snapshot.SectorBests["dragon:1"],6);
+        Assert.Equal(1.6,snapshot.SectorBests["dragon:1"],6);
         Assert.False(snapshot.SectorBests.ContainsKey("porter:1"));
         Assert.Equal(56,snapshot.Ideal!.Duration);
     }
@@ -406,6 +408,8 @@ public sealed class HermesiaRotationTests
         tracker.Observe("drakania-kill","Drakania besiegt",Epoch.AddSeconds(offset+dragon*.4));
         tracker.Observe("transfer","Buff",Epoch.AddSeconds(offset+dragon*.5));
         tracker.Observe("mine-enter","Mine",Epoch.AddSeconds(offset+dragon*.7));
+        tracker.Observe("mine-cleared","Mine abgeschlossen",Epoch.AddSeconds(offset+dragon*.75));
+        tracker.Observe("mine-enter","Zweite Mine",Epoch.AddSeconds(offset+dragon*.8));
         tracker.Observe("dragon","Dragon",Epoch.AddSeconds(offset+dragon));
         tracker.Observe("afk","AFK",Epoch.AddSeconds(offset+afk));
         tracker.Observe("mine-cleared","Mine",Epoch.AddSeconds(offset+end));

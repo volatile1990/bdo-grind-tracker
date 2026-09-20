@@ -13,7 +13,7 @@ public sealed class RotationFlushTests
         using var monitor = new RotationMonitor(_ => frames.Profile);
         monitor.Snapshot(frames.Epoch, LootSpotCatalog.HermesiaId);
         await frames.FeedThroughAsync(101);
-        Assert.Empty(monitor.ExportSession()); // Regular probes ran at 99, next due at 102.
+        Assert.Equal("active", Assert.Single(monitor.ExportSession()).Run.Outcome); // Regular probes ran at 99, next due at 102.
 
         await monitor.FlushAsync();
         monitor.Interrupt();
@@ -74,7 +74,7 @@ public sealed class RotationFlushTests
             Assert.False(frames.Profile.PendingAnalysis.IsCompleted);
             release.Set();
             await frames.Profile.PendingAnalysis.WaitAsync(TimeSpan.FromSeconds(30));
-            Assert.Empty(monitor.ExportSession());
+            Assert.Equal("aborted", Assert.Single(monitor.ExportSession()).Run.Outcome);
             Assert.False(monitor.Snapshot(frames.Epoch.AddSeconds(102), LootSpotCatalog.HermesiaId).Synchronized);
         }
         finally { release.Set(); await frames.Profile.PendingAnalysis.WaitAsync(TimeSpan.FromSeconds(30)); }
@@ -95,7 +95,7 @@ public sealed partial class TrackerSessionServiceTests
         fixture.Begin();
         await frames.FeedThroughAsync(101);
         clock.UtcNow = frames.Epoch.AddSeconds(101);
-        Assert.Empty(monitor.ExportSession());
+        Assert.Equal("active", Assert.Single(monitor.ExportSession()).Run.Outcome);
 
         Assert.True((await fixture.Service.PauseAsync()).Succeeded);
         Assert.False(fixture.Service.State.IsRunning);

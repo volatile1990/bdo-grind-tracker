@@ -83,7 +83,7 @@ public sealed class AphrodonRotationTests
     }
 
     [Fact]
-    public void SuppliedTimelineCompletesNineWavesAndStartsNextRunAtAfkEnd()
+    public void SuppliedTimelineCompletesNineWavesAndWaitsForLootAfterAfkEnd()
     {
         var tracker = new AphrodonRotationTracker(); Replay(tracker);
         var completed = Assert.Single(tracker.DrainCompleted());
@@ -92,7 +92,9 @@ public sealed class AphrodonRotationTests
         Assert.Equal(9, completed.Run.Events.Count(e => e.Kind is "hog" or "agris"));
         Assert.Single(completed.Run.Events, e => e.Kind == "agris");
         var state = tracker.Snapshot(Epoch.AddSeconds(923.5));
-        Assert.True(state.Synchronized); Assert.Equal(10, state.Elapsed, 5); Assert.Equal(1, state.Completed);
+        Assert.False(state.Synchronized); Assert.Equal(764.4, state.Elapsed, 5); Assert.Equal(1, state.Completed);
+        Assert.False(tracker.ObserveLoot(Epoch.AddSeconds(915)));
+        Assert.True(tracker.ObserveLoot(Epoch.AddSeconds(919)));
         Assert.NotNull(state.Ideal); Assert.NotEmpty(state.SectorBests);
         Assert.Empty(tracker.DrainCompleted());
     }
@@ -116,7 +118,7 @@ public sealed class AphrodonRotationTests
         var tracker = new AphrodonRotationTracker(); Send(tracker, "restart", 0); Send(tracker, "hog", 10);
         for (var i = 0; i < failures; i++) Send(tracker, "failure", 20 + i * 10);
         Assert.False(tracker.Snapshot(Epoch.AddSeconds(50)).Synchronized);
-        Assert.Empty(tracker.DrainCompleted()); Assert.Null(tracker.Snapshot(Epoch.AddSeconds(50)).Best);
+        Assert.Equal("aborted", Assert.Single(tracker.DrainCompleted()).Run.Outcome); Assert.Null(tracker.Snapshot(Epoch.AddSeconds(50)).Best);
         for (var i = 0; i < failures; i++)
         {
             Send(tracker, "small-scarecrow", 60 + i * 10);
@@ -160,7 +162,8 @@ public sealed class AphrodonRotationTests
         Send(tracker, "end", AphrodonRotationDemo.Reference.Duration);
         Assert.Single(tracker.DrainCompleted());
         var next = tracker.Snapshot(Epoch.AddSeconds(780));
-        Assert.Equal(5.6, Assert.Single(next.Events, e => e.Kind == "hog").Seconds, 5);
+        Assert.Equal(0, Assert.Single(next.Events, e => e.Kind == "hog").Seconds, 5);
+        Assert.Contains("unvollständig", next.Status); // The missing loot/start boundary is not invented.
     }
 
     [Fact]
@@ -188,7 +191,7 @@ public sealed class AphrodonRotationTests
     {
         var tracker = new AphrodonRotationTracker(); Send(tracker, "restart", 0);
         Send(tracker, "hog", 10); Send(tracker, "big-scarecrow", 20); Send(tracker, "afk", 30); Send(tracker, "end", 40);
-        Assert.Empty(tracker.DrainCompleted()); Assert.Null(tracker.Snapshot(Epoch.AddSeconds(40)).Best);
+        Assert.Equal("incomplete", Assert.Single(tracker.DrainCompleted()).Run.Outcome); Assert.Null(tracker.Snapshot(Epoch.AddSeconds(40)).Best);
     }
 
     [Fact]

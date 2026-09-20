@@ -83,9 +83,10 @@ internal sealed partial class TrackerSessionService
         if (!_hasSession || _demoMode || _sessionSpotId is null || _sessionClock.Elapsed < TimeSpan.Zero)
             return;
         var rotations = _rotationMonitor.ExportSession();
+        var timeline = _rotationMonitor.ExportTimeline();
         var totals = _sessionSummary.Totals.Where(static pair => pair.Value >= 0)
             .ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.OrdinalIgnoreCase);
-        if (totals.Count == 0 && rotations.Length == 0) return;
+        if (totals.Count == 0 && rotations.Length == 0 && timeline.Length == 0) return;
         var valuation = SilverValuation.Calculate(totals, Prices, Preferences.Tax);
         UpdateAgrisSession();
         UpdateExperienceSession();
@@ -96,6 +97,7 @@ internal sealed partial class TrackerSessionService
         {
             SessionId = _sessionId,
             Rotations = rotations,
+            RotationTimeline = timeline,
             StartedAt = _sessionStartedAt ?? updatedAt - _sessionClock.Elapsed,
             UpdatedAt = updatedAt,
             Duration = duration,

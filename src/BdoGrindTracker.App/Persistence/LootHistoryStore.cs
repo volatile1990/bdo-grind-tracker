@@ -86,6 +86,7 @@ internal sealed class LootHistoryStore
             .Select(static entry => entry with
             {
                 Rotations = entry.Rotations ?? [],
+                RotationTimeline = entry.RotationTimeline ?? [],
                 CharacterClass = string.IsNullOrWhiteSpace(entry.CharacterClass)
                     ? null
                     : entry.CharacterClass.Trim(),
@@ -101,7 +102,7 @@ internal sealed class LootHistoryStore
             })
             .Select(NormalizeAgrisDurations)
             .Select(NormalizeExperience)
-            .Where(static entry => entry.Totals.Count > 0 || entry.Rotations.Count > 0)
+            .Where(static entry => entry.Totals.Count > 0 || entry.Rotations.Count > 0 || entry.RotationTimeline.Count > 0)
             .OrderByDescending(static entry => entry.UpdatedAt)
             .DistinctBy(static entry => entry.SessionId)
             .Take(MaximumEntries)

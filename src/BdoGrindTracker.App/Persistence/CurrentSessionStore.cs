@@ -9,6 +9,8 @@ internal sealed record CurrentSessionSnapshot
 {
     public required Guid SessionId { get; init; }
     public IReadOnlyList<BdoGrindTracker.App.Overlay.SessionRotation> Rotations { get; init; } = [];
+    [System.Text.Json.Serialization.JsonConverter(typeof(BdoGrindTracker.App.Overlay.RotationTimelineJsonConverter))]
+    public IReadOnlyList<BdoGrindTracker.App.Overlay.RotationTimelineEntry> RotationTimeline { get; init; } = [];
     public required DateTimeOffset? StartedAt { get; init; }
     public required DateTimeOffset UpdatedAt { get; init; }
     public required TimeSpan Duration { get; init; }
@@ -36,7 +38,7 @@ internal sealed class CurrentSessionStore(string path)
 {
     internal const string FileName = "current-session-v1.json";
     internal static readonly TimeSpan UploadClockTolerance = TimeSpan.FromMilliseconds(250);
-    private const int MaximumFileBytes = 8 * 1024 * 1024;
+    private const int MaximumFileBytes = 64 * 1024 * 1024;
     private readonly string _path = Path.GetFullPath(path);
     private static readonly JsonSerializerOptions JsonOptions = new()
     {

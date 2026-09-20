@@ -75,7 +75,7 @@ internal sealed class HermesiaMessageGate
 }
 
 /// <summary>Searches cached samples only when a regular probe finds a new banner.</summary>
-internal class BufferedRotationSearch(Func<string, IReadOnlyList<(string Kind, string Label)>> parse, int gapSamples = 2)
+internal class BufferedRotationSearch(Func<string, IReadOnlyList<(string Kind, string Label)>> parse, int gapSamples = 2, double duplicateSeconds = 8)
 {
     private readonly Dictionary<string, (DateTimeOffset First, DateTimeOffset Last)> _emitted = [];
 
@@ -88,7 +88,7 @@ internal class BufferedRotationSearch(Func<string, IReadOnlyList<(string Kind, s
         foreach (var (kind, label) in parse(text(times.Count - 1)))
         {
             if (_emitted.TryGetValue(kind, out var previous) &&
-                (now - previous.First < TimeSpan.FromSeconds(8) || now - previous.Last <= TimeSpan.FromSeconds(4)))
+                (now - previous.First < TimeSpan.FromSeconds(duplicateSeconds) || now - previous.Last <= TimeSpan.FromSeconds(4)))
             {
                 _emitted[kind] = (previous.First, now);
                 continue;
@@ -105,7 +105,7 @@ internal class BufferedRotationSearch(Func<string, IReadOnlyList<(string Kind, s
                 else if (++misses >= gapSamples) break;
             }
             if (matches < 2) continue;
-            if (previous != default && first - previous.First < TimeSpan.FromSeconds(8))
+            if (previous != default && first - previous.First < TimeSpan.FromSeconds(duplicateSeconds))
             { _emitted[kind] = (previous.First, now); continue; }
             _emitted[kind] = (first, now);
             result.Add((kind, label, first));
@@ -135,6 +135,7 @@ internal class BufferedRotationProfileMonitor : IRotationProfileMonitor
     private string? _error;
     private RotationDiagnosticRecording? _diagnostics;
     private string _diagnosticSpot = "";
+    private readonly List<RotationTimelineEntry> _recognitions = [];
 
     private sealed class Sample(Bitmap pixels, DateTimeOffset at, System.Drawing.Size frame, Rectangle region)
     {
@@ -150,7 +151,7 @@ internal class BufferedRotationProfileMonitor : IRotationProfileMonitor
 
     internal BufferedRotationProfileMonitor(IRotationEventTracker tracker, RotationMessageProfile profile, Func<Bitmap, string>? recognize = null)
     { _tracker = tracker; _profile = profile; _search = NewSearch(); _recognize = recognize; }
-    private BufferedRotationSearch NewSearch() => new(_profile.Parse, _profile.GapSamples);
+    private BufferedRotationSearch NewSearch() => new(_profile.Parse, _profile.GapSamples, _profile.DuplicateSeconds);
     public RotationMonitorSnapshot Snapshot(DateTimeOffset now)
     {
         lock (_sync)
@@ -163,6 +164,18 @@ internal class BufferedRotationProfileMonitor : IRotationProfileMonitor
     }
     public (DateTimeOffset StartedAt, RotationRun Run)[] DrainCompleted()
     { lock (_sync) return _tracker.DrainCompleted(); }
+    public (DateTimeOffset StartedAt, RotationRun Run)? ActiveRun()
+    { lock (_sync) return _tracker.ActiveRun(); }
+    public void RestoreBoundary(DateTimeOffset at, bool cleanStart)
+    { lock (_sync) _tracker.RestoreBoundary(at, cleanStart); }
+    public RotationTimelineEntry[] DrainTimeline()
+    {
+        lock (_sync)
+        {
+            var result = _recognitions.Concat(_tracker.DrainTimeline()).ToArray();
+            _recognitions.Clear(); return result;
+        }
+    }
     public void Interrupt(string status = "Tracking pausiert · warte auf erstes Ereignis")
     { lock (_sync) InterruptCore(status); }
     public void AttachDiagnostics(RotationDiagnosticRecording? recording, string spotId)
@@ -171,7 +184,10 @@ internal class BufferedRotationProfileMonitor : IRotationProfileMonitor
     {
         // Every frame without HUD interrupts again; only the first one ends an observation.
         if (_lastFrame is { } observed) _diagnostics?.Note(_diagnosticSpot, observed, "interrupt", status);
-        _epoch++; _tracker.Interrupt(status); _search = NewSearch();
+        _epoch++;
+        if (_lastFrame is { } lastFrame) _tracker.InterruptAt(status, lastFrame);
+        else _tracker.Interrupt(status);
+        _search = NewSearch();
         _lastFrame = _lastSample = _lastProbe = null;
         foreach (var sample in _buffer) sample.Release();
         _buffer.Clear();
@@ -199,6 +215,7 @@ internal class BufferedRotationProfileMonitor : IRotationProfileMonitor
             if (_lastFrame is { } last && at - last > TimeSpan.FromSeconds(4))
                 InterruptCore("Bildsignal unterbrochen · warte auf erstes Ereignis");
             _lastFrame = at;
+            _tracker.Advance(at);
             if (_lastSample is { } sampled && at - sampled < SampleInterval) return;
             var region = _profile.Crop(frame.Width, frame.Height);
             if (region.Width < 32 || region.Height < 16) return;
@@ -268,6 +285,12 @@ internal class BufferedRotationProfileMonitor : IRotationProfileMonitor
                             sample.Text = _profile.Recognize(pixels, _ocr);
                         }
                         diagnostics?.Read(spot, sample.At, sample.Text, _profile.Parse(sample.Text).Select(match => match.Kind));
+                        var matches = _profile.Parse(sample.Text);
+                        if (matches.Count > 0)
+                            lock (_sync)
+                                if (!_disposed && epoch == _epoch)
+                                    foreach (var match in matches)
+                                        _recognitions.Add(new(Guid.NewGuid(), sample.At, spot, "recognition", match.Kind, sample.Text));
                         return sample.Text;
                     }
                     var events = search.Read(samples.Select(s => s.At).ToArray(), Read);

@@ -37,6 +37,7 @@ internal sealed partial class TrackerSessionService
             {
                 UpdatedAt = newerHistory.UpdatedAt,
                 Rotations = newerHistory.Rotations,
+                RotationTimeline = newerHistory.RotationTimeline,
                 StartedAt = newerHistory.StartedAt,
                 Duration = newerHistory.Duration,
                 SpotId = newerHistory.SpotId,
@@ -66,7 +67,7 @@ internal sealed partial class TrackerSessionService
         _experienceSessionTracker.Restore(saved.Duration, new(saved.ExperienceGainedPercentagePoints,
             saved.ExperienceObservedDuration, saved.ExperienceStartLevel, saved.ExperienceEndLevel));
         _sessionId = saved.SessionId;
-        _rotationMonitor.RestoreSession(saved.Rotations ?? []);
+        _rotationMonitor.RestoreSession(saved.Rotations ?? [], saved.RotationTimeline);
         _sessionStartedAt = saved.StartedAt;
         _sessionSpotId = saved.SpotId;
         _sessionClass = CompanionCharacterClassCatalog.FindById(saved.CharacterClassId);
@@ -127,6 +128,7 @@ internal sealed partial class TrackerSessionService
                 {
                     SessionId = _sessionId,
                     Rotations = _rotationMonitor.ExportSession(),
+                    RotationTimeline = _rotationMonitor.ExportTimeline(),
                     StartedAt = _sessionStartedAt,
                     UpdatedAt = updatedAt,
                     Duration = duration,

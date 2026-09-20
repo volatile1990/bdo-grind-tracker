@@ -40,16 +40,16 @@ public sealed class EventHorizonRotationTests
     public void TheFirstLootStartsARotationThatCompletesAfterThreeWormholesBossAndAfk()
     {
         var tracker = new EventHorizonRotationTracker();
-        tracker.Observe("anomaly", "Wurmloch", Epoch.AddSeconds(-30));
+        tracker.Observe("end", "AFK-Ende", Epoch.AddSeconds(-10));
         Assert.False(tracker.Snapshot(Epoch).Synchronized);
 
         Assert.True(tracker.ObserveLoot(Epoch));
-        Assert.Equal("Erstes Pack · warte auf Wurmloch 1", tracker.Snapshot(Epoch.AddSeconds(5)).Status);
+        Assert.Equal("Warte auf Erkennung", tracker.Snapshot(Epoch.AddSeconds(5)).Status);
         Assert.False(tracker.ObserveLoot(Epoch.AddSeconds(3)));
         Replay(tracker, EventHorizonRotationDemo.Reference, until: 450);
         var afk = tracker.Snapshot(Epoch.AddSeconds(460));
         Assert.True(afk.IsAfk);
-        Assert.Equal("AFK-Phase · Uhr läuft weiter", afk.Status);
+        Assert.Contains("erkannt", afk.Status);
 
         tracker.Observe("end", "AFK-Ende", Epoch.AddSeconds(EventHorizonRotationDemo.Reference.Duration));
         var completed = Assert.Single(tracker.DrainCompleted());
@@ -76,8 +76,8 @@ public sealed class EventHorizonRotationTests
         tracker.Observe("halted", "Geräumt", Epoch.AddSeconds(50));
         tracker.Observe("debris", "Trümmer", Epoch.AddSeconds(50));
         tracker.Observe("spacetime", "Ende", Epoch.AddSeconds(90));
-        tracker.Observe("spacetime", "Ende", Epoch.AddSeconds(99));
-        tracker.Observe("halted", "Geräumt", Epoch.AddSeconds(59));
+        tracker.Observe("spacetime", "Ende", Epoch.AddSeconds(90));
+        tracker.Observe("halted", "Geräumt", Epoch.AddSeconds(50));
 
         var events = tracker.Snapshot(Epoch.AddSeconds(100)).Events;
         Assert.Equal(90, Assert.Single(events, e => e.Kind == "spacetime").Seconds);
@@ -91,25 +91,27 @@ public sealed class EventHorizonRotationTests
     }
 
     [Fact]
-    public void TrackingThatBeginsMidRotationWaitsForTheNextAfkEnd()
+    public void TrackingThatBeginsMidRotationContinuesAndStoresAnIncompleteRun()
     {
         var tracker = new EventHorizonRotationTracker();
         tracker.ObserveLoot(Epoch);
         tracker.Observe("halted", "Geräumt", Epoch.AddSeconds(20));
         var partial = tracker.Snapshot(Epoch.AddSeconds(30));
-        Assert.False(partial.Synchronized);
-        Assert.Empty(partial.Events);
-        Assert.Contains("Mitten in der Rotation", partial.Status);
+        Assert.True(partial.Synchronized);
+        Assert.Contains(partial.Events, e => e.Kind == "halted");
+        Assert.Contains("unvollständig", partial.Status);
         Assert.False(tracker.ObserveLoot(Epoch.AddSeconds(40)));
         tracker.Observe("anomaly", "Wurmloch", Epoch.AddSeconds(60));
-        Assert.Empty(tracker.Snapshot(Epoch.AddSeconds(61)).Events);
+        Assert.Contains(tracker.Snapshot(Epoch.AddSeconds(61)).Events, e => e.Kind == "anomaly");
 
         tracker.Observe("end", "AFK-Ende", Epoch.AddSeconds(300));
-        Assert.Empty(tracker.DrainCompleted());
-        Assert.Equal("AFK beendet · nächste Rotation startet mit dem nächsten Loot", tracker.Snapshot(Epoch.AddSeconds(301)).Status);
+        Assert.All(tracker.DrainCompleted(), run => Assert.False(run.Run.EligibleForStatistics));
+        Assert.Equal("AFK beendet · Warte auf Erkennung", tracker.Snapshot(Epoch.AddSeconds(301)).Status);
+        Assert.False(tracker.ObserveLoot(Epoch.AddSeconds(302)));
+        Assert.False(tracker.ObserveLoot(Epoch.AddSeconds(304)));
         Assert.True(tracker.ObserveLoot(Epoch.AddSeconds(310)));
-        // A late sighting of the reset banner cannot end the new rotation before its first wormhole.
-        tracker.Observe("end", "AFK-Ende", Epoch.AddSeconds(312));
+        // A repeated confirmation at the original capture time cannot close the new run.
+        tracker.Observe("end", "AFK-Ende", Epoch.AddSeconds(300));
         Assert.True(tracker.Snapshot(Epoch.AddSeconds(315)).Synchronized);
     }
 
@@ -143,6 +145,7 @@ public sealed class EventHorizonRotationTests
     public void TheMiniAfkIsOnlyTrackedAfterFallingDebris()
     {
         var tracker = new EventHorizonRotationTracker();
+        tracker.Observe("end", "AFK-Ende", Epoch.AddSeconds(-10));
         tracker.ObserveLoot(Epoch);
         tracker.Observe("anomaly", "Wurmloch", Epoch.AddSeconds(28));
         tracker.Observe("halted", "Geräumt", Epoch.AddSeconds(53));
@@ -159,6 +162,7 @@ public sealed class EventHorizonRotationTests
         try
         {
             var tracker = new EventHorizonRotationTracker(path);
+            tracker.Observe("end", "AFK-Ende", Epoch.AddSeconds(-10));
             tracker.ObserveLoot(Epoch);
             Replay(tracker, EventHorizonRotationDemo.Reference, until: double.MaxValue);
             Assert.Single(tracker.DrainCompleted());
@@ -193,7 +197,7 @@ public sealed class EventHorizonRotationTests
 
         Assert.True(state.Synchronized);
         Assert.Equal(4, state.Elapsed);
-        Assert.Contains("Erstes Pack", state.Status);
+        Assert.Equal("Warte auf Erkennung", state.Status);
     }
 
     private static void Replay(EventHorizonRotationTracker tracker, RotationRun run, double until)

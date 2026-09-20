@@ -457,8 +457,15 @@ internal sealed partial class TrackerSessionService : ITrackerSession
                 newLoot = hasNewDrop;
             }, capturedAt: metadata.CapturedAtUtc);
         }
-        // Event Horizon rotations start with the first loot after the AFK phase.
-        if (newLoot && _uiRunning) _rotationMonitor.ObserveLoot(metadata.CapturedAtUtc, _sessionSpotId);
+        if (_uiRunning)
+        {
+            var spot = _sessionSpotId ?? analysis.SpotId;
+            _rotationMonitor.ObserveLootEvents(analysis.NewEvents, spot);
+            var trash = TrashLootMinimumCatalog.Entries.Where(s => spot is null ? RotationProfiles.Supports(s.SpotId) : s.SpotId == spot)
+                .Select(s => s.ItemName).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            if (newLoot && analysis.NewEvents.Any(e => e.Quantity > 0 && trash.Contains(e.ItemName)))
+                _rotationMonitor.ObserveLoot(metadata.CapturedAtUtc, spot);
+        }
         cancellationToken.ThrowIfCancellationRequested();
         _recording?.RecordFrame(metadata.CapturedAtUtc, analysis.Observations,
             analysis.TrackingResult, frame, analysis.PanelRegion, analysis.RareBandRegion, analysis.Recovery,

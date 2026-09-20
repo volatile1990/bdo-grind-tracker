@@ -7,7 +7,7 @@ namespace BdoGrindTracker.App.Analysis;
 /// <param name="GapSamples">Unreadable samples a backward search may bridge inside one banner sighting.</param>
 internal sealed record RotationMessageProfile(
     Func<string, IReadOnlyList<(string Kind, string Label)>> Parse,
-    Func<int, int, Rectangle> Crop, bool SingleLine = false, int GapSamples = 2)
+    Func<int, int, Rectangle> Crop, bool SingleLine = false, int GapSamples = 2, double DuplicateSeconds = 8)
 {
     internal string Recognize(Mat pixels, CompanionWindowsOcrRecognizer engine)
     {
@@ -23,14 +23,15 @@ internal sealed record RotationMessageProfile(
     // The centered stack of up to three system banners. Its place is a fixed share of the screen at any
     // resolution: the widest line (Hermesia AFK) spans 37.9–62 % of the width, the lines 54.7–63.5 % of the height.
     // Measured on own Hermesia recordings and a live session.
-    private static Rectangle BannerStack(int w, int h) => Rectangle.FromLTRB((int)Math.Floor(w * .365), (int)Math.Floor(h * .54),
-        (int)Math.Ceiling(w * .635), (int)Math.Ceiling(h * .65));
+    // Include the lower banner position in the supplied 2560x1080 ultrawide capture (center y ~= .67).
+    private static Rectangle BannerStack(int w, int h) => Rectangle.FromLTRB((int)Math.Floor(w * .365), (int)Math.Floor(h * .52),
+        (int)Math.Ceiling(w * .635), (int)Math.Ceiling(h * .71));
 
     internal static readonly RotationMessageProfile Hermesia = new(HermesiaMessages.Parse, BannerStack);
 
     // Same banner stack as Hermesia. Teleport black screens hide a banner for about 2.5 seconds,
     // so up to seven unreadable samples keep one sighting together.
-    internal static readonly RotationMessageProfile EventHorizon = new(EventHorizonMessages.Parse, BannerStack, GapSamples: 7);
+    internal static readonly RotationMessageProfile EventHorizon = new(EventHorizonMessages.Parse, BannerStack, GapSamples: 7, DuplicateSeconds: 15);
 
     // Resolve crop: left 0.40625, right 0.4072916667,
     // top 0.6166666667, bottom 0.3611111111. Verified on the source video.

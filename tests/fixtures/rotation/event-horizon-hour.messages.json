@@ -1,0 +1,606 @@
+{
+  "source": "User-supplied Event Horizon video, 2560x1440, native Windows OCR at 2-second intervals; no loot observations",
+  "durationSeconds": 3757.9666666667,
+  "events": [
+    {
+      "seconds": 38,
+      "kind": "anomaly",
+      "label": "Wurmloch gestartet"
+    },
+    {
+      "seconds": 64,
+      "kind": "halted",
+      "label": "Wurmloch geräumt"
+    },
+    {
+      "seconds": 64,
+      "kind": "reception",
+      "label": "Will_Reception erhältlich"
+    },
+    {
+      "seconds": 100,
+      "kind": "expansion",
+      "label": "Wurmloch aktiviert"
+    },
+    {
+      "seconds": 146,
+      "kind": "anomaly",
+      "label": "Wurmloch gestartet"
+    },
+    {
+      "seconds": 172,
+      "kind": "halted",
+      "label": "Wurmloch geräumt"
+    },
+    {
+      "seconds": 172,
+      "kind": "reception",
+      "label": "Will_Reception erhältlich"
+    },
+    {
+      "seconds": 220,
+      "kind": "expansion",
+      "label": "Wurmloch aktiviert"
+    },
+    {
+      "seconds": 276,
+      "kind": "anomaly",
+      "label": "Wurmloch gestartet"
+    },
+    {
+      "seconds": 306,
+      "kind": "halted",
+      "label": "Wurmloch geräumt"
+    },
+    {
+      "seconds": 306,
+      "kind": "reception",
+      "label": "Will_Reception erhältlich"
+    },
+    {
+      "seconds": 346,
+      "kind": "boss",
+      "label": "Boss-Spawn"
+    },
+    {
+      "seconds": 374,
+      "kind": "boss-kill",
+      "label": "AFK-Beginn"
+    },
+    {
+      "seconds": 436,
+      "kind": "end",
+      "label": "AFK-Ende"
+    },
+    {
+      "seconds": 474,
+      "kind": "anomaly",
+      "label": "Wurmloch gestartet"
+    },
+    {
+      "seconds": 500,
+      "kind": "halted",
+      "label": "Wurmloch geräumt"
+    },
+    {
+      "seconds": 500,
+      "kind": "reception",
+      "label": "Will_Reception erhältlich"
+    },
+    {
+      "seconds": 542,
+      "kind": "expansion",
+      "label": "Wurmloch aktiviert"
+    },
+    {
+      "seconds": 580,
+      "kind": "anomaly",
+      "label": "Wurmloch gestartet"
+    },
+    {
+      "seconds": 612,
+      "kind": "halted",
+      "label": "Wurmloch geräumt"
+    },
+    {
+      "seconds": 660,
+      "kind": "expansion",
+      "label": "Wurmloch aktiviert"
+    },
+    {
+      "seconds": 724,
+      "kind": "anomaly",
+      "label": "Wurmloch gestartet"
+    },
+    {
+      "seconds": 748,
+      "kind": "halted",
+      "label": "Wurmloch geräumt"
+    },
+    {
+      "seconds": 748,
+      "kind": "reception",
+      "label": "Will_Reception erhältlich"
+    },
+    {
+      "seconds": 786,
+      "kind": "boss",
+      "label": "Boss-Spawn"
+    },
+    {
+      "seconds": 818,
+      "kind": "boss-kill",
+      "label": "AFK-Beginn"
+    },
+    {
+      "seconds": 880,
+      "kind": "end",
+      "label": "AFK-Ende"
+    },
+    {
+      "seconds": 922,
+      "kind": "anomaly",
+      "label": "Wurmloch gestartet"
+    },
+    {
+      "seconds": 948,
+      "kind": "halted",
+      "label": "Wurmloch geräumt"
+    },
+    {
+      "seconds": 988,
+      "kind": "expansion",
+      "label": "Wurmloch aktiviert"
+    },
+    {
+      "seconds": 1034,
+      "kind": "anomaly",
+      "label": "Wurmloch gestartet"
+    },
+    {
+      "seconds": 1060,
+      "kind": "halted",
+      "label": "Wurmloch geräumt"
+    },
+    {
+      "seconds": 1060,
+      "kind": "reception",
+      "label": "Will_Reception erhältlich"
+    },
+    {
+      "seconds": 1110,
+      "kind": "expansion",
+      "label": "Wurmloch aktiviert"
+    },
+    {
+      "seconds": 1164,
+      "kind": "anomaly",
+      "label": "Wurmloch gestartet"
+    },
+    {
+      "seconds": 1192,
+      "kind": "halted",
+      "label": "Wurmloch geräumt"
+    },
+    {
+      "seconds": 1192,
+      "kind": "reception",
+      "label": "Will_Reception erhältlich"
+    },
+    {
+      "seconds": 1228,
+      "kind": "boss",
+      "label": "Boss-Spawn"
+    },
+    {
+      "seconds": 1262,
+      "kind": "boss-kill",
+      "label": "AFK-Beginn"
+    },
+    {
+      "seconds": 1324,
+      "kind": "end",
+      "label": "AFK-Ende"
+    },
+    {
+      "seconds": 1362,
+      "kind": "anomaly",
+      "label": "Wurmloch gestartet"
+    },
+    {
+      "seconds": 1388,
+      "kind": "halted",
+      "label": "Wurmloch geräumt"
+    },
+    {
+      "seconds": 1388,
+      "kind": "reception",
+      "label": "Will_Reception erhältlich"
+    },
+    {
+      "seconds": 1428,
+      "kind": "expansion",
+      "label": "Wurmloch aktiviert"
+    },
+    {
+      "seconds": 1474,
+      "kind": "anomaly",
+      "label": "Wurmloch gestartet"
+    },
+    {
+      "seconds": 1496,
+      "kind": "halted",
+      "label": "Wurmloch geräumt"
+    },
+    {
+      "seconds": 1496,
+      "kind": "debris",
+      "label": "Trümmer-AFK"
+    },
+    {
+      "seconds": 1516,
+      "kind": "distortion",
+      "label": "Trümmer-AFK · Hälfte"
+    },
+    {
+      "seconds": 1536,
+      "kind": "spacetime",
+      "label": "Trümmer-AFK beendet"
+    },
+    {
+      "seconds": 1588,
+      "kind": "expansion",
+      "label": "Wurmloch aktiviert"
+    },
+    {
+      "seconds": 1646,
+      "kind": "anomaly",
+      "label": "Wurmloch gestartet"
+    },
+    {
+      "seconds": 1676,
+      "kind": "halted",
+      "label": "Wurmloch geräumt"
+    },
+    {
+      "seconds": 1676,
+      "kind": "debris",
+      "label": "Trümmer-AFK"
+    },
+    {
+      "seconds": 1696,
+      "kind": "distortion",
+      "label": "Trümmer-AFK · Hälfte"
+    },
+    {
+      "seconds": 1716,
+      "kind": "spacetime",
+      "label": "Trümmer-AFK beendet"
+    },
+    {
+      "seconds": 1752,
+      "kind": "boss",
+      "label": "Boss-Spawn"
+    },
+    {
+      "seconds": 1782,
+      "kind": "boss-kill",
+      "label": "AFK-Beginn"
+    },
+    {
+      "seconds": 1844,
+      "kind": "end",
+      "label": "AFK-Ende"
+    },
+    {
+      "seconds": 1886,
+      "kind": "anomaly",
+      "label": "Wurmloch gestartet"
+    },
+    {
+      "seconds": 1910,
+      "kind": "halted",
+      "label": "Wurmloch geräumt"
+    },
+    {
+      "seconds": 1910,
+      "kind": "debris",
+      "label": "Trümmer-AFK"
+    },
+    {
+      "seconds": 1930,
+      "kind": "distortion",
+      "label": "Trümmer-AFK · Hälfte"
+    },
+    {
+      "seconds": 1950,
+      "kind": "spacetime",
+      "label": "Trümmer-AFK beendet"
+    },
+    {
+      "seconds": 1990,
+      "kind": "expansion",
+      "label": "Wurmloch aktiviert"
+    },
+    {
+      "seconds": 2034,
+      "kind": "anomaly",
+      "label": "Wurmloch gestartet"
+    },
+    {
+      "seconds": 2060,
+      "kind": "halted",
+      "label": "Wurmloch geräumt"
+    },
+    {
+      "seconds": 2060,
+      "kind": "reception",
+      "label": "Will_Reception erhältlich"
+    },
+    {
+      "seconds": 2108,
+      "kind": "expansion",
+      "label": "Wurmloch aktiviert"
+    },
+    {
+      "seconds": 2168,
+      "kind": "anomaly",
+      "label": "Wurmloch gestartet"
+    },
+    {
+      "seconds": 2192,
+      "kind": "halted",
+      "label": "Wurmloch geräumt"
+    },
+    {
+      "seconds": 2192,
+      "kind": "debris",
+      "label": "Trümmer-AFK"
+    },
+    {
+      "seconds": 2230,
+      "kind": "boss",
+      "label": "Boss-Spawn"
+    },
+    {
+      "seconds": 2262,
+      "kind": "boss-kill",
+      "label": "AFK-Beginn"
+    },
+    {
+      "seconds": 2324,
+      "kind": "end",
+      "label": "AFK-Ende"
+    },
+    {
+      "seconds": 2364,
+      "kind": "anomaly",
+      "label": "Wurmloch gestartet"
+    },
+    {
+      "seconds": 2388,
+      "kind": "halted",
+      "label": "Wurmloch geräumt"
+    },
+    {
+      "seconds": 2388,
+      "kind": "reception",
+      "label": "Will_Reception erhältlich"
+    },
+    {
+      "seconds": 2426,
+      "kind": "expansion",
+      "label": "Wurmloch aktiviert"
+    },
+    {
+      "seconds": 2466,
+      "kind": "anomaly",
+      "label": "Wurmloch gestartet"
+    },
+    {
+      "seconds": 2488,
+      "kind": "halted",
+      "label": "Wurmloch geräumt"
+    },
+    {
+      "seconds": 2488,
+      "kind": "debris",
+      "label": "Trümmer-AFK"
+    },
+    {
+      "seconds": 2508,
+      "kind": "distortion",
+      "label": "Trümmer-AFK · Hälfte"
+    },
+    {
+      "seconds": 2528,
+      "kind": "spacetime",
+      "label": "Trümmer-AFK beendet"
+    },
+    {
+      "seconds": 2580,
+      "kind": "expansion",
+      "label": "Wurmloch aktiviert"
+    },
+    {
+      "seconds": 2638,
+      "kind": "anomaly",
+      "label": "Wurmloch gestartet"
+    },
+    {
+      "seconds": 2664,
+      "kind": "halted",
+      "label": "Wurmloch geräumt"
+    },
+    {
+      "seconds": 2664,
+      "kind": "reception",
+      "label": "Will_Reception erhältlich"
+    },
+    {
+      "seconds": 2708,
+      "kind": "boss",
+      "label": "Boss-Spawn"
+    },
+    {
+      "seconds": 2744,
+      "kind": "boss-kill",
+      "label": "AFK-Beginn"
+    },
+    {
+      "seconds": 2806,
+      "kind": "end",
+      "label": "AFK-Ende"
+    },
+    {
+      "seconds": 2846,
+      "kind": "anomaly",
+      "label": "Wurmloch gestartet"
+    },
+    {
+      "seconds": 2874,
+      "kind": "halted",
+      "label": "Wurmloch geräumt"
+    },
+    {
+      "seconds": 2874,
+      "kind": "reception",
+      "label": "Will_Reception erhältlich"
+    },
+    {
+      "seconds": 2910,
+      "kind": "expansion",
+      "label": "Wurmloch aktiviert"
+    },
+    {
+      "seconds": 2954,
+      "kind": "anomaly",
+      "label": "Wurmloch gestartet"
+    },
+    {
+      "seconds": 2980,
+      "kind": "halted",
+      "label": "Wurmloch geräumt"
+    },
+    {
+      "seconds": 2980,
+      "kind": "reception",
+      "label": "Will_Reception erhältlich"
+    },
+    {
+      "seconds": 3026,
+      "kind": "expansion",
+      "label": "Wurmloch aktiviert"
+    },
+    {
+      "seconds": 3094,
+      "kind": "anomaly",
+      "label": "Wurmloch gestartet"
+    },
+    {
+      "seconds": 3120,
+      "kind": "halted",
+      "label": "Wurmloch geräumt"
+    },
+    {
+      "seconds": 3120,
+      "kind": "reception",
+      "label": "Will_Reception erhältlich"
+    },
+    {
+      "seconds": 3158,
+      "kind": "boss",
+      "label": "Boss-Spawn"
+    },
+    {
+      "seconds": 3192,
+      "kind": "boss-kill",
+      "label": "AFK-Beginn"
+    },
+    {
+      "seconds": 3252,
+      "kind": "end",
+      "label": "AFK-Ende"
+    },
+    {
+      "seconds": 3294,
+      "kind": "anomaly",
+      "label": "Wurmloch gestartet"
+    },
+    {
+      "seconds": 3320,
+      "kind": "halted",
+      "label": "Wurmloch geräumt"
+    },
+    {
+      "seconds": 3320,
+      "kind": "reception",
+      "label": "Will_Reception erhältlich"
+    },
+    {
+      "seconds": 3358,
+      "kind": "expansion",
+      "label": "Wurmloch aktiviert"
+    },
+    {
+      "seconds": 3406,
+      "kind": "anomaly",
+      "label": "Wurmloch gestartet"
+    },
+    {
+      "seconds": 3430,
+      "kind": "halted",
+      "label": "Wurmloch geräumt"
+    },
+    {
+      "seconds": 3430,
+      "kind": "debris",
+      "label": "Trümmer-AFK"
+    },
+    {
+      "seconds": 3450,
+      "kind": "distortion",
+      "label": "Trümmer-AFK · Hälfte"
+    },
+    {
+      "seconds": 3470,
+      "kind": "spacetime",
+      "label": "Trümmer-AFK beendet"
+    },
+    {
+      "seconds": 3528,
+      "kind": "expansion",
+      "label": "Wurmloch aktiviert"
+    },
+    {
+      "seconds": 3580,
+      "kind": "anomaly",
+      "label": "Wurmloch gestartet"
+    },
+    {
+      "seconds": 3608,
+      "kind": "halted",
+      "label": "Wurmloch geräumt"
+    },
+    {
+      "seconds": 3608,
+      "kind": "reception",
+      "label": "Will_Reception erhältlich"
+    },
+    {
+      "seconds": 3650,
+      "kind": "boss",
+      "label": "Boss-Spawn"
+    },
+    {
+      "seconds": 3682,
+      "kind": "boss-kill",
+      "label": "AFK-Beginn"
+    },
+    {
+      "seconds": 3744,
+      "kind": "end",
+      "label": "AFK-Ende"
+    }
+  ]
+}
