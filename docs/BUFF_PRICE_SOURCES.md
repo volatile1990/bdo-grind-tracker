@@ -1,7 +1,7 @@
 # Buff-Katalog und Preisquellen
 
-Stand: 21.09.2026. Die vom Nutzer gewählte Whitelist enthält **58 Einträge**:
-3 Cron-Mahlzeiten, 10 Harmony Draughts, 20 Parfüms, 19 kostenpflichtige
+Stand: 21.09.2026. Die aktive Whitelist enthält **58 Einträge**:
+3 Cron-Mahlzeiten, 5 normale und 5 unsterbliche Harmony Draughts, 20 Parfüms, 19 kostenpflichtige
 Zeltvarianten und 6 Mystic-Beasts-Schriftrollen. Kostenlose Welt-, Event-,
 Pferde- und sonstige Buffs werden nicht automatisch ergänzt. Beast's, Giant's
 und Frenzy Draught gehören nicht mehr zur Auswahl; bereits gespeicherte
@@ -16,6 +16,12 @@ Veraltungskennzeichnung. Der vollständige Gegenstandswert zählt als Aufwand,
 ohne Verkaufssteuer oder Value-Pack-Abzug. Dies ist eine Bewertung zum
 Marktpreis, keine Rekonstruktion eines historischen Einkaufspreises.
 
+Harmony besitzt zehn getrennte Preisidentitäten: fünf normale und fünf
+unsterbliche Varianten mit den Markt-IDs 1399 bis 1408. Eindeutige Client-Symbole
+bestimmen die jeweilige Variante; eigene Profile behalten ebenfalls ihre
+ausgewählte ID. Historische Verbrauchsbuchungen werden nicht verändert oder
+neu bewertet, auch wenn sie zuvor zum normalen Preis gebucht wurden.
+
 | Profil-ID | Gegenstand | Item-ID | Laufzeit |
 | --- | --- | ---: | ---: |
 | `exquisite-cron-meal` | [Exquisite Cron Meal](https://bdocodex.com/us/item/9693/) | 9693 | 120 min |
@@ -25,11 +31,11 @@ Marktpreis, keine Rekonstruktion eines historischen Einkaufspreises.
 | `harmony-draught-edania` | [[Party] Harmony Draught - Edania](https://bdocodex.com/us/item/1407/) | 1407 | 20 min |
 | `harmony-draught-human` | [[Party] Harmony Draught - Human](https://bdocodex.com/us/item/1401/) | 1401 | 20 min |
 | `harmony-draught-kamasylvia` | [[Party] Harmony Draught - Kamasylvia](https://bdocodex.com/us/item/1405/) | 1405 | 20 min |
+| `harmony-draught` | [Harmony Draught](https://bdocodex.com/us/item/1399/) | 1399 | 20 min |
 | `immortal-harmony-draught-demihuman` | [[Party] Immortal: Harmony Draught - Demihuman](https://bdocodex.com/us/item/1404/) | 1404 | 20 min |
 | `immortal-harmony-draught-edania` | [[Party] Immortal: Harmony Draught - Edania](https://bdocodex.com/us/item/1408/) | 1408 | 20 min |
 | `immortal-harmony-draught-human` | [[Party] Immortal: Harmony Draught - Human](https://bdocodex.com/us/item/1402/) | 1402 | 20 min |
 | `immortal-harmony-draught-kamasylvia` | [[Party] Immortal: Harmony Draught - Kamasylvia](https://bdocodex.com/us/item/1406/) | 1406 | 20 min |
-| `harmony-draught` | [Harmony Draught](https://bdocodex.com/us/item/1399/) | 1399 | 20 min |
 | `immortal-harmony-draught` | [Immortal: Harmony Draught](https://bdocodex.com/us/item/1400/) | 1400 | 20 min |
 | `immortal-perfume-of-bracing-spirits` | [Immortal: Perfume of Bracing Spirits](https://bdocodex.com/us/item/875/) | 875 | 20 min |
 | `immortal-perfume-of-charm` | [Immortal: Perfume of Charm](https://bdocodex.com/us/item/877/) | 877 | 20 min |
@@ -71,14 +77,25 @@ Mystic-Beasts-Werte und ihre Marktzuordnung sind zusätzlich in den
 beschrieben. Einige Codex-Seiten laden Marktpreise dynamisch; die Vorlage
 enthält deshalb keine aus Webseiten abgeleiteten Ersatzpreise.
 
+Alle zehn Harmony-IDs stehen für neue Erkennung und gespeicherte Sessions zur
+Verfügung. Es gibt keine automatische Umwandlung unsterblicher IDs in normale
+Varianten. Frühere unbekannte Harmony- und Cron-Gruppen bleiben ebenfalls lesbar;
+ihre unbekannten Preise werden nicht nachträglich durch eine geratene Variante ersetzt.
+
 ## Feste Zeltpreise
 
 Diese 19 Varianten verwenden **NPC-Kaufpreise**, auch wenn ein zugehöriger
 Effekt eine Item-ID besitzt. Sie werden nicht beim Zentralmarkt angefragt.
 Direktbuff und Schriftrolle werden bei gleichem Effekt und gleicher Laufzeit
-nicht als zwei Käufe gezählt. Die Laufzeitvariante wird im Profil ausdrücklich
-ausgewählt: 77 Minuten Restlaufzeit beweisen beispielsweise nicht, ob ein
-120- oder ein 300-Minuten-Buff gekauft wurde.
+nicht als zwei Käufe gezählt. Adventure's Boon, Body Enhancement und Turning Gates
+werden automatisch immer als 300-Minuten-Variante gebucht, auch wenn nur eine
+kurze Restzeit sichtbar ist. So werden ihre Anwendungen unter jeweils einer
+Identität aufsummiert. Die hinterlegten NPC-Preise betragen 12.000.000, 10.000.000
+bzw. 2.000.000 Silber und gelten auch für die Laufzeitbewertung. Die automatische
+Zuordnung ist eine feste Bewertungsannahme, kein Kaufnachweis. Historische
+Buchungen werden nicht nachträglich neu bewertet. Kürzere Katalogvarianten
+bleiben zum Lesen vorhandener Sessiondaten erhalten; manuelle Profile sind in
+der automatischen Erkennung nicht aktiv.
 
 | Profil-ID | Zeltbuff | Laufzeit | Kaufpreis in Silber |
 | --- | --- | ---: | ---: |
@@ -119,19 +136,34 @@ in Adventure's Boon zusammengeführt und werden nicht zusätzlich gebucht.
 
 Ein Marktgegenstand ist keine Iconvorlage. Die Buffleiste zeigt Effektsymbole,
 die sich von Inventar-Icons unterscheiden können. Codex-Platzhalter wie
-`icon_unknown.webp` liefern keine brauchbare Vorlage. Die tatsächliche
-Zuordnung wird bei der Kalibrierung anhand des eigenen Buffs festgelegt.
+`icon_unknown.webp` liefern keine brauchbare Vorlage. Der automatische Katalog
+enthält 37 tatsächliche Client-Buffsymbole für alle 58 Preisidentitäten. Die
+statische Zuordnung Gegenstand → Skill → Buffsymbol ist in
+[`client-mapping.json`](../data/ocr/buffs/client-mapping.json) und
+[`SOURCES.md`](../data/ocr/buffs/SOURCES.md) dokumentiert.
 
-Standard- und Immortal-Versionen bleiben separate Preisidentitäten. Pro
-Erkennungsfamilie wird eine konkrete Variante ausgewählt; ein Profil darf
+Standard- und Immortal-Versionen bleiben separate Preisidentitäten. Harmony
+besitzt unterscheidbare normale und unsterbliche Symbole. Einige Parfümvarianten
+verwenden dagegen denselben Client-Symbolpfad und bleiben automatisch als
+unbekannte Gruppe ohne Preis erfasst, weil auch die Dauer gleich ist. Dasselbe
+gilt für die Glücksstufen. Adventure's Boon und die Villa-Buffs werden dagegen
+automatisch immer mit der 300-Minuten-Variante bewertet. In einem alten Profil wurde pro
+Erkennungsfamilie eine konkrete Variante ausgewählt; ein Profil darf
 nicht gleichzeitig mehrere mutmaßlich gleiche Effekte auf unterschiedliche
 Preise abbilden. Dasselbe gilt für die Laufzeitvarianten eines Zeltbuffs.
 `RecognitionGroup` ist eine konservative Gruppierung für diese Auswahl und
 keine Behauptung, dass sämtliche Icons einer Familie bereits verifiziert sind.
 
-Ein empfangener Harmony-Gruppenbuff belegt keinen eigenen Verbrauch. Die
-acht Gruppenvarianten sind als `RequiresConsumptionConfirmation` markiert.
-Nur bei expliziter Zuordnung zum eigenen Verbrauch darf die Erkennung dafür
-persönliche Kosten buchen. Buffs, die schon bei Sitzungsbeginn laufen, sind
-keine neuen Käufe. Ein bestätigter Timer-Sprung kann einen neuen Verbrauch
-belegen; zwischen ungelesenen Aufnahmen werden keine Käufe erfunden.
+Ein empfangener Harmony-Gruppenbuff belegt keinen eigenen Verbrauch. Die acht
+Gruppenvarianten zählen bestätigte Erstbeobachtungen und Timer-Erneuerungen sowohl automatisch als
+auch in eigenen Profilen ohne zusätzliche Verbrauchsbestätigung. Bewertet wird
+die eindeutig erkannte Variante. Die Grafik beweist nicht, welches
+Gruppenmitglied den Gegenstand eingesetzt hat. Jeder bisher ungebuchte Buff wird
+nach zwei eigenen passenden Erstbeobachtungen einmal mit seinem Preis angerechnet,
+auch wenn er erst später lesbar wird. Die Markierung **Bei erster Erkennung aktiv**
+belegt keinen neuen Kauf. Höhere erneut gelesene Restzeiten erhöhen die Anzahl.
+Pausen, Erkennungslücken und Timerpräzisierungen erzeugen für bereits gebuchte
+Buffs keine zusätzliche Erstanrechnung. Gespeicherte Buchungen verhindern auch
+nach dem Laden doppelte Erstanrechnungen einschließlich ihrer Dauerfamilie.
+Bislang ungebuchte Buffs können nach zwei neuen passenden Beobachtungen erstmals
+angerechnet werden; zwischen ungelesenen Aufnahmen werden keine Käufe erfunden.

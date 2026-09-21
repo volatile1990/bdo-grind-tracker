@@ -18,7 +18,7 @@ public sealed partial class TrackerSessionServiceTests
     {
         var remaining = TimeSpan.FromHours(6);
         var monitor = new LootScrollMonitor(new LootScrollFrameDetector(new SessionTimer(() => remaining)));
-        await using var fixture = new Fixture(autoUpload: false, lootScrollMonitor: monitor, lootScrollVisible: _ => true);
+        await using var fixture = new Fixture(autoUpload: false, initialSettings: new() { UiLanguage = "de" }, lootScrollMonitor: monitor, lootScrollVisible: _ => true);
         BeginScrollSession(fixture);
         using var frame = new Bitmap(Path.Combine(AppContext.BaseDirectory, "fixtures", "loot-scroll", image));
         var now = DateTimeOffset.UtcNow;
@@ -50,7 +50,7 @@ public sealed partial class TrackerSessionServiceTests
     {
         var detector = new SessionScrollDetector(StoppedScroll);
         var monitor = new LootScrollMonitor(detector);
-        await using var fixture = new Fixture(autoUpload: false, lootScrollMonitor: monitor, lootScrollVisible: _ => true);
+        await using var fixture = new Fixture(autoUpload: false, initialSettings: new() { UiLanguage = "de" }, lootScrollMonitor: monitor, lootScrollVisible: _ => true);
         BeginScrollSession(fixture);
         var now = DateTimeOffset.UtcNow;
         await ProcessScrollFrame(fixture, now.AddSeconds(-30));
@@ -105,7 +105,7 @@ public sealed partial class TrackerSessionServiceTests
             };
         });
         var monitor = new LootScrollMonitor(detector);
-        await using var fixture = new Fixture(autoUpload: false, lootScrollMonitor: monitor, lootScrollVisible: _ => true);
+        await using var fixture = new Fixture(autoUpload: false, initialSettings: new() { UiLanguage = "de" }, lootScrollMonitor: monitor, lootScrollVisible: _ => true);
         BeginScrollSession(fixture);
         using var overlay = new OverlayService(fixture.Service);
         var first = DateTimeOffset.UtcNow.AddSeconds(-60);
@@ -157,7 +157,7 @@ public sealed partial class TrackerSessionServiceTests
         {
             RemainingTime = remaining, TimerResolution = TimeSpan.FromSeconds(1),
         }));
-        await using var fixture = new Fixture(autoUpload: false, lootScrollMonitor: monitor, lootScrollVisible: _ => true);
+        await using var fixture = new Fixture(autoUpload: false, initialSettings: new() { UiLanguage = "de" }, lootScrollMonitor: monitor, lootScrollVisible: _ => true);
         BeginScrollSession(fixture);
         using var overlay = new OverlayService(fixture.Service);
         var firstSessionId = fixture.Service.State.SessionId;
@@ -196,7 +196,7 @@ public sealed partial class TrackerSessionServiceTests
     {
         var detector = new SessionScrollDetector(StoppedScroll);
         var monitor = new LootScrollMonitor(detector);
-        await using var fixture = new Fixture(autoUpload: false, lootScrollMonitor: monitor, lootScrollVisible: _ => true);
+        await using var fixture = new Fixture(autoUpload: false, initialSettings: new() { UiLanguage = "de" }, lootScrollMonitor: monitor, lootScrollVisible: _ => true);
         BeginScrollSession(fixture);
         var now = DateTimeOffset.UtcNow;
         await ProcessScrollFrame(fixture, now.AddSeconds(-30));
@@ -250,7 +250,7 @@ public sealed partial class TrackerSessionServiceTests
             throw new InvalidOperationException("Synthetic image recognition failure");
         });
         var monitor = new LootScrollMonitor(detector);
-        await using var fixture = new Fixture(autoUpload: false, lootScrollMonitor: monitor, lootScrollVisible: _ => true);
+        await using var fixture = new Fixture(autoUpload: false, initialSettings: new() { UiLanguage = "de" }, lootScrollMonitor: monitor, lootScrollVisible: _ => true);
         BeginScrollSession(fixture);
         try
         {

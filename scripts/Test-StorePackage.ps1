@@ -8,7 +8,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
-$null = & (Join-Path $PSScriptRoot 'Get-ReleaseMetadata.ps1') -Version $Version -Channel stable
+$packageVersion = & (Join-Path $PSScriptRoot 'Get-StorePackageVersion.ps1') -Version $Version
 $workspaceRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 [xml] $expected = Get-Content -LiteralPath (Join-Path $workspaceRoot 'packaging/msix/AppxManifest.xml') -Raw
 $archive = [IO.Compression.ZipFile]::OpenRead((Resolve-Path -LiteralPath $PackagePath).Path)
@@ -26,8 +26,8 @@ try {
     foreach ($pattern in @('*OpenCvSharpExtern.dll', '*WebView2Loader.dll', 'wwwroot/assets/icons/*.png')) {
         if (-not ($entries | Where-Object { $_ -like $pattern })) { throw "Missing runtime or UI content: $pattern" }
     }
-    if ($entries | Where-Object { $_ -match '(?i)(^|/)(Update\.exe|.*-Setup\.exe|releases\..*\.json)$|\.(pfx|key)$' }) {
-        throw 'Store packages must not contain a GitHub updater/installer/feed or private signing keys.'
+    if ($entries | Where-Object { $_ -match '(?i)(^|/)(Velopack[^/]*\.(dll|exe)|Update\.exe|(?:.*-)?Setup\.exe|releases\..*\.json)$|\.(pfx|key)$' }) {
+        throw 'Store packages must not contain external updaters, installers, feeds, Velopack components or private signing keys.'
     }
     $reader = [IO.StreamReader]::new($archive.GetEntry('AppxManifest.xml').Open())
     try { [xml] $manifest = $reader.ReadToEnd() } finally { $reader.Dispose() }
@@ -36,7 +36,7 @@ try {
             throw "Store identity mismatch: $attribute"
         }
     }
-    if ($manifest.Package.Identity.Version -cne "$Version.0") { throw 'Store package version does not match the requested version.' }
+    if ($manifest.Package.Identity.Version -cne $packageVersion) { throw 'Store package version does not match the requested version.' }
     if ($manifest.Package.Properties.PublisherDisplayName -cne $expected.Package.Properties.PublisherDisplayName) {
         throw 'Store PublisherDisplayName mismatch.'
     }
@@ -151,4 +151,4 @@ try {
 } finally {
     $archive.Dispose()
 }
-Write-Host "Verified Store identity, version $Version.0, runtime dependencies, 48 transparent logos, shell resource mappings and payload."
+Write-Host "Verified Store identity, version $packageVersion, runtime dependencies, 48 transparent logos, shell resource mappings and payload."

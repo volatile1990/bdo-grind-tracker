@@ -64,7 +64,7 @@ public partial class OverlayEditor
     {
         for (var index = copy ? 1 : 2; ; index++)
         {
-            var suffix = copy ? index == 1 ? " (Kopie)" : $" (Kopie {index})" : $" {index}";
+            var suffix = copy ? index == 1 ? T(" (Kopie)") : F(" (Kopie {0})", index) : $" {index}";
             var candidate = name[..Math.Min(name.Length, 60 - suffix.Length)] + suffix;
             if (!Overlay.Overlays.Any(window => string.Equals(window.Name, candidate, StringComparison.OrdinalIgnoreCase)))
                 return candidate;

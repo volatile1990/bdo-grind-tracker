@@ -10,7 +10,9 @@ internal static class LootDiagnosticFormat
 {
     public const int Version = 3;
     public const int HistoricalVersion = 2;
-    public const string EngineVersion = "grindcrest-lifetime-v6";
+    public const string EngineVersion = "grindcrest-lifetime-v8";
+    public const string LegacyStableSpecialEngineVersion = "grindcrest-lifetime-v7";
+    public const string LegacyFadeAwareLifetimeEngineVersion = "grindcrest-lifetime-v6";
     public const string LegacyUnreadableVisualLifetimeEngineVersion = "grindcrest-lifetime-v5";
     public const string LegacyIndependentSpecialEngineVersion = "grindcrest-lifetime-v4";
     public const string LegacyVisualLifetimeEngineVersion = "grindcrest-lifetime-v3";

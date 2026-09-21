@@ -13,24 +13,23 @@
     <Description>Passive Black Desert loot and grind-session tracker</Description>
     <ApplicationIcon>..\..\data\branding\grindcrest.ico</ApplicationIcon>
     <RootNamespace>BdoGrindTracker.App</RootNamespace>
-    <Version>1.7.0</Version>
+    <Version>1.8.2</Version>
     <InformationalVersion>$(Version)</InformationalVersion>
-    <UpdateRepositoryUrl Condition="'$(UpdateRepositoryUrl)' == ''">https://github.com/volatile1990/bdo-grind-tracker</UpdateRepositoryUrl>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <!-- Both release validators enforce this baseline for every packaged .NET framework.
+    <!-- The Store release validator enforces this baseline for every packaged .NET framework.
          RuntimeFrameworkVersion is deliberately not global: it also affects Windows SDK references. -->
     <MinimumPackagedRuntimeVersion>9.0.20</MinimumPackagedRuntimeVersion>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Components.WebView.WindowsForms" Version="9.0.120" />
-    <PackageReference Include="Velopack" Version="1.2.0" />
-    <AssemblyMetadata Include="UpdateRepositoryUrl" Value="$(UpdateRepositoryUrl)" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <Content Update="wwwroot\**\*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <!-- Native overlays and Blazor share these assets, including in referenced test builds. -->
     <Content Include="..\..\data\**\*.png;..\..\data\**\*.jpg;..\..\data\**\*.webp" Exclude="..\..\data\ocr\**\*"
              Link="wwwroot\assets\%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\data\ocr\buffs\client-*.png" Link="wwwroot\assets\buffs\%(Filename)%(Extension)"
              CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
@@ -43,6 +42,8 @@
     <EmbeddedResource Include="..\..\data\branding\grindcrest-header.png" LogicalName="BdoGrindTracker.App.Branding.grindcrest-header.png" />
     <EmbeddedResource Include="..\..\data\ocr\loot-scroll\*.png" LogicalName="BdoGrindTracker.App.LootScroll.%(Filename)%(Extension)" />
     <EmbeddedResource Include="..\..\data\ocr\agris\*.png" LogicalName="BdoGrindTracker.App.Agris.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="..\..\data\ocr\buffs\*.png;..\..\data\ocr\buffs\catalog.json" LogicalName="BdoGrindTracker.App.Buffs.%(Filename)%(Extension)" />
+    <Content Include="..\..\data\ocr\buffs\SOURCES.md;..\..\data\ocr\buffs\client-mapping.json" Link="data\ocr\buffs\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <EmbeddedResource Include="..\..\data\branding\grindcrest.ico" LogicalName="BdoGrindTracker.App.Branding.grindcrest.ico" />
     <Content Include="..\..\data\branding\*" Exclude="..\..\data\branding\*.png;..\..\data\branding\*.jpg" Link="data\branding\%(Filename)%(Extension)">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -85,7 +86,7 @@
   <ItemGroup>
     <Content Include="..\..\docs\BLAZOR_HYBRID.md" Link="docs\BLAZOR_HYBRID.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="..\..\docs\OVERLAY.md" Link="docs\OVERLAY.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <Content Include="..\..\docs\BUFF_TRACKING.md;..\..\docs\buff-recognition-profile.example.json;..\..\docs\BUFF_PRICE_SOURCES.md" Link="docs\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\docs\BUFF_TRACKING.md;..\..\docs\BUFF_HUD_CONFIG.md;..\..\docs\buff-recognition-profile.example.json;..\..\docs\BUFF_PRICE_SOURCES.md" Link="docs\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="..\..\docs\GRIND_RATING.md" Link="docs\GRIND_RATING.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="..\..\licenses\*" Link="licenses\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="..\..\README.md" Link="README.md">

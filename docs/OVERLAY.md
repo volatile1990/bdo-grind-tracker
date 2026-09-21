@@ -5,6 +5,15 @@ Modulen zusammengestellt werden. Neue Fenster sind standardmäßig ausgeschaltet
 Alle Fenster zeigen dieselben Sessiondaten wie die Live-Ansicht und erzeugen
 keine eigenen Drops oder Zählentscheidungen.
 
+Unter **Einstellungen → Erscheinungsbild → Theme für die Overlays** lässt sich
+das gemeinsame Design aller Overlay-Fenster unabhängig vom Hauptfenster wählen.
+Zur Auswahl stehen Grindcrest, Black Desert, Light, Katzen, Obsidian, Kamasylvia
+und Valencia. **Wie Hauptfenster** übernimmt automatisch das Hauptfenster-Theme.
+Die Auswahl gilt sofort für die nativen Fenster sowie für die Vorschau im Editor
+und im Browser und wird in der Windows-App gespeichert. Layouts, Modulkoordinaten
+und Transparenzeinstellungen bleiben erhalten. Details stehen unter
+[Themes und Darstellung](THEMES.md).
+
 ## Mehrere Fenster
 
 Unter **Deine Overlay-Fenster** legt **Neues Overlay** ein leeres Fenster an.
@@ -91,11 +100,28 @@ einzelnen Itemkarte maximal ein Item); die maximale Itemanzahl ist einstellbar.
 Alle Einstellungen werden automatisch gespeichert. Bestehende Layouts bleiben erhalten.
 
 Verfügbare Module: aktive Zeit, Uhrzeit, Grindspot, Silber netto, Silber pro Stunde,
-Trashloot, Trash pro Stunde, Drop-Inventar, seltene Drops, Silberverlauf,
+Trashloot, Trash pro Stunde, Drop-Inventar, seltene Drops, Verbrauchte Items, Silberverlauf,
 Rotations / h, Rotation Counter, Tracking-Status, Loot-Scroll, Grind-Bewertung und
 Start-/Pause-Steuerung. Der Filter für seltene Drops ist eine
 explizite Auswahl bekannter seltener Gegenstände, keine neue Klassifizierung durch
 OCR. Das Drop-Inventar enthält weiterhin alle gezählten Gegenstände.
+
+**Verbrauchte Items** zeigt die gebuchten Buffs der Live-Session als kompaktes
+Iconraster mit Mengenbadge in der Ecke und einer gemeinsamen Kostenzeile. Es
+enthält alle gebuchten Varianten, ohne Itemfilter oder Begrenzung der Itemanzahl;
+bei wenig Platz werden die Kacheln entsprechend kleiner. Beschriftung, Icons,
+Schriftgröße und Modulgröße sind einstellbar. Die Gesamtkosten bleiben auch ohne
+Beschriftung oder Icons sichtbar. Fehlende Preise erscheinen als **Preis fehlt**;
+bei teilweise bekannten Preisen steht der bekannte Betrag mit **\***. Ohne
+Buffbeobachtungen steht **—**.
+
+Die Mengen stammen ausschließlich aus bestätigten Erstanrechnungen und
+Timer-Erneuerungen. Ein aktiver Buff ohne Buchung zählt nicht als verbrauchtes
+Item. Bereits gespeicherte Preise bleiben erhalten; das Overlay bewertet sie
+nicht neu und addiert keine zeitanteiligen Laufzeitkosten. Die Iconleiste im
+Live-Header und im Verlauf zeigt dieselben Mengen und Kosten.
+Die Mouseoverdaten nennen Name, Anzahl und gespeicherte Preise.
+[Erkennung und Kostenregeln](BUFF_TRACKING.md).
 
 **Silberverlauf** zeigt entweder den Session-Durchschnitt Silber / Stunde oder, als Standard
 für neu hinzugefügte Module, **Silber je Zeitabschnitt als Kurve** (ganze Session,
@@ -116,9 +142,11 @@ das Silber wertvoller Drops weg, ihre Icons bleiben. **Logarithmische Höhe** (S
 Werte, ohne zu kappen; ein Hundertstel des höchsten Abschnitts erreicht noch die halbe Höhe.
 Die Skala bezieht sich immer auf den sichtbaren Zeitraum. Lange Verläufe werden auf höchstens
 800 Punkte verdichtet, ohne einzelne Spitzen zu verlieren. Die große Zahl bleibt der
-Session-Durchschnitt. Nach einem App-Neustart beginnt die Kurve beim wiederhergestellten
-Stand, weil frühere Lootzeitpunkte nicht gespeichert sind. Nachträgliche Mengenkorrekturen
-nach unten verändern bereits gezählte Abschnitte nicht.
+Session-Durchschnitt. Die Zeitabschnitt-Kurve verwendet nach einem App-Neustart die
+gespeicherten Drop-Zeitpunkte der Session. Die Wiederherstellung erfolgt pausiert;
+Offlinezeit zählt nicht mit. Bei älteren Sessions ohne gespeicherte Dropzeiten
+bleiben frühere Zeitpunkte unbekannt, bis neue Drops erfasst werden. Nachträgliche
+Mengenkorrekturen nach unten verändern bereits gezählte Abschnitte nicht.
 
 **Rotations / h** zeigt, wie viele volle Rotationen beim aktuellen Tempo in einer Stunde
 möglich sind: 60 Minuten geteilt durch die durchschnittliche Zeit der letzten bis zu drei
@@ -145,8 +173,8 @@ Der Editor zeigt standardmäßig die Live-Session. Optional zuschaltbare
 Beispieldaten helfen auch ohne laufende Session beim Anordnen. Sie stammen aus
 einer echten Hermesia-Session (Shai, 18.09.2026, 1:34 h, englischer Client):
 Mengen, die Marktpreise und Steuereinstellungen dieses Tages sowie sieben
-vollständige Rotationen sind aufgezeichnete Werte. Da der Tracker keine
-Drop-Zeitpunkte speichert, verteilt die Vorschau jeden Drop auf die aktive Stunde,
+vollständige Rotationen sind aufgezeichnete Werte. Da diese ältere Beispielaufnahme
+keine genauen Drop-Zeitpunkte enthält, verteilt die Vorschau jeden Drop auf die aktive Stunde,
 in der die Session ihn gezählt hat. Loot-Scroll und Tagesziel sind Beispiele.
 **Desktop-Vorschau** blendet vorübergehend das echte Overlay ein. Änderungen an
 Layout, Verhalten und Fensterposition werden automatisch lokal in `overlay.json`

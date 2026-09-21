@@ -24,6 +24,7 @@ public sealed class GrindGoalPreviewTests : IClassFixture<WebApplicationFactory<
         await using var first = _factory.Services.CreateAsyncScope();
         await using var second = _factory.Services.CreateAsyncScope();
         var tracker = first.ServiceProvider.GetRequiredService<ITrackerSession>();
+        await tracker.SavePreferencesAsync(tracker.Preferences with { UiLanguage = "de" });
         var goals = first.ServiceProvider.GetRequiredService<GrindGoalStore>();
         var overlay = first.ServiceProvider.GetRequiredService<IOverlayService>();
         var otherOverlay = second.ServiceProvider.GetRequiredService<IOverlayService>();

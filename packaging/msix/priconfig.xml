@@ -4,7 +4,7 @@
   <packaging />
   <index root="\" startIndexAt="\">
     <default>
-      <qualifier name="Language" value="de-DE" />
+      <qualifier name="Language" value="en-US" />
       <qualifier name="Scale" value="100" />
     </default>
     <indexer-config type="folder" foldernameAsQualifier="true" filenameAsQualifier="true" qualifierDelimiter="." />

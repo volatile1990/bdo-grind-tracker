@@ -11,6 +11,7 @@
   <ItemGroup>
     <EmbeddedResource Include="..\..\data\items.de.json" LogicalName="BdoGrindTracker.Core.GermanItems.json" WithCulture="false" />
     <EmbeddedResource Include="..\..\data\drop-quantities.json" LogicalName="BdoGrindTracker.Core.DropQuantities.json" />
+    <EmbeddedResource Include="..\..\data\loot-sources.json" LogicalName="BdoGrindTracker.Core.LootSources.json" />
   </ItemGroup>
 
 </Project>

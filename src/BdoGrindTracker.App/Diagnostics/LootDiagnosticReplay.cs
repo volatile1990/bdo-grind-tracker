@@ -83,6 +83,8 @@ internal static class LootDiagnosticReplay
         var header = Deserialize<LootDiagnosticHeader>(ReadBoundedLine(reader), 1);
         if (header.Kind != "header" || header.FormatVersion is not (LootDiagnosticFormat.Version or LootDiagnosticFormat.HistoricalVersion) ||
             (header.EngineVersion != LootDiagnosticFormat.EngineVersion &&
+             header.EngineVersion != LootDiagnosticFormat.LegacyStableSpecialEngineVersion &&
+             header.EngineVersion != LootDiagnosticFormat.LegacyFadeAwareLifetimeEngineVersion &&
              header.EngineVersion != LootDiagnosticFormat.LegacyUnreadableVisualLifetimeEngineVersion &&
              header.EngineVersion != LootDiagnosticFormat.LegacyIndependentSpecialEngineVersion &&
              header.EngineVersion != LootDiagnosticFormat.LegacyVisualLifetimeEngineVersion &&
@@ -108,6 +110,8 @@ internal static class LootDiagnosticReplay
         }
 
         if (header.EngineVersion != LootDiagnosticFormat.EngineVersion &&
+            header.EngineVersion != LootDiagnosticFormat.LegacyStableSpecialEngineVersion &&
+            header.EngineVersion != LootDiagnosticFormat.LegacyFadeAwareLifetimeEngineVersion &&
             header.EngineVersion != LootDiagnosticFormat.LegacyUnreadableVisualLifetimeEngineVersion &&
             header.EngineVersion != LootDiagnosticFormat.LegacyIndependentSpecialEngineVersion &&
             header.EngineVersion != LootDiagnosticFormat.LegacyVisualLifetimeEngineVersion &&
@@ -158,6 +162,9 @@ internal static class LootDiagnosticReplay
             {
                 if (header.FormatVersion != LootDiagnosticFormat.Version || !IsRawLifetimeEngine(header.EngineVersion))
                     throw new InvalidDataException("Diese Diagnose-Version unterstützt keinen Rohtext-Parsing-Kontext.");
+                if (header.EngineVersion != LootDiagnosticFormat.EngineVersion &&
+                    changedContext.Catalog.Any(item => item.AllowedSource is not null))
+                    throw new InvalidDataException("Diese ältere Engine-Version unterstützt keine feste Item-Quellenzuordnung.");
                 DiagnosticRecordingSession.ValidateContextChange(parsingContext, changedContext);
                 parsingContext = changedContext;
             }
@@ -174,6 +181,8 @@ internal static class LootDiagnosticReplay
             }
             entry.CaptureTiming?.Validate();
             if (header.EngineVersion != LootDiagnosticFormat.EngineVersion &&
+                header.EngineVersion != LootDiagnosticFormat.LegacyStableSpecialEngineVersion &&
+                header.EngineVersion != LootDiagnosticFormat.LegacyFadeAwareLifetimeEngineVersion &&
                 header.EngineVersion != LootDiagnosticFormat.LegacyUnreadableVisualLifetimeEngineVersion &&
                 header.EngineVersion != LootDiagnosticFormat.LegacyIndependentSpecialEngineVersion &&
                 header.EngineVersion != LootDiagnosticFormat.LegacyVisualLifetimeEngineVersion &&
@@ -196,7 +205,9 @@ internal static class LootDiagnosticReplay
                 var algorithm = ReadNormalAlgorithm(entry.RecognitionVariant);
                 var independentSpecial = DiagnosticRecordingSession.ReadIndependentSpecialMode(entry.RecognitionVariant);
                 if (independentSpecial && header.EngineVersion is not
-                    (LootDiagnosticFormat.EngineVersion or LootDiagnosticFormat.LegacyUnreadableVisualLifetimeEngineVersion or
+                    (LootDiagnosticFormat.EngineVersion or LootDiagnosticFormat.LegacyStableSpecialEngineVersion or
+                     LootDiagnosticFormat.LegacyFadeAwareLifetimeEngineVersion or
+                     LootDiagnosticFormat.LegacyUnreadableVisualLifetimeEngineVersion or
                      LootDiagnosticFormat.LegacyIndependentSpecialEngineVersion))
                     throw new InvalidDataException("Diese ältere Engine-Version unterstützt keinen unabhängigen Special-Loot-Zähler.");
                 if (independentSpecialMode is { } previousSpecialMode && independentSpecial != previousSpecialMode)
@@ -210,16 +221,23 @@ internal static class LootDiagnosticReplay
                     throw new InvalidDataException("Diese ältere Diagnose-Version unterstützt keine erneute Rohtextauswertung.");
                 if (algorithm == LifetimeLootReconciler.VisualSlotAlgorithmName &&
                     header.EngineVersion is not (LootDiagnosticFormat.EngineVersion or
+                        LootDiagnosticFormat.LegacyStableSpecialEngineVersion or
+                        LootDiagnosticFormat.LegacyFadeAwareLifetimeEngineVersion or
                         LootDiagnosticFormat.LegacyUnreadableVisualLifetimeEngineVersion or
                         LootDiagnosticFormat.LegacyIndependentSpecialEngineVersion or LootDiagnosticFormat.LegacyVisualLifetimeEngineVersion))
                     throw new InvalidDataException("Diese ältere Diagnose-Version unterstützt keine visuelle Belegung.");
                 if (algorithm == LifetimeLootReconciler.UnreadableVisualSlotAlgorithmName &&
-                    header.EngineVersion is not (LootDiagnosticFormat.EngineVersion or LootDiagnosticFormat.LegacyUnreadableVisualLifetimeEngineVersion))
+                    header.EngineVersion is not (LootDiagnosticFormat.EngineVersion or
+                        LootDiagnosticFormat.LegacyStableSpecialEngineVersion or
+                        LootDiagnosticFormat.LegacyFadeAwareLifetimeEngineVersion or LootDiagnosticFormat.LegacyUnreadableVisualLifetimeEngineVersion))
                     throw new InvalidDataException("Diese ältere Diagnose-Version unterstützt keine Belegung unlesbarer Zeilen.");
                 if (algorithm == LifetimeLootReconciler.FadeAwareAlgorithmName &&
-                    header.EngineVersion != LootDiagnosticFormat.EngineVersion)
+                    header.EngineVersion is not (LootDiagnosticFormat.EngineVersion or
+                        LootDiagnosticFormat.LegacyStableSpecialEngineVersion or LootDiagnosticFormat.LegacyFadeAwareLifetimeEngineVersion))
                     throw new InvalidDataException("Diese ältere Diagnose-Version unterstützt keine Evidenz für verblassende Zeilen.");
                 if (algorithm == TemporalLootReconciler.AlgorithmName && header.EngineVersion != LootDiagnosticFormat.EngineVersion &&
+                    header.EngineVersion != LootDiagnosticFormat.LegacyStableSpecialEngineVersion &&
+                    header.EngineVersion != LootDiagnosticFormat.LegacyFadeAwareLifetimeEngineVersion &&
                     header.EngineVersion != LootDiagnosticFormat.LegacyUnreadableVisualLifetimeEngineVersion &&
                     header.EngineVersion != LootDiagnosticFormat.LegacyIndependentSpecialEngineVersion &&
                     header.EngineVersion != LootDiagnosticFormat.LegacyVisualLifetimeEngineVersion &&
@@ -235,6 +253,8 @@ internal static class LootDiagnosticReplay
                     header.EngineVersion != LootDiagnosticFormat.LegacyVisualLifetimeEngineVersion &&
                     header.EngineVersion != LootDiagnosticFormat.LegacyIndependentSpecialEngineVersion &&
                     header.EngineVersion != LootDiagnosticFormat.LegacyUnreadableVisualLifetimeEngineVersion &&
+                    header.EngineVersion != LootDiagnosticFormat.LegacyFadeAwareLifetimeEngineVersion &&
+                    header.EngineVersion != LootDiagnosticFormat.LegacyStableSpecialEngineVersion &&
                     header.EngineVersion != LootDiagnosticFormat.EngineVersion)
                     throw new InvalidDataException("Diese ältere Engine-Version unterstützt keinen zeitlichen Normalzähler v1.");
                 if (entry.Observations.Any(observation => observation.AppearanceEvidence is not null) &&
@@ -256,7 +276,9 @@ internal static class LootDiagnosticReplay
                     parsingContext: parsingContext, visualLifetime: IsVisualLifetime(algorithm),
                     independentSpecial: independentSpecial,
                     unreadableVisualLifetime: algorithm is LifetimeLootReconciler.UnreadableVisualSlotAlgorithmName or LifetimeLootReconciler.FadeAwareAlgorithmName,
-                    useFadeEvidence: algorithm == LifetimeLootReconciler.FadeAwareAlgorithmName);
+                    useFadeEvidence: algorithm == LifetimeLootReconciler.FadeAwareAlgorithmName,
+                    useLegacySingleRowLearning: header.EngineVersion is not
+                        (LootDiagnosticFormat.EngineVersion or LootDiagnosticFormat.LegacyStableSpecialEngineVersion));
                 frameCount++;
                 actual = tracker.ProcessFrame(entry.Timestamp, entry.Observations, entry.RareEnabled, parsingContext);
                 finalCompletion = false;
@@ -287,7 +309,8 @@ internal static class LootDiagnosticReplay
             {
                 firstDifferentSequence = sequence;
             }
-            if (firstDifferentSequence is null && !ProjectionsEqual(actual.LootProjection, entry.LootProjection))
+            if (firstDifferentSequence is null && !ProjectionsEqual(actual.LootProjection, entry.LootProjection,
+                    allowMissingCorrectionEvidence: true))
                 firstDifferentSequence = sequence;
         }
 
@@ -356,11 +379,15 @@ internal static class LootDiagnosticReplay
         LifetimeLootReconciler.FadeAwareAlgorithmName;
 
     private static bool IsRawLifetimeEngine(string? engine) => engine is
-        LootDiagnosticFormat.EngineVersion or LootDiagnosticFormat.LegacyUnreadableVisualLifetimeEngineVersion or LootDiagnosticFormat.LegacyIndependentSpecialEngineVersion or
+        LootDiagnosticFormat.EngineVersion or LootDiagnosticFormat.LegacyStableSpecialEngineVersion or
+        LootDiagnosticFormat.LegacyFadeAwareLifetimeEngineVersion or
+        LootDiagnosticFormat.LegacyUnreadableVisualLifetimeEngineVersion or LootDiagnosticFormat.LegacyIndependentSpecialEngineVersion or
         LootDiagnosticFormat.LegacyVisualLifetimeEngineVersion or LootDiagnosticFormat.LegacyRawLifetimeEngineVersion;
 
     private static bool IsLifetimeEngine(string? engine) => engine is
-        LootDiagnosticFormat.EngineVersion or LootDiagnosticFormat.LegacyUnreadableVisualLifetimeEngineVersion or LootDiagnosticFormat.LegacyIndependentSpecialEngineVersion or LootDiagnosticFormat.LegacyVisualLifetimeEngineVersion or
+        LootDiagnosticFormat.EngineVersion or LootDiagnosticFormat.LegacyStableSpecialEngineVersion or
+        LootDiagnosticFormat.LegacyFadeAwareLifetimeEngineVersion or
+        LootDiagnosticFormat.LegacyUnreadableVisualLifetimeEngineVersion or LootDiagnosticFormat.LegacyIndependentSpecialEngineVersion or LootDiagnosticFormat.LegacyVisualLifetimeEngineVersion or
         LootDiagnosticFormat.LegacyRawLifetimeEngineVersion or LootDiagnosticFormat.LegacyLifetimeEngineVersion;
 
     private static T Deserialize<T>(string? line, int lineNumber)
@@ -444,9 +471,12 @@ internal static class LootDiagnosticReplay
             if (amount != 0) totals[name] = amount;
     }
 
-    private static bool ProjectionsEqual(LootTotalsProjection? actual, LootTotalsProjection? expected) =>
+    private static bool ProjectionsEqual(LootTotalsProjection? actual, LootTotalsProjection? expected,
+        bool allowMissingCorrectionEvidence = false) =>
         actual is null ? expected is null : expected is not null && actual.Revision == expected.Revision &&
         actual.ConfirmedDropCount == expected.ConfirmedDropCount && actual.LatestArrivalAt == expected.LatestArrivalAt &&
+        (allowMissingCorrectionEvidence && expected.QuantityCorrectionRevision is null ||
+         actual.QuantityCorrectionRevision == expected.QuantityCorrectionRevision) &&
         TotalsEqual(actual.Totals, expected.Totals);
 
     private static bool EventsEqual(IReadOnlyList<TrackedLootEvent> actual, IReadOnlyList<TrackedLootEvent> expected,

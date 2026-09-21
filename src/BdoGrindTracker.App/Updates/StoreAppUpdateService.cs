@@ -8,7 +8,7 @@ internal sealed class StoreAppUpdateService(
     string installedVersion) : IAppUpdates
 {
     private readonly SemaphoreSlim _operation = new(1, 1);
-    private volatile UpdateState _state = new(true, false, installedVersion, null, UpdatePhase.Idle, 0,
+    private volatile UpdateState _state = new(true, installedVersion, null, UpdatePhase.Idle, 0,
         "Noch nicht geprüft.") { UsesStore = true };
     public UpdateState State => _state;
     public event Action? Changed;
@@ -19,7 +19,7 @@ internal sealed class StoreAppUpdateService(
         try
         {
             if (State.Phase is UpdatePhase.ReadyToRestart or UpdatePhase.Installed) return;
-            Publish(State with { Phase = UpdatePhase.Checking, DownloadPercent = 0, Message = "Suche nach neuen Versionen …" });
+            Publish(ResetProgress(State) with { Phase = UpdatePhase.Checking, DownloadPercent = 0, Message = "Suche nach neuen Versionen …" });
             try
             {
                 var available = await backend.CheckAsync();
@@ -41,17 +41,19 @@ internal sealed class StoreAppUpdateService(
         try
         {
             if (State.Phase != UpdatePhase.Available) return;
-            Publish(State with { Phase = UpdatePhase.Downloading, DownloadPercent = 0, Message = "Update wird heruntergeladen …" });
+            Publish(ResetProgress(State) with { Phase = UpdatePhase.Downloading, DownloadPercent = 0,
+                IsDownloadIndeterminate = true, OperationStartedAt = DateTimeOffset.UtcNow,
+                Message = "Microsoft Store bereitet das Update vor …" });
             try
             {
-                var result = await backend.DownloadAsync(ProgressFor(UpdatePhase.Downloading));
-                Publish(State with { Phase = result == StoreUpdateResult.Completed ? UpdatePhase.ReadyToRestart : UpdatePhase.Available,
+                var result = await TransferAsync(install: false);
+                Publish(ResetProgress(State) with { Phase = result == StoreUpdateResult.Completed ? UpdatePhase.ReadyToRestart : UpdatePhase.Available,
                     DownloadPercent = result == StoreUpdateResult.Completed ? 100 : 0,
                     Message = result == StoreUpdateResult.Completed ? "Update bereit. Pausiere deine Session und wähle Update installieren." : FailureMessage(result) });
             }
             catch (Exception)
             {
-                Publish(State with { Phase = UpdatePhase.Available, DownloadPercent = 0,
+                Publish(ResetProgress(State) with { Phase = UpdatePhase.Available, DownloadPercent = 0,
                     Message = "Das Update konnte nicht heruntergeladen werden. Bitte erneut versuchen." });
             }
         }
@@ -73,8 +75,9 @@ internal sealed class StoreAppUpdateService(
                 Publish(State with { Message = "Bitte zuerst die Session pausieren und laufende Vorgänge abwarten." });
                 return;
             }
-            Publish(State with { Phase = UpdatePhase.Restarting, DownloadPercent = 0,
-                Message = "Session wird gespeichert. Anschließend wird das Update heruntergeladen und installiert …" });
+            Publish(ResetProgress(State) with { Phase = UpdatePhase.Restarting, DownloadPercent = 0,
+                IsDownloadIndeterminate = true, OperationStartedAt = DateTimeOffset.UtcNow,
+                Message = "Session wird gespeichert …" });
             try
             {
                 StoreUpdateResult? result = null;
@@ -83,9 +86,10 @@ internal sealed class StoreAppUpdateService(
                 {
                     if (started) return;
                     started = true;
-                    result = await backend.InstallAsync(ProgressFor(UpdatePhase.Restarting));
+                    Publish(State with { Message = "Microsoft Store bereitet das Update vor …" });
+                    result = await TransferAsync(install: true);
                 });
-                Publish(State with { Phase = accepted && result == StoreUpdateResult.Completed ? UpdatePhase.Installed : retryPhase,
+                Publish(ResetProgress(State) with { Phase = accepted && result == StoreUpdateResult.Completed ? UpdatePhase.Installed : retryPhase,
                     DownloadPercent = accepted && result == StoreUpdateResult.Completed ? 100 : retryPercent,
                     Message = accepted && result == StoreUpdateResult.Completed
                         ? "Die Installation ist abgeschlossen. Falls Grindcrest nicht automatisch neu startet, öffne die App erneut."
@@ -93,19 +97,57 @@ internal sealed class StoreAppUpdateService(
             }
             catch (Exception)
             {
-                Publish(State with { Phase = retryPhase, DownloadPercent = retryPercent,
+                Publish(ResetProgress(State) with { Phase = retryPhase, DownloadPercent = retryPercent,
                     Message = "Speichern oder Installation fehlgeschlagen. Grindcrest bleibt geöffnet. Bitte erneut versuchen." });
             }
         }
         finally { _operation.Release(); }
     }
 
-    // Microsoft controls Store distribution; never read or write GitHub channel preferences.
-    public Task SetBetaAsync(bool enabled) => Task.CompletedTask;
-
-    private Action<int> ProgressFor(UpdatePhase phase) => percent =>
+    private async Task<StoreUpdateResult> TransferAsync(bool install)
     {
-        if (State.Phase == phase) Publish(State with { DownloadPercent = Math.Clamp(percent, 0, 100) });
+        var progressGate = new object();
+        var active = true;
+        void Report(StoreUpdateProgress progress)
+        {
+            // Store callbacks can arrive from another thread. Ignore callbacks
+            // after this operation finishes, including during a later retry.
+            lock (progressGate)
+            {
+                if (!active) return;
+                var percent = Math.Clamp(progress.DownloadPercent, 0, 100);
+                Publish(State with
+                {
+                    DownloadPercent = percent,
+                    DownloadedBytes = progress.DownloadedBytes,
+                    TotalDownloadBytes = progress.TotalDownloadBytes,
+                    IsDownloadIndeterminate = progress.Stage != StoreUpdateStage.Downloading ||
+                        (percent == 0 && progress.TotalDownloadBytes is not > 0),
+                    Message = progress.Stage switch
+                    {
+                        StoreUpdateStage.Downloading => "Update wird heruntergeladen …",
+                        StoreUpdateStage.Installing => "Update wird installiert. Windows kann Grindcrest gleich neu starten …",
+                        StoreUpdateStage.Completed => "Update wird abgeschlossen …",
+                        _ => "Microsoft Store bereitet das Update vor …"
+                    }
+                });
+            }
+        }
+
+        try
+        {
+            return install ? await backend.InstallAsync(Report) : await backend.DownloadAsync(Report);
+        }
+        finally
+        {
+            lock (progressGate) active = false;
+        }
+    }
+
+    private static UpdateState ResetProgress(UpdateState state) => state with
+    {
+        DownloadedBytes = null, TotalDownloadBytes = null,
+        IsDownloadIndeterminate = false, OperationStartedAt = null
     };
 
     private static string FailureMessage(StoreUpdateResult result) => result switch

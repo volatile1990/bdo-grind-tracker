@@ -3,6 +3,7 @@ using BdoGrindTracker.App.Persistence;
 using BdoGrindTracker.App.Pricing;
 using BdoGrindTracker.App.UI;
 using BdoGrindTracker.Core;
+using BdoGrindTracker.App.Localization;
 
 namespace BdoGrindTracker.App.Components;
 
@@ -29,11 +30,11 @@ internal static class HistoryPresentation
 {
     private const decimal ValuableDropThreshold = 200_000_000m;
 
-    internal static AgrisPresentation AgrisTime(LootHistoryEntry session) =>
-        new(session.AgrisActiveDuration, session.AgrisObservedDuration, session.Duration);
-    internal static ExperiencePresentation Experience(LootHistoryEntry session) =>
+    internal static AgrisPresentation AgrisTime(LootHistoryEntry session, string? language = "de") =>
+        new(session.AgrisActiveDuration, session.AgrisObservedDuration, session.Duration, language);
+    internal static ExperiencePresentation Experience(LootHistoryEntry session, string? language = "de") =>
         new(session.ExperienceGainedPercentagePoints, session.ExperienceObservedDuration, session.Duration,
-            session.ExperienceStartLevel, session.ExperienceEndLevel);
+            session.ExperienceStartLevel, session.ExperienceEndLevel, language: language);
 
     internal static string CreateClassIconFileName(string className)
     {
@@ -174,22 +175,22 @@ internal static class HistoryPresentation
                 .ToArray());
     }
 
-    internal static string FormatTimeAgo(DateTimeOffset timestamp, DateTimeOffset now)
+    internal static string FormatTimeAgo(DateTimeOffset timestamp, DateTimeOffset now, string? language = "de")
     {
         var elapsed = now - timestamp;
         if (elapsed <= TimeSpan.FromMinutes(1))
-            return "gerade eben";
+            return AppText.Translate("gerade eben", language);
         if (elapsed < TimeSpan.FromHours(1))
-            return $"vor {(int)elapsed.TotalMinutes:N0} Min.";
+            return AppText.Format("vor {0:N0} Min.", language, (int)elapsed.TotalMinutes);
         if (elapsed < TimeSpan.FromDays(1))
-            return $"vor {(int)elapsed.TotalHours:N0} Std.";
+            return AppText.Format("vor {0:N0} Std.", language, (int)elapsed.TotalHours);
         if (elapsed < TimeSpan.FromDays(2))
-            return "gestern";
+            return AppText.Translate("gestern", language);
         if (elapsed < TimeSpan.FromDays(60))
-            return $"vor {(int)elapsed.TotalDays:N0} Tagen";
+            return AppText.Format("vor {0:N0} Tagen", language, (int)elapsed.TotalDays);
         if (elapsed < TimeSpan.FromDays(730))
-            return $"vor {(int)(elapsed.TotalDays / 30):N0} Mon.";
-        return $"vor {(int)(elapsed.TotalDays / 365):N0} J.";
+            return AppText.Format("vor {0:N0} Mon.", language, (int)(elapsed.TotalDays / 30));
+        return AppText.Format("vor {0:N0} J.", language, (int)(elapsed.TotalDays / 365));
     }
 
     private static decimal CalculateTrashWindow(

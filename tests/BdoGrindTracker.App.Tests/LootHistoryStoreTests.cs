@@ -205,21 +205,68 @@ public sealed class LootHistoryStoreTests
     }
 
     [Fact]
-    public void HistoryIsBoundedToNewestFiveHundredSessions()
+    public void HistoryPreservesAllSessionsBeyondTheFormerFiveHundredLimit()
     {
         using var directory = new TemporaryDirectory();
         var store = new LootHistoryStore(Path.Combine(directory.Path, "loot-history-v1.json"));
         var origin = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
-        var entries = Enumerable.Range(0, LootHistoryStore.MaximumEntries + 12)
+        var entries = Enumerable.Range(0, 1200)
             .Select(index => CreateEntry(Guid.NewGuid(), origin.AddHours(index), index + 1))
             .ToArray();
 
         store.Save(entries);
         var loaded = store.Load();
 
-        Assert.Equal(LootHistoryStore.MaximumEntries, loaded.Count);
+        Assert.Equal(entries.Length, loaded.Count);
         Assert.Equal(origin.AddHours(entries.Length - 1), loaded[0].UpdatedAt);
-        Assert.Equal(origin.AddHours(12), loaded[^1].UpdatedAt);
+        Assert.Equal(origin, loaded[^1].UpdatedAt);
+        Assert.Equal(entries.Select(entry => entry.SessionId).Order(), loaded.Select(entry => entry.SessionId).Order());
+    }
+
+    [Fact]
+    public void HistoryLargerThanSixtyFourMiBCanBeSavedAndRestoredWithoutTruncation()
+    {
+        using var directory = new TemporaryDirectory();
+        var path = Path.Combine(directory.Path, "loot-history-v1.json");
+        var store = new LootHistoryStore(path);
+        // Inflate valid records to cross the old byte limit without requiring
+        // thousands of unrelated gameplay events in this storage regression.
+        var payload = new string('x', 128 * 1024);
+        var origin = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var entries = Enumerable.Range(0, 512).Select(index =>
+            CreateEntry(Guid.NewGuid(), origin.AddHours(index), index + 1) with
+            { CharacterClass = payload }).ToArray();
+
+        store.Save(entries);
+        Assert.True(new FileInfo(path).Length > 64L * 1024 * 1024);
+        var loaded = store.Load();
+
+        Assert.Null(store.LoadError);
+        Assert.Equal(entries.Length, loaded.Count);
+        Assert.Equal(entries.Select(entry => entry.SessionId).Order(), loaded.Select(entry => entry.SessionId).Order());
+        Assert.All(loaded, entry => Assert.Equal(payload, entry.CharacterClass));
+        Assert.Equal(512, loaded[0].Totals["Branch of Abundance"]);
+        Assert.Equal(1, loaded[^1].Totals["Branch of Abundance"]);
+    }
+
+    [Fact]
+    public void FailedStreamWritePreservesTheCompleteHistoryAndRemovesTemporaryOutput()
+    {
+        using var directory = new TemporaryDirectory();
+        var path = Path.Combine(directory.Path, "loot-history-v1.json");
+        var store = new LootHistoryStore(path);
+        store.Save([CreateEntry(Guid.NewGuid(), DateTimeOffset.UtcNow, 10)]);
+        var original = File.ReadAllBytes(path);
+
+        Assert.Throws<IOException>(() => AtomicFile.Write(path, stream =>
+        {
+            stream.Write("partial"u8);
+            throw new IOException("Simulated write failure.");
+        }));
+
+        Assert.Equal(original, File.ReadAllBytes(path));
+        Assert.False(File.Exists(path + ".tmp"));
+        Assert.Equal(10, Assert.Single(store.Load()).Totals["Branch of Abundance"]);
     }
 
     [Fact]

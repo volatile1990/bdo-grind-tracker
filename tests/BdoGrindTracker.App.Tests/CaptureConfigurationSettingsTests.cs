@@ -213,7 +213,7 @@ public sealed class CaptureConfigurationSettingsTests
     public async Task FiftyFilesDefaultToUsableAndFiltersDistinguishBothLogsFromNormalOnly()
     {
         var files = ManyFiles();
-        var session = new Session { Candidates = files.AsEnumerable().Reverse().ToArray(), Preferences = new() { CaptureConfigurationPath = files[35].Path } };
+        var session = new Session { Candidates = files.AsEnumerable().Reverse().ToArray(), Preferences = new() { UiLanguage = "de", CaptureConfigurationPath = files[35].Path } };
         await Render(session, async (component, markup) =>
         {
             await Invoke(component, "ToggleOpen");
@@ -242,7 +242,7 @@ public sealed class CaptureConfigurationSettingsTests
     public async Task FiftyFilesCanBeSearchedByPathOrLabelAndSortedByDateOrPath()
     {
         var files = ManyFiles();
-        var session = new Session { Candidates = files.AsEnumerable().Reverse().ToArray(), Preferences = new() { CaptureConfigurationPath = files[35].Path } };
+        var session = new Session { Candidates = files.AsEnumerable().Reverse().ToArray(), Preferences = new() { UiLanguage = "de", CaptureConfigurationPath = files[35].Path } };
         await Render(session, async (component, markup) =>
         {
             await Invoke(component, "ToggleOpen");
@@ -267,7 +267,7 @@ public sealed class CaptureConfigurationSettingsTests
     public async Task FilteringAndSearchingDoNotChangeThePreviewedSelectionOrSaveAnotherFile()
     {
         var files = ManyFiles();
-        var session = new Session { Candidates = files, Preferences = new() { CaptureConfigurationPath = files[35].Path } };
+        var session = new Session { Candidates = files, Preferences = new() { UiLanguage = "de", CaptureConfigurationPath = files[35].Path } };
         await Render(session, async (component, markup) =>
         {
             await Invoke(component, "ToggleOpen");
@@ -439,7 +439,7 @@ public sealed class CaptureConfigurationSettingsTests
     {
         public event Action? Changed { add { } remove { } }
         public TrackerState State { get; set; } = new();
-        public TrackerPreferences Preferences { get; set; } = new() { CaptureConfigurationPath = First.Path };
+        public TrackerPreferences Preferences { get; set; } = new() { UiLanguage = "de", CaptureConfigurationPath = First.Path };
         public IReadOnlyList<TrackerMonitor> Monitors { get; } = [];
         public IReadOnlyList<LootHistoryEntry> History { get; } = [];
         public LootPriceSnapshot Prices { get; } = LootPriceCatalog.FixedSnapshot("eu");
@@ -488,7 +488,6 @@ public sealed class CaptureConfigurationSettingsTests
         public Task<TrackerCommandResult> DeleteHistoryAsync(Guid sessionId) => Success();
         public Task RefreshPricesAsync() => Task.CompletedTask;
         public Task TickAsync() => Task.CompletedTask;
-        public Task PrepareUpdateRestartAsync() => Task.CompletedTask;
         public Task RunPreparedUpdateAsync(Func<Task> install) => Task.CompletedTask;
         public Task ShutdownAsync() => Task.CompletedTask;
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;

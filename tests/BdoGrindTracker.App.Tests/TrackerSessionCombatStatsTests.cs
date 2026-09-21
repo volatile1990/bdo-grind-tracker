@@ -16,19 +16,23 @@ public sealed partial class TrackerSessionServiceTests
         var now = DateTimeOffset.UtcNow;
         await ProcessCombatStatsFrame(fixture, monitor, now.AddSeconds(-10));
         Assert.False(fixture.Service.State.CombatStats.IsKnown);
+        Assert.Null(fixture.Service.State.ObservedCombatStatsCategory);
         Assert.Null(fixture.Service.State.SessionCombatStats);
         await ProcessCombatStatsFrame(fixture, monitor, now.AddSeconds(-5));
         var confirmed = fixture.Service.State.CombatStats;
         Assert.Equal(2374, confirmed.Ap);
         Assert.Equal(826, confirmed.Dp);
         Assert.Equal(CombatStatsCategory.Edania, confirmed.Category);
+        Assert.Equal(CombatStatsCategory.Edania, fixture.Service.State.ObservedCombatStatsCategory);
         Assert.Equal(confirmed, fixture.Service.State.SessionCombatStats);
 
         Assert.True((await fixture.Service.PauseAsync()).Succeeded);
         Assert.False(fixture.Service.State.CombatStats.IsKnown);
+        Assert.Null(fixture.Service.State.ObservedCombatStatsCategory);
         Assert.Equal(confirmed, fixture.Service.State.SessionCombatStats);
         Assert.Equal(confirmed, Assert.Single(fixture.HistoryStore.Load()).CombatStats);
         Assert.True((await fixture.Service.NewSessionAsync()).Succeeded);
+        Assert.Null(fixture.Service.State.ObservedCombatStatsCategory);
         Assert.Null(fixture.Service.State.SessionCombatStats);
         Assert.False(fixture.Service.State.CombatStats.IsKnown);
         Assert.Equal(confirmed, Assert.Single(fixture.HistoryStore.Load()).CombatStats);
@@ -49,13 +53,16 @@ public sealed partial class TrackerSessionServiceTests
         reading = null;
         await ProcessCombatStatsFrame(fixture, monitor, now.AddSeconds(-3));
         Assert.False(fixture.Service.State.CombatStats.IsKnown);
+        Assert.Null(fixture.Service.State.ObservedCombatStatsCategory);
         Assert.Equal(previous, fixture.Service.State.SessionCombatStats);
         reading = new(2300, 820, CombatStatsCategory.Edania);
         await ProcessCombatStatsFrame(fixture, monitor, now.AddSeconds(-2));
         Assert.Equal(previous, fixture.Service.State.SessionCombatStats);
         await ProcessCombatStatsFrame(fixture, monitor, now.AddSeconds(-1), visible: false);
+        Assert.Null(fixture.Service.State.ObservedCombatStatsCategory);
         await ProcessCombatStatsFrame(fixture, monitor, now);
         Assert.False(fixture.Service.State.CombatStats.IsKnown);
+        Assert.Null(fixture.Service.State.ObservedCombatStatsCategory);
         Assert.Equal(previous, fixture.Service.State.SessionCombatStats);
         Assert.True(fixture.Service.State.IsRunning);
     }
@@ -73,8 +80,10 @@ public sealed partial class TrackerSessionServiceTests
         reading = new(2380, 826, CombatStatsCategory.Edania);
         await ProcessCombatStatsFrame(fixture, monitor, now.AddSeconds(-2));
         Assert.Equal(CombatStatsCategory.General, fixture.Service.State.SessionCombatStats!.Category);
+        Assert.Null(fixture.Service.State.ObservedCombatStatsCategory);
         await ProcessCombatStatsFrame(fixture, monitor, now.AddSeconds(-1));
         Assert.Equal(CombatStatsCategory.Edania, fixture.Service.State.CombatStats.Category);
+        Assert.Equal(CombatStatsCategory.Edania, fixture.Service.State.ObservedCombatStatsCategory);
         Assert.True((await fixture.Service.PauseAsync()).Succeeded);
         var saved = Assert.Single(fixture.HistoryStore.Load()).CombatStats;
         Assert.Equal(2380, saved!.Ap);
@@ -119,7 +128,9 @@ public sealed partial class TrackerSessionServiceTests
 
         Assert.False(fixture.Service.State.CombatStats.IsKnown);
         Assert.Null(fixture.Service.State.SessionCombatStats);
+        Assert.Equal(category, fixture.Service.State.ObservedCombatStatsCategory);
         Assert.True((await fixture.Service.PauseAsync()).Succeeded);
+        Assert.Null(fixture.Service.State.ObservedCombatStatsCategory);
         Assert.Null(Assert.Single(fixture.HistoryStore.Load()).CombatStats);
     }
 
@@ -143,7 +154,9 @@ public sealed partial class TrackerSessionServiceTests
 
         Assert.False(fixture.Service.State.CombatStats.IsKnown);
         Assert.Equal(previous, fixture.Service.State.SessionCombatStats);
+        Assert.Equal(category, fixture.Service.State.ObservedCombatStatsCategory);
         Assert.True((await fixture.Service.PauseAsync()).Succeeded);
+        Assert.Null(fixture.Service.State.ObservedCombatStatsCategory);
         Assert.Equal(previous, Assert.Single(fixture.HistoryStore.Load()).CombatStats);
     }
 
@@ -166,6 +179,7 @@ public sealed partial class TrackerSessionServiceTests
 
         Assert.Equal("tungrad-ruins", fixture.Service.State.SpotId);
         Assert.False(fixture.Service.State.CombatStats.IsKnown);
+        Assert.Null(fixture.Service.State.ObservedCombatStatsCategory);
         Assert.Equal(remainsApplicable ? previous : null, fixture.Service.State.SessionCombatStats);
     }
 
@@ -177,6 +191,7 @@ public sealed partial class TrackerSessionServiceTests
         BeginCombatStatsSession(fixture);
         await ProcessCombatStatsFrame(fixture, monitor, DateTimeOffset.UtcNow);
         Assert.False(fixture.Service.State.CombatStats.IsKnown);
+        Assert.Null(fixture.Service.State.ObservedCombatStatsCategory);
         Assert.Null(fixture.Service.State.SessionCombatStats);
         Assert.Equal(10, fixture.Service.State.Loot.TotalQuantity);
         Assert.True(fixture.Service.State.IsRunning);

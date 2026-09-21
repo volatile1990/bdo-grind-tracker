@@ -11,12 +11,14 @@ namespace BdoGrindTracker.App.UI;
 internal sealed class LootProjectionBuffer
 {
     internal static readonly TimeSpan ConfirmationDelay = TimeSpan.FromSeconds(2);
-    private sealed record Sample(DateTimeOffset At, IReadOnlyDictionary<string, long> Totals, int Count);
+    private sealed record Sample(DateTimeOffset At, IReadOnlyDictionary<string, long> Totals, int Count,
+        long? QuantityCorrectionRevision);
     private readonly List<Sample> _samples = [];
     private LootTotalsProjection _published = Empty();
     private IReadOnlyDictionary<string, long> _publishedAmounts = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
     private long? _rawRevision;
     private DateTimeOffset? _lastAt;
+    public bool LastObservationAccepted { get; private set; }
 
     public LootTotalsProjection Observe(LootTotalsProjection projection, DateTimeOffset capturedAt, bool flush = false)
     {
@@ -27,11 +29,15 @@ internal sealed class LootProjectionBuffer
             throw new ArgumentException("A projection contains duplicate item names.", nameof(projection));
         if (_rawRevision is { } revision && projection.Revision < revision ||
             _lastAt is { } lastAt && capturedAt < lastAt)
+        {
+            LastObservationAccepted = false;
             return _published;
+        }
+        LastObservationAccepted = true;
 
         var incoming = projection.Totals.Where(pair => pair.Value > 0)
             .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
-        var sample = new Sample(capturedAt, incoming, projection.ConfirmedDropCount);
+        var sample = new Sample(capturedAt, incoming, projection.ConfirmedDropCount, projection.QuantityCorrectionRevision);
 
         if (flush)
         {
@@ -43,8 +49,9 @@ internal sealed class LootProjectionBuffer
         else
         {
             if (_samples.Count == 0) _samples.Add(new(capturedAt,
-                new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase), 0));
-            if (_samples[^1].Count != sample.Count || !SameTotals(_samples[^1].Totals, incoming))
+                new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase), 0, projection.QuantityCorrectionRevision));
+            if (_samples[^1].Count != sample.Count || !SameTotals(_samples[^1].Totals, incoming) ||
+                _samples[^1].QuantityCorrectionRevision != sample.QuantityCorrectionRevision)
             {
                 if (_samples.Count > 1 && _samples[^1].At == capturedAt) _samples[^1] = sample;
                 else _samples.Add(sample);
@@ -57,6 +64,7 @@ internal sealed class LootProjectionBuffer
 
         var totals = new Dictionary<string, long>(incoming, StringComparer.OrdinalIgnoreCase);
         var count = projection.ConfirmedDropCount;
+        var correctionRevision = projection.QuantityCorrectionRevision;
         foreach (var historical in _samples)
         {
             foreach (var name in totals.Keys.ToArray())
@@ -65,14 +73,17 @@ internal sealed class LootProjectionBuffer
                 if (amount == 0) totals.Remove(name); else totals[name] = amount;
             }
             count = Math.Min(count, historical.Count);
+            correctionRevision = correctionRevision is { } current && historical.QuantityCorrectionRevision is { } previous
+                ? Math.Min(current, previous) : null;
         }
         var latest = _published.LatestArrivalAt;
         if (projection.LatestArrivalAt is { } arrival && (latest is null || arrival > latest)) latest = arrival;
         var changed = count != _published.ConfirmedDropCount || latest != _published.LatestArrivalAt ||
-            !SameTotals(totals, _publishedAmounts);
+            !SameTotals(totals, _publishedAmounts) || correctionRevision != _published.QuantityCorrectionRevision;
         if (changed)
         {
-            _published = new(checked(_published.Revision + 1), totals, count, latest);
+            _published = new(checked(_published.Revision + 1), totals, count, latest)
+                { QuantityCorrectionRevision = correctionRevision };
             _publishedAmounts = totals;
         }
         _rawRevision = projection.Revision;
@@ -87,6 +98,7 @@ internal sealed class LootProjectionBuffer
         _publishedAmounts = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
         _rawRevision = null;
         _lastAt = null;
+        LastObservationAccepted = false;
     }
 
     private static LootTotalsProjection Empty() => new(0, new Dictionary<string, long>(), 0, null);

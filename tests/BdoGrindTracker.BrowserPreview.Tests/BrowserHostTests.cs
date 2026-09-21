@@ -28,7 +28,8 @@ public sealed class BrowserHostTests : IClassFixture<WebApplicationFactory<Progr
         using var response = await client.GetAsync(path);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
-        Assert.Contains("Grindcrest · Browser-Vorschau", html);
+        Assert.Contains("Grindcrest · Browser preview", html);
+        Assert.Contains("<html lang=\"en\">", html);
         Assert.Contains("_framework/blazor.web.js", html);
         Assert.Contains("href=\"grind-goals.css\"", html);
         Assert.DoesNotContain("blazor.webview.js", html);

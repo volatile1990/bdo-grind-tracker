@@ -1,0 +1,7 @@
+Neu in Grindcrest 1.7.1:
+
+• Verbesserte Erkennung von Lootmengen: Die Nachprüfung bewertet jede Mengenziffer einzeln, bevor sie eine bereits erkannte Anzahl ersetzt. Das verhindert nachgewiesene Fehlkorrekturen wie 10 auf 101 durch eine unsicher gelesene zusätzliche Ziffer.
+• Manuelle Pause wie automatische Pause: Beim Drücken von Pause wird die Zeit seit dem letzten erkannten Drop vom Timer abgezogen und die gekürzte Dauer im Verlauf gespeichert. Beim Fortsetzen bleibt die zuvor gezählte aktive Zeit erhalten.
+• Verbesserte Fensteraufnahme: Auf unterstützten Windows-Versionen wird die interne Aufnahmerate begrenzt. Das Warten auf verzögerte GPU-Bilddaten ist zeitlich begrenzt und lässt sich beim Pausieren abbrechen.
+
+Bereits gespeicherte Lootmengen werden durch dieses Update nicht nachträglich korrigiert.

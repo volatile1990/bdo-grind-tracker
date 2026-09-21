@@ -25,7 +25,6 @@ public sealed class AutoStartPreferenceTests
         settings.UpgradeDefaults();
 
         Assert.False(settings.AutoStartGrinding);
-        Assert.False(settings.AutoStartSuspended);
         Assert.False(new TrackerPreferences().AutoStartGrinding);
     }
 
@@ -45,23 +44,25 @@ public sealed class AutoStartPreferenceTests
     }
 
     [Fact]
-    public void ManualSuspensionSurvivesJsonRoundTripWithoutDisablingTheOptIn()
+    public void LegacyManualSuspensionIsIgnoredWithoutDisablingTheOptIn()
     {
-        var settings = new AppSettings { AutoStartGrinding = true, AutoStartSuspended = true };
+        var settings = JsonSerializer.Deserialize<AppSettings>(
+            "{ \"AutoStartGrinding\": true, \"AutoStartSuspended\": true }")!;
         settings.UpgradeDefaults();
 
         var reloaded = JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(settings))!;
         reloaded.UpgradeDefaults();
 
         Assert.True(reloaded.AutoStartGrinding);
-        Assert.True(reloaded.AutoStartSuspended);
+        Assert.DoesNotContain("AutoStartSuspended", JsonSerializer.Serialize(reloaded));
     }
 
     [Fact]
-    public async Task LiveSessionCanEnableAndRearmDetectionWithoutStartingTracking()
+    public async Task LiveSessionKeepsDetectionEnabledAfterPausingUntilTheSwitchIsTurnedOff()
     {
         var tracker = new PreviewTrackerSession(empty: true);
-        // The desktop shows the rearm action for real sessions, while previews are demos.
+        await tracker.SavePreferencesAsync(tracker.Preferences with { UiLanguage = "de" });
+        // Render the same controls as a real session rather than the demo state.
         typeof(PreviewTrackerSession).GetProperty(nameof(PreviewTrackerSession.State))!
             .SetValue(tracker, tracker.State with { IsDemo = false });
         var activator = new CapturingActivator();
@@ -91,16 +92,15 @@ public sealed class AutoStartPreferenceTests
             Assert.False(tracker.State.IsRunning);
             Assert.False(tracker.State.HasSession);
             Assert.Contains("checked", Checkbox());
-            Assert.Contains("Vordergrund", Markup());
+            Assert.DoesNotContain("Vordergrund", Markup());
+            Assert.DoesNotContain("live-auto-start-status", Markup());
 
             await tracker.ToggleTrackingAsync();
             await tracker.PauseAsync();
             var sessionId = tracker.State.SessionId;
-            Assert.True(tracker.State.AutoStartSuspended);
-            Assert.Contains("Automatik wieder aktivieren", Markup());
-            await Invoke(component, "RearmAutoStart");
-
-            Assert.False(tracker.State.AutoStartSuspended);
+            Assert.True(tracker.Preferences.AutoStartGrinding);
+            Assert.Contains("checked", Checkbox());
+            Assert.NotNull(tracker.State.AutoStartStatus);
             Assert.False(tracker.State.IsRunning);
             Assert.Equal(sessionId, tracker.State.SessionId);
             Assert.DoesNotContain("Automatik wieder aktivieren", Markup());
@@ -123,18 +123,20 @@ public sealed class AutoStartPreferenceTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task PreviewManualStartAndNewSessionClearManualPauseSuspension(bool createNewSession)
+    public async Task PreviewPauseManualStartAndNewSessionPreserveAutomaticDetection(bool createNewSession)
     {
         var tracker = new PreviewTrackerSession(empty: true);
         await tracker.SavePreferencesAsync(tracker.Preferences with { AutoStartGrinding = true });
         await tracker.ToggleTrackingAsync();
         await tracker.ToggleTrackingAsync();
-        Assert.True(tracker.State.AutoStartSuspended);
+        Assert.True(tracker.Preferences.AutoStartGrinding);
+        Assert.NotNull(tracker.State.AutoStartStatus);
 
         if (createNewSession) await tracker.NewSessionAsync();
         else await tracker.ToggleTrackingAsync();
 
-        Assert.False(tracker.State.AutoStartSuspended);
+        Assert.True(tracker.Preferences.AutoStartGrinding);
+        Assert.NotNull(tracker.State.AutoStartStatus);
         Assert.Equal(!createNewSession, tracker.State.IsRunning);
     }
 

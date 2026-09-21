@@ -1,0 +1,1047 @@
+{
+  "schemaVersion": 1,
+  "archiveVersion": 3454,
+  "generatedUtc": "2026-09-21T13:40:49Z",
+  "extractorRepository": "https://github.com/iDevelopThings/bdo-data-extractor",
+  "extractorCommit": "5bf11bd7bc60dcbb6126be34bf3d76633abdd8b2",
+  "provenance": "One-time offline read of installed static client tables; no runtime dependency.",
+  "tableSha256": {
+    "buff.dbss": "5975ff53b31f6026a4429c3958f464f9e41c421aa8b75864546eca05e8cc50e8",
+    "buffoffset.dbss": "fc0d62ba86e0299704b928227fa145faf1cadbe1120b954da98a088ac22ce62a",
+    "itemenchant.dbss": "eee99e291df5c309019f774342c03285a3fd708a76dfff8dbbc1433d01d91519",
+    "itemenchantoffset.dbss": "8e6fa7ab627dd015704a6715f0825d47e2480fdb3469660143bdd22d29ce0c52",
+    "skill.dbss": "c49d6081babed3ce8ff8377ff6959e58a9898bd330b364e3c3c35671daec37ca",
+    "skilloffset.dbss": "e8364f9a7da12ea651cc918d611ea348cbee7d2bef4e93e501be8cf33cc39bd9"
+  },
+  "templates": [
+    {
+      "templateId": "client-exquisite-cron-meal",
+      "imagePath": "client-exquisite-cron-meal.png",
+      "imageWidth": 32,
+      "imageHeight": 32,
+      "imageSha256": "e5d36b47069fe1011baa459825a3b5f6211599057b6d11e9ceb122d7b7f2c682",
+      "clientIconPath": "New_Icon/04_PC_Skill/03_Buff/Cooking_Attack_Cook.dds",
+      "candidateBuffIds": [
+        "exquisite-cron-meal"
+      ],
+      "records": [
+        {
+          "buffId": "exquisite-cron-meal",
+          "itemId": 9693,
+          "skillKey": 3335127041,
+          "clientBuffId": 58743,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/Cooking_Attack_Cook.dds",
+          "durationMinutes": 120,
+          "sourceName": "Exquisite Cron Meal"
+        }
+      ]
+    },
+    {
+      "templateId": "client-harmony-draught",
+      "imagePath": "client-harmony-draught.png",
+      "imageWidth": 32,
+      "imageHeight": 32,
+      "imageSha256": "f7bc17aa18b6e308dce19f16628b6d7bf4d5e480af0102abe932953e3f5d8884",
+      "clientIconPath": "New_Icon/04_PC_Skill/03_Buff/Alchemy_Draught6.dds",
+      "candidateBuffIds": [
+        "harmony-draught"
+      ],
+      "records": [
+        {
+          "buffId": "harmony-draught",
+          "itemId": 1399,
+          "skillKey": 3776643073,
+          "clientBuffId": 47181,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/Alchemy_Draught6.dds",
+          "durationMinutes": 20,
+          "sourceName": "Harmony Draught"
+        }
+      ]
+    },
+    {
+      "templateId": "client-harmony-draught-demihuman",
+      "imagePath": "client-harmony-draught-demihuman.png",
+      "imageWidth": 32,
+      "imageHeight": 32,
+      "imageSha256": "1d22973dded6dfde206b1e87db82cd199bd09edb13bc11dbac0112def54c6a30",
+      "clientIconPath": "New_Icon/04_PC_Skill/03_Buff/Alchemy_Draught8.dds",
+      "candidateBuffIds": [
+        "harmony-draught-demihuman"
+      ],
+      "records": [
+        {
+          "buffId": "harmony-draught-demihuman",
+          "itemId": 1403,
+          "skillKey": 3777167361,
+          "clientBuffId": 47249,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/Alchemy_Draught8.dds",
+          "durationMinutes": 20,
+          "sourceName": "[Party] Harmony Draught - Demihuman"
+        }
+      ]
+    },
+    {
+      "templateId": "client-harmony-draught-edania",
+      "imagePath": "client-harmony-draught-edania.png",
+      "imageWidth": 44,
+      "imageHeight": 44,
+      "imageSha256": "3cd90e6d2b1e37f755b6120ad05a7f62bc90b5112e9994d87f3827e4acd8f22f",
+      "clientIconPath": "New_Icon/03_ETC/08_Potion/00001407.dds",
+      "candidateBuffIds": [
+        "harmony-draught-edania"
+      ],
+      "records": [
+        {
+          "buffId": "harmony-draught-edania",
+          "itemId": 1407,
+          "skillKey": 3111387137,
+          "clientBuffId": 48465,
+          "iconPath": "New_Icon/03_ETC/08_Potion/00001407.dds",
+          "durationMinutes": 20,
+          "sourceName": "[Party] Harmony Draught - Edania"
+        }
+      ]
+    },
+    {
+      "templateId": "client-harmony-draught-human",
+      "imagePath": "client-harmony-draught-human.png",
+      "imageWidth": 32,
+      "imageHeight": 32,
+      "imageSha256": "c6c1c0a9d18446836ed63e8c7fb439ce748f955e4feb673d2065f778d4145178",
+      "clientIconPath": "New_Icon/04_PC_Skill/03_Buff/Alchemy_Draught7.dds",
+      "candidateBuffIds": [
+        "harmony-draught-human"
+      ],
+      "records": [
+        {
+          "buffId": "harmony-draught-human",
+          "itemId": 1401,
+          "skillKey": 3776905217,
+          "clientBuffId": 47213,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/Alchemy_Draught7.dds",
+          "durationMinutes": 20,
+          "sourceName": "[Party] Harmony Draught - Human"
+        }
+      ]
+    },
+    {
+      "templateId": "client-harmony-draught-kamasylvia",
+      "imagePath": "client-harmony-draught-kamasylvia.png",
+      "imageWidth": 32,
+      "imageHeight": 32,
+      "imageSha256": "263446adc35d021558bcecc8a086d9fe49091b98f6af084be5b48a960a5e9f64",
+      "clientIconPath": "New_Icon/04_PC_Skill/03_Buff/Alchemy_Draught9.dds",
+      "candidateBuffIds": [
+        "harmony-draught-kamasylvia"
+      ],
+      "records": [
+        {
+          "buffId": "harmony-draught-kamasylvia",
+          "itemId": 1405,
+          "skillKey": 3777429505,
+          "clientBuffId": 47285,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/Alchemy_Draught9.dds",
+          "durationMinutes": 20,
+          "sourceName": "[Party] Harmony Draught - Kamasylvia"
+        }
+      ]
+    },
+    {
+      "templateId": "client-perfume-of-bracing-spirits",
+      "imagePath": "client-perfume-of-bracing-spirits.png",
+      "imageWidth": 32,
+      "imageHeight": 32,
+      "imageSha256": "f1fe0dd3f4fe6b7d103729155d9e4fee41899413869778e0cb1420ff8948c2e3",
+      "clientIconPath": "New_Icon/04_PC_Skill/03_Buff/SpiritPerfume_Premium_Alchemy.dds",
+      "candidateBuffIds": [
+        "immortal-perfume-of-bracing-spirits",
+        "perfume-of-bracing-spirits"
+      ],
+      "records": [
+        {
+          "buffId": "immortal-perfume-of-bracing-spirits",
+          "itemId": 875,
+          "skillKey": 3758424065,
+          "clientBuffId": 58619,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/SpiritPerfume_Premium_Alchemy.dds",
+          "durationMinutes": 20,
+          "sourceName": "Immortal: Perfume of Bracing Spirits"
+        },
+        {
+          "buffId": "perfume-of-bracing-spirits",
+          "itemId": 872,
+          "skillKey": 3758227457,
+          "clientBuffId": 55996,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/SpiritPerfume_Premium_Alchemy.dds",
+          "durationMinutes": 20,
+          "sourceName": "Perfume of Bracing Spirits"
+        }
+      ]
+    },
+    {
+      "templateId": "client-perfume-of-charm",
+      "imagePath": "client-perfume-of-charm.png",
+      "imageWidth": 32,
+      "imageHeight": 32,
+      "imageSha256": "2263f6c18469134bbdb471a0f3725194457a7e7f29dd2f4675566cf564154b65",
+      "clientIconPath": "New_Icon/04_PC_Skill/03_Buff/Premium_Alchemy_6.dds",
+      "candidateBuffIds": [
+        "immortal-perfume-of-charm",
+        "perfume-of-charm"
+      ],
+      "records": [
+        {
+          "buffId": "immortal-perfume-of-charm",
+          "itemId": 877,
+          "skillKey": 3758555137,
+          "clientBuffId": 58631,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/Premium_Alchemy_6.dds",
+          "durationMinutes": 20,
+          "sourceName": "Immortal: Perfume of Charm"
+        },
+        {
+          "buffId": "perfume-of-charm",
+          "itemId": 1161,
+          "skillKey": 3383689217,
+          "clientBuffId": 56801,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/Premium_Alchemy_6.dds",
+          "durationMinutes": 20,
+          "sourceName": "Perfume of Charm"
+        }
+      ]
+    },
+    {
+      "templateId": "client-perfume-of-courage",
+      "imagePath": "client-perfume-of-courage.png",
+      "imageWidth": 32,
+      "imageHeight": 32,
+      "imageSha256": "3c6d4ee40f6c16e45cce54c5a80ce54755c0abbba83b35a782bcdaf9f2b4fff9",
+      "clientIconPath": "New_Icon/04_PC_Skill/03_Buff/Premium_Alchemy_1.dds",
+      "candidateBuffIds": [
+        "immortal-perfume-of-courage",
+        "perfume-of-courage"
+      ],
+      "records": [
+        {
+          "buffId": "immortal-perfume-of-courage",
+          "itemId": 1167,
+          "skillKey": 3386900481,
+          "clientBuffId": 56898,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/Premium_Alchemy_1.dds",
+          "durationMinutes": 20,
+          "sourceName": "Immortal: Perfume of Courage"
+        },
+        {
+          "buffId": "perfume-of-courage",
+          "itemId": 734,
+          "skillKey": 3360161793,
+          "clientBuffId": 57758,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/Premium_Alchemy_1.dds",
+          "durationMinutes": 20,
+          "sourceName": "Perfume of Courage"
+        }
+      ]
+    },
+    {
+      "templateId": "client-perfume-of-deep-sea",
+      "imagePath": "client-perfume-of-deep-sea.png",
+      "imageWidth": 32,
+      "imageHeight": 32,
+      "imageSha256": "e6ca760a1f1631837e73ed1578f9c16ec1052bd0cae36537af6a82bccadda7a5",
+      "clientIconPath": "New_Icon/04_PC_Skill/03_Buff/Premium_Alchemy_3.dds",
+      "candidateBuffIds": [
+        "immortal-perfume-of-deep-sea",
+        "perfume-of-deep-sea"
+      ],
+      "records": [
+        {
+          "buffId": "immortal-perfume-of-deep-sea",
+          "itemId": 1169,
+          "skillKey": 3387031553,
+          "clientBuffId": 56900,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/Premium_Alchemy_3.dds",
+          "durationMinutes": 20,
+          "sourceName": "Immortal: Perfume of Deep Sea"
+        },
+        {
+          "buffId": "perfume-of-deep-sea",
+          "itemId": 771,
+          "skillKey": 3361538049,
+          "clientBuffId": 57760,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/Premium_Alchemy_3.dds",
+          "durationMinutes": 20,
+          "sourceName": "Perfume of Deep Sea"
+        }
+      ]
+    },
+    {
+      "templateId": "client-immortal-perfume-of-envy",
+      "imagePath": "client-immortal-perfume-of-envy.png",
+      "imageWidth": 44,
+      "imageHeight": 44,
+      "imageSha256": "fc16242078c602b337f46676006ebec0ee20833d24f4b9b7c919bf3e30c40ee4",
+      "clientIconPath": "New_Icon/03_ETC/08_Potion/00001413.dds",
+      "candidateBuffIds": [
+        "immortal-perfume-of-envy"
+      ],
+      "records": [
+        {
+          "buffId": "immortal-perfume-of-envy",
+          "itemId": 1412,
+          "skillKey": 3111845889,
+          "clientBuffId": 48508,
+          "iconPath": "New_Icon/03_ETC/08_Potion/00001413.dds",
+          "durationMinutes": 20,
+          "sourceName": "Immortal: Perfume of Envy"
+        }
+      ]
+    },
+    {
+      "templateId": "client-perfume-of-insight",
+      "imagePath": "client-perfume-of-insight.png",
+      "imageWidth": 32,
+      "imageHeight": 32,
+      "imageSha256": "76bdc867e7739bad16ea89e3e46f35c9ede7a6900b587122af8d411a52bdf941",
+      "clientIconPath": "New_Icon/04_PC_Skill/03_Buff/InsightPremium_Alchemy.dds",
+      "candidateBuffIds": [
+        "immortal-perfume-of-insight",
+        "perfume-of-insight"
+      ],
+      "records": [
+        {
+          "buffId": "immortal-perfume-of-insight",
+          "itemId": 874,
+          "skillKey": 3758358529,
+          "clientBuffId": 58612,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/InsightPremium_Alchemy.dds",
+          "durationMinutes": 20,
+          "sourceName": "Immortal: Perfume of Insight"
+        },
+        {
+          "buffId": "perfume-of-insight",
+          "itemId": 1200,
+          "skillKey": 3339714561,
+          "clientBuffId": 55989,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/InsightPremium_Alchemy.dds",
+          "durationMinutes": 20,
+          "sourceName": "Perfume of Insight"
+        }
+      ]
+    },
+    {
+      "templateId": "client-perfume-of-khalk",
+      "imagePath": "client-perfume-of-khalk.png",
+      "imageWidth": 32,
+      "imageHeight": 32,
+      "imageSha256": "acd4665500efbbde85100ccaafe5ad0a86a881888b21ed1cce66727c1d3a98f7",
+      "clientIconPath": "New_Icon/04_PC_Skill/03_Buff/Premium_Alchemy_4.dds",
+      "candidateBuffIds": [
+        "immortal-perfume-of-khalk",
+        "perfume-of-khalk"
+      ],
+      "records": [
+        {
+          "buffId": "immortal-perfume-of-khalk",
+          "itemId": 1168,
+          "skillKey": 3386966017,
+          "clientBuffId": 56899,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/Premium_Alchemy_4.dds",
+          "durationMinutes": 20,
+          "sourceName": "Immortal: Perfume of Khalk"
+        },
+        {
+          "buffId": "perfume-of-khalk",
+          "itemId": 748,
+          "skillKey": 3360555009,
+          "clientBuffId": 57761,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/Premium_Alchemy_4.dds",
+          "durationMinutes": 20,
+          "sourceName": "Perfume of Khalk"
+        }
+      ]
+    },
+    {
+      "templateId": "client-perfume-of-spirits",
+      "imagePath": "client-perfume-of-spirits.png",
+      "imageWidth": 32,
+      "imageHeight": 32,
+      "imageSha256": "62cf7246e3b1e06112f4f81f0c9cf019a46537434108820410ba130ef641663b",
+      "clientIconPath": "New_Icon/04_PC_Skill/03_Buff/Premium_Alchemy_5.dds",
+      "candidateBuffIds": [
+        "immortal-perfume-of-spirits",
+        "perfume-of-spirits"
+      ],
+      "records": [
+        {
+          "buffId": "immortal-perfume-of-spirits",
+          "itemId": 1166,
+          "skillKey": 3386834945,
+          "clientBuffId": 56894,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/Premium_Alchemy_5.dds",
+          "durationMinutes": 20,
+          "sourceName": "Immortal: Perfume of Spirits"
+        },
+        {
+          "buffId": "perfume-of-spirits",
+          "itemId": 781,
+          "skillKey": 3361865729,
+          "clientBuffId": 57762,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/Premium_Alchemy_5.dds",
+          "durationMinutes": 20,
+          "sourceName": "Perfume of Spirits"
+        }
+      ]
+    },
+    {
+      "templateId": "client-immortal-perfume-of-tenacity",
+      "imagePath": "client-immortal-perfume-of-tenacity.png",
+      "imageWidth": 44,
+      "imageHeight": 44,
+      "imageSha256": "d73b3d03144aee78a54de56cf2a244687aa8666f106abd22e08146b179447ca9",
+      "clientIconPath": "New_Icon/03_ETC/08_Potion/00001414.dds",
+      "candidateBuffIds": [
+        "immortal-perfume-of-tenacity"
+      ],
+      "records": [
+        {
+          "buffId": "immortal-perfume-of-tenacity",
+          "itemId": 1414,
+          "skillKey": 3111976961,
+          "clientBuffId": 48514,
+          "iconPath": "New_Icon/03_ETC/08_Potion/00001414.dds",
+          "durationMinutes": 20,
+          "sourceName": "Immortal: Perfume of Tenacity"
+        }
+      ]
+    },
+    {
+      "templateId": "client-mystic-beasts-accuracy",
+      "imagePath": "client-mystic-beasts-accuracy.png",
+      "imageWidth": 44,
+      "imageHeight": 44,
+      "imageSha256": "a3d77bed40b6ffe246e8ac27d9b5ef69df1201f3aba2ad27be180376accb8227",
+      "clientIconPath": "New_Icon/03_ETC/00767901_1.dds",
+      "candidateBuffIds": [
+        "mystic-beasts-accuracy"
+      ],
+      "records": [
+        {
+          "buffId": "mystic-beasts-accuracy",
+          "itemId": 767970,
+          "skillKey": 3106209793,
+          "clientBuffId": 48311,
+          "iconPath": "New_Icon/03_ETC/00767901_1.dds",
+          "durationMinutes": 60,
+          "sourceName": "Blessing of Mystic Beasts - Accuracy"
+        }
+      ]
+    },
+    {
+      "templateId": "client-mystic-beasts-all-ap",
+      "imagePath": "client-mystic-beasts-all-ap.png",
+      "imageWidth": 44,
+      "imageHeight": 44,
+      "imageSha256": "b4c710d3e19f4e4238addddf81629ea6f0e906ce1904ff8b355d7c5d71ecd421",
+      "clientIconPath": "New_Icon/03_ETC/00767900_1.dds",
+      "candidateBuffIds": [
+        "mystic-beasts-all-ap"
+      ],
+      "records": [
+        {
+          "buffId": "mystic-beasts-all-ap",
+          "itemId": 767969,
+          "skillKey": 3106144257,
+          "clientBuffId": 48310,
+          "iconPath": "New_Icon/03_ETC/00767900_1.dds",
+          "durationMinutes": 60,
+          "sourceName": "Blessing of Mystic Beasts - All AP"
+        }
+      ]
+    },
+    {
+      "templateId": "client-mystic-beasts-damage-reduction",
+      "imagePath": "client-mystic-beasts-damage-reduction.png",
+      "imageWidth": 44,
+      "imageHeight": 44,
+      "imageSha256": "c4c654bc6d9e2425f87009dabe6eec60255ad754c763887ba300e7cb82cfba8b",
+      "clientIconPath": "New_Icon/03_ETC/00767902_1.dds",
+      "candidateBuffIds": [
+        "mystic-beasts-damage-reduction"
+      ],
+      "records": [
+        {
+          "buffId": "mystic-beasts-damage-reduction",
+          "itemId": 767971,
+          "skillKey": 3106275329,
+          "clientBuffId": 48312,
+          "iconPath": "New_Icon/03_ETC/00767902_1.dds",
+          "durationMinutes": 60,
+          "sourceName": "Blessing of Mystic Beasts - Damage Reduction"
+        }
+      ]
+    },
+    {
+      "templateId": "client-mystic-beasts-evasion",
+      "imagePath": "client-mystic-beasts-evasion.png",
+      "imageWidth": 44,
+      "imageHeight": 44,
+      "imageSha256": "2a3d80ceedb10cab639af7510dcfa4efc9cb2931bde37019556a09d8a80ce00c",
+      "clientIconPath": "New_Icon/03_ETC/00767903_1.dds",
+      "candidateBuffIds": [
+        "mystic-beasts-evasion"
+      ],
+      "records": [
+        {
+          "buffId": "mystic-beasts-evasion",
+          "itemId": 767972,
+          "skillKey": 3106340865,
+          "clientBuffId": 48313,
+          "iconPath": "New_Icon/03_ETC/00767903_1.dds",
+          "durationMinutes": 60,
+          "sourceName": "Blessing of Mystic Beasts - Evasion"
+        }
+      ]
+    },
+    {
+      "templateId": "client-mystic-beasts-life-skill-mastery",
+      "imagePath": "client-mystic-beasts-life-skill-mastery.png",
+      "imageWidth": 44,
+      "imageHeight": 44,
+      "imageSha256": "685a2f925a67f401efe475e9a72982156c80c88ee43b18c9051485e160c2037a",
+      "clientIconPath": "New_Icon/03_ETC/00790781.dds",
+      "candidateBuffIds": [
+        "mystic-beasts-life-skill-mastery"
+      ],
+      "records": [
+        {
+          "buffId": "mystic-beasts-life-skill-mastery",
+          "itemId": 790781,
+          "skillKey": 2930835457,
+          "clientBuffId": 48841,
+          "iconPath": "New_Icon/03_ETC/00790781.dds",
+          "durationMinutes": 60,
+          "sourceName": "Blessing of Mystic Beasts - Life Skill Mastery"
+        }
+      ]
+    },
+    {
+      "templateId": "client-mystic-beasts-max-hp",
+      "imagePath": "client-mystic-beasts-max-hp.png",
+      "imageWidth": 44,
+      "imageHeight": 44,
+      "imageSha256": "2e39a0bb2bfbc0b52201d41d22a36f4e17aa26d9ac801666622c8722138348f9",
+      "clientIconPath": "New_Icon/03_ETC/00767904_1.dds",
+      "candidateBuffIds": [
+        "mystic-beasts-max-hp"
+      ],
+      "records": [
+        {
+          "buffId": "mystic-beasts-max-hp",
+          "itemId": 767973,
+          "skillKey": 3106406401,
+          "clientBuffId": 48314,
+          "iconPath": "New_Icon/03_ETC/00767904_1.dds",
+          "durationMinutes": 60,
+          "sourceName": "Blessing of Mystic Beasts - Max HP"
+        }
+      ]
+    },
+    {
+      "templateId": "client-perfume-of-envy",
+      "imagePath": "client-perfume-of-envy.png",
+      "imageWidth": 44,
+      "imageHeight": 44,
+      "imageSha256": "d6d7c3e639a80d523119a072796b70e43adb6f08d15363890c950a9df67d85ec",
+      "clientIconPath": "New_Icon/03_ETC/08_Potion/00001411.dds",
+      "candidateBuffIds": [
+        "perfume-of-envy"
+      ],
+      "records": [
+        {
+          "buffId": "perfume-of-envy",
+          "itemId": 1411,
+          "skillKey": 3111780353,
+          "clientBuffId": 48505,
+          "iconPath": "New_Icon/03_ETC/08_Potion/00001411.dds",
+          "durationMinutes": 20,
+          "sourceName": "Perfume of Envy"
+        }
+      ]
+    },
+    {
+      "templateId": "client-perfume-of-swiftness",
+      "imagePath": "client-perfume-of-swiftness.png",
+      "imageWidth": 32,
+      "imageHeight": 32,
+      "imageSha256": "cd09d99d0d7c19d1f74aeee6feb8ce7d95b277e100c5eecbe775a5c9787082d3",
+      "clientIconPath": "New_Icon/04_PC_Skill/03_Buff/Premium_Alchemy_2.dds",
+      "candidateBuffIds": [
+        "perfume-of-swiftness"
+      ],
+      "records": [
+        {
+          "buffId": "perfume-of-swiftness",
+          "itemId": 735,
+          "skillKey": 3360227329,
+          "clientBuffId": 57759,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/Premium_Alchemy_2.dds",
+          "durationMinutes": 20,
+          "sourceName": "Perfume of Swiftness"
+        }
+      ]
+    },
+    {
+      "templateId": "client-perfume-of-tenacity",
+      "imagePath": "client-perfume-of-tenacity.png",
+      "imageWidth": 44,
+      "imageHeight": 44,
+      "imageSha256": "2d9b514b8fe74d9c4d551fdf77bd7e589cb883ecbbe2f26914b4fb5895f309b1",
+      "clientIconPath": "New_Icon/03_ETC/08_Potion/00001412.dds",
+      "candidateBuffIds": [
+        "perfume-of-tenacity"
+      ],
+      "records": [
+        {
+          "buffId": "perfume-of-tenacity",
+          "itemId": 1413,
+          "skillKey": 3111911425,
+          "clientBuffId": 48511,
+          "iconPath": "New_Icon/03_ETC/08_Potion/00001412.dds",
+          "durationMinutes": 20,
+          "sourceName": "Perfume of Tenacity"
+        }
+      ]
+    },
+    {
+      "templateId": "client-perfume-of-verdure",
+      "imagePath": "client-perfume-of-verdure.png",
+      "imageWidth": 44,
+      "imageHeight": 44,
+      "imageSha256": "1c4dfb6b3699a43ed125eda2d646979dacda64da328954255b11f805a1c8856c",
+      "clientIconPath": "New_Icon/03_ETC/07_ProductMaterial/00000890.dds",
+      "candidateBuffIds": [
+        "perfume-of-verdure"
+      ],
+      "records": [
+        {
+          "buffId": "perfume-of-verdure",
+          "itemId": 890,
+          "skillKey": 2942697473,
+          "clientBuffId": 48911,
+          "iconPath": "New_Icon/03_ETC/07_ProductMaterial/00000890.dds",
+          "durationMinutes": 20,
+          "sourceName": "Perfume of Verdure"
+        }
+      ]
+    },
+    {
+      "templateId": "client-seafood-cron-meal",
+      "imagePath": "client-seafood-cron-meal.png",
+      "imageWidth": 32,
+      "imageHeight": 32,
+      "imageSha256": "8223346209823272afa6165c3f041c448581ea939cafb871e9502dea32deadfd",
+      "clientIconPath": "New_Icon/04_PC_Skill/03_Buff/Cooking_Product_Cook.dds",
+      "candidateBuffIds": [
+        "seafood-cron-meal"
+      ],
+      "records": [
+        {
+          "buffId": "seafood-cron-meal",
+          "itemId": 9691,
+          "skillKey": 3334995969,
+          "clientBuffId": 58741,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/Cooking_Product_Cook.dds",
+          "durationMinutes": 120,
+          "sourceName": "Seafood Cron Meal"
+        }
+      ]
+    },
+    {
+      "templateId": "client-simple-cron-meal",
+      "imagePath": "client-simple-cron-meal.png",
+      "imageWidth": 32,
+      "imageHeight": 32,
+      "imageSha256": "a93ff09dc2bf857804ae8e09e013cab95236309f4aca798acb39db98bb0b7e99",
+      "clientIconPath": "New_Icon/04_PC_Skill/03_Buff/Cooking_Monster_Cook.dds",
+      "candidateBuffIds": [
+        "simple-cron-meal"
+      ],
+      "records": [
+        {
+          "buffId": "simple-cron-meal",
+          "itemId": 9692,
+          "skillKey": 3335061505,
+          "clientBuffId": 58742,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/Cooking_Monster_Cook.dds",
+          "durationMinutes": 120,
+          "sourceName": "Simple Cron Meal"
+        }
+      ]
+    },
+    {
+      "templateId": "client-tent-adventurers-confidence",
+      "imagePath": "client-tent-adventurers-confidence.png",
+      "imageWidth": 32,
+      "imageHeight": 32,
+      "imageSha256": "908149147af140fa7711abff938a7fac525ccd8410b352693c678d95cb5071d1",
+      "clientIconPath": "New_Icon/04_PC_Skill/03_Buff/PioneersTime_Up.dds",
+      "candidateBuffIds": [
+        "tent-adventurers-confidence"
+      ],
+      "records": [
+        {
+          "buffId": "tent-adventurers-confidence",
+          "itemId": 43929,
+          "skillKey": 3522101249,
+          "clientBuffId": 57456,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/PioneersTime_Up.dds",
+          "durationMinutes": 60,
+          "sourceName": "[Camp] Adventurer's Confidence"
+        }
+      ]
+    },
+    {
+      "templateId": "client-tent-adventurers-luck-i",
+      "imagePath": "client-tent-adventurers-luck-i.png",
+      "imageWidth": 32,
+      "imageHeight": 32,
+      "imageSha256": "2ce472e05fd6c8c569a425fbe67f4cf07b304a9428050c359909c200df80e5f3",
+      "clientIconPath": "New_Icon/04_PC_Skill/03_Buff/PioneersTime_DropUp.dds",
+      "candidateBuffIds": [
+        "tent-adventurers-luck-i",
+        "tent-adventurers-luck-ii",
+        "tent-adventurers-luck-iii",
+        "tent-adventurers-luck-iv",
+        "tent-adventurers-luck-v"
+      ],
+      "records": [
+        {
+          "buffId": "tent-adventurers-luck-i",
+          "itemId": null,
+          "skillKey": null,
+          "clientBuffId": 57484,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/PioneersTime_DropUp.dds",
+          "durationMinutes": 60,
+          "sourceName": "[Camp] Adventurer's Luck"
+        },
+        {
+          "buffId": "tent-adventurers-luck-ii",
+          "itemId": null,
+          "skillKey": null,
+          "clientBuffId": 57485,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/PioneersTime_DropUp.dds",
+          "durationMinutes": 60,
+          "sourceName": "[Camp] Adventurer's Luck"
+        },
+        {
+          "buffId": "tent-adventurers-luck-iii",
+          "itemId": null,
+          "skillKey": null,
+          "clientBuffId": 57486,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/PioneersTime_DropUp.dds",
+          "durationMinutes": 60,
+          "sourceName": "[Camp] Adventurer's Luck"
+        },
+        {
+          "buffId": "tent-adventurers-luck-iv",
+          "itemId": null,
+          "skillKey": null,
+          "clientBuffId": 57487,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/PioneersTime_DropUp.dds",
+          "durationMinutes": 60,
+          "sourceName": "[Camp] Adventurer's Luck"
+        },
+        {
+          "buffId": "tent-adventurers-luck-v",
+          "itemId": null,
+          "skillKey": null,
+          "clientBuffId": 57488,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/PioneersTime_DropUp.dds",
+          "durationMinutes": 60,
+          "sourceName": "[Camp] Adventurer's Luck"
+        }
+      ]
+    },
+    {
+      "templateId": "client-tent-adventures-boon-120",
+      "imagePath": "client-tent-adventures-boon-120.png",
+      "imageWidth": 32,
+      "imageHeight": 32,
+      "imageSha256": "a05e1be638477919b43036e3973bb87d82e90abb321ed103d649400194766d54",
+      "clientIconPath": "New_Icon/04_PC_Skill/03_Buff/SilverBless.dds",
+      "candidateBuffIds": [
+        "tent-adventures-boon-120",
+        "tent-adventures-boon-300",
+        "tent-adventures-boon-60"
+      ],
+      "records": [
+        {
+          "buffId": "tent-adventures-boon-120",
+          "itemId": null,
+          "skillKey": null,
+          "clientBuffId": 48723,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/SilverBless.dds",
+          "durationMinutes": 120,
+          "sourceName": "[Blessing] Adventure's Boon"
+        },
+        {
+          "buffId": "tent-adventures-boon-300",
+          "itemId": null,
+          "skillKey": null,
+          "clientBuffId": 48729,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/SilverBless.dds",
+          "durationMinutes": 300,
+          "sourceName": "[Blessing] Adventure's Boon"
+        },
+        {
+          "buffId": "tent-adventures-boon-60",
+          "itemId": null,
+          "skillKey": null,
+          "clientBuffId": 48717,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/SilverBless.dds",
+          "durationMinutes": 60,
+          "sourceName": "[Blessing] Adventure's Boon"
+        }
+      ]
+    },
+    {
+      "templateId": "client-tent-body-enhancement-120",
+      "imagePath": "client-tent-body-enhancement-120.png",
+      "imageWidth": 32,
+      "imageHeight": 32,
+      "imageSha256": "6e75ea06ecaea1fcacecbac7d573a8672b314c8785bde20fd369789b2f553f77",
+      "clientIconPath": "New_Icon/04_PC_Skill/03_Buff/SkillAndExp_Up.dds",
+      "candidateBuffIds": [
+        "tent-body-enhancement-120",
+        "tent-body-enhancement-180",
+        "tent-body-enhancement-300",
+        "tent-body-enhancement-60",
+        "tent-body-enhancement-90"
+      ],
+      "records": [
+        {
+          "buffId": "tent-body-enhancement-120",
+          "itemId": null,
+          "skillKey": null,
+          "clientBuffId": 52372,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/SkillAndExp_Up.dds",
+          "durationMinutes": 120,
+          "sourceName": "[Villa] Body Enhancement"
+        },
+        {
+          "buffId": "tent-body-enhancement-180",
+          "itemId": null,
+          "skillKey": null,
+          "clientBuffId": 57242,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/SkillAndExp_Up.dds",
+          "durationMinutes": 180,
+          "sourceName": "[Villa] Body Enhancement"
+        },
+        {
+          "buffId": "tent-body-enhancement-300",
+          "itemId": null,
+          "skillKey": null,
+          "clientBuffId": 58276,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/SkillAndExp_Up.dds",
+          "durationMinutes": 300,
+          "sourceName": "[Villa] Body Enhancement"
+        },
+        {
+          "buffId": "tent-body-enhancement-60",
+          "itemId": null,
+          "skillKey": null,
+          "clientBuffId": 52369,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/SkillAndExp_Up.dds",
+          "durationMinutes": 60,
+          "sourceName": "[Villa] Body Enhancement"
+        },
+        {
+          "buffId": "tent-body-enhancement-90",
+          "itemId": null,
+          "skillKey": null,
+          "clientBuffId": 57239,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/SkillAndExp_Up.dds",
+          "durationMinutes": 90,
+          "sourceName": "[Villa] Body Enhancement"
+        }
+      ]
+    },
+    {
+      "templateId": "client-tent-turning-gates-120",
+      "imagePath": "client-tent-turning-gates-120.png",
+      "imageWidth": 32,
+      "imageHeight": 32,
+      "imageSha256": "46940450ac003471e02a2936b3452272ea55468810e36452a67cb12576b39eca",
+      "clientIconPath": "New_Icon/04_PC_Skill/03_Buff/WisdomOfLife_Up.dds",
+      "candidateBuffIds": [
+        "tent-turning-gates-120",
+        "tent-turning-gates-180",
+        "tent-turning-gates-300",
+        "tent-turning-gates-60",
+        "tent-turning-gates-90"
+      ],
+      "records": [
+        {
+          "buffId": "tent-turning-gates-120",
+          "itemId": null,
+          "skillKey": null,
+          "clientBuffId": 52373,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/WisdomOfLife_Up.dds",
+          "durationMinutes": 120,
+          "sourceName": "[Villa] Turning Gates"
+        },
+        {
+          "buffId": "tent-turning-gates-180",
+          "itemId": null,
+          "skillKey": null,
+          "clientBuffId": 57243,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/WisdomOfLife_Up.dds",
+          "durationMinutes": 180,
+          "sourceName": "[Villa] Turning Gates"
+        },
+        {
+          "buffId": "tent-turning-gates-300",
+          "itemId": null,
+          "skillKey": null,
+          "clientBuffId": 58267,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/WisdomOfLife_Up.dds",
+          "durationMinutes": 300,
+          "sourceName": "[Villa] Turning Gates"
+        },
+        {
+          "buffId": "tent-turning-gates-60",
+          "itemId": null,
+          "skillKey": null,
+          "clientBuffId": 52370,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/WisdomOfLife_Up.dds",
+          "durationMinutes": 60,
+          "sourceName": "[Villa] Turning Gates"
+        },
+        {
+          "buffId": "tent-turning-gates-90",
+          "itemId": null,
+          "skillKey": null,
+          "clientBuffId": 57240,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/WisdomOfLife_Up.dds",
+          "durationMinutes": 90,
+          "sourceName": "[Villa] Turning Gates"
+        }
+      ]
+    },
+    {
+      "templateId": "client-harmony-draught-1400",
+      "imagePath": "client-harmony-draught-1400.png",
+      "imageWidth": 32,
+      "imageHeight": 32,
+      "imageSha256": "654d3d8a7b6656e5064d01ff13ac9073c7e6fe80e20e5a69071085b61950fa03",
+      "clientIconPath": "New_Icon/04_PC_Skill/03_Buff/Alchemy_Draught6_1.dds",
+      "candidateBuffIds": [
+        "immortal-harmony-draught"
+      ],
+      "records": [
+        {
+          "buffId": "immortal-harmony-draught",
+          "itemId": 1400,
+          "priceItemId": 1400,
+          "skillKey": 3776774145,
+          "clientBuffId": 47197,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/Alchemy_Draught6_1.dds",
+          "durationMinutes": 20,
+          "sourceName": "Immortal: Harmony Draught"
+        }
+      ]
+    },
+    {
+      "templateId": "client-harmony-draught-demihuman-1404",
+      "imagePath": "client-harmony-draught-demihuman-1404.png",
+      "imageWidth": 32,
+      "imageHeight": 32,
+      "imageSha256": "fdd379dd122a6949014e0e5bf68f68ebea9fab96e10125d95ebc0a536d650526",
+      "clientIconPath": "New_Icon/04_PC_Skill/03_Buff/Alchemy_Draught8_1.dds",
+      "candidateBuffIds": [
+        "immortal-harmony-draught-demihuman"
+      ],
+      "records": [
+        {
+          "buffId": "immortal-harmony-draught-demihuman",
+          "itemId": 1404,
+          "priceItemId": 1404,
+          "skillKey": 3777298433,
+          "clientBuffId": 47267,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/Alchemy_Draught8_1.dds",
+          "durationMinutes": 20,
+          "sourceName": "[Party] Immortal: Harmony Draught - Demihuman"
+        }
+      ]
+    },
+    {
+      "templateId": "client-harmony-draught-edania-1408",
+      "imagePath": "client-harmony-draught-edania-1408.png",
+      "imageWidth": 44,
+      "imageHeight": 44,
+      "imageSha256": "bb28f6f684f7070981b9f8fab26117c13d6fe0696d4c6717726348d4265e4362",
+      "clientIconPath": "New_Icon/03_ETC/08_Potion/00001408.dds",
+      "candidateBuffIds": [
+        "immortal-harmony-draught-edania"
+      ],
+      "records": [
+        {
+          "buffId": "immortal-harmony-draught-edania",
+          "itemId": 1408,
+          "priceItemId": 1408,
+          "skillKey": 3111518209,
+          "clientBuffId": 48483,
+          "iconPath": "New_Icon/03_ETC/08_Potion/00001408.dds",
+          "durationMinutes": 20,
+          "sourceName": "[Party] Immortal: Harmony Draught - Edania"
+        }
+      ]
+    },
+    {
+      "templateId": "client-harmony-draught-human-1402",
+      "imagePath": "client-harmony-draught-human-1402.png",
+      "imageWidth": 32,
+      "imageHeight": 32,
+      "imageSha256": "3b30c3c33b4a3728445390347d0d93a2abd67c5dcca45edadcfff1d29742426f",
+      "clientIconPath": "New_Icon/04_PC_Skill/03_Buff/Alchemy_Draught7_1.dds",
+      "candidateBuffIds": [
+        "immortal-harmony-draught-human"
+      ],
+      "records": [
+        {
+          "buffId": "immortal-harmony-draught-human",
+          "itemId": 1402,
+          "priceItemId": 1402,
+          "skillKey": 3777036289,
+          "clientBuffId": 47231,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/Alchemy_Draught7_1.dds",
+          "durationMinutes": 20,
+          "sourceName": "[Party] Immortal: Harmony Draught - Human"
+        }
+      ]
+    },
+    {
+      "templateId": "client-harmony-draught-kamasylvia-1406",
+      "imagePath": "client-harmony-draught-kamasylvia-1406.png",
+      "imageWidth": 32,
+      "imageHeight": 32,
+      "imageSha256": "92fd0b20ad08dc843d59a8721d2e9ca149df013e3ce7cd4dab32064f9fcaea32",
+      "clientIconPath": "New_Icon/04_PC_Skill/03_Buff/Alchemy_Draught9_1.dds",
+      "candidateBuffIds": [
+        "immortal-harmony-draught-kamasylvia"
+      ],
+      "records": [
+        {
+          "buffId": "immortal-harmony-draught-kamasylvia",
+          "itemId": 1406,
+          "priceItemId": 1406,
+          "skillKey": 3777560577,
+          "clientBuffId": 47303,
+          "iconPath": "New_Icon/04_PC_Skill/03_Buff/Alchemy_Draught9_1.dds",
+          "durationMinutes": 20,
+          "sourceName": "[Party] Immortal: Harmony Draught - Kamasylvia"
+        }
+      ]
+    }
+  ]
+}

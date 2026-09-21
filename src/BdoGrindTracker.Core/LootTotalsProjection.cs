@@ -9,6 +9,8 @@ public sealed record LootTotalsProjection
     public IReadOnlyDictionary<string, long> Totals { get; }
     public int ConfirmedDropCount { get; }
     public DateTimeOffset? LatestArrivalAt { get; }
+    /// <summary>Cumulative identity-based quantity corrections; null means the source cannot prove this history.</summary>
+    public long? QuantityCorrectionRevision { get; init; }
 
     public LootTotalsProjection(long revision, IReadOnlyDictionary<string, long> totals,
         int confirmedDropCount, DateTimeOffset? latestArrivalAt)
@@ -23,7 +25,7 @@ public sealed record LootTotalsProjection
 
     public void Validate()
     {
-        if (Revision < 0 || ConfirmedDropCount < 0 || Totals.Any(pair =>
+        if (Revision < 0 || QuantityCorrectionRevision < 0 || ConfirmedDropCount < 0 || Totals.Any(pair =>
                 string.IsNullOrWhiteSpace(pair.Key) || pair.Key.Length > 4096 || pair.Value < 0))
             throw new ArgumentException("Invalid loot totals projection.");
         long total = 0;

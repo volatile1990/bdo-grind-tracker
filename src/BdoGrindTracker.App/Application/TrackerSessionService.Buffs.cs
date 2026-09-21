@@ -1,6 +1,5 @@
 using BdoGrindTracker.App.Analysis;
 using BdoGrindTracker.App.Pricing;
-using BdoGrindTracker.App.UI;
 using BdoGrindTracker.Core.Buffs;
 
 namespace BdoGrindTracker.App.Services;
@@ -8,44 +7,65 @@ namespace BdoGrindTracker.App.Services;
 internal sealed partial class TrackerSessionService
 {
     private readonly BuffMonitor _buffMonitor;
-    private readonly BuffLedger _buffLedger = new(BuffPriceCatalog.HistoryDefinitions);
+    private readonly BuffLedger _buffLedger = new(BuffPriceCatalog.HistoryDefinitions.Concat(AutomaticBuffCatalog.Default.HistoricalGroupDefinitions));
     private DateTimeOffset? _lastBuffObservation;
     private long _buffObservationGeneration;
     private bool _hasBuffObservation;
-    private string? _buffProfileError;
+    private bool _buffHasUnknownObservations;
+    private bool _buffCompletionPending;
+    private DateTimeOffset? _buffCompletionCutoff;
 
-    private BuffRecognitionProfile? ReadBuffProfile()
-    {
-        var path = Preferences.BuffRecognitionProfilePath;
-        if (string.IsNullOrWhiteSpace(path)) return null;
-        var store = new BuffRecognitionProfileStore(path);
-        var profile = store.Load();
-        Volatile.Write(ref _buffProfileError, store.LastError);
-        return profile is null ? null : profile with
-        {
-            GameVariablePath = profile.GameVariablePath ?? _analyzer.CaptureCalibration?.GameVariablePath
-                ?? Preferences.CaptureConfigurationPath,
-        };
-    }
-
-    private string BuffStatus => string.IsNullOrWhiteSpace(Preferences.BuffRecognitionProfilePath)
-        ? "Buff-Erkennung noch nicht kalibriert. Unter Einstellungen → Buff-Erkennung einrichten."
-        : Volatile.Read(ref _buffProfileError) is { } error ? error
-        : !_uiRunning ? "Buff-Erkennung pausiert."
+    private string BuffStatus => !_uiRunning ? "Buff-Erkennung pausiert."
         : _sessionClock.IsWaitingForFirstDrop ? "Buff-Erkennung wartet auf den ersten Drop."
+        : _buffHasUnknownObservations ? "Einige Buffs nicht eindeutig erkannt; bestätigte Buffs werden weiter erfasst."
         : _buffLedger.Snapshot.Active.Count > 0 ? "Buffs bestätigt · Prüfung alle 10 Sekunden."
         : _buffMonitor.LastDiagnostic is { Length: > 0 } diagnostic ? diagnostic
         : "Noch keine unterstützten Buffs bestätigt. Leiste und Restzeiten müssen sichtbar sein.";
 
-    private void UpdateBuffSession()
+    private bool CanObserveBuffSession()
     {
-        var visible = false;
         if (_hasSession && !_demoMode && _uiRunning && _sessionClock.IsRunning &&
             !_sessionClock.IsWaitingForFirstDrop && _lastCaptureDesktopRegion is { } region)
         {
-            try { visible = _captureSession.UsesWindowCapture ? _captureSession.IsRunning : _isLootScrollCaptureVisible(region); }
+            try { return _captureSession.UsesWindowCapture ? _captureSession.IsRunning : _isLootScrollCaptureVisible(region); }
             catch (Exception) { /* Optional recognition never blocks loot tracking. */ }
         }
+        return false;
+    }
+
+    private void BeginBuffCompletion()
+    {
+        if (_buffCompletionPending) return;
+        _buffCompletionCutoff = CanObserveBuffSession() ? _captureSession.ObservationTime : null;
+        // Publishing the paused clock must not reset an in-flight final HUD read.
+        _buffCompletionPending = true;
+    }
+
+    private async Task CompleteBuffAnalysisAsync()
+    {
+        try
+        {
+            if (_buffCompletionCutoff is not { } cutoff) return;
+            await _buffMonitor.CurrentAnalysis.WaitAsync(BuffMonitor.AnalysisTimeout);
+            // Read only evidence captured before the pause request. The drain's
+            // wall time never advances either the ledger or the session clock.
+            UpdateBuffSession(cutoff);
+        }
+        catch (Exception) { /* Optional analysis cannot prevent pausing or shutdown. */ }
+        finally
+        {
+            _buffLedger.BreakContinuity();
+            _buffMonitor.Reset();
+            _lastBuffObservation = null;
+            _buffCompletionCutoff = null;
+            _buffCompletionPending = false;
+        }
+    }
+
+    private void UpdateBuffSession(DateTimeOffset? completionCutoff = null)
+    {
+        if (_buffCompletionPending && completionCutoff is null) return;
+        var visible = completionCutoff is not null || CanObserveBuffSession();
         var snapshot = _buffMonitor.Snapshot(_captureSession.ObservationTime, out var generation);
         if (generation != _buffObservationGeneration)
         {
@@ -55,49 +75,18 @@ internal sealed partial class TrackerSessionService
         }
         if (!visible || !snapshot.IsKnown)
         {
+            _buffHasUnknownObservations = false;
             _buffLedger.BreakContinuity();
             if (!visible) _buffMonitor.Reset();
             return;
         }
-        if (snapshot.ObservedAt is not { } at || at == _lastBuffObservation) return;
+        if (snapshot.ObservedAt is not { } at || at == _lastBuffObservation ||
+            completionCutoff is { } cutoff && at > cutoff) return;
         _lastBuffObservation = at;
+        _buffHasUnknownObservations = snapshot.UnknownBuffIds.Count > 0;
         _buffLedger.Apply(snapshot.Observations, at, definition =>
-            BuffPriceCatalog.GetPrice(definition, Prices));
+            BuffPriceCatalog.GetPrice(definition, Prices), snapshot.UnknownBuffIds);
         _hasBuffObservation = true;
     }
 
-    public async Task<string?> BrowseBuffRecognitionProfileAsync()
-    {
-        string? selected = null;
-        var result = await RunOperationAsync(() =>
-        {
-            using var dialog = new OpenFileDialog
-            {
-                Title = "Buff-Kalibrierungsprofil auswählen",
-                Filter = "Buff-Profil (*.json)|*.json",
-                CheckFileExists = true,
-                Multiselect = false,
-            };
-            if (dialog.ShowDialog() == DialogResult.OK) selected = dialog.FileName;
-            return Task.CompletedTask;
-        });
-        if (!result.Succeeded) throw new InvalidOperationException(result.Error);
-        return selected;
-    }
-
-    public async Task<string?> CalibrateBuffRecognitionAsync()
-    {
-        string? selected = null;
-        var result = await RunOperationAsync(() =>
-        {
-            if (_hasSession)
-                throw new InvalidOperationException("Die Buff-Kalibrierung ist vor einer neuen Session möglich.");
-            using var dialog = new BuffCalibrationForm(
-                Path.Combine(_settingsStore.BaseDirectory, "buff-profiles"), Preferences.BuffRecognitionProfilePath);
-            if (dialog.ShowDialog() == DialogResult.OK) selected = dialog.SavedProfilePath;
-            return Task.CompletedTask;
-        });
-        if (!result.Succeeded) throw new InvalidOperationException(result.Error);
-        return selected;
-    }
 }

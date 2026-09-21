@@ -3,10 +3,11 @@ using Microsoft.AspNetCore.Components;
 
 namespace BdoGrindTracker.App.Components;
 
-public abstract class TrackerComponentBase : ComponentBase, IDisposable
+public abstract class TrackerComponentBase : LocalizedComponentBase
 {
     [Inject] private protected ITrackerSession Tracker { get; set; } = default!;
     private protected TrackerState State => Tracker.State;
+    protected override string UiLanguage => Tracker.Preferences.UiLanguage;
     protected string ItemLabel(string canonicalName) => BdoGrindTracker.Core.ItemLocalizationCatalog.DisplayName(
         canonicalName, Tracker.Preferences.GameLanguage == "auto" ? State.DetectedGameLanguage ?? "en" : Tracker.Preferences.GameLanguage);
     protected string? ActionError { get; private set; }
@@ -46,10 +47,11 @@ public abstract class TrackerComponentBase : ComponentBase, IDisposable
             if (!result.Succeeded) throw new InvalidOperationException(result.Error);
         });
 
-    public virtual void Dispose()
+    public override void Dispose()
     {
         _disposed = true;
         Tracker.Changed -= OnChanged;
+        base.Dispose();
         GC.SuppressFinalize(this);
     }
 }

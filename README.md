@@ -4,19 +4,20 @@ Grindcrest ist ein lokaler, passiver Loot-Tracker für Black Desert auf Windows.
 Er erkennt Drops aus dem Spielfenster und zeigt Lootmengen, aktive Grindzeit,
 Silber und Stundenwerte im Dashboard und in anpassbaren Ingame-Overlays.
 
-**Version 1.7.0:** [Rotation Monitor für Aphrodon und aktualisierte Klassenangaben im Verlauf](docs/release-notes/1.7.0.md).
+**Version 1.8.2:** [Stabilere Klassenerkennung und Zeit-Tags für Drops](docs/release-notes/1.8.2.md).
 
 ## Funktionen
 
 - Automatische Spoterkennung für die [40 unterstützten Referenz-Spots](docs/SCREENSHOT_SPOTS.md), deutsche und englische Itemnamen sowie manuelle Lootkorrekturen.
 - Lokaler Verlauf mit Sessiondetails, Spotansicht und Silberbewertung für EU/NA einschließlich Steuern und Boni.
 - Mehrere unabhängige Overlays mit frei angeordneten Kennzahlen, Lootlisten, Silberverlauf, Uhr und Tracking-Steuerung.
-- Automatische Pause, Klassenerkennung und pausierte Wiederherstellung der aktuellen Session nach einem Neustart.
+- Automatische Pause, Klassenerkennung und pausierte Wiederherstellung der aktuellen Session samt gespeicherter Dropzeiten nach einem Neustart.
 - AP/DP aus der Spielanzeige mit farblich erkannter Kategorie (Allgemein, Edania, Halbmenschen oder Kamasilvia), live und zur jeweiligen Session gespeichert.
-- Buff-Erkennung mit Screenshot-Kalibrierung, Restzeiten, Verbrauchsprotokoll und getrennten Laufzeit-/Verbrauchskosten aus EU-/NA-Zentralmarktpreisen bzw. festen Zeltpreisen.
+- Automatische Buff-Erkennung ohne manuelle Einrichtung, mit Verbrauchsicons, Mengen und Gesamtkosten im Live-Header, Verlauf und Overlay.
 - Optionale automatische Grinderkennung mit sparsamer Bereitschaft und kurzer Lootprüfung bei einem Startverdacht.
 - Optionaler Garmoth-Upload mit Vorschau, Bestätigung und Schutz vor doppelten Übertragungen; automatische Stundenuploads sind separat einschaltbar.
 - Windows-OCR-Installation mit Fortschrittsanzeige, erneuter Verfügbarkeitsprüfung und lokaler Diagnose.
+- Deutsche und englische Oberfläche einschließlich Overlays, Zahlen- und Datumsformaten; die Auswahl wird lokal gespeichert.
 
 ## Installieren und starten
 
@@ -25,11 +26,11 @@ Evergreen und die Windows-OCR-Sprache des Spiels: Deutsch (`de-DE`) oder Englisc
 (`en-US`). Grindcrest erkennt die Spielsprache aus der BDO-Konfiguration; eine
 manuelle Auswahl steht unter **Einstellungen → Spielsprache in Black Desert** bereit.
 
-Den Installer **`Grindcrest-win-x64-stable-Setup.exe`** aus den
-[GitHub Releases](https://github.com/volatile1990/bdo-grind-tracker/releases) laden.
-Das Setup enthält .NET und installiert WebView2 sowie die Visual-C++-Laufzeit bei
-Bedarf nach. Die [Microsoft-Store-Ausgabe](docs/MICROSOFT_STORE.md) verwendet einen
-eigenen Installations- und Updateweg.
+Grindcrest wird ausschließlich über den
+[Microsoft Store](https://apps.microsoft.com/detail/9NQPWC1CMWS0) installiert und
+aktualisiert. Das Paket enthält .NET; WebView2 Evergreen ist ein eigener
+Windows-Systembestandteil. Fehlt es, zeigt Grindcrest einen Installationshinweis.
+[Details zur Store-Ausgabe](docs/MICROSOFT_STORE.md).
 
 1. Black Desert öffnen und nicht minimieren. Den Haupt-Droplog in der BDO-Oberfläche sichtbar und eindeutig positionieren; die UI-Konfiguration speichern.
 2. Grindcrest starten und unter **Live-Session** auf **Tracking starten** klicken. Falls angeboten, **OCR-Sprachpaket installieren** wählen und der Windows-Abfrage zustimmen. Der Fortschritt stammt von Windows; erst die erfolgreiche OCR-Prüfung gibt das Tracking frei.
@@ -43,29 +44,63 @@ Werte; im Verlauf bleibt der zuletzt bestätigte Stand der jeweiligen Session
 erhalten. Dafür ist kein Garmoth-Build-Link nötig.
 [Erkennung und Nachweisgrenzen](docs/COMBAT_STATS_HUD.md).
 
-Die optionale **Buff-Erkennung** prüft die Leiste alle zehn Sekunden. Dafür unter
-**Einstellungen → Buff-Erkennung → Buffs per Screenshot einrichten** einen
-vollständigen Spiel-Screenshot laden und Leiste, Symbol und Restzeit markieren.
-Der Assistent speichert das Profil samt Symbolvorlagen und kann die Erkennung am
-Screenshot testen. Die Auswahl enthält 58 Varianten aus Cron-Mahlzeiten, Harmony
-Draughts, Parfümen, kostenpflichtigen Zeltbuffs und Mystic-Beasts-Schriftrollen.
-Nur die eingerichteten Symbole werden abgeglichen; gleiche Variantenfamilien
-werden im Profil auf den tatsächlich verwendeten Gegenstand festgelegt.
-Ein im Profil belegter BDO-UI-Eintrag kann die Position
-aus der Spielkonfiguration nachführen. Bestätigte Verbräuche und zeitanteilige
-Kosten erscheinen unter **Buffs & Kosten** und bleiben im Verlauf gespeichert.
-Bereits aktive Buffs, unlesbare Zeiten und Pausen werden konservativ behandelt;
-eine Erkennung ohne Kalibrierung ist noch nicht verfügbar.
-[Einrichtung, Beispielprofil und Grenzen](docs/BUFF_TRACKING.md).
+Die **Buff-Erkennung** liest Position und Sichtbarkeit der Buffleiste aus derselben
+BDO-Konfiguration wie das Item-Drop-Log (`UIData`-Index 119 statt 159). Innerhalb
+dieses Bereichs prüft sie Symbole und Restzeiten alle zehn Sekunden. Dafür ist kein persönliches Profil
+und keine vorherige Screenshot-Kalibrierung nötig. Die **37 mitgelieferten
+Client-Symbolvorlagen** decken alle 58 Einträge der Kostenliste ab: Cron-Mahlzeiten,
+Harmony, Parfüme, kostenpflichtige Zeltbuffs und Mystic-Beasts-Schriftrollen.
+Die drei Cron-Mahlzeiten, zehn Harmony-Varianten und sechs Mystic-Beasts-Effekte
+haben jeweils eigene Symbole. Bei Zeltbuffs wird die kleinste angebotene Kaufdauer
+angenommen, die mindestens der zuerst gelesenen Restzeit entspricht: 280 Minuten
+werden etwa der 300-Minuten-Variante zugeordnet, 160 Minuten der 180-Minuten-Variante.
+Beim durchgängigen Countdown bleibt diese Annahme bis zur bestätigten Erneuerung
+bestehen. Identische Symbole mit gleicher Laufzeit, etwa bei einigen normalen und
+unsterblichen Parfümen oder Glücksstufen, bleiben ohne eindeutige Zuordnung unbekannt.
+Unter **Verbrauchte Items** im Kopf der Live-Session stehen kompakte Bufficons mit
+der gezählten Menge in der Ecke und den Gesamtkosten daneben. Beim Überfahren
+eines Icons erscheinen Name, Anzahl und gespeicherte Preise. Der Verlauf verwendet
+dieselbe kompakte Anzeige für die gespeicherte Session; in der Sessiontabelle
+eines Grindspots steht sie in der Spalte **Verbraucht**. Mengen und die beim
+Erkennen gebuchten Kosten bleiben je Session erhalten. Das Overlaymodul
+**Verbrauchte Items** zeigt dieselben Mengen und Kosten im Spiel. Fehlende Preise
+bleiben als unbekannt oder Teilbetrag sichtbar. Die Angaben bleiben im Verlauf
+gespeichert. Die fünf normalen und fünf unsterblichen
+Harmony-Varianten werden bei eindeutigem Symbol getrennt erkannt und mit ihrem
+jeweiligen Marktpreis bewertet. Gruppen-Harmony zählt bestätigte
+Timer-Erneuerungen; das Symbol verrät nicht, welches Gruppenmitglied den
+Gegenstand eingesetzt hat.
+
+Die Kostenliste enthält 58 aktive Varianten (39 Markt-IDs) aus Cron-Mahlzeiten,
+normalen und unsterblichen Harmony Draughts, Parfümen, kostenpflichtigen Zeltbuffs und
+Mystic-Beasts-Schriftrollen. Das ist keine Zusage, jedes Symbol in jedem Layout
+automatisch zu erkennen. Einzelne unlesbare Buff-Timer unterbrechen die Auswertung
+anderer eindeutig erkannter Buffs nicht. Jeder bisher ungebuchte Buff wird nach
+zwei eigenen passenden Erstbeobachtungen einmal mit seinem Preis angerechnet,
+auch wenn er erst später lesbar wird. Höhere erneut gelesene Restzeiten zählen
+zusätzlich. Pause, Erkennungslücke oder Timerpräzisierung lösen für bereits
+gebuchte Buffs keine weitere Erstanrechnung aus. Nicht über Symbol oder
+Dauerannahme zugeordnete Varianten erscheinen als unbekannte Gruppe; ihre Preise
+bleiben unbekannt. Nach einer Pause oder Erkennungslücke beginnt eine neue
+Ausgangsmessung mit neuer Dauerannahme. Gespeicherte Buchungen bleiben unverändert
+und verhindern doppelte Erstanrechnungen einschließlich ihrer Dauerfamilie.
+Bislang ungebuchte Buffs können auch nach dem Laden einer Session erstmals
+bestätigt und angerechnet werden.
+Die Erkennung läuft immer automatisch; eine separate Buff-Einstellung oder
+Profilauswahl ist nicht erforderlich. Frühere manuelle Profile werden nicht mehr
+ausgewertet, vorhandene Dateien bleiben erhalten. Für gespeicherte Sessions bleiben 61 historische Einträge
+lesbar; bereits gespeicherte Buchungen und ihre Preise bleiben unverändert.
+[Automatische Erkennung und Grenzen](docs/BUFF_TRACKING.md).
 
 In der **Live-Session** neben **Tracking starten** und **Neue Session** lässt sich
 **Grind automatisch erkennen** ein- und ausschalten. Die Option ist standardmäßig aus. Während der
 Bereitschaft wird der Lootbereich nur sparsam geprüft, solange Black Desert im
 Vordergrund ist; ein möglicher Drop löst eine kurze Texterkennung aus. Bestätigter
-Loot startet eine neue Session oder setzt eine automatisch pausierte Session fort.
-Manuelles Pausieren unterbricht die Automatik auch über einen Neustart hinweg.
-**Automatik wieder aktivieren** direkt am Schalter, manuelles Fortsetzen und **Neue Session**
-geben sie wieder frei. Kurz sichtbare erste Drops können wegen der sparsamen
+Monsterloot startet sofort eine neue Session oder setzt eine automatisch pausierte
+Session fort. Eine neue automatische Session wird nach fünf getrennten Drops
+gespeichert; vorher wird sie nach einer Minute ohne neuen Drop verworfen.
+Auch nach manuellem Pausieren bleibt die Automatik bereit; ausgeschaltet wird sie
+nur über den Schalter. Kurz sichtbare erste Drops können wegen der sparsamen
 Prüfung fehlen; die Sessionzeit beginnt mit dem ersten bestätigten Drop.
 [Ablauf, Ressourcen und Grenzen](docs/AUTO_START.md).
 
@@ -73,16 +108,43 @@ Unter **Overlay** lassen sich Fenster erstellen, konfigurieren und am Desktop
 vorab ansehen. Neue Overlay-Fenster sind zunächst ausgeschaltet.
 [Bedienung der Overlays](docs/OVERLAY.md).
 
-Unter **Einstellungen → Erscheinungsbild** lässt sich das Theme für die gesamte
-Oberfläche und alle Overlays wechseln. **Grindcrest** behält das bisherige Design
-bei und bleibt die Voreinstellung. **Black Desert** verwendet dunkle, kantige
+Unter **Einstellungen → Erscheinungsbild** lassen sich die Themes für das
+Hauptfenster und alle Overlays getrennt wählen. Mit **Wie Hauptfenster** folgen
+die Overlays automatisch der Oberfläche. **Grindcrest** behält das bisherige
+Design bei und bleibt die Voreinstellung. **Black Desert** verwendet dunkle, kantige
 Spielfenster, feine Rahmen, helle Schrift und eingelassene Inventarfelder.
 **Light** bietet helle Flächen mit dunkler Schrift und blauen Akzenten.
 **Katzen** zeigt große Kitten-Illustrationen auf warmen Espresso- und Leinenflächen,
 mit Pfotenspuren und Ziernähten in Oberfläche und Overlay.
-Die Auswahl gilt sofort, auch während einer Session, und wird in der Windows-App
-gespeichert. In der Browser-Vorschau gilt sie bis zum Neuladen.
+**Obsidian** kombiniert fast schwarze Flächen mit kühlen Akzenten,
+**Kamasylvia** dunkles Waldgrün mit Elfenbein und **Valencia** warme Sandflächen
+mit Terrakotta und dunkler Schrift.
+Beide Auswahlen gelten sofort, auch während einer Session, und werden in der
+Windows-App gespeichert. In der Browser-Vorschau gelten sie für die aktuelle Verbindung.
 [Themes und Darstellung](docs/THEMES.md).
+
+### Einführung beim ersten Start
+
+Neue Installationen öffnen automatisch die Einführung. Sie führt in fünf Schritten
+durch Erscheinungsbild und Sprache, sichtbare Droplogs in BDO, Spielsprache und
+Erfassungsprüfung, Silberbewertung sowie den Start der ersten Session. Die
+Oberfläche startet auf Englisch; Deutsch lässt sich direkt im ersten Schritt wählen.
+Eine bereits gespeicherte Sprachwahl bleibt erhalten.
+
+Das normale Droplog und das Special-Droplog müssen frei sichtbar bleiben: Menüs,
+Inventar, Chat und andere Anzeigen dürfen die Lootzeilen nicht verdecken.
+Die Einführung erklärt das Speichern der BDO-Oberfläche und bietet die vorhandene
+Erfassungsvorschau zum Prüfen beider Bereiche an. Tracking wird anschließend in
+der Live-Session manuell gestartet. Unter **Einstellungen** lässt sich die
+Einführung jederzeit erneut öffnen.
+
+Unter **Einstellungen → Erscheinungsbild → Sprache der Oberfläche** lässt sich
+zwischen **Deutsch** und **English** wechseln. Die Änderung gilt sofort, auch
+während einer Session, und bleibt nach einem Neustart erhalten. Englisch ist
+die Voreinstellung; eine gespeicherte Auswahl von Deutsch bleibt erhalten.
+Die BDO-Spiel-/OCR-Sprache und die dazu passenden Itemnamen
+werden weiterhin separat eingestellt. In der Browser-Vorschau gilt die Auswahl
+bis zum Neuladen. [Lokalisierung erweitern](docs/LOCALIZATION.md).
 
 Grindcrest merkt sich beim Beenden Position, Größe und Maximierung des
 Hauptfensters. Beim nächsten Start wird diese Anordnung wiederhergestellt;
@@ -90,8 +152,8 @@ ist der bisherige Bildschirm nicht mehr angeschlossen, bleibt das Fenster
 auf einem verfügbaren Bildschirm sichtbar.
 
 Updates werden in der App angeboten und setzen eine pausierte Session voraus.
-Die GitHub-Ausgabe verwendet ihren gewählten Stable-/Beta-Kanal; die Store-Ausgabe
-bietet von Microsoft freigegebene Updates an. Bei Problemen mit dem Sprachpaket,
+Angeboten werden die von Microsoft für die Installation freigegebenen
+Store-Updates. Bei Problemen mit dem Sprachpaket,
 auch bei **Installed** und weiterhin wartender Anzeige, hilft die
 [OCR-Installationsdiagnose](docs/OCR_INSTALLATION_TROUBLESHOOTING.md).
 
@@ -115,7 +177,8 @@ Die Aufnahme benötigt einen korrekt eingerichteten Haupt-Droplog. Änderungen a
 Schrift, Skalierung, Auflösung oder abgeschnittenen Zeilen können die Erfassung
 anhalten; die Live-Ansicht nennt die nötige Korrektur. Spielinterne Meldungen können
 den Lootfeed überdecken. [Erkennungsverfahren](docs/LIFETIME_LOOT_TRACKING.md) ·
-[Dropmengen](docs/DROP_QUANTITIES.md) · [Spielsprachen](docs/GAME_LANGUAGES.md).
+[Dropmengen](docs/DROP_QUANTITIES.md) · [Droplog-Zuordnung](docs/LOOT_SOURCES.md) ·
+[Spielsprachen](docs/GAME_LANGUAGES.md).
 
 Unter **Einstellungen → Erfassungsbereiche prüfen** zeigt eine Einzelaufnahme
 die erfassten Bereiche: Türkis markiert das normale Droplog, Gold die Zeile des
@@ -145,18 +208,21 @@ Vorschaubilder werden nicht auf Datenträger gespeichert.
 
 ## Daten und Diagnose
 
-Einstellungen, aktuelle Session, bis zu **500 Verlaufssessions**, Overlay-Layouts
-und das Garmoth-Uploadjournal werden lokal gespeichert. Der optionale Garmoth-Key
-ist mit Windows-DPAPI an den aktuellen Windows-Benutzer gebunden.
+Einstellungen, aktuelle Session, Verlaufssessions, Overlay-Layouts und das
+Garmoth-Uploadjournal werden lokal gespeichert. Für den Verlauf gibt es keine
+künstliche Grenze für die Sessionanzahl oder Dateigröße. Ältere Einträge werden
+nicht automatisch entfernt; eine große Verlaufsdatei wird weder gekürzt noch
+allein aufgrund ihrer Größe mit einer Fehlermeldung abgewiesen.
+Der optionale Garmoth-Key ist mit Windows-DPAPI an den aktuellen Windows-Benutzer gebunden.
 
 | Ausgabe | Datenordner |
 | --- | --- |
-| GitHub / entpackter Build | `%LOCALAPPDATA%\BdoGrindTracker` |
 | Microsoft Store | `%LOCALAPPDATA%\Packages\<Paketfamilie>\LocalState` |
+| Lokaler Entwicklungsbuild | `%LOCALAPPDATA%\BdoGrindTracker` |
 
 Die Store-Ausgabe übernimmt beim ersten regulären Start vorhandene Tracker-Daten
 aus dem bisherigen Ordner; die Quelldateien bleiben erhalten. Anschließend sind
-die Daten beider Ausgaben unabhängig. Vor einem Wechsel oder einer Deinstallation
+Quelldaten und Store-Daten unabhängig. Vor einer Deinstallation
 wichtige Daten bei geschlossener App durch Kopieren des Datenordners sichern.
 Details zur Übernahme stehen in der [Store-Dokumentation](docs/MICROSOFT_STORE.md).
 
@@ -229,18 +295,18 @@ vor dem Testlauf `GRINDCREST_REQUIRE_WINDOWS_OCR=1` setzen. Native Fensteraufnah
 reale OCR-Genauigkeit und ein echtes Store-Upgrade benötigen zusätzlich praktische
 Windows-Prüfungen. [Architektur und UI-Prüfung](docs/BLAZOR_HYBRID.md).
 
-Die Release-Skripte führen die Lösungstests und `Test-Ui.ps1` aus und prüfen die
-Paketinhalte. Mit **`-RequireWindowsOcr`** schlagen sie bei fehlenden nativen
-OCR-Voraussetzungen fehl. Beispiel für den Store:
+Das Store-Buildskript führt die Lösungstests und `Test-Ui.ps1` aus und prüft die
+Paketinhalte. Mit **`-RequireWindowsOcr`** schlägt es bei fehlenden nativen
+OCR-Voraussetzungen fehl:
 
 ```powershell
-./scripts/Build-StoreRelease.ps1 -Version 1.7.0 -RequireWindowsOcr
+./scripts/Build-StoreRelease.ps1 -Version 1.8.2 -RequireWindowsOcr
 ```
 
 Das erzeugte MSIX wird anschließend im Partner Center eingereicht. Ein lokaler
-Paketbuild veröffentlicht nichts. Für den GitHub-Installer dient
-`./scripts/Build-Release.ps1 -Version 1.7.0 -RequireWindowsOcr`.
-[GitHub-Releases](docs/RELEASING.md) · [Store-Paketierung](docs/MICROSOFT_STORE.md).
+Paketbuild veröffentlicht nichts. GitHub dient der Quellcodeverwaltung und CI;
+die Verteilung und Updates übernimmt ausschließlich Microsoft Store.
+[Store-Release erstellen](docs/RELEASING.md) · [Paketierung und Einreichung](docs/MICROSOFT_STORE.md).
 
 Weitere Details: [Silberbewertung](docs/SILVER_VALUATION.md),
 [Klassenerkennung](docs/CLASS_DETECTION.md), [HDR-Aufnahme](docs/HDR_CAPTURE.md) und

@@ -261,7 +261,7 @@ public sealed class OverlaySectionsAndRotationModulesTests
     [Fact]
     public void RotationsPerHourUsesTheRecentTempoIncludingTheWalkBack()
     {
-        var metrics = new OverlayMetrics().Update(WithRotations(new(900, 20), new(600, 15), new(620, 25), new(640)), new()).Metrics;
+        var metrics = new OverlayMetrics().Update(WithRotations(new(900, 20), new(600, 15), new(620, 25), new(640)), new() { UiLanguage = "de" }).Metrics;
 
         // The latest walk back is still running and counts with the session average of 20 seconds.
         var rate = metrics["rotations-hour"];
@@ -271,20 +271,20 @@ public sealed class OverlaySectionsAndRotationModulesTests
         var count = metrics["rotation-count"];
         Assert.Equal(("Rotation Counter", "4", "Zuletzt 10:40"), (count.Label, count.Value, count.Detail));
 
-        var single = new OverlayMetrics().Update(WithRotations(new SessionRotationTiming(1180, 20)), new()).Metrics["rotations-hour"];
+        var single = new OverlayMetrics().Update(WithRotations(new SessionRotationTiming(1180, 20)), new() { UiLanguage = "de" }).Metrics["rotations-hour"];
         Assert.Equal(("3", "3,0 / h · Ø 20:00 · 1 Rotation"), (single.Value, single.Detail));
-        var unknownWalk = new OverlayMetrics().Update(WithRotations(new SessionRotationTiming(1200)), new()).Metrics["rotations-hour"];
+        var unknownWalk = new OverlayMetrics().Update(WithRotations(new SessionRotationTiming(1200)), new() { UiLanguage = "de" }).Metrics["rotations-hour"];
         Assert.Equal(("3", "3,0 / h · Ø 20:00 · ohne Rückweg"), (unknownWalk.Value, unknownWalk.Detail));
     }
 
     [Fact]
     public void RotationModulesExplainMissingRotationsAndProfiles()
     {
-        var none = new OverlayMetrics().Update(WithRotations(), new()).Metrics;
+        var none = new OverlayMetrics().Update(WithRotations(), new() { UiLanguage = "de" }).Metrics;
         Assert.Equal(("—", "Nach der ersten vollständigen Rotation"), (none["rotations-hour"].Value, none["rotations-hour"].Detail));
         Assert.Equal(("0", "In dieser Session"), (none["rotation-count"].Value, none["rotation-count"].Detail));
 
-        var unsupported = new OverlayMetrics().Update(Session() with { SpotId = null }, new()).Metrics;
+        var unsupported = new OverlayMetrics().Update(Session() with { SpotId = null }, new() { UiLanguage = "de" }).Metrics;
         Assert.Equal(("—", "Kein Rotationsprofil für diesen Spot"), (unsupported["rotations-hour"].Value, unsupported["rotations-hour"].Detail));
         Assert.Equal("—", unsupported["rotation-count"].Value);
         Assert.NotNull(OverlayCatalog.Find("rotations-hour"));
@@ -373,6 +373,7 @@ public sealed class OverlaySectionsAndRotationModulesTests
 
     private static OverlaySnapshot Snapshot(TimeSpan elapsed, params (double Seconds, decimal Silver)[] drops) => new()
     {
+        UiLanguage = "de",
         SessionElapsed = elapsed,
         SilverHistory = [new(TimeSpan.FromSeconds(10), 100), new(elapsed, 100)],
         SilverDrops = drops.Select(drop => new OverlaySilverDrop(TimeSpan.FromSeconds(drop.Seconds), drop.Silver)).ToArray(),

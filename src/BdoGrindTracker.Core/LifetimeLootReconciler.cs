@@ -27,6 +27,7 @@ public sealed class LifetimeLootReconciler
     private readonly LootSource source;
     private readonly int trackedSlotCount;
     private readonly bool persistentSingleRow;
+    private readonly bool useLegacySingleRowLearning;
     private long? singleRowMissingSince;
     private long? previousMilliseconds;
     private long? lastCaptureMilliseconds;
@@ -55,7 +56,7 @@ public sealed class LifetimeLootReconciler
     public LifetimeLootReconciler(Func<LootObservation, LifetimeParsedReading?>? rawParser,
         Func<string, IReadOnlyList<string>>? nameAliases, bool useVisualSlotCoverage,
         LootSource source = LootSource.Normal, int slotCount = SlotCount, bool useUnreadableSlotCoverage = false,
-        bool useFadeEvidence = false)
+        bool useFadeEvidence = false, bool useLegacySingleRowLearning = false)
     {
         if (source is not (LootSource.Normal or LootSource.Rare))
             throw new ArgumentOutOfRangeException(nameof(source));
@@ -71,6 +72,7 @@ public sealed class LifetimeLootReconciler
         this.source = source;
         trackedSlotCount = slotCount;
         persistentSingleRow = slotCount == 1;
+        this.useLegacySingleRowLearning = useLegacySingleRowLearning;
         models = CreateModels();
         UsesVisualSlotCoverage = useVisualSlotCoverage;
         UsesUnreadableSlotCoverage = useUnreadableSlotCoverage;
@@ -186,8 +188,16 @@ public sealed class LifetimeLootReconciler
         {
             if (persistentSingleRow) AdvanceSingleRow(model, observations[0], now, closeSingleRow);
             else Advance(model, observations, now, elapsed, maximumBirths, minimumCoveredSlots, unreadableCoverage);
-            Learn(model);
-            if (frameIndex == nextFit) model.Refit();
+            // A persistent banner supplies arbitrarily many correlated reads of
+            // one drop. Learning from them makes a new notification less likely
+            // than an OCR conflict or an empty panel, so short consecutive drops
+            // disappear. Keep the single-row observation priors stable; only the
+            // finite-lifetime normal log supplies representative training samples.
+            if (!persistentSingleRow || useLegacySingleRowLearning)
+            {
+                Learn(model);
+                if (frameIndex == nextFit) model.Refit();
+            }
             if (frameIndex % 50 == 0) Settle(model, now);
         }
         if (frameIndex == nextFit) nextFit = checked(nextFit + Math.Min(nextFit, 250));

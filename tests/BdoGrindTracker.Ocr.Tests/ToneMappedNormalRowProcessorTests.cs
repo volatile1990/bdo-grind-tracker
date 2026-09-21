@@ -4,11 +4,13 @@ namespace BdoGrindTracker.Ocr.Tests;
 
 public sealed class ToneMappedNormalRowProcessorTests
 {
-    [Fact]
-    public void PaleNeutralLettersSurviveWhileDarkerNeutralSceneryIsRemoved()
+    [Theory]
+    [InlineData(227)]
+    [InlineData(232)]
+    public void PaleNeutralLettersSurviveWhileDarkerNeutralSceneryIsRemoved(int letteringValue)
     {
         using var source = new Mat(100, 400, MatType.CV_8UC3, new Scalar(210, 210, 210));
-        Cv2.Rectangle(source, new Rect(100, 35, 30, 20), new Scalar(232, 232, 232), -1);
+        Cv2.Rectangle(source, new Rect(100, 35, 30, 20), new Scalar(letteringValue, letteringValue, letteringValue), -1);
 
         using var result = ToneMappedNormalRowProcessor.Process(source, y: 224);
 

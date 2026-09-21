@@ -26,10 +26,11 @@ public static class ToneMappedNormalRowProcessor
         var averageLuma = Cv2.Mean(gray).Val0;
         using var hsv = CompanionNormalRowProcessor.ConvertToHsv(sourceBand);
         using var foreground = new Mat();
-        // Captured white lettering remains below 240 after tone mapping. A
-        // 230 cutoff retains its strokes while rejecting pale neutral scenery
+        // Tone-mapped white depends on the display/game white level. Recorded
+        // lettering peaks at 227; 230 erases it and 225 loses antialiased strokes.
+        // Retain those strokes while still excluding the darker neutral scenery
         // admitted by Companion's original SDR range (approximately 160–250).
-        Cv2.InRange(hsv, new Scalar(0, 0, 230), new Scalar(180, 12, 255), foreground);
+        Cv2.InRange(hsv, new Scalar(0, 0, 220), new Scalar(180, 12, 255), foreground);
         using var normalized = CompanionNormalRowProcessor.ResizeToHeight(foreground, NormalizedHeight);
         // Retain the normalized Y origin for the existing first-word geometry gate.
         Cv2.Rectangle(normalized, new Rect(0, 0, normalized.Width, TextTop), Scalar.Black, -1);

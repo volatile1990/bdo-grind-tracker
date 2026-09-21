@@ -102,8 +102,6 @@ small,.item-cell small,.panel-heading p,.page-heading p,.field small,.toggle-row
 .live-auto-start-toggle{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:9px 12px;cursor:pointer;color:#c7d7cf;font-size:13px;line-height:1.4}
 .live-auto-start-toggle .switch{flex-shrink:0}
 .live-auto-start-toggle:has(input:checked){color:#e5c991}
-.live-auto-start-status{padding:0 12px 10px;margin:0;color:#a6b9ae;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
-.live-auto-start-rearm{margin:0 12px 10px;font-size:12px}
 .live-auto-start-toggle:has(input:disabled){cursor:default;opacity:.65}
 .live-session-actions .button{min-height:40px}
 .live-session-actions .button.primary{min-width:143px}
@@ -120,20 +118,21 @@ small,.item-cell small,.panel-heading p,.page-heading p,.field small,.toggle-row
 .live-page .valuation-note{margin:0;padding:0 4px;align-items:flex-start}
 .live-page .valuation-note .icon{margin-top:3px;flex-shrink:0}
 .loot-panel{container:loot-table / inline-size}
-.loot-table-header{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"title display" "search sort";align-items:center;gap:8px 12px;padding:12px 18px}
-.loot-table-header.can-add-loot{grid-template-columns:minmax(0,1fr) auto auto;grid-template-areas:"title display add" "search search sort"}
-.loot-table-header:not(.has-loot){grid-template-areas:"title display"}
-.loot-table-header.can-add-loot:not(.has-loot){grid-template-areas:"title display add"}
+.loot-table-header{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"title display";align-items:center;gap:8px 12px;padding:12px 18px}
+.loot-table-header.can-add-loot{grid-template-columns:minmax(0,1fr) auto auto;grid-template-areas:"title display add"}
+.loot-table-header.has-loot{grid-template-columns:minmax(0,1fr) auto auto;grid-template-areas:"title toggle display"}
+.loot-table-header.has-loot.can-add-loot{grid-template-columns:minmax(0,1fr) auto auto auto;grid-template-areas:"title toggle display add"}
 .loot-table-title{grid-area:title;min-width:0}
 .loot-table-title h2{display:flex;align-items:center;gap:8px;font-size:15px;overflow-wrap:anywhere}
 .loot-table-title p{font-size:13px;line-height:1.5;margin-top:4px}
-.loot-table-header>.search-field{grid-area:search;min-width:0;max-width:none;width:100%}
-.loot-table-header>.sort-field{grid-area:sort;justify-self:end;min-width:0}
+.loot-search-toggle{grid-area:toggle;width:32px;height:32px;padding:6px;border:1px solid transparent}
+.loot-search-toggle.is-open{color:var(--gold);border-color:var(--line);background:var(--bg)}
+.loot-search-controls{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;min-width:0;padding-top:2px}
+.loot-search-controls>.search-field{min-width:0;max-width:none;width:100%}
+.loot-search-controls>.sort-field{justify-self:end;min-width:0}
 .loot-table-header>.segmented{grid-area:display;justify-self:end}
 .loot-table-header>.loot-add-control{grid-area:add;padding:0;min-width:0}
-@container loot-table (min-width:760px){.loot-table-header.has-loot.can-add-loot{grid-template-columns:auto minmax(160px,1fr) auto auto auto;grid-template-areas:"title search sort display add"}}
-@container loot-table (min-width:900px){.loot-table-header.has-loot:not(.can-add-loot){grid-template-columns:auto minmax(160px,1fr) auto auto;grid-template-areas:"title search sort display"}}
-@container loot-table (max-width:460px){.loot-table-header{padding:10px 14px;gap:8px}.loot-table-header.can-add-loot{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"title add" "search sort" "display display"}.loot-table-header.can-add-loot:not(.has-loot){grid-template-areas:"title add" "display display"}.loot-table-header>.segmented{justify-self:start}}
+@container loot-table (max-width:460px){.loot-table-header{padding:10px 14px;gap:8px}.loot-table-header.can-add-loot{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"title add" "display display"}.loot-table-header.has-loot.can-add-loot{grid-template-columns:minmax(0,1fr) auto auto;grid-template-areas:"title toggle add" "display display display"}.loot-table-header.can-add-loot>.segmented{justify-self:start}.loot-search-controls{gap:8px}}
 .live-page .live-demo-notice{padding:7px 13px;margin-bottom:14px}
 .live-demo-notice>div{display:flex;align-items:baseline;flex-wrap:wrap;gap:2px 10px}
 .live-demo-notice strong{margin:0}
@@ -369,7 +368,7 @@ small,.item-cell small,.panel-heading p,.page-heading p,.field small,.toggle-row
 .combat-stats-values{display:inline-flex;align-items:center;gap:12px;white-space:nowrap;font-variant-numeric:tabular-nums}
 .combat-stats .combat-stats-values span strong{display:inline;font-size:inherit;color:inherit;font-weight:650;line-height:inherit;margin:0}
 .combat-stats-category{font-size:11px;border:1px solid currentColor;border-radius:4px;padding:1px 6px;white-space:nowrap}
-.combat-stats-age{font-size:11px;color:var(--muted)}
+.combat-stats-hint{font-size:11px;color:var(--muted)}
 .combat-stats-unknown{color:var(--muted);font-size:12px}
 .combat-stats-compact{gap:5px 8px;font-size:12px}
 .combat-stats-compact .combat-stats-category{font-size:10px;padding:0 5px}
@@ -384,3 +383,24 @@ small,.item-cell small,.panel-heading p,.page-heading p,.field small,.toggle-row
 
 /* Buff observations and immutable purchase-price history. */
 .buff-summary{padding:20px;min-width:0}.buff-summary .panel-heading{margin-bottom:14px}.buff-status,.buff-explanation{font-size:12px;line-height:1.65;color:var(--muted,#8494a5);margin:8px 0 12px}.buff-list{list-style:none;margin:10px 0 0;padding:0;max-height:320px;overflow:auto}.buff-list li{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid #8494a526;font-size:12px;font-variant-numeric:tabular-nums}.buff-list li>span:first-child{min-width:0;overflow-wrap:anywhere}.buff-list strong{font-weight:500}.buff-list small{display:block;color:var(--muted,#8494a5);margin-top:4px;font-size:11px;line-height:1.5}.buff-list li>span:last-child{flex-shrink:0}.buff-details{margin-top:12px;font-size:12px}.buff-details summary{cursor:pointer;line-height:1.6}.chronological-session-details>.buff-summary{margin-top:14px}.edit-modal .buff-summary{margin:12px 0}
+
+.item-tags{display:flex;align-items:center;justify-content:flex-end;gap:6px;flex-wrap:wrap;flex-shrink:0;margin-left:auto}
+.item-tags>.item-tag{margin-left:0;white-space:nowrap}
+.item-tags>.last-drop-tag{display:inline-flex;align-items:center;gap:5px;letter-spacing:0;font-variant-numeric:tabular-nums}
+.last-drop-tag .icon{width:13px;height:13px;flex-shrink:0}
+
+/* Session buff purchases remain readable in the narrow live-session sidebar. */
+.buff-totals{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:12px;margin:0 0 14px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.buff-totals dt,.buff-item-metrics dt{font-size:11px;color:var(--muted);line-height:1.5}
+.buff-totals dd{margin:5px 0 0;font-size:20px;font-weight:600;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.buff-totals dd small{display:block;font-size:10px;font-weight:400;color:var(--muted);margin-top:4px}
+.buff-consumption-summary{list-style:none;padding:0;margin:0 0 14px;max-height:440px;overflow:auto}
+.buff-consumption-summary>li{padding:12px 0;border-bottom:1px solid var(--line)}
+.buff-consumption-summary>li:first-child{padding-top:0}
+.buff-item-name{font-size:13px;font-weight:600;line-height:1.5;overflow-wrap:anywhere}
+.buff-item-metrics{display:grid;grid-template-columns:minmax(0,.55fr) minmax(0,1.15fr) minmax(0,1.15fr);gap:8px;margin:10px 0 0}
+.buff-item-metrics dd{margin:4px 0 0;font-size:12px;line-height:1.5;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.buff-used-count{font-weight:600}.buff-row-note{display:block;margin-top:8px;font-size:11px;color:var(--muted)}
+.buff-active-heading{display:flex;justify-content:space-between;gap:12px;margin-top:18px;font-size:12px;font-weight:600}
+.buff-active-heading>span{color:var(--muted);font-variant-numeric:tabular-nums}
+.buff-details .buff-list li>span:last-child{max-width:45%;overflow-wrap:anywhere;text-align:right}

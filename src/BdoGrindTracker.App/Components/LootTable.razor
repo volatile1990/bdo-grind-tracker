@@ -1,41 +1,63 @@
 @inherits TrackerComponentBase
 
-<section class="panel loot-panel" aria-label="@Title">
+<section class="panel loot-panel" aria-label="@T(Title)">
     <div class="loot-table-header @(Totals.Count > 0 ? "has-loot" : "") @(AllowAddingItems ? "can-add-loot" : "")">
-        <div class="loot-table-title"><h2>@Title <span class="count-pill">@Totals.Count</span></h2>@if (!string.IsNullOrWhiteSpace(Subtitle)) { <p>@Subtitle</p> }</div>
+        <div class="loot-table-title"><h2>@T(Title) <span class="count-pill">@Totals.Count</span></h2>@if (!string.IsNullOrWhiteSpace(Subtitle)) { <p>@T(Subtitle)</p> }</div>
         @if (Totals.Count > 0)
         {
-            <label class="search-field"><AppIcon Name="search" /><input aria-label="Loot durchsuchen" placeholder="Loot durchsuchen …" @bind="_query" @bind:event="oninput" /></label>
-            <label class="sort-field"><span class="sr-only">Loot sortieren</span><select @bind="_sort" aria-label="Loot sortieren"><option value="value">Nach Silberwert</option><option value="quantity">Nach Menge</option><option value="name">Nach Name</option></select></label>
+            <button type="button" class="icon-button loot-search-toggle @(_searchOpen ? "is-open" : "")" @ref="_searchToggle" @onclick="ToggleSearch" aria-label="@T(_searchOpen ? "Suche schließen" : "Loot durchsuchen")" title="@T(_searchOpen ? "Suche schließen" : "Loot durchsuchen")" aria-expanded="@(_searchOpen ? "true" : "false")" aria-controls="@_searchId"><AppIcon Name="@(_searchOpen ? "close" : "search")" /></button>
         }
-        <div class="segmented" aria-label="Mengenanzeige"><button class="@(!_hourly ? "selected" : "")" @onclick="() => _hourly = false" aria-pressed="@(!_hourly ? "true" : "false")">Gesamt</button><button class="@(_hourly ? "selected" : "")" @onclick="() => _hourly = true" aria-pressed="@(_hourly ? "true" : "false")" disabled="@(DurationTicks <= 0)">Pro Stunde</button></div>
+        <div class="segmented" aria-label="@T("Mengenanzeige")"><button class="@(!_hourly ? "selected" : "")" @onclick="() => _hourly = false" aria-pressed="@(!_hourly ? "true" : "false")">@T("Gesamt")</button><button class="@(_hourly ? "selected" : "")" @onclick="() => _hourly = true" aria-pressed="@(_hourly ? "true" : "false")" disabled="@(DurationTicks <= 0)">@T("Pro Stunde")</button></div>
         @if (AllowAddingItems) { <LootItemAdder SessionId="EditableSessionId" SpotId="@SpotId" Totals="Totals" /> }
+        @if (Totals.Count > 0 && _searchOpen)
+        {
+            <div id="@_searchId" class="loot-search-controls" @onkeydown="SearchKeyDown">
+                <label class="search-field"><AppIcon Name="search" /><input @ref="_searchInput" aria-label="@T("Loot durchsuchen")" placeholder="@T("Loot durchsuchen …")" @bind="_query" @bind:event="oninput" /></label>
+                <label class="sort-field"><span class="sr-only">@T("Loot sortieren")</span><select @bind="_sort" aria-label="@T("Loot sortieren")"><option value="value">@T("Nach Silberwert")</option><option value="quantity">@T("Nach Menge")</option><option value="name">@T("Nach Name")</option></select></label>
+            </div>
+        }
     </div>
-    @if (SessionEntry?.GarmothLocallyModified == true) { <div class="notice warning-notice"><AppIcon Name="info" />Lokal korrigiert; Garmoth unverändert.</div> }
+    @if (SessionEntry?.GarmothLocallyModified == true) { <div class="notice warning-notice"><AppIcon Name="info" />@T("Lokal korrigiert; Garmoth unverändert.")</div> }
     @if (Totals.Count > 0)
     {
+        var rows = Rows.ToArray();
         <div class="table-scroll">
             <table class="loot-table">
-                <thead><tr><th scope="col">Gegenstand</th><th scope="col" class="numeric">@(_hourly ? "Menge / h" : "Menge")</th><th scope="col" class="numeric">@(_hourly ? "Netto / h" : "Wert netto")</th></tr></thead>
+                <thead><tr><th scope="col">@T("Gegenstand")</th><th scope="col" class="numeric">@(_hourly ? T("Menge / h") : T("Menge"))</th><th scope="col" class="numeric">@(_hourly ? T("Netto / h") : T("Wert netto"))</th></tr></thead>
                 <tbody>
-                    @foreach (var item in Rows)
+                    @foreach (var item in rows)
                     {
                         var isTrash = item.Name == TrashName;
+                        var showLastDrop = ShowLastDrop && !isTrash && LootSourceCatalog.Allows(item.Name, LootSource.Rare);
                         <tr @key="item.Name" class="@(Tracker.Preferences.FavoriteItems.Contains(item.Name) ? "favorite-loot-row" : "")">
-                            <td><div class="item-cell"><AssetImage Src="@ItemIcon(item.Name)" Alt="" Class="item-image" /><span><strong>@ItemLabel(item.Name)</strong><small>@(isTrash ? "Trashloot · NPC-Verkauf" : Kind(item.Name))@if (item.Stale) { <span class="inline-warning"> · Cachepreis</span> }@if (IsManualItem(item.Name)) { <span class="manual-loot-tag" title="Diese Menge enthält eine manuelle Korrektur."> · Manuell korrigiert</span> }</small></span>@if (isTrash) { <span class="item-tag">TRASH</span> }@if (Tracker.Preferences.FavoriteItems.Contains(item.Name)) { <span class="item-tag favorite-tag">★ FAVORIT</span> }</div></td>
+                            <td>
+                                <div class="item-cell">
+                                    <AssetImage Src="@ItemIcon(item.Name)" Alt="" Class="item-image" />
+                                    <span class="item-copy"><strong>@ItemLabel(item.Name)</strong><small>@(isTrash ? T("Trashloot · NPC-Verkauf") : Kind(item.Name))@if (item.Stale) { <span class="inline-warning"> @T("· Cachepreis")</span> }@if (IsManualItem(item.Name)) { <span class="manual-loot-tag" title="@T("Diese Menge enthält eine manuelle Korrektur.")"> @T("· Manuell korrigiert")</span> }</small></span>
+                                    <span class="item-tags">
+                                        @if (isTrash) { <span class="item-tag">TRASH</span> }
+                                        @if (Tracker.Preferences.FavoriteItems.Contains(item.Name)) { <span class="item-tag favorite-tag">@T("★ FAVORIT")</span> }
+                                        @if (showLastDrop)
+                                        {
+                                            var lastDrop = LastDropPresentation.Create(item.LastDropElapsed, State.Elapsed, UiLanguage);
+                                            <span class="item-tag last-drop-tag" title="@lastDrop.Description" aria-label="@lastDrop.Description"><AppIcon Name="clock" />@lastDrop.Label</span>
+                                        }
+                                    </span>
+                                </div>
+                            </td>
                             <td class="numeric quantity">@if (EditableSessionId is { } sessionId) { <LootQuantityEditor SessionId="sessionId" ItemName="@item.Name" Quantity="item.Quantity" DisplayQuantity="@Number(_hourly ? Hourly(item.Quantity, TimeSpan.FromTicks(DurationTicks)) : item.Quantity)" /> } else { @Number(_hourly ? Hourly(item.Quantity, TimeSpan.FromTicks(DurationTicks)) : item.Quantity) }</td>
-                            <td class="numeric silver-cell" title="@(item.Value.HasValue ? Number(item.Value.Value) + " Silber netto" : "Für diesen Gegenstand fehlt ein Preis.")">@(item.Value.HasValue ? Silver(_hourly ? Hourly(item.Value.Value, TimeSpan.FromTicks(DurationTicks)) : item.Value.Value) : "Preis fehlt")</td>
+                            <td class="numeric silver-cell" title="@(item.Value.HasValue ? F("{0} Silber netto", Number(item.Value.Value)) : T("Für diesen Gegenstand fehlt ein Preis."))">@(item.Value.HasValue ? Silver(_hourly ? Hourly(item.Value.Value, TimeSpan.FromTicks(DurationTicks)) : item.Value.Value) : T("Preis fehlt"))</td>
                         </tr>
                     }
                 </tbody>
             </table>
         </div>
-        @if (!Rows.Any()) { <div class="inline-empty">Kein Gegenstand passt zu „@_query“.</div> }
-        <div class="table-footnote"><AppIcon Name="info" /><span>NPC-Werte ohne Steuer · Marktwerte mit deinen Silber-Einstellungen</span></div>
+        @if (rows.Length == 0) { <div class="inline-empty">@F("Kein Gegenstand passt zu „{0}“.", _query)</div> }
+        <div class="table-footnote"><AppIcon Name="info" /><span>@T("NPC-Werte ohne Steuer · Marktwerte mit deinen Silber-Einstellungen")</span></div>
     }
     else
     {
-        <div class="empty-state loot-empty"><div class="empty-symbol"><AppIcon Name="loot" /></div><h3>Hier landet dein nächster Drop.</h3><p>Starte die Erfassung und grinde wie gewohnt.<br />Erkannter Loot erscheint automatisch in dieser Übersicht.</p><span class="subtle-label">@LootSpotCatalog.Spots.Count unterstützte Grindspots in Edania</span></div>
+        <div class="empty-state loot-empty"><div class="empty-symbol"><AppIcon Name="loot" /></div><h3>@T("Hier landet dein nächster Drop.")</h3><p>@T("Starte die Erfassung und grinde wie gewohnt.")<br />@T("Erkannter Loot erscheint automatisch in dieser Übersicht.")</p><span class="subtle-label">@F("{0} unterstützte Grindspots", LootSpotCatalog.Spots.Count)</span></div>
     }
 </section>
 
@@ -45,12 +67,19 @@
     [Parameter] public Guid? EditableSessionId { get; set; }
     [Parameter] public string? SpotId { get; set; }
     [Parameter] public bool AllowAddingItems { get; set; }
+    [Parameter] public bool ShowLastDrop { get; set; }
     [Parameter] public string? TrashName { get; set; }
     [Parameter] public string Title { get; set; } = "Dein Loot";
     [Parameter] public string Subtitle { get; set; } = "Alle erfassten Drops dieser Session";
     private string _query = "";
     private string _sort = "value";
     private bool _hourly;
+    private bool _searchOpen;
+    private bool _focusSearch;
+    private bool _focusSearchToggle;
+    private readonly string _searchId = "loot-search-" + Guid.NewGuid().ToString("N");
+    private ElementReference _searchInput;
+    private ElementReference _searchToggle;
     private LootHistoryEntry? SessionEntry => EditableSessionId is { } sessionId ? Tracker.History.FirstOrDefault(entry => entry.SessionId == sessionId) : null;
     private bool IsManualItem(string itemName) =>
         EditableSessionId == State.SessionId && State.ManualLootItems.Contains(itemName, StringComparer.OrdinalIgnoreCase) ||
@@ -58,17 +87,50 @@
     protected override void OnParametersSet()
     {
         if (DurationTicks <= 0) _hourly = false;
+        if (Totals.Count == 0)
+        {
+            _searchOpen = false;
+            _query = "";
+            _focusSearch = false;
+            _focusSearchToggle = false;
+        }
     }
-    private sealed record LootRow(string Name, long Quantity, decimal? Value, bool Stale);
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focusSearch) { _focusSearch = false; await _searchInput.FocusAsync(preventScroll: true); }
+        if (_focusSearchToggle) { _focusSearchToggle = false; await _searchToggle.FocusAsync(preventScroll: true); }
+    }
+    private void ToggleSearch()
+    {
+        _searchOpen = !_searchOpen;
+        _focusSearch = _searchOpen;
+        if (!_searchOpen) _query = "";
+    }
+    private void SearchKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key != "Escape") return;
+        _searchOpen = false;
+        _query = "";
+        _focusSearch = false;
+        _focusSearchToggle = true;
+    }
+    private sealed record LootRow(string Name, long Quantity, decimal? Value, bool Stale, TimeSpan? LastDropElapsed);
     private IEnumerable<LootRow> Rows
     {
         get
         {
+            var lastDrops = new Dictionary<string, TimeSpan>(StringComparer.OrdinalIgnoreCase);
+            if (ShowLastDrop && EditableSessionId == State.SessionId)
+                foreach (var drop in State.DropHistory)
+                    if (drop.Quantity > 0 && drop.Elapsed >= TimeSpan.Zero && drop.Elapsed <= State.Elapsed &&
+                        (!lastDrops.TryGetValue(drop.ItemName, out var previous) || drop.Elapsed > previous))
+                        lastDrops[drop.ItemName] = drop.Elapsed;
             var items = Totals.Where(pair => pair.Key.Contains(_query, StringComparison.OrdinalIgnoreCase) ||
                 ItemLocalizationCatalog.GermanNames.GetValueOrDefault(pair.Key, pair.Key).Contains(_query, StringComparison.OrdinalIgnoreCase)).Select(pair =>
             {
                 var valuation = SilverValuation.Calculate(new Dictionary<string, long> { [pair.Key] = pair.Value }, Tracker.Prices, Tracker.Preferences.Tax);
-                return new LootRow(pair.Key, pair.Value, valuation.IsComplete ? valuation.AfterTax : null, valuation.IsStale);
+                return new LootRow(pair.Key, pair.Value, valuation.IsComplete ? valuation.AfterTax : null, valuation.IsStale,
+                    lastDrops.TryGetValue(pair.Key, out var lastDrop) ? lastDrop : null);
             });
             return _sort switch
             {

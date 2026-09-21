@@ -10,147 +10,151 @@
     var currentPage = Math.Clamp(_page, 1, pageCount);
 }
 <div class="page garmoth-page">
-    <div class="page-heading"><h1>Garmoth</h1><a class="text-button" href="@GarmothUploadClient.TrackerPage" target="_blank" rel="noopener noreferrer">Garmoth öffnen <AppIcon Name="arrow" /></a></div>
+    <div class="page-heading"><h1>Garmoth</h1><a class="text-button" href="@GarmothUploadClient.TrackerPage" target="_blank" rel="noopener noreferrer">@T("Garmoth öffnen") <AppIcon Name="arrow" /></a></div>
     @if (State.IsDemo)
     {
-        <div class="notice demo-notice"><AppIcon Name="spark" /><span>Demo · Beispieldaten können nicht hochgeladen werden.</span></div>
+        <div class="notice demo-notice"><AppIcon Name="spark" /><span>@T("Demo · Beispieldaten können nicht hochgeladen werden.")</span></div>
     }
     @if (_uploadFeedback is not null)
     {
-        <div class="notice @(_uploadFailed ? "error-notice" : "success-notice")" role="status"><AppIcon Name="@(_uploadFailed ? "info" : "check")" />@_uploadFeedback</div>
+        <div class="notice @(_uploadFailed ? "error-notice" : "success-notice")" role="status"><AppIcon Name="@(_uploadFailed ? "info" : "check")" />@UploadFeedbackText</div>
     }
 
-    <section class="panel garmoth-connection" aria-label="Garmoth-Verbindung und Automatik">
+    <section class="panel garmoth-connection" aria-label="@T("Garmoth-Verbindung und Automatik")">
         <form @onsubmit="SaveKey" @onsubmit:preventDefault>
             <div class="garmoth-connection-fields">
-                <label class="field"><span>API-Schlüssel <span class="badge @(State.HasApiKey ? "teal-badge" : "muted-badge")">@(State.HasApiKey ? "Gespeichert" : "Nicht hinterlegt")</span></span><div class="key-input"><AppIcon Name="key" /><input type="password" aria-label="Garmoth-API-Schlüssel" autocomplete="new-password" spellcheck="false" maxlength="4096" placeholder="@(State.HasApiKey ? "Schlüssel ersetzen …" : "API-Schlüssel einfügen")" @bind="_apiKey" @bind:event="oninput" @bind:after="FormChanged" @onblur="SaveKey" disabled="@InteractionBlocked" /></div></label>
-                <label class="toggle-row garmoth-auto-toggle"><span><strong>Stündlich automatisch hochladen</strong></span><input type="checkbox" class="switch" aria-label="Stündlich automatisch hochladen" checked="@Tracker.Preferences.AutoUpload" @onchange="AutoUploadChanged" disabled="@InteractionBlocked" /></label>
+                <label class="field"><span>@T("API-Schlüssel") <span class="badge @(State.HasApiKey ? "teal-badge" : "muted-badge")">@(State.HasApiKey ? T("Gespeichert") : T("Nicht hinterlegt"))</span></span><div class="key-input"><AppIcon Name="key" /><input type="password" aria-label="@T("Garmoth-API-Schlüssel")" autocomplete="new-password" spellcheck="false" maxlength="4096" placeholder="@T(State.HasApiKey ? "Schlüssel ersetzen …" : "API-Schlüssel einfügen")" @bind="_apiKey" @bind:event="oninput" @bind:after="FormChanged" @onblur="SaveKey" disabled="@InteractionBlocked" /></div></label>
+                <label class="toggle-row garmoth-auto-toggle"><span><strong>@T("Stündlich automatisch hochladen")</strong></span><input type="checkbox" class="switch" aria-label="@T("Stündlich automatisch hochladen")" checked="@Tracker.Preferences.AutoUpload" @onchange="AutoUploadChanged" disabled="@InteractionBlocked" /></label>
                 @if (State.HasApiKey)
                 {
-                    <button type="button" class="text-button garmoth-remove-key" aria-label="Gespeicherten Garmoth-Schlüssel entfernen" @onclick="RemoveKey" disabled="@InteractionBlocked"><AppIcon Name="delete" />Schlüssel entfernen</button>
+                    <button type="button" class="text-button garmoth-remove-key" aria-label="@T("Gespeicherten Garmoth-Schlüssel entfernen")" @onclick="RemoveKey" disabled="@InteractionBlocked"><AppIcon Name="delete" />@T("Schlüssel entfernen")</button>
                 }
             </div>
-            <a class="text-button" href="@GarmothUploadClient.SettingsPage" target="_blank" rel="noopener noreferrer">API-Schlüssel erhalten</a>
+            <a class="text-button" href="@GarmothUploadClient.SettingsPage" target="_blank" rel="noopener noreferrer">@T("API-Schlüssel erhalten")</a>
             @if (_saveFeedback is not null)
             {
-                <div class="garmoth-form-feedback is-error" role="alert"><AppIcon Name="info" />@_saveFeedback</div>
+                <div class="garmoth-form-feedback is-error" role="alert"><AppIcon Name="info" />@T(_saveFeedback)</div>
             }
-            @if (State.AutomaticSuspended && !State.UploadBlocked && State.HasApiKey && Tracker.Preferences.AutoUpload)
+            @if (State.AutomaticUploadNeedsReview && !State.UploadBlocked)
             {
-                <div class="garmoth-resume"><span>Automatik ausgesetzt</span><button type="button" class="button secondary" @onclick="ResumeAutomatic" disabled="@InteractionBlocked">Automatik fortsetzen</button></div>
+                <div class="garmoth-form-feedback" role="status"><AppIcon Name="info" />@T("Lootmengen haben sich nach Stundenabschluss geändert. Bitte die Vorschau für den verbleibenden Grind prüfen und manuell senden.")</div>
+            }
+            else if (State.AutomaticSuspended && !State.UploadBlocked && State.HasApiKey && Tracker.Preferences.AutoUpload)
+            {
+                <div class="garmoth-resume"><span>@T("Automatik ausgesetzt")</span><button type="button" class="button secondary" @onclick="ResumeAutomatic" disabled="@InteractionBlocked">@T("Automatik fortsetzen")</button></div>
             }
         </form>
     </section>
 
-    <section class="panel garmoth-history" aria-label="Sessions für Garmoth">
-        <div class="panel-heading"><h2>Sessions <span class="count-pill">@rows.Count</span></h2><button class="button primary" @onclick="AskAllUploads" disabled="@(!CanUploadAll)"><AppIcon Name="upload" />@(_batchUploading ? $"Hochladen · {_batchCompleted} / {_batchTotal}" : "Alles hochladen")</button></div>
-        <div class="garmoth-history-toolbar"><label class="search-field"><AppIcon Name="search" /><input aria-label="Gespeicherte Garmoth-Sessions nach Spot suchen" placeholder="Grindspot suchen …" @bind="_search" @bind:event="oninput" @bind:after="ResetPage" /></label><label class="filter-field"><span>Status</span><select aria-label="Garmoth-Upload-Status filtern" @bind="_statusFilter" @bind:after="ResetPage"><option value="all">Alle Sessions</option><option value="pending">Noch offen</option><option value="transferred">Hochgeladen</option><option value="blocked">Upload gesperrt</option></select></label><span class="filter-count">@visible.Length Treffer</span></div>
+    <section class="panel garmoth-history" aria-label="@T("Sessions für Garmoth")">
+        <div class="panel-heading"><h2>Sessions <span class="count-pill">@rows.Count</span></h2><button class="button primary" @onclick="AskAllUploads" disabled="@(!CanUploadAll)"><AppIcon Name="upload" />@(_batchUploading ? F("Hochladen · {0} / {1}", _batchCompleted, _batchTotal) : T("Alles hochladen"))</button></div>
+        <div class="garmoth-history-toolbar"><label class="search-field"><AppIcon Name="search" /><input aria-label="@T("Gespeicherte Garmoth-Sessions nach Spot suchen")" placeholder="@T("Grindspot suchen …")" @bind="_search" @bind:event="oninput" @bind:after="ResetPage" /></label><label class="filter-field"><span>Status</span><select aria-label="@T("Garmoth-Upload-Status filtern")" @bind="_statusFilter" @bind:after="ResetPage"><option value="all">@T("Alle Sessions")</option><option value="pending">@T("Noch offen")</option><option value="transferred">@T("Hochgeladen")</option><option value="blocked">@T("Upload gesperrt")</option></select></label><span class="filter-count">@F("{0} Treffer", visible.Length)</span></div>
         @if (visible.Length > 0)
         {
-            <div class="table-scroll"><table class="garmoth-upload-table" aria-label="Upload-Tabelle der Sessions"><thead><tr><th scope="col">Grindspot / Session</th><th scope="col">Dauer</th><th scope="col" class="numeric">Silber netto · aktuell</th><th scope="col">Upload-Status</th><th scope="col"><span class="sr-only">Aktion</span></th></tr></thead><tbody>
+            <div class="table-scroll"><table class="garmoth-upload-table" aria-label="@T("Upload-Tabelle der Sessions")"><thead><tr><th scope="col">@T("Grindspot / Session")</th><th scope="col">@T("Dauer")</th><th scope="col" class="numeric">@T("Silber netto · aktuell")</th><th scope="col">@T("Upload-Status")</th><th scope="col"><span class="sr-only">@T("Aktion")</span></th></tr></thead><tbody>
                 @foreach (var row in visible.Skip((currentPage - 1) * PageSize).Take(PageSize))
                 {
                     <tr @key="row.SessionId" data-session-id="@row.SessionId">
                         <td><div class="garmoth-history-identity"><AssetImage Src="@("assets/spot-icons/" + Profile(row.SpotId)?.IconFileName)" Alt="" Class="garmoth-history-spot" Fallback="pin" /><span><strong>@SpotName(row.SpotId)</strong>
-                            @if (row.IsCurrent && !State.IsSubmitted) { <small class="garmoth-live-marker"><span class="status-dot @(State.IsRunning ? "running" : "")"></span>Live-Session · @(State.IsRunning ? "Aktiv" : "Pausiert")</small> }
-                            @if (row.StartedAt is { } startedAt) { <small>@startedAt.ToLocalTime().ToString("dd. MMM yyyy · HH:mm", German)</small> }
-                            <small class="garmoth-history-class">@(row.CharacterClass ?? "Klasse nicht erkannt")</small></span></div></td>
+                            @if (row.IsCurrent && !State.IsSubmitted) { <small class="garmoth-live-marker"><span class="status-dot @(State.IsRunning ? "running" : "")"></span>@T("Live-Session") · @(State.IsRunning ? T("Aktiv") : T("Pausiert"))</small> }
+                            @if (row.StartedAt is { } startedAt) { <small>@startedAt.ToLocalTime().ToString("g", UiCulture)</small> }
+                            <small class="garmoth-history-class">@T(row.CharacterClass ?? "Klasse nicht erkannt")</small></span></div></td>
                         <td class="garmoth-duration">@ShortDuration(row.Duration)</td>
                         <td class="numeric garmoth-silver">@(row.Valuation.HasKnownValue ? Silver(row.Valuation.AfterTax) : "—")@(!row.Valuation.IsComplete ? " *" : "")
-                            @if (!row.Valuation.IsComplete) { <small>Teilbetrag · Preise fehlen</small> }
-                            @if (row.Valuation.IsStale) { <small>Älterer Preisstand</small> }
+                            @if (!row.Valuation.IsComplete) { <small>@T("Teilbetrag · Preise fehlen")</small> }
+                            @if (row.Valuation.IsStale) { <small>@T("Älterer Preisstand")</small> }
                         </td>
                         <td><div class="garmoth-history-status"><span class="garmoth-status-label @(row.Blocked ? "is-blocked" : row.Uploaded ? "is-transferred" : "is-pending")"><AppIcon Name="@(row.Blocked ? "shield" : row.Uploaded ? "check" : "clock")" />@RowStatus(row)</span>
-                            @if (row.LocallyModified) { <small>Lokal geändert · Garmoth unverändert</small> }
-                            @if (row.Blocked && !row.Uploaded) { <small>Ergebnis in Garmoth prüfen</small> }
-                            else if (!row.Blocked && !row.Preview.IsReady) { <small>@row.Preview.Error</small> }
+                            @if (row.LocallyModified) { <small>@T("Lokal geändert · Garmoth unverändert")</small> }
+                            @if (row.Blocked && !row.Uploaded) { <small>@T("Ergebnis in Garmoth prüfen")</small> }
+                            else if (!row.Blocked && !row.Preview.IsReady) { <small>@T(row.Preview.Error ?? "")</small> }
                         </div></td>
-                        <td class="garmoth-row-action"><button class="button secondary" aria-label="@(row.IsCurrent ? "Aktuellen Session-Anteil hochladen" : "Gespeicherte Session hochladen")" @onclick="() => AskUpload(row)" disabled="@(!CanUpload(row))" title="@UploadHint(row)"><AppIcon Name="upload" />@(_uploadingSession == row.SessionId ? "Sendet …" : "Hochladen")</button>
-                            @if (row.Preview.CorrectionHref is { } correctionHref) { <a class="text-button" href="@correctionHref">@row.Preview.CorrectionLabel</a> }
+                        <td class="garmoth-row-action"><button class="button secondary" aria-label="@T(row.IsCurrent ? "Aktuellen Session-Anteil hochladen" : "Gespeicherte Session hochladen")" @onclick="() => AskUpload(row)" disabled="@(!CanUpload(row))" title="@UploadHint(row)"><AppIcon Name="upload" />@(_uploadingSession == row.SessionId ? T("Sendet …") : T("Hochladen"))</button>
+                            @if (row.Preview.CorrectionHref is { } correctionHref) { <a class="text-button" href="@correctionHref">@T(row.Preview.CorrectionLabel ?? "")</a> }
                         </td>
                     </tr>
                 }
             </tbody></table></div>
             @if (pageCount > 1)
             {
-                <div class="pagination"><span>@(((currentPage - 1) * PageSize) + 1)–@Math.Min(currentPage * PageSize, visible.Length) von @visible.Length Sessions</span><div><button class="icon-button" aria-label="Vorherige Seite der Garmoth-Sessions" @onclick="() => _page = currentPage - 1" disabled="@(currentPage <= 1)"><AppIcon Name="back" /></button><span>Seite @currentPage von @pageCount</span><button class="icon-button" aria-label="Nächste Seite der Garmoth-Sessions" @onclick="() => _page = currentPage + 1" disabled="@(currentPage >= pageCount)"><AppIcon Name="arrow" /></button></div></div>
+                <div class="pagination"><span>@F("{0}–{1} von {2} Sessions", ((currentPage - 1) * PageSize) + 1, Math.Min(currentPage * PageSize, visible.Length), visible.Length)</span><div><button class="icon-button" aria-label="@T("Vorherige Seite der Garmoth-Sessions")" @onclick="() => _page = currentPage - 1" disabled="@(currentPage <= 1)"><AppIcon Name="back" /></button><span>@F("Seite {0} von {1}", currentPage, pageCount)</span><button class="icon-button" aria-label="@T("Nächste Seite der Garmoth-Sessions")" @onclick="() => _page = currentPage + 1" disabled="@(currentPage >= pageCount)"><AppIcon Name="arrow" /></button></div></div>
             }
         }
         else
         {
-            <div class="empty-state garmoth-history-empty"><AppIcon Name="history" /><h3>@(rows.Count > 0 ? "Keine passenden Sessions" : "Noch keine Sessions")</h3></div>
+            <div class="empty-state garmoth-history-empty"><AppIcon Name="history" /><h3>@(rows.Count > 0 ? T("Keine passenden Sessions") : T("Noch keine Sessions"))</h3></div>
         }
     </section>
 </div>
 
 <dialog id="garmoth-upload-confirm" class="modal confirm-modal" aria-labelledby="garmoth-upload-title" @oncancel="CloseUploadDialog">
-    <div class="modal-heading"><div><span class="eyebrow">GARMOTH-UPLOAD</span><h2 id="garmoth-upload-title">@(_confirmCurrent ? "Session-Anteil hochladen?" : "Gespeicherte Session hochladen?")</h2></div><button class="icon-button" @onclick="CloseUploadDialog" aria-label="Upload-Dialog schließen" disabled="@Acting"><AppIcon Name="close" /></button></div>
-    <p>@(_confirmCurrent ? "Nur der offene Rest wird hochgeladen. Die Live-Session ist pausiert und wird nach erfolgreichem Upload abgeschlossen." : "Diese Session wird an dein Garmoth-Konto übertragen.")</p>
+    <div class="modal-heading"><div><span class="eyebrow">GARMOTH-UPLOAD</span><h2 id="garmoth-upload-title">@(_confirmCurrent ? T("Session-Anteil hochladen?") : T("Gespeicherte Session hochladen?"))</h2></div><button class="icon-button" @onclick="CloseUploadDialog" aria-label="@T("Upload-Dialog schließen")" disabled="@Acting"><AppIcon Name="close" /></button></div>
+    <p>@(_confirmCurrent ? T("Nur der offene Rest wird hochgeladen. Die Live-Session ist pausiert und wird nach erfolgreichem Upload abgeschlossen.") : T("Diese Session wird an dein Garmoth-Konto übertragen."))</p>
     @if (_confirmedPreview is { IsReady: true } preview)
     {
         @if (preview.Draft is { } draft && preview.Payload is { } payload)
         {
             <div class="confirm-summary">
-                <span class="eyebrow">@(_confirmCurrent ? "TATSÄCHLICHER RESTANTEIL" : "DIESE SESSION WIRD ÜBERTRAGEN")</span>
+                <span class="eyebrow">@(_confirmCurrent ? T("TATSÄCHLICHER RESTANTEIL") : T("DIESE SESSION WIRD ÜBERTRAGEN"))</span>
                 <strong>@SpotName(draft.SpotId)</strong>
-                <span>@Duration(draft.ActiveDuration) aktive Zeit · @Number(payload.Minutes) Minuten an Garmoth</span>
+                <span>@F("{0} aktive Zeit · {1} Minuten an Garmoth", Duration(draft.ActiveDuration), Number(payload.Minutes))</span>
                 <span>@draft.ClassName · @draft.Specialization</span>
-                <span>@Silver(payload.Total) Silber netto · @Silver(payload.Hourly) pro Stunde</span>
-                @if (!preview.SilverIsComplete) { <small>* Teilbetrag: Fehlende Preise wurden nicht geschätzt.</small> }
-                @if (preview.SilverIsStale) { <small>Einige Marktpreise stammen aus dem Cache.</small> }
+                <span>@F("{0} Silber netto · {1} pro Stunde", Silver(payload.Total), Silver(payload.Hourly))</span>
+                @if (!preview.SilverIsComplete) { <small>@T("* Teilbetrag: Fehlende Preise wurden nicht geschätzt.")</small> }
+                @if (preview.SilverIsStale) { <small>@T("Einige Marktpreise stammen aus dem Cache.")</small> }
             </div>
             <div class="table-scroll garmoth-confirm-loot">
-                <table aria-label="Tatsächlich an Garmoth übertragene Lootmengen">
-                    <thead><tr><th>Gegenstand</th><th class="numeric">Menge</th><th>Status</th></tr></thead>
+                <table aria-label="@T("Tatsächlich an Garmoth übertragene Lootmengen")">
+                    <thead><tr><th>@T("Gegenstand")</th><th class="numeric">@T("Menge")</th><th>Status</th></tr></thead>
                     <tbody>
                         @foreach (var (name, quantity) in draft.Totals.OrderBy(pair => pair.Key))
                         {
-                            <tr><td>@ItemLabel(name)</td><td class="numeric">@Number(quantity)</td><td>@(payload.OmittedItems.Contains(name) ? "Ausgelassen: keine Zuordnung" : "Wird übertragen")</td></tr>
+                            <tr><td>@ItemLabel(name)</td><td class="numeric">@Number(quantity)</td><td>@(payload.OmittedItems.Contains(name) ? T("Ausgelassen: keine Zuordnung") : T("Wird übertragen"))</td></tr>
                         }
                     </tbody>
                 </table>
             </div>
             @if (payload.OmittedItems.Count > 0)
             {
-                <p class="garmoth-confirm-note">Ausgelassene Gegenstände bleiben in deiner lokalen Session. Ihr bekannter Silberwert ist im Gesamtbetrag enthalten.</p>
+                <p class="garmoth-confirm-note">@T("Ausgelassene Gegenstände bleiben in deiner lokalen Session. Ihr bekannter Silberwert ist im Gesamtbetrag enthalten.")</p>
             }
         }
 
     }
-    @if (_dialogError is not null) { <div class="garmoth-form-feedback is-error" role="alert"><AppIcon Name="info" />@_dialogError</div> }
+    @if (_dialogError is not null) { <div class="garmoth-form-feedback is-error" role="alert"><AppIcon Name="info" />@T(_dialogError)</div> }
     else if (_confirmedPreview is not null && !CanConfirmUpload && !Acting)
     {
-        <div class="garmoth-form-feedback is-error" role="status"><AppIcon Name="info" />Diese Vorschau kann derzeit nicht übertragen werden. Der Session- oder Uploadstatus hat sich geändert. Bitte öffne die Vorschau erneut.</div>
+        <div class="garmoth-form-feedback is-error" role="status"><AppIcon Name="info" />@T("Diese Vorschau kann derzeit nicht übertragen werden. Der Session- oder Uploadstatus hat sich geändert. Bitte öffne die Vorschau erneut.")</div>
     }
-    <div class="modal-actions"><button class="button secondary" @onclick="CloseUploadDialog" disabled="@Acting">Abbrechen</button><button class="button primary" @onclick="ConfirmUpload" disabled="@(!CanConfirmUpload)"><AppIcon Name="upload" />Jetzt hochladen</button></div>
+    <div class="modal-actions"><button class="button secondary" @onclick="CloseUploadDialog" disabled="@Acting">@T("Abbrechen")</button><button class="button primary" @onclick="ConfirmUpload" disabled="@(!CanConfirmUpload)"><AppIcon Name="upload" />@T("Jetzt hochladen")</button></div>
 </dialog>
 
 <dialog id="garmoth-all-upload-confirm" class="modal confirm-modal" aria-labelledby="garmoth-all-upload-title" @oncancel="CloseAllUploadsDialog">
-    <div class="modal-heading"><h2 id="garmoth-all-upload-title">Alles hochladen?</h2><button class="icon-button" @onclick="CloseAllUploadsDialog" aria-label="Sammelupload-Dialog schließen" disabled="@Acting"><AppIcon Name="close" /></button></div>
-    <p>@_batchTargets.Count Sessions an dein Garmoth-Konto übertragen – aus allen Seiten und unabhängig vom Listenfilter.</p>
-    @if (_batchSkipped > 0) { <p>@_batchSkipped bereits übertragene, gesperrte oder noch nicht uploadfähige Sessions werden ausgelassen.</p> }
-    @if (_batchTargets.Any(target => target.IsCurrent)) { <p>Die Live-Session ist pausiert. Ihr offener Rest wird hochgeladen und die Session danach abgeschlossen.</p> }
+    <div class="modal-heading"><h2 id="garmoth-all-upload-title">@T("Alles hochladen?")</h2><button class="icon-button" @onclick="CloseAllUploadsDialog" aria-label="@T("Sammelupload-Dialog schließen")" disabled="@Acting"><AppIcon Name="close" /></button></div>
+    <p>@F("{0} Sessions an dein Garmoth-Konto übertragen – aus allen Seiten und unabhängig vom Listenfilter.", _batchTargets.Count)</p>
+    @if (_batchSkipped > 0) { <p>@F("{0} bereits übertragene, gesperrte oder noch nicht uploadfähige Sessions werden ausgelassen.", _batchSkipped)</p> }
+    @if (_batchTargets.Any(target => target.IsCurrent)) { <p>@T("Die Live-Session ist pausiert. Ihr offener Rest wird hochgeladen und die Session danach abgeschlossen.")</p> }
     <div class="table-scroll garmoth-confirm-loot">
-        <table aria-label="Sessions im Sammelupload"><thead><tr><th>Session</th><th>Dauer</th><th class="numeric">Silber netto</th></tr></thead><tbody>
+        <table aria-label="@T("Sessions im Sammelupload")"><thead><tr><th>Session</th><th>@T("Dauer")</th><th class="numeric">@T("Silber netto")</th></tr></thead><tbody>
             @foreach (var target in _batchTargets)
             {
                 var batchPreview = target.Preview;
                 var batchDraft = batchPreview.Draft!;
-                <tr><td>@SpotName(batchDraft.SpotId)<small>@batchDraft.StartedAt.ToLocalTime().ToString("dd.MM.yyyy · HH:mm", German) · @batchDraft.ClassName @(target.IsCurrent ? "· Live-Session" : "")</small></td><td>@Duration(batchDraft.ActiveDuration)</td><td class="numeric">@Silver(batchPreview.Payload!.Total)@(!batchPreview.SilverIsComplete ? " *" : "")</td></tr>
+                <tr><td>@SpotName(batchDraft.SpotId)<small>@batchDraft.StartedAt.ToLocalTime().ToString("g", UiCulture) · @batchDraft.ClassName @(target.IsCurrent ? "· " + T("Live-Session") : "")</small></td><td>@Duration(batchDraft.ActiveDuration)</td><td class="numeric">@Silver(batchPreview.Payload!.Total)@(!batchPreview.SilverIsComplete ? " *" : "")</td></tr>
             }
         </tbody></table>
     </div>
-    <p class="garmoth-confirm-note">Bei einem Fehler wird gestoppt. Erfolgreiche Uploads bleiben in Garmoth erhalten.</p>
-    @if (_batchTargets.Any(target => !target.Preview.SilverIsComplete)) { <p class="garmoth-confirm-note">* Teilbetrag: Für einige Gegenstände fehlen Preise.</p> }
-    @if (_batchTargets.Any(target => target.Preview.SilverIsStale)) { <p class="garmoth-confirm-note">Einige Marktpreise stammen aus dem Cache.</p> }
+    <p class="garmoth-confirm-note">@T("Bei einem Fehler wird gestoppt. Erfolgreiche Uploads bleiben in Garmoth erhalten.")</p>
+    @if (_batchTargets.Any(target => !target.Preview.SilverIsComplete)) { <p class="garmoth-confirm-note">@T("* Teilbetrag: Für einige Gegenstände fehlen Preise.")</p> }
+    @if (_batchTargets.Any(target => target.Preview.SilverIsStale)) { <p class="garmoth-confirm-note">@T("Einige Marktpreise stammen aus dem Cache.")</p> }
     @if (_batchTargets.SelectMany(target => target.Preview.Payload!.OmittedItems).Distinct().ToArray() is { Length: > 0 } omitted)
     {
-        <p class="garmoth-confirm-note">Ohne Garmoth-Zuordnung ausgelassen: @string.Join(", ", omitted.Select(ItemLabel)). Ihr bekannter Silberwert ist im Gesamtbetrag enthalten.</p>
+        <p class="garmoth-confirm-note">@F("Ohne Garmoth-Zuordnung ausgelassen: {0}. Ihr bekannter Silberwert ist im Gesamtbetrag enthalten.", string.Join(", ", omitted.Select(ItemLabel)))</p>
     }
-    @if (_dialogError is not null) { <div class="garmoth-form-feedback is-error" role="alert">@_dialogError</div> }
+    @if (_dialogError is not null) { <div class="garmoth-form-feedback is-error" role="alert">@T(_dialogError)</div> }
     else if (_batchTargets.Count > 0 && !CanConfirmAllUploads && !Acting)
     {
-        <div class="garmoth-form-feedback is-error" role="status">Der Session- oder Uploadstatus hat sich geändert. Bitte öffne die Vorschau erneut.</div>
+        <div class="garmoth-form-feedback is-error" role="status">@T("Der Session- oder Uploadstatus hat sich geändert. Bitte öffne die Vorschau erneut.")</div>
     }
-    <div class="modal-actions"><button class="button secondary" @onclick="CloseAllUploadsDialog" disabled="@Acting">Abbrechen</button><button class="button primary" @onclick="ConfirmAllUploads" disabled="@(!CanConfirmAllUploads)"><AppIcon Name="upload" />@_batchTargets.Count Sessions hochladen</button></div>
+    <div class="modal-actions"><button class="button secondary" @onclick="CloseAllUploadsDialog" disabled="@Acting">@T("Abbrechen")</button><button class="button primary" @onclick="ConfirmAllUploads" disabled="@(!CanConfirmAllUploads)"><AppIcon Name="upload" />@F("{0} Sessions hochladen", _batchTargets.Count)</button></div>
 </dialog>

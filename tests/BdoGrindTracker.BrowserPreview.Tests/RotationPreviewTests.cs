@@ -21,7 +21,7 @@ public sealed class RotationPreviewTests
         await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
         var markup = await renderer.Dispatcher.InvokeAsync(async () => WebUtility.HtmlDecode(
             (await renderer.RenderComponentAsync<OverlayRotationTimeline>(ParameterView.FromDictionary(
-                new Dictionary<string, object?> { ["State"] = state }))).ToHtmlString()));
+                new Dictionary<string, object?> { ["State"] = state, ["Language"] = "de" }))).ToHtmlString()));
         Assert.Contains($"{count}/3 Small Scarecrows spawned", markup);
         Assert.Contains(RotationTimelinePresentation.SetupHint, markup);
         Assert.DoesNotContain("<svg", markup);
@@ -34,7 +34,7 @@ public sealed class RotationPreviewTests
         await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
         var markup = await renderer.Dispatcher.InvokeAsync(async () => WebUtility.HtmlDecode(
             (await renderer.RenderComponentAsync<OverlayRotationTimeline>(ParameterView.FromDictionary(
-                new Dictionary<string, object?> { ["State"] = state }))).ToHtmlString()));
+                new Dictionary<string, object?> { ["State"] = state, ["Language"] = "de" }))).ToHtmlString()));
         Assert.Contains("Aphrodon Temple", markup);
         Assert.Contains("9. Hog", markup);
         Assert.Contains("6. Agris", markup);
@@ -56,7 +56,7 @@ public sealed class RotationPreviewTests
             SpotId = LootSpotCatalog.HermesiaId, Elapsed = 60, Events = events, Synchronized = true,
             Best = new(120, events), Ideal = new(110, events),
         } };
-        var snapshot = new OverlayMetrics().Update(state, new());
+        var snapshot = new OverlayMetrics().Update(state, new() { UiLanguage = "de" });
         Assert.True(snapshot.Rotation.HasProfile);
         Assert.Contains("Hermesia", snapshot.Rotation.SpotName);
         var widget = OverlayCatalog.CreateWidget("rotation-monitor") with { RotationComparison = comparison };

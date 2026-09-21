@@ -18,7 +18,9 @@ Die anschließende Nutzervorgabe vom 13. September gilt für alle Spots:
 
 Die Nutzervorgabe vom 14. September ergänzt **Intricately Patterned Mystical Shard**
 als globalen Drop mit **Minimum 1 und Maximum 1** an allen unterstützten Spots.
-Diese feste Einermenge gilt auch vor der Spoterkennung und in beiden Lootkanälen.
+Diese feste Einermenge gilt auch vor der Spoterkennung. Seit der Nutzervorgabe
+vom 17. September akzeptiert der Live-Tracker jedes Item ausschließlich in seinem
+[festgelegten Droplog](LOOT_SOURCES.md); die Mengenregel hebt diesen Filter nicht auf.
 
 Aphrodon und Hermesia behalten Trash-Minimum 4; Magaia, Aresion, Scales of Judgment
 und Event Horizon behalten Minimum 2. Die bisherigen Outer-Edania-Minima bleiben 1.
@@ -41,6 +43,8 @@ vorhanden und jeder Bereich gültig ist. Excel wird zur Laufzeit nicht benötigt
 - Die Grenzen müssen zum Spot und zur tatsächlich angezeigten Menge passen;
   Trashboni und besondere Gegner sind bei der Bestätigung einzubeziehen.
 - Manuelle Gesamtkorrekturen sind von diesen Einzel-Dropgrenzen unabhängig.
+- Die [Kanalzuordnung](LOOT_SOURCES.md) gilt zusätzlich zur Menge: `1/1` erlaubt
+  weder das falsche Droplog noch garantiert es die Erkennung getrennter Ereignisse.
 
 ## Verarbeitung
 

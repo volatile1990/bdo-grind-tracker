@@ -9,20 +9,25 @@ public static class CompanionFrameDecoder
     public static Mat Decode(Bitmap bitmap)
     {
         ArgumentNullException.ThrowIfNull(bitmap);
-        if (bitmap.Width <= 0 || bitmap.Height <= 0)
-        {
-            throw new ArgumentException("The bitmap must have a positive size.", nameof(bitmap));
-        }
+        return Decode(bitmap, new Rectangle(0, 0, bitmap.Width, bitmap.Height));
+    }
+
+    /// <summary>Copies only the requested pixels, retaining the full decoder's color and stride semantics.</summary>
+    public static Mat Decode(Bitmap bitmap, Rectangle region)
+    {
+        ArgumentNullException.ThrowIfNull(bitmap);
+        if (region.X < 0 || region.Y < 0 || region.Width <= 0 || region.Height <= 0 ||
+            (long)region.X + region.Width > bitmap.Width || (long)region.Y + region.Height > bitmap.Height)
+            throw new ArgumentOutOfRangeException(nameof(region), "The region must be inside the bitmap.");
 
         Bitmap? converted = null;
         var source = bitmap;
         var pixelFormat = source.PixelFormat;
         if (!TryGetMatLayout(pixelFormat, out var matType, out var conversion))
         {
-            converted = bitmap.Clone(
-                new Rectangle(0, 0, bitmap.Width, bitmap.Height),
-                PixelFormat.Format32bppPArgb);
+            converted = bitmap.Clone(region, PixelFormat.Format32bppPArgb);
             source = converted;
+            region = new Rectangle(0, 0, converted.Width, converted.Height);
             pixelFormat = source.PixelFormat;
             _ = TryGetMatLayout(pixelFormat, out matType, out conversion);
         }
@@ -31,18 +36,22 @@ public static class CompanionFrameDecoder
         try
         {
             bitmapData = source.LockBits(
-                new Rectangle(0, 0, source.Width, source.Height),
+                region,
                 ImageLockMode.ReadOnly,
                 pixelFormat);
-            using var wrapped = CreateTopDownView(bitmapData, source.Size, matType);
+            using var wrapped = CreateTopDownView(bitmapData, region.Size, matType);
             if (conversion is not { } colorConversion)
             {
                 return wrapped.Clone();
             }
 
             var result = new Mat();
-            Cv2.CvtColor(wrapped, result, colorConversion);
-            return result;
+            try
+            {
+                Cv2.CvtColor(wrapped, result, colorConversion);
+                return result;
+            }
+            catch { result.Dispose(); throw; }
         }
         finally
         {

@@ -14,7 +14,7 @@ using BdoGrindTracker.Core;
 
 namespace BdoGrindTracker.App.Tests;
 
-public sealed class TrackerSessionRestoreTests
+public sealed partial class TrackerSessionRestoreTests
 {
     [Theory]
     [InlineData(false, 0)]

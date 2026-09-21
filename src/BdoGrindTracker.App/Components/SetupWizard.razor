@@ -1,0 +1,188 @@
+@page "/setup"
+@inherits TrackerComponentBase
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<div class="page setup-page">
+    <header class="setup-heading">
+        <div><span class="eyebrow">GRINDCREST · @T("ERSTE SCHRITTE")</span><h1>@T("Dein Loot. Von Anfang an im Blick.")</h1><p>@T("Richte Grindcrest für dein Spiel ein. Alle Einstellungen kannst du später ändern.")</p></div>
+        <button class="text-button" @onclick="Leave" disabled="@Busy">@(Tracker.Preferences.SetupCompleted ? T("Einrichtung schließen") : T("Später fortsetzen"))</button>
+    </header>
+
+    <ol class="setup-progress" aria-label="@T("Einrichtungsschritte")">
+        @for (var index = 0; index < Steps.Length; index++)
+        {
+            <li class="@(index == _step ? "is-current" : index < _step ? "is-done" : "")" aria-current="@(index == _step ? "step" : null)"><span class="setup-step-number">@if (index < _step) { <AppIcon Name="check" /> } else { @(index + 1) }</span><span>@T(Steps[index])</span></li>
+        }
+    </ol>
+
+    <section class="setup-content" aria-labelledby="setup-step-title" @key="_step">
+        <div class="setup-step-heading"><span class="eyebrow">@F("Schritt {0} von {1}", _step + 1, Steps.Length)</span><h2 id="setup-step-title" tabindex="-1" @ref="_stepTitle">@T(Titles[_step])</h2></div>
+        @if (ActionError is not null) { <div class="notice error-notice" role="alert">@T(ActionError)</div> }
+
+        @if (_step == 0)
+        {
+            <div class="setup-columns">
+                <TrackerPreferenceSettings @ref="_fields" Section="appearance" />
+                <aside class="panel settings-panel setup-explainer"><AppIcon Name="loot" /><h3>@T("Aus sichtbaren Drops wird deine Session.")</h3><p>@T("Grindcrest liest die Lootmeldungen im Spielbild und zählt Gegenstände, aktive Grindzeit und Silber. Dafür müssen die Droplogs gut lesbar bleiben.")</p><div class="subtle-box"><AppIcon Name="shield" /><span>@T("Dein Verlauf bleibt lokal auf diesem PC. Garmoth-Uploads sind optional und werden separat eingerichtet.")</span></div><p class="field-note">@T("Du kannst die Einrichtung auch ohne geöffnetes Spiel abschließen und die Erfassung später prüfen.")</p></aside>
+            </div>
+        }
+        else if (_step == 1)
+        {
+            <div class="notice warning-notice setup-important"><AppIcon Name="info" /><div><strong>@T("Das Droplog darf nicht verdeckt sein.")</strong><span>@T("Inventar, Chat, Karte, Spielmeldungen und Overlays dürfen nicht über den Lootzeilen liegen. Verdeckte oder abgeschnittene Drops können fehlen oder falsch gezählt werden.")</span></div></div>
+            <div class="setup-columns">
+                <section class="panel settings-panel"><h3>@T("So bereitest du Black Desert vor")</h3><ol class="setup-checklist"><li>@T("Öffne Black Desert und lass das Spielfenster sichtbar. Minimiere es während der Erfassung nicht.")</li><li>@T("Blende unter „UI bearbeiten“ das normale Droplog und möglichst auch das Special-Droplog ein. Positioniere beide frei und speichere die UI-Einstellungen.")</li><li>@T("Gegenstandsname und Menge müssen vollständig lesbar sein. Verschiebe Menüs und Tracker-Overlays aus diesen Bereichen.")</li><li>@T("Nach Änderungen an Schrift, UI-Skalierung, Auflösung oder Profil: UI speichern und die Erfassungsbereiche erneut prüfen. Starte Grindcrest bei einem entsprechenden Hinweis neu.")</li></ol></section>
+                <section class="panel settings-panel setup-log-guide"><h3>@T("Freie Sicht auf deine Drops")</h3><div class="setup-log-example" role="img" aria-label="@T("Schema: vollständig sichtbare Lootzeilen mit Gegenstandsname und Menge")"><div class="setup-log-label"><AppIcon Name="check" />@T("Normales Droplog · frei halten")</div><div class="setup-loot-line"><AppIcon Name="loot" /><span>@T("Gegenstandsname")</span><strong>× 12</strong></div><div class="setup-loot-line"><AppIcon Name="loot" /><span>@T("Gegenstandsname")</span><strong>× 3</strong></div><div class="setup-special-line">@T("Special-Droplog · Name + Menge")</div></div><p class="field-note">@T("Das normale Droplog ist erforderlich. Ohne eingerichtetes Special-Droplog werden Special-Drops nicht erfasst.")</p><p class="field-note">@T("Die Skizze zeigt das Prinzip. Deine tatsächlichen Positionen prüfst du im nächsten Schritt.")</p></section>
+            </div>
+        }
+        else if (_step == 2)
+        {
+            <div class="setup-columns">
+                <TrackerPreferenceSettings @ref="_fields" Section="capture" />
+                <section class="panel settings-panel setup-ocr"><div class="settings-heading"><div class="settings-icon"><AppIcon Name="search" /></div><h2>@T("Windows-Texterkennung")</h2></div><p>@T("Die OCR-Sprache muss zur Spielsprache passen. Die Sprache der Oberfläche ist davon unabhängig.")</p>
+                    <p class="field-note">@T(State.GameLanguageStatus)</p>
+                    @if (State.MissingOcrLanguageTag is { } tag) { <div class="notice warning-notice"><AppIcon Name="info" /><span>@F("Benötigtes OCR-Sprachpaket: {0}", tag)</span></div><p class="field-note">@T("Windows fragt nach einer Administratorbestätigung. Der Download benötigt Internet und kann einige Minuten dauern.")</p> }
+                    @if (State.OcrRestartRequired) { <div class="notice warning-notice">@T("Windows-Neustart erforderlich")</div> }
+                    <div role="status" aria-live="polite">
+                        @if (State.IsInstallingOcrLanguage) { <progress aria-label="@T("OCR-Sprachpaket wird installiert")" max="100" value="@State.OcrInstallationPercent"></progress> }
+                        @if (State.OcrInstallationStatus is { } status) { <p>@T(status)</p> }
+                    </div>
+                    @if (State.TrackingBlockedReason is { } reason) { <p class="field-note">@T(reason)</p> }
+                    <div class="setup-inline-actions">
+                        @if (State.MissingOcrLanguageTag is not null && !State.OcrRestartRequired) { <button class="button primary" @onclick="() => Act(Tracker.InstallOcrLanguageAsync)" disabled="@(Busy || State.IsRunning || State.IsOcrInstallerRunning)">@T("OCR-Sprachpaket installieren")</button> }
+                        <button class="button secondary" @onclick="RecheckOcr" disabled="@(Acting || State.IsRunning || _recheckingOcr || (!State.IsInstallingOcrLanguage && State.IsBusy))"><AppIcon Name="refresh" />@T("Erneut prüfen")</button>
+                    </div>
+                    <p class="field-note">@T("Die Einrichtung startet noch kein Tracking. Falls Spiel oder OCR fehlen, kannst du diese Prüfung später nachholen.")</p>
+                </section>
+            </div>
+            <CaptureConfigurationSettings />
+            <p class="field-note">@T("Öffne „Prüfen“ und aktualisiere die Vorschau mit sichtbaren Lootmeldungen: Türkis markiert das normale Droplog, Gold den Textbereich des Special-Droplogs. Name und Menge müssen im Rahmen liegen; Symbol und Verzierung dürfen beim Special-Droplog abgeschnitten sein.")</p>
+            <p class="field-note">@T("Wähle in der AP/DP-Anzeige im Spiel die Kategorie deines Grindspots (z. B. Edania, Halbmenschen, Kamasilvia oder Allgemein) und halte die Werte sichtbar. So liest Grindcrest die passenden Gesamtwerte aus.")</p>
+        }
+        else if (_step == 3)
+        {
+            <div class="setup-columns">
+                <TrackerPreferenceSettings @ref="_fields" Section="silver" />
+                <aside class="panel settings-panel setup-explainer"><AppIcon Name="silver" /><h3>@T("Silber passend zu deinem Account")</h3><p>@T("Wähle deine Marktregion und trage nur die Verkaufsboni ein, die für deinen Account aktiv sind. So passen die Nettowerte zu deinen Einstellungen.")</p><p>@T("Trashloot und andere NPC-Verkäufe bleiben steuerfrei. Für Marktgegenstände gelten die ausgewählten Boni und die verfügbaren Preise.")</p><div class="subtle-box"><AppIcon Name="info" /><span>@T("Die Silberwerte sind eine Bewertung deiner Drops. Sie bestätigen keinen tatsächlichen Verkauf.")</span></div></aside>
+            </div>
+        }
+        else
+        {
+            <div class="setup-columns">
+                <section class="panel settings-panel"><h3>@T("Deine Einrichtung im Überblick")</h3><dl class="detail-list"><div><dt>@T("Sprache der Oberfläche")</dt><dd>@(UiLanguage == "en" ? "English" : "Deutsch")</dd></div><div><dt>@T("Spielsprache in Black Desert")</dt><dd>@T(Tracker.Preferences.GameLanguage switch { "de" => "Deutsch", "en" => "Englisch", _ => "Automatisch erkennen" })</dd></div><div><dt>@T("Marktregion")</dt><dd>@Tracker.Preferences.MarketRegion.ToUpperInvariant()</dd></div><div><dt>@T("Automatische Pause")</dt><dd>@F("{0} Min.", Tracker.Preferences.AutoPauseMinutes)</dd></div><div><dt>@T("Dein effektiver Markterlös")</dt><dd>@Tracker.Preferences.Tax.MarketReturnRate.ToString("P2", UiCulture)</dd></div></dl><div class="subtle-box"><AppIcon Name="info" /><span>@T("Prüfe die Erfassungsbereiche im Spiel, bevor du dich auf die Zählung verlässt. Vergleiche die erste Session mit deinen Inventarmengen.")</span></div></section>
+                <section class="panel settings-panel"><h3>@T("So startest du deine erste Session")</h3><ol class="setup-checklist"><li>@T("Wähle in der Live-Session „Tracking starten“. Die aktive Zeit beginnt mit dem ersten neu gezählten Drop.")</li><li>@T("Der Spot wird aus deinem Trashloot erkannt. Falls mehrere Gebiete denselben Trashloot haben, wähle die passende Variante.")</li><li>@T("Pausieren erhält deine Session. Ohne neuen Loot greift die automatische Pause; die abschließende Leerlaufzeit wird abgezogen.")</li><li>@T("Beginne vor einem Spot- oder Charakterwechsel eine neue Session. Deine bisherigen Sessions findest du im Verlauf.")</li></ol></section>
+            </div>
+            <div class="setup-optional"><AppIcon Name="settings" /><p><strong>@T("Als Nächstes – ganz optional")</strong><span>@T("Unter „Overlay“ kannst du eigene Anzeigen erstellen und aktivieren. Unter „Garmoth“ lässt sich der Upload separat verbinden. Die Loot-Diagnose in den Einstellungen brauchst du nur zur Fehlersuche.")</span></p></div>
+            @if (State.MissingOcrLanguageTag is not null || State.OcrRestartRequired || State.TrackingBlockedReason is not null || !State.AnalyzerAvailable)
+            {
+                <div class="notice warning-notice"><AppIcon Name="info" /><div><strong>@T("Vor dem Tracking noch prüfen")</strong><span>@T("Spiel, OCR oder Erfassungsbereiche sind noch nicht bereit. Die Live-Session zeigt dir die offenen Schritte; du kannst die Einrichtung trotzdem speichern.")</span></div></div>
+            }
+        }
+    </section>
+
+    <footer class="setup-footer"><span class="field-note">@T("Einstellungen werden bei Änderungen gespeichert.")</span><div><button class="button secondary" @onclick="Back" disabled="@(Busy || _step == 0)"><AppIcon Name="back" />@T("Zurück")</button>@if (_step < Steps.Length - 1) { <button class="button primary" @onclick="Next" disabled="@Busy">@T("Weiter")<AppIcon Name="arrow" /></button> } else { <button class="button primary" @onclick="Complete" disabled="@Busy"><AppIcon Name="check" />@T("Einrichtung abschließen")</button> }</div></footer>
+</div>
+
+@code {
+    private static readonly string[] Steps = ["Willkommen", "Droplog", "Erfassung", "Silber", "Loslegen"];
+    private static readonly string[] Titles = ["Mach Grindcrest zu deinem Tracker", "Lass deine Lootmeldungen sichtbar", "Verbinde die Erfassung mit deinem Spiel", "Stimme deine Silberbewertung ab", "Deine erste Session kann kommen"];
+    private int _step;
+    private bool _focusPending, _recheckingOcr;
+    private ElementReference _stepTitle;
+    private TrackerPreferenceSettings? _fields;
+    private bool Busy => Acting || State.IsBusy || State.IsInstallingOcrLanguage;
+    private async Task Next()
+    {
+        if (Busy || _step >= Steps.Length - 1) return;
+        if (_fields is not null && !await _fields.CommitAsync()) return;
+        MoveTo(_step + 1);
+    }
+    private async Task Back()
+    {
+        if (Busy || _step == 0) return;
+        if (_fields is not null && !await _fields.CommitAsync()) return;
+        MoveTo(_step - 1);
+    }
+    private void MoveTo(int step)
+    {
+        _fields = null;
+        _step = step;
+        _focusPending = true;
+        ClearActionError();
+    }
+    private async Task Leave()
+    {
+        if (Busy) return;
+        if (_fields is not null && !await _fields.CommitAsync()) return;
+        Navigation.NavigateTo(Tracker.Preferences.SetupCompleted ? "/settings" : "/");
+    }
+    private async Task Complete()
+    {
+        if (Busy || _step != Steps.Length - 1) return;
+        if (await SavePreferenceChange(p => p with { SetupCompleted = true })) Navigation.NavigateTo("/");
+    }
+    private async Task RecheckOcr()
+    {
+        if (_recheckingOcr || Acting || State.IsRunning || (!State.IsInstallingOcrLanguage && State.IsBusy)) return;
+        _recheckingOcr = true;
+        try { await Act(Tracker.RecheckOcrLanguageAsync); }
+        finally { _recheckingOcr = false; }
+    }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_focusPending) return;
+        _focusPending = false;
+        await JS.InvokeVoidAsync("grindcrest.scrollTop", false);
+        await _stepTitle.FocusAsync(preventScroll: true);
+    }
+}
+
+<style>
+    .setup-page { max-width:1180px;margin-inline:auto }
+    .setup-heading { display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:30px }
+    .setup-heading h1 { margin:10px 0;font-size:clamp(24px,2.5vw,34px);letter-spacing:-.7px }
+    .setup-heading p,.setup-content p { color:var(--muted);line-height:1.7 }
+    .setup-heading>.text-button { flex-shrink:0;margin-top:12px }
+    .setup-progress { display:grid;grid-template-columns:repeat(5,1fr);list-style:none;padding:0;margin:0 0 28px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel) }
+    .setup-progress li { display:flex;align-items:center;gap:10px;padding:17px 14px;color:var(--muted);font-size:13px;border-bottom:3px solid transparent }
+    .setup-progress .is-current { border-color:var(--gold);color:var(--text);background:var(--panel-raised) }
+    .setup-step-number { display:grid;place-items:center;flex-shrink:0;width:27px;height:27px;border:1px solid var(--line);border-radius:50%;font-size:12px }
+    .is-current .setup-step-number { background:var(--gold);color:var(--bg);border-color:var(--gold);font-weight:700 }
+    .is-done .setup-step-number { color:var(--teal);border-color:var(--teal) }
+    .setup-step-number .icon { width:15px;height:15px }
+    .setup-step-heading { margin-bottom:22px }
+    .setup-step-heading h2 { margin:8px 0;font-size:22px }
+    .setup-columns { display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:22px;align-items:start }
+    .setup-fields .settings-layout,.setup-fields .settings-column { display:contents }
+    .setup-fields .settings-panel { margin:0 }
+    .setup-content .settings-panel h3 { margin:0 0 16px;font-size:17px;line-height:1.4 }
+    .setup-content .settings-panel p { margin:0 0 18px }
+    .setup-content .settings-panel p:last-child { margin-bottom:0 }
+    .setup-explainer>.icon { color:var(--gold);width:32px;height:32px;margin-bottom:22px }
+    .setup-explainer .subtle-box { margin:22px 0 }
+    .setup-checklist { padding-left:23px;margin:0;color:var(--muted);line-height:1.75 }
+    .setup-checklist li { padding-left:7px;margin-bottom:17px }
+    .setup-checklist li:last-child { margin-bottom:0 }
+    .setup-checklist li::marker { color:var(--gold);font-weight:700 }
+    .setup-important { margin-bottom:22px }
+    .setup-important strong { font-size:16px }
+    .setup-important span { line-height:1.65 }
+    .setup-log-example { border:1px dashed var(--teal);border-radius:8px;padding:18px;background:var(--bg);margin-bottom:20px }
+    .setup-log-label { display:flex;gap:8px;align-items:center;color:var(--teal);font-size:12px;margin-bottom:16px }
+    .setup-loot-line { display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line) }
+    .setup-loot-line>.icon { color:var(--gold) }
+    .setup-loot-line strong { margin-left:auto;font-variant-numeric:tabular-nums }
+    .setup-special-line { margin-top:20px;padding:13px 10px;border:1px solid var(--gold);color:var(--gold);text-align:center;font-size:12px }
+    .setup-inline-actions { display:flex;gap:10px;flex-wrap:wrap;margin:18px 0 }
+    .setup-ocr progress { width:100%;accent-color:var(--gold) }
+    .setup-optional { display:flex;gap:14px;align-items:flex-start;padding:22px 0;color:var(--gold) }
+    .setup-optional>.icon { flex-shrink:0;margin-top:4px }
+    .setup-optional p { margin:0 }
+    .setup-optional strong { display:block;color:var(--text);margin-bottom:5px }
+    .setup-optional span { display:block }
+    .setup-footer { display:flex;justify-content:space-between;align-items:center;gap:18px;border-top:1px solid var(--line);padding-top:22px;margin-top:28px }
+    .setup-footer>div { display:flex;gap:10px }
+    .setup-footer .field-note { margin:0 }
+    @@media(max-width:1050px) { .setup-progress li { flex-direction:column;gap:6px;padding:12px 6px;text-align:center } }
+    @@media(max-width:800px) { .setup-columns { grid-template-columns:1fr } .setup-heading { flex-direction:column;gap:0 } .setup-footer { flex-wrap:wrap } .setup-footer>div { margin-left:auto } .setup-progress li { font-size:11px } }
+</style>

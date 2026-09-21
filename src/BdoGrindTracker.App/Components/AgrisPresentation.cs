@@ -1,7 +1,9 @@
+using BdoGrindTracker.App.Localization;
+
 namespace BdoGrindTracker.App.Components;
 
 /// <summary>Displays only the Agris durations observed by the session; missing observations are never zero activity.</summary>
-internal sealed class AgrisPresentation(TimeSpan? active, TimeSpan? observed, TimeSpan duration)
+internal sealed class AgrisPresentation(TimeSpan? active, TimeSpan? observed, TimeSpan duration, string? language = "de")
 {
     internal bool HasObservation => active is not null && observed is { } known && known > TimeSpan.Zero;
     private TimeSpan SessionDuration => duration > TimeSpan.Zero ? duration : TimeSpan.Zero;
@@ -10,10 +12,10 @@ internal sealed class AgrisPresentation(TimeSpan? active, TimeSpan? observed, Ti
     private bool IsPartial => Observed < SessionDuration;
     internal string Duration => HasObservation ? $"≈ {ShortTime(Active)}{(IsPartial ? " *" : "")}" : "—";
     internal string Description => !HasObservation
-        ? active is null || observed is null ? "Agris nicht erfasst." : "Agris nicht erkannt."
-        : $"Agris aktiv: ungefähr {ShortTime(Active)}" +
-            (IsPartial ? $" Nicht erkannt: {ShortTime(SessionDuration - Observed)}" : "");
+        ? AppText.Translate(active is null || observed is null ? "Agris nicht erfasst." : "Agris nicht erkannt.", language)
+        : AppText.Format("Agris aktiv: ungefähr {0}", language, ShortTime(Active)) +
+            (IsPartial ? " " + AppText.Format("Nicht erkannt: {0}", language, ShortTime(SessionDuration - Observed)) : "");
 
-    private static string ShortTime(TimeSpan value) => value > TimeSpan.Zero && value < TimeSpan.FromMinutes(1)
-        ? "unter 1 Min." : Presentation.ShortDuration(value);
+    private string ShortTime(TimeSpan value) => value > TimeSpan.Zero && value < TimeSpan.FromMinutes(1)
+        ? AppText.Translate("unter 1 Min.", language) : Presentation.ShortDuration(value, language);
 }

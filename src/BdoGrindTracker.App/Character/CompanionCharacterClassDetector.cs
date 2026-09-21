@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Xml;
+using BdoGrindTracker.Ocr;
 
 namespace BdoGrindTracker.App.Character;
 
@@ -33,6 +34,7 @@ internal sealed record CharacterClassDetection(
 internal sealed class CompanionCharacterClassDetector
 {
     private const long MaxXmlCharacters = 4 * 1024 * 1024;
+    private const int MaxTiedConfigurations = 16;
 
     public CharacterClassDetection DetectDefault() => Detect(Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
@@ -51,11 +53,8 @@ internal sealed class CompanionCharacterClassDetector
             CharacterClassDetection? accepted = null;
             foreach (var selectedPath in selectedPaths)
             {
-                using var stream = new FileStream(selectedPath, FileMode.Open,
-                    FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-                if (stream.Length > MaxXmlCharacters * 2)
-                    return CharacterClassDetection.Unavailable;
-                using var reader = XmlReader.Create(stream, CreateReaderSettings());
+                using var reader = GameVariableXmlReader.Open(selectedPath,
+                    CreateReaderSettings(), maxBytes: MaxXmlCharacters * 2);
                 var detected = ReadSkills(reader);
                 // A tied save time does not prove which character is active.
                 // Only identical class/spec evidence may resolve such a tie.
@@ -162,16 +161,16 @@ internal sealed class CompanionCharacterClassDetector
 
     private static IReadOnlyList<string> SelectCharacterConfigurations(string blackDesertDirectoryPath)
     {
-        // Keep the account boundary used by Companion, but never rank character
-        // files by access time: our own reads would change the next selection.
+        // Profile directories are not touched when BDO saves existing files.
+        // Use the profile XML's save time, as the capture calibration does.
         var userCachePath = Path.Combine(Path.GetFullPath(blackDesertDirectoryPath), "UserCache");
         if (!Directory.Exists(userCachePath))
         {
             return [];
         }
 
-        string? selectedProfile = null;
-        var latestWrite = DateTime.MinValue;
+        var savedProfiles = new List<(string Path, DateTime Saved)>();
+        var legacyProfiles = new List<(string Path, DateTime Saved)>();
         foreach (var directory in Directory.EnumerateDirectories(userCachePath))
         {
             if (!uint.TryParse(Path.GetFileName(directory),
@@ -181,50 +180,63 @@ internal sealed class CompanionCharacterClassDetector
                 continue;
             }
 
-            var lastWrite = Directory.GetLastWriteTimeUtc(directory);
-            if (selectedProfile is null || lastWrite >= latestWrite)
+            var variables = Path.Combine(directory, "gameVariable.xml");
+            if (File.Exists(variables))
             {
-                selectedProfile = directory;
-                latestWrite = lastWrite;
+                savedProfiles.Add((directory, File.GetLastWriteTimeUtc(variables)));
+            }
+            else
+            {
+                legacyProfiles.Add((directory, Directory.GetLastWriteTimeUtc(directory)));
             }
         }
 
-        if (selectedProfile is null)
+        // Retain layouts without a profile-wide XML only when no saved profile
+        // exists. Empty/stale cache directories must not hide a saved profile.
+        var profiles = SelectLatest(savedProfiles.Count > 0 ? savedProfiles : legacyProfiles);
+        var selectedPaths = new List<string>();
+        foreach (var profile in profiles)
         {
-            return [];
+            var paths = SelectCharacterConfigurationsInProfile(profile);
+            // Equally recent accounts all need evidence; never borrow another
+            // account's class when one of the tied profiles has no character.
+            if (paths.Count == 0) return [];
+            selectedPaths.AddRange(paths);
+            if (selectedPaths.Count > MaxTiedConfigurations) return [];
         }
 
-        string? presetDirectory = null;
-        foreach (var directory in Directory.EnumerateDirectories(selectedProfile))
+        return selectedPaths;
+    }
+
+    private static IReadOnlyList<string> SelectCharacterConfigurationsInProfile(string profile)
+    {
+        var presets = new List<(string Path, DateTime Saved)>();
+        var characters = new List<(string Path, DateTime Saved)>();
+        foreach (var presetDirectory in Directory.EnumerateDirectories(profile))
         {
-            if (File.Exists(Path.Combine(directory, "gameVariable.xml")))
+            var preset = Path.Combine(presetDirectory, "gameVariable.xml");
+            if (!File.Exists(preset)) continue;
+            presets.Add((preset, File.GetLastWriteTimeUtc(preset)));
+
+            foreach (var directory in Directory.EnumerateDirectories(presetDirectory))
             {
-                presetDirectory = directory;
-                break;
+                var candidate = Path.Combine(directory, "gameVariable.xml");
+                if (File.Exists(candidate))
+                    characters.Add((candidate, File.GetLastWriteTimeUtc(candidate)));
             }
         }
 
-        if (presetDirectory is null)
-        {
-            return [];
-        }
+        // Consider every preset, but shared/default files cannot hide genuine
+        // characters in another preset. Access times never influence selection.
+        return SelectLatest(characters.Count > 0 ? characters : presets);
+    }
 
-        var candidates = new List<(string Path, DateTime Saved)>();
-        foreach (var directory in Directory.EnumerateDirectories(presetDirectory))
-        {
-            var candidate = Path.Combine(directory, "gameVariable.xml");
-            if (!File.Exists(candidate))
-            {
-                continue;
-            }
-
-            candidates.Add((candidate, File.GetLastWriteTimeUtc(candidate)));
-        }
-        // The preset's own file is a shared/default configuration when actual
-        // character files exist below it. Saving/reading it cannot make it active.
-        if (candidates.Count == 0) return [Path.Combine(presetDirectory, "gameVariable.xml")];
+    private static IReadOnlyList<string> SelectLatest(List<(string Path, DateTime Saved)> candidates)
+    {
+        if (candidates.Count == 0) return [];
         var latestSave = candidates.Max(candidate => candidate.Saved);
-        var latest = candidates.Where(candidate => candidate.Saved == latestSave).Select(candidate => candidate.Path).Take(17).ToArray();
-        return latest.Length > 16 ? [] : latest;
+        var latest = candidates.Where(candidate => candidate.Saved == latestSave)
+            .Select(candidate => candidate.Path).Take(MaxTiedConfigurations + 1).ToArray();
+        return latest.Length > MaxTiedConfigurations ? [] : latest;
     }
 }

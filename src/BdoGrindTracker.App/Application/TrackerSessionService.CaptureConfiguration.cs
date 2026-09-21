@@ -1,5 +1,6 @@
 using BdoGrindTracker.App.Analysis;
 using BdoGrindTracker.App.Capture;
+using BdoGrindTracker.App.Localization;
 
 namespace BdoGrindTracker.App.Services;
 
@@ -97,12 +98,12 @@ internal sealed partial class TrackerSessionService
         RefreshMissingOcrLanguageOffer();
     }
 
-    private static string? BrowseCaptureConfigurationFile()
+    private string? BrowseCaptureConfigurationFile()
     {
         using var dialog = new OpenFileDialog
         {
-            Title = "BDO-Konfiguration auswählen",
-            Filter = "BDO-Konfiguration (gameVariable.xml)|gameVariable.xml|XML-Dateien (*.xml)|*.xml",
+            Title = AppText.Translate("BDO-Konfiguration auswählen", Preferences.UiLanguage),
+            Filter = AppText.Translate("BDO-Konfiguration (gameVariable.xml)|gameVariable.xml|XML-Dateien (*.xml)|*.xml", Preferences.UiLanguage),
             CheckFileExists = true,
             Multiselect = false,
             InitialDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Black Desert"),

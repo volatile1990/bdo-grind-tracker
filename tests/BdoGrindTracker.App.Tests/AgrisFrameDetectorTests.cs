@@ -11,6 +11,39 @@ namespace BdoGrindTracker.App.Tests;
 public sealed class AgrisFrameDetectorTests(ITestOutputHelper output)
 {
     [Theory]
+    [InlineData("active-gold-ring.png", .75, false)]
+    [InlineData("active-gold-ring.png", 2, true)]
+    [InlineData("active-gold-ring-hdr-20260912.png", 1.5, false)]
+    [InlineData("active-gold-ring-hdr-20260912.png", 1, true)]
+    public void WarmRegionMatchesColdResultAtClippedFrameMargins(string name, double scale, bool bottomRight)
+    {
+        using var original = Load(name);
+        var x = bottomRight ? 600 - (int)Math.Round(original.Width * scale) : 0;
+        var y = bottomRight ? 400 - (int)Math.Round(original.Height * scale) : 0;
+        using var frame = Place(original, 600, 400, x, y, scale);
+        using var detector = new AgrisFrameDetector();
+        var cold = detector.Analyze(frame, CancellationToken.None);
+        Assert.Equal(AgrisStatus.Active, cold.Status);
+        Assert.Equal(cold, detector.Analyze(frame, CancellationToken.None));
+        Assert.Equal(cold, detector.Analyze(frame, CancellationToken.None));
+    }
+
+    [Fact]
+    public void WarmRegionFallsBackAfterScaleAndFrameSizeChange()
+    {
+        using var original = Load("active-gold-ring-hdr-20260912.png");
+        using var large = Place(original, 800, 600, 600, 450, 1.5);
+        using var small = Place(original, 320, 240, 15, 20, .75);
+        using var detector = new AgrisFrameDetector();
+        Assert.Equal(AgrisStatus.Active, detector.Analyze(large, CancellationToken.None).Status);
+        using var cold = new AgrisFrameDetector();
+        var expected = cold.Analyze(small, CancellationToken.None);
+        Assert.Equal(AgrisStatus.Active, expected.Status);
+        Assert.Equal(expected, detector.Analyze(small, CancellationToken.None));
+        Assert.Equal(expected, detector.Analyze(small, CancellationToken.None));
+    }
+
+    [Theory]
     [InlineData("inactive-gray.png", AgrisStatus.Inactive)]
     [InlineData("inactive-gray-ring.png", AgrisStatus.Inactive)]
     [InlineData("inactive-gray-ring-rotated.png", AgrisStatus.Inactive)]

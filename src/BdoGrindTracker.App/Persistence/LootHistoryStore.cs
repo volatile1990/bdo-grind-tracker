@@ -6,8 +6,6 @@ namespace BdoGrindTracker.App.Persistence;
 
 internal sealed class LootHistoryStore
 {
-    internal const int MaximumEntries = 500;
-    private const long MaximumFileBytes = 64 * 1024 * 1024;
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
@@ -28,11 +26,7 @@ internal sealed class LootHistoryStore
         try
         {
             using var stream = new FileStream(_historyPath, FileMode.Open, FileAccess.Read, FileShare.Read);
-            if (stream.Length > MaximumFileBytes)
-                throw new InvalidDataException("Die Verlaufsdatei ist größer als das unterstützte Dateilimit.");
-            using var reader = new StreamReader(stream);
-            var json = reader.ReadToEnd();
-            var document = JsonSerializer.Deserialize<LootHistoryDocument>(json, JsonOptions);
+            var document = JsonSerializer.Deserialize<LootHistoryDocument>(stream, JsonOptions);
             if (document is null || document.Version != 1 || document.Entries is null)
                 throw new InvalidDataException("Das Format der Verlaufsdatei wird nicht unterstützt.");
             if (document.Entries.Any(entry => entry is null || entry.Totals is null))
@@ -63,14 +57,12 @@ internal sealed class LootHistoryStore
             ?? throw new InvalidOperationException("Der Verlaufsordner ist ungültig.");
         Directory.CreateDirectory(directory);
 
-        var json = JsonSerializer.Serialize(new LootHistoryDocument
+        var document = new LootHistoryDocument
         {
             Version = 1,
             Entries = normalized.ToList()
-        }, JsonOptions);
-        if (System.Text.Encoding.UTF8.GetByteCount(json) > MaximumFileBytes)
-            throw new InvalidDataException("Die Verlaufsdatei ist größer als das unterstützte Dateilimit.");
-        AtomicFile.WriteAllText(_historyPath, json);
+        };
+        AtomicFile.Write(_historyPath, stream => JsonSerializer.Serialize(stream, document, JsonOptions));
     }
 
     private static IReadOnlyList<LootHistoryEntry> Normalize(IEnumerable<LootHistoryEntry> entries)
@@ -89,6 +81,7 @@ internal sealed class LootHistoryStore
                 Rotations = entry.Rotations ?? [],
                 RotationTimeline = entry.RotationTimeline ?? [],
                 CombatStats = CombatStatsSpotRules.ForSpot(entry.CombatStats, entry.SpotId),
+                DropHistory = SessionDropHistory.Normalize(entry.DropHistory, entry.Duration, entry.Totals),
                 CharacterClass = string.IsNullOrWhiteSpace(entry.CharacterClass)
                     ? null
                     : entry.CharacterClass.Trim(),
@@ -107,7 +100,6 @@ internal sealed class LootHistoryStore
             .Where(static entry => entry.Totals.Count > 0 || entry.Rotations.Count > 0 || entry.RotationTimeline.Count > 0)
             .OrderByDescending(static entry => entry.UpdatedAt)
             .DistinctBy(static entry => entry.SessionId)
-            .Take(MaximumEntries)
             .ToArray();
     }
 

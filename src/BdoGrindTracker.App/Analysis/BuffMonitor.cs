@@ -4,6 +4,7 @@ namespace BdoGrindTracker.App.Analysis;
 
 internal sealed record BuffDetectionSnapshot(DateTimeOffset? ObservedAt, IReadOnlyList<BuffObservation> Observations)
 {
+    internal IReadOnlyList<string> UnknownBuffIds { get; init; } = [];
     internal bool IsKnown => ObservedAt is not null;
     internal static BuffDetectionSnapshot Unknown { get; } = new(null, []);
 }
@@ -21,7 +22,8 @@ internal sealed class BuffMonitor : IDisposable
     private CancellationTokenSource? _cancellation;
     private DateTimeOffset? _lastScheduledAt;
     private BuffDetectionSnapshot _state = BuffDetectionSnapshot.Unknown;
-    private string _lastDiagnostic = "Buff-Erkennung wartet auf ein kalibriertes Bild.";
+    private readonly HashSet<string> _pendingUnknownBuffIds = new(StringComparer.Ordinal);
+    private string _lastDiagnostic = "Buff-Erkennung wartet auf ein Spielbild.";
     private long _epoch, _generation;
     private bool _running, _disposed, _readerDisposed;
 
@@ -73,7 +75,11 @@ internal sealed class BuffMonitor : IDisposable
             if (_state.ObservedAt is { } at && (now < at || now - at >= MaximumObservationAge))
                 Clear("Buff-Erkennung ist veraltet. Auf eine neue Aufnahme der sichtbaren Buffleiste warten.");
             generation = _generation;
-            return _disposed ? BuffDetectionSnapshot.Unknown : _state;
+            if (_disposed) return BuffDetectionSnapshot.Unknown;
+            // Preserve per-buff gaps even when another scan completed before the UI consumed the result.
+            var result = _state with { UnknownBuffIds = _pendingUnknownBuffIds.ToArray() };
+            _pendingUnknownBuffIds.Clear();
+            return result;
         }
     }
 
@@ -93,7 +99,7 @@ internal sealed class BuffMonitor : IDisposable
     {
         try
         {
-            var reading = _reader.Read(frame, cancellation.Token);
+            var reading = _reader.Read(frame, capturedAt, cancellation.Token);
             lock (_sync)
             {
                 if (_disposed || epoch != _epoch) return;
@@ -102,12 +108,21 @@ internal sealed class BuffMonitor : IDisposable
                     Clear("Zeitlimit der Buff-Erkennung erreicht. Vorlagen und Buffleistenbereich verkleinern.");
                     return;
                 }
-                if (reading is null || reading.Observations.Count == 0)
+                if (reading is null || reading.Observations.Count == 0 && reading.UnknownBuffIds.Count == 0)
                 {
                     Clear(_reader.LastDiagnostic ?? "Buff-Erkennung unbekannt. Buffleiste, Vorlagen und Restzeiten prüfen.");
                     return;
                 }
+                var observedIds = reading.Observations.Select(observation => observation.BuffId)
+                    .ToHashSet(StringComparer.Ordinal);
+                // A dropped icon is a continuity gap even when another buff made
+                // the scan readable. Retain it if a later scan replaces this one
+                // before the host consumes the snapshot.
+                _pendingUnknownBuffIds.UnionWith(_state.Observations
+                    .Where(observation => !observedIds.Contains(observation.BuffId))
+                    .Select(observation => observation.BuffId));
                 _state = new(capturedAt, reading.Observations.ToArray());
+                _pendingUnknownBuffIds.UnionWith(reading.UnknownBuffIds);
                 _lastDiagnostic = _reader.LastDiagnostic ?? $"{reading.Observations.Count} Buff(s) mit Restzeit erkannt.";
             }
         }
@@ -136,6 +151,7 @@ internal sealed class BuffMonitor : IDisposable
     private void Clear(string reason)
     {
         _state = BuffDetectionSnapshot.Unknown;
+        _pendingUnknownBuffIds.Clear();
         _lastDiagnostic = reason;
         _generation++;
     }

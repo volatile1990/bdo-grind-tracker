@@ -214,6 +214,13 @@ UI-Preset desselben Profils verwendet werden. Regeln und Diagnose stehen in
 Skalierung, Schriftprofil und feste Lootausschnitte. Ein optionaler Rare-Anker
 aktiviert dessen mittleres 20-%-Band. Es gibt keine Vollbildsuche.
 
+Die XML-Kalibrierung akzeptiert auch ältere, deklarationslose Windows-1252-Dateien:
+Umlaute in gespeicherten Notizen dürfen eine ansonsten gültige Droplog-Konfiguration
+nicht unlesbar machen. Ohne BOM oder XML-Deklaration wird zuerst streng UTF-8
+geprüft; nur bei ungültigen UTF-8-Bytes greift Windows-1252. Explizite Codierungen,
+XML-Strukturprüfung und die Ablehnung mehrdeutiger aktiver Droplogs bleiben erhalten.
+Die Spieldatei wird dabei nicht verändert.
+
 DXGI Desktop Duplication erfasst den ausgewählten Monitor. Der tatsächliche
 HDR-Zustand wird je Frame an die getrennten Normal-/Rare-Zeilenworker weitergereicht.
 Normal werden bis zu sechs Zeilenbänder vorbereitet. SDR-/HDR-Masken, Leergates,

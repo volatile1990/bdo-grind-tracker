@@ -116,9 +116,11 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         Func<string?>? browseCaptureConfiguration = null,
         Func<IAutomaticGrindMonitor>? autoStartMonitorFactory = null,
         CombatStatsMonitor? combatStatsMonitor = null,
-        BuffMonitor? buffMonitor = null)
+        BuffMonitor? buffMonitor = null,
+        TimeProvider? timeProvider = null)
     {
         _captureSession = capture ?? throw new ArgumentNullException(nameof(capture));
+        _autoStartTimeProvider = timeProvider ?? TimeProvider.System;
         _prepareWindowCapture = prepareWindowCapture;
         _analyzer = analyzer ?? throw new ArgumentNullException(nameof(analyzer));
         _lootScrollMonitor = lootScrollMonitor ?? new LootScrollMonitor(new LootScrollFrameDetector());
@@ -127,7 +129,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             readConfiguration: new ExperienceHudConfigurationReader().ReadDefault));
         _combatStatsMonitor = combatStatsMonitor ?? new CombatStatsMonitor(new CombatStatsFrameReader(
             readConfiguration: new ExperienceHudConfigurationReader().ReadDefault));
-        _buffMonitor = buffMonitor ?? new BuffMonitor(new BuffFrameReader(ReadBuffProfile));
+        _buffMonitor = buffMonitor ?? new BuffMonitor(
+            new AutomaticBuffFrameReader(readCalibration: () => _analyzer.CaptureCalibration));
         _isLootScrollCaptureVisible = isLootScrollCaptureVisible ?? CreateLootScrollVisibilityCheck();
         _ocrLanguageInstaller = ocrLanguageInstaller ?? new WindowsOcrLanguageInstaller();
         _captureConfigurations = captureConfigurations ?? new CaptureConfigurationCatalog();
@@ -136,7 +139,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         ArgumentNullException.ThrowIfNull(monitors);
         Monitors = Array.AsReadOnly(monitors.ToArray());
         _settings = settingsStore.Load();
-        _autoStartSuspended = _settings.AutoStartSuspended;
+        // Old manual profiles no longer override the automatic catalog and BDO layout.
+        _settings.BuffRecognitionProfilePath = null;
         _settingsSaveError = settingsStore.LoadError;
         _sessionClock = sessionClock ?? new GrindSessionClock();
         _inactivityTimer = inactivityTimer ?? new GrindInactivityTimer();
@@ -165,14 +169,16 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         _priceStatus = FormatPriceStatus(Prices);
         Preferences = new TrackerPreferences
         {
+            SetupCompleted = _settings.SetupCompleted,
             ThemeId = _settings.ThemeId,
+            OverlayThemeId = _settings.OverlayThemeId,
+            UiLanguage = _settings.UiLanguage,
             MonitorDeviceName = Monitors.FirstOrDefault(m => m.DeviceName == _settings.MonitorDeviceName)?.DeviceName
                 ?? Monitors.FirstOrDefault(m => m.IsPrimary)?.DeviceName ?? Monitors.FirstOrDefault()?.DeviceName,
             AutoPauseMinutes = _settings.AutoPauseMinutes,
             AutoStartGrinding = _settings.AutoStartGrinding,
             GameLanguage = _settings.GameLanguage,
             CaptureConfigurationPath = _settings.CaptureConfigurationPath,
-            BuffRecognitionProfilePath = _settings.BuffRecognitionProfilePath,
             FavoriteItems = _settings.FavoriteItems ?? [],
             LootColumnOrders = _settings.LootColumnOrders ?? new(),
             CharacterClassId = CompanionCharacterClassCatalog.FindById(_settings.CharacterClassId ?? "")?.Id,
@@ -207,17 +213,13 @@ internal sealed partial class TrackerSessionService : ITrackerSession
     public Task<TrackerCommandResult> ToggleTrackingAsync() => _uiRunning ? PauseAsync() : RunOperationAsync(async () =>
     {
         if (_demoMode) ClearDemo();
-        _autoStartSuspended = false;
-        _autoStartError = null;
+        ResetAutoStartRetry();
         if (_uiRunning) await StopTrackingAsync(excludeTrailingIdle: true);
         else await StartTrackingAsync();
     });
 
     public Task<TrackerCommandResult> PauseAsync() => RunOperationAsync(async () =>
     {
-        _autoStartSuspended = true;
-        _autoStartError = null;
-        if (Preferences.AutoStartGrinding) TrySaveSettings();
         if (_uiRunning) await StopTrackingAsync(excludeTrailingIdle: true);
     }, allowDuringUpload: true);
 
@@ -231,14 +233,21 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             SetStatus("Bitte die laufende Session zuerst pausieren.", true);
             return Task.CompletedTask;
         }
-        _autoStartSuspended = false;
-        _autoStartError = null;
+        ResetAutoStartRetry();
         RefreshPendingState();
         PersistCurrentSession(DateTimeOffset.UtcNow, throwOnError: true);
         SavePendingHistory();
         ClearCurrentSessionCheckpoint();
+        ResetCurrentGrind(clearSessionPreferences: true);
+        if (Preferences.AutoStartGrinding) TrySaveSettings();
+        SetStatus("Neue Session angelegt. Die Diagnose-Aufzeichnung ist ausgeschaltet.");
+        return Task.CompletedTask;
+    });
+
+    private void ResetCurrentGrind(bool clearSessionPreferences)
+    {
         ResetGrindBenchmarkRefresh();
-        _analyzer.Reset();
+        if (!_captureSession.HasPendingAnalysis) _analyzer.Reset();
         _lootScrollMonitor.Reset();
         _agrisMonitor.Reset();
         _agrisSessionTracker.Reset();
@@ -261,7 +270,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         _demoMode = false;
         _sessionSubmitted = false;
         _sessionClass = null;
-        Preferences = Preferences with { CharacterClassId = null, RecordLoot = false, RecordRotation = false };
+        if (clearSessionPreferences)
+            Preferences = Preferences with { CharacterClassId = null, RecordLoot = false, RecordRotation = false };
         _garmothIntervals.Reset();
         _sessionClock.Reset();
         _inactivityTimer.Reset();
@@ -276,10 +286,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         _captureSegmentCompleted = true;
         _restoredSessionNeedsCaptureSetup = false;
         Interlocked.Exchange(ref _lastCaptureStopError, null);
-        if (Preferences.AutoStartGrinding) TrySaveSettings();
-        SetStatus("Neue Session angelegt. Die Diagnose-Aufzeichnung ist ausgeschaltet.");
-        return Task.CompletedTask;
-    });
+        ResetAutomaticGrindConfirmation();
+    }
 
     public Task<TrackerCommandResult> SetDemoAsync(bool enabled) => RunOperationAsync(() =>
     {
@@ -326,7 +334,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         _sessionGarmothLocallyModified = false;
     }
 
-    private async Task StartTrackingAsync(AutoStartDetection? autoStart = null)
+    private async Task StartTrackingAsync(AutoStartDetection? autoStart = null, bool waitForFirstDrop = true)
     {
         if (_currentSessionStore.LoadError is { } loadError) throw new IOException(loadError);
         if (_captureSession.HasPendingAnalysis || !_autoStartPendingAnalysis.IsCompleted)
@@ -390,6 +398,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             _captureSegmentCompleted = false;
             _ocrInstallationStatus = null;
             if (!_hasSession) _sessionStartedAt = DateTimeOffset.UtcNow;
+            if (!continuesExistingSession && autoStart is not null) BeginAutomaticGrindConfirmation(autoStart);
             _hasSession = true;
             PersistCurrentSessionCheckpoint(DateTimeOffset.UtcNow, throwOnError: true);
             _lootScrollMonitor.Reset();
@@ -402,7 +411,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             _uiRunning = true;
             _rotationMonitor.Interrupt("Grind gestartet · warte auf erstes Ereignis");
             _inactivityTimer.Start();
-            _sessionClock.Start(waitForFirstDrop: true);
+            _sessionClock.Start(waitForFirstDrop: autoStart is null && waitForFirstDrop);
             _lastCaptureDesktopRegion = captureRegion;
             _captureSession.StartCompanion(captureRegion, ProcessFrameAsync,
                 _captureSession.UsesWindowCapture ? null : () => _isLootScrollCaptureVisible(captureRegion),
@@ -439,24 +448,33 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         _rotationRecording = null;
     }
 
-    private async Task StopTrackingAsync(bool automatic = false, bool excludeTrailingIdle = false)
+    private async Task<TimeSpan> StopTrackingAsync(bool automatic = false, bool excludeTrailingIdle = false)
     {
+        var idleDuration = TimeSpan.Zero;
         UpdateAgrisSession();
         UpdateExperienceSession();
         UpdateCombatStatsSession();
         UpdateBuffSession();
+        BeginBuffCompletion();
         if (!automatic)
         {
             // Freeze at the user's pause request, before draining outstanding
             // OCR. Later results may update loot but must not restart the timer.
-            var idleDuration = _inactivityTimer.PauseAndGetIdleDuration();
+            idleDuration = _inactivityTimer.PauseAndGetIdleDuration();
             _sessionClock.Pause(excludeTrailingIdle ? idleDuration : TimeSpan.Zero);
         }
         SetStatus("Wird pausiert. Die letzten Drops werden noch übernommen …");
-        await _captureSession.StopAsync();
-        await _rotationMonitor.FlushAsync();
-        if (automatic)
-            _sessionClock.Pause(_inactivityTimer.PauseAndGetIdleDuration());
+        try
+        {
+            await _captureSession.StopAsync();
+            await _rotationMonitor.FlushAsync();
+            if (automatic)
+            {
+                idleDuration = _inactivityTimer.PauseAndGetIdleDuration();
+                _sessionClock.Pause(idleDuration);
+            }
+        }
+        finally { await CompleteBuffAnalysisAsync(); }
         CompleteCaptureSegment(DateTimeOffset.UtcNow);
         UpdateCombatStatsSession();
         UpdateBuffSession();
@@ -474,6 +492,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         SetStatus(failure is not null ? "Tracking gestoppt: " + failure.Message
             : automatic ? $"Automatisch pausiert: seit {Preferences.AutoPauseMinutes} Minuten kein neuer Drop. Die Zeit ohne Drops wurde abgezogen."
             : "Pausiert. Die Session bleibt erhalten.", failure is not null);
+        return idleDuration;
     }
 
     internal async Task ProcessFrameAsync(Bitmap frame, CapturedFrameMetadata metadata,
@@ -492,11 +511,9 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         {
             cancellationToken.ThrowIfCancellationRequested();
             _lastProcessedCaptureAt = metadata.CapturedAtUtc;
-            _uiMailbox.Publish(analysis, onPublished: (totals, hasNewDrop) =>
-            {
-                ObserveGarmothTotals(totals, hasNewDrop);
-                newLoot = hasNewDrop;
-            }, capturedAt: metadata.CapturedAtUtc);
+            newLoot = _uiMailbox.Publish(analysis, onObserved: ObserveGarmothObservation,
+                capturedAt: metadata.CapturedAtUtc);
+            if (newLoot) ObserveAutomaticGrindDrop(analysis.LootProjection?.LatestArrivalAt ?? metadata.CapturedAtUtc);
         }
         if (_uiRunning)
         {
@@ -551,7 +568,11 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         };
     }
 
-    internal void ObserveGarmothTotals(IReadOnlyDictionary<string, long> totals, bool hasNewDrop)
+    internal void ObserveGarmothTotals(IReadOnlyDictionary<string, long> totals, bool hasNewDrop) =>
+        ObserveGarmothObservation(totals, hasNewDrop, isCorrection: !hasNewDrop, requiresUploadReview: false);
+
+    private void ObserveGarmothObservation(IReadOnlyDictionary<string, long> totals, bool hasNewDrop,
+        bool isCorrection, bool requiresUploadReview)
     {
         if (hasNewDrop)
         {
@@ -567,7 +588,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             _inactivityTimer.RecordDrop();
         }
         var duration = _sessionClock.GetElapsedExcludingTrailingIdle(_inactivityTimer.IdleDuration);
-        _garmothIntervals.Observe(duration, totals, DateTimeOffset.UtcNow);
+        _garmothIntervals.Observe(duration, totals, DateTimeOffset.UtcNow,
+            isCorrection: isCorrection, includesNewDrops: hasNewDrop, requiresReview: requiresUploadReview);
     }
 
     internal void RefreshPendingState(bool publish = true)
@@ -590,6 +612,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
                 _isError = false;
             }
         }
+        ConfirmAutomaticGrindIfReady();
         if (_recording?.LastError is { } recordingError)
         {
             _status = "Aufzeichnung beendet: " + recordingError;
@@ -625,7 +648,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         var completed = _analyzer.CompleteSession(completedAt);
         _captureSegmentCompleted = true;
         _recording?.RecordCompletion(completedAt, completed.TrackingResult);
-        _uiMailbox.Publish(completed, onPublished: ObserveGarmothTotals,
+        _uiMailbox.Publish(completed, onObserved: ObserveGarmothObservation,
             capturedAt: completedAt, flushProjection: true);
         RefreshPendingState();
     }
@@ -660,14 +683,31 @@ internal sealed partial class TrackerSessionService : ITrackerSession
                 _ = RefreshClassDetectionAsync();
             var failed = Interlocked.CompareExchange(ref _lastCaptureStopError, null, null) is not null;
             // An HTTP upload does not defer inactivity or capture-failure handling.
-            if (_uiRunning && !_operationInProgress && (failed ||
-                _inactivityTimer.ShouldPause(TimeSpan.FromMinutes(Preferences.AutoPauseMinutes))))
+            var discardUnconfirmed = _provisionalAutomaticGrind &&
+                _inactivityTimer.ShouldPause(AutomaticGrindConfirmationTimeout);
+            if (_uiRunning && !_operationInProgress && (failed || discardUnconfirmed ||
+                !_provisionalAutomaticGrind && _inactivityTimer.ShouldPause(TimeSpan.FromMinutes(Preferences.AutoPauseMinutes))))
             {
                 _operationInProgress = true;
                 try
                 {
-                    if (failed) _autoStartSuspended = true;
-                    await StopTrackingAsync(automatic: !failed);
+                    var stoppedIdle = await StopTrackingAsync(automatic: !failed);
+                    failed |= Interlocked.CompareExchange(ref _lastCaptureStopError, null, null) is not null;
+                    if (failed) ScheduleAutoStartRetry(_lastCaptureStopError?.Message ?? "Erfassung derzeit nicht verfügbar.");
+                    if (discardUnconfirmed && !failed)
+                    {
+                        if (_provisionalAutomaticGrind && stoppedIdle >= AutomaticGrindConfirmationTimeout)
+                        {
+                            ResetCurrentGrind(clearSessionPreferences: false);
+                            SetStatus("Automatischer Start verworfen: 1 Minute ohne neuen Drop und weniger als 5 getrennte Drops.");
+                        }
+                        else if (!_shutdownStarted)
+                        {
+                            // A frame already in flight may contain a fresh drop
+                            // or the fifth arrival. Drain it before deciding to discard.
+                            await StartTrackingAsync(waitForFirstDrop: false);
+                        }
+                    }
                 }
                 finally { _operationInProgress = false; }
             }
@@ -733,7 +773,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         var agris = UpdateAgrisSession();
         var agrisDuration = _agrisSessionTracker.Snapshot(_sessionClock.Elapsed);
         var experience = UpdateExperienceSession();
-        var combatStats = UpdateCombatStatsSession();
+        var combatStats = UpdateCombatStatsSession(out var observedCombatStatsCategory);
         UpdateBuffSession();
         var experienceProgress = _experienceSessionTracker.Snapshot(_sessionClock.Elapsed);
         var character = _hasSession || _demoMode ? _sessionClass : SelectedCharacterClass;
@@ -744,7 +784,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         State = new TrackerState
         {
             SessionId = _sessionId, HasSession = _hasSession, IsRunning = _uiRunning,
-            AutoStartStatus = AutoStartStatus, AutoStartSuspended = _autoStartSuspended,
+            AutoStartStatus = AutoStartStatus,
             IsBusy = IsBusy, IsDemo = _demoMode, IsSubmitted = _sessionSubmitted,
             CanEditLoot = !_operationInProgress && !_shutdownStarted && !_disposed,
             CanSelectSpotVariant = !IsBusy && !_shutdownStarted && !_disposed && CanChangeSpotVariant,
@@ -773,6 +813,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             AgrisObservedDuration = agrisDuration.ObservedDuration,
             Experience = experience,
             CombatStats = _demoMode ? new(2374, 826, CombatStatsCategory.Edania, DateTimeOffset.UtcNow) : combatStats,
+            ObservedCombatStatsCategory = observedCombatStatsCategory,
             SessionCombatStats = _demoMode ? null : _sessionCombatStats,
             Buffs = !_demoMode && _hasBuffObservation ? _buffLedger.Snapshot : null,
             BuffStatus = _demoMode ? "Buff-Erkennung ist in der Demo inaktiv." : BuffStatus,
@@ -792,9 +833,10 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             HasApiKey = _garmothApiKey.Length > 0, UploadBlocked = _sessionSubmitted || _garmothIntervals.IsBlocked ||
                 _garmothPersistenceError is not null || _garmothRestartBlocks.Contains(_sessionId),
             AutomaticSuspended = _garmothIntervals.AutomaticSuspended,
+            AutomaticUploadNeedsReview = _garmothIntervals.CorrectionReviewRequired,
             ShutdownFailed = _shutdownFailed,
         };
-        State = State with { SilverHistory = _silverHistory.Update(State), DropHistory = _dropHistory.Update(State),
+        State = State with { SilverHistory = _silverHistory.Update(State), DropHistory = CaptureDropHistory(State.Loot, State.Elapsed),
             Rotation = _rotationMonitor.Snapshot(_captureSession.ObservationTime, _sessionSpotId) };
         if (_historyChanged)
         {
@@ -810,8 +852,6 @@ internal sealed partial class TrackerSessionService : ITrackerSession
     }
 
     private bool _shutdownFailed;
-
-    public Task PrepareUpdateRestartAsync() => RunPreparedUpdateAsync(() => Task.CompletedTask);
 
     public async Task RunPreparedUpdateAsync(Func<Task> install)
     {
@@ -857,13 +897,18 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         UpdateExperienceSession();
         UpdateCombatStatsSession();
         UpdateBuffSession();
+        BeginBuffCompletion();
         _sessionClock.Pause();
         _inactivityTimer.Pause();
         try
         {
-            await StopAutoStartProbeAsync();
-            await _captureSession.StopAsync();
-            await _rotationMonitor.FlushAsync();
+            try
+            {
+                await StopAutoStartProbeAsync();
+                await _captureSession.StopAsync();
+                await _rotationMonitor.FlushAsync();
+            }
+            finally { await CompleteBuffAnalysisAsync(); }
             _rotationMonitor.Interrupt();
             CompleteCaptureSegment(DateTimeOffset.UtcNow);
             _uiRunning = false;

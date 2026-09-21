@@ -32,8 +32,14 @@ internal sealed class SettingsStore
             // File.Exists hides access failures. Only actual absence permits defaults to be saved.
             using var file = new FileStream(_settingsPath, FileMode.Open, FileAccess.Read, FileShare.Read);
             if (file.Length > MaximumFileBytes) throw new InvalidDataException("Die Einstellungsdatei ist zu groß.");
-            var settings = JsonSerializer.Deserialize<AppSettings>(file, JsonOptions)
+            using var document = JsonDocument.Parse(file);
+            var settings = document.RootElement.Deserialize<AppSettings>(JsonOptions)
                 ?? throw new InvalidDataException("Die Einstellungsdatei enthält keine Einstellungen.");
+            // Only new installations need the introduction. Existing files from
+            // before setup was added retain their normal startup experience.
+            if (!document.RootElement.EnumerateObject().Any(property =>
+                string.Equals(property.Name, nameof(AppSettings.SetupCompleted), StringComparison.OrdinalIgnoreCase)))
+                settings.SetupCompleted = true;
             settings.UpgradeDefaults();
             LoadError = null;
             return settings;

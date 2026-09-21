@@ -87,10 +87,10 @@ nicht abgeschlossenen Pause korrigieren. Änderungen werden explizit gespeichert
 
 Die automatische Grinderkennung ist ein separates Opt-in (`AutoStartGrinding`).
 In der Live-Ansicht lässt sie sich direkt unter **Tracking starten** und **Neue Session**
-ein- und ausschalten. Dort erscheinen auch der Bereitschaftsstatus und nach
-manueller Pause **Automatik wieder aktivieren**. Dieser Befehl gibt die
-Erkennung frei, ohne selbst das Tracking zu starten. Die Browser-Vorschau
-simuliert die Einstellung und Pausensteuerung ausschließlich im Arbeitsspeicher.
+ein- und ausschalten. Eine manuelle Session-Pause lässt den Schalter aktiviert;
+die Erkennung wartet anschließend wieder auf neue Drops. Eine separate
+Automatik-Pause oder Reaktivierung gibt es nicht. Die Browser-Vorschau
+simuliert die Einstellung und Session-Pause ausschließlich im Arbeitsspeicher.
 
 ## Bestehende Daten und Voraussetzungen
 

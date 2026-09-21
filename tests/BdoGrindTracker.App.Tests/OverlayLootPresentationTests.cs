@@ -22,7 +22,7 @@ public sealed class OverlayLootPresentationTests
         foreach (var minutes in new[] { 0, 59, 60, 61, 120, 235 })
         {
             state = state with { Elapsed = TimeSpan.FromMinutes(minutes), IsRunning = minutes < 120 };
-            var snapshot = metrics.Update(state, new());
+            var snapshot = metrics.Update(state, new() { UiLanguage = "de" });
             foreach (var kind in new[] { "drop-grid", "drop-strip", "drop-list", "drop-item", "drops" })
             {
                 var widget = OverlayCatalog.CreateWidget(kind) with { ItemNames = ["Black Crystal Fragment"] };

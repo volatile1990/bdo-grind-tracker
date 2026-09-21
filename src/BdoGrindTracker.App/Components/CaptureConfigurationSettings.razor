@@ -3,112 +3,112 @@
 <section class="panel settings-panel capture-configuration" aria-labelledby="capture-configuration-heading">
     <div class="settings-heading capture-configuration-heading">
         <div class="settings-icon"><AppIcon Name="monitor" /></div>
-        <div><h2 id="capture-configuration-heading">Erfassungsbereiche prüfen</h2><p>BDO-Einstellungen und die beiden Lootbereiche im Spielbild vergleichen.</p></div>
-        <button type="button" class="button secondary" aria-expanded="@(_open ? "true" : "false")" aria-controls="capture-configuration-content" @onclick="ToggleOpen" disabled="@Acting">@(_open ? "Schließen" : "Prüfen")</button>
+        <div><h2 id="capture-configuration-heading">@T("Erfassungsbereiche prüfen")</h2><p>@T("BDO-Einstellungen und die beiden Lootbereiche im Spielbild vergleichen.")</p></div>
+        <button type="button" class="button secondary" aria-expanded="@(_open ? "true" : "false")" aria-controls="capture-configuration-content" @onclick="ToggleOpen" disabled="@Acting">@(_open ? T("Schließen") : T("Prüfen"))</button>
     </div>
     @if (_open)
     {
         <div id="capture-configuration-content">
             <div class="capture-active-file" role="status">
-                <strong>Aktuell verwendete Datei</strong>
-                <code>@(_scan?.ActivePath ?? "Noch keine passende Datei ermittelt.")</code>
-                <span>@(Tracker.Preferences.CaptureConfigurationPath is null ? "Automatische Auswahl" : "Fest ausgewählte Datei")</span>
+                <strong>@T("Aktuell verwendete Datei")</strong>
+                <code>@(_scan?.ActivePath ?? T("Noch keine passende Datei ermittelt."))</code>
+                <span>@(Tracker.Preferences.CaptureConfigurationPath is null ? T("Automatische Auswahl") : T("Fest ausgewählte Datei"))</span>
             </div>
-            @if (ActionError is not null) { <div class="notice error-notice" role="alert">@ActionError</div> }
-            @if (_scan?.Error is { } scanError) { <div class="notice error-notice" role="alert">@scanError</div> }
-            @if (_success is not null) { <div class="notice success-notice" role="status">@_success</div> }
+            @if (ActionError is not null) { <div class="notice error-notice" role="alert">@T(ActionError)</div> }
+            @if (_scan?.Error is { } scanError) { <div class="notice error-notice" role="alert">@T(scanError)</div> }
+            @if (_success is not null) { <div class="notice success-notice" role="status">@T(_success)</div> }
             <div class="capture-actions">
-                <button type="button" class="button secondary" @onclick="Scan" disabled="@Busy"><AppIcon Name="refresh" />Dateien erneut suchen</button>
-                <button type="button" class="button secondary" @onclick="Browse" disabled="@Busy">Datei auswählen…</button>
+                <button type="button" class="button secondary" @onclick="Scan" disabled="@Busy"><AppIcon Name="refresh" />@T("Dateien erneut suchen")</button>
+                <button type="button" class="button secondary" @onclick="Browse" disabled="@Busy">@T("Datei auswählen…")</button>
             </div>
-            <p class="field-note">Für die Vorschau markieren. Erst „Verwenden“ übernimmt die Auswahl.</p>
+            <p class="field-note">@T("Für die Vorschau markieren. Erst „Verwenden“ übernimmt die Auswahl.")</p>
             <label class="capture-option capture-automatic">
                 <input type="radio" name="capture-configuration-choice" checked="@(_selectedPath is null)" @onchange="ChooseAutomatic" disabled="@Busy" />
-                <span><strong>Automatische Auswahl</strong><small>Verwendet das zuletzt gespeicherte Profil.</small></span>
+                <span><strong>@T("Automatische Auswahl")</strong><small>@T("Verwendet das zuletzt gespeicherte Profil.")</small></span>
             </label>
-            <div class="capture-list-summary" role="status"><strong>@Candidates.Count(option => option.IsValid) verwendbar</strong><span>von @Candidates.Count gefundenen Dateien</span><span>· @Candidates.Count(option => option.IsValid && option.RareBounds is not null) mit beiden Droplog-Positionen</span></div>
+            <div class="capture-list-summary" role="status"><strong>@F("{0} verwendbar", Candidates.Count(option => option.IsValid))</strong><span>@F("von {0} gefundenen Dateien", Candidates.Count)</span><span>@F("· {0} mit beiden Droplog-Positionen", Candidates.Count(option => option.IsValid && option.RareBounds is not null))</span></div>
             <div class="capture-list-tools">
-                <label class="field capture-search"><span>Dateien durchsuchen</span><input type="search" value="@_query" @oninput="e => SetQuery(e.Value?.ToString() ?? string.Empty)" placeholder="Profil, Unterordner oder Dateipfad" disabled="@Busy" /></label>
-                <label class="field"><span>Anzeigen</span><select value="@_filter" @onchange="e => SetFilter(e.Value?.ToString() ?? string.Empty)" disabled="@Busy"><option value="usable">Verwendbar (@Candidates.Count(option => option.IsValid))</option><option value="both">Beide Droplogs (@Candidates.Count(option => option.IsValid && option.RareBounds is not null))</option><option value="normal">Nur normales Droplog (@Candidates.Count(option => option.IsValid && option.RareBounds is null))</option><option value="invalid">Nicht verwendbar (@Candidates.Count(option => !option.IsValid))</option><option value="all">Alle Dateien (@Candidates.Count)</option></select></label>
-                <label class="field"><span>Sortieren</span><select value="@_sort" @onchange="e => SetSort(e.Value?.ToString() ?? string.Empty)" disabled="@Busy"><option value="active">Aktive Datei zuerst</option><option value="recent">Zuletzt gespeichert</option><option value="path">Profil / Dateipfad</option></select></label>
+                <label class="field capture-search"><span>@T("Dateien durchsuchen")</span><input type="search" value="@_query" @oninput="e => SetQuery(e.Value?.ToString() ?? string.Empty)" placeholder="@T("Profil, Unterordner oder Dateipfad")" disabled="@Busy" /></label>
+                <label class="field"><span>@T("Anzeigen")</span><select value="@_filter" @onchange="e => SetFilter(e.Value?.ToString() ?? string.Empty)" disabled="@Busy"><option value="usable">@F("Verwendbar ({0})", Candidates.Count(option => option.IsValid))</option><option value="both">@F("Beide Droplogs ({0})", Candidates.Count(option => option.IsValid && option.RareBounds is not null))</option><option value="normal">@F("Nur normales Droplog ({0})", Candidates.Count(option => option.IsValid && option.RareBounds is null))</option><option value="invalid">@F("Nicht verwendbar ({0})", Candidates.Count(option => !option.IsValid))</option><option value="all">@F("Alle Dateien ({0})", Candidates.Count)</option></select></label>
+                <label class="field"><span>@T("Sortieren")</span><select value="@_sort" @onchange="e => SetSort(e.Value?.ToString() ?? string.Empty)" disabled="@Busy"><option value="active">@T("Aktive Datei zuerst")</option><option value="recent">@T("Zuletzt gespeichert")</option><option value="path">@T("Profil / Dateipfad")</option></select></label>
             </div>
-            <div class="capture-list-result"><span>@FilteredCandidates.Count von @Candidates.Count Dateien angezeigt</span>@if (_query.Length > 0 || _filter != "usable") { <button type="button" class="capture-text-button" @onclick="ResetFilters" disabled="@Busy">Filter zurücksetzen</button> }</div>
-            <div class="capture-options" aria-label="Verfügbare BDO-Einstellungsdateien">
+            <div class="capture-list-result"><span>@F("{0} von {1} Dateien angezeigt", FilteredCandidates.Count, Candidates.Count)</span>@if (_query.Length > 0 || _filter != "usable") { <button type="button" class="capture-text-button" @onclick="ResetFilters" disabled="@Busy">@T("Filter zurücksetzen")</button> }</div>
+            <div class="capture-options" aria-label="@T("Verfügbare BDO-Einstellungsdateien")">
                 <table class="capture-file-table">
-                    <thead><tr><th scope="col">Profil / Datei</th><th scope="col">Gespeichert</th><th scope="col">Anzeige</th><th scope="col">Normales Droplog</th><th scope="col">Special-Droplog</th><th scope="col"><span class="capture-sr-only">Dateidetails</span></th></tr></thead>
+                    <thead><tr><th scope="col">@T("Profil / Datei")</th><th scope="col">@T("Gespeichert")</th><th scope="col">@T("Anzeige")</th><th scope="col">@T("Normales Droplog")</th><th scope="col">@T("Special-Droplog")</th><th scope="col"><span class="capture-sr-only">@T("Dateidetails")</span></th></tr></thead>
                     <tbody>
                     @foreach (var option in FilteredCandidates)
                     {
                         <tr class="capture-file-row @(SamePath(_selectedPath, option.Path) ? "is-selected" : string.Empty)" data-config-path="@option.Path" @key="option.Path">
-                            <td><label class="capture-file-choice"><input type="radio" name="capture-configuration-choice" checked="@SamePath(_selectedPath, option.Path)" @onchange="() => Choose(option)" disabled="@(Busy || !option.IsValid)" aria-label="@($"{CompactLabel(option)} für die Vorschau auswählen")" /><span class="capture-file-name" title="@option.Path">@CompactLabel(option)</span></label>@if (SamePath(_scan?.ActivePath, option.Path)) { <span class="capture-active-badge">Aktiv</span> }</td>
-                            <td><span>@(option.LastWriteUtc?.ToLocalTime().ToString("dd.MM.yyyy", German) ?? "Unbekannt")</span><small>@(option.LastWriteUtc?.ToLocalTime().ToString("HH:mm", German))</small></td>
-                            <td>@if (option.IsValid) { <span>@option.ScreenWidth × @option.ScreenHeight</span><small>@option.UiScale.ToString("P0", German) UI</small> } else { <span class="capture-muted">Nicht geprüft</span> }</td>
-                            <td>@if (option.IsValid && option.NormalBounds is { } normalBounds) { <span>@PositionLabel(normalBounds)</span><small>@normalBounds.Width × @normalBounds.Height px</small> } else { <span class="capture-unusable">Nicht verwendbar</span> }</td>
-                            <td>@if (option.IsValid && option.RareBounds is { } rareBounds) { <span>@PositionLabel(rareBounds)</span><small>@rareBounds.Width × @rareBounds.Height px</small> } else { <span class="capture-muted">@(option.IsValid ? "Keine Erfassung" : "Nicht geprüft")</span> }</td>
-                            <td><button type="button" class="capture-text-button" @onclick="() => ToggleDetails(option.Path)" aria-expanded="@(SamePath(_expandedPath, option.Path) ? "true" : "false")" aria-label="@($"Details zu {CompactLabel(option)}")">@(SamePath(_expandedPath, option.Path) ? "Weniger" : "Details")</button></td>
+                            <td><label class="capture-file-choice"><input type="radio" name="capture-configuration-choice" checked="@SamePath(_selectedPath, option.Path)" @onchange="() => Choose(option)" disabled="@(Busy || !option.IsValid)" aria-label="@F("{0} für die Vorschau auswählen", CompactLabel(option))" /><span class="capture-file-name" title="@option.Path">@CompactLabel(option)</span></label>@if (SamePath(_scan?.ActivePath, option.Path)) { <span class="capture-active-badge">@T("Aktiv")</span> }</td>
+                            <td><span>@(option.LastWriteUtc?.ToLocalTime().ToString("d", UiCulture) ?? T("Unbekannt"))</span><small>@(option.LastWriteUtc?.ToLocalTime().ToString("t", UiCulture))</small></td>
+                            <td>@if (option.IsValid) { <span>@option.ScreenWidth × @option.ScreenHeight</span><small>@option.UiScale.ToString("P0", UiCulture) UI</small> } else { <span class="capture-muted">@T("Nicht geprüft")</span> }</td>
+                            <td>@if (option.IsValid && option.NormalBounds is { } normalBounds) { <span>@PositionLabel(normalBounds)</span><small>@normalBounds.Width × @normalBounds.Height px</small> } else { <span class="capture-unusable">@T("Nicht verwendbar")</span> }</td>
+                            <td>@if (option.IsValid && option.RareBounds is { } rareBounds) { <span>@PositionLabel(rareBounds)</span><small>@rareBounds.Width × @rareBounds.Height px</small> } else { <span class="capture-muted">@(option.IsValid ? T("Keine Erfassung") : T("Nicht geprüft"))</span> }</td>
+                            <td><button type="button" class="capture-text-button" @onclick="() => ToggleDetails(option.Path)" aria-expanded="@(SamePath(_expandedPath, option.Path) ? "true" : "false")" aria-label="@F("Details zu {0}", CompactLabel(option))">@(SamePath(_expandedPath, option.Path) ? T("Weniger") : "Details")</button></td>
                         </tr>
                         @if (SamePath(_expandedPath, option.Path))
                         {
                             <tr class="capture-file-details"><td colspan="6"><code>@option.Path</code>
-                                @if (option.Error is { } error) { <p class="field-error" role="alert">@error</p> }
+                                @if (option.Error is { } error) { <p class="field-error" role="alert">@T(error)</p> }
                                 else
                                 {
-                                    <div class="capture-detail-values"><span>Normales Droplog: @BoundsLabel(option.NormalBounds)</span><span>Special-Droplog: @BoundsLabel(option.RareBounds)</span><span>Gespeichert: @ChangedAt(option.LastWriteUtc)</span></div>
-                                    <p class="field-note">Special-Droplog: @option.RareStatus</p>
-                                    @if (option.RareBounds is null) { <p class="field-note">Special-Drops werden mit dieser Konfiguration nicht erfasst.</p> }
+                                    <div class="capture-detail-values"><span>@F("Normales Droplog: {0}", BoundsLabel(option.NormalBounds))</span><span>@F("Special-Droplog: {0}", BoundsLabel(option.RareBounds))</span><span>@F("Gespeichert: {0}", ChangedAt(option.LastWriteUtc))</span></div>
+                                    <p class="field-note">@F("Special-Droplog: {0}", T(option.RareStatus))</p>
+                                    @if (option.RareBounds is null) { <p class="field-note">@T("Special-Drops werden mit dieser Konfiguration nicht erfasst.")</p> }
                                 }
                             </td></tr>
                         }
                     }
                     </tbody>
                 </table>
-                @if (FilteredCandidates.Count == 0) { <div class="capture-empty" role="status">Keine Dateien für diese Suche oder diesen Filter gefunden. Wähle einen anderen Filter oder suche nach einem anderen Profil.</div> }
+                @if (FilteredCandidates.Count == 0) { <div class="capture-empty" role="status">@T("Keine Dateien für diese Suche oder diesen Filter gefunden. Wähle einen anderen Filter oder suche nach einem anderen Profil.")</div> }
             </div>
-            <div class="capture-selection-summary"><span>Für die Vorschau ausgewählt: <strong>@SelectionLabel</strong></span>@if (_selectedPath is not null && !FilteredCandidates.Any(option => SamePath(option.Path, _selectedPath))) { <button type="button" class="capture-text-button" @onclick="ShowSelection" disabled="@Busy">Auswahl anzeigen</button> }</div>
-            @if (SelectedOption is { IsValid: true, RareBounds: null }) { <p class="field-note">Special-Drops werden mit dieser Konfiguration nicht erfasst. Wähle „Beide Droplogs“, um Dateien mit beiden Positionen zu finden.</p> }
-            @if (_scan is not null && Candidates.Count == 0) { <p class="field-note">Keine BDO-Einstellungsdatei gefunden. Du kannst eine Datei selbst auswählen.</p> }
-            @if (State.IsRunning) { <p class="field-note">Für ein Vorschaubild zuerst die laufende Erfassung pausieren.</p> }
-            @if (State.HasSession) { <p class="field-note">Die Dateiauswahl lässt sich vor dem Start einer neuen Session übernehmen.</p> }
-            <p class="field-note">Ist die Special-Zeile verborgen, im BDO-Modus „UI bearbeiten“ die Lootanzeigen sichtbar machen.</p>
+            <div class="capture-selection-summary"><span>@T("Für die Vorschau ausgewählt:") <strong>@SelectionLabel</strong></span>@if (_selectedPath is not null && !FilteredCandidates.Any(option => SamePath(option.Path, _selectedPath))) { <button type="button" class="capture-text-button" @onclick="ShowSelection" disabled="@Busy">@T("Auswahl anzeigen")</button> }</div>
+            @if (SelectedOption is { IsValid: true, RareBounds: null }) { <p class="field-note">@T("Special-Drops werden mit dieser Konfiguration nicht erfasst. Wähle „Beide Droplogs“, um Dateien mit beiden Positionen zu finden.")</p> }
+            @if (_scan is not null && Candidates.Count == 0) { <p class="field-note">@T("Keine BDO-Einstellungsdatei gefunden. Du kannst eine Datei selbst auswählen.")</p> }
+            @if (State.IsRunning) { <p class="field-note">@T("Für ein Vorschaubild zuerst die laufende Erfassung pausieren.")</p> }
+            @if (State.HasSession) { <p class="field-note">@T("Die Dateiauswahl lässt sich vor dem Start einer neuen Session übernehmen.")</p> }
+            <p class="field-note">@T("Ist die Special-Zeile verborgen, im BDO-Modus „UI bearbeiten“ die Lootanzeigen sichtbar machen.")</p>
             <div class="capture-actions">
-                <button type="button" class="button secondary" @onclick="Preview" disabled="@(Busy || State.IsRunning || !SelectionIsValid)"><AppIcon Name="refresh" />Vorschau aktualisieren</button>
-                <button type="button" class="button primary" @onclick="Apply" disabled="@(Busy || State.HasSession || State.IsRunning || !CanApply)">@(_selectedPath is null ? "Automatische Auswahl verwenden" : "Verwenden")</button>
+                <button type="button" class="button secondary" @onclick="Preview" disabled="@(Busy || State.IsRunning || !SelectionIsValid)"><AppIcon Name="refresh" />@T("Vorschau aktualisieren")</button>
+                <button type="button" class="button primary" @onclick="Apply" disabled="@(Busy || State.HasSession || State.IsRunning || !CanApply)">@(_selectedPath is null ? T("Automatische Auswahl verwenden") : T("Verwenden"))</button>
             </div>
-            @if (Acting) { <p class="field-note" role="status">Wird geprüft…</p> }
-            @if (_preview?.Error is { } previewError) { <div class="notice error-notice" role="alert">@previewError</div> }
+            @if (Acting) { <p class="field-note" role="status">@T("Wird geprüft…")</p> }
+            @if (_preview?.Error is { } previewError) { <div class="notice error-notice" role="alert">@T(previewError)</div> }
             @if (_preview is { ImageDataUrl: not null, Configuration: { } configuration } preview)
             {
                 <div class="capture-preview">
-                    <div class="capture-preview-heading"><h3>Vorschaubild</h3><span>@(preview.CapturedAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss", German) ?? "Zeitpunkt unbekannt")</span></div>
+                    <div class="capture-preview-heading"><h3>@T("Vorschaubild")</h3><span>@(preview.CapturedAt?.ToLocalTime().ToString("G", UiCulture) ?? T("Zeitpunkt unbekannt"))</span></div>
                     <code>@configuration.Path</code>
-                    @if (preview.UsesSessionGeometry) { <p class="field-note">Erfassungsbereiche der pausierten Session. Eine geänderte Datei lässt sich für eine neue Session übernehmen.</p> }
-                    <p class="field-note">Einzelaufnahme. Zum Vergleichen die Lootanzeigen im Spiel einblenden und die Vorschau aktualisieren.</p>
-                    <div class="capture-legend"><span class="capture-normal-color">Türkis: normales Droplog</span><span class="capture-rare-color">Gold: Special-Droplog · Textbereich</span></div>
+                    @if (preview.UsesSessionGeometry) { <p class="field-note">@T("Erfassungsbereiche der pausierten Session. Eine geänderte Datei lässt sich für eine neue Session übernehmen.")</p> }
+                    <p class="field-note">@T("Einzelaufnahme. Zum Vergleichen die Lootanzeigen im Spiel einblenden und die Vorschau aktualisieren.")</p>
+                    <div class="capture-legend"><span class="capture-normal-color">@T("Türkis: normales Droplog")</span><span class="capture-rare-color">@T("Gold: Special-Droplog · Textbereich")</span></div>
                     @if (configuration.RareBounds is not null)
                     {
-                        <p class="field-note">Prüfe mit einer tatsächlichen Dropmeldung, ob Gegenstandsname und Menge vollständig im goldenen Rahmen liegen. Das Gegenstandssymbol und die Verzierung dürfen abgeschnitten sein. Die graue Fläche aus „UI bearbeiten“ muss nicht genau zum Rahmen passen.</p>
+                        <p class="field-note">@T("Prüfe mit einer tatsächlichen Dropmeldung, ob Gegenstandsname und Menge vollständig im goldenen Rahmen liegen. Das Gegenstandssymbol und die Verzierung dürfen abgeschnitten sein. Die graue Fläche aus „UI bearbeiten“ muss nicht genau zum Rahmen passen.")</p>
                     }
-                    <svg class="capture-full-image" viewBox="@($"0 0 {configuration.ScreenWidth} {configuration.ScreenHeight}")" role="img" aria-label="Spielbild mit markierten Erfassungsbereichen">
+                    <svg class="capture-full-image" viewBox="@($"0 0 {configuration.ScreenWidth} {configuration.ScreenHeight}")" role="img" aria-label="@T("Spielbild mit markierten Erfassungsbereichen")">
                         <image href="@preview.ImageDataUrl" x="0" y="0" width="@configuration.ScreenWidth" height="@configuration.ScreenHeight" />
                         @if (configuration.NormalBounds is { } normal)
                         {
-                            <rect class="capture-normal-rect" x="@normal.X" y="@normal.Y" width="@normal.Width" height="@normal.Height" fill="none" stroke="#72cbb7" stroke-width="3" vector-effect="non-scaling-stroke"><title>Normales Droplog: @BoundsLabel(normal)</title></rect>
+                            <rect class="capture-normal-rect" x="@normal.X" y="@normal.Y" width="@normal.Width" height="@normal.Height" fill="none" stroke="#72cbb7" stroke-width="3" vector-effect="non-scaling-stroke"><title>@F("Normales Droplog: {0}", BoundsLabel(normal))</title></rect>
                         }
                         @if (configuration.RareBounds is { } rare)
                         {
-                            <rect class="capture-rare-rect" x="@rare.X" y="@rare.Y" width="@rare.Width" height="@rare.Height" fill="none" stroke="#efce91" stroke-width="3" vector-effect="non-scaling-stroke"><title>Special-Droplog · Textbereich: @BoundsLabel(rare)</title></rect>
+                            <rect class="capture-rare-rect" x="@rare.X" y="@rare.Y" width="@rare.Width" height="@rare.Height" fill="none" stroke="#efce91" stroke-width="3" vector-effect="non-scaling-stroke"><title>@F("Special-Droplog · Textbereich: {0}", BoundsLabel(rare))</title></rect>
                         }
                     </svg>
                     <div class="capture-crops">
                         @if (preview.NormalImageDataUrl is { } normalImage)
                         {
-                            <figure class="capture-normal-crop"><figcaption>Normales Droplog</figcaption><div><img src="@normalImage" alt="Genauer Bildausschnitt des normalen Droplogs" /></div></figure>
+                            <figure class="capture-normal-crop"><figcaption>@T("Normales Droplog")</figcaption><div><img src="@normalImage" alt="@T("Genauer Bildausschnitt des normalen Droplogs")" /></div></figure>
                         }
                         @if (preview.RareImageDataUrl is { } rareImage)
                         {
-                            <figure class="capture-rare-crop"><figcaption>Special-Droplog · Textbereich</figcaption><div><img src="@rareImage" alt="Erfasster Textbereich des Special-Droplogs" /></div></figure>
+                            <figure class="capture-rare-crop"><figcaption>@T("Special-Droplog · Textbereich")</figcaption><div><img src="@rareImage" alt="@T("Erfasster Textbereich des Special-Droplogs")" /></div></figure>
                         }
-                        else { <p class="field-note">Special-Droplog: @configuration.RareStatus</p> }
+                        else { <p class="field-note">@F("Special-Droplog: {0}", T(configuration.RareStatus))</p> }
                     </div>
                 </div>
             }
@@ -216,12 +216,12 @@
         }
     }
     private CaptureConfigurationOption? SelectedOption => Candidates.FirstOrDefault(option => SamePath(option.Path, _selectedPath ?? _scan?.ActivePath));
-    private string SelectionLabel => _selectedPath is null ? "Automatische Auswahl" : SelectedOption is { } selected ? CompactLabel(selected) : _selectedPath;
-    private static string CompactLabel(CaptureConfigurationOption option)
+    private string SelectionLabel => _selectedPath is null ? T("Automatische Auswahl") : SelectedOption is { } selected ? CompactLabel(selected) : _selectedPath;
+    private string CompactLabel(CaptureConfigurationOption option)
     {
         var path = option.Label.EndsWith(".xml", StringComparison.OrdinalIgnoreCase) ? option.Label : option.Path;
         var segments = path.Replace('\\', '/').Split('/', StringSplitOptions.RemoveEmptyEntries).SkipLast(1).ToArray();
-        if (segments.Length == 0) return System.IO.Path.GetFileName(System.IO.Path.GetDirectoryName(option.Path)) ?? "Konfigurationsdatei";
+        if (segments.Length == 0) return System.IO.Path.GetFileName(System.IO.Path.GetDirectoryName(option.Path)) ?? T("Konfigurationsdatei");
         var cacheIndex = Array.FindIndex(segments, segment => segment.Equals("UserCache", StringComparison.OrdinalIgnoreCase));
         return string.Join(" / ", cacheIndex >= 0 ? segments.Skip(cacheIndex + 1) : segments.TakeLast(3));
     }
@@ -236,9 +236,9 @@
     private bool CanApply => _preview is { Error: null, ImageDataUrl: not null, Configuration.IsValid: true } &&
         SamePath(_previewSelectionPath, _selectedPath);
     private static bool SamePath(string? left, string? right) => string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
-    private static string ChangedAt(DateTime? utc) => utc?.ToLocalTime().ToString("dd.MM.yyyy HH:mm", German) ?? "Unbekannt";
-    private static string BoundsLabel(System.Drawing.Rectangle? bounds) => bounds is { } box
-        ? $"x {box.X}, y {box.Y} · {box.Width} × {box.Height} px" : "Nicht verfügbar";
+    private string ChangedAt(DateTime? utc) => utc?.ToLocalTime().ToString("g", UiCulture) ?? T("Unbekannt");
+    private string BoundsLabel(System.Drawing.Rectangle? bounds) => bounds is { } box
+        ? $"x {box.X}, y {box.Y} · {box.Width} × {box.Height} px" : T("Nicht verfügbar");
 
     private async Task ToggleOpen()
     {

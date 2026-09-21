@@ -1,0 +1,5 @@
+What's new in Grindcrest 1.8.1:
+
+• Fixed HDR loot recognition: Image preprocessing could remove readable text from the normal drop log, causing drops to be missed. The adjusted brightness filter preserves the affected lettering for text recognition.
+
+The fix applies to new captures. Previously saved loot quantities are not changed retroactively.

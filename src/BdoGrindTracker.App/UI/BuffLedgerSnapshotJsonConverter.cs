@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using BdoGrindTracker.App.Analysis;
 using BdoGrindTracker.App.Pricing;
 using BdoGrindTracker.Core.Buffs;
 
@@ -15,7 +16,7 @@ internal sealed class BuffLedgerSnapshotJsonConverter : JsonConverter<BuffLedger
         {
             var snapshot = document.RootElement.Deserialize<BuffLedgerSnapshot>(options);
             if (snapshot is null) return null;
-            var validator = new BuffLedger(BuffPriceCatalog.HistoryDefinitions);
+            var validator = new BuffLedger(BuffPriceCatalog.HistoryDefinitions.Concat(AutomaticBuffCatalog.Default.HistoricalGroupDefinitions));
             validator.Restore(snapshot);
             return validator.Snapshot;
         }

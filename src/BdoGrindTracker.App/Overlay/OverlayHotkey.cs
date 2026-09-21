@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using BdoGrindTracker.App.Localization;
 
 namespace BdoGrindTracker.App.Overlay;
 
@@ -76,6 +77,15 @@ public sealed record OverlayHotkey
             parts.Add(KeyDisplayText(Key));
             return string.Join("+", parts);
         }
+    }
+
+    public string GetDisplayText(string? language)
+    {
+        var parts = new List<string>();
+        if (Modifiers.HasFlag(OverlayHotkeyModifiers.Control)) parts.Add(AppText.Translate("Strg", language));
+        if (Modifiers.HasFlag(OverlayHotkeyModifiers.Alt)) parts.Add("Alt");
+        parts.Add(AppText.Translate(KeyDisplayText(Key), language));
+        return string.Join("+", parts);
     }
 
     internal uint VirtualKey => Find(Key)?.VirtualKey ?? 0;

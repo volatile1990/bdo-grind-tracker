@@ -22,6 +22,7 @@ public sealed record OverlayContentLayout(OverlayWidget LayoutWidget, double Sca
             "controls" => 16 + (widget.ShowLabel ? 18 * fontScale : 0) + (widget.ShowNewSession ? 60 : 28) * fontScale,
             "chart" => 16 + (widget.ShowLabel ? 20 * fontScale : 0) + 33 * fontScale + 24 + 16 * fontScale,
             "clock" => 16 + (widget.ShowLabel ? 18 * fontScale : 0) + OverlayClockPresentation.RowCount(widget) * 26 * fontScale,
+            "consumables" => 48 + (widget.ShowLabel ? 18 * fontScale : 0) + 24 * fontScale,
             _ when OverlayCatalog.IsLootWidget(widget.Kind) => 48,
             _ => 16 + (widget.ShowLabel ? 18 * fontScale : 0) +
                 (widget.Kind is "spot" or "status" or "loot-scroll" or "grind-rating" ? 20 : 26) * fontScale +

@@ -2,6 +2,7 @@ using BdoGrindTracker.App.Persistence;
 using BdoGrindTracker.App.Integrations.Garmoth;
 using BdoGrindTracker.App.Pricing;
 using BdoGrindTracker.App.Theming;
+using BdoGrindTracker.App.Localization;
 using BdoGrindTracker.App.UI;
 using BdoGrindTracker.Core;
 
@@ -16,11 +17,11 @@ internal sealed class PreviewTrackerSession : ITrackerSession
     public event Action? Changed;
     public TrackerState State { get; private set; } = new() { AnalyzerAvailable = true, IsDemo = true,
         DetectedGameLanguage = "en", GameLanguageStatus = "Vorschau: Englisch · keine BDO-Konfiguration gelesen" };
-    public TrackerPreferences Preferences { get; private set; } = new() { MonitorDeviceName = "preview", ValuePack = true };
+    public TrackerPreferences Preferences { get; private set; } = new() { SetupCompleted = true, MonitorDeviceName = "preview", ValuePack = true };
+    public bool CapturesGameWindow => true;
     public IReadOnlyList<TrackerMonitor> Monitors { get; } =
         [new("preview", "Bildschirm 1 · 3840 × 2160 · Hauptbildschirm", new(0, 0, 3840, 2160), true),
          new("preview-secondary", "Bildschirm 2 · 2560 × 1440", new(3840, 0, 2560, 1440), false)];
-    public bool CapturesGameWindow => true;
     public IReadOnlyList<LootHistoryEntry> History => _history.ToArray();
     public LootPriceSnapshot Prices { get; private set; } = LootPriceCatalog.FixedSnapshot("eu");
     public string DiagnosticsDirectory => Path.Combine(Path.GetTempPath(), "Grindcrest.UiPreview", "diagnostics");
@@ -82,11 +83,16 @@ internal sealed class PreviewTrackerSession : ITrackerSession
     }
     private void Change(TrackerState state)
     {
+        // Keep a filtered-out selection through unrelated preview updates, but
+        // never carry it across pause, reset or a new incomplete observation.
+        var observedCategory = state.IsRunning && state.SessionId == State.SessionId &&
+            ReferenceEquals(state.CombatStats, State.CombatStats) ? state.ObservedCombatStatsCategory : null;
+        if (state.IsRunning && state.CombatStats.IsKnown) observedCategory = state.CombatStats.Category;
         State = state with { CanPause = state.IsRunning, DetectedGameLanguage = "en",
             CombatStats = CombatStatsSpotRules.ForSpot(state.CombatStats, state.SpotId) ?? CombatStatsState.Unknown,
+            ObservedCombatStatsCategory = observedCategory,
             SessionCombatStats = CombatStatsSpotRules.ForSpot(state.SessionCombatStats, state.SpotId),
-            AutoStartStatus = !Preferences.AutoStartGrinding ? null : state.AutoStartSuspended
-                ? "Vorschau · Automatik nach manueller Pause unterbrochen."
+            AutoStartStatus = !Preferences.AutoStartGrinding ? null
                 : "Vorschau · Automatische Grinderkennung wird nur simuliert.",
             GrindBenchmark = GarmothGrindBenchmarks.Find(state.SpotId),
             GameLanguageStatus = "Vorschau: Englisch · keine BDO-Konfiguration gelesen" };
@@ -96,18 +102,10 @@ internal sealed class PreviewTrackerSession : ITrackerSession
     public Task<TrackerCommandResult> ToggleTrackingAsync()
     {
         if (State.IsRunning) return PauseAsync();
-        Change(State with { IsRunning = true, AutoStartSuspended = false, HasSession = true, Status = "Vorschau · Tracking wird nur simuliert." });
+        Change(State with { IsRunning = true, HasSession = true, Status = "Vorschau · Tracking wird nur simuliert." });
         return Task.FromResult(TrackerCommandResult.Success);
     }
-    public Task<TrackerCommandResult> PauseAsync() { Change(State with { IsRunning = false, CombatStats = CombatStatsState.Unknown,
-        AutoStartSuspended = Preferences.AutoStartGrinding }); return Task.FromResult(TrackerCommandResult.Success); }
-    public Task<TrackerCommandResult> RearmAutoStartAsync()
-    {
-        if (!Preferences.AutoStartGrinding)
-            return Task.FromResult(new TrackerCommandResult("Aktiviere zuerst die automatische Grinderkennung in den Einstellungen."));
-        Change(State with { AutoStartSuspended = false });
-        return Task.FromResult(TrackerCommandResult.Success);
-    }
+    public Task<TrackerCommandResult> PauseAsync() { Change(State with { IsRunning = false, CombatStats = CombatStatsState.Unknown }); return Task.FromResult(TrackerCommandResult.Success); }
     public Task<TrackerCommandResult> InstallOcrLanguageAsync() { Change(State with { OcrInstallationStatus = "Vorschau · Es wird kein Windows-Sprachpaket installiert." }); return Task.FromResult(TrackerCommandResult.Success); }
     public Task<TrackerCommandResult> RecheckOcrLanguageAsync() { Change(State with { OcrInstallationStatus = "Vorschau · Windows-Sprachpakete werden nicht geprüft." }); return Task.FromResult(TrackerCommandResult.Success); }
     public Task<TrackerCommandResult> NewSessionAsync() { Change(new() { SessionId = Guid.NewGuid(), AnalyzerAvailable = true, IsDemo = true, HasApiKey = State.HasApiKey, Status = "Vorschau · Neue Session bereit." }); return Task.FromResult(TrackerCommandResult.Success); }
@@ -116,13 +114,16 @@ internal sealed class PreviewTrackerSession : ITrackerSession
         bool resumeAutomaticUpload = false)
     {
         ArgumentNullException.ThrowIfNull(preferences);
+        if (!AppText.IsKnownLanguage(preferences.UiLanguage))
+            return Task.FromResult(new PreferenceSaveResult("Bitte wähle Deutsch oder Englisch als App-Sprache."));
         if (!AppThemes.IsKnown(preferences.ThemeId))
             return Task.FromResult(new PreferenceSaveResult("Bitte wähle ein bekanntes Theme aus der Liste."));
+        if (preferences.OverlayThemeId is not null && !AppThemes.IsKnown(preferences.OverlayThemeId))
+            return Task.FromResult(new PreferenceSaveResult("Bitte wähle ein bekanntes Overlay-Theme oder „Wie Hauptfenster“."));
         var hasApiKey = apiKey is null ? State.HasApiKey : !string.IsNullOrWhiteSpace(apiKey);
-        var autoStartChanged = Preferences.AutoStartGrinding != preferences.AutoStartGrinding;
-        Preferences = preferences with { AutoUpload = preferences.AutoUpload && hasApiKey };
+        Preferences = preferences with { AutoUpload = preferences.AutoUpload && hasApiKey, BuffRecognitionProfilePath = null };
         Prices = LootPriceCatalog.FixedSnapshot(preferences.MarketRegion);
-        Change(State with { HasApiKey = hasApiKey, AutoStartSuspended = !autoStartChanged && State.AutoStartSuspended,
+        Change(State with { HasApiKey = hasApiKey,
             Silver = SilverValuation.Calculate(State.Loot.Totals, Prices, Preferences.Tax), Status = "Vorschau · Einstellungen nur im Arbeitsspeicher gespeichert." });
         return Task.FromResult(new PreferenceSaveResult());
     }
@@ -167,7 +168,6 @@ internal sealed class PreviewTrackerSession : ITrackerSession
     public Task<TrackerCommandResult> DeleteHistoryAsync(Guid sessionId) { _history.RemoveAll(entry => entry.SessionId == sessionId); Changed?.Invoke(); return Task.FromResult(TrackerCommandResult.Success); }
     public Task RefreshPricesAsync() { Change(State with { Status = "Vorschau · Kein Netzwerkabruf." }); return Task.CompletedTask; }
     public Task TickAsync() => Task.CompletedTask;
-    public Task PrepareUpdateRestartAsync() => Task.CompletedTask;
     public Task RunPreparedUpdateAsync(Func<Task> install) => Task.CompletedTask;
     public Task ShutdownAsync() => Task.CompletedTask;
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;

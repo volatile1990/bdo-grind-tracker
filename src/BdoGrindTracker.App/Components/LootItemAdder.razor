@@ -2,24 +2,24 @@
 @inject IJSRuntime JS
 
 <div class="loot-add-control">
-    <button type="button" class="text-button" @onclick="Open" disabled="@(!CanAdd)" title="@UnavailableReason"><AppIcon Name="plus" />Gegenstand ergänzen</button>
+    <button type="button" class="text-button" @onclick="Open" disabled="@(!CanAdd)" title="@UnavailableReason"><AppIcon Name="plus" />@T("Gegenstand ergänzen")</button>
 </div>
 
 <dialog id="@_dialogId" class="modal confirm-modal loot-add-dialog" aria-labelledby="@(_dialogId + "-title")" @oncancel="Close" @oncancel:preventDefault>
-    <div class="modal-heading"><div><span class="eyebrow">LOOT ERGÄNZEN</span><h2 id="@(_dialogId + "-title")">Fehlenden Gegenstand ergänzen</h2></div><button type="button" class="icon-button" @onclick="Close" aria-label="Dialog schließen" disabled="@Acting"><AppIcon Name="close" /></button></div>
-    <p>Wähle einen Gegenstand aus dem Lootpool dieses Spots. Automatisch erkannte Drops während der Bearbeitung bleiben erhalten.</p>
+    <div class="modal-heading"><div><span class="eyebrow">@T("LOOT ERGÄNZEN")</span><h2 id="@(_dialogId + "-title")">@T("Fehlenden Gegenstand ergänzen")</h2></div><button type="button" class="icon-button" @onclick="Close" aria-label="@T("Dialog schließen")" disabled="@Acting"><AppIcon Name="close" /></button></div>
+    <p>@T("Wähle einen Gegenstand aus dem Lootpool dieses Spots. Automatisch erkannte Drops während der Bearbeitung bleiben erhalten.")</p>
     <form class="loot-add-form" @onsubmit="Save" @onsubmit:preventDefault>
-        <label class="search-field"><AppIcon Name="search" /><input autofocus aria-label="Spotkatalog durchsuchen" placeholder="Gegenstand suchen …" @bind="_query" @bind:event="oninput" /></label>
-        <label><span>Gegenstand</span><select aria-label="Fehlenden Gegenstand auswählen" size="6" @bind="_selectedItem" disabled="@Acting">
-            <option value="" disabled>Gegenstand wählen</option>
+        <label class="search-field"><AppIcon Name="search" /><input autofocus aria-label="@T("Spotkatalog durchsuchen")" placeholder="@T("Gegenstand suchen …")" @bind="_query" @bind:event="oninput" /></label>
+        <label><span>@T("Gegenstand")</span><select aria-label="@T("Fehlenden Gegenstand auswählen")" size="6" @bind="_selectedItem" disabled="@Acting">
+            <option value="" disabled>@T("Gegenstand wählen")</option>
             @foreach (var item in FilteredItems) { <option value="@item">@ItemLabel(item)</option> }
         </select></label>
-        @if (!FilteredItems.Any()) { <p class="inline-empty">Kein Gegenstand passt zu „@_query“.</p> }
-        <label><span>Menge ergänzen</span><input type="text" inputmode="numeric" autocomplete="off" aria-label="Fehlende Menge" @bind="_quantity" @bind:event="oninput" disabled="@Acting" /></label>
-        @if (_selectedItem.Length > 0) { <small>Ausgewählt: @ItemLabel(_selectedItem)</small> }
-        @if (HasGarmothUpload) { <div class="notice warning-notice"><AppIcon Name="info" />Bereits übertragene Garmoth-Einträge bleiben unverändert.</div> }
-        @if (_error is not null) { <div class="notice error-notice" role="alert">@_error</div> }
-        <div class="modal-actions"><button type="button" class="button secondary" @onclick="Close" disabled="@Acting">Abbrechen</button><button type="submit" class="button primary" disabled="@(Acting || !State.CanEditLoot || _selectedItem.Length == 0)">Menge ergänzen</button></div>
+        @if (!FilteredItems.Any()) { <p class="inline-empty">@F("Kein Gegenstand passt zu „{0}“.", _query)</p> }
+        <label><span>@T("Menge ergänzen")</span><input type="text" inputmode="numeric" autocomplete="off" aria-label="@T("Fehlende Menge")" @bind="_quantity" @bind:event="oninput" disabled="@Acting" /></label>
+        @if (_selectedItem.Length > 0) { <small>@F("Ausgewählt: {0}", ItemLabel(_selectedItem))</small> }
+        @if (HasGarmothUpload) { <div class="notice warning-notice"><AppIcon Name="info" />@T("Bereits übertragene Garmoth-Einträge bleiben unverändert.")</div> }
+        @if (_error is not null) { <div class="notice error-notice" role="alert">@T(_error)</div> }
+        <div class="modal-actions"><button type="button" class="button secondary" @onclick="Close" disabled="@Acting">@T("Abbrechen")</button><button type="submit" class="button primary" disabled="@(Acting || !State.CanEditLoot || _selectedItem.Length == 0)">@T("Menge ergänzen")</button></div>
     </form>
 </dialog>
 
@@ -37,9 +37,9 @@
     private bool _open;
     private bool _closePending;
     private bool CanAdd => State.CanEditLoot && SessionId.HasValue && SpotId is not null && MissingItems.Any();
-    private string? UnavailableReason => !State.CanEditLoot ? "Ein Vorgang wird gerade ausgeführt." :
-        SpotId is null ? "Sobald der Spot erkannt wurde, kannst du fehlende Gegenstände ergänzen." :
-        !MissingItems.Any() ? "Alle Gegenstände des Spotkatalogs sind bereits erfasst. Nutze die Mengenbearbeitung." : null;
+    private string? UnavailableReason => !State.CanEditLoot ? T("Ein Vorgang wird gerade ausgeführt.") :
+        SpotId is null ? T("Sobald der Spot erkannt wurde, kannst du fehlende Gegenstände ergänzen.") :
+        !MissingItems.Any() ? T("Alle Gegenstände des Spotkatalogs sind bereits erfasst. Nutze die Mengenbearbeitung.") : null;
     private IEnumerable<string> MissingItems => SpotId is null ? [] : LootSpotCatalog.GetRequired(SpotId).AllowedItems
         .Where(name => Totals.GetValueOrDefault(name) == 0).OrderBy(ItemLabel);
     private IEnumerable<string> FilteredItems => _items.Where(name =>

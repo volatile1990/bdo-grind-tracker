@@ -6,16 +6,20 @@ public sealed record LifetimeParsingCatalogEntry
     public string Name { get; }
     public IReadOnlyList<string> Aliases { get; }
     public bool IsFixedUnit { get; }
+    public LootSource? AllowedSource { get; }
 
-    public LifetimeParsingCatalogEntry(string name, IReadOnlyList<string> aliases, bool isFixedUnit = false)
+    public LifetimeParsingCatalogEntry(string name, IReadOnlyList<string> aliases, bool isFixedUnit = false,
+        LootSource? allowedSource = null)
     {
         ArgumentNullException.ThrowIfNull(aliases);
         if (string.IsNullOrWhiteSpace(name) || name.Length > 2048 || aliases.Count > 16 ||
-            aliases.Any(alias => string.IsNullOrWhiteSpace(alias) || alias.Length > 2048))
+            aliases.Any(alias => string.IsNullOrWhiteSpace(alias) || alias.Length > 2048) ||
+            allowedSource is not (null or LootSource.Normal or LootSource.Rare))
             throw new ArgumentException("Invalid lifetime parsing catalog entry.");
         Name = name;
         Aliases = Array.AsReadOnly(aliases.ToArray());
         IsFixedUnit = isFixedUnit;
+        AllowedSource = allowedSource;
     }
 }
 
@@ -43,5 +47,6 @@ public sealed record LifetimeParsingContext
     public bool HasSameCatalog(LifetimeParsingContext other) =>
         Catalog.Count == other.Catalog.Count && Catalog.Zip(other.Catalog).All(pair =>
             pair.First.Name == pair.Second.Name && pair.First.IsFixedUnit == pair.Second.IsFixedUnit &&
+            pair.First.AllowedSource == pair.Second.AllowedSource &&
             pair.First.Aliases.SequenceEqual(pair.Second.Aliases, StringComparer.Ordinal));
 }

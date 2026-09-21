@@ -1,28 +1,29 @@
+@inherits LocalizedComponentBase
 @using BdoGrindTracker.App.Overlay
 
 <div class="overlay-widget-viewport" data-content-width="@Css(Content.ReferenceWidth)" data-content-height="@Css(Content.ReferenceHeight)"
      data-min-content-width="@Css(Content.MinimumWidth)" data-min-content-height="@Css(Content.MinimumHeight)" data-content-layout="@PreviewStyle">
-<div class="overlay-widget-preview overlay-widget-@Widget.Kind @(IsLoot ? "is-loot-widget" : "") @(Metric.IsWarning ? "is-warning" : "") metric-tone-@Metric.Tone.ToString().ToLowerInvariant()" style="@PreviewStyle" title="@(IsClock ? Clock.Tooltip : IsLoot ? Loot.Detail : Metric.Tooltip ?? (Metric.IsWarning ? "Loot-Scroll ist nicht aktiv." : Metric.Detail))">
+<div class="overlay-widget-preview overlay-widget-@Widget.Kind @(IsLoot ? "is-loot-widget" : "") @(Metric.IsWarning ? "is-warning" : "") metric-tone-@Metric.Tone.ToString().ToLowerInvariant()" style="@PreviewStyle" title="@T(IsClock ? Clock.Tooltip : IsLoot ? Loot.Detail : Metric.Tooltip ?? (Metric.IsWarning ? "Loot-Scroll ist nicht aktiv." : Metric.Detail ?? ""))">
     @if (Widget.ShowLabel && Widget.Kind != "rotation-monitor")
     {
         <div class="overlay-widget-label" data-overlay-fit>
             @if (Widget.ShowIcon) { <AppIcon Name="@(OverlayCatalog.Find(Widget.Kind)?.Icon ?? "live")" /> }
-            <span>@(IsClock ? Clock.Label : IsLoot ? Loot.Label : Widget.Kind == "chart" && Widget.ChartMode == OverlayChartSections.SectionsMode ? Sections.Title : Metric.Label)</span>
+            <span>@T(IsClock ? Clock.Label : IsLoot ? Loot.Label : Widget.Kind == "chart" && Widget.ChartMode == OverlayChartSections.SectionsMode ? Sections.Title : Metric.Label)</span>
         </div>
     }
     @if (IsLoot)
     {
         @if (Loot.Items.Count == 0)
         {
-            <div class="overlay-widget-empty" data-overlay-fit>@(Widget.ItemFilter == "selected" || Widget.Kind == "drop-item" ? "Items im Editor auswählen" : Widget.ItemFilter == "rare" || Widget.Kind == "rare-drops" ? "Noch keine seltenen Drops" : "Noch keine Drops")</div>
+            <div class="overlay-widget-empty" data-overlay-fit>@(IsConsumables ? T("Noch keine verbrauchten Items") : Widget.ItemFilter == "selected" || Widget.Kind == "drop-item" ? T("Items im Editor auswählen") : Widget.ItemFilter == "rare" || Widget.Kind == "rare-drops" ? T("Noch keine seltenen Drops") : T("Noch keine Drops"))</div>
         }
         else
         {
             <div class="overlay-loot-viewport">
-            <div class="overlay-widget-items is-@(Widget.Kind == "drop-item" ? "card" : Widget.ItemView) @(Widget.ShowIcon ? "" : "without-icons")">
+            <div class="overlay-widget-items is-@(IsConsumables ? "grid" : Widget.Kind == "drop-item" ? "card" : Widget.ItemView) @(Widget.ShowIcon ? "" : "without-icons")">
                 @foreach (var item in Loot.VisibleItems)
                 {
-                    <div class="overlay-widget-item @(item.IsRare ? "is-rare" : "")" style="@ItemStyle(item)" title="@(item.Name + " · " + item.QuantityText)" @key="item.CanonicalName">
+                    <div class="overlay-widget-item @(item.IsRare ? "is-rare" : "")" style="@ItemStyle(item)" title="@(item.Tooltip ?? item.Name + " · " + item.QuantityText)" @key="item.CanonicalName">
                         @if (Widget.ShowIcon) { <AssetImage Src="@item.IconPath" Alt="" Class="overlay-item-icon" /> }
                         <span class="overlay-item-name" data-overlay-fit>@item.Name</span>
                         <strong class="overlay-item-quantity" data-overlay-fit>@item.QuantityText</strong>
@@ -34,7 +35,14 @@
                 }
             </div>
             </div>
-            @if (Loot.HiddenCount > 0) { <span class="overlay-widget-more" data-overlay-fit title="Maximale Items in den Moduleinstellungen erhöhen">+ @Loot.HiddenCount weitere</span> }
+            @if (Loot.HiddenCount > 0) { <span class="overlay-widget-more" data-overlay-fit title="@T("Maximale Items in den Moduleinstellungen erhöhen")">@F("+ {0} weitere", Loot.HiddenCount)</span> }
+        }
+        @if (IsConsumables)
+        {
+            <div class="overlay-consumables-cost @(Snapshot.Consumables.HasMissingPrices ? "is-incomplete" : "")" data-overlay-fit title="@Snapshot.Consumables.CostDescription">
+                @if (Widget.ShowIcon) { <AppIcon Name="silver" /> }
+                <strong>@Snapshot.Consumables.Cost</strong>
+            </div>
         }
     }
     else if (IsClock)
@@ -44,7 +52,7 @@
             {
                 <div class="overlay-clock-row is-@row.Kind" data-overlay-fit>
                     @if (!Widget.ShowLabel && Widget.ShowIcon && row == Clock.Rows[0]) { <AppIcon Name="clock" /> }
-                    <span class="overlay-clock-row-label">@row.Label</span>
+                    <span class="overlay-clock-row-label">@T(row.Label)</span>
                     <strong>@row.Value</strong>
                 </div>
             }
@@ -52,12 +60,12 @@
     }
     else if (Widget.Kind == "rotation-monitor")
     {
-        <OverlayRotationTimeline State="Snapshot.Rotation" Mode="@Widget.RotationComparison" Colors="@Widget.RotationColors" />
+        <OverlayRotationTimeline State="Snapshot.Rotation" Language="@UiLanguage" Mode="@Widget.RotationComparison" Colors="@Widget.RotationColors" />
     }
     else if (Widget.Kind == "daily-goal")
     {
         <strong class="overlay-widget-value" data-overlay-fit>@Snapshot.DailyGoal.Value</strong>
-        <div class="overlay-daily-bar" role="progressbar" aria-label="Fortschritt Tagesziel" aria-valuenow="@(Snapshot.DailyGoal.Fraction*100)" aria-valuemin="0" aria-valuemax="100">
+        <div class="overlay-daily-bar" role="progressbar" aria-label="@T("Fortschritt Tagesziel")" aria-valuenow="@(Snapshot.DailyGoal.Fraction*100)" aria-valuemin="0" aria-valuemax="100">
             <div class="overlay-daily-fill" style="width:@Css(Snapshot.DailyGoal.Fraction*100)%"></div>
             <span>@Snapshot.DailyGoal.Percentage</span>
         </div>
@@ -68,14 +76,14 @@
         <button type="button" class="overlay-tracking-button" data-overlay-fit disabled="@(!Interactive || !Snapshot.CanToggleTracking)"
                 @onclick="OnToggleTracking" @onclick:stopPropagation @onpointerdown:stopPropagation>
             @if (Widget.ShowIcon) { <AppIcon Name="@(Snapshot.IsRunning ? "pause" : "play")" /> }
-            <span>@Snapshot.TrackingButtonLabel</span>
+            <span>@T(Snapshot.TrackingButtonLabel)</span>
         </button>
         @if (Widget.ShowNewSession)
         {
             <button type="button" class="overlay-tracking-button" data-overlay-fit disabled="@(!Interactive || !Snapshot.CanNewSession)"
                     @onclick="OnNewSession" @onclick:stopPropagation @onpointerdown:stopPropagation>
                 @if (Widget.ShowIcon) { <AppIcon Name="plus" /> }
-                <span>Neue Session</span>
+                <span>@T("Neue Session")</span>
             </button>
         }
     }
@@ -83,14 +91,14 @@
     {
         <strong class="overlay-widget-value" data-overlay-fit>
             @if (!Widget.ShowLabel && Widget.ShowIcon) { <AppIcon Name="trend" /> }
-            <span class="overlay-value-text">@Metric.Value</span>
+            <span class="overlay-value-text">@T(Metric.Value)</span>
         </strong>
         @if (Widget.ChartMode == OverlayChartSections.SectionsMode)
         {
             @if (Sections.HasData)
             {
                 <div style="position:relative;flex:1;min-height:0;overflow:hidden">
-                <svg class="overlay-widget-chart" style="width:100%;height:100%;display:block" viewBox="0 0 300 72" preserveAspectRatio="none" role="img" aria-label="@(Sections.Description + " mit wertvollen Drops und Favoriten")">
+                <svg class="overlay-widget-chart" style="width:100%;height:100%;display:block" viewBox="0 0 300 72" preserveAspectRatio="none" role="img" aria-label="@(Sections.Description + T(" mit wertvollen Drops und Favoriten"))">
                     <path d="M 0 71 H 300" class="overlay-chart-baseline" />
                     <polygon points="@($"{Css(Sections.X(Sections.Points[0].Elapsed) * 300)},72 {SectionPoints} {Css(Sections.X(Sections.Points[^1].Elapsed) * 300)},72")" class="overlay-chart-area" />
                     <polyline points="@SectionPoints" class="overlay-chart-line" />
@@ -101,7 +109,7 @@
                 </svg>
                 @foreach (var point in Sections.Points.Where(Sections.IsClipped))
                 {
-                    <div class="overlay-chart-clip" title="Oben gekappt: wertvoller Drop" style="position:absolute;left:@Css(Sections.X(point.Elapsed) * 100)%;top:@Css(Sections.Y(point.Silver) * 100)%;width:14px;height:10px;margin-top:5px;transform:translateX(-50%) skewY(-16deg);border-top:2px solid #f5ce73;border-bottom:2px solid #f5ce73;box-sizing:border-box"></div>
+                    <div class="overlay-chart-clip" title="@T("Oben gekappt: wertvoller Drop")" style="position:absolute;left:@Css(Sections.X(point.Elapsed) * 100)%;top:@Css(Sections.Y(point.Silver) * 100)%;width:14px;height:10px;margin-top:5px;transform:translateX(-50%) skewY(-16deg);border-top:2px solid #f5ce73;border-bottom:2px solid #f5ce73;box-sizing:border-box"></div>
                 }
                 @foreach (var marker in Sections.Markers)
                 {
@@ -117,17 +125,17 @@
                     </div>
                 }
                 </div>
-                <span class="overlay-widget-detail" data-overlay-fit>@Sections.Detail</span>
+                <span class="overlay-widget-detail" data-overlay-fit>@T(Sections.Detail)</span>
             }
             else
             {
-                <div class="overlay-widget-empty" data-overlay-fit>Verlauf entsteht während des Grindens</div>
+                <div class="overlay-widget-empty" data-overlay-fit>@T("Verlauf entsteht während des Grindens")</div>
             }
         }
         else if (Snapshot.SilverHistory.Count >= 2)
         {
             <div style="position:relative;flex:1;min-height:0;overflow:hidden">
-            <svg class="overlay-widget-chart" style="width:100%;height:100%;display:block" viewBox="0 0 300 72" preserveAspectRatio="none" role="img" aria-label="Verlauf des durchschnittlichen Silberwerts pro Stunde mit wertvollen Drops und Favoriten">
+            <svg class="overlay-widget-chart" style="width:100%;height:100%;display:block" viewBox="0 0 300 72" preserveAspectRatio="none" role="img" aria-label="@T("Verlauf des durchschnittlichen Silberwerts pro Stunde mit wertvollen Drops und Favoriten")">
                 <path d="M 0 71 H 300" class="overlay-chart-baseline" />
                 <polygon points="@("0,72 " + ChartPoints + " 300,72")" class="overlay-chart-area" />
                 <polyline points="@ChartPoints" class="overlay-chart-line" />
@@ -144,11 +152,11 @@
                 </div>
             }
             </div>
-            <span class="overlay-widget-detail" data-overlay-fit>@Metric.Detail</span>
+            <span class="overlay-widget-detail" data-overlay-fit>@T(Metric.Detail)</span>
         }
         else
         {
-            <div class="overlay-widget-empty" data-overlay-fit>Verlauf entsteht während des Grindens</div>
+            <div class="overlay-widget-empty" data-overlay-fit>@T("Verlauf entsteht während des Grindens")</div>
         }
     }
     else
@@ -156,25 +164,27 @@
         <strong class="overlay-widget-value @(Widget.Kind == "status" ? "overlay-status-value" : "")" data-overlay-fit>
             @if (!Widget.ShowLabel && Widget.ShowIcon) { <AppIcon Name="@(OverlayCatalog.Find(Widget.Kind)?.Icon ?? "live")" /> }
             @if (Widget.Kind == "status") { <span class="overlay-status-dot @(Snapshot.IsRunning ? "is-running" : "")"></span> }
-            <span class="overlay-value-text">@Metric.Value</span>
+            <span class="overlay-value-text">@T(Metric.Value)</span>
         </strong>
         @if ((Widget.ShowLabel || Widget.Kind == "experience") && Metric.Detail is not null && Widget.Kind is not "status")
         {
-            <span class="overlay-widget-detail" data-overlay-fit>@Metric.Detail</span>
+            <span class="overlay-widget-detail" data-overlay-fit>@T(Metric.Detail)</span>
         }
     }
 </div>
 </div>
 
 @code {
+    protected override string UiLanguage => Snapshot.UiLanguage;
     [Parameter, EditorRequired] public OverlayWidget Widget { get; set; } = new();
     [Parameter, EditorRequired] public OverlaySnapshot Snapshot { get; set; } = new();
     [Parameter] public bool Interactive { get; set; }
     [Parameter] public EventCallback OnToggleTracking { get; set; }
     [Parameter] public EventCallback OnNewSession { get; set; }
 
-    private OverlayMetric Metric => Snapshot.Metrics.GetValueOrDefault(Widget.Kind) ?? new(OverlayCatalog.Find(Widget.Kind)?.Label ?? "Modul", "—");
-    private bool IsLoot => OverlayCatalog.IsLootWidget(Widget.Kind);
+    private OverlayMetric Metric => Snapshot.Metrics.GetValueOrDefault(Widget.Kind) ?? new(OverlayCatalog.Find(Widget.Kind)?.Label ?? T("Modul"), "—");
+    private bool IsConsumables => Widget.Kind == "consumables";
+    private bool IsLoot => IsConsumables || OverlayCatalog.IsLootWidget(Widget.Kind);
     private bool IsClock => Widget.Kind == "clock";
     private OverlayClockView? _clock;
     private OverlayClockView Clock => _clock ??= OverlayClockPresentation.Create(Widget, Snapshot.ClockUtcNow);

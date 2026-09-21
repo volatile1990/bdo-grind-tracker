@@ -14,7 +14,7 @@ using Microsoft.JSInterop;
 
 namespace BdoGrindTracker.App.Tests;
 
-public sealed class LiveLootInteractionTests
+public sealed partial class LiveLootInteractionTests
 {
     [Theory]
     [InlineData("dark-energy-floodlands", "dark-energy-floodlands-orbita", 3)]
@@ -311,7 +311,7 @@ public sealed class LiveLootInteractionTests
             SpotId = LootSpotCatalog.AphrodonId, Elapsed = TimeSpan.FromMinutes(1),
             Loot = new(new Dictionary<string, long> { ["Black Stone"] = 10 }, 10, 1),
         };
-        public TrackerPreferences Preferences { get; } = new();
+        public TrackerPreferences Preferences { get; set; } = new() { UiLanguage = "de" };
         public IReadOnlyList<TrackerMonitor> Monitors { get; } = [];
         public IReadOnlyList<LootHistoryEntry> History { get; set; } = [];
         public LootPriceSnapshot Prices { get; } = LootPriceCatalog.FixedSnapshot("eu");
@@ -360,7 +360,6 @@ public sealed class LiveLootInteractionTests
         public Task<PreferenceSaveResult> SavePreferencesAsync(TrackerPreferences preferences, string? apiKey = null, bool resumeAutomaticUpload = false) => Task.FromResult(new PreferenceSaveResult());
         public Task RefreshPricesAsync() => Task.CompletedTask;
         public Task TickAsync() => Task.CompletedTask;
-        public Task PrepareUpdateRestartAsync() => Task.CompletedTask;
         public Task RunPreparedUpdateAsync(Func<Task> install) => Task.CompletedTask;
         public Task ShutdownAsync() => Task.CompletedTask;
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;

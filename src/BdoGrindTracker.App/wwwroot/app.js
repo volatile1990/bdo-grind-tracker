@@ -1,6 +1,20 @@
 // Dialog focus stays in the desktop surface; no external content or network calls.
 window.grindcrest = {
     setTheme: function (themeId) { document.documentElement.dataset.theme = themeId; },
+    setLanguage: function (language) {
+        const english = language === 'en';
+        document.documentElement.lang = english ? 'en' : 'de';
+        if (document.title === 'Grindcrest · Browser-Vorschau' || document.title === 'Grindcrest · Browser preview')
+            document.title = english ? 'Grindcrest · Browser preview' : 'Grindcrest · Browser-Vorschau';
+        const message = document.querySelector('#blazor-error-ui [data-error-message]');
+        const reload = document.querySelector('#blazor-error-ui a');
+        if (message) message.textContent = reload
+            ? (english ? 'The preview was interrupted. ' : 'Die Vorschau wurde unterbrochen. ')
+            : (english ? 'The interface could not continue. Please restart Grindcrest.' : 'Die Oberfläche konnte nicht fortgesetzt werden. Bitte starte Grindcrest erneut.');
+        if (reload) reload.textContent = english ? 'Reload' : 'Neu laden';
+        const dismiss = document.querySelector('#blazor-error-ui .dismiss');
+        if (dismiss) dismiss.setAttribute('aria-label', english ? 'Dismiss message' : 'Meldung schließen');
+    },
     showDialog: function (id) {
         const dialog = document.getElementById(id);
         if (dialog && !dialog.open) {

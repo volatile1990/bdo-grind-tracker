@@ -58,25 +58,20 @@ public sealed class AutomaticGrindMonitorTests
     }
 
     [Fact]
-    public async Task BurstWaitsForTwoNewTrashArrivalsAndKeepsHdrReplayMetadata()
+    public async Task BurstReturnsOnFirstNewTrashArrivalAndKeepsItsTimestampAndHdrReplayMetadata()
     {
         using var fixture = new Fixture();
-        fixture.Behavior = (call, _, at, _) => Task.FromResult(Result(call switch
-        {
-            1 => Projection(20, 5, at),
-            2 => Projection(25, 5, at), // Corrected quantity, no physical arrival.
-            3 => Projection(30, 6, at), // First new trash drop.
-            4 => Projection(30, 7, at), // Another item arrived; trash is unchanged.
-            _ => Projection(35, 8, at), // Second new trash drop.
-        }));
+        fixture.Behavior = (call, _, at, _) => call == 1
+            ? Task.FromResult(Result(Projection(5, 1, at.AddMilliseconds(-50))))
+            : throw new InvalidOperationException("A second new arrival must not be required.");
 
         using var detection = await fixture.Monitor.CheckAsync("de", CancellationToken.None)
             .WaitAsync(TimeSpan.FromSeconds(5));
 
         Assert.NotNull(detection);
-        Assert.Equal(5, fixture.Capture.Captures);
+        Assert.Equal(1, fixture.Capture.Captures);
         var analyzer = Assert.Single(fixture.Analyzers);
-        Assert.Equal(5, analyzer.Calls);
+        Assert.Equal(1, analyzer.Calls);
         Assert.Equal("de", analyzer.Language);
         Assert.Equal(new Size(2, 2), analyzer.ValidatedSize);
         Assert.False(analyzer.UseHdrOcr);
@@ -84,7 +79,8 @@ public sealed class AutomaticGrindMonitorTests
         Assert.True(analyzer.Disposed);
         Assert.Equal(new[] { true, false }, fixture.Capture.BurstChanges);
         Assert.False(fixture.Monitor.IsConfirming);
-        Assert.Equal(3, detection.Frames.Count);
+        Assert.Single(detection.Frames);
+        Assert.Equal(detection.Frames[^1].Metadata.CapturedAtUtc.AddMilliseconds(-50), detection.DetectedDropAt);
         Assert.All(detection.Frames, frame =>
         {
             Assert.True(frame.Metadata.IsHdr);
@@ -92,7 +88,61 @@ public sealed class AutomaticGrindMonitorTests
             Assert.True(frame.Metadata.CanObserveHud);
             frame.Bitmap.GetPixel(0, 0);
         });
-        Assert.All(fixture.Capture.Bitmaps.Take(2), AssertDisposed);
+        Assert.Equal(fixture.Capture.Bitmaps, detection.Frames.Select(frame => frame.Bitmap));
+    }
+
+    [Fact]
+    public async Task ChangedVisualRowCanBeRecognizedLaterWithoutASecondArrival()
+    {
+        using var fixture = new Fixture();
+        var initialAt = fixture.Time.GetUtcNow();
+        fixture.Behavior = (call, _, _, _) => Task.FromResult(Result(
+            Projection(call == 1 ? 0 : 5, call == 1 ? 0 : 1, initialAt.AddMilliseconds(-50))));
+
+        using var detection = await fixture.Monitor.CheckAsync("en", CancellationToken.None)
+            .WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.NotNull(detection);
+        Assert.Equal(2, Assert.Single(fixture.Analyzers).Calls);
+        Assert.Equal(initialAt.AddMilliseconds(-50), detection.DetectedDropAt);
+        Assert.True(detection.DetectedDropAt < detection.Frames[^1].Metadata.CapturedAtUtc);
+    }
+
+    [Fact]
+    public async Task CorrectedTrashAndAnotherArrivalCannotTriggerUntilACleanMonsterDrop()
+    {
+        using var fixture = new Fixture();
+        var initialAt = fixture.Time.GetUtcNow();
+        fixture.Behavior = (call, _, at, _) => Task.FromResult(Result(call switch
+        {
+            1 => Projection(0, 0, initialAt) with { QuantityCorrectionRevision = 0 },
+            2 or 3 => Projection(20, 5, initialAt) with { QuantityCorrectionRevision = 1 },
+            _ => Projection(25, 6, at) with { QuantityCorrectionRevision = 1 },
+        }));
+
+        using var detection = await fixture.Monitor.CheckAsync("en", CancellationToken.None)
+            .WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.NotNull(detection);
+        Assert.Equal(4, Assert.Single(fixture.Analyzers).Calls);
+        Assert.Equal(detection.Frames[^1].Metadata.CapturedAtUtc, detection.DetectedDropAt);
+        AssertDisposed(fixture.Capture.Bitmaps[0]);
+    }
+
+    [Fact]
+    public void DetachTransfersDetectedArrivalWithReplayOwnership()
+    {
+        var at = DateTimeOffset.UnixEpoch.AddSeconds(7);
+        using var original = new AutoStartDetection { DetectedDropAt = at };
+        var bitmap = new Bitmap(2, 2);
+        original.Add(new CapturedDesktopBitmap(bitmap, IsHdr: false, IsToneMapped: false), at.AddSeconds(1));
+
+        using var detached = original.Detach();
+
+        Assert.Equal(at, detached.DetectedDropAt);
+        Assert.Same(bitmap, Assert.Single(detached.Frames).Bitmap);
+        Assert.Null(original.DetectedDropAt);
+        Assert.Empty(original.Frames);
     }
 
     [Theory]

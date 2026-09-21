@@ -1,0 +1,12 @@
+.overlay-widget-consumables > .overlay-consumables-cost {
+    display: flex; align-items: center; gap: calc(5px * var(--widget-font-scale, 1) * var(--line-fit, 1));
+    flex: 0 0 var(--loot-footer-height, 24px); height: var(--loot-footer-height, 24px); margin-top: auto;
+    min-width: 0; white-space: nowrap; overflow: hidden; color: var(--gold, #f1cc7a);
+    font-size: calc(13px * var(--widget-font-scale, 1) * var(--line-fit, 1)); font-variant-numeric: tabular-nums;
+}
+.overlay-consumables-cost > .icon {
+    width: calc(13px * var(--widget-font-scale, 1) * var(--line-fit, 1));
+    height: calc(13px * var(--widget-font-scale, 1) * var(--line-fit, 1)); flex: 0 0 auto;
+}
+.overlay-consumables-cost > strong { min-width: 0; font-weight: 650; }
+.overlay-consumables-cost.is-incomplete { color: var(--warning, #e4ce91); }

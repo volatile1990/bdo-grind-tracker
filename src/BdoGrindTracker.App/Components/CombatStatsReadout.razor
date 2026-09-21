@@ -1,32 +1,40 @@
+@inherits LocalizedComponentBase
+
 <span class="combat-stats @CategoryClass @(Compact ? "combat-stats-compact" : "") @(!Known ? "combat-stats-unknown" : "")" role="group" aria-label="@Description" title="@Description">
     @if (Known)
     {
         <span class="combat-stats-values"><span>AP <strong>@Number(ApplicableValue!.Ap!.Value)</strong></span><span>DP <strong>@Number(ApplicableValue.Dp!.Value)</strong></span></span>
         <span class="combat-stats-category">@CategoryLabel</span>
-        @if (LastKnown && !Saved) { <span class="combat-stats-age">Zuletzt erkannt</span> }
     }
-    else
+    else if (!CategoryMismatch)
     {
-        <span>AP/DP @(Saved ? "nicht erfasst" : "noch nicht erkannt")</span>
+        <span>@T(Saved ? "AP/DP nicht erfasst" : "AP/DP noch nicht erkannt")</span>
     }
+    @if (CategoryMismatch) { <span class="combat-stats-hint">@CategoryHint</span> }
 </span>
 
 @code {
     [Parameter] public CombatStatsState? Value { get; set; }
+    [Parameter] public CombatStatsCategory? ObservedCategory { get; set; }
     [Parameter] public string? SpotId { get; set; }
     [Parameter] public bool LastKnown { get; set; }
     [Parameter] public bool Saved { get; set; }
     [Parameter] public bool Compact { get; set; }
     private CombatStatsState? ApplicableValue => CombatStatsSpotRules.ForSpot(Value, SpotId);
     private bool Known => ApplicableValue is not null;
-    private string CategoryLabel => ApplicableValue?.Category switch
+    private CombatStatsCategory? ExpectedCategory => CombatStatsSpotRules.CategoryForSpot(SpotId);
+    private bool CategoryMismatch => !Saved && ExpectedCategory is { } expected &&
+        ObservedCategory is { } observed && observed != expected;
+    private string CategoryHint => F("AP/DP im Spiel auf {0} stellen.", LabelFor(ExpectedCategory));
+    private string CategoryLabel => LabelFor(ApplicableValue?.Category);
+    private string LabelFor(CombatStatsCategory? category) => T(category switch
     {
         CombatStatsCategory.General => "Allgemein",
         CombatStatsCategory.Edania => "Edania",
         CombatStatsCategory.Demihuman => "Halbmenschen",
         CombatStatsCategory.Kamasylvian => "Kamasilvia",
         _ => "Nicht erkannt",
-    };
+    });
     private string CategoryClass => !Known ? "" : ApplicableValue!.Category switch
     {
         CombatStatsCategory.General => "combat-stats-general",
@@ -35,9 +43,12 @@
         CombatStatsCategory.Kamasylvian => "combat-stats-kamasylvian",
         _ => "",
     };
-    private string Description => !Known
-        ? Saved ? "Für diese Session wurden keine AP/DP erfasst." : "AP/DP im Spiel noch nicht erkannt."
+    private string Description => CategoryMismatch
+        ? Known ? $"{ObservationDescription} · {CategoryHint}" : CategoryHint
+        : ObservationDescription;
+    private string ObservationDescription => !Known
+        ? T(Saved ? "Für diese Session wurden keine AP/DP erfasst." : "AP/DP im Spiel noch nicht erkannt.")
         : $"AP {Number(ApplicableValue!.Ap!.Value)}, DP {Number(ApplicableValue.Dp!.Value)} · {CategoryLabel} · " +
-            (Saved ? "In dieser Session erfasst" : LastKnown ? "Zuletzt im Spiel erkannt" : "Im Spiel erkannt") +
-            (ApplicableValue.ObservedAt is { } observed ? $" am {observed.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss", German)}" : "");
+            T(Saved ? "In dieser Session erfasst" : LastKnown ? "Zuletzt im Spiel erkannt" : "Im Spiel erkannt") +
+            (ApplicableValue.ObservedAt is { } observed ? F(" am {0}", observed.ToLocalTime().ToString("G", UiCulture)) : "");
 }

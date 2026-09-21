@@ -9,12 +9,13 @@ internal sealed record GarmothUploadInterval(
     DateTimeOffset StartedAt);
 
 /// <summary>
-/// Keeps immutable hourly cutoffs independently of the upload switch. Quantities
+/// Keeps hourly cutoffs independently of the upload switch. Quantities
 /// are cumulative local counters; only positive differences from already sent
 /// quantities can leave the ledger. All methods may run concurrently with capture.
 /// </summary>
 internal sealed partial class GarmothUploadIntervals
 {
+    public const string CorrectionReviewMessage = "Lootmengen haben sich nach Stundenabschluss geändert. Bitte die Vorschau für den verbleibenden Grind prüfen und manuell senden.";
     private static readonly TimeSpan Hour = TimeSpan.FromHours(1);
     private static readonly IReadOnlyDictionary<string, long> EmptyTotals =
         new ReadOnlyDictionary<string, long>(new Dictionary<string, long>());
@@ -31,14 +32,18 @@ internal sealed partial class GarmothUploadIntervals
     private bool _inFlight;
     private bool _blocked;
     private bool _automaticSuspended;
+    private bool _correctionReviewRequired;
+    private bool _preparedCorrected;
 
     public bool IsBlocked { get { lock (_gate) return _blocked; } }
     public bool HasTransmittedLoot { get { lock (_gate) return _transmitted.Count > 0; } }
     public bool AutomaticSuspended { get { lock (_gate) return _automaticSuspended; } }
+    public bool CorrectionReviewRequired { get { lock (_gate) return _correctionReviewRequired; } }
     public Guid? PreparedIntervalId { get { lock (_gate) return _prepared?.Interval.Id; } }
 
     public void Observe(TimeSpan confirmedActiveDuration,
-        IReadOnlyDictionary<string, long> totals, DateTimeOffset observedAt)
+        IReadOnlyDictionary<string, long> totals, DateTimeOffset observedAt,
+        bool isCorrection = false, bool includesNewDrops = false, bool requiresReview = false)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(confirmedActiveDuration, TimeSpan.Zero);
         ArgumentNullException.ThrowIfNull(totals);
@@ -49,12 +54,36 @@ internal sealed partial class GarmothUploadIntervals
             if (confirmedActiveDuration < _observedDuration)
                 confirmedActiveDuration = _observedDuration;
             var snapshot = CopyTotals(totals);
+            var corrections = ReconcileCorrections(snapshot, isCorrection, includesNewDrops);
+            if (corrections.Changed)
+            {
+                _hours.Clear();
+                foreach (var hour in corrections.Hours) _hours.Enqueue(hour);
+            }
+            _correctionReviewRequired |= corrections.ReviewRequired;
+            if (requiresReview && (_nextHour <= confirmedActiveDuration ||
+                _hours.Any(hour => hour.EndDuration > _consumedDuration &&
+                    (!_inFlight || hour.Id != _prepared?.Interval.Id))))
+                _correctionReviewRequired = true;
+            if (corrections.HasCorrection && includesNewDrops && _nextHour < confirmedActiveDuration)
+                _correctionReviewRequired = true;
+            _automaticSuspended |= _correctionReviewRequired;
+            _preparedCorrected |= _inFlight && (corrections.HasCorrection || requiresReview);
+            var priorTotals = _observedTotals;
+            if (corrections.HasCorrection)
+            {
+                var revisedPrior = new Dictionary<string, long>(_observedTotals, StringComparer.OrdinalIgnoreCase);
+                foreach (var name in _observedTotals.Keys.Concat(snapshot.Keys).Distinct(StringComparer.OrdinalIgnoreCase))
+                    if (isCorrection || snapshot.GetValueOrDefault(name) < _observedTotals.GetValueOrDefault(name))
+                        revisedPrior[name] = snapshot.GetValueOrDefault(name);
+                priorTotals = CopyTotals(revisedPrior);
+            }
             _windowStartedAt ??= observedAt - confirmedActiveDuration;
             while (_nextHour <= confirmedActiveDuration)
             {
                 // A frame after the boundary belongs to the next hour. At the
                 // boundary itself its counters are part of the completed hour.
-                var cutoffTotals = _nextHour == confirmedActiveDuration ? snapshot : _observedTotals;
+                var cutoffTotals = _nextHour == confirmedActiveDuration ? snapshot : priorTotals;
                 _hours.Enqueue(new(Guid.NewGuid(), _nextHour, cutoffTotals, _windowStartedAt.Value));
                 _windowStartedAt = observedAt - (confirmedActiveDuration - _nextHour);
                 _nextHour += Hour;
@@ -152,13 +181,18 @@ internal sealed partial class GarmothUploadIntervals
                 foreach (var (name, quantity) in _prepared.Interval.Totals)
                     _transmitted[name] = checked(_transmitted.GetValueOrDefault(name) + quantity);
                 _consumedDuration = _prepared.EndDuration;
+                if (!_prepared.IsAutomatic && !_preparedCorrected) _correctionReviewRequired = false;
                 _prepared = null;
+                _preparedCorrected = false;
                 while (_hours.TryPeek(out var hour) && hour.EndDuration <= _consumedDuration)
                     _hours.Dequeue();
                 return;
             }
 
             _automaticSuspended = true;
+            // A rejected request is safe to replace, but retrying its frozen
+            // quantities after a correction would send a known outdated value.
+            _correctionReviewRequired |= _preparedCorrected;
             if (result.Status is GarmothUploadStatus.OutcomeUnknown or GarmothUploadStatus.AlreadySubmitted)
                 _blocked = true;
         }
@@ -173,7 +207,7 @@ internal sealed partial class GarmothUploadIntervals
     {
         lock (_gate)
         {
-            if (!_blocked) _automaticSuspended = false;
+            if (!_blocked && !_correctionReviewRequired) _automaticSuspended = false;
         }
     }
 
@@ -192,14 +226,49 @@ internal sealed partial class GarmothUploadIntervals
             _inFlight = false;
             _blocked = false;
             _automaticSuspended = false;
+            _correctionReviewRequired = false;
+            _preparedCorrected = false;
         }
     }
 
     private GarmothUploadInterval Reserve(PreparedUpload prepared)
     {
+        if (_prepared?.Interval.Id != prepared.Interval.Id) _preparedCorrected = false;
         _prepared = prepared;
         _inFlight = true;
         return prepared.Interval;
+    }
+
+    private (HourCutoff[] Hours, bool Changed, bool ReviewRequired, bool HasCorrection) ReconcileCorrections(
+        IReadOnlyDictionary<string, long> snapshot, bool isCorrection, bool includesNewDrops = false)
+    {
+        var correctedItems = _observedTotals.Keys.Concat(snapshot.Keys).Distinct(StringComparer.OrdinalIgnoreCase)
+            .Where(name => snapshot.GetValueOrDefault(name) != _observedTotals.GetValueOrDefault(name) &&
+                (isCorrection || snapshot.GetValueOrDefault(name) < _observedTotals.GetValueOrDefault(name)))
+            .ToArray();
+        var hours = _hours.ToArray();
+        if (correctedItems.Length == 0) return (hours, false, false, false);
+        var pending = hours.Where(hour => hour.EndDuration > _consumedDuration &&
+            (!_inFlight || hour.Id != _prepared?.Interval.Id)).ToArray();
+        if (pending.Length == 0) return (hours, false, false, true);
+
+        // With one unsent hour and no loot for these items after its cutoff,
+        // all affected quantities belong to that hour. Across several windows
+        // (or an already dispatched request) there is no reliable allocation.
+        if (includesNewDrops || pending.Length != 1 || _prepared is not null || _consumedDuration != TimeSpan.Zero ||
+            _transmitted.Count != 0 || correctedItems.Any(name =>
+                pending[0].Totals.GetValueOrDefault(name) != _observedTotals.GetValueOrDefault(name)))
+            return (hours, false, true, true);
+
+        var corrected = new Dictionary<string, long>(pending[0].Totals, StringComparer.OrdinalIgnoreCase);
+        foreach (var name in correctedItems)
+        {
+            var quantity = snapshot.GetValueOrDefault(name);
+            if (quantity > 0) corrected[name] = quantity;
+            else corrected.Remove(name);
+        }
+        return (hours.Select(hour => hour.Id == pending[0].Id
+            ? hour with { Totals = CopyTotals(corrected) } : hour).ToArray(), true, false, true);
     }
 
     private IReadOnlyDictionary<string, long> Delta(IReadOnlyDictionary<string, long> totals)

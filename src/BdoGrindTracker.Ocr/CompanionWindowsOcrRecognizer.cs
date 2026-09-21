@@ -43,6 +43,9 @@ public sealed class CompanionWindowsOcrRecognizer
 
     private readonly OcrEngine _engine;
     private readonly object _recognitionGate = new();
+    // The engine and its language never change within an instance. Replacement
+    // therefore starts with an empty cache, including when the OCR language changes.
+    private readonly ExactOcrResultCache _resultCache = new();
     private Task? _pendingRecognition;
     internal static readonly TimeSpan RecognitionTimeout = TimeSpan.FromSeconds(10);
 
@@ -149,6 +152,15 @@ public sealed class CompanionWindowsOcrRecognizer
         cancellationToken.ThrowIfCancellationRequested();
         using var convertedGray = ConvertToGray8IfNeeded(image);
         var gray = convertedGray ?? image;
+        lock (_recognitionGate)
+        {
+            ThrowIfRecognitionPending();
+            if (_resultCache.TryGet(gray, image.Type(), out var cached))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return cached;
+            }
+        }
         var pixels = CopyPixels(gray);
         var buffer = CryptographicBuffer.CreateFromByteArray(pixels);
         var bitmap = SoftwareBitmap.CreateCopyFromBuffer(
@@ -162,8 +174,7 @@ public sealed class CompanionWindowsOcrRecognizer
         {
             lock (_recognitionGate)
             {
-                if (_pendingRecognition is { IsCompleted: false })
-                    throw new InvalidOperationException("Eine vorherige Windows-Texterkennung wird noch beendet. Bitte Grindcrest neu starten, falls sie nicht reagiert.");
+                ThrowIfRecognitionPending();
                 // Do not cancel the Task adapter: it could complete before the
                 // native operation relinquishes this SoftwareBitmap. The lease
                 // bounds our wait and keeps the independent copied input alive.
@@ -174,7 +185,21 @@ public sealed class CompanionWindowsOcrRecognizer
         catch { bitmap.Dispose(); throw; }
         var result = OcrOperationLease.Wait(operation, bitmap, RecognitionTimeout, cancellationToken);
 
-        return new CompanionOcrResult(result.Text, ReadFirstWordGeometry(result)) { Words = ReadWords(result) };
+        var recognized = new CompanionOcrResult(result.Text, ReadFirstWordGeometry(result))
+        {
+            Words = ReadWords(result, out var completeWordMetadata),
+        };
+        // Transient failures reading native geometry must be retried on the next
+        // frame rather than making a partial result permanent for identical pixels.
+        if (completeWordMetadata && recognized.FirstWord.Status != CompanionOcrGeometryStatus.Error)
+            _resultCache.RememberOwned(gray.Width, gray.Height, image.Type(), pixels, recognized);
+        return recognized;
+    }
+
+    private void ThrowIfRecognitionPending()
+    {
+        if (_pendingRecognition is { IsCompleted: false })
+            throw new InvalidOperationException("Eine vorherige Windows-Texterkennung wird noch beendet. Bitte Grindcrest neu starten, falls sie nicht reagiert.");
     }
 
     internal static bool PassesNormalGeometryGate(
@@ -261,10 +286,11 @@ public sealed class CompanionWindowsOcrRecognizer
         }
     }
 
-    private static IReadOnlyList<CompanionOcrWord> ReadWords(OcrResult result)
+    private static IReadOnlyList<CompanionOcrWord> ReadWords(OcrResult result, out bool complete)
     {
         const int maximumWords = 64;
         const int maximumWordLength = 128;
+        complete = false;
         try
         {
             var words = new List<CompanionOcrWord>();
@@ -280,6 +306,7 @@ public sealed class CompanionWindowsOcrRecognizer
                     CompanionOcrGeometryStatus.Success, (float)bounds.X, (float)bounds.Y,
                     (float)bounds.Width, (float)bounds.Height)));
             }
+            complete = true;
             return Array.AsReadOnly(words.ToArray());
         }
         catch (Exception exception) when (IsRecoverableRuntimeFailure(exception))

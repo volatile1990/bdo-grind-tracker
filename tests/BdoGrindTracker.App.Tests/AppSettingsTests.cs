@@ -43,7 +43,7 @@ public sealed class AppSettingsTests
         settings.UpgradeDefaults();
 
         Assert.Equal(3, settings.AutoPauseMinutes);
-        Assert.Equal(6, settings.SettingsVersion);
+        Assert.Equal(7, settings.SettingsVersion);
         Assert.Equal("DISPLAY2", settings.MonitorDeviceName);
         Assert.Equal("hermesia", settings.SpotId);
     }
@@ -88,7 +88,7 @@ public sealed class AppSettingsTests
 
         settings.UpgradeDefaults();
 
-        Assert.Equal(6, settings.SettingsVersion);
+        Assert.Equal(7, settings.SettingsVersion);
         Assert.Equal("eu", settings.MarketRegion);
         Assert.Equal(new SilverTaxOptions(), settings.GetSilverTaxOptions());
         Assert.Equal(12, settings.AutoPauseMinutes);

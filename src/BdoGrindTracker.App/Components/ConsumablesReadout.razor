@@ -1,0 +1,35 @@
+@inherits LocalizedComponentBase
+@using BdoGrindTracker.Core.Buffs
+@{ var summary = ConsumablesPresentation.Create(Value, UiLanguage); }
+
+<section class="consumables-readout@(Compact ? " consumables-compact" : "")" aria-label="@T("Verbrauchte Items")">
+    @if (!Compact)
+    {
+        <h2 class="consumables-heading"><AppIcon Name="spark" /><span>@T("Verbrauchte Items")</span></h2>
+    }
+    @if (summary.Items.Count > 0)
+    {
+        <ul class="consumable-items" aria-label="@T("Anzahl und Kosten je Buff")">
+            @foreach (var item in summary.Items)
+            {
+                <li class="consumable-item" data-buff-id="@item.Id" @key="item.Id" tabindex="0" title="@item.Tooltip" aria-label="@item.Tooltip">
+                    <AssetImage Src="@item.IconPath" Alt="" Class="consumable-icon" Fallback="spark" />
+                    <strong class="consumable-count" aria-hidden="true">@Number(item.Count)</strong>
+                </li>
+            }
+        </ul>
+    }
+    else if (!Compact)
+    {
+        <p class="consumables-empty">@T("Noch keine verbrauchten Items")</p>
+    }
+    <div class="consumables-total @(summary.HasMissingPrices ? "has-missing-prices" : "")" title="@summary.CostDescription">
+        @if (!Compact) { <span>@T(summary.HasMissingPrices ? "Bekannte Kosten" : "Gesamtkosten")</span> }
+        <strong aria-label="@summary.CostDescription"><AppIcon Name="silver" />@summary.Cost</strong>
+    </div>
+</section>
+
+@code {
+    [Parameter] public BuffLedgerSnapshot? Value { get; set; }
+    [Parameter] public bool Compact { get; set; }
+}

@@ -5,18 +5,18 @@
     @if (_editing)
     {
         <form class="loot-quantity-editor" @onsubmit="Save" @onsubmit:preventDefault @onkeydown="OnKeyDown">
-            <label><span>Gesamtmenge</span><input @ref="_input" type="text" inputmode="numeric" autocomplete="off"
-                aria-label="@("Gesamtmenge für " + ItemLabel(ItemName))" aria-invalid="@(_error is not null ? "true" : "false")"
+            <label><span>@T("Gesamtmenge")</span><input @ref="_input" type="text" inputmode="numeric" autocomplete="off"
+                aria-label="@F("Gesamtmenge für {0}", ItemLabel(ItemName))" aria-invalid="@(_error is not null ? "true" : "false")"
                 @bind="_value" @bind:event="oninput" /></label>
-            <div class="quantity-edit-actions"><button type="submit" class="icon-button" aria-label="Menge speichern" title="Speichern (Enter)" disabled="@(Acting || !State.CanEditLoot)"><AppIcon Name="check" /></button><button type="button" class="icon-button" aria-label="Bearbeitung abbrechen" title="Abbrechen (Esc)" @onclick="Cancel" disabled="@Acting"><AppIcon Name="close" /></button></div>
-            @if (Quantity != _originalQuantity) { <small class="quantity-edit-note">Zwischenzeitliche Drops bleiben erhalten.</small> }
-            @if (HasGarmothUpload) { <small class="quantity-edit-note">Bereits übertragene Garmoth-Einträge bleiben unverändert.</small> }
-            @if (_error is not null) { <small class="quantity-edit-error" role="alert">@_error</small> }
+            <div class="quantity-edit-actions"><button type="submit" class="icon-button" aria-label="@T("Menge speichern")" title="@T("Speichern (Enter)")" disabled="@(Acting || !State.CanEditLoot)"><AppIcon Name="check" /></button><button type="button" class="icon-button" aria-label="@T("Bearbeitung abbrechen")" title="@T("Abbrechen (Esc)")" @onclick="Cancel" disabled="@Acting"><AppIcon Name="close" /></button></div>
+            @if (Quantity != _originalQuantity) { <small class="quantity-edit-note">@T("Zwischenzeitliche Drops bleiben erhalten.")</small> }
+            @if (HasGarmothUpload) { <small class="quantity-edit-note">@T("Bereits übertragene Garmoth-Einträge bleiben unverändert.")</small> }
+            @if (_error is not null) { <small class="quantity-edit-error" role="alert">@T(_error)</small> }
         </form>
     }
     else
     {
-        <button @ref="_trigger" type="button" class="quantity-edit-trigger" aria-label="@("Gesamtmenge für " + ItemLabel(ItemName) + " bearbeiten")" title="@(State.CanEditLoot ? "Gesamtmenge bearbeiten" : null)" @onclick="Begin" disabled="@(!State.CanEditLoot)">@DisplayQuantity</button>
+        <button @ref="_trigger" type="button" class="quantity-edit-trigger" aria-label="@F("Gesamtmenge für {0} bearbeiten", ItemLabel(ItemName))" title="@(State.CanEditLoot ? T("Gesamtmenge bearbeiten") : null)" @onclick="Begin" disabled="@(!State.CanEditLoot)">@DisplayQuantity</button>
     }
 </div>
 

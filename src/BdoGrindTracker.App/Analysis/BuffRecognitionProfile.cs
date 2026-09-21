@@ -55,7 +55,7 @@ internal sealed record BuffRecognitionProfile
                     template.TimerRegion.Width > 256 || template.TimerRegion.Height > 128 ||
                     !double.IsFinite(template.MinimumSimilarity) || template.MinimumSimilarity is < .85 or > .999)
                     return "Buff-Vorlage, Zeitbereich oder Ähnlichkeitsschwelle sind ungültig. Bitte neu kalibrieren.";
-                var definition = BuffPriceCatalog.Definitions.FirstOrDefault(definition => definition.Id == template.BuffId);
+                var definition = BuffPriceCatalog.ResolveRecognitionDefinition(template.BuffId);
                 if (definition is null) return $"Buff-ID ist nicht in der ausgewählten Kostenliste enthalten: {template.BuffId}";
                 if (!groups.Add(string.IsNullOrWhiteSpace(definition.RecognitionGroup) ? definition.Id : definition.RecognitionGroup))
                     return "Pro Buff-Familie darf nur eine Preis- und Laufzeitvariante gewählt werden. Bitte doppelte Varianten entfernen.";
@@ -86,7 +86,9 @@ internal sealed class BuffRecognitionProfileStore(string path)
                 throw new InvalidDataException(profile?.ValidationError ?? "Das Buff-Erkennungsprofil ist leer.");
             var directory = Path.GetDirectoryName(fullPath)!;
             var templates = profile.Templates.Select(template => template with
-            { IconPath = Path.GetFullPath(template.IconPath, directory) }).ToArray();
+            {
+                IconPath = Path.GetFullPath(template.IconPath, directory),
+            }).ToArray();
             foreach (var template in templates)
                 if (!File.Exists(template.IconPath)) throw new InvalidDataException($"Buff-Vorlage fehlt: {Path.GetFileName(template.IconPath)}");
             return profile with

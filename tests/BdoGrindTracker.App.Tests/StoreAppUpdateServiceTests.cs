@@ -136,8 +136,6 @@ public sealed class StoreAppUpdateServiceTests
         backend.Available = false;
         await service.CheckAsync();
         Assert.Equal(UpdatePhase.Idle, service.State.Phase);
-        await service.SetBetaAsync(true);
-        Assert.False(service.State.IsBeta);
     }
 
     [Fact]
@@ -255,6 +253,100 @@ public sealed class StoreAppUpdateServiceTests
                 StoreUpdateBackend.MapResult(state) == StoreUpdateResult.Completed);
     }
 
+    [Fact]
+    public async Task SavingAndStorePreparationHaveDistinctStatusBeforeFirstProgressCallback()
+    {
+        var saved = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var installing = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var finished = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var backend = new Backend { InstallGate = finished.Task, Installing = () => installing.SetResult() };
+        var service = Create(backend, prepare: async install =>
+        {
+            await saved.Task;
+            await install();
+            return true;
+        });
+        await service.CheckAsync();
+        var operation = service.RequestRestartAsync();
+        Assert.Equal("Session wird gespeichert …", service.State.Message);
+        Assert.True(service.State.IsDownloadIndeterminate);
+        Assert.Null(service.State.TotalDownloadBytes);
+        var started = service.State.OperationStartedAt;
+        Assert.NotNull(started);
+
+        saved.SetResult();
+        await installing.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal("Microsoft Store bereitet das Update vor …", service.State.Message);
+        Assert.True(service.State.IsDownloadIndeterminate);
+        Assert.Equal(started, service.State.OperationStartedAt);
+
+        finished.SetResult();
+        await operation;
+        Assert.Equal(UpdatePhase.Installed, service.State.Phase);
+        Assert.Null(service.State.OperationStartedAt);
+    }
+
+    [Fact]
+    public async Task ByteProgressIsPublishedEvenWithinSamePercentAndInstallationRemainsIndeterminate()
+    {
+        var finished = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var backend = new Backend { InstallGate = finished.Task };
+        var service = Create(backend);
+        await service.CheckAsync();
+        var operation = service.RequestRestartAsync();
+        var reports = new List<UpdateState>();
+        service.Changed += () => reports.Add(service.State);
+
+        backend.InstallProgress!(new(12, 12_100_000, 100_000_000));
+        backend.InstallProgress(new(12, 12_400_000, 100_000_000));
+        Assert.Equal(2, reports.Count);
+        Assert.All(reports, state => Assert.Equal(12, state.DownloadPercent));
+        Assert.Equal(12_400_000UL, service.State.DownloadedBytes);
+        Assert.Equal(100_000_000UL, service.State.TotalDownloadBytes);
+        Assert.Equal("Update wird heruntergeladen …", service.State.Message);
+        Assert.False(service.State.IsDownloadIndeterminate);
+
+        backend.InstallProgress(new(100, 100_000_000, 100_000_000, StoreUpdateStage.Installing));
+        Assert.True(service.State.IsDownloadIndeterminate);
+        Assert.Equal(UpdatePhase.Restarting, service.State.Phase);
+        Assert.Contains("Update wird installiert.", service.State.Message);
+        finished.SetResult();
+        await operation;
+    }
+
+    [Fact]
+    public async Task RetryResetsProgressAndIgnoresLateCallbacksFromPreviousAttempt()
+    {
+        var firstFinished = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var backend = new Backend { InstallGate = firstFinished.Task, InstallResult = StoreUpdateResult.Canceled };
+        var service = Create(backend);
+        await service.CheckAsync();
+        var first = service.RequestRestartAsync();
+        var lateProgress = backend.InstallProgress!;
+        lateProgress(new(35, 35_000_000, 100_000_000));
+        firstFinished.SetResult();
+        await first;
+        Assert.Null(service.State.DownloadedBytes);
+        Assert.Null(service.State.TotalDownloadBytes);
+        Assert.Null(service.State.OperationStartedAt);
+
+        var retryFinished = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        backend.InstallGate = retryFinished.Task;
+        backend.InstallResult = StoreUpdateResult.Completed;
+        var retry = service.RequestRestartAsync();
+        var waiting = service.State;
+        lateProgress(new(99, 99_000_000, 100_000_000));
+        Assert.Equal(waiting, service.State);
+        Assert.Equal(0, service.State.DownloadPercent);
+        Assert.True(service.State.IsDownloadIndeterminate);
+        backend.InstallProgress!(new(0, 0));
+        Assert.True(service.State.IsDownloadIndeterminate);
+        backend.InstallProgress(new(0, 0, 100_000_000));
+        Assert.False(service.State.IsDownloadIndeterminate);
+        retryFinished.SetResult();
+        await retry;
+    }
+
     private static StoreAppUpdateService Create(Backend backend, Func<bool>? blocked = null,
         Func<Func<Task>, Task<bool>>? prepare = null) => new(backend, blocked ?? (() => false),
         prepare ?? (async install => { await install(); return true; }), "1.0.1");
@@ -267,23 +359,25 @@ public sealed class StoreAppUpdateServiceTests
         public Task DownloadGate = Task.CompletedTask;
         public Task InstallGate = Task.CompletedTask;
         public Action? Installing;
+        public Action<StoreUpdateProgress>? InstallProgress;
         public Task<bool> CheckAsync()
         {
             Checks++;
             if (ThrowCheck) throw new IOException("offline");
             return Task.FromResult(Available);
         }
-        public async Task<StoreUpdateResult> DownloadAsync(Action<int> progress)
+        public async Task<StoreUpdateResult> DownloadAsync(Action<StoreUpdateProgress> progress)
         {
             Downloads++;
-            progress(40);
+            progress(new(40));
             await DownloadGate;
-            progress(100);
+            progress(new(100));
             return DownloadResult;
         }
-        public async Task<StoreUpdateResult> InstallAsync(Action<int> progress)
+        public async Task<StoreUpdateResult> InstallAsync(Action<StoreUpdateProgress> progress)
         {
             Installs++;
+            InstallProgress = progress;
             Installing?.Invoke();
             if (ThrowInstall) throw new IOException("Store unavailable");
             await InstallGate;

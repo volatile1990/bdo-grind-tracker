@@ -17,6 +17,8 @@
 
   <ItemGroup>
     <Compile Include="..\Shared\WindowsOcrAttributes.cs" Link="TestSupport\WindowsOcrAttributes.cs" />
+    <Content Include="..\fixtures\tone-mapped-loot\*.png" Link="fixtures\tone-mapped-loot\%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" />
     <ProjectReference Include="..\..\src\BdoGrindTracker.Ocr\BdoGrindTracker.Ocr.csproj" />
   </ItemGroup>
 </Project>

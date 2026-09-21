@@ -22,6 +22,7 @@ internal sealed record CurrentSessionSnapshot
     public BdoGrindTracker.Core.Buffs.BuffLedgerSnapshot? Buffs { get; init; }
     public required bool SessionSubmitted { get; init; }
     public required Dictionary<string, long> Totals { get; init; }
+    public IReadOnlyList<SessionDropSample>? DropHistory { get; init; }
     public required int ConfirmedEventCount { get; init; }
     public required string[] ManualLootItems { get; init; }
     public required bool GarmothLocallyModified { get; init; }
@@ -129,6 +130,7 @@ internal sealed class CurrentSessionStore(string path)
         {
             CombatStats = CombatStatsSpotRules.ForSpot(snapshot.CombatStats, snapshot.SpotId),
             Totals = totals,
+            DropHistory = SessionDropHistory.Normalize(snapshot.DropHistory, snapshot.Duration, totals),
             ManualLootItems = snapshot.ManualLootItems.Distinct(StringComparer.OrdinalIgnoreCase).ToArray(),
         };
     }

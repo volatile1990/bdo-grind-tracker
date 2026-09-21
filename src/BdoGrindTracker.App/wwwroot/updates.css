@@ -6,7 +6,13 @@
 .update-actions { display:flex; flex-wrap:wrap; gap:10px; margin:16px 0; }
 .update-progress { display:flex; align-items:center; gap:12px; margin:12px 0; }
 .update-progress progress { flex:1; min-width:0; height:8px; accent-color:#d6b56d; }
-.update-progress > span { min-width:44px; font-variant-numeric:tabular-nums; }
+.update-progress > span { white-space:nowrap; font-variant-numeric:tabular-nums; }
+.update-progress-details { display:flex; flex-wrap:wrap; justify-content:space-between; gap:6px 16px; margin-top:-2px; color:var(--muted, #a5adbb); font-size:13px; font-variant-numeric:tabular-nums; }
+.update-elapsed { white-space:nowrap; }
+.update-progress-wait { flex:1; height:8px; overflow:hidden; border-radius:5px; background:var(--line, #3b424e); }
+.update-progress-wait > span { display:block; width:35%; height:100%; border-radius:inherit; background:var(--gold, #d6b56d); animation:update-wait 1.8s ease-in-out infinite alternate; }
+@keyframes update-wait { from { transform:translateX(-50%); } to { transform:translateX(235%); } }
+@media (prefers-reduced-motion:reduce) { .update-progress-wait > span { animation:none; margin:auto; } }
 .update-panel .subtle-box { margin-bottom:14px; }
 .store-update-dialog .subtle-box { margin:18px 0; }
 @media (max-width:900px) { .update-banner { margin:12px 18px 0; flex-wrap:wrap; } }

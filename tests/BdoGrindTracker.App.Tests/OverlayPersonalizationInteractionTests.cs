@@ -227,10 +227,11 @@ public sealed class OverlayPersonalizationInteractionTests
     private static async Task Render(Func<OverlayEditor, OverlayService, Func<string>, RecordingJs, Task> test)
     {
         await using var tracker = new PreviewTrackerSession();
+        await tracker.SavePreferencesAsync(tracker.Preferences with { UiLanguage = "de" });
         using var overlay = new OverlayService(tracker);
         var activator = new CapturingActivator();
         var js = new RecordingJs();
-        using var provider = new ServiceCollection().AddLogging().AddSingleton<IOverlayService>(overlay)
+        using var provider = new ServiceCollection().AddLogging().AddSingleton<IOverlayService>(overlay).AddSingleton<ITrackerSession>(tracker)
             .AddSingleton<IJSRuntime>(js).AddSingleton<IComponentActivator>(activator).BuildServiceProvider();
         await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
         await renderer.Dispatcher.InvokeAsync(async () =>

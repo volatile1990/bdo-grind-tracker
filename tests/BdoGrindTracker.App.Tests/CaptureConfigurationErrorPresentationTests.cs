@@ -55,9 +55,14 @@ public sealed class CaptureConfigurationErrorPresentationTests
         yield return [ValidXml, "width = 1\nheight = 1\nuiScale =  1.00\n", InvalidNormal];
         yield return ["<Resolution Width='0' Height='1080'/>" + ValidXml, ValidOptions, InvalidResolution];
         yield return ["<Resolution Width='1920' Height='private-height-value'/>" + ValidXml, ValidOptions, InvalidResolution];
+        yield return ["<GameOptionGlobal><Resolution Width='3840'/><Resolution Width='1920'/></GameOptionGlobal>" + ValidXml, ValidOptions, InvalidResolution];
+        yield return ["<Resolution Width='3840'/><GameOptionGlobal><Resolution Width='1920'/></GameOptionGlobal>" + ValidXml, ValidOptions, InvalidResolution];
+        yield return ["<GameOptionGlobal/><GameOptionGlobal/>" + ValidXml, ValidOptions, UnknownError];
         yield return [ValidXml, "uiScale =  1.00\n", InvalidResolution];
         yield return ["<UiScale Value='NaN'/>" + ValidXml, ValidOptions, InvalidScale];
         yield return ["<UiScale Value='private-scale-value'/>" + ValidXml, ValidOptions, InvalidScale];
+        yield return ["<GameOptionGlobal><UiScale Value='1.49'/><UiScale Value='1.00'/></GameOptionGlobal>" + ValidXml, ValidOptions, InvalidScale];
+        yield return ["<UiScale Value='1.49'/><GameOptionGlobal><UiScale Value='1.00'/></GameOptionGlobal>" + ValidXml, ValidOptions, InvalidScale];
         yield return [ValidXml, "width = 1920\nheight = 1080\n", InvalidScale];
         yield return ["<private-customer-content></wrong-ending>", ValidOptions, DamagedFile];
     }

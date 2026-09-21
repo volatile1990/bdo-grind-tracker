@@ -28,11 +28,14 @@ public sealed class FadeAwareDiagnosticsTests : IDisposable
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void RecordedFadeAndIndependentSpecialRoundTripWithExactTimeline(bool independent)
+    [InlineData(false, LootDiagnosticFormat.EngineVersion)]
+    [InlineData(true, LootDiagnosticFormat.EngineVersion)]
+    [InlineData(false, LootDiagnosticFormat.LegacyFadeAwareLifetimeEngineVersion)]
+    [InlineData(true, LootDiagnosticFormat.LegacyFadeAwareLifetimeEngineVersion)]
+    public void RecordedFadeAndIndependentSpecialRoundTripWithExactTimeline(bool independent, string engine)
     {
         var path = Record(fadeMode: true, independent: independent);
+        Rewrite(path, (header, _) => header["engineVersion"] = engine);
         var rows = File.ReadLines(path).Skip(1).Select(line => JsonSerializer.Deserialize<LootDiagnosticEntry>(line, LootDiagnosticFormat.JsonOptions)!)
             .SelectMany(entry => entry.Observations).Where(row => row.FadeEvidence is not null).ToArray();
         var fading = Assert.Single(rows);
@@ -42,7 +45,7 @@ public sealed class FadeAwareDiagnosticsTests : IDisposable
         Assert.Equal(.7999999970197678, fading.NameConfidence);
         Assert.Equal(new NormalLootFadeEvidence(.55, .98), fading.FadeEvidence);
         var replay = LootDiagnosticReplay.Run(path);
-        Assert.True(replay.UsesCurrentEngine);
+        Assert.Equal(engine == LootDiagnosticFormat.EngineVersion, replay.UsesCurrentEngine);
         Assert.Equal("lifetime-v5", replay.NormalTrackingAlgorithm);
         Assert.True(replay.TotalsMatch, replay.ToDisplayText());
         Assert.True(replay.EventTimelineMatches, replay.ToDisplayText());

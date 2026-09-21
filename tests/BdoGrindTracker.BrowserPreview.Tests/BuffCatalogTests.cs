@@ -28,7 +28,7 @@ public sealed class BuffCatalogTests
         var market = BuffPriceCatalog.MarketDefinitions().ToArray();
         Assert.Equal(39, market.Length);
         Assert.Equal(new[] { 9691, 9692, 9693 }, ItemIds("Cron-Mahlzeiten"));
-        Assert.Equal(Enumerable.Range(1399, 10), ItemIds("Harmony Draughts"));
+        Assert.Equal(new[] { 1399, 1400, 1401, 1402, 1403, 1404, 1405, 1406, 1407, 1408 }, ItemIds("Harmony Draughts"));
         Assert.Equal(new[] { 767969, 767970, 767971, 767972, 767973, 790781 }, ItemIds("Mystic-Beasts-Schriftrollen"));
         Assert.All(BuffPriceCatalog.Definitions.Where(item => item.FixedUnitPrice is not null), tent =>
         {
@@ -88,13 +88,11 @@ public sealed class BuffCatalogTests
     }
 
     [Fact]
-    public void PartyEffectsRequireExplicitConsumptionAttribution()
+    public void PartyHarmonyEffectsPermitVisibleConsumptionWithoutClaimingItsSource()
     {
-        var party = BuffPriceCatalog.Definitions.Where(item => item.RequiresConsumptionConfirmation).ToArray();
+        var party = BuffPriceCatalog.Definitions.Where(item => item.Name.StartsWith("[Party]", StringComparison.Ordinal)).ToArray();
         Assert.Equal(8, party.Length);
-        Assert.All(party, item => Assert.StartsWith("[Party]", item.Name));
-        Assert.All(BuffPriceCatalog.Definitions.Where(item => !item.Name.StartsWith("[Party]", StringComparison.Ordinal)),
-            item => Assert.False(item.RequiresConsumptionConfirmation));
+        Assert.All(party, item => Assert.False(item.RequiresConsumptionConfirmation));
         Assert.False(new BuffObservation(party[0].Id, TimeSpan.FromMinutes(19), TimeSpan.FromMinutes(1))
             .ConsumptionAttributionConfirmed);
     }

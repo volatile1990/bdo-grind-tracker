@@ -21,6 +21,8 @@ internal sealed class LootScrollGaugeDetector : ILootScrollFrameDetector
     private static readonly Rect CoreBounds = new(10, 8, 35, 36);
     private readonly Lazy<Template[]> _templates = new(LoadTemplates);
     private bool _disposed;
+    internal long TemplateResizeCount => !_templates.IsValueCreated ? 0 : _templates.Value.Sum(template =>
+        template.CoreSizes.ResizeCount + template.ImageSizes.ResizeCount + template.MaskSizes.ResizeCount);
 
     public LootScrollReading Analyze(Bitmap frame, CancellationToken cancellationToken)
         => FindGauge(frame, cancellationToken)?.Reading ?? LootScrollReading.Unknown;
@@ -47,16 +49,14 @@ internal sealed class LootScrollGaugeDetector : ILootScrollFrameDetector
         var candidates = new List<Candidate>();
         foreach (var template in _templates.Value)
         {
-            using var core = new Mat(template.Image, CoreBounds);
             for (var diameter = 28; diameter <= 112; diameter += 4)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var scale = diameter / (double)TemplateSize;
-                using var resized = new Mat();
-                Cv2.Resize(core, resized, new CvSize(
-                    Math.Max(6, (int)Math.Round(core.Width * scale * reduction)),
-                    Math.Max(6, (int)Math.Round(core.Height * scale * reduction))),
-                    interpolation: InterpolationFlags.Area);
+                using var resized = template.CoreSizes.Acquire(
+                    Math.Max(6, (int)Math.Round(CoreBounds.Width * scale * reduction)),
+                    Math.Max(6, (int)Math.Round(CoreBounds.Height * scale * reduction)),
+                    InterpolationFlags.Area);
                 if (resized.Width > search.Width || resized.Height > search.Height)
                     continue;
                 using var scores = new Mat();
@@ -115,11 +115,7 @@ internal sealed class LootScrollGaugeDetector : ILootScrollFrameDetector
         if (_disposed) return;
         _disposed = true;
         if (!_templates.IsValueCreated) return;
-        foreach (var template in _templates.Value)
-        {
-            template.Image.Dispose();
-            template.Mask.Dispose();
-        }
+        foreach (var template in _templates.Value) template.Dispose();
     }
 
     private static Match? Verify(Mat frame, Candidate candidate, CancellationToken cancellationToken)
@@ -129,12 +125,8 @@ internal sealed class LootScrollGaugeDetector : ILootScrollFrameDetector
              size <= Math.Min(112, candidate.Diameter + 4); size++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            using var resized = new Mat();
-            using var mask = new Mat();
-            Cv2.Resize(candidate.Template.Image, resized, new CvSize(size, size),
-                interpolation: InterpolationFlags.Area);
-            Cv2.Resize(candidate.Template.Mask, mask, new CvSize(size, size),
-                interpolation: InterpolationFlags.Nearest);
+            using var resized = candidate.Template.ImageSizes.Acquire(size, size, InterpolationFlags.Area);
+            using var mask = candidate.Template.MaskSizes.Acquire(size, size, InterpolationFlags.Nearest);
             // Only pixels used by the mask must be in the frame. A clipped outer
             // rim or plus button must not hide a fully visible bag and level glyph.
             var symbolBounds = Cv2.BoundingRect(mask);
@@ -204,18 +196,44 @@ internal sealed class LootScrollGaugeDetector : ILootScrollFrameDetector
         }
         catch
         {
-            foreach (var template in templates)
-            {
-                template.Image.Dispose();
-                template.Mask.Dispose();
-            }
+            foreach (var template in templates) template.Dispose();
             throw;
         }
     }
 
     private static long DistanceSquared(CvPoint a, CvPoint b)
         => (long)(a.X - b.X) * (a.X - b.X) + (long)(a.Y - b.Y) * (a.Y - b.Y);
-    private sealed record Template(LootScrollReading Reading, Mat Image, Mat Mask);
+    private sealed class Template : IDisposable
+    {
+        private readonly Mat _core;
+        public LootScrollReading Reading { get; }
+        public Mat Image { get; }
+        public Mat Mask { get; }
+        public ResizedTemplateCache CoreSizes { get; }
+        public ResizedTemplateCache ImageSizes { get; }
+        public ResizedTemplateCache MaskSizes { get; }
+
+        public Template(LootScrollReading reading, Mat image, Mat mask)
+        {
+            Reading = reading;
+            Image = image;
+            Mask = mask;
+            _core = new Mat(image, CoreBounds);
+            CoreSizes = new(_core, maximumBytes: 256 * 1024);
+            ImageSizes = new(image);
+            MaskSizes = new(mask);
+        }
+
+        public void Dispose()
+        {
+            CoreSizes.Dispose();
+            ImageSizes.Dispose();
+            MaskSizes.Dispose();
+            _core.Dispose();
+            Image.Dispose();
+            Mask.Dispose();
+        }
+    }
     private sealed record Candidate(Template Template, int Diameter, int X, int Y, double Score);
     private sealed record Match(LootScrollReading Reading, double Score, Rectangle Bounds)
     {

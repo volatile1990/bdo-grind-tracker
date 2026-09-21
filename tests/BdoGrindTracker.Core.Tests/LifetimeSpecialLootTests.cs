@@ -23,6 +23,52 @@ public sealed class LifetimeSpecialLootTests
         Assert.Equal(2, last.SupportedDropCount);
     }
 
+    [Theory]
+    [InlineData(1, 0)]
+    [InlineData(2, 0)]
+    [InlineData(3, 0)]
+    [InlineData(1, 10)]
+    [InlineData(2, 10)]
+    [InlineData(3, 10)]
+    public void ShortNotificationAfterWarmupIsPreservedWhenTheNextItemArrives(int firstFrames, int blankFrames)
+    {
+        const string warmup = "Deboreka Necklace";
+        var tracker = Tracker();
+        var frame = 0;
+        for (; frame < 50; frame++)
+            tracker.ProcessObservations([Row(warmup)], Start.AddMilliseconds(frame * 200));
+        for (var blank = 0; blank < blankFrames; blank++, frame++)
+            tracker.ProcessObservations([], Start.AddMilliseconds(frame * 200));
+        for (var first = 0; first < firstFrames; first++, frame++)
+            tracker.ProcessObservations([Row(Earring)], Start.AddMilliseconds(frame * 200));
+        for (var second = 0; second < 50; second++, frame++)
+            tracker.ProcessObservations([Row(Ring)], Start.AddMilliseconds(frame * 200));
+
+        var completed = tracker.Complete(Start.AddMilliseconds(frame * 200));
+        Assert.Equal(1, completed.Totals.GetValueOrDefault(warmup));
+        Assert.Equal(1, completed.Totals.GetValueOrDefault(Earring));
+        Assert.Equal(1, completed.Totals.GetValueOrDefault(Ring));
+        Assert.Equal(3, completed.SupportedDropCount);
+    }
+
+    [Theory]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void ReturningToAnEarlierItemAfterAConfirmedChangeCountsAnotherDrop(int intermediateFrames)
+    {
+        var tracker = Tracker();
+        var names = Enumerable.Repeat(Ring, 50).Concat(Enumerable.Repeat(Earring, intermediateFrames))
+            .Concat(Enumerable.Repeat(Ring, 50));
+        var frame = 0;
+        foreach (var name in names)
+            tracker.ProcessObservations([Row(name)], Start.AddMilliseconds(frame++ * 200));
+
+        var completed = tracker.Complete(Start.AddMilliseconds(frame * 200));
+        Assert.Equal(2, completed.Totals.GetValueOrDefault(Ring));
+        Assert.Equal(1, completed.Totals.GetValueOrDefault(Earring));
+        Assert.Equal(3, completed.SupportedDropCount);
+    }
+
     [Fact]
     public void UnchangedNotificationAndCaptureGapDoNotCreateAdditionalArrivals()
     {
@@ -71,13 +117,16 @@ public sealed class LifetimeSpecialLootTests
         Assert.Equal(1, afterSparseBlanks.SupportedDropCount);
     }
 
-    [Fact]
-    public void OneWrongAccessoryReadIsReversibleWithoutReplacingTheOriginalItem()
+    [Theory]
+    [InlineData(8)]
+    [InlineData(60)]
+    [InlineData(160)]
+    public void OneWrongAccessoryReadIsReversibleWithoutReplacingTheOriginalItem(int wrongFrame)
     {
         var tracker = Tracker();
         LifetimeSnapshot? last = null;
-        for (var frame = 0; frame < 20; frame++)
-            last = tracker.ProcessObservations([Row(frame == 8 ? Earring : Ring)], Start.AddMilliseconds(frame * 200));
+        for (var frame = 0; frame < wrongFrame + 12; frame++)
+            last = tracker.ProcessObservations([Row(frame == wrongFrame ? Earring : Ring)], Start.AddMilliseconds(frame * 200));
         Assert.Equal(1, last!.Totals[Ring]);
         Assert.False(last.Totals.ContainsKey(Earring));
         Assert.Equal(1, last.SupportedDropCount);

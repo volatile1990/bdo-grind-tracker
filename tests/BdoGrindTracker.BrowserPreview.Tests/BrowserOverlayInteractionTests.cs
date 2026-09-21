@@ -19,6 +19,7 @@ public sealed class BrowserOverlayInteractionTests
     public async Task NewSessionButtonAsksBeforeChangingTheSession()
     {
         await using var tracker = new PreviewTrackerSession();
+        await tracker.SavePreferencesAsync(tracker.Preferences with { UiLanguage = "de" });
         using var overlay = new OverlayService(tracker);
         await overlay.SaveAsync(overlay.Settings with { Widgets = [OverlayCatalog.CreateWidget("controls")] });
         var js = new ConfirmationJavaScript();
@@ -50,7 +51,7 @@ public sealed class BrowserOverlayInteractionTests
     public async Task RotationOnlyPreviewAnimatesItsExampleWithoutChangingSessionData()
     {
         await using var tracker = new PreviewTrackerSession();
-        await tracker.SavePreferencesAsync(tracker.Preferences with { ThemeId = AppThemes.Cats });
+        await tracker.SavePreferencesAsync(tracker.Preferences with { ThemeId = AppThemes.Cats, UiLanguage = "de" });
         using var overlay = new OverlayService(tracker);
         await overlay.SaveAsync(overlay.Settings with { Widgets = [OverlayCatalog.CreateWidget("rotation-monitor")] });
         await overlay.SetPreviewAsync(true);

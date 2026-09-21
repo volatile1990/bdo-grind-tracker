@@ -30,21 +30,33 @@ internal sealed class AgrisFrameDetector : IAgrisFrameDetector
         ArgumentNullException.ThrowIfNull(frame);
         cancellationToken.ThrowIfCancellationRequested();
         if (frame.Width < 30 || frame.Height < 30) return AgrisReading.Unknown;
+        var frameBounds = new Rectangle(0, 0, frame.Width, frame.Height);
+        if (_lastBounds is { } previous)
+        {
+            var local = Rectangle.Intersect(frameBounds, Rectangle.Inflate(previous, 16, 16));
+            if (local.Width > 0 && local.Height > 0)
+            {
+                // Find's verification can extend beyond its search ROI. Keep enough pixels
+                // for the largest 114px reference plus its 5px search margin on every side.
+                var pixels = Rectangle.Intersect(frameBounds, Rectangle.Inflate(local, 128, 128));
+                using var localBgr = CompanionFrameDecoder.Decode(frame, pixels);
+                using var localGray = new Mat();
+                Cv2.CvtColor(localBgr, localGray, ColorConversionCodes.BGR2GRAY);
+                local.Offset(-pixels.X, -pixels.Y);
+                var match = Find(localGray, local, cancellationToken, previous.Width);
+                if (match is not null)
+                {
+                    var bounds = match.Bounds;
+                    bounds.Offset(pixels.X, pixels.Y);
+                    _lastBounds = bounds;
+                    return Classify(localBgr, match);
+                }
+            }
+        }
         using var bgr = CompanionFrameDecoder.Decode(frame);
         using var gray = new Mat();
         Cv2.CvtColor(bgr, gray, ColorConversionCodes.BGR2GRAY);
-        if (_lastBounds is { } previous)
-        {
-            var local = Rectangle.Intersect(new Rectangle(0, 0, frame.Width, frame.Height),
-                Rectangle.Inflate(previous, 16, 16));
-            var match = Find(gray, local, cancellationToken, previous.Width);
-            if (match is not null)
-            {
-                _lastBounds = match.Bounds;
-                return Classify(bgr, match);
-            }
-        }
-        var found = Find(gray, new Rectangle(0, 0, frame.Width, frame.Height), cancellationToken);
+        var found = Find(gray, frameBounds, cancellationToken);
         _lastBounds = found?.Bounds;
         return found is null ? AgrisReading.Unknown : Classify(bgr, found);
     }

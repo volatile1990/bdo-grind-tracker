@@ -6,7 +6,7 @@ namespace BdoGrindTracker.BrowserPreview.Tests;
 public sealed class BuffProfileStoreTests
 {
     [Theory]
-    [InlineData("harmony-draught", "immortal-harmony-draught")]
+    [InlineData("perfume-of-courage", "immortal-perfume-of-courage")]
     [InlineData("tent-body-enhancement-60", "tent-body-enhancement-120")]
     public void AmbiguousPriceOrDurationVariantsCannotShareAProfile(string first, string second)
     {
@@ -19,18 +19,46 @@ public sealed class BuffProfileStoreTests
     }
 
     [Fact]
-    public void PartyBuffsRequireExplicitAttributionAndIndependentGroupsRemainUsable()
+    public void NormalAndImmortalPartyBuffsRemainDistinctWithoutOwnConsumptionConfirmation()
     {
         var party = new BuffIconTemplate("harmony-draught-demihuman", "icon.png", new(0, 32, 40, 16));
-        var profile = Profile([party, new("simple-cron-meal", "meal.png", new(0, 32, 40, 16))]);
-        Assert.False(profile.IsValid);
-        Assert.Contains("eigenen Verbrauch", profile.ValidationError);
-        Assert.True((profile with
-        { Templates = [party with { ConsumptionAttributionConfirmed = true }, profile.Templates[1]] }).IsValid);
+        var profile = Profile([party,
+            new("immortal-harmony-draught-demihuman", "immortal.png", new(0, 32, 40, 16)),
+            new("simple-cron-meal", "meal.png", new(0, 32, 40, 16))]);
+        Assert.True(profile.IsValid);
+        Assert.All(profile.Templates, template => Assert.False(template.ConsumptionAttributionConfirmed));
     }
 
     private static BuffRecognitionProfile Profile(IReadOnlyList<BuffIconTemplate> templates) => new()
     { ScreenWidth = 1920, ScreenHeight = 1080, Region = new(20, 30, 300, 64), Templates = templates };
+
+    [Theory]
+    [InlineData("immortal-harmony-draught")]
+    [InlineData("immortal-harmony-draught-human")]
+    [InlineData("immortal-harmony-draught-demihuman")]
+    [InlineData("immortal-harmony-draught-kamasylvia")]
+    [InlineData("immortal-harmony-draught-edania")]
+    public void ImmortalHarmonyProfilesRetainTheirVariantWithoutRewritingTheFile(string id)
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "buff-profile-tests-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var profile = Profile([new(id, "icon.png", new(0, 32, 40, 16))]);
+            Assert.True(profile.IsValid);
+            var path = Path.Combine(directory, "profile.json");
+            var json = JsonSerializer.Serialize(profile);
+            File.WriteAllText(path, json);
+            File.WriteAllBytes(Path.Combine(directory, "icon.png"), [1]);
+
+            var loaded = Assert.IsType<BuffRecognitionProfile>(new BuffRecognitionProfileStore(path).Load());
+
+            Assert.Equal(id, Assert.Single(loaded.Templates).BuffId);
+            Assert.True(loaded.IsValid);
+            Assert.Equal(json, File.ReadAllText(path));
+        }
+        finally { Directory.Delete(directory, true); }
+    }
 
     [Theory]
     [InlineData("unknown-buff")]

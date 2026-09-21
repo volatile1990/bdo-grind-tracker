@@ -1,3 +1,4 @@
+@inherits LocalizedComponentBase
 @using BdoGrindTracker.App.Overlay
 
 <fieldset class="oe-hotkey-field" disabled="@Disabled">
@@ -6,11 +7,11 @@
         <div class="oe-hotkey-modifiers">
             @foreach (var modifier in Modifiers)
             {
-                <label class="oe-modifier"><input type="checkbox" checked="@Value.Modifiers.HasFlag(modifier.Value)" @onchange="e => ToggleModifier(modifier.Value, e.Value is true)" /><span>@modifier.Label</span></label>
+                <label class="oe-modifier"><input type="checkbox" checked="@Value.Modifiers.HasFlag(modifier.Value)" @onchange="e => ToggleModifier(modifier.Value, e.Value is true)" /><span>@T(modifier.Label)</span></label>
             }
         </div>
-        <label class="oe-field oe-hotkey-key"><span>Taste</span><select aria-label="@($"Taste für {Label}")" value="@Value.Key" @onchange="ChangeKey">@foreach (var key in OverlayHotkey.SupportedKeys) { <option value="@key">@OverlayHotkey.KeyDisplayText(key)</option> }</select></label>
-        <kbd>@Value.DisplayText</kbd>
+        <label class="oe-field oe-hotkey-key"><span>@T("Taste")</span><select aria-label="@F("Taste für {0}", Label)" value="@Value.Key" @onchange="ChangeKey">@foreach (var key in OverlayHotkey.SupportedKeys) { <option value="@key">@T(OverlayHotkey.KeyDisplayText(key))</option> }</select></label>
+        <kbd>@Value.GetDisplayText(UiLanguage)</kbd>
     </div>
 </fieldset>
 

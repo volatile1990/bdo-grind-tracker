@@ -23,8 +23,11 @@ public static class OverlayLootPresentation
 
     public static OverlayLootView Create(OverlayWidget widget, OverlaySnapshot snapshot)
     {
-        var source = snapshot.Drops;
-        var filter = widget.Kind == "drop-item" ? "selected" : widget.Kind == "rare-drops" ? "rare" : widget.ItemFilter;
+        var consumables = widget.Kind == "consumables";
+        var source = consumables ? Array.AsReadOnly(snapshot.Consumables.Items.Select(item => new OverlayLootItem(
+            item.Id, item.Name, item.Count.ToString("N0", Localization.AppText.Culture(snapshot.UiLanguage)),
+            item.IconPath, Quantity: item.Count, Tooltip: item.Tooltip)).ToArray()) : snapshot.Drops;
+        var filter = consumables ? "all" : widget.Kind == "drop-item" ? "selected" : widget.Kind == "rare-drops" ? "rare" : widget.ItemFilter;
         IEnumerable<OverlayLootItem> selection = source;
         if (filter == "selected")
         {
@@ -45,11 +48,11 @@ public static class OverlayLootPresentation
         {
             "quantity" => selection.OrderByDescending(item => item.Quantity).ThenBy(item => item.CanonicalName, StringComparer.Ordinal),
             "name" => selection.OrderBy(item => item.Name, StringComparer.CurrentCultureIgnoreCase),
-            _ when filter != "selected" => selection.OrderByDescending(item => item.IsTrash).ThenBy(item => item.Name, StringComparer.CurrentCultureIgnoreCase),
+            _ when filter != "selected" && !consumables => selection.OrderByDescending(item => item.IsTrash).ThenBy(item => item.Name, StringComparer.CurrentCultureIgnoreCase),
             _ => selection,
         };
         var items = Array.AsReadOnly(selection.ToArray());
-        var view = widget.Kind == "drop-item" ? "card" : widget.ItemView;
+        var view = consumables ? "grid" : widget.Kind == "drop-item" ? "card" : widget.ItemView;
         var count = view == "card" ? Math.Min(items.Count, 1) : filter == "all"
             ? items.Count : Math.Min(items.Count, Math.Clamp(widget.ItemLimit, 1, 24));
         var visible = Array.AsReadOnly(items.Take(count).ToArray());
@@ -59,7 +62,7 @@ public static class OverlayLootPresentation
         var itemSize = widget.ItemSize;
         var fontScale = widget.FontScale;
         var header = widget.ShowLabel ? 18 * fontScale : 0;
-        var footer = hiddenCount > 0 ? 18 * fontScale : 0;
+        var footer = consumables ? 24 * fontScale : hiddenCount > 0 ? 18 * fontScale : 0;
         var cellHeight = view switch
         {
             "list" => Math.Max(24, Math.Max(itemSize * .55, 20 * fontScale)),
@@ -105,14 +108,14 @@ public static class OverlayLootPresentation
         footer *= scale;
         var cellWidth = view is "list" or "card" ? width : itemSize * scale;
         cellHeight = view == "card" ? Math.Max(0, innerHeight - header - footer) : cellHeight * scale;
-        var label = filter switch
+        var label = consumables ? "Verbrauchte Items" : filter switch
         {
             "rare" => "Seltene Drops · Live-Session",
             "trash" => "Trashloot · Live-Session",
             _ when widget.Kind == "drop-item" => "Live-Session",
             _ => "Drops · Live-Session",
         };
-        return new(label, "Gesammelte Mengen der Live-Session, einschließlich manueller Korrekturen.",
+        return new(label, consumables ? snapshot.Consumables.CostDescription : "Gesammelte Mengen der Live-Session, einschließlich manueller Korrekturen.",
             items, visible, hiddenCount, columns, cellWidth, cellHeight, header, footer,
             itemSize * scale, fontScale * scale, Gap * scale);
     }

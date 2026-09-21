@@ -57,10 +57,48 @@ public sealed class SettingsStoreTests
         var settings = fixture.Store.Load();
 
         Assert.Equal(3, settings.AutoPauseMinutes);
-        Assert.Equal(6, settings.SettingsVersion);
+        Assert.Equal(7, settings.SettingsVersion);
         Assert.False(settings.GarmothAutoUploadEnabled);
         Assert.False(settings.AutoStartGrinding);
-        Assert.False(settings.AutoStartSuspended);
+        Assert.False(settings.SetupCompleted);
+    }
+
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("{\"SettingsVersion\":6,\"AutoPauseMinutes\":12}")]
+    public void ExistingSettingsWithoutSetupFlagKeepTheirNormalStartup(string json)
+    {
+        using var fixture = new IsolatedStore();
+        File.WriteAllText(fixture.Path, json);
+
+        var settings = fixture.Store.Load();
+        fixture.Store.Save(settings);
+
+        Assert.True(settings.SetupCompleted);
+        Assert.True(fixture.Store.Load().SetupCompleted);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ExplicitSetupStatusSurvivesSaveAndReload(bool completed)
+    {
+        using var fixture = new IsolatedStore();
+        var settings = fixture.Store.Load();
+        settings.SetupCompleted = completed;
+
+        fixture.Store.Save(settings);
+
+        Assert.Equal(completed, fixture.Store.Load().SetupCompleted);
+    }
+
+    [Fact]
+    public void SetupMigrationRespectsCaseInsensitivePropertyNames()
+    {
+        using var fixture = new IsolatedStore();
+        File.WriteAllText(fixture.Path, "{\"setupCompleted\":false}");
+
+        Assert.False(fixture.Store.Load().SetupCompleted);
     }
 
     [Fact]
@@ -77,7 +115,7 @@ public sealed class SettingsStoreTests
         Assert.Equal(3, settings.AutoPauseMinutes);
         Assert.Equal("DISPLAY2", settings.MonitorDeviceName);
         Assert.Equal("hermesia", settings.SpotId);
-        Assert.Equal(6, settings.SettingsVersion);
+        Assert.Equal(7, settings.SettingsVersion);
     }
 
     [Fact]
@@ -146,22 +184,19 @@ public sealed class SettingsStoreTests
     }
 
     [Fact]
-    public void ManualAutoStartSuspensionPersistsUntilExplicitlyCleared()
+    public void LegacySuspensionIsIgnoredAndRemovedWhenSettingsAreSaved()
     {
         using var fixture = new IsolatedStore();
-        var settings = fixture.Store.Load();
-        settings.AutoStartGrinding = true;
-        settings.AutoStartSuspended = true;
-        fixture.Store.Save(settings);
+        File.WriteAllText(fixture.Path,
+            """{"SettingsVersion":7,"AutoStartGrinding":true,"AutoStartSuspended":true}""");
 
         var reloaded = fixture.Store.Load();
+        Assert.Null(fixture.Store.LoadError);
         Assert.True(reloaded.AutoStartGrinding);
-        Assert.True(reloaded.AutoStartSuspended);
-        reloaded.AutoStartSuspended = false;
         fixture.Store.Save(reloaded);
 
         Assert.True(fixture.Store.Load().AutoStartGrinding);
-        Assert.False(fixture.Store.Load().AutoStartSuspended);
+        Assert.DoesNotContain("AutoStartSuspended", File.ReadAllText(fixture.Path));
     }
 
     [Fact]
@@ -190,7 +225,7 @@ public sealed class SettingsStoreTests
 
         var settings = fixture.Store.Load();
 
-        Assert.Equal(6, settings.SettingsVersion);
+        Assert.Equal(7, settings.SettingsVersion);
         Assert.Equal("eu", settings.MarketRegion);
         Assert.Equal(new SilverTaxOptions(), settings.GetSilverTaxOptions());
         Assert.Equal(9, settings.AutoPauseMinutes);

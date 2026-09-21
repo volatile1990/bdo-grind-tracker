@@ -205,23 +205,110 @@ public sealed class StoreUpdateDialogTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task StoreBannerReopensGlobalPromptWhilePortableBannerStillNavigatesToSettings(bool store)
+    public async Task StoreBannerUsesGlobalPromptOrFallsBackToSettings(bool hasGlobalPrompt)
     {
         var updates = new RecordingUpdates();
-        updates.Publish(updates.State with { UsesStore = store });
         await Render<AppUpdates>(updates, new Session(), async (banner, _, _, navigation) =>
         {
             var openings = 0;
-            banner.ShowStoreUpdateDialog = EventCallback.Factory.Create(this, () => openings++);
+            if (hasGlobalPrompt) banner.ShowStoreUpdateDialog = EventCallback.Factory.Create(this, () => openings++);
             await Invoke(banner, "ViewUpdate");
-            Assert.Equal(store ? 1 : 0, openings);
-            Assert.Equal(store ? "https://0.0.0.1/" : "https://0.0.0.1/settings", navigation.Uri);
+            Assert.Equal(hasGlobalPrompt ? 1 : 0, openings);
+            Assert.Equal(hasGlobalPrompt ? "https://0.0.0.1/" : "https://0.0.0.1/settings", navigation.Uri);
         }, new Dictionary<string, object?> { [nameof(AppUpdates.Compact)] = true });
+    }
+
+    [Theory]
+    [InlineData("de")]
+    [InlineData("en")]
+    public async Task DialogAndSettingsShowDownloadBytesAndDistinctWaitingStages(string language)
+    {
+        await VerifyProgress<StoreUpdateDialog>(language);
+        await VerifyProgress<AppUpdates>(language);
+    }
+
+    private static async Task VerifyProgress<T>(string language) where T : IComponent
+    {
+        var english = language == "en";
+        var updates = new RecordingUpdates();
+        updates.Publish(updates.State with
+        {
+            Phase = UpdatePhase.Restarting,
+            IsDownloadIndeterminate = true,
+            OperationStartedAt = DateTimeOffset.UtcNow.AddSeconds(-12),
+            Message = "Session wird gespeichert …",
+        });
+        await Render<T>(updates, new Session { Preferences = new() { UiLanguage = language } }, (_, markup, _, _) =>
+        {
+            Assert.Contains(english ? "Saving session …" : "Session wird gespeichert …", markup());
+            Assert.Contains("class=\"update-progress-wait\" role=\"progressbar\"", markup());
+            Assert.DoesNotContain("0 %", markup());
+            Assert.Contains(english ? "Download size not yet known" : "Downloadgröße noch unbekannt", markup());
+            Assert.Contains(english ? "Elapsed:" : "Vergangen:", markup());
+
+            updates.Publish(updates.State with { Message = "Microsoft Store bereitet das Update vor …" });
+            Assert.Contains(english ? "Microsoft Store is preparing the update …" : "Microsoft Store bereitet das Update vor …", markup());
+
+            updates.Publish(updates.State with
+            {
+                IsDownloadIndeterminate = false,
+                DownloadPercent = 35,
+                DownloadedBytes = 35_100_000,
+                TotalDownloadBytes = 100_000_000,
+                Message = "Update wird heruntergeladen …",
+            });
+            Assert.Contains("Download: 35 %", markup());
+            Assert.Contains(english ? "Downloaded: 35.1 MB / 100.0 MB" : "Heruntergeladen: 35,1 MB / 100,0 MB", markup());
+            Assert.DoesNotContain("update-progress-wait", markup());
+            updates.Publish(updates.State with { DownloadedBytes = 35_400_000 });
+            Assert.Contains(english ? "35.4 MB / 100.0 MB" : "35,4 MB / 100,0 MB", markup());
+            Assert.Contains("Download: 35 %", markup());
+
+            updates.Publish(updates.State with { TotalDownloadBytes = null });
+            Assert.Contains(english ? "Downloaded: 35.4 MB · Total size not yet known" : "Heruntergeladen: 35,4 MB · Gesamtgröße noch unbekannt", markup());
+            updates.Publish(updates.State with
+            {
+                IsDownloadIndeterminate = true,
+                DownloadPercent = 100,
+                Message = "Update wird installiert. Windows kann Grindcrest gleich neu starten …",
+            });
+            Assert.Contains(english ? "Installing update. Windows may restart Grindcrest shortly …" : "Update wird installiert. Windows kann Grindcrest gleich neu starten …", markup());
+            Assert.Contains("update-progress-wait", markup());
+            Assert.DoesNotContain("100 %", markup());
+
+            updates.Publish(updates.State with { Message = "Update wird abgeschlossen …" });
+            Assert.Contains(english ? "Finalizing update …" : "Update wird abgeschlossen …", markup());
+            updates.Publish(updates.State with { Phase = UpdatePhase.Installed, OperationStartedAt = null });
+            Assert.DoesNotContain("update-progress-region", markup());
+            return Task.CompletedTask;
+        }, refreshMarkup: false);
+    }
+
+    [Fact]
+    public async Task ElapsedTimeUpdatesWithoutStoreEventsAndStopsAfterDisposal()
+    {
+        await Render<UpdateProgress>(new RecordingUpdates(), new Session(), async (progress, markup, _, _) =>
+        {
+            static string Elapsed(string html) => Regex.Match(html, "<span class=\"update-elapsed\">(?<elapsed>.*?)</span>").Groups["elapsed"].Value;
+            var initial = Elapsed(markup());
+            var deadline = DateTime.UtcNow.AddSeconds(5);
+            while (Elapsed(markup()) == initial && DateTime.UtcNow < deadline) await Task.Delay(100);
+            Assert.NotEqual(initial, Elapsed(markup()));
+            progress.Dispose();
+            var disposed = markup();
+            await Task.Delay(1200);
+            Assert.Equal(disposed, markup());
+        }, new Dictionary<string, object?>
+        {
+            [nameof(UpdateProgress.IsIndeterminate)] = true,
+            [nameof(UpdateProgress.OperationStartedAt)] = DateTimeOffset.UtcNow.AddSeconds(-12),
+            [nameof(UpdateProgress.Language)] = "en",
+        }, refreshMarkup: false);
     }
 
     private static async Task Render<T>(RecordingUpdates updates, Session session,
         Func<T, Func<string>, RecordingJs, TestNavigation, Task> test,
-        IDictionary<string, object?>? parameters = null) where T : IComponent
+        IDictionary<string, object?>? parameters = null, bool refreshMarkup = true) where T : IComponent
     {
         var activator = new CapturingActivator();
         var js = new RecordingJs();
@@ -236,7 +323,7 @@ public sealed class StoreUpdateDialogTests
             var component = activator.Components.OfType<T>().Single();
             string Markup()
             {
-                typeof(ComponentBase).GetMethod("StateHasChanged", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(component, null);
+                if (refreshMarkup) typeof(ComponentBase).GetMethod("StateHasChanged", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(component, null);
                 return WebUtility.HtmlDecode(rendered.ToHtmlString());
             }
             await test(component, Markup, js, navigation);
@@ -288,7 +375,7 @@ public sealed class StoreUpdateDialogTests
         private event Action? _changed;
         public int Subscribers { get; private set; }
         public event Action? Changed { add { _changed += value; Subscribers++; } remove { _changed -= value; Subscribers--; } }
-        public UpdateState State { get; private set; } = new(true, false, "1.0.0", null, UpdatePhase.Available, 0,
+        public UpdateState State { get; private set; } = new(true, "1.0.0", null, UpdatePhase.Available, 0,
             "Eine neue Version von Grindcrest ist verfügbar.") { UsesStore = true };
         public int Installs { get; private set; }
         public int Downloads { get; private set; }
@@ -296,14 +383,13 @@ public sealed class StoreUpdateDialogTests
         public void Publish(UpdateState state) { State = state; _changed?.Invoke(); }
         public Task CheckAsync() => Task.CompletedTask;
         public Task DownloadAsync() { Downloads++; return Task.CompletedTask; }
-        public Task SetBetaAsync(bool enabled) => Task.CompletedTask;
         public Task RequestRestartAsync() { Installs++; return InstallAction(); }
     }
     private sealed class Session : ITrackerSession
     {
         public event Action? Changed;
         public TrackerState State { get; set; } = new();
-        public TrackerPreferences Preferences { get; } = new();
+        public TrackerPreferences Preferences { get; init; } = new() { UiLanguage = "de" };
         public IReadOnlyList<TrackerMonitor> Monitors { get; } = [];
         public IReadOnlyList<LootHistoryEntry> History { get; } = [];
         public LootPriceSnapshot Prices { get; } = LootPriceCatalog.FixedSnapshot("eu");
@@ -324,7 +410,6 @@ public sealed class StoreUpdateDialogTests
         public Task<TrackerCommandResult> DeleteHistoryAsync(Guid sessionId) => Command();
         public Task RefreshPricesAsync() => Command();
         public Task TickAsync() => Command();
-        public Task PrepareUpdateRestartAsync() => Command();
         public Task RunPreparedUpdateAsync(Func<Task> install) => Command();
         public Task ShutdownAsync() => Command();
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;

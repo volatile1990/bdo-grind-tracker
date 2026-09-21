@@ -972,8 +972,11 @@ public sealed partial class TrackerSessionServiceTests
         await fixture.ProcessAfter(TimeSpan.FromMinutes(1), ("Black Crystal Fragment", 2));
         await fixture.Service.PauseAsync();
 
-        var failure = await Assert.ThrowsAnyAsync<Exception>(() => fixture.Service.PrepareUpdateRestartAsync());
+        var installs = 0;
+        Task Install() { installs++; return Task.CompletedTask; }
+        var failure = await Assert.ThrowsAnyAsync<Exception>(() => fixture.Service.RunPreparedUpdateAsync(Install));
         Assert.True(failure is IOException or UnauthorizedAccessException);
+        Assert.Equal(0, installs);
 
         Assert.False(fixture.Analyzer.Disposed);
         Assert.False(fixture.Service.State.ShutdownFailed);
@@ -983,8 +986,9 @@ public sealed partial class TrackerSessionServiceTests
 
         lockedHistory?.Dispose();
         if (temporaryPathIsDirectory) Directory.Delete(historyPath + ".tmp");
-        await fixture.Service.PrepareUpdateRestartAsync();
+        await fixture.Service.RunPreparedUpdateAsync(Install);
 
+        Assert.Equal(1, installs);
         Assert.False(fixture.Analyzer.Disposed);
         Assert.Equal(5, Assert.Single(fixture.HistoryStore.Load()).Totals["Black Crystal Fragment"]);
         await fixture.Service.NewSessionAsync();
@@ -997,13 +1001,17 @@ public sealed partial class TrackerSessionServiceTests
         await using var fixture = new Fixture(autoUpload: false);
         Directory.CreateDirectory(fixture.SettingsPath);
 
-        await Assert.ThrowsAsync<IOException>(() => fixture.Service.PrepareUpdateRestartAsync());
+        var installs = 0;
+        Task Install() { installs++; return Task.CompletedTask; }
+        await Assert.ThrowsAsync<IOException>(() => fixture.Service.RunPreparedUpdateAsync(Install));
 
+        Assert.Equal(0, installs);
         Assert.False(fixture.Analyzer.Disposed);
         Assert.False(fixture.Service.State.ShutdownFailed);
         Assert.False(fixture.Service.State.IsBusy);
         Directory.Delete(fixture.SettingsPath);
-        await fixture.Service.PrepareUpdateRestartAsync();
+        await fixture.Service.RunPreparedUpdateAsync(Install);
+        Assert.Equal(1, installs);
         Assert.True(File.Exists(fixture.SettingsPath));
         Assert.False(fixture.Analyzer.Disposed);
     }
@@ -1285,7 +1293,8 @@ public sealed partial class TrackerSessionServiceTests
             PassiveCaptureSession? suppliedCapture = null, IGarmothGrindBenchmarkProvider? benchmarkProvider = null,
             CurrentSessionSnapshot? restoredSession = null, Func<Task<bool>>? prepareWindowCapture = null,
             Func<IAutomaticGrindMonitor>? autoStartMonitorFactory = null,
-            CombatStatsMonitor? combatStatsMonitor = null, BuffMonitor? buffMonitor = null)
+            CombatStatsMonitor? combatStatsMonitor = null, BuffMonitor? buffMonitor = null,
+            string? initialSettingsJson = null)
         {
             Analyzer = analyzer ?? new();
             Directory.CreateDirectory(DirectoryPath);
@@ -1294,6 +1303,7 @@ public sealed partial class TrackerSessionServiceTests
             HistoryStore = new LootHistoryStore(Path.Combine(DirectoryPath, "loot-history-v1.json"));
             if (autoUpload) Settings.Save(new AppSettings { GarmothAutoUploadEnabled = true });
             if (initialSettings is not null) Settings.Save(initialSettings);
+            if (initialSettingsJson is not null) File.WriteAllText(SettingsPath, initialSettingsJson);
             if (restoredSession is not null)
                 new CurrentSessionStore(Path.Combine(DirectoryPath, CurrentSessionStore.FileName)).Save(restoredSession);
             if (saveKey) KeyStore.Save("synthetic-auto-upload-key");
@@ -1321,7 +1331,7 @@ public sealed partial class TrackerSessionServiceTests
                 lootScrollMonitor: lootScrollMonitor, isLootScrollCaptureVisible: lootScrollVisible ?? (_ => false),
                 agrisMonitor: agrisMonitor, experienceMonitor: experienceMonitor, benchmarkProvider: benchmarkProvider,
                 prepareWindowCapture: prepareWindowCapture, autoStartMonitorFactory: autoStartMonitorFactory,
-                combatStatsMonitor: combatStatsMonitor, buffMonitor: buffMonitor);
+                combatStatsMonitor: combatStatsMonitor, buffMonitor: buffMonitor, timeProvider: Time);
         }
 
         public string DirectoryPath { get; } = Path.Combine(Path.GetTempPath(), "BdoGrindTracker.Tests", Guid.NewGuid().ToString("N"));

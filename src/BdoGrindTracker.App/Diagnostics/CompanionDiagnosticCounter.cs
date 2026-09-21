@@ -11,7 +11,7 @@ internal sealed class CompanionDiagnosticCounter(IReadOnlyList<CompanionRareCata
     IReadOnlyDictionary<string, uint>? minimumQuantities = null, bool trackRows = false, bool temporal = false,
     bool legacyTemporal = false, bool lifetime = false, bool rawLifetime = false,
     LifetimeParsingContext? parsingContext = null, bool visualLifetime = false, bool independentSpecial = false,
-    bool unreadableVisualLifetime = false, bool useFadeEvidence = false)
+    bool unreadableVisualLifetime = false, bool useFadeEvidence = false, bool useLegacySingleRowLearning = false)
 {
     private readonly bool usesRawLifetime = rawLifetime || visualLifetime || independentSpecial || unreadableVisualLifetime || useFadeEvidence;
     private readonly ICompanionReconciliation normal = lifetime || rawLifetime || visualLifetime || independentSpecial || unreadableVisualLifetime || useFadeEvidence
@@ -26,7 +26,7 @@ internal sealed class CompanionDiagnosticCounter(IReadOnlyList<CompanionRareCata
     private readonly LifetimeLootProjectionComposer projectionComposer = new();
     private readonly LifetimeNormalReconciliationAdapter? special = independentSpecial
         ? new(parsingContext ?? throw new InvalidDataException("Dem Special-Loot-Zähler fehlt der Parsing-Kontext."),
-            false, source: LootSource.Rare, slotCount: 1)
+            false, source: LootSource.Rare, slotCount: 1, useLegacySingleRowLearning: useLegacySingleRowLearning)
         : null;
     private CompanionRareFrameReconciler? rare;
 

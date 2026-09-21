@@ -10,7 +10,7 @@ namespace BdoGrindTracker.App.Analysis;
 /// lifetime estimates are added. The rare-delta overload preserves historical replay rules.
 /// Summation differences are audit records, not newly arrived physical drops.
 /// </summary>
-internal sealed class LifetimeLootProjectionComposer
+internal sealed partial class LifetimeLootProjectionComposer
 {
     private Dictionary<string, long> _rare = new(StringComparer.Ordinal);
     private Dictionary<string, List<int>> _rareLots = new(StringComparer.Ordinal);
@@ -28,7 +28,19 @@ internal sealed class LifetimeLootProjectionComposer
         AddSource(normal);
         AddSource(special);
         var count = checked(normal.SupportedDropCount + special.SupportedDropCount);
-        var result = CreateProjection(totals, count, Max(normal.LatestArrivalAt, special.LatestArrivalAt), timestamp);
+        var normalEvidence = ReadSourceEvidence(normal);
+        var specialEvidence = ReadSourceEvidence(special);
+        var normalCorrection = CompareSourceEvidence(_normalEvidence, normalEvidence);
+        var specialCorrection = CompareSourceEvidence(_specialEvidence, specialEvidence);
+        var trusted = _correctionEvidenceTrusted && normalCorrection is not null && specialCorrection is not null;
+        var correctionVersion = normalCorrection == true || specialCorrection == true
+            ? checked(_correctionVersion + 1) : _correctionVersion;
+        var result = CreateProjection(totals, count, Max(normal.LatestArrivalAt, special.LatestArrivalAt), timestamp,
+            trusted ? correctionVersion : null);
+        _normalEvidence = normalEvidence;
+        _specialEvidence = specialEvidence;
+        _correctionEvidenceTrusted = trusted;
+        _correctionVersion = correctionVersion;
         Commit(result.Projection);
         return result;
 
@@ -99,14 +111,19 @@ internal sealed class LifetimeLootProjectionComposer
     }
 
     private (LootTotalsProjection Projection, IReadOnlyList<TrackedLootEvent> Events) CreateProjection(
-        Dictionary<string, long> totals, int count, DateTimeOffset? latest, DateTimeOffset timestamp)
+        Dictionary<string, long> totals, int count, DateTimeOffset? latest, DateTimeOffset timestamp,
+        long? correctionVersion = null)
     {
         var differences = totals.Keys.Concat(_previous.Keys).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)
             .Select(name => (Name: name, Amount: checked(totals.GetValueOrDefault(name) - _previous.GetValueOrDefault(name))))
             .Where(pair => pair.Amount != 0).ToArray();
-        var revision = differences.Length > 0 || count != _dropCount || latest != _latestArrival
+        var revision = differences.Length > 0 || count != _dropCount || latest != _latestArrival ||
+            _hasProjection && correctionVersion != _lastCorrectionVersion
             ? checked(_revision + 1) : _revision;
-        var projection = new LootTotalsProjection(revision, totals, count, latest);
+        var projection = new LootTotalsProjection(revision, totals, count, latest)
+        {
+            QuantityCorrectionRevision = correctionVersion,
+        };
         projection.Validate();
         var events = new List<TrackedLootEvent>();
         foreach (var (name, amount) in differences)
@@ -130,6 +147,8 @@ internal sealed class LifetimeLootProjectionComposer
         _dropCount = projection.ConfirmedDropCount;
         _latestArrival = projection.LatestArrivalAt;
         _revision = projection.Revision;
+        _lastCorrectionVersion = projection.QuantityCorrectionRevision;
+        _hasProjection = true;
     }
 
     public void Reset()
@@ -140,6 +159,11 @@ internal sealed class LifetimeLootProjectionComposer
         _dropCount = 0;
         _latestArrival = null;
         _revision = 0;
+        _normalEvidence = _specialEvidence = null;
+        _correctionEvidenceTrusted = true;
+        _correctionVersion = 0;
+        _lastCorrectionVersion = null;
+        _hasProjection = false;
     }
 
     private static DateTimeOffset? Max(DateTimeOffset? left, DateTimeOffset? right) =>

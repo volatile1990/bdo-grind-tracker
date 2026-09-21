@@ -10,6 +10,9 @@ public sealed partial class TrackerSessionServiceTests
     [InlineData(AppThemes.BlackDesert)]
     [InlineData(AppThemes.Light)]
     [InlineData(AppThemes.Cats)]
+    [InlineData(AppThemes.Obsidian)]
+    [InlineData(AppThemes.Kamasylvia)]
+    [InlineData(AppThemes.Valencia)]
     public async Task RestoresThemeSelectionFromPersistedPreferences(string themeId)
     {
         await using var fixture = new Fixture(autoUpload: false,
@@ -27,7 +30,8 @@ public sealed partial class TrackerSessionServiceTests
         var sessionId = fixture.Service.State.SessionId;
         var loot = fixture.Service.State.Loot.Totals;
 
-        foreach (var themeId in new[] { AppThemes.BlackDesert, AppThemes.Light, AppThemes.Cats, AppThemes.Grindcrest })
+        foreach (var themeId in new[] { AppThemes.BlackDesert, AppThemes.Light, AppThemes.Cats, AppThemes.Obsidian,
+            AppThemes.Kamasylvia, AppThemes.Valencia, AppThemes.Grindcrest })
         {
             var result = await fixture.Service.SavePreferencesAsync(fixture.Service.Preferences with { ThemeId = themeId });
 

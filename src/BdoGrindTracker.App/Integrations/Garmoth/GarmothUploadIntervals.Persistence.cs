@@ -14,28 +14,35 @@ internal sealed record GarmothUploadState
     public GarmothHourCutoffState[] Hours { get; init; } = [];
     public bool IsBlocked { get; init; }
     public bool AutomaticSuspended { get; init; }
+    public bool CorrectionReviewRequired { get; init; }
 }
 
 internal sealed partial class GarmothUploadIntervals
 {
-    public GarmothUploadState ExportState()
+    public GarmothUploadState ExportState(IReadOnlyDictionary<string, long>? proposedTotals = null)
     {
         lock (_gate)
         {
+            // A manual edit is persisted before committing the aggregate. Apply
+            // the same reconciliation to a copy so a failed save changes neither
+            // live counters nor the queued hours.
+            var corrections = ReconcileCorrections(proposedTotals ?? _observedTotals, isCorrection: true);
+            var reviewRequired = _correctionReviewRequired || corrections.ReviewRequired;
             return new()
             {
                 ObservedDuration = _observedDuration,
                 ConsumedDuration = _consumedDuration,
                 NextHour = _nextHour,
                 WindowStartedAt = _windowStartedAt,
-                ObservedTotals = new(_observedTotals, StringComparer.OrdinalIgnoreCase),
+                ObservedTotals = new(proposedTotals ?? _observedTotals, StringComparer.OrdinalIgnoreCase),
                 TransmittedTotals = new(_transmitted, StringComparer.OrdinalIgnoreCase),
-                Hours = _hours.Select(hour => new GarmothHourCutoffState(hour.Id, hour.EndDuration,
+                Hours = corrections.Hours.Select(hour => new GarmothHourCutoffState(hour.Id, hour.EndDuration,
                     new(hour.Totals, StringComparer.OrdinalIgnoreCase), hour.StartedAt)).ToArray(),
                 // A checkpoint may race an HTTP request. The journal supplies an
                 // independent guard too; never resume an uncertain request here.
                 IsBlocked = _blocked || _inFlight,
-                AutomaticSuspended = _automaticSuspended || _inFlight,
+                AutomaticSuspended = _automaticSuspended || _inFlight || reviewRequired,
+                CorrectionReviewRequired = reviewRequired,
             };
         }
     }
@@ -78,7 +85,9 @@ internal sealed partial class GarmothUploadIntervals
             _prepared = null;
             _inFlight = false;
             _blocked = state.IsBlocked;
-            _automaticSuspended = state.AutomaticSuspended || state.IsBlocked;
+            _correctionReviewRequired = state.CorrectionReviewRequired;
+            _preparedCorrected = false;
+            _automaticSuspended = state.AutomaticSuspended || state.IsBlocked || state.CorrectionReviewRequired;
         }
     }
 

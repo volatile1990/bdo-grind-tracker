@@ -11,6 +11,7 @@ internal sealed class OverlayService : IOverlayService
     private readonly OverlayTemplateStore? _templateStore;
     private readonly string? _templateLoadError;
     private readonly OverlayMetrics _metrics = new();
+    private readonly Persistence.DailyNetProjection _dailyNet = new();
     private readonly Dictionary<string, OverlayRuntimeState> _runtime = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> _saveErrors = new(StringComparer.Ordinal);
     private readonly HashSet<string> _previewing = new(StringComparer.Ordinal);
@@ -339,9 +340,9 @@ internal sealed class OverlayService : IOverlayService
     private OverlaySnapshot WithDailyGoal(OverlaySnapshot snapshot)
     {
         var today = DateOnly.FromDateTime(snapshot.ClockUtcNow.LocalDateTime);
-        var earned = Persistence.GrindGoalStore.DailyNet(_tracker.History).GetValueOrDefault(today);
+        var earned = _dailyNet.Update(_tracker.History).GetValueOrDefault(today);
         decimal? target = _goals?.Goals.TryGetValue(today, out var value) == true ? value : null;
-        return snapshot with { DailyGoal = new(earned, target, _goals?.Error) };
+        return snapshot with { DailyGoal = new(earned, target, _goals?.Error) { UiLanguage = snapshot.UiLanguage } };
     }
 
     private void TrackerChanged()

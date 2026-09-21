@@ -186,7 +186,7 @@ public sealed class ExperiencePresentationTests
     {
         public event Action? Changed { add { } remove { } }
         public TrackerState State { get; set; } = new() { AnalyzerAvailable = true };
-        public TrackerPreferences Preferences { get; } = new();
+        public TrackerPreferences Preferences { get; } = new() { UiLanguage = "de" };
         public IReadOnlyList<TrackerMonitor> Monitors => [];
         public IReadOnlyList<LootHistoryEntry> History { get; init; } = [];
         public LootPriceSnapshot Prices { get; } = LootPriceCatalog.FixedSnapshot("eu");
@@ -205,7 +205,6 @@ public sealed class ExperiencePresentationTests
         public Task<PreferenceSaveResult> SavePreferencesAsync(TrackerPreferences preferences, string? apiKey = null, bool resumeAutomaticUpload = false) => throw new InvalidOperationException("Rendering must not save preferences.");
         public Task RefreshPricesAsync() => Command();
         public Task TickAsync() => Command();
-        public Task PrepareUpdateRestartAsync() => Command();
         public Task RunPreparedUpdateAsync(Func<Task> install) => Command();
         public Task ShutdownAsync() => Command();
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;

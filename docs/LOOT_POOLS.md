@@ -105,7 +105,10 @@ Der Trashloot eines anderen unterstützten Spots bleibt ebenfalls ausgeschlossen
 Alle Namen in `SharedGlobalItems`, den Spotpools und der Eventliste müssen in
 `data/items.en.txt` vorhanden sein. Umgekehrt darf kein gebündelter Name ohne
 Poolzuordnung oder ausdrücklich getesteten Ausschluss bleiben.
-Regressionstests prüfen globale Drops nach Spotlock im normalen und Rare-Kanal.
+Die [feste Kanalzuordnung](LOOT_SOURCES.md) legt zusätzlich fest, aus welchem
+Droplog ein Item gezählt werden darf. Neue Namen brauchen eine Pool- und
+Kanalzuordnung. Historische Tests ohne Kanalfilter prüfen weiterhin die früheren
+Mengen- und Poolregeln; eigene Tests sichern die Live-Quellentrennung ab.
 
 Dieser Stand deckt die recherchierten und bisher beobachteten möglichen Drops ab.
 Eine vollständige, aktuelle serverseitige Drop-Tabelle war nicht verfügbar;

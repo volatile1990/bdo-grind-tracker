@@ -4,84 +4,70 @@ namespace BdoGrindTracker.App.Tests;
 
 public sealed class AppUpdateRuntimeTests
 {
-    [Theory]
-    [InlineData(122, true)]
-    [InlineData(15700, false)]
-    public void RuntimeSelectsOnlyItsOwnBackend(int nativeResult, bool store)
+    [Fact]
+    public void PackagedRuntimeCreatesTheStoreBackendOnce()
     {
         var expected = new DisabledAppUpdates("1.0.1", "test");
-        var runtime = new AppUpdateRuntime(AppUpdateRuntime.ClassifyPackageIdentity(nativeResult));
-        var actual = runtime.CreateUpdates(true,
-            () => store ? throw new InvalidOperationException("No GitHub in Store") : expected,
-            () => store ? expected : throw new InvalidOperationException("No Store in GitHub"));
+        var runtime = new AppUpdateRuntime(AppPackageIdentity.Packaged);
+        var calls = 0;
+
+        var actual = runtime.CreateUpdates(true, () => { calls++; return expected; });
+
         Assert.Same(expected, actual);
+        Assert.Equal(1, calls);
     }
 
     [Theory]
-    [InlineData(122, false)]
-    [InlineData(15700, false)]
-    [InlineData(5, true)]
-    public void PreviewOrUnknownIdentityCreatesNeitherBackend(int nativeResult, bool enabled)
+    [InlineData(122, false)] // Packaged preview.
+    [InlineData(15700, false)] // Unpackaged preview.
+    [InlineData(5, false)] // Unknown preview.
+    [InlineData(15700, true)] // Development builds never initialize updates.
+    [InlineData(5, true)] // Unknown identity must not enable a network backend.
+    [InlineData(0, true)] // Unexpected success code without a package name.
+    public async Task PreviewUnpackagedAndUnknownRuntimeNeverCreateOrCallABackend(int nativeResult, bool enabled)
     {
         var runtime = new AppUpdateRuntime(AppUpdateRuntime.ClassifyPackageIdentity(nativeResult));
-        var actual = runtime.CreateUpdates(enabled,
-            () => throw new InvalidOperationException("No GitHub"),
-            () => throw new InvalidOperationException("No Store"));
-        Assert.False(actual.State.Enabled);
-    }
-    [Theory]
-    [InlineData(122, true)] // GetCurrentPackageFullName found an identity.
-    [InlineData(5, false)] // Unexpected native errors must not enable Velopack.
-    [InlineData(0, false)]
-    public async Task PackagedOrUnknownRuntimeNeverStartsBootstrapOrCreatesGitHubUpdates(int nativeResult,
-        bool managedByStore)
-    {
-        var runtime = new AppUpdateRuntime(AppUpdateRuntime.ClassifyPackageIdentity(nativeResult));
-        runtime.Bootstrap(() => throw new InvalidOperationException("Velopack must not run."));
-        var updates = runtime.CreateUpdates(true,
-            () => throw new InvalidOperationException("The GitHub backend and preferences must not be created."));
+        var updates = runtime.CreateUpdates(enabled,
+            () => throw new InvalidOperationException("No update backend may be created."));
+        var state = updates.State;
 
         await updates.CheckAsync();
         await updates.DownloadAsync();
-        await updates.SetBetaAsync(true);
         await updates.RequestRestartAsync();
 
-        Assert.Equal(managedByStore ? UpdatePhase.StoreManaged : UpdatePhase.Disabled, updates.State.Phase);
+        Assert.Same(state, updates.State);
+        Assert.Equal(UpdatePhase.Disabled, updates.State.Phase);
+        Assert.Equal(AppBranding.Version, updates.State.InstalledVersion);
         Assert.False(updates.State.Enabled);
-        Assert.False(updates.State.IsBeta);
+        Assert.False(updates.State.UsesStore);
         Assert.False(updates.State.IsBusy);
         Assert.False(updates.State.CanDownload);
         Assert.False(updates.State.IsReady);
     }
 
     [Fact]
-    public void ConfirmedUnpackagedRuntimePreservesBootstrapAndUpdateFactory()
+    public async Task PackagedRuntimeWithoutAnAvailableBackendRemainsStoreManagedAndInactive()
     {
-        var runtime = new AppUpdateRuntime(AppUpdateRuntime.ClassifyPackageIdentity(15700));
-        var steps = new List<string>();
-        var expected = new DisabledAppUpdates("1.0.0", "test");
+        var updates = new AppUpdateRuntime(AppPackageIdentity.Packaged).CreateUpdates(true);
 
-        runtime.Bootstrap(() => steps.Add("bootstrap"));
-        var actual = runtime.CreateUpdates(true, () =>
-        {
-            steps.Add("updates");
-            return expected;
-        });
+        await updates.CheckAsync();
+        await updates.DownloadAsync();
+        await updates.RequestRestartAsync();
 
-        Assert.Equal(["bootstrap", "updates"], steps);
-        Assert.Same(expected, actual);
+        Assert.Equal(UpdatePhase.StoreManaged, updates.State.Phase);
+        Assert.Equal(AppBranding.Version, updates.State.InstalledVersion);
+        Assert.False(updates.State.Enabled);
+        Assert.False(updates.State.IsBusy);
+        Assert.False(updates.State.CanDownload);
     }
 
     [Theory]
-    [InlineData(15700)]
-    [InlineData(122)]
-    [InlineData(5)]
-    public void PreviewAndSmokeTestsNeverCreateGitHubUpdates(int nativeResult)
+    [InlineData(122, (int)AppPackageIdentity.Packaged)]
+    [InlineData(15700, (int)AppPackageIdentity.Unpackaged)]
+    [InlineData(5, (int)AppPackageIdentity.Unknown)]
+    [InlineData(0, (int)AppPackageIdentity.Unknown)]
+    public void NativeIdentityResultsDoNotAssumeAnInstallationOnFailure(int result, int expected)
     {
-        var runtime = new AppUpdateRuntime(AppUpdateRuntime.ClassifyPackageIdentity(nativeResult));
-        var updates = runtime.CreateUpdates(false, () => throw new InvalidOperationException("Preview must stay offline."));
-
-        Assert.Equal(UpdatePhase.Disabled, updates.State.Phase);
-        Assert.False(updates.State.Enabled);
+        Assert.Equal((AppPackageIdentity)expected, AppUpdateRuntime.ClassifyPackageIdentity(result));
     }
 }

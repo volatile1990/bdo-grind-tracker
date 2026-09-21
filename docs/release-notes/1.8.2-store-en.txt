@@ -1,0 +1,5 @@
+What's new in Grindcrest 1.8.2:
+
+• More reliable class detection: Detection considers additional configuration folders, all relevant UI presets and the actual save times of configuration files.
+• Automatic hourly Garmoth uploads wait when the character class is temporarily unavailable and continue once it is detected.
+• Time since the last drop: Items from the rare drop log now have a time tag on the right in the live drop list. It counts active grind time, excluding pauses. Items without a known drop time show “—”.

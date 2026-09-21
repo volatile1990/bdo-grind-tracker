@@ -20,8 +20,8 @@ public partial class OverlayEditor
         ? Overlay.Templates.FirstOrDefault(t => t.Id == _templateReplaceId)
         : Overlay.Templates.FirstOrDefault(t => string.Equals(t.Name, _templateNameDraft.Trim(), StringComparison.OrdinalIgnoreCase));
     private string? HotkeyValidationError => !_toggleOverlayDraft.IsValid || !_toggleInteractionDraft.IsValid
-        ? "Wähle eine Taste zusammen mit Strg, Alt oder Strg+Alt."
-        : _toggleOverlayDraft == _toggleInteractionDraft ? "Die beiden Aktionen benötigen unterschiedliche Tastenkürzel." : null;
+        ? T("Wähle eine Taste zusammen mit Strg, Alt oder Strg+Alt.")
+        : _toggleOverlayDraft == _toggleInteractionDraft ? T("Die beiden Aktionen benötigen unterschiedliche Tastenkürzel.") : null;
 
     private async Task OpenHotkeyEditor()
     {

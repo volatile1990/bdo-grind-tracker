@@ -1,48 +1,78 @@
+@inherits LocalizedComponentBase
 @using BdoGrindTracker.Core.Buffs
 
-<section class="panel buff-summary" aria-label="Buffs und Kosten">
-    <div class="panel-heading"><h2>Buffs &amp; Kosten</h2><AppIcon Name="spark" /></div>
-    @if (!string.IsNullOrEmpty(Status)) { <p class="buff-status">@Status</p> }
+<section class="panel buff-summary" aria-label="@T("Buffs und Kosten")">
+    <div class="panel-heading"><h2>@T("Buffs & Kosten")</h2><AppIcon Name="spark" /></div>
+    @if (!string.IsNullOrEmpty(Status)) { <p class="buff-status" role="status">@T(Status)</p> }
     @if (Value is { } buffs)
     {
-        <dl class="detail-list">
-            <div><dt>Beobachtete Laufzeit</dt><dd>@Cost(buffs.ProratedCost, buffs.KnownProratedCost)</dd></div>
-            <div><dt>Konsumierte Gegenstände</dt><dd>@buffs.Consumptions.Count · @Cost(buffs.ConsumedCost, buffs.KnownConsumedCost)</dd></div>
+        var missing = buffs.Consumptions.Count(buff => buff.Price is null);
+        <dl class="buff-totals">
+            <div><dt>@T("In dieser Session verwendet")</dt><dd>@Number(buffs.Consumptions.Count)<small>@T("gezählte Buffs")</small></dd></div>
+            <div><dt>@T(missing > 0 ? "Bekannte Buffkosten" : "Buffkosten")</dt><dd title="@(missing > 0 && missing == buffs.Consumptions.Count ? null : ExactCost(buffs.KnownConsumedCost))">@ConsumptionCost(buffs.KnownConsumedCost, buffs.Consumptions.Count, missing)</dd></div>
         </dl>
-        <p class="buff-explanation">Laufzeitkosten = Gegenstandspreis × beobachtete Zeit / Wirkungsdauer. Zeltbuffs verwenden den festen NPC-Preis. Verbrauch wird aus bestätigten Buff-Wechseln abgeleitet; beide Beträge werden nicht addiert. Bereits aktive Buffs zählen beim Start nicht als konsumiert. Die Zuordnung zur verwendeten Variante stammt aus deinem Profil.</p>
-        @if (buffs.ProratedCost is null || buffs.ConsumedCost is null)
-        { <p class="buff-status">* Teilbetrag: Für einige Buffs lag bei der Erkennung kein Marktpreis vor.</p> }
+        @if (missing > 0)
+        {
+            <p class="buff-status buff-missing-prices">@F("Teilbetrag: {0} von {1} gezählten Buffs ohne Preis.", Number(missing), Number(buffs.Consumptions.Count))</p>
+        }
+        @if (buffs.Consumptions.Count > 0)
+        {
+            <ul class="buff-consumption-summary" aria-label="@T("Anzahl und Kosten je Buff")">
+                @foreach (var buff in BuffConsumptionPresentation.Group(buffs.Consumptions))
+                {
+                    <li @key="buff.BuffId" data-buff-id="@buff.BuffId">
+                        <strong class="buff-item-name">@BuffName(buff.BuffId, buff.Name)</strong>
+                        <dl class="buff-item-metrics">
+                            <div><dt>@T("Anzahl")</dt><dd class="buff-used-count">@Number(buff.Count) ×</dd></div>
+                            <div><dt>@T("Preis je Buff")</dt><dd class="buff-unit-price">@UnitCost(buff)</dd></div>
+                            <div><dt>@T("Kosten")</dt><dd class="buff-used-cost" title="@(buff.UnpricedCount == buff.Count ? null : ExactCost(buff.KnownCost))">@ConsumptionCost(buff.KnownCost, buff.Count, buff.UnpricedCount)</dd></div>
+                        </dl>
+                        @if (buff.SessionStartCount > 0) { <small class="buff-row-note">@F("Bei erster Erkennung aktiv: {0}", Number(buff.SessionStartCount))</small> }
+                        @if (buff.UnpricedCount > 0) { <small class="buff-row-note">@F("{0} ohne Preis", Number(buff.UnpricedCount))</small> }
+                    </li>
+                }
+            </ul>
+        }
+        else
+        {
+            <p class="buff-status">@T("Noch keine verbrauchten Items")</p>
+        }
         @if (buffs.HasStalePrices)
-        { <p class="buff-status">Einige Kosten basieren auf gespeicherten Marktpreisen.</p> }
+        { <p class="buff-status">@T("Einige Kosten basieren auf gespeicherten Marktpreisen.")</p> }
         @if (!Saved && buffs.Active.Count > 0)
         {
-            <ul class="buff-list" aria-label="Aktive Buffs">
+            <div class="buff-active-heading">@T("Aktive Buffs") <span>@Number(buffs.Active.Count)</span></div>
+            <ul class="buff-list" aria-label="@T("Aktive Buffs")">
                 @foreach (var buff in buffs.Active)
                 {
-                    <li><span><strong>@buff.Name</strong><small>@(buff.IsBaseline ? "Bereits aktiv / Verbrauch unbekannt" : "Verbrauch bestätigt")</small></span><span title="Zuletzt gelesene Restzeit">@Duration(buff.Remaining)</span></li>
+                    <li @key="buff.BuffId"><span><strong>@BuffName(buff.BuffId, buff.Name)</strong><small>@T(buff.IsBaseline ? "Bereits aktiv" : "Erneuerung bestätigt")</small></span><span title="@T("Zuletzt gelesene Restzeit")">@Duration(buff.Remaining)</span></li>
                 }
             </ul>
         }
         @if (buffs.Usage.Count > 0)
         {
-            <details class="buff-details"><summary>Laufzeit je Buff</summary><ul class="buff-list">
-                @foreach (var buff in buffs.Usage)
-                { <li><span><strong>@buff.Name</strong><small>@Duration(buff.ObservedDuration) beobachtet</small></span><span>@Cost(buff.ProratedCost, buff.KnownProratedCost)</span></li> }
-            </ul></details>
+            <details class="buff-details">
+                <summary>@T("Beobachtete Laufzeit") · @RuntimeCost(buffs.ProratedCost, buffs.KnownProratedCost)</summary>
+                @if (buffs.ProratedCost is null) { <p class="buff-status">@T("* Teilbetrag: Für einen Teil der beobachteten Laufzeit fehlt ein Preis.")</p> }
+                <ul class="buff-list">
+                    @foreach (var buff in buffs.Usage)
+                    { <li @key="buff.BuffId"><span><strong>@BuffName(buff.BuffId, buff.Name)</strong><small>@F("{0} beobachtet", Duration(buff.ObservedDuration))</small></span><span>@RuntimeCost(buff.ProratedCost, buff.KnownProratedCost)</span></li> }
+                </ul>
+            </details>
         }
         @if (buffs.Consumptions.Count > 0)
         {
-            <details class="buff-details"><summary>Verbrauchsprotokoll (@buffs.Consumptions.Count)</summary><ol class="buff-list" aria-label="Konsumierte Buffs">
-                @foreach (var buff in buffs.Consumptions.Reverse())
+            <details class="buff-details"><summary>@F("Buffprotokoll ({0})", Number(buffs.Consumptions.Count))</summary><ol class="buff-list" aria-label="@T("Gezählte Buffs")">
+                @foreach (var buff in buffs.Consumptions.OrderByDescending(item => item.ConsumedAt))
                 {
-                    <li><span><strong>@buff.Name</strong><small>@buff.ConsumedAt.ToLocalTime().ToString("HH:mm:ss", German) · @PriceSource(buff.Price)@(buff.Price?.IsStale == true ? " · Cache" : "")</small></span><span>@(buff.Cost is { } cost ? Silver(cost) : "—")</span></li>
+                    <li><span><strong>@BuffName(buff.BuffId, buff.Name)</strong><small>@T(buff.IsSessionStart ? "Bei erster Erkennung aktiv" : "Erneuerung bestätigt") · @buff.ConsumedAt.ToLocalTime().ToString("HH:mm:ss", UiCulture) · @PriceSource(buff.Price)@(buff.Price?.IsStale == true ? " · " + T("Cache") : "")</small></span><span title="@(buff.Cost is { } exact ? ExactCost(exact) : null)">@(buff.Cost is { } cost ? Money(cost) : T("Preis unbekannt"))</span></li>
                 }
             </ol></details>
         }
     }
     else
     {
-        <p class="buff-status">Noch keine Buff-Beobachtungen gespeichert.</p>
+        <p class="buff-status">@T("Noch keine Buff-Beobachtungen gespeichert.")</p>
     }
 </section>
 
@@ -50,7 +80,33 @@
     [Parameter] public BuffLedgerSnapshot? Value { get; set; }
     [Parameter] public string? Status { get; set; }
     [Parameter] public bool Saved { get; set; }
-    private static string Cost(decimal? complete, decimal known) => Silver(complete ?? known) + (complete is null ? " *" : "") + " Silber";
-    private static string PriceSource(BuffPrice? price) => price is null ? "Preis unbekannt" :
-        price.Source == BuffPriceSource.FixedNpc ? "NPC-Festpreis" : "Zentralmarkt · " + price.Region.ToUpperInvariant();
+    private string Money(decimal amount) => F("{0} Silber", Silver(amount));
+    private string ExactCost(decimal amount) => F("{0} Silber", Number(amount));
+    private string ConsumptionCost(decimal known, int count, int missing) => count > 0 && missing == count
+        ? T("Preis unbekannt") : Money(known) + (missing > 0 ? " *" : "");
+    private string RuntimeCost(decimal? complete, decimal known) => complete is null && known == 0
+        ? T("Preis unbekannt") : Money(complete ?? known) + (complete is null ? " *" : "");
+    private string UnitCost(BuffConsumptionPresentation buff) => buff.MinimumUnitPrice is not { } minimum
+        ? T("Preis unbekannt") : minimum == buff.MaximumUnitPrice
+            ? Money(minimum) : Silver(minimum) + "–" + Money(buff.MaximumUnitPrice!.Value);
+    private string BuffName(string id, string savedName)
+    {
+        var definition = BuffPriceCatalog.HistoryDefinitions.FirstOrDefault(item => item.Id == id);
+        if (definition is null && id.StartsWith("automatic-", StringComparison.Ordinal))
+        {
+            var baseName = savedName.Replace(" (variant unknown)", "", StringComparison.Ordinal)
+                .Replace(" (Variante unbekannt)", "", StringComparison.Ordinal);
+            // Older automatic groups may have inherited their first candidate's variant label.
+            if (baseName.StartsWith("Immortal: ", StringComparison.Ordinal)) baseName = baseName[10..];
+            if (baseName.StartsWith("Unsterblich: ", StringComparison.Ordinal)) baseName = baseName[13..];
+            var known = BuffPriceCatalog.HistoryDefinitions.FirstOrDefault(item =>
+                item.Name.Split(" (")[0] == baseName || item.DisplayName.Split(" (")[0] == baseName);
+            var label = known is null ? T(baseName) : UiLanguage == "de"
+                ? known.DisplayName.Split(" (")[0] : known.Name.Split(" (")[0];
+            return label + " (" + T("Variante unbekannt") + ")";
+        }
+        return definition is null ? savedName : UiLanguage == "de" ? definition.DisplayName : definition.Name;
+    }
+    private string PriceSource(BuffPrice? price) => price is null ? T("Preis unbekannt") :
+        price.Source == BuffPriceSource.FixedNpc ? T("NPC-Festpreis") : T("Zentralmarkt") + " · " + price.Region.ToUpperInvariant();
 }

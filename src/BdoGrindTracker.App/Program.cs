@@ -5,9 +5,7 @@ using BdoGrindTracker.App.UI;
 using BdoGrindTracker.App.Diagnostics;
 using BdoGrindTracker.App.Integrations.Garmoth;
 using BdoGrindTracker.App.Services;
-using BdoGrindTracker.App.Updates;
 using Microsoft.Web.WebView2.Core;
-using Velopack;
 
 namespace BdoGrindTracker.App;
 
@@ -16,9 +14,6 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
-        // Hooks must exit before Windows, WebView2, OCR or user data are touched.
-        // Downloading an update never authorizes an implicit restart of another session.
-        AppUpdateRuntime.Current.Bootstrap(() => VelopackApp.Build().SetAutoApplyOnStartup(false).Run());
         ApplicationConfiguration.Initialize();
 #if DEBUG
         if (args.Any(a => a.StartsWith("--demo-sessions=", StringComparison.Ordinal)))

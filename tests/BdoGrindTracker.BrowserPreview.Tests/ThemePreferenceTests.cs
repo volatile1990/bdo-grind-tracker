@@ -22,6 +22,8 @@ public sealed class ThemePreferenceTests
     {
         Assert.Equal(AppThemes.Grindcrest, new TrackerPreferences().ThemeId);
         Assert.Equal(AppThemes.Grindcrest, new AppSettings().ThemeId);
+        Assert.Null(new TrackerPreferences().OverlayThemeId);
+        Assert.Null(new AppSettings().OverlayThemeId);
     }
 
     [Theory]
@@ -48,6 +50,9 @@ public sealed class ThemePreferenceTests
     [InlineData(AppThemes.BlackDesert)]
     [InlineData(AppThemes.Light)]
     [InlineData(AppThemes.Cats)]
+    [InlineData(AppThemes.Obsidian)]
+    [InlineData(AppThemes.Kamasylvia)]
+    [InlineData(AppThemes.Valencia)]
     public void ThemeSelectionSurvivesSettingsJsonRoundTrip(string themeId)
     {
         var settings = new AppSettings { ThemeId = themeId };
@@ -82,6 +87,7 @@ public sealed class ThemePreferenceTests
     public async Task SettingsCanSwitchAllThemesImmediatelyDuringAnActiveSession()
     {
         var tracker = new PreviewTrackerSession();
+        await tracker.SavePreferencesAsync(tracker.Preferences with { UiLanguage = "de" });
         await tracker.ToggleTrackingAsync();
         var sessionId = tracker.State.SessionId;
         var activator = new CapturingActivator();
@@ -96,7 +102,7 @@ public sealed class ThemePreferenceTests
         await renderer.Dispatcher.InvokeAsync(async () =>
         {
             var rendered = await renderer.RenderComponentAsync<TrackerSettings>(ParameterView.Empty);
-            var component = activator.Components.OfType<TrackerSettings>().Single();
+            var component = activator.Components.OfType<TrackerPreferenceSettings>().Single();
             var markup = WebUtility.HtmlDecode(rendered.ToHtmlString());
             var select = Regex.Match(markup, "<select[^>]*id=\"appearance-theme\"[^>]*>(.*?)</select>", RegexOptions.Singleline);
             Assert.True(select.Success);
@@ -104,11 +110,15 @@ public sealed class ThemePreferenceTests
             Assert.Contains(">Black Desert</option>", select.Value);
             Assert.Contains(">Light</option>", select.Value);
             Assert.Contains(">Katzen</option>", select.Value);
+            Assert.Contains(">Obsidian</option>", select.Value);
+            Assert.Contains(">Kamasylvia</option>", select.Value);
+            Assert.Contains(">Valencia</option>", select.Value);
             Assert.DoesNotContain("disabled", select.Value);
 
-            foreach (var themeId in new[] { AppThemes.BlackDesert, AppThemes.Light, AppThemes.Cats, AppThemes.Grindcrest })
+            foreach (var themeId in new[] { AppThemes.BlackDesert, AppThemes.Light, AppThemes.Cats, AppThemes.Obsidian,
+                AppThemes.Kamasylvia, AppThemes.Valencia, AppThemes.Grindcrest })
             {
-                await (Task)typeof(TrackerSettings).GetMethod("ThemeChanged", BindingFlags.Instance | BindingFlags.NonPublic)!
+                await (Task)typeof(TrackerPreferenceSettings).GetMethod("ThemeChanged", BindingFlags.Instance | BindingFlags.NonPublic)!
                     .Invoke(component, [themeId])!;
 
                 Assert.Equal(themeId, tracker.Preferences.ThemeId);
@@ -129,10 +139,13 @@ public sealed class ThemePreferenceTests
     [InlineData(AppThemes.BlackDesert, "im Stil von Black Desert")]
     [InlineData(AppThemes.Light, "Helle Flächen")]
     [InlineData(AppThemes.Cats, "Katzenmotive")]
+    [InlineData(AppThemes.Obsidian, "Fast schwarze Flächen")]
+    [InlineData(AppThemes.Kamasylvia, "Dunkles Waldgrün")]
+    [InlineData(AppThemes.Valencia, "Warme Sandflächen")]
     public async Task SettingsShowThePreviouslySelectedThemeWhenReopened(string themeId, string description)
     {
         var tracker = new PreviewTrackerSession();
-        await tracker.SavePreferencesAsync(tracker.Preferences with { ThemeId = themeId });
+        await tracker.SavePreferencesAsync(tracker.Preferences with { ThemeId = themeId, UiLanguage = "de" });
         var services = new ServiceCollection().AddLogging().AddSingleton<ITrackerSession>(tracker)
             .AddSingleton<IAppUpdates>(new DisabledAppUpdates("test", "Vorschau"))
             .AddSingleton<IJSRuntime, NoJavaScript>().AddSingleton<NavigationManager, StaticNavigation>();

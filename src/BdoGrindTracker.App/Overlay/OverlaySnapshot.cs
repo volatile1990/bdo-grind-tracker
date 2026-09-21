@@ -1,15 +1,19 @@
 using BdoGrindTracker.App.UI;
+using BdoGrindTracker.App.Components;
 
 namespace BdoGrindTracker.App.Overlay;
 
 /// <summary>Presentation-only values shared by the editor and the native overlay.</summary>
 public sealed record OverlaySnapshot
 {
+    public string UiLanguage { get; init; } = BdoGrindTracker.App.Localization.AppText.DefaultLanguage;
     public string ThemeId { get; init; } = BdoGrindTracker.App.Theming.AppThemes.Grindcrest;
     public DateTimeOffset ClockUtcNow { get; init; } = DateTimeOffset.UtcNow;
     public IReadOnlyDictionary<string, OverlayMetric> Metrics { get; init; } =
         new Dictionary<string, OverlayMetric>();
     public IReadOnlyList<OverlayLootItem> Drops { get; init; } = [];
+    public ConsumablesPresentation Consumables { get; init; } = ConsumablesPresentation.Create(null,
+        BdoGrindTracker.App.Localization.AppText.DefaultLanguage);
     public IReadOnlyList<OverlayLootItem> RareDrops { get; init; } = [];
     public IReadOnlyList<OverlayLootItem> ItemCatalog { get; init; } = [];
     public IReadOnlyList<SessionSilverSample> SilverHistory { get; init; } = [];
@@ -50,4 +54,5 @@ public sealed record OverlayLootItem(
     string? IconPath = null,
     bool IsRare = false,
     long Quantity = 0,
-    bool IsTrash = false);
+    bool IsTrash = false,
+    string? Tooltip = null);

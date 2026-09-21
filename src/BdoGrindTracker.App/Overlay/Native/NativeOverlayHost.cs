@@ -1,4 +1,5 @@
 using BdoGrindTracker.App.Services;
+using BdoGrindTracker.App.Localization;
 
 namespace BdoGrindTracker.App.Overlay.Native;
 
@@ -105,6 +106,7 @@ internal sealed class NativeOverlayWindowHost(string id, IOverlayService service
     private OverlaySettings _lastSettings = new();
     private string _lastName = "Grindcrest";
     private OverlaySettings Settings => service.Overlays.FirstOrDefault(overlay => overlay.Id == id)?.Settings ?? _lastSettings;
+    private string T(string source) => AppText.Translate(source, service.Snapshot.UiLanguage);
 
     private string Title => service.Overlays.FirstOrDefault(overlay => overlay.Id == id)?.Name ?? _lastName;
 
@@ -119,7 +121,7 @@ internal sealed class NativeOverlayWindowHost(string id, IOverlayService service
             if (!settings.Enabled && !preview)
             {
                 _window?.Hide();
-                Publish(false, "Overlay ausgeschaltet.", null);
+                Publish(false, T("Overlay ausgeschaltet."), null);
                 return;
             }
             EnsureWindow();
@@ -135,7 +137,7 @@ internal sealed class NativeOverlayWindowHost(string id, IOverlayService service
             if (screen is null)
             {
                 _window.Hide();
-                Publish(false, "Kein Bildschirm für das Overlay verfügbar.", null, true);
+                Publish(false, T("Kein Bildschirm für das Overlay verfügbar."), null, true);
                 return;
             }
             var monitorLabel = tracker.Monitors.FirstOrDefault(value => value.DeviceName == screen.DeviceName)?.Label ?? screen.DeviceName;
@@ -153,18 +155,18 @@ internal sealed class NativeOverlayWindowHost(string id, IOverlayService service
                 _renderState.Remember(settings, snapshot, bounds.Size, overlay.Name);
             }
             else _window.Hide();
-            var status = preview ? "Desktop-Vorschau aktiv." : !settings.Enabled ? "Overlay ausgeschaltet." :
+            var status = T(preview ? "Desktop-Vorschau aktiv." : !settings.Enabled ? "Overlay ausgeschaltet." :
                 visible ? "Overlay aktiv." : settings.Visibility == "session" && !tracker.State.HasSession ?
-                "Das Overlay erscheint mit der nächsten Session." : "Das Overlay erscheint, sobald Black Desert im Vordergrund ist.";
+                "Das Overlay erscheint mit der nächsten Session." : "Das Overlay erscheint, sobald Black Desert im Vordergrund ist.");
             if (gameScreen is null && (settings.Enabled || preview))
-                status += $" Black Desert nicht gefunden; als Ersatz wird {monitorLabel} verwendet.";
+                status += AppText.Format(" Black Desert nicht gefunden; als Ersatz wird {0} verwendet.", service.Snapshot.UiLanguage, monitorLabel);
             Publish(visible, status, monitorLabel);
         }
         catch (Exception exception) when (exception is System.ComponentModel.Win32Exception or InvalidOperationException or
             ArgumentException or System.Runtime.InteropServices.ExternalException)
         {
             _window?.Hide();
-            Publish(false, "Das Overlay konnte nicht angezeigt werden: " + exception.Message, null, true);
+            Publish(false, AppText.Format("Das Overlay konnte nicht angezeigt werden: {0}", service.Snapshot.UiLanguage, exception.Message), null, true);
         }
     }
 
@@ -198,8 +200,8 @@ internal sealed class NativeOverlayWindowHost(string id, IOverlayService service
             if (action.StartsWith("new-session:", StringComparison.Ordinal) && service.Snapshot.CanNewSession)
                 _ = RunCommandAsync(async () =>
                 {
-                    if (MessageBox.Show(_window, "Neue Session beginnen? Die bisherige Session wird abgeschlossen.",
-                            "Neue Session", MessageBoxButtons.OKCancel, MessageBoxIcon.Question) == DialogResult.OK)
+                    if (MessageBox.Show(_window, BdoGrindTracker.App.Localization.AppText.Translate("Neue Session beginnen? Die bisherige Session wird abgeschlossen.", service.Snapshot.UiLanguage),
+                            BdoGrindTracker.App.Localization.AppText.Translate("Neue Session", service.Snapshot.UiLanguage), MessageBoxButtons.OKCancel, MessageBoxIcon.Question) == DialogResult.OK)
                         await service.NewSessionAsync();
                 });
         };

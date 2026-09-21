@@ -9,6 +9,22 @@ public sealed class BuffMonitorTests
     private static BuffFrameReading Reading() => new([new("harmony-draught", TimeSpan.FromMinutes(19), TimeSpan.FromMinutes(1))]);
 
     [Fact]
+    public async Task WorkerPassesTheOriginalCaptureTimeToTheReader()
+    {
+        var reader = new TimestampReader();
+        using var monitor = new BuffMonitor(reader);
+        using var frame = new Bitmap(10, 10);
+        var capturedAt = Epoch.AddMilliseconds(123).ToOffset(TimeSpan.FromHours(2));
+
+        monitor.Observe(frame, capturedAt);
+        await monitor.CurrentAnalysis;
+
+        Assert.NotNull(reader.CapturedAt);
+        Assert.True(capturedAt.EqualsExact(reader.CapturedAt.Value));
+        Assert.True(capturedAt.EqualsExact(monitor.Snapshot(capturedAt).ObservedAt!.Value));
+    }
+
+    [Fact]
     public async Task SamplingIsThrottledAndFailuresBreakContinuity()
     {
         var reader = new Reader();
@@ -70,6 +86,87 @@ public sealed class BuffMonitorTests
     }
 
     [Fact]
+    public async Task PartialReadingsPreserveOtherBuffsAndRetainTheirGapUntilSnapshotDelivery()
+    {
+        var reader = new Reader();
+        using var monitor = new BuffMonitor(reader);
+        using var frame = new Bitmap(10, 10);
+        monitor.Observe(frame, Epoch);
+        await monitor.CurrentAnalysis;
+        monitor.Snapshot(Epoch, out var initialGeneration);
+
+        reader.Next = new([]) { UnknownBuffIds = ["harmony-draught"] };
+        monitor.Observe(frame, Epoch.AddSeconds(10));
+        await monitor.CurrentAnalysis;
+        reader.Next = Reading();
+        monitor.Observe(frame, Epoch.AddSeconds(20));
+        await monitor.CurrentAnalysis;
+
+        var snapshot = monitor.Snapshot(Epoch.AddSeconds(20), out var generation);
+        Assert.True(snapshot.IsKnown);
+        Assert.Equal(initialGeneration, generation);
+        Assert.Single(snapshot.Observations);
+        Assert.Equal("harmony-draught", Assert.Single(snapshot.UnknownBuffIds));
+        Assert.Empty(monitor.Snapshot(Epoch.AddSeconds(20)).UnknownBuffIds);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DisappearedIconRetainsItsGapWhenOtherIconsRemainReadable(bool recoveredBeforeDelivery)
+    {
+        var harmony = Assert.Single(Reading().Observations);
+        var perfume = harmony with { BuffId = "perfume-of-courage" };
+        var reader = new Reader { Next = new([harmony, perfume]) };
+        using var monitor = new BuffMonitor(reader);
+        using var frame = new Bitmap(10, 10);
+        monitor.Observe(frame, Epoch);
+        await monitor.CurrentAnalysis;
+        monitor.Snapshot(Epoch, out var initialGeneration);
+
+        reader.Next = new([perfume]); // No explicit UnknownBuffIds from the reader.
+        monitor.Observe(frame, Epoch.AddSeconds(10));
+        await monitor.CurrentAnalysis;
+        if (recoveredBeforeDelivery)
+        {
+            reader.Next = new([harmony, perfume]);
+            monitor.Observe(frame, Epoch.AddSeconds(20));
+            await monitor.CurrentAnalysis;
+        }
+
+        var now = Epoch.AddSeconds(recoveredBeforeDelivery ? 20 : 10);
+        var snapshot = monitor.Snapshot(now, out var generation);
+        Assert.True(snapshot.IsKnown);
+        Assert.Equal(initialGeneration, generation);
+        Assert.Equal(recoveredBeforeDelivery ? 2 : 1, snapshot.Observations.Count);
+        Assert.Equal(harmony.BuffId, Assert.Single(snapshot.UnknownBuffIds));
+        Assert.Empty(monitor.Snapshot(now).UnknownBuffIds);
+    }
+
+    [Fact]
+    public async Task AllTimersUnreadableIsAPerBuffGapAndResetClearsPendingGaps()
+    {
+        var reader = new Reader { Next = new([]) { UnknownBuffIds = ["harmony-draught"] } };
+        using var monitor = new BuffMonitor(reader);
+        using var frame = new Bitmap(10, 10);
+        monitor.Observe(frame, Epoch);
+        await monitor.CurrentAnalysis;
+        var partial = monitor.Snapshot(Epoch, out var generation);
+        Assert.True(partial.IsKnown);
+        Assert.Empty(partial.Observations);
+        Assert.Equal("harmony-draught", Assert.Single(partial.UnknownBuffIds));
+        Assert.Equal(0, generation);
+
+        monitor.Observe(frame, Epoch.AddSeconds(10));
+        await monitor.CurrentAnalysis;
+        monitor.Reset();
+        reader.Next = Reading();
+        monitor.Observe(frame, Epoch.AddSeconds(20));
+        await monitor.CurrentAnalysis;
+        Assert.Empty(monitor.Snapshot(Epoch.AddSeconds(20)).UnknownBuffIds);
+    }
+
+    [Fact]
     public async Task ResetDiscardsLateReadAndConcurrentFramesDoNotQueue()
     {
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -107,6 +204,16 @@ public sealed class BuffMonitorTests
         await monitor.CurrentAnalysis.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.True(reader.Disposed);
         Assert.False(monitor.Snapshot(Epoch).IsKnown);
+    }
+
+    private sealed class TimestampReader : IBuffFrameReader
+    {
+        internal DateTimeOffset? CapturedAt { get; private set; }
+        public BuffFrameReading? Read(Bitmap frame, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("The monitor must preserve the capture timestamp.");
+        public BuffFrameReading? Read(Bitmap frame, DateTimeOffset capturedAt, CancellationToken cancellationToken)
+        { CapturedAt = capturedAt; return Reading(); }
+        public void Dispose() { }
     }
 
     private sealed class Reader : IBuffFrameReader

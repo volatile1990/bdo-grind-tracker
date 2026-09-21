@@ -9,6 +9,24 @@ public sealed class LootProjectionBufferTests
 {
     private static readonly DateTimeOffset Start = DateTimeOffset.UnixEpoch;
 
+    [Theory]
+    [InlineData(131)]
+    [InlineData(100)]
+    public void CorrectionEvidenceSurvivesTheDelayEvenWhenNetQuantityDoesNotChange(long total)
+    {
+        var buffer = new LootProjectionBuffer();
+        var initial = Projection(1, 100, 1) with { QuantityCorrectionRevision = 0 };
+        buffer.Observe(initial, Start);
+        Assert.Equal(0L, buffer.Observe(initial, Start.AddSeconds(2)).QuantityCorrectionRevision);
+        var revised = Projection(2, total, 2) with { QuantityCorrectionRevision = 1 };
+        var pending = buffer.Observe(revised, Start.AddSeconds(3));
+        Assert.Equal(0L, pending.QuantityCorrectionRevision);
+        var released = buffer.Observe(revised, Start.AddSeconds(5));
+        Assert.Equal(1L, released.QuantityCorrectionRevision);
+        Assert.Equal(total, released.Totals["Helmet"]);
+        Assert.Equal(2, released.ConfirmedDropCount);
+    }
+
     [Fact]
     public void ShortOvershootIsRemovedBeforePublicationAndUnchangedFramesReleaseTheBalance()
     {

@@ -1,0 +1,1015 @@
+{
+  "schemaVersion": 1,
+  "source": "User workbook 2026-09-17",
+  "sourceSha256": "4ad5942bc034ce3c3956c3f0aac219c97ee2f8d675667bf37ff27a40065c4053",
+  "entries": [
+    {
+      "itemName": "[Event] Mysterious Ore",
+      "source": "normal"
+    },
+    {
+      "itemName": "Abyssal Essence",
+      "source": "normal"
+    },
+    {
+      "itemName": "Ah'krad",
+      "source": "normal"
+    },
+    {
+      "itemName": "Al Yurad's Ring Piece",
+      "source": "rare"
+    },
+    {
+      "itemName": "Ancient Magic Crystal - Addis",
+      "source": "normal"
+    },
+    {
+      "itemName": "Ancient Magic Crystal - Carmae",
+      "source": "normal"
+    },
+    {
+      "itemName": "Ancient Magic Crystal of Nature - Adamantine",
+      "source": "normal"
+    },
+    {
+      "itemName": "Ancient Magic Crystal of Nature - Fighting Spirit",
+      "source": "normal"
+    },
+    {
+      "itemName": "Ancient Magic Crystal of Nature - Giant",
+      "source": "normal"
+    },
+    {
+      "itemName": "Ancient Relic Crystal Shard",
+      "source": "normal"
+    },
+    {
+      "itemName": "Ancient Soldier Fragment",
+      "source": "normal"
+    },
+    {
+      "itemName": "Ancient Spirit Dust",
+      "source": "normal"
+    },
+    {
+      "itemName": "Ancient Spirit Light",
+      "source": "normal"
+    },
+    {
+      "itemName": "Apeiron Belt",
+      "source": "rare"
+    },
+    {
+      "itemName": "Apeiron Earring",
+      "source": "rare"
+    },
+    {
+      "itemName": "Apeiron Necklace",
+      "source": "rare"
+    },
+    {
+      "itemName": "Apeiron Ring",
+      "source": "rare"
+    },
+    {
+      "itemName": "Ash Forest Paint",
+      "source": "rare"
+    },
+    {
+      "itemName": "Black Crystal Fragment",
+      "source": "normal"
+    },
+    {
+      "itemName": "Black Distortion Earring",
+      "source": "normal"
+    },
+    {
+      "itemName": "Black Gem Fragment",
+      "source": "normal"
+    },
+    {
+      "itemName": "Black Stone",
+      "source": "normal"
+    },
+    {
+      "itemName": "Blessed Soul Fragment",
+      "source": "normal"
+    },
+    {
+      "itemName": "BON Crystal of Dusky Ruin",
+      "source": "rare"
+    },
+    {
+      "itemName": "BON Crystal of Ruin",
+      "source": "rare"
+    },
+    {
+      "itemName": "BON Dawn Crystal - Accuracy",
+      "source": "rare"
+    },
+    {
+      "itemName": "BON Dawn Crystal - All AP",
+      "source": "rare"
+    },
+    {
+      "itemName": "BON Dawn Crystal - Black Spirit's Rage",
+      "source": "rare"
+    },
+    {
+      "itemName": "BON Dawn Crystal - Damage Reduction",
+      "source": "rare"
+    },
+    {
+      "itemName": "BON Dawn Crystal - Evasion",
+      "source": "rare"
+    },
+    {
+      "itemName": "BON Origin Shard",
+      "source": "normal"
+    },
+    {
+      "itemName": "BON Wandering Origin Crystal",
+      "source": "rare"
+    },
+    {
+      "itemName": "Branch of Abundance",
+      "source": "normal"
+    },
+    {
+      "itemName": "Broken Gloves of the Void",
+      "source": "normal"
+    },
+    {
+      "itemName": "Broken Horn Fragment",
+      "source": "normal"
+    },
+    {
+      "itemName": "Broken Vestige of Crimsonflare",
+      "source": "rare"
+    },
+    {
+      "itemName": "Broken Vestige of Ebonmere",
+      "source": "rare"
+    },
+    {
+      "itemName": "Broken Vestige of Everlight",
+      "source": "rare"
+    },
+    {
+      "itemName": "Broken Vestige of Goldroot",
+      "source": "rare"
+    },
+    {
+      "itemName": "Broken Vestige of Voidreach",
+      "source": "rare"
+    },
+    {
+      "itemName": "Caphras Stone",
+      "source": "normal"
+    },
+    {
+      "itemName": "Chilled Soul Piece",
+      "source": "normal"
+    },
+    {
+      "itemName": "City of the Dead Paint",
+      "source": "normal"
+    },
+    {
+      "itemName": "Clear Blackstar Crystal",
+      "source": "normal"
+    },
+    {
+      "itemName": "Contaminated Coral Piece",
+      "source": "normal"
+    },
+    {
+      "itemName": "Corrupt Oil of Immortality",
+      "source": "normal"
+    },
+    {
+      "itemName": "Corrupt Power Source",
+      "source": "normal"
+    },
+    {
+      "itemName": "Corrupted Breath",
+      "source": "normal"
+    },
+    {
+      "itemName": "Corrupted Gargoyle Claw",
+      "source": "normal"
+    },
+    {
+      "itemName": "Corrupted Gluttony Crystal",
+      "source": "normal"
+    },
+    {
+      "itemName": "Corrupted Sanguine Crystal",
+      "source": "normal"
+    },
+    {
+      "itemName": "Crimson Primordial Luster - Sovereign",
+      "source": "normal"
+    },
+    {
+      "itemName": "Crimson Primordial Pigment - Sovereign",
+      "source": "rare"
+    },
+    {
+      "itemName": "Crystal of Dogged Patience",
+      "source": "normal"
+    },
+    {
+      "itemName": "Crystal of Precise Destruction",
+      "source": "normal"
+    },
+    {
+      "itemName": "Crystal of Stalwart Fortitude",
+      "source": "normal"
+    },
+    {
+      "itemName": "Crystal of Unyielding Spirit",
+      "source": "normal"
+    },
+    {
+      "itemName": "Crystallized Despair",
+      "source": "normal"
+    },
+    {
+      "itemName": "Crystallized Energy of Endtimes",
+      "source": "normal"
+    },
+    {
+      "itemName": "Darkseekers' Retreat Paint",
+      "source": "normal"
+    },
+    {
+      "itemName": "Dawn Earring",
+      "source": "rare"
+    },
+    {
+      "itemName": "Deboreka Belt",
+      "source": "rare"
+    },
+    {
+      "itemName": "Deboreka Earring",
+      "source": "rare"
+    },
+    {
+      "itemName": "Deboreka Necklace",
+      "source": "rare"
+    },
+    {
+      "itemName": "Deboreka Ring",
+      "source": "rare"
+    },
+    {
+      "itemName": "Decayed Cloth",
+      "source": "normal"
+    },
+    {
+      "itemName": "Dehkia's Artifact - All Damage Reduction",
+      "source": "rare"
+    },
+    {
+      "itemName": "Dehkia's Artifact - All Evasion",
+      "source": "rare"
+    },
+    {
+      "itemName": "Dehkia's Fragment",
+      "source": "normal"
+    },
+    {
+      "itemName": "Destruction Spirit Stone",
+      "source": "normal"
+    },
+    {
+      "itemName": "Discarded Kkebicap",
+      "source": "normal"
+    },
+    {
+      "itemName": "Distorted Crystal of Origin",
+      "source": "normal"
+    },
+    {
+      "itemName": "Distorted Fragment of Origin",
+      "source": "normal"
+    },
+    {
+      "itemName": "Dragon Scale Fossil",
+      "source": "normal"
+    },
+    {
+      "itemName": "Elion Follower's Helmet",
+      "source": "normal"
+    },
+    {
+      "itemName": "Elion Follower's Mark",
+      "source": "normal"
+    },
+    {
+      "itemName": "Elkarr",
+      "source": "normal"
+    },
+    {
+      "itemName": "Embers of Despair",
+      "source": "normal"
+    },
+    {
+      "itemName": "Embers of Frost",
+      "source": "normal"
+    },
+    {
+      "itemName": "Embers of Resonance",
+      "source": "normal"
+    },
+    {
+      "itemName": "Embers of Ynix - Armor",
+      "source": "rare"
+    },
+    {
+      "itemName": "Embers of Ynix - Gloves",
+      "source": "rare"
+    },
+    {
+      "itemName": "Embers of Ynix - Helmet",
+      "source": "rare"
+    },
+    {
+      "itemName": "Embers of Ynix - Shoes",
+      "source": "rare"
+    },
+    {
+      "itemName": "Empty Picture Frame",
+      "source": "normal"
+    },
+    {
+      "itemName": "Essence of Dawn",
+      "source": "normal"
+    },
+    {
+      "itemName": "Essence of Devouring",
+      "source": "rare"
+    },
+    {
+      "itemName": "Essence of Insight",
+      "source": "normal"
+    },
+    {
+      "itemName": "Faded Dark Energy",
+      "source": "normal"
+    },
+    {
+      "itemName": "Faint Origin of Dark Hunger",
+      "source": "rare"
+    },
+    {
+      "itemName": "Faint Sycraia's Memory",
+      "source": "normal"
+    },
+    {
+      "itemName": "Fiery Troll Hide",
+      "source": "normal"
+    },
+    {
+      "itemName": "Flame of Despair",
+      "source": "rare"
+    },
+    {
+      "itemName": "Flame of Frost",
+      "source": "rare"
+    },
+    {
+      "itemName": "Flame of Resonance",
+      "source": "rare"
+    },
+    {
+      "itemName": "Flawless Herald's Crystal",
+      "source": "rare"
+    },
+    {
+      "itemName": "Forest Fury",
+      "source": "normal"
+    },
+    {
+      "itemName": "Forgotten Limbo Box",
+      "source": "rare"
+    },
+    {
+      "itemName": "Forgotten Witch's Token",
+      "source": "normal"
+    },
+    {
+      "itemName": "Fortunate Golden Pig King Summon Scroll",
+      "source": "normal"
+    },
+    {
+      "itemName": "Fortunate Golden Pig King's Treasure Chest",
+      "source": "normal"
+    },
+    {
+      "itemName": "Fusion Shard",
+      "source": "normal"
+    },
+    {
+      "itemName": "Gavinya Coastal Cliff Paint",
+      "source": "normal"
+    },
+    {
+      "itemName": "Gem of Void",
+      "source": "normal"
+    },
+    {
+      "itemName": "Gentle Sycraia's Memory",
+      "source": "normal"
+    },
+    {
+      "itemName": "Gluttony Crystal",
+      "source": "rare"
+    },
+    {
+      "itemName": "Golden Pigs Subjugation Token",
+      "source": "normal"
+    },
+    {
+      "itemName": "Guardian Spirit Stone",
+      "source": "normal"
+    },
+    {
+      "itemName": "HAN Crystal of Dusky Ruin",
+      "source": "rare"
+    },
+    {
+      "itemName": "HAN Crystal of Ruin",
+      "source": "normal"
+    },
+    {
+      "itemName": "HAN Origin Shard",
+      "source": "normal"
+    },
+    {
+      "itemName": "HAN Wandering Origin Crystal",
+      "source": "rare"
+    },
+    {
+      "itemName": "Hardened Lava Chunk",
+      "source": "normal"
+    },
+    {
+      "itemName": "Herald's Crystal",
+      "source": "normal"
+    },
+    {
+      "itemName": "Howling Bone Fragment",
+      "source": "normal"
+    },
+    {
+      "itemName": "Hystria Ruins Paint",
+      "source": "normal"
+    },
+    {
+      "itemName": "Imperfect Lightstone of Earth",
+      "source": "normal"
+    },
+    {
+      "itemName": "Imperfect Lightstone of Fire",
+      "source": "normal"
+    },
+    {
+      "itemName": "Imperfect Lightstone of Wind",
+      "source": "normal"
+    },
+    {
+      "itemName": "Intense Sycraia's Memory",
+      "source": "normal"
+    },
+    {
+      "itemName": "Intricately Patterned Mystical Shard",
+      "source": "normal"
+    },
+    {
+      "itemName": "Iridescent Lightstone",
+      "source": "normal"
+    },
+    {
+      "itemName": "JIN Crystal of Dusky Ruin",
+      "source": "rare"
+    },
+    {
+      "itemName": "JIN Crystal of Ruin",
+      "source": "normal"
+    },
+    {
+      "itemName": "JIN Origin Shard",
+      "source": "normal"
+    },
+    {
+      "itemName": "JIN Wandering Origin Crystal",
+      "source": "rare"
+    },
+    {
+      "itemName": "Kabua's Artifact",
+      "source": "rare"
+    },
+    {
+      "itemName": "Kabua's Fragment",
+      "source": "normal"
+    },
+    {
+      "itemName": "Kehelle's Artifact - Black Spirit's Rage Max Increase",
+      "source": "normal"
+    },
+    {
+      "itemName": "Kehelle's Artifact - Max HP",
+      "source": "normal"
+    },
+    {
+      "itemName": "Kehelle's Artifact - Max Stamina",
+      "source": "normal"
+    },
+    {
+      "itemName": "Krogdalo's Origin Stone",
+      "source": "normal"
+    },
+    {
+      "itemName": "Kuadir Fragment",
+      "source": "normal"
+    },
+    {
+      "itemName": "Lafi Bedmountain's Upgraded Compass Parts",
+      "source": "rare"
+    },
+    {
+      "itemName": "Lafi Bedmountain's Upgraded Telescope Parts",
+      "source": "rare"
+    },
+    {
+      "itemName": "Laila's Petal",
+      "source": "normal"
+    },
+    {
+      "itemName": "Lesha's Artifact - All Damage Reduction",
+      "source": "rare"
+    },
+    {
+      "itemName": "Lesha's Artifact - All Evasion",
+      "source": "rare"
+    },
+    {
+      "itemName": "Lesha's Artifact - Magic Damage Reduction",
+      "source": "rare"
+    },
+    {
+      "itemName": "Lesha's Artifact - Magic Evasion",
+      "source": "rare"
+    },
+    {
+      "itemName": "Lesha's Artifact - Melee Damage Reduction",
+      "source": "rare"
+    },
+    {
+      "itemName": "Lesha's Artifact - Melee Evasion",
+      "source": "rare"
+    },
+    {
+      "itemName": "Lesha's Artifact - Monster Damage Reduction",
+      "source": "rare"
+    },
+    {
+      "itemName": "Lesha's Artifact - Ranged Damage Reduction",
+      "source": "rare"
+    },
+    {
+      "itemName": "Lesha's Artifact - Ranged Evasion",
+      "source": "rare"
+    },
+    {
+      "itemName": "Life Spirit Stone",
+      "source": "normal"
+    },
+    {
+      "itemName": "Lightlost Core",
+      "source": "normal"
+    },
+    {
+      "itemName": "Magic Crystal of Infinity - Max HP",
+      "source": "normal"
+    },
+    {
+      "itemName": "Manshaum Voodoo Doll",
+      "source": "normal"
+    },
+    {
+      "itemName": "Mark of the Black Sands",
+      "source": "normal"
+    },
+    {
+      "itemName": "Marsh's Artifact - Extra AP Against Monsters",
+      "source": "normal"
+    },
+    {
+      "itemName": "Marsh's Artifact - Magic Accuracy",
+      "source": "normal"
+    },
+    {
+      "itemName": "Marsh's Artifact - Magic AP",
+      "source": "normal"
+    },
+    {
+      "itemName": "Marsh's Artifact - Melee Accuracy",
+      "source": "normal"
+    },
+    {
+      "itemName": "Marsh's Artifact - Melee AP",
+      "source": "normal"
+    },
+    {
+      "itemName": "Marsh's Artifact - Ranged Accuracy",
+      "source": "normal"
+    },
+    {
+      "itemName": "Marsh's Artifact - Ranged AP",
+      "source": "normal"
+    },
+    {
+      "itemName": "Mass of Pure Magic",
+      "source": "normal"
+    },
+    {
+      "itemName": "Moonlight Spirit Powder",
+      "source": "normal"
+    },
+    {
+      "itemName": "Nev's Fragment",
+      "source": "normal"
+    },
+    {
+      "itemName": "Old Warrior's Horn Decoration",
+      "source": "normal"
+    },
+    {
+      "itemName": "Olun's Valley Paint",
+      "source": "normal"
+    },
+    {
+      "itemName": "Ominous Ring",
+      "source": "rare"
+    },
+    {
+      "itemName": "Origin of Corruption",
+      "source": "normal"
+    },
+    {
+      "itemName": "Origin of Dark Hunger",
+      "source": "rare"
+    },
+    {
+      "itemName": "Ouk Pill of Time and Tide",
+      "source": "normal"
+    },
+    {
+      "itemName": "Primordial Fragment",
+      "source": "normal"
+    },
+    {
+      "itemName": "Pure Black Stone",
+      "source": "rare"
+    },
+    {
+      "itemName": "Quturan's Ashen Leaf",
+      "source": "normal"
+    },
+    {
+      "itemName": "Quturan's Black Leaf",
+      "source": "normal"
+    },
+    {
+      "itemName": "Quturan's Left Lung",
+      "source": "normal"
+    },
+    {
+      "itemName": "Quturan's Right Lung",
+      "source": "normal"
+    },
+    {
+      "itemName": "Radiant Sycraia's Memory",
+      "source": "normal"
+    },
+    {
+      "itemName": "Rare Treasure Chest",
+      "source": "normal"
+    },
+    {
+      "itemName": "Rare Treasures",
+      "source": "normal"
+    },
+    {
+      "itemName": "Refined Essence of Devouring",
+      "source": "rare"
+    },
+    {
+      "itemName": "Refined Origin of Hunger",
+      "source": "rare"
+    },
+    {
+      "itemName": "Ring of Cadry Guardian",
+      "source": "rare"
+    },
+    {
+      "itemName": "Ring of Crescent Guardian",
+      "source": "rare"
+    },
+    {
+      "itemName": "Rumbling Earth Shard",
+      "source": "normal"
+    },
+    {
+      "itemName": "Scorched Belt Ornament",
+      "source": "normal"
+    },
+    {
+      "itemName": "Scroll Written in Ancient Language",
+      "source": "normal"
+    },
+    {
+      "itemName": "Sealed Black Magic Crystal",
+      "source": "normal"
+    },
+    {
+      "itemName": "Shattered Treasures",
+      "source": "normal"
+    },
+    {
+      "itemName": "Shiny Treasure",
+      "source": "normal"
+    },
+    {
+      "itemName": "Silent Crystal of Origin",
+      "source": "rare"
+    },
+    {
+      "itemName": "Silent Fragment of Origin",
+      "source": "normal"
+    },
+    {
+      "itemName": "Specter's Energy",
+      "source": "normal"
+    },
+    {
+      "itemName": "Starlit Jade Powder",
+      "source": "normal"
+    },
+    {
+      "itemName": "Starlit Jade's Breath",
+      "source": "normal"
+    },
+    {
+      "itemName": "Sulfur Golem Fragment",
+      "source": "normal"
+    },
+    {
+      "itemName": "Sulfur Golem Power Core",
+      "source": "rare"
+    },
+    {
+      "itemName": "Sulfur Golem Power Core Fragment",
+      "source": "normal"
+    },
+    {
+      "itemName": "Sunset Primordial Luster - Edana",
+      "source": "normal"
+    },
+    {
+      "itemName": "Sunset Primordial Pigment - Edana",
+      "source": "rare"
+    },
+    {
+      "itemName": "Swaying Wind Shard",
+      "source": "normal"
+    },
+    {
+      "itemName": "Sycraia Shard",
+      "source": "normal"
+    },
+    {
+      "itemName": "Sycraia Underwater Ruins Paint",
+      "source": "normal"
+    },
+    {
+      "itemName": "Tainted Armor Fragment",
+      "source": "normal"
+    },
+    {
+      "itemName": "Tainted Broken Horn Fragment",
+      "source": "normal"
+    },
+    {
+      "itemName": "Tainted Bronze Fragment",
+      "source": "normal"
+    },
+    {
+      "itemName": "Tainted Cadry's Token",
+      "source": "normal"
+    },
+    {
+      "itemName": "Tainted Golem's Heart Fragment",
+      "source": "normal"
+    },
+    {
+      "itemName": "Tainted Huge Spear",
+      "source": "normal"
+    },
+    {
+      "itemName": "Tainted Moonlight Spirit Powder",
+      "source": "normal"
+    },
+    {
+      "itemName": "Tainted Ruins Fragment",
+      "source": "normal"
+    },
+    {
+      "itemName": "Tainted Specter's Cloth",
+      "source": "normal"
+    },
+    {
+      "itemName": "Tainted Token of Crescent",
+      "source": "normal"
+    },
+    {
+      "itemName": "Tainted Wood Fragment",
+      "source": "normal"
+    },
+    {
+      "itemName": "Tattered Shadow",
+      "source": "normal"
+    },
+    {
+      "itemName": "Thick Turo Blood",
+      "source": "normal"
+    },
+    {
+      "itemName": "Thorn-Entwined Weapon Fragment",
+      "source": "normal"
+    },
+    {
+      "itemName": "Trace of Nature",
+      "source": "normal"
+    },
+    {
+      "itemName": "Traveler's Map",
+      "source": "normal"
+    },
+    {
+      "itemName": "Tungrad Belt",
+      "source": "rare"
+    },
+    {
+      "itemName": "Tungrad Earring",
+      "source": "rare"
+    },
+    {
+      "itemName": "Tungrad Necklace",
+      "source": "rare"
+    },
+    {
+      "itemName": "Tungrad Ring",
+      "source": "rare"
+    },
+    {
+      "itemName": "Tungrad Ruins Fragment",
+      "source": "rare"
+    },
+    {
+      "itemName": "Tungrad Ruins Paint",
+      "source": "normal"
+    },
+    {
+      "itemName": "Turo Heart",
+      "source": "normal"
+    },
+    {
+      "itemName": "Turo's Belt",
+      "source": "rare"
+    },
+    {
+      "itemName": "Turquoise Primordial Luster - Edana",
+      "source": "normal"
+    },
+    {
+      "itemName": "Turquoise Primordial Luster - Sovereign",
+      "source": "normal"
+    },
+    {
+      "itemName": "Turquoise Primordial Pigment - Edana",
+      "source": "rare"
+    },
+    {
+      "itemName": "Turquoise Primordial Pigment - Sovereign",
+      "source": "rare"
+    },
+    {
+      "itemName": "Twilight of the End - Belt",
+      "source": "rare"
+    },
+    {
+      "itemName": "Twilight of the End - Earring",
+      "source": "rare"
+    },
+    {
+      "itemName": "Twilight of the End - Necklace",
+      "source": "rare"
+    },
+    {
+      "itemName": "Twilight of the End - Ring",
+      "source": "rare"
+    },
+    {
+      "itemName": "Underwater Ancient Weapon Power Stone",
+      "source": "normal"
+    },
+    {
+      "itemName": "Valtarra Eclipsed Belt",
+      "source": "rare"
+    },
+    {
+      "itemName": "Venomous Night Fang",
+      "source": "normal"
+    },
+    {
+      "itemName": "Violet Primordial Luster - Edana",
+      "source": "normal"
+    },
+    {
+      "itemName": "Violet Primordial Luster - Sovereign",
+      "source": "normal"
+    },
+    {
+      "itemName": "Violet Primordial Pigment - Edana",
+      "source": "rare"
+    },
+    {
+      "itemName": "Violet Primordial Pigment - Sovereign",
+      "source": "rare"
+    },
+    {
+      "itemName": "Void Tainted Whispers",
+      "source": "normal"
+    },
+    {
+      "itemName": "White Primordial Luster - Edana",
+      "source": "normal"
+    },
+    {
+      "itemName": "White Primordial Luster - Sovereign",
+      "source": "normal"
+    },
+    {
+      "itemName": "White Primordial Pigment - Edana",
+      "source": "rare"
+    },
+    {
+      "itemName": "White Primordial Pigment - Sovereign",
+      "source": "rare"
+    },
+    {
+      "itemName": "Winter Tree Snow Crystal",
+      "source": "normal"
+    },
+    {
+      "itemName": "WON Crystal of Dusky Ruin",
+      "source": "rare"
+    },
+    {
+      "itemName": "WON Crystal of Ruin",
+      "source": "normal"
+    },
+    {
+      "itemName": "WON Dawn Crystal - Accuracy",
+      "source": "rare"
+    },
+    {
+      "itemName": "WON Dawn Crystal - All AP",
+      "source": "rare"
+    },
+    {
+      "itemName": "WON Dawn Crystal - Black Spirit's Rage",
+      "source": "rare"
+    },
+    {
+      "itemName": "WON Dawn Crystal - Damage Reduction",
+      "source": "rare"
+    },
+    {
+      "itemName": "WON Dawn Crystal - Evasion",
+      "source": "rare"
+    },
+    {
+      "itemName": "WON Origin Shard",
+      "source": "normal"
+    },
+    {
+      "itemName": "WON Wandering Origin Crystal",
+      "source": "rare"
+    }
+  ]
+}

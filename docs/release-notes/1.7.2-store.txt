@@ -1,0 +1,7 @@
+Neu in Grindcrest 1.7.2:
+
+• Verbesserte Zählung kurz aufeinanderfolgender Rare-Drops: Die Bewertung kurzer Banner bleibt auch nach einem lange sichtbaren Banner stabil. Das behebt eine nachgestellte Ursache für fehlende Drops.
+• Feinere Titelschrift im BDO-Overlay: Geglättete Schriftkonturen reduzieren grobe Kanten, ohne das gesamte Overlay weichzuzeichnen.
+• Fehler beim Verlassen des Verlaufs behoben: Ein Seitenwechsel während noch laufender Hintergrundaufrufe konnte eine unbehandelte Ausnahme auslösen. Geschlossene Ansichten werden jetzt rechtzeitig berücksichtigt.
+
+Unmittelbar aufeinanderfolgende identische Rare-Banner ohne sichtbare Änderung lassen sich weiterhin nicht zuverlässig trennen. Bereits gespeicherte Lootmengen werden durch dieses Update nicht nachträglich korrigiert.

@@ -1,0 +1,12 @@
+What's new in Grindcrest 1.8.0:
+
+• Obsidian, Kamasylvia and Valencia: Choose from seven themes independently for the main window and overlays. EXP losses stay red in every theme.
+• Rotation Monitor for Event Horizon, improved Hermesia tracking, and new widgets for rotations per hour and completed rotations. The widgets support Hermesia, Aphrodon and Event Horizon.
+• A silver chart with 5-, 10- or 30-second intervals, an adjustable time range and valuable drop markers.
+• Optional rotation diagnostics record message crops and detected events.
+• More reliable BDO configuration reading: Special characters no longer block class detection, and saved presets no longer override active display settings.
+• Later quantity corrections are reflected in pending Garmoth hourly uploads. If a correction cannot be assigned safely, automatic uploads pause for review. Already submitted uploads remain unchanged.
+• Session history without artificial session-count or file-size limits, plus fewer repeated calculations in the Grind Goals calendar.
+• Installation and updates exclusively through Microsoft Store. After you confirm an update in Grindcrest, the extra Windows dialog is skipped when Windows permits it.
+
+Rotation tracking requires English in-game system messages. The English and German interface and the setup guide introduced in 1.7.3 remain included.

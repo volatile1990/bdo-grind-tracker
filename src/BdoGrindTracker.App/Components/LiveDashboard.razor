@@ -5,161 +5,155 @@
 @inject IJSRuntime JS
 
 <div class="page live-page">
+    @if (!Tracker.Preferences.SetupCompleted)
+    {
+        <div class="notice"><AppIcon Name="info" /><div><strong>@T("Einführung & Einrichtung")</strong><span>@T("Noch neu hier? Richte die Erfassung ein und lerne die wichtigsten Schritte kennen.")</span></div><a class="button secondary" href="setup">@T("Einrichtung fortsetzen")</a></div>
+    }
     <section class="live-session-header" style="@HeroStyle" aria-labelledby="live-session-title">
         <div class="live-header-main">
             <div class="live-session-context">
                 <div class="live-session-title-row">
-                    <h1 id="live-session-title">Live-Session</h1>
+                    <h1 id="live-session-title">@T("Live-Session")</h1>
                     <span class="live-session-status"><span class="status-dot @(State.IsError ? "error" : State.IsRunning ? "running" : "")"></span>@SessionStatus</span>
                 </div>
                 <div class="live-spot-identity">
                     @if (CurrentProfile is { } profile) { <AssetImage Src="@("assets/spot-icons/" + profile.IconFileName)" Alt="" Class="spot-emblem" Fallback="pin" /> }
                     <div class="live-spot-copy">
-                        <h2>@(State.SpotId is null ? "Spot wird automatisch erkannt" : SpotName(State.SpotId))</h2>
+                        <h2>@(State.SpotId is null ? T("Spot wird automatisch erkannt") : SpotName(State.SpotId))</h2>
                         @if (!State.IsDemo && ShowSpotVariantSelection)
                         {
                             var variantSessionId = State.SessionId;
                             <div class="live-spot-variant">
-                                <label for="live-spot-variant">@(State.SpotId == "winter-tree-fossil-unspecified" ? "AP-Variante bestätigen" : "Spot-Variante")</label>
+                                <label for="live-spot-variant">@(State.SpotId == "winter-tree-fossil-unspecified" ? T("AP-Variante bestätigen") : T("Spot-Variante"))</label>
                                 <select id="live-spot-variant" value="@State.SpotId" @onchange="args => SelectSpotVariant(variantSessionId, args)" disabled="@(Acting || !State.CanSelectSpotVariant)" aria-describedby="live-spot-variant-help">
-                                    @if (!SpotVariants.Any(variant => variant.Id == State.SpotId)) { <option value="@State.SpotId" disabled>Bitte auswählen</option> }
+                                    @if (!SpotVariants.Any(variant => variant.Id == State.SpotId)) { <option value="@State.SpotId" disabled>@T("Bitte auswählen")</option> }
                                     @foreach (var variant in SpotVariants) { <option value="@variant.Id">@SpotName(variant.Id)</option> }
                                 </select>
-                                <small id="live-spot-variant-help">@(State.IsSubmitted || !State.CanSelectSpotVariant && !State.IsBusy ? "Die Spot-Auswahl ist für diese Session abgeschlossen." : State.SpotId == "winter-tree-fossil-unspecified" ? "Bitte bestätigen, dass du an der 280-AP-Variante grindest." : "Diese Varianten teilen denselben Trashloot. Bitte deinen Spot auswählen.")</small>
+                                <small id="live-spot-variant-help">@(State.IsSubmitted || !State.CanSelectSpotVariant && !State.IsBusy ? T("Die Spot-Auswahl ist für diese Session abgeschlossen.") : State.SpotId == "winter-tree-fossil-unspecified" ? T("Bitte bestätigen, dass du an der 280-AP-Variante grindest.") : T("Diese Varianten teilen denselben Trashloot. Bitte deinen Spot auswählen."))</small>
                             </div>
                         }
                         <div class="live-session-meta">
-                            <span><AssetImage Src="@ClassIcon(State.CharacterClassId)" Alt="" Class="class-image" Fallback="shield" />@State.CharacterLabel</span>
+                            <span><AssetImage Src="@ClassIcon(State.CharacterClassId)" Alt="" Class="class-image" Fallback="shield" />@T(State.CharacterLabel)</span>
                             <span title="@MonitorLabel"><AppIcon Name="monitor" />@ShortMonitorLabel</span>
                         </div>
-                        <div class="live-combat-stats"><CombatStatsReadout Value="@DisplayCombatStats" SpotId="@State.SpotId" LastKnown="@(!State.IsRunning || FreshCombatStats is null)" /></div>
+                        <div class="live-combat-stats"><CombatStatsReadout Value="@DisplayCombatStats" ObservedCategory="@State.ObservedCombatStatsCategory" SpotId="@State.SpotId" LastKnown="@(!State.IsRunning || FreshCombatStats is null)" /></div>
                     </div>
                 </div>
             </div>
             <div class="live-session-actions">
                 <div class="live-session-buttons">
-                    <button class="button primary" @onclick="() => Act(State.IsRunning ? Tracker.PauseAsync : Tracker.ToggleTrackingAsync)" disabled="@(Acting || (State.IsRunning ? !State.CanPause : State.IsBusy || State.IsSubmitted || !State.AnalyzerAvailable || State.TrackingBlockedReason is not null || State.MissingOcrLanguageTag is not null || State.OcrRestartRequired))" title="@(State.IsSubmitted ? "Diese Session ist abgeschlossen. Beginne eine neue Session." : State.TrackingBlockedReason)"><AppIcon Name="@(State.IsRunning ? "pause" : "play")" />@(State.IsRunning ? "Pausieren" : State.HasSession ? "Fortsetzen" : "Tracking starten")</button>
-                    <button class="button secondary" @onclick="RequestNew" disabled="@(Acting || State.IsBusy)"><AppIcon Name="plus" />Neue Session</button>
+                    <button class="button primary" @onclick="() => Act(State.IsRunning ? Tracker.PauseAsync : Tracker.ToggleTrackingAsync)" disabled="@(Acting || (State.IsRunning ? !State.CanPause : State.IsBusy || State.IsSubmitted || !State.AnalyzerAvailable || State.TrackingBlockedReason is not null || State.MissingOcrLanguageTag is not null || State.OcrRestartRequired))" title="@(State.IsSubmitted ? T("Diese Session ist abgeschlossen. Beginne eine neue Session.") : T(State.TrackingBlockedReason))"><AppIcon Name="@(State.IsRunning ? "pause" : "play")" />@(State.IsRunning ? T("Pausieren") : State.HasSession ? T("Fortsetzen") : T("Tracking starten"))</button>
+                    <button class="button secondary" @onclick="RequestNew" disabled="@(Acting || State.IsBusy)"><AppIcon Name="plus" />@T("Neue Session")</button>
                 </div>
                 <div class="live-auto-start">
-                    <label class="live-auto-start-toggle" title="Startet bei bestätigten Monsterdrops, solange Black Desert im Vordergrund ist.">
-                        <span>Grind automatisch erkennen</span>
-                        <input id="auto-start-grinding" type="checkbox" class="switch" aria-label="Grind automatisch erkennen" @bind:get="Tracker.Preferences.AutoStartGrinding" @bind:set="AutoStartChanged" disabled="@(Acting || State.IsBusy)" />
+                    <label class="live-auto-start-toggle">
+                        <span>@T("Grind automatisch erkennen")</span>
+                        <input id="auto-start-grinding" type="checkbox" class="switch" aria-label="@T("Grind automatisch erkennen")" @bind:get="Tracker.Preferences.AutoStartGrinding" @bind:set="AutoStartChanged" disabled="@(Acting || State.IsBusy)" />
                     </label>
-                    @if (!State.IsDemo && Tracker.Preferences.AutoStartGrinding && State.AutoStartStatus is { } autoStartStatus)
-                    {
-                        <p class="live-auto-start-status" role="status" aria-live="polite">@autoStartStatus</p>
-                    }
-                    @if (!State.IsDemo && Tracker.Preferences.AutoStartGrinding && State.AutoStartSuspended && !State.IsRunning && !State.IsSubmitted)
-                    {
-                        <button type="button" class="text-button live-auto-start-rearm" @onclick="RearmAutoStart" disabled="@(Acting || State.IsBusy)">Automatik wieder aktivieren <AppIcon Name="refresh" /></button>
-                    }
                 </div>
             </div>
         </div>
-        <div class="metrics-grid live-session-metrics" aria-label="Session-Kennzahlen">
-            <article class="metric-card" title="@SessionMetrics.DurationDescription"><div class="metric-label"><span>AKTIVE ZEIT</span><AppIcon Name="clock" /></div><strong class="metric-value time-value" aria-describedby="active-time-note active-time-help">@SessionMetrics.Duration</strong><span id="active-time-note" class="metric-note" role="status" aria-live="polite">@SessionMetrics.DurationNote</span><span id="active-time-help" class="sr-only">@SessionMetrics.DurationDescription</span></article>
-            <article class="metric-card"><div class="metric-label"><span>TRASHLOOT</span><AppIcon Name="loot" /></div><strong class="metric-value">@SessionMetrics.Trash</strong><span class="metric-note"><span class="teal">@SessionMetrics.TrashHourly</span> pro Stunde</span></article>
-            <article class="metric-card gold-metric"><div class="metric-label"><span>SILBER NETTO</span><AppIcon Name="silver" /></div><strong class="metric-value">@SessionMetrics.Silver@if (SessionMetrics.PartialSilver) { <span class="estimate-mark" title="Bekannter Teilbetrag. Es fehlen Gegenstandspreise."> *</span> }</strong><span class="metric-note">@SessionMetrics.SilverDetail</span></article>
-            <article class="metric-card"><div class="metric-label"><span>SILBER / STUNDE</span><AppIcon Name="trend" /></div><strong class="metric-value">@SessionMetrics.SilverPerHour@if (SessionMetrics.PartialSilverHourly) { <span class="estimate-mark"> *</span> }</strong><span class="metric-note">Ø aktive Grindzeit</span></article>
+        <div class="metrics-grid live-session-metrics" aria-label="@T("Session-Kennzahlen")">
+            <article class="metric-card" title="@SessionMetrics.DurationDescription"><div class="metric-label"><span>@T("AKTIVE ZEIT")</span><AppIcon Name="clock" /></div><strong class="metric-value time-value" aria-describedby="active-time-note active-time-help">@SessionMetrics.Duration</strong><span id="active-time-note" class="metric-note" role="status" aria-live="polite">@SessionMetrics.DurationNote</span><span id="active-time-help" class="sr-only">@SessionMetrics.DurationDescription</span></article>
+            <article class="metric-card"><div class="metric-label"><span>TRASHLOOT</span><AppIcon Name="loot" /></div><strong class="metric-value">@SessionMetrics.Trash</strong><span class="metric-note"><span class="teal">@SessionMetrics.TrashHourly</span> @T("pro Stunde")</span></article>
+            <article class="metric-card gold-metric"><div class="metric-label"><span>@T("SILBER NETTO")</span><AppIcon Name="silver" /></div><strong class="metric-value">@SessionMetrics.Silver@if (SessionMetrics.PartialSilver) { <span class="estimate-mark" title="@T("Bekannter Teilbetrag. Es fehlen Gegenstandspreise.")"> *</span> }</strong><span class="metric-note">@SessionMetrics.SilverDetail</span></article>
+            <article class="metric-card"><div class="metric-label"><span>@T("SILBER / STUNDE")</span><AppIcon Name="trend" /></div><strong class="metric-value">@SessionMetrics.SilverPerHour@if (SessionMetrics.PartialSilverHourly) { <span class="estimate-mark"> *</span> }</strong><span class="metric-note">@T("Ø aktive Grindzeit")</span></article>
         </div>
+        <ConsumablesReadout Value="State.Buffs" />
     </section>
 
     @if (State.IsDemo)
     {
-        <div class="notice demo-notice live-demo-notice"><AppIcon Name="spark" /><div><strong>Demo</strong><span>Beispieldaten · werden nicht gespeichert oder hochgeladen</span></div><button class="text-button" @onclick="() => Act(() => Tracker.SetDemoAsync(false))" disabled="@Acting">Demo beenden <AppIcon Name="close" /></button></div>
+        <div class="notice demo-notice live-demo-notice"><AppIcon Name="spark" /><div><strong>Demo</strong><span>@T("Beispieldaten · werden nicht gespeichert oder hochgeladen")</span></div><button class="text-button" @onclick="() => Act(() => Tracker.SetDemoAsync(false))" disabled="@Acting">@T("Demo beenden") <AppIcon Name="close" /></button></div>
     }
-    @if (ActionError is not null) { <div class="notice error-notice" role="alert"><AppIcon Name="info" />@ActionError</div> }
+    @if (ActionError is not null) { <div class="notice error-notice" role="alert"><AppIcon Name="info" />@T(ActionError)</div> }
     @if (SessionMetrics.LootScrollWarning)
     {
-        <div class="notice warning-notice loot-scroll-notice" role="status" aria-live="polite"><AppIcon Name="info" /><span>Loot-Scroll ist nicht aktiv.</span></div>
+        <div class="notice warning-notice loot-scroll-notice" role="status" aria-live="polite"><AppIcon Name="info" /><span>@T("Loot-Scroll ist nicht aktiv.")</span></div>
     }
-    @if (State.IsSubmitted) { <div class="notice"><AppIcon Name="info" /><div><strong>Session abgeschlossen</strong><span>Diese Session lässt sich nicht weiterführen oder erneut übertragen. Beginne für deinen nächsten Grind eine neue Session.</span></div></div> }
+    @if (State.IsSubmitted) { <div class="notice"><AppIcon Name="info" /><div><strong>@T("Session abgeschlossen")</strong><span>@T("Diese Session lässt sich nicht weiterführen oder erneut übertragen. Beginne für deinen nächsten Grind eine neue Session.")</span></div></div> }
     @if (!State.IsDemo && (State.MissingOcrLanguageTag is not null || State.OcrInstallationStatus is not null || State.OcrRestartRequired))
     {
         <section class="notice ocr-install-notice @(State.MissingOcrLanguageTag is not null || State.OcrRestartRequired || State.IsError ? "warning-notice" : "success-notice")" aria-labelledby="ocr-install-title">
             <AppIcon Name="@(State.OcrRestartRequired ? "refresh" : "info")" />
             <div class="ocr-install-content">
-                <strong id="ocr-install-title">@(State.IsInstallingOcrLanguage ? "Windows-Texterkennung wird installiert · " + OcrLanguageLabel : State.OcrRestartRequired ? "Windows-Neustart erforderlich" : State.MissingOcrLanguageTag is not null ? "Windows-Texterkennung fehlt · " + OcrLanguageLabel : "Windows-Texterkennung")</strong>
+                <strong id="ocr-install-title">@(State.IsInstallingOcrLanguage ? T("Windows-Texterkennung wird installiert · ") + OcrLanguageLabel : State.OcrRestartRequired ? T("Windows-Neustart erforderlich") : State.MissingOcrLanguageTag is not null ? T("Windows-Texterkennung fehlt · ") + OcrLanguageLabel : T("Windows-Texterkennung"))</strong>
                 @if (State.MissingOcrLanguageTag is not null && !State.OcrRestartRequired)
                 {
-                    <span>Grindcrest benötigt dieses OCR-Sprachpaket, um die Drops in deiner Spielsprache zu erkennen.</span>
-                    <span class="ocr-install-help">Windows fragt nach einer Administratorbestätigung. Der Download benötigt Internet und kann einige Minuten dauern.</span>
+                    <span>@T("Grindcrest benötigt dieses OCR-Sprachpaket, um die Drops in deiner Spielsprache zu erkennen.")</span>
+                    <span class="ocr-install-help">@T("Windows fragt nach einer Administratorbestätigung. Der Download benötigt Internet und kann einige Minuten dauern.")</span>
                 }
                 <div class="ocr-install-status" role="status" aria-live="polite" aria-atomic="true">
                     @if (State.IsInstallingOcrLanguage)
                     {
-                        <progress aria-label="OCR-Sprachpaket wird installiert" max="100" value="@State.OcrInstallationPercent"></progress>
+                        <progress aria-label="@T("OCR-Sprachpaket wird installiert")" max="100" value="@State.OcrInstallationPercent"></progress>
                     }
-                    @if (State.OcrInstallationStatus is not null) { <span>@State.OcrInstallationStatus</span> }
+                    @if (State.OcrInstallationStatus is not null) { <span>@T(State.OcrInstallationStatus)</span> }
                 </div>
                 <div class="ocr-install-actions">
                     @if (State.MissingOcrLanguageTag is not null)
                     {
                         @if (!State.OcrRestartRequired)
                         {
-                            <button class="button primary" @onclick="() => Act(Tracker.InstallOcrLanguageAsync)" disabled="@OcrActionDisabled">@(State.IsInstallingOcrLanguage ? "Wird installiert …" : "OCR-Sprachpaket installieren")</button>
+                            <button class="button primary" @onclick="() => Act(Tracker.InstallOcrLanguageAsync)" disabled="@OcrActionDisabled">@(State.IsInstallingOcrLanguage ? T("Wird installiert …") : T("OCR-Sprachpaket installieren"))</button>
                         }
-                        <button class="button secondary" @onclick="RecheckOcrLanguage" disabled="@OcrRecheckDisabled"><AppIcon Name="refresh" />Erneut prüfen</button>
+                        <button class="button secondary" @onclick="RecheckOcrLanguage" disabled="@OcrRecheckDisabled"><AppIcon Name="refresh" />@T("Erneut prüfen")</button>
                     }
-                    <button class="text-button" @onclick="OpenSettings" disabled="@(Acting || State.IsInstallingOcrLanguage)">Einstellungen <AppIcon Name="arrow" /></button>
+                    <button class="text-button" @onclick="OpenSettings" disabled="@(Acting || State.IsInstallingOcrLanguage)">@T("Einstellungen") <AppIcon Name="arrow" /></button>
                 </div>
             </div>
         </section>
     }
     @if (!State.IsDemo && State.MissingOcrLanguageTag is null && (!State.AnalyzerAvailable || State.TrackingBlockedReason is not null))
     {
-        <div class="notice error-notice tracking-blocked" role="alert"><AppIcon Name="info" /><div><strong>Tracking nicht möglich</strong><span>@(State.TrackingBlockedReason ?? State.Status)</span></div><button class="text-button" @onclick="OpenSettings">Einstellungen <AppIcon Name="arrow" /></button></div>
+        <div class="notice error-notice tracking-blocked" role="alert"><AppIcon Name="info" /><div><strong>@T("Tracking nicht möglich")</strong><span>@T(State.TrackingBlockedReason ?? State.Status)</span></div><button class="text-button" @onclick="OpenSettings">@T("Einstellungen") <AppIcon Name="arrow" /></button></div>
     }
     else if (!State.IsDemo && State.MissingOcrLanguageTag is null && State.IsError && State.OcrInstallationStatus != State.Status)
     {
-        <div class="notice error-notice" role="alert"><AppIcon Name="info" /><span>@State.Status</span></div>
+        <div class="notice error-notice" role="alert"><AppIcon Name="info" /><span>@T(State.Status)</span></div>
     }
 
     <div class="live-content-grid">
-        <LootTable Title="Drops" Subtitle="" Totals="State.Loot.Totals" DurationTicks="State.Elapsed.Ticks" TrashName="@CurrentProfile?.TrashItemName" EditableSessionId="State.SessionId" AllowAddingItems="true" SpotId="@State.SpotId" />
+        <LootTable Title="Drops" Subtitle="" Totals="State.Loot.Totals" DurationTicks="State.Elapsed.Ticks" TrashName="@CurrentProfile?.TrashItemName" EditableSessionId="State.SessionId" AllowAddingItems="true" ShowLastDrop="true" SpotId="@State.SpotId" />
         <div class="session-aside">
             <section class="panel session-summary">
-                <div class="panel-heading"><h2>Session-Details</h2><AppIcon Name="live" /></div>
+                <div class="panel-heading"><h2>@T("Session-Details")</h2><AppIcon Name="live" /></div>
                 <dl class="detail-list">
-                    <div><dt>Bestätigte Drops</dt><dd>@Number(State.Loot.ConfirmedEventCount)</dd></div>
-                    <div><dt>Verschiedene Items</dt><dd>@State.Loot.ItemTypeCount</dd></div>
-                    <div><dt>Grind-Bewertung</dt><dd class="grind-rating-value @SessionMetrics.GrindRating.ToneClass" title="@SessionMetrics.GrindRating.Description"><span class="grind-rating-label">@SessionMetrics.GrindRating.Label</span>@if (SessionMetrics.GrindRating.Detail is { } detail) { <small>@detail</small> }</dd></div>
-                    <div><dt>Bruttowert</dt><dd>@(CanShowSilver ? Silver(State.Silver.BeforeTax) : "—")@(!State.Silver.IsComplete ? " *" : "")</dd></div>
-                    <div><dt>Markterlös</dt><dd>@Tracker.Preferences.Tax.MarketReturnRate.ToString("P2", German)</dd></div>
+                    <div><dt>@T("Bestätigte Drops")</dt><dd>@Number(State.Loot.ConfirmedEventCount)</dd></div>
+                    <div><dt>@T("Verschiedene Items")</dt><dd>@State.Loot.ItemTypeCount</dd></div>
+                    <div><dt>@T("Grind-Bewertung")</dt><dd class="grind-rating-value @SessionMetrics.GrindRating.ToneClass" title="@SessionMetrics.GrindRating.Description"><span class="grind-rating-label">@SessionMetrics.GrindRating.Label</span>@if (SessionMetrics.GrindRating.Detail is { } detail) { <small>@detail</small> }</dd></div>
+                    <div><dt>@T("Bruttowert")</dt><dd>@(CanShowSilver ? Silver(State.Silver.BeforeTax) : "—")@(!State.Silver.IsComplete ? " *" : "")</dd></div>
+                    <div><dt>@T("Markterlös")</dt><dd>@Tracker.Preferences.Tax.MarketReturnRate.ToString("P2", UiCulture)</dd></div>
                     <div><dt>Loot-Scroll</dt><dd class="@(SessionMetrics.LootScrollWarning ? "gold" : null)">@SessionMetrics.LootScroll</dd></div>
-                    <div><dt>Agris</dt><dd class="agris-live-value"><span>@SessionMetrics.Agris</span>@if (SessionMetrics.AgrisTime.HasObservation) { <small title="@SessionMetrics.AgrisTime.Description" aria-label="@SessionMetrics.AgrisTime.Description">@SessionMetrics.AgrisTime.Duration aktiv</small> }</dd></div>
-                    <div><dt>Erfahrung</dt><dd class="experience-live-value @(SessionMetrics.Experience.IsLoss ? "is-loss" : "")" title="@SessionMetrics.Experience.Description"><span class="experience-gain">@SessionMetrics.Experience.Gain</span>@if (SessionMetrics.Experience.HasObservation) { <small class="experience-hourly">@SessionMetrics.Experience.Hourly / h</small> }</dd></div>
-                    <div><dt>Automatische Pause</dt><dd>@Tracker.Preferences.AutoPauseMinutes Min.</dd></div>
+                    <div><dt>Agris</dt><dd class="agris-live-value"><span>@SessionMetrics.Agris</span>@if (SessionMetrics.AgrisTime.HasObservation) { <small title="@SessionMetrics.AgrisTime.Description" aria-label="@SessionMetrics.AgrisTime.Description">@F("{0} aktiv", SessionMetrics.AgrisTime.Duration)</small> }</dd></div>
+                    <div><dt>@T("Erfahrung")</dt><dd class="experience-live-value @(SessionMetrics.Experience.IsLoss ? "is-loss" : "")" title="@SessionMetrics.Experience.Description"><span class="experience-gain">@SessionMetrics.Experience.Gain</span>@if (SessionMetrics.Experience.HasObservation) { <small class="experience-hourly">@SessionMetrics.Experience.Hourly / h</small> }</dd></div>
+                    <div><dt>@T("Automatische Pause")</dt><dd>@F("{0} Min.", Tracker.Preferences.AutoPauseMinutes)</dd></div>
                 </dl>
-                <div class="subtle-box"><AppIcon Name="shield" /><span>Die automatische Pause greift, wenn kein neuer Loot erkannt wird.</span></div>
+                <div class="subtle-box"><AppIcon Name="shield" /><span>@T("Die automatische Pause greift, wenn kein neuer Loot erkannt wird.")</span></div>
             </section>
-            <BuffReadout Value="State.Buffs" Status="@State.BuffStatus" />
-            <div class="price-status"><span class="status-dot @(State.Silver.IsStale ? "" : "running")"></span><span>@State.PriceStatus</span><button class="icon-button" title="Marktpreise aktualisieren" aria-label="Marktpreise aktualisieren" @onclick="() => Act(Tracker.RefreshPricesAsync)" disabled="@(State.IsBusy || Acting)"><AppIcon Name="refresh" /></button></div>
             @if (!State.Silver.IsComplete || State.Silver.IsStale)
             {
-                <div class="valuation-note"><AppIcon Name="info" /><span>@(!State.Silver.IsComplete ? "* Teilbetrag: " + string.Join(", ", State.Silver.MissingItems.Concat(State.Silver.OverflowItems).Select(ItemLabel)) + " noch ohne verlässlichen Preis. " : "")@(State.Silver.IsStale ? "Einige Marktwerte stammen aus dem Cache." : "")</span></div>
+                <div class="valuation-note"><AppIcon Name="info" /><span>@(!State.Silver.IsComplete ? F("* Teilbetrag: {0} noch ohne verlässlichen Preis. ", string.Join(", ", State.Silver.MissingItems.Concat(State.Silver.OverflowItems).Select(ItemLabel))) : "")@(State.Silver.IsStale ? T("Einige Marktwerte stammen aus dem Cache.") : "")</span></div>
             }
         </div>
     </div>
     @if (!State.IsDemo && !State.HasSession)
     {
-        <div class="demo-invitation"><span>Noch nicht im Spiel? Lerne die Oberfläche mit einer Beispielsession kennen.</span><button class="text-button" @onclick="() => Act(() => Tracker.SetDemoAsync(true))" disabled="@(Acting || State.IsBusy)"><AppIcon Name="spark" />Demo ansehen</button></div>
+        <div class="demo-invitation"><span>@T("Noch nicht im Spiel? Lerne die Oberfläche mit einer Beispielsession kennen.")</span><button class="text-button" @onclick="() => Act(() => Tracker.SetDemoAsync(true))" disabled="@(Acting || State.IsBusy)"><AppIcon Name="spark" />@T("Demo ansehen")</button></div>
     }
 </div>
 
 <dialog id="live-confirm" class="modal confirm-modal" aria-labelledby="live-confirm-title" @oncancel="CloseConfirmation">
-    <div class="modal-heading"><div><span class="eyebrow">SESSION</span><h2 id="live-confirm-title">Neue Session beginnen?</h2></div><button class="icon-button" @onclick="CloseConfirmation" aria-label="Dialog schließen"><AppIcon Name="close" /></button></div>
-    <p>@(State.IsDemo ? "Die Demo wird beendet. Beispieldaten werden nicht im Verlauf gespeichert." : "Die aktuelle Session wird beendet und im Verlauf gesichert.") Für die neue Session beginnen Zeit und Loot wieder bei null.</p>
-    @if (ActionError is not null) { <div class="notice error-notice" role="alert">@ActionError</div> }
-    <div class="modal-actions"><button class="button secondary" @onclick="CloseConfirmation">Abbrechen</button><button class="button primary" @onclick="ConfirmAction" disabled="@Acting">Neue Session</button></div>
+    <div class="modal-heading"><div><span class="eyebrow">SESSION</span><h2 id="live-confirm-title">@T("Neue Session beginnen?")</h2></div><button class="icon-button" @onclick="CloseConfirmation" aria-label="@T("Dialog schließen")"><AppIcon Name="close" /></button></div>
+    <p>@(State.IsDemo ? T("Die Demo wird beendet. Beispieldaten werden nicht im Verlauf gespeichert.") : T("Die aktuelle Session wird beendet und im Verlauf gesichert.")) @T("Für die neue Session beginnen Zeit und Loot wieder bei null.")</p>
+    @if (ActionError is not null) { <div class="notice error-notice" role="alert">@T(ActionError)</div> }
+    <div class="modal-actions"><button class="button secondary" @onclick="CloseConfirmation">@T("Abbrechen")</button><button class="button primary" @onclick="ConfirmAction" disabled="@Acting">@T("Neue Session")</button></div>
 </dialog>
 
 @code {
     private CombatStatsState? FreshCombatStats => CombatStatsSpotRules.ForSpot(State.CombatStats, State.SpotId);
     private CombatStatsState? DisplayCombatStats => FreshCombatStats ?? CombatStatsSpotRules.ForSpot(State.SessionCombatStats, State.SpotId);
     private Task AutoStartChanged(bool enabled) => SavePreferenceChange(p => p with { AutoStartGrinding = enabled });
-    private Task RearmAutoStart() => Act(Tracker.RearmAutoStartAsync);
     private void OpenSettings() => Navigation.NavigateTo("/settings");
     private bool _recheckingOcrLanguage;
     private bool OcrActionDisabled => Acting || State.IsBusy || State.IsRunning || State.IsInstallingOcrLanguage || State.IsOcrInstallerRunning;
@@ -177,8 +171,8 @@
     }
     private string OcrLanguageLabel => State.MissingOcrLanguageTag switch
     {
-        "de-DE" => "Deutsch (de-DE)",
-        "en-US" => "Englisch (en-US)",
+        "de-DE" => T("Deutsch (de-DE)"),
+        "en-US" => T("Englisch (en-US)"),
         var tag => tag ?? "",
     };
     private LootSpotPresentation? CurrentProfile => Profile(State.SpotId);
@@ -190,14 +184,14 @@
         if (args.Value is string spotId)
             await Act(() => Tracker.SelectSpotVariantAsync(sessionId, spotId));
     }
-    private LiveSessionPresentation SessionMetrics => new(State);
+    private LiveSessionPresentation SessionMetrics => new(State, UiLanguage);
     private bool CanShowSilver => SessionMetrics.CanShowSilver;
     private string HeroStyle => CurrentProfile is null
         ? "--live-session-artwork:url('assets/spot-backgrounds/aphrodon.jpg')"
         : CurrentProfile.BackgroundFileName is { } background
             ? $"--live-session-artwork:url('assets/spot-backgrounds/{background}')"
             : "--live-session-artwork:none";
-    private string MonitorLabel => Tracker.CapturesGameWindow ? "Black Desert · Spielfenster" : Tracker.Monitors.FirstOrDefault(monitor => monitor.DeviceName == Tracker.Preferences.MonitorDeviceName)?.Label ?? Tracker.Monitors.FirstOrDefault()?.Label ?? "Kein Bildschirm";
+    private string MonitorLabel => T(Tracker.CapturesGameWindow ? "Black Desert · Spielfenster" : Tracker.Monitors.FirstOrDefault(monitor => monitor.DeviceName == Tracker.Preferences.MonitorDeviceName)?.Label ?? Tracker.Monitors.FirstOrDefault()?.Label ?? "Kein Bildschirm");
     private string ShortMonitorLabel => MonitorLabel.Split('·')[0].Trim();
     private string SessionStatus => SessionMetrics.Status;
     private async Task RequestNew()

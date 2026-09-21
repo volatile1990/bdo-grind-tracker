@@ -9,8 +9,10 @@ namespace BdoGrindTracker.App.Tests;
 public sealed partial class TrackerSessionServiceTests
 {
     [Fact]
-    public async Task UnknownAutomaticClassRetriesAfterThirtySecondsAndStopsOnceDetected()
+    public Task UnknownAutomaticClassRetriesAfterThirtySecondsAndStopsOnceDetected() => RunOnHostContextAsync(async () =>
     {
+        // The desktop serializes the timer tick and the detector's continuation
+        // on its UI context. xUnit may run both PublishState calls concurrently.
         await using var fixture = new Fixture(autoUpload: false);
         var calls = 0;
         SetField(fixture.Service, "_detectCharacterClass", (Func<CharacterClassDetection>)(() =>
@@ -43,12 +45,12 @@ public sealed partial class TrackerSessionServiceTests
         await fixture.Service.TickAsync();
         Assert.Equal(2, calls);
         Assert.Equal("hashashin-awakening", fixture.Service.State.CharacterClassId);
-    }
+    });
 
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task UnknownStartedSessionCanAcquireItsClassWhileRunningOrPaused(bool paused)
+    public Task UnknownStartedSessionCanAcquireItsClassWhileRunningOrPaused(bool paused) => RunOnHostContextAsync(async () =>
     {
         await using var fixture = new Fixture(autoUpload: false);
         fixture.Begin();
@@ -66,10 +68,10 @@ public sealed partial class TrackerSessionServiceTests
 
         Assert.Equal("hashashin-awakening", fixture.Service.State.CharacterClassId);
         Assert.Equal(!paused, fixture.Service.State.IsRunning);
-    }
+    });
 
     [Fact]
-    public async Task ClassDetectedAfterPausingUpdatesHistoryAndCurrentSessionTogether()
+    public Task ClassDetectedAfterPausingUpdatesHistoryAndCurrentSessionTogether() => RunOnHostContextAsync(async () =>
     {
         await using var fixture = new Fixture(autoUpload: false);
         fixture.Begin();
@@ -95,10 +97,10 @@ public sealed partial class TrackerSessionServiceTests
         Assert.Equal(original.Duration, saved.Duration);
         Assert.Equal(original.Totals, saved.Totals);
         Assert.False(fixture.Service.State.IsRunning);
-    }
+    });
 
     [Fact]
-    public async Task AutomaticClassRecoveryWaitsUntilAnInFlightSessionOperationFinishes()
+    public Task AutomaticClassRecoveryWaitsUntilAnInFlightSessionOperationFinishes() => RunOnHostContextAsync(async () =>
     {
         await using var fixture = new Fixture(autoUpload: false);
         fixture.Begin();
@@ -137,12 +139,12 @@ public sealed partial class TrackerSessionServiceTests
         Assert.Empty(fixture.Requests);
         Assert.Equal("hashashin-awakening", fixture.Service.State.CharacterClassId);
         Assert.Equal("Hashashin · Awakening", Assert.Single(fixture.HistoryStore.Load()).CharacterClass);
-    }
+    });
 
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task AutomaticRefreshDoesNotReplaceKnownStartedSessionClass(bool paused)
+    public Task AutomaticRefreshDoesNotReplaceKnownStartedSessionClass(bool paused) => RunOnHostContextAsync(async () =>
     {
         await using var fixture = new Fixture(autoUpload: false);
         fixture.Begin();
@@ -154,10 +156,10 @@ public sealed partial class TrackerSessionServiceTests
         await AwaitClassRefresh(fixture.Service);
 
         Assert.Equal("warrior-awakening", fixture.Service.State.CharacterClassId);
-    }
+    });
 
     [Fact]
-    public async Task SwitchingPausedSessionFromManualToAutoReadsFreshClassBeforeSaving()
+    public Task SwitchingPausedSessionFromManualToAutoReadsFreshClassBeforeSaving() => RunOnHostContextAsync(async () =>
     {
         await using var fixture = new Fixture(autoUpload: false,
             initialSettings: new AppSettings { CharacterClassId = "warrior-awakening" });
@@ -175,10 +177,10 @@ public sealed partial class TrackerSessionServiceTests
         Assert.Null(fixture.Settings.Load().CharacterClassId);
         Assert.Equal("hashashin-awakening", fixture.Service.State.CharacterClassId);
         Assert.False(fixture.Service.State.IsRunning);
-    }
+    });
 
     [Fact]
-    public async Task ManuallySelectedClassDoesNotCausePeriodicAutomaticRetries()
+    public Task ManuallySelectedClassDoesNotCausePeriodicAutomaticRetries() => RunOnHostContextAsync(async () =>
     {
         await using var fixture = new Fixture(autoUpload: false,
             initialSettings: new AppSettings { CharacterClassId = "warrior-awakening" });
@@ -193,12 +195,12 @@ public sealed partial class TrackerSessionServiceTests
 
         Assert.Same(completed, ReadClassRefreshField(fixture.Service, "_classDetectionTask"));
         Assert.Equal("warrior-awakening", fixture.Service.State.CharacterClassId);
-    }
+    });
 
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task DetectionCannotAlterSubmittedSessionEvenIfItsClassWasUnknown(bool knownClass)
+    public Task DetectionCannotAlterSubmittedSessionEvenIfItsClassWasUnknown(bool knownClass) => RunOnHostContextAsync(async () =>
     {
         await using var fixture = new Fixture(autoUpload: false);
         fixture.Begin();
@@ -216,7 +218,7 @@ public sealed partial class TrackerSessionServiceTests
         Assert.Same(completed, ReadClassRefreshField(fixture.Service, "_classDetectionTask"));
         Assert.Equal(knownClass ? "warrior-awakening" : null, fixture.Service.State.CharacterClassId);
         Assert.True(fixture.Service.State.IsSubmitted);
-    }
+    });
 
     private static CharacterClassDetection DetectedClass(string id) =>
         new(CompanionCharacterClassCatalog.FindById(id), CharacterClassDetectionStatus.Detected, 4);

@@ -8,6 +8,7 @@ namespace BdoGrindTracker.App.Tests;
 public sealed class RareLootRecoveryTests
 {
     private const string Ring = "Twilight of the End - Ring";
+    private const string Earring = "Twilight of the End - Earring";
     private const string Material = "Black Crystal Fragment";
 
     [Theory]
@@ -239,6 +240,61 @@ public sealed class RareLootRecoveryTests
     }
 
     [Theory]
+    [InlineData(25, 1)]
+    [InlineData(25, 2)]
+    [InlineData(25, 3)]
+    [InlineData(50, 1)]
+    [InlineData(50, 2)]
+    [InlineData(50, 3)]
+    public async Task ShortSpecialAnnouncementAfterWarmupSurvivesItsReplacement(
+        int warmupFrames, int firstFrames)
+    {
+        var text = Ring;
+        var reads = new Reads(_ => Ocr(text));
+        using var analyzer = Analyzer(reads);
+        using var bitmap = new Bitmap(800, 600);
+        FrameAnalysisResult? latest = null;
+        const int blankFrames = 10;
+        const int followingFrames = 60;
+        var firstStart = warmupFrames + blankFrames;
+        var followingStart = firstStart + firstFrames;
+        var totalFrames = followingStart + followingFrames;
+
+        for (var frame = 0; frame < totalFrames; frame++)
+        {
+            var expectedItem = frame < warmupFrames ? Material : frame < firstStart ? null :
+                frame < followingStart ? Earring : Ring;
+            text = expectedItem is null ? "" : expectedItem + " x1";
+            latest = await analyzer.AnalyzeAsync(bitmap,
+                DateTimeOffset.UnixEpoch.AddMilliseconds(frame * 200), default);
+
+            if (expectedItem is null)
+            {
+                Assert.All(latest.Observations, row => Assert.Null(row.ItemName));
+                continue;
+            }
+            var observed = Assert.Single(latest.Observations);
+            Assert.Equal(LootSource.Rare, observed.Source);
+            Assert.Equal(expectedItem, observed.ItemName);
+            Assert.Equal(1, observed.Quantity);
+            Assert.Null(observed.RejectionReason);
+        }
+
+        // Both complete OCR readings reached the real independent special counter.
+        // Repeated reads of the replacement must not erase the earlier arrival.
+        Assert.Equal(1, latest!.LootProjection!.Totals.GetValueOrDefault(Ring));
+        Assert.Equal(1, latest.LootProjection.Totals.GetValueOrDefault(Earring));
+        Assert.Equal(1, latest.LootProjection.Totals.GetValueOrDefault(Material));
+        Assert.Equal(3, latest.LootProjection.ConfirmedDropCount);
+        var completed = analyzer.CompleteSession(
+            DateTimeOffset.UnixEpoch.AddMilliseconds(totalFrames * 200));
+        Assert.Equal(1, completed.LootProjection!.Totals.GetValueOrDefault(Ring));
+        Assert.Equal(1, completed.LootProjection.Totals.GetValueOrDefault(Earring));
+        Assert.Equal(1, completed.LootProjection.Totals.GetValueOrDefault(Material));
+        Assert.Equal(3, completed.LootProjection.ConfirmedDropCount);
+    }
+
+    [Theory]
     [InlineData(7, 7, 7)]
     [InlineData(7, 8, null)]
     public async Task SpecialMissingQuantityRequiresTwoAgreeingSecondaryOcrViews(int first, int second, int? expected)
@@ -268,20 +324,20 @@ public sealed class RareLootRecoveryTests
             400, 300, 800, 600, 1, CompanionFontType.StrongSword, 0, false,
             HasRareLootAnchor: true, RareLootAnchorX: 500, RareLootAnchorY: 300);
         var context = new LifetimeParsingContext(0,
-            [new(Ring, [], true), new(Material, [], false)]);
-        return new(calibration, new CompanionItemMatcher([Ring, Material]), new EmptyNormalRows(), reads,
+            [new(Ring, [], true), new(Earring, [], true), new(Material, [], false)]);
+        return new(calibration, new CompanionItemMatcher([Ring, Earring, Material]), new EmptyNormalRows(), reads,
             reconciliation: new LifetimeNormalReconciliationAdapter(context, useVisualSlotCoverage: true),
             rareRowPipeline: rareRows, rowReview: review,
             rareRecovery: Create(reads), frameDecoder: new DecodedFrame(calibration),
-            quantityBoundsResolver: (_, name) => name == Ring ? new DropQuantityBounds(1, 1) : null,
+            quantityBoundsResolver: (_, name) => name is Ring or Earring ? new DropQuantityBounds(1, 1) : null,
             specialReconciliation: new LifetimeNormalReconciliationAdapter(context, useVisualSlotCoverage: false,
                 source: LootSource.Rare, slotCount: 1));
     }
 
     private static NormalLootRecovery Create(Reads reads)
     {
-        var recovery = new NormalLootRecovery(new CompanionItemMatcher([Ring, Material]), reads, source: LootSource.Rare);
-        recovery.ConfigureQuantityBounds(name => name == Ring ? new DropQuantityBounds(1, 1) : null);
+        var recovery = new NormalLootRecovery(new CompanionItemMatcher([Ring, Earring, Material]), reads, source: LootSource.Rare);
+        recovery.ConfigureQuantityBounds(name => name is Ring or Earring ? new DropQuantityBounds(1, 1) : null);
         return recovery;
     }
 

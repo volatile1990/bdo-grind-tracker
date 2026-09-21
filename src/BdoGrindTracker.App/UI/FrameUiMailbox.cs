@@ -15,6 +15,7 @@ internal sealed class FrameUiMailbox : IDisposable
     private LiveDetectionDebugSnapshot? _latestDebugSnapshot;
     private Bitmap? _latestThumbnail;
     private bool _totalsChanged;
+    private long? _projectionCorrectionRevision;
     private bool _disposed;
 
     // Projection activity follows new arrival times; historical modes use new positive outputs.
@@ -24,7 +25,8 @@ internal sealed class FrameUiMailbox : IDisposable
         Bitmap? thumbnail = null,
         Action<IReadOnlyDictionary<string, long>, bool>? onPublished = null,
         DateTimeOffset? capturedAt = null,
-        bool flushProjection = false)
+        bool flushProjection = false,
+        Action<IReadOnlyDictionary<string, long>, bool, bool, bool>? onObserved = null)
     {
         lock (_sync)
         {
@@ -35,27 +37,52 @@ internal sealed class FrameUiMailbox : IDisposable
             }
 
             bool hasNewArrival;
+            bool hasQuantityCorrection;
+            bool requiresUploadReview = false;
+            var previousEventCount = _aggregate.ConfirmedEventCount;
             if (analysis.LootProjection is { } projection)
             {
+                var rawProjection = projection;
+                var rawCorrectionRevision = projection.QuantityCorrectionRevision;
                 if (capturedAt is { } at)
                     projection = _projectionBuffer.Observe(projection, at, flushProjection);
+                var rawWasAccepted = capturedAt is null || _projectionBuffer.LastObservationAccepted;
                 var applied = _aggregate.ApplyProjection(projection);
                 _totalsChanged |= applied.TotalsChanged;
                 hasNewArrival = applied.HasNewArrival;
+                var knownCorrection = projection.QuantityCorrectionRevision is { } correctionRevision &&
+                    _projectionCorrectionRevision is { } previousCorrection && correctionRevision > previousCorrection;
+                var increasedCount = _aggregate.ConfirmedEventCount > previousEventCount;
+                // A higher drop count does not rule out revisions of existing
+                // drops in the same projection. The composer carries identity-
+                // based revision evidence independently of counts and arrivals.
+                hasQuantityCorrection = knownCorrection || applied.TotalsChanged && !increasedCount;
+                var pendingKnownCorrection = rawWasAccepted && rawCorrectionRevision is { } raw &&
+                    raw > (projection.QuantityCorrectionRevision ?? 0);
+                var pendingUnprovenChange = rawWasAccepted && rawCorrectionRevision is null && previousEventCount > 0 &&
+                    (rawProjection.ConfirmedDropCount != projection.ConfirmedDropCount ||
+                     rawProjection.Totals.Count != projection.Totals.Count || rawProjection.Totals.Any(pair =>
+                         projection.Totals.GetValueOrDefault(pair.Key) != pair.Value));
+                var mixedCorrection = knownCorrection && (!applied.TotalsChanged || hasNewArrival || increasedCount);
+                var unprovenMixedChange = projection.QuantityCorrectionRevision is null && previousEventCount > 0 &&
+                    (increasedCount || applied.TotalsChanged && hasNewArrival);
+                requiresUploadReview = pendingKnownCorrection || pendingUnprovenChange || mixedCorrection || unprovenMixedChange;
+                _projectionCorrectionRevision = projection.QuantityCorrectionRevision;
             }
             else
             {
-                var previousEventCount = _aggregate.ConfirmedEventCount;
                 var previousQuantity = _aggregate.TotalQuantity;
                 foreach (var lootEvent in analysis.NewEvents)
                     _aggregate.Apply(lootEvent);
                 _totalsChanged |= _aggregate.ConfirmedEventCount != previousEventCount ||
                     _aggregate.TotalQuantity != previousQuantity;
                 hasNewArrival = _aggregate.ConfirmedEventCount > previousEventCount;
+                hasQuantityCorrection = analysis.NewEvents.Any(entry => entry.Revision > 0 || entry.Quantity < 0);
             }
             // Observe the same cumulative state before the UI can consume it.
             // The callback must copy any values retained beyond this call.
             onPublished?.Invoke(_aggregate.Totals, hasNewArrival);
+            onObserved?.Invoke(_aggregate.Totals, hasNewArrival, hasQuantityCorrection, requiresUploadReview);
             _latestAnalysis = analysis;
             if (debugSnapshot is not null && thumbnail is not null)
             {
@@ -114,6 +141,7 @@ internal sealed class FrameUiMailbox : IDisposable
         {
             _aggregate.Reset();
             _projectionBuffer.Reset();
+            _projectionCorrectionRevision = null;
             _latestAnalysis = null;
             _latestDebugSnapshot = null;
             _latestThumbnail?.Dispose();
@@ -130,6 +158,7 @@ internal sealed class FrameUiMailbox : IDisposable
             // Aggregate validation completes before any queued UI data is lost.
             _aggregate.Restore(snapshot, manualItems);
             _projectionBuffer.Reset();
+            _projectionCorrectionRevision = null;
             _latestAnalysis = null;
             _latestDebugSnapshot = null;
             _latestThumbnail?.Dispose();

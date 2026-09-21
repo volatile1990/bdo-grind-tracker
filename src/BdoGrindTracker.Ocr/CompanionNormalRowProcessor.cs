@@ -110,7 +110,6 @@ public sealed class CompanionNormalRowProcessor
             throw new ArgumentOutOfRangeException(nameof(fontType));
         }
 
-        using var hsv = ConvertToHsv(sourceBand);
         using var gray = ConvertToGray(sourceBand);
         var averageLuma = Cv2.Mean(gray).Val0;
 
@@ -121,6 +120,7 @@ public sealed class CompanionNormalRowProcessor
             return CreateBlank(y, averageLuma, sourceBand.Width, sourceBand.Height);
         }
 
+        using var hsv = ConvertToHsv(sourceBand);
         using var textMask = new Mat();
         CreateTextMask(hsv, averageLuma, uiScale, fontType, isHdr, textMask);
         using var blackMask = new Mat();

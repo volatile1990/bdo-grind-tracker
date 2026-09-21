@@ -53,7 +53,7 @@ internal sealed class BuffCalibrationForm : Form
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(outputDirectory);
         _outputDirectory = Path.GetFullPath(outputDirectory);
-        Text = "Buff-Erkennung kalibrieren";
+        Text = "Buff-Erkennung · optionale Kalibrierung";
         StartPosition = FormStartPosition.CenterParent;
         AutoScaleMode = AutoScaleMode.Dpi;
         ClientSize = new Size(1220, 830);
@@ -105,24 +105,24 @@ internal sealed class BuffCalibrationForm : Form
         layout.Controls.Add(_editor, 1, 1);
         layout.Controls.Add(_status, 0, 2);
         layout.SetColumnSpan(_status, 2);
-        _editor.Controls.Add(Instructions("Nur Buffs hinzufügen, die du tatsächlich verwendest. Die Liste der Vorlagen ist zugleich das aktive Match-Set."));
+        _editor.Controls.Add(Instructions("Diese optionale Kalibrierung ersetzt die automatische Standarderkennung. Nur Buffs hinzufügen, die du tatsächlich verwendest. Die Liste der Vorlagen ist zugleich das aktive Match-Set."));
         _editor.Controls.Add(_barMode);
         _editor.Controls.Add(_iconMode);
         _editor.Controls.Add(_timerMode);
         _editor.Controls.Add(Instructions("Mit der Maus ein Rechteck ziehen. Symbol ohne Rand, Pfeile und Zeittext wählen; beim Timer alle Ziffern und die Einheit einschließen. In der vergrößerten Ansicht kannst du über die Scrollleisten navigieren."));
         _editor.Controls.Add(_selectionInfo);
-        _editor.Controls.Add(Instructions("Exakten Buff / Variante auswählen:"));
+        _editor.Controls.Add(Instructions("Buff / Variante auswählen:"));
         _editor.Controls.Add(_buffChoice);
         _editor.Controls.Add(_buffInfo);
         _editor.Controls.Add(_ownConsumption);
         _editor.Controls.Add(_add);
-        _editor.Controls.Add(Instructions("Gleiche Symbole beweisen keine Gegenstandsvariante. Pro Buff-Familie nur die Variante hinterlegen, die du selbst verwendest. Ein Gruppenbuff von anderen belegt keinen eigenen Verbrauch."));
+        _editor.Controls.Add(Instructions("Nur die verwendete Preis- und Laufzeitvariante hinterlegen. Normale und unsterbliche Varianten haben eigene Preise. Ein Gruppenbuff von anderen belegt keinen eigenen Verbrauch."));
         _editor.Controls.Add(Instructions("Aktive Vorlagen:"));
         _editor.Controls.Add(_mappingsList);
         _editor.Controls.Add(_remove);
         _editor.Controls.Add(_test);
         _editor.Controls.Add(_save);
-        _editor.Controls.Add(Instructions("Die erste Erkennung laufender Buffs ist ein Ausgangsbestand. Verbrauch wird erst bei bestätigter neuer Aktivierung oder Verlängerung gebucht. Dieser Test erzeugt keine Kostenbuchungen."));
+        _editor.Controls.Add(Instructions("Dieser Screenshot-Test erzeugt keine Kostenbuchungen."));
         var close = new Button { Text = "Abbrechen", AutoSize = true, DialogResult = DialogResult.Cancel };
         _editor.Controls.Add(close);
         CancelButton = close;

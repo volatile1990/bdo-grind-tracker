@@ -5,27 +5,27 @@
 @using BdoGrindTracker.App.Theming
 
 <CascadingValue Name="ShowStoreUpdateDialog" Value="@EventCallback.Factory.Create(this, ShowStoreUpdateDialog)">
-<div class="app-shell" data-app-ready="true" data-theme="@ThemeId">
-    <aside class="sidebar" aria-label="Hauptnavigation">
-        <a class="brand" href="#" aria-label="Grindcrest · Live-Session" @onclick="() => Navigate(Page.Live)" @onclick:preventDefault>
+<div class="app-shell" data-app-ready="true" data-theme="@ThemeId" lang="@UiLanguage">
+    <aside class="sidebar" aria-label="@T("Hauptnavigation")">
+        <a class="brand" href="#" aria-label="@T("Grindcrest · Live-Session")" @onclick="() => Navigate(Page.Live)" @onclick:preventDefault>
             <AssetImage Src="assets/branding/grindcrest-header.png" Alt="" Class="brand-mark" Fallback="spark" />
             <span><strong>GRINDCREST</strong><small>BLACK DESERT TRACKER</small></span>
         </a>
-        <div class="nav-caption">DEIN ABENTEUER</div>
+        <div class="nav-caption">@T("DEIN ABENTEUER")</div>
         <nav>
-            <button class="nav-item @(_page == Page.Live ? "active" : "")" aria-label="Live-Session" title="Live-Session" aria-current="@(_page == Page.Live ? "page" : null)" @onclick="() => Navigate(Page.Live)"><AppIcon Name="live" /><span>Live-Session</span>@if (State.IsRunning) { <span class="nav-live-dot"></span> }</button>
-            <button class="nav-item @(_page == Page.History ? "active" : "")" aria-label="Verlauf" title="Verlauf" aria-current="@(_page == Page.History ? "page" : null)" @onclick="() => Navigate(Page.History)"><AppIcon Name="history" /><span>Verlauf</span><span class="nav-count">@Tracker.History.Count</span></button>
+            <button class="nav-item @(_page == Page.Live ? "active" : "")" aria-label="@T("Live-Session")" title="@T("Live-Session")" aria-current="@(_page == Page.Live ? "page" : null)" @onclick="() => Navigate(Page.Live)"><AppIcon Name="live" /><span>@T("Live-Session")</span>@if (State.IsRunning) { <span class="nav-live-dot"></span> }</button>
+            <button class="nav-item @(_page == Page.History ? "active" : "")" aria-label="@T("Verlauf")" title="@T("Verlauf")" aria-current="@(_page == Page.History ? "page" : null)" @onclick="() => Navigate(Page.History)"><AppIcon Name="history" /><span>@T("Verlauf")</span><span class="nav-count">@Tracker.History.Count</span></button>
             <button class="nav-item @(_page == Page.Garmoth ? "active" : "")" aria-label="Garmoth" title="Garmoth" aria-current="@(_page == Page.Garmoth ? "page" : null)" @onclick="() => Navigate(Page.Garmoth)"><AppIcon Name="upload" /><span>Garmoth</span></button>
             <button class="nav-item @(_page == Page.Overlay ? "active" : "")" aria-label="Overlay" title="Overlay" aria-current="@(_page == Page.Overlay ? "page" : null)" @onclick="() => Navigate(Page.Overlay)"><AppIcon Name="monitor" /><span>Overlay</span></button>
             <button class="nav-item @(_page == Page.Goals ? "active" : "")" aria-label="Grind Goals" aria-current="@(_page == Page.Goals ? "page" : null)" @onclick="() => Navigate(Page.Goals)"><AppIcon Name="trend" /><span>Grind Goals</span></button>
-            <button class="nav-item @(_page == Page.Settings ? "active" : "")" aria-label="Einstellungen" title="Einstellungen" aria-current="@(_page == Page.Settings ? "page" : null)" @onclick="() => Navigate(Page.Settings)"><AppIcon Name="settings" /><span>Einstellungen</span></button>
+            <button class="nav-item @(_page == Page.Settings ? "active" : "")" aria-label="@T("Einstellungen")" title="@T("Einstellungen")" aria-current="@(_page == Page.Settings ? "page" : null)" @onclick="() => Navigate(Page.Settings)"><AppIcon Name="settings" /><span>@T("Einstellungen")</span></button>
         </nav>
         @if (ThemeId == AppThemes.Cats)
         {
             <div class="cats-sidebar-scene" aria-hidden="true"><img src="assets/themes/cats/sidebar-napping-kitten.png" alt="" draggable="false" /></div>
         }
         <div class="sidebar-bottom">
-            <div class="local-note"><AppIcon Name="shield" /><div><strong>Dein Loot. Deine Daten.</strong><span>Verlauf lokal auf deinem PC</span></div></div>
+            <div class="local-note"><AppIcon Name="shield" /><div><strong>@T("Dein Loot. Deine Daten.")</strong><span>@T("Verlauf lokal auf deinem PC")</span></div></div>
             <div class="sidebar-version"><span>Grindcrest</span><span>@Version</span></div>
         </div>
     </aside>
@@ -36,14 +36,14 @@
         }
         <header class="topbar">
             <div class="breadcrumb">Grindcrest <span>/</span> <strong>@PageLabel</strong></div>
-            <div class="topbar-right"><span class="region-badge">@Tracker.Preferences.MarketRegion.ToUpperInvariant()</span><span class="connection"><span class="status-dot @(State.IsError ? "error" : State.IsRunning ? "running" : "")"></span>@(State.IsDemo ? "Demo-Modus" : State.IsError ? "Fehler" : State.IsRunning ? "Tracking aktiv" : State.HasSession ? "Pausiert" : "Bereit")</span></div>
+            <div class="topbar-right"><span class="region-badge">@Tracker.Preferences.MarketRegion.ToUpperInvariant()</span><span class="connection"><span class="status-dot @(State.IsError ? "error" : State.IsRunning ? "running" : "")"></span>@(State.IsDemo ? T("Demo-Modus") : State.IsError ? T("Fehler") : State.IsRunning ? T("Tracking aktiv") : State.HasSession ? T("Pausiert") : T("Bereit"))</span></div>
         </header>
         @if (_page != Page.Settings) { <AppUpdates Compact="true" /> }
         @if (State.PersistenceError is not null)
         {
             <div class="notice error-notice persistence-notice" role="alert">
-                <AppIcon Name="info" /><div><strong>Problem mit lokalen Daten</strong><span>@State.PersistenceError</span></div>
-                <button class="button secondary" @onclick="() => Act(Tracker.SaveSessionAsync)" disabled="@(Acting || State.IsBusy)">Erneut laden und sichern</button>
+                <AppIcon Name="info" /><div><strong>@T("Problem mit lokalen Daten")</strong><span>@T(State.PersistenceError)</span></div>
+                <button class="button secondary" @onclick="() => Act(Tracker.SaveSessionAsync)" disabled="@(Acting || State.IsBusy)">@T("Erneut laden und sichern")</button>
             </div>
         }
         <main id="main-content">
@@ -53,15 +53,15 @@
                     <FocusOnNavigate RouteData="routeData" Selector="h1" />
                 </Found>
                 <NotFound>
-                    <div class="page"><h1>Seite nicht gefunden</h1><p>Diese Ansicht ist nicht mehr verfügbar.</p><button class="button secondary" @onclick="() => Navigate(Page.Live)">Zur Live-Session</button></div>
+                    <div class="page"><h1>@T("Seite nicht gefunden")</h1><p>@T("Diese Ansicht ist nicht mehr verfügbar.")</p><button class="button secondary" @onclick="() => Navigate(Page.Live)">@T("Zur Live-Session")</button></div>
                 </NotFound>
             </Router>
         </main>
         <footer class="statusbar @(State.IsError ? "has-error" : "")" role="status" aria-live="polite">
-            <span class="status-message"><span class="status-dot @(State.IsError ? "error" : State.IsRunning ? "running" : "")"></span>@State.Status</span>
+            <span class="status-message"><span class="status-dot @(State.IsError ? "error" : State.IsRunning ? "running" : "")"></span>@T(State.Status)</span>
             @if (State.IsRecording || State.IsRecordingRotation)
             {
-                <span class="recording-badge" title="@RecordingTitle"><span class="record-dot"></span>Aufzeichnung</span>
+                <span class="recording-badge" title="@RecordingTitle"><span class="record-dot"></span>@T("Aufzeichnung")</span>
             }
         </footer>
     </div>
@@ -70,12 +70,13 @@
 </CascadingValue>
 
 @code {
-    private enum Page { Live, History, Garmoth, Overlay, Goals, Settings }
+    private enum Page { Live, History, Garmoth, Overlay, Goals, Settings, Setup }
     private string RecordingTitle => string.Join("\n", new[] { State.RecordingPath, State.RotationRecordingPath }.OfType<string>());
     private StoreUpdateDialog? _storeUpdateDialog;
     private Task ShowStoreUpdateDialog() => _storeUpdateDialog?.OpenAsync() ?? Task.CompletedTask;
     private bool _scrollPending;
     private string? _requestedTheme;
+    private string? _requestedLanguage;
     private string ThemeId => AppThemes.Normalize(Tracker.Preferences.ThemeId);
     private string _scrollKey = "";
     private Page _page
@@ -83,7 +84,7 @@
         get
         {
             var path = Navigation.ToBaseRelativePath(Navigation.Uri).Split('?', '#')[0].TrimEnd('/');
-            return path == "grind-goals" ? Page.Goals : path == "settings" ? Page.Settings : path == "overlay" ? Page.Overlay : path == "garmoth" ? Page.Garmoth : path == "history" || path.StartsWith("history/", StringComparison.Ordinal) ? Page.History : Page.Live;
+            return path == "setup" ? Page.Setup : path == "grind-goals" ? Page.Goals : path == "settings" ? Page.Settings : path == "overlay" ? Page.Overlay : path == "garmoth" ? Page.Garmoth : path == "history" || path.StartsWith("history/", StringComparison.Ordinal) ? Page.History : Page.Live;
         }
     }
     protected override void OnInitialized()
@@ -119,6 +120,20 @@
     }
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        // Redirect only once per app launch so users can postpone setup and use
+        // the rest of the app. Failed or postponed setup remains pending on disk.
+        if (firstRender && !Tracker.Preferences.SetupCompleted && _page != Page.Setup && !State.HasSession && !State.IsRunning)
+            Navigation.NavigateTo("/setup", replace: true);
+        if (_requestedLanguage != UiLanguage)
+        {
+            var language = UiLanguage;
+            _requestedLanguage = language;
+            try { await JS.InvokeVoidAsync("grindcrest.setLanguage", language); }
+            catch (Exception exception) when (exception is JSDisconnectedException or TaskCanceledException)
+            {
+                if (_requestedLanguage == language) _requestedLanguage = null;
+            }
+        }
         if (_requestedTheme != ThemeId)
         {
             var theme = ThemeId;
@@ -142,6 +157,6 @@
         Navigation.LocationChanged -= LocationChanged;
         base.Dispose();
     }
-    private string PageLabel => _page switch { Page.History => "Verlauf", Page.Garmoth => "Garmoth", Page.Overlay => "Overlay", Page.Goals => "Grind Goals", Page.Settings => "Einstellungen", _ => "Live-Session" };
+    private string PageLabel => _page switch { Page.History => T("Verlauf"), Page.Garmoth => "Garmoth", Page.Overlay => "Overlay", Page.Goals => "Grind Goals", Page.Settings => T("Einstellungen"), Page.Setup => T("Einführung & Einrichtung"), _ => T("Live-Session") };
     private static string Version => AppBranding.Version;
 }

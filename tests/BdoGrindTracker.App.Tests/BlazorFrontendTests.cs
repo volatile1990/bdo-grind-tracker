@@ -20,49 +20,51 @@ namespace BdoGrindTracker.App.Tests;
 public sealed class BlazorFrontendTests
 {
     [Fact]
-    public async Task PausedAutoStartShowsItsStatusAndExplicitRearmActionWithoutInvokingCommands()
+    public async Task PausedSessionKeepsAutomaticDetectionCheckedWithoutARearmAction()
     {
-        var session = new SnapshotSession { Preferences = new() { AutoStartGrinding = true }, State = new()
+        var session = new SnapshotSession { Preferences = new() { AutoStartGrinding = true, UiLanguage = "de" }, State = new()
         {
-            AnalyzerAvailable = true, HasSession = true, AutoStartSuspended = true,
-            AutoStartStatus = "Nach manueller Pause unterbrochen.",
+            AnalyzerAvailable = true, HasSession = true,
+            AutoStartStatus = "Automatik bereit · warte auf neue Monsterdrops.",
         } };
 
         var markup = WebUtility.HtmlDecode(await RenderAsync<LiveDashboard>(session));
 
-        Assert.Contains("Nach manueller Pause unterbrochen.", markup);
+        Assert.DoesNotContain("Automatik bereit · warte auf neue Monsterdrops.", markup);
+        Assert.DoesNotContain("live-auto-start-status", markup);
         Assert.Contains("live-auto-start", markup);
-        Assert.False(IsDisabled(ButtonAttributes(markup, "Automatik wieder aktivieren")));
+        Assert.Contains("checked", Regex.Match(markup, "<input[^>]*id=\"auto-start-grinding\"[^>]*>").Value);
+        Assert.DoesNotContain("Automatik wieder aktivieren", markup);
         Assert.Equal(0, session.CommandCalls);
     }
 
     [Fact]
-    public async Task BusyAutoStartKeepsStatusVisibleAndDisablesRearmAction()
+    public async Task BusySessionDisablesTheAutomaticDetectionSwitch()
     {
-        var session = new SnapshotSession { Preferences = new() { AutoStartGrinding = true }, State = new()
+        var session = new SnapshotSession { Preferences = new() { AutoStartGrinding = true, UiLanguage = "de" }, State = new()
         {
-            AnalyzerAvailable = true, IsBusy = true, AutoStartSuspended = true,
-            AutoStartStatus = "Nach manueller Pause unterbrochen.",
+            AnalyzerAvailable = true, IsBusy = true,
         } };
 
         var markup = WebUtility.HtmlDecode(await RenderAsync<LiveDashboard>(session));
 
-        Assert.True(IsDisabled(ButtonAttributes(markup, "Automatik wieder aktivieren")));
+        Assert.True(IsDisabled(Regex.Match(markup, "<input[^>]*id=\"auto-start-grinding\"[^>]*>").Value));
+        Assert.DoesNotContain("Automatik wieder aktivieren", markup);
         Assert.Equal(0, session.CommandCalls);
     }
 
     [Fact]
-    public async Task SubmittedSessionDoesNotOfferAutomaticResume()
+    public async Task SubmittedSessionKeepsTheAutomaticDetectionPreferenceWithoutAResumeAction()
     {
-        var session = new SnapshotSession { Preferences = new() { AutoStartGrinding = true }, State = new()
+        var session = new SnapshotSession { Preferences = new() { AutoStartGrinding = true, UiLanguage = "de" }, State = new()
         {
-            AnalyzerAvailable = true, HasSession = true, IsSubmitted = true, AutoStartSuspended = true,
-            AutoStartStatus = "Nach manueller Pause unterbrochen.",
+            AnalyzerAvailable = true, HasSession = true, IsSubmitted = true,
         } };
 
         var markup = WebUtility.HtmlDecode(await RenderAsync<LiveDashboard>(session));
 
         Assert.Contains("live-auto-start", markup);
+        Assert.Contains("checked", Regex.Match(markup, "<input[^>]*id=\"auto-start-grinding\"[^>]*>").Value);
         Assert.DoesNotContain("Automatik wieder aktivieren", markup);
     }
 
@@ -81,7 +83,7 @@ public sealed class BlazorFrontendTests
     [InlineData("de")]
     public async Task GermanGameLanguageLocalizesLootAndEditorsWithoutChangingStoredKeys(string preference)
     {
-        var session = new SnapshotSession { Preferences = new() { GameLanguage = preference }, State = ActiveState() with
+        var session = new SnapshotSession { Preferences = new() { UiLanguage = "de", GameLanguage = preference }, State = ActiveState() with
         {
             DetectedGameLanguage = "de", GameLanguageStatus = "Erkannt: Deutsch",
         } };
@@ -417,7 +419,7 @@ public sealed class BlazorFrontendTests
         {
             History = [entry],
             Prices = new LootPriceSnapshot("eu", [new("Black Stone", 100, 0, LootPriceOrigin.LiveMarket, null)]),
-            Preferences = new()
+            Preferences = new() { UiLanguage = "de" }
         };
         var markup = WebUtility.HtmlDecode(await RenderAsync<HistoryDashboard>(session,
             new Dictionary<string, object?> { [nameof(HistoryDashboard.SpotId)] = LootSpotCatalog.HermesiaId }));
@@ -512,7 +514,7 @@ public sealed class BlazorFrontendTests
         {
             State = ActiveState() with { Loot = ActiveState().Loot with { Totals = new Dictionary<string, long> { ["Black Stone"] = 2 } } },
             History = [HistoryEntry(Guid.NewGuid())],
-            Preferences = new() { LootColumnOrders = new Dictionary<string, string[]> { [LootSpotCatalog.HermesiaId] = ["Black Stone", "Black Crystal Fragment"] } }
+            Preferences = new() { UiLanguage = "de", LootColumnOrders = new Dictionary<string, string[]> { [LootSpotCatalog.HermesiaId] = ["Black Stone", "Black Crystal Fragment"] } }
         };
         var markup = WebUtility.HtmlDecode(await RenderAsync<HistoryDashboard>(session,
             new Dictionary<string, object?> { [nameof(HistoryDashboard.SpotId)] = LootSpotCatalog.HermesiaId }));
@@ -533,6 +535,7 @@ public sealed class BlazorFrontendTests
     {
         var session = new SnapshotSession { State = ActiveState() with { IsRunning = running } };
         var markup = await RenderAsync<TrackerSettings>(session);
+        Assert.True(IsDisabled(FieldSelectAttributes(markup, "Spielsprache in Black Desert")));
         Assert.Equal(running, IsDisabled(FieldSelectAttributes(markup, "Charakterklasse")));
         Assert.DoesNotContain("Event-Loot mitzählen", markup);
         Assert.True(IsDisabled(ToggleAttributes(markup, "Loot-Diagnose aufzeichnen")));
@@ -660,26 +663,11 @@ public sealed class BlazorFrontendTests
         Assert.Equal(0, session.CommandCalls);
     }
 
-    [Theory]
-    [InlineData(true, false, true)]
-    [InlineData(false, true, true)]
-    [InlineData(false, false, false)]
-    public async Task UpdateRestartRequiresPausedIdleSession(bool running, bool busy, bool disabled)
-    {
-        var session = new SnapshotSession { State = ActiveState() with { IsRunning = running, IsBusy = busy } };
-        var updates = new StaticUpdates(new(true, true, "0.10.0-test.2", "0.10.0-test.3",
-            UpdatePhase.ReadyToRestart, 100, "Update bereit."));
-        var markup = await RenderAsync<AppUpdates>(session, updates: updates);
-        Assert.Equal(disabled, IsDisabled(ButtonAttributes(markup, "Installieren und neu starten")));
-        Assert.Equal(0, session.CommandCalls);
-    }
-
     [Fact]
-    public async Task StoreUpdatesExplainStoreManagementWithoutGitHubUpdateControls()
+    public async Task StoreUpdatesExplainStoreManagementWhenBackendIsUnavailable()
     {
         var session = new SnapshotSession { State = ActiveState() };
-        var updates = new AppUpdateRuntime(AppPackageIdentity.Packaged).CreateUpdates(true,
-            () => throw new InvalidOperationException("Store builds must not create GitHub updates."));
+        var updates = new AppUpdateRuntime(AppPackageIdentity.Packaged).CreateUpdates(true);
 
         var markup = WebUtility.HtmlDecode(await RenderAsync<AppUpdates>(session, updates: updates));
 
@@ -692,11 +680,10 @@ public sealed class BlazorFrontendTests
     }
 
     [Fact]
-    public async Task StoreUpdatesDoNotDisplayAGitHubUpdateBanner()
+    public async Task UnavailableStoreBackendDoesNotDisplayAnUpdateBanner()
     {
         var session = new SnapshotSession { State = ActiveState() };
-        var updates = new AppUpdateRuntime(AppPackageIdentity.Packaged).CreateUpdates(true,
-            () => throw new InvalidOperationException());
+        var updates = new AppUpdateRuntime(AppPackageIdentity.Packaged).CreateUpdates(true);
 
         var markup = await RenderAsync<AppUpdates>(session,
             new Dictionary<string, object?> { [nameof(AppUpdates.Compact)] = true }, updates);
@@ -708,7 +695,7 @@ public sealed class BlazorFrontendTests
     [Fact]
     public async Task ActiveStoreUpdatesOfferDirectInstallationWithoutBetaOrExternalStoreNavigation()
     {
-        var updates = new StaticUpdates(new(true, false, "1.0.1", null,
+        var updates = new StaticUpdates(new(true, "1.0.1", null,
             UpdatePhase.Available, 0, "Eine neue Version von Grindcrest ist verfügbar.") { UsesStore = true });
         var session = new SnapshotSession { State = ActiveState() };
         var markup = WebUtility.HtmlDecode(await RenderAsync<AppUpdates>(session, updates: updates));
@@ -731,7 +718,7 @@ public sealed class BlazorFrontendTests
     public async Task StoreInstallButtonRequiresPausedIdleSession(bool running, bool busy, bool disabled)
     {
         var session = new SnapshotSession { State = ActiveState() with { IsRunning = running, IsBusy = busy } };
-        var updates = new StaticUpdates(new(true, false, "1.0.1", null,
+        var updates = new StaticUpdates(new(true, "1.0.1", null,
             UpdatePhase.ReadyToRestart, 100, "Update bereit.") { UsesStore = true });
         var markup = await RenderAsync<AppUpdates>(session, updates: updates);
         Assert.Equal(disabled, IsDisabled(ButtonAttributes(markup, "Update installieren")));
@@ -822,7 +809,6 @@ public sealed class BlazorFrontendTests
         public event Action? Changed { add { } remove { } }
         public Task CheckAsync() => Task.CompletedTask;
         public Task DownloadAsync() => Task.CompletedTask;
-        public Task SetBetaAsync(bool enabled) => Task.CompletedTask;
         public Task RequestRestartAsync() => Task.CompletedTask;
     }
 
@@ -889,7 +875,7 @@ public sealed class BlazorFrontendTests
         public string DiagnosticsDirectory { get; init; } = @"C:\Synthetic\diagnostics";
         public event Action? Changed { add { } remove { } }
         public TrackerState State { get; init; } = new();
-        public TrackerPreferences Preferences { get; init; } = new() { MonitorDeviceName = "synthetic" };
+        public TrackerPreferences Preferences { get; init; } = new() { UiLanguage = "de", MonitorDeviceName = "synthetic" };
         public IReadOnlyList<TrackerMonitor> Monitors { get; } = [new("synthetic", "Testbildschirm", new(0, 0, 1920, 1080), true)];
         public IReadOnlyList<LootHistoryEntry> History { get; init; } = [];
         public LootPriceSnapshot Prices { get; init; } = LootPriceCatalog.FixedSnapshot("eu");
@@ -917,7 +903,6 @@ public sealed class BlazorFrontendTests
         public Task<TrackerCommandResult> DeleteHistoryAsync(Guid sessionId) => Command();
         public Task RefreshPricesAsync() => Command();
         public Task TickAsync() => Command();
-        public Task PrepareUpdateRestartAsync() => Task.CompletedTask;
         public Task RunPreparedUpdateAsync(Func<Task> install) => Task.CompletedTask;
         public Task ShutdownAsync() => Task.CompletedTask;
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;

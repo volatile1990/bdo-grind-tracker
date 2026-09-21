@@ -1,3 +1,5 @@
+using BdoGrindTracker.App.Localization;
+
 namespace BdoGrindTracker.App.Overlay;
 
 public sealed record OverlaySectionPoint(TimeSpan Elapsed, decimal Silver);
@@ -62,19 +64,23 @@ public static class OverlayChartSections
         var range = RangeMinutes.Contains(widget.ChartRangeMinutes) ? widget.ChartRangeMinutes : 0;
         var peakMode = PeakModes.Contains(widget.ChartPeakMode) ? widget.ChartPeakMode : DefaultPeakMode;
         var section = TimeSpan.FromSeconds(seconds);
+        string T(string value) => AppText.Translate(value, snapshot.UiLanguage);
+        string F(string format, params object[] values) => AppText.Format(format, snapshot.UiLanguage, values);
         var metric = snapshot.Metrics.GetValueOrDefault("chart");
-        var rangeText = range == 0 ? "ganze Session" : $"letzte {range} min";
+        var rangeText = range == 0 ? T("ganze Session") : F("letzte {0} min", range);
         // Missing prices replace the explanation, exactly as in the average curve.
+        // Accept either language for snapshots that are already localized.
         var detail = metric is null ? null :
-            metric.Detail is { } warning && warning != "Session-Durchschnitt" ? warning : $"Zahl Ø Session/h · {rangeText}";
-        var peakText = peakMode switch
+            metric.Detail is { } warning && warning != "Session-Durchschnitt" &&
+                warning != AppText.Translate("Session-Durchschnitt", "en") ? T(warning) : F("Zahl Ø Session/h · {0}", rangeText);
+        var peakText = T(peakMode switch
         {
             ExcludePeaks => "ohne wertvolle Drops",
             LogarithmicPeaks => "logarithmische Höhe",
             _ => "Abschnitte mit wertvollen Drops oben gekappt",
-        };
-        var empty = new OverlaySectionChart($"Silber je {seconds} s · Verlauf", detail,
-            $"Kurve des netto verdienten Silbers je {seconds} Sekunden aktiver Grindzeit, {rangeText}, {peakText}",
+        });
+        var empty = new OverlaySectionChart(F("Silber je {0} s · Verlauf", seconds), detail,
+            F("Kurve des netto verdienten Silbers je {0} Sekunden aktiver Grindzeit, {1}, {2}", seconds, rangeText, peakText),
             [], default, default, 1, [], peakMode);
 
         var now = snapshot.SessionElapsed;

@@ -7,14 +7,15 @@
          IgnorableNamespaces="uap uap10 uap11 rescap">
   <!-- Identity supplied by the owner from Partner Center. Version is set by Build-StoreRelease.ps1. -->
   <Identity Name="Grindcrest.Grindcrest" Publisher="CN=BA212178-044A-478D-B577-2DC7A6D66CB9"
-            Version="1.7.0.0" ProcessorArchitecture="x64" />
+            Version="1.8.2.0" ProcessorArchitecture="x64" />
   <Properties>
     <DisplayName>Grindcrest</DisplayName>
     <PublisherDisplayName>Grindcrest</PublisherDisplayName>
-    <Description>Grind-Sessions und Beute in Black Desert verfolgen.</Description>
+    <Description>Track your grind sessions and loot in Black Desert.</Description>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
   <Resources>
+    <Resource Language="en-US" />
     <Resource Language="de-DE" />
   </Resources>
   <Dependencies>
@@ -24,7 +25,7 @@
     <Application Id="App" Executable="Grindcrest.exe" EntryPoint="Windows.FullTrustApplication"
                  uap10:RuntimeBehavior="packagedClassicApp" uap10:TrustLevel="mediumIL">
       <!-- Transparent taskbar icons also require the indexed targetsize/altform assets. -->
-      <uap:VisualElements DisplayName="Grindcrest" Description="Grind-Sessions und Beute in Black Desert verfolgen."
+      <uap:VisualElements DisplayName="Grindcrest" Description="Track your grind sessions and loot in Black Desert."
                           BackgroundColor="transparent" Square44x44Logo="Assets\Square44x44Logo.png"
                           Square150x150Logo="Assets\Square150x150Logo.png" />
     </Application>

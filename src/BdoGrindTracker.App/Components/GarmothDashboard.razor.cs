@@ -13,7 +13,8 @@ public partial class GarmothDashboard
     private const int PageSize = 8;
     private string _apiKey = "", _search = "", _statusFilter = "all";
     private bool _uploadFailed, _confirmCurrent, _preparing, _batchUploading, _disposed;
-    private string? _saveFeedback, _uploadFeedback, _dialogError;
+    private string? _saveFeedback, _dialogError;
+    private UploadFeedback? _uploadFeedback;
     private int _page = 1, _batchSkipped, _batchCompleted, _batchTotal;
     private Guid? _uploadingSession;
     private GarmothUploadPreview? _confirmedPreview;
@@ -21,6 +22,7 @@ public partial class GarmothDashboard
     private IReadOnlyList<UploadTarget> _batchTargets = [];
 
     private sealed record UploadTarget(Guid SessionId, bool IsCurrent, GarmothUploadPreview Preview);
+    private sealed record UploadFeedback(string Source, params object[] Arguments);
     private sealed record UploadRow(Guid SessionId, bool IsCurrent, string? SpotId, DateTimeOffset? StartedAt,
         string? CharacterClass, TimeSpan Duration, SilverValuationResult Valuation, GarmothUploadPreview Preview,
         bool Blocked, bool Uploaded, bool LocallyModified);
@@ -29,6 +31,9 @@ public partial class GarmothDashboard
     private bool UploadsAvailable => !State.IsDemo && !State.IsBusy && State.HasApiKey && State.PersistenceError is null;
     private void FormChanged() => _saveFeedback = null;
     private void ResetPage() => _page = 1;
+    private string UploadFeedbackText => _uploadFeedback is not { } feedback ? ""
+        : feedback.Arguments.Length == 0 ? T(feedback.Source)
+        : F(feedback.Source, feedback.Arguments.Select(value => value is string text ? T(text) : value).ToArray());
 
     private IReadOnlyList<UploadRow> SessionRows
     {
@@ -81,12 +86,12 @@ public partial class GarmothDashboard
     }
 
     private string RowStatus(UploadRow row) => row.Uploaded
-        ? row.IsCurrent && !State.IsSubmitted && !State.UploadBlocked ? "Teilweise hochgeladen" : "Hochgeladen"
-        : row.Blocked ? "Upload gesperrt" : "Noch offen";
-    private string UploadHint(UploadRow row) => State.IsDemo ? "Demo-Sessions werden nicht hochgeladen."
-        : !State.HasApiKey ? "Zuerst einen Garmoth-API-Schlüssel hinterlegen."
-        : InteractionBlocked ? "Ein Vorgang wird gerade ausgeführt."
-        : State.PersistenceError ?? row.Preview.Error ?? (row.IsCurrent ? "Rest hochladen und Session abschließen" : "Session hochladen");
+        ? row.IsCurrent && !State.IsSubmitted && !State.UploadBlocked ? T("Teilweise hochgeladen") : T("Hochgeladen")
+        : row.Blocked ? T("Upload gesperrt") : T("Noch offen");
+    private string UploadHint(UploadRow row) => State.IsDemo ? T("Demo-Sessions werden nicht hochgeladen.")
+        : !State.HasApiKey ? T("Zuerst einen Garmoth-API-Schlüssel hinterlegen.")
+        : InteractionBlocked ? T("Ein Vorgang wird gerade ausgeführt.")
+        : T(State.PersistenceError ?? row.Preview.Error ?? (row.IsCurrent ? "Rest hochladen und Session abschließen" : "Session hochladen"));
 
     private Task SaveKey() => string.IsNullOrWhiteSpace(_apiKey) ? Task.CompletedTask
         : SaveConnection(p => p, _apiKey.Trim(), resume: true);
@@ -143,7 +148,7 @@ public partial class GarmothDashboard
             _dialogError = null;
             if (!_disposed) await JS.InvokeVoidAsync("grindcrest.showDialog", "garmoth-upload-confirm");
         }
-        catch (Exception exception) { _uploadFailed = true; _uploadFeedback = exception.Message; }
+        catch (Exception exception) { _uploadFailed = true; _uploadFeedback = new(exception.Message); }
         finally { _preparing = false; }
     }
 
@@ -172,7 +177,7 @@ public partial class GarmothDashboard
             _dialogError = null;
             if (!_disposed) await JS.InvokeVoidAsync("grindcrest.showDialog", "garmoth-all-upload-confirm");
         }
-        catch (Exception exception) { _batchTargets = []; _uploadFailed = true; _uploadFeedback = exception.Message; }
+        catch (Exception exception) { _batchTargets = []; _uploadFailed = true; _uploadFeedback = new(exception.Message); }
         finally { _preparing = false; }
     }
 
@@ -207,7 +212,7 @@ public partial class GarmothDashboard
                 if (!result.Succeeded) throw new InvalidOperationException(result.Error);
             });
             _uploadFailed = !succeeded;
-            _uploadFeedback = succeeded ? "Session hochgeladen." : ActionError ?? "Upload fehlgeschlagen.";
+            _uploadFeedback = new(succeeded ? "Session hochgeladen." : ActionError ?? "Upload fehlgeschlagen.");
         }
         finally { _uploadingSession = null; }
     }
@@ -239,8 +244,8 @@ public partial class GarmothDashboard
                 }
             });
             _uploadFailed = !succeeded;
-            _uploadFeedback = succeeded ? $"{_batchCompleted} Sessions hochgeladen."
-                : $"{_batchCompleted} von {_batchTotal} Sessions erfolgreich hochgeladen. Vorgang gestoppt: {ActionError ?? "Upload fehlgeschlagen."}";
+            _uploadFeedback = succeeded ? new("{0} Sessions hochgeladen.", _batchCompleted)
+                : new("{0} von {1} Sessions erfolgreich hochgeladen. Vorgang gestoppt: {2}", _batchCompleted, _batchTotal, ActionError ?? "Upload fehlgeschlagen.");
         }
         finally { _uploadingSession = null; _batchUploading = false; }
     }

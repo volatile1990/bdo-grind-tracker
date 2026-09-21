@@ -10,8 +10,44 @@ public sealed partial class TrackerSessionServiceTests
 {
     private static readonly BuffDefinition SessionBuff = BuffPriceCatalog.Definitions.Single(item => item.Id == "harmony-draught");
 
+    [Theory]
+    [InlineData(280, "tent-body-enhancement-300", 10_000_000)]
+    [InlineData(160, "tent-body-enhancement-300", 10_000_000)]
+    public async Task AutomaticTentRefreshPublishesAndPersistsTheMaximumDurationPrice(
+        int remainingMinutes, string expectedId, int price)
+    {
+        BuffFrameReading Reading(int minutes) => new([new("automatic-tent-body-enhancement",
+            TimeSpan.FromMinutes(minutes), TimeSpan.FromMinutes(1))]);
+        BuffFrameReading? reading = Reading(1);
+        var monitor = new BuffMonitor(new SessionBuffReader(() => reading), TimeSpan.FromSeconds(1));
+        await using var fixture = new Fixture(autoUpload: false, buffMonitor: monitor, lootScrollVisible: _ => true);
+        BeginBuffSession(fixture);
+        var now = DateTimeOffset.UtcNow;
+        await ProcessBuffFrame(fixture, monitor, now.AddSeconds(-5));
+        await ProcessBuffFrame(fixture, monitor, now.AddSeconds(-4));
+        reading = Reading(remainingMinutes);
+        await ProcessBuffFrame(fixture, monitor, now.AddSeconds(-3));
+        await ProcessBuffFrame(fixture, monitor, now.AddSeconds(-2));
+
+        var live = Assert.IsType<BuffLedgerSnapshot>(fixture.Service.State.Buffs);
+        Assert.Equal(expectedId, Assert.Single(live.Active).BuffId);
+        Assert.Equal(2, live.Consumptions.Count);
+        var initial = Assert.Single(live.Consumptions, item => item.IsSessionStart);
+        Assert.Equal("tent-body-enhancement-300", initial.BuffId);
+        Assert.Equal(10_000_000m, initial.Cost);
+        var purchase = Assert.Single(live.Consumptions, item => !item.IsSessionStart);
+        Assert.Equal(expectedId, purchase.BuffId);
+        Assert.Equal(price, purchase.Cost);
+        Assert.Equal(BuffPriceSource.FixedNpc, purchase.Price!.Source);
+
+        Assert.True((await fixture.Service.PauseAsync()).Succeeded);
+        var history = Assert.IsType<BuffLedgerSnapshot>(Assert.Single(fixture.HistoryStore.Load()).Buffs);
+        Assert.Equal(live.Consumptions, history.Consumptions);
+        Assert.Equal(price + 10_000_000m, history.ConsumedCost);
+    }
+
     [Fact]
-    public async Task TwoBuffScansExposeActiveBaselineAndObservedCostWithoutInventingConsumption()
+    public async Task TwoBuffScansCountAnAlreadyActiveBuffOnceAndPreserveObservedCost()
     {
         BuffFrameReading? reading = BuffReading(300);
         var monitor = new BuffMonitor(new SessionBuffReader(() => reading), TimeSpan.FromSeconds(1));
@@ -24,13 +60,16 @@ public sealed partial class TrackerSessionServiceTests
         await ProcessBuffFrame(fixture, monitor, now.AddSeconds(-2));
         var confirmed = Assert.IsType<BuffLedgerSnapshot>(fixture.Service.State.Buffs);
         Assert.True(Assert.Single(confirmed.Active).IsBaseline);
-        Assert.Empty(confirmed.Consumptions);
+        Assert.True(Assert.Single(confirmed.Consumptions).IsSessionStart);
+        Assert.Equal(1_200_000m, confirmed.ConsumedCost);
         Assert.Equal(1000m, confirmed.ProratedCost);
         Assert.Equal(TimeSpan.FromSeconds(1), Assert.Single(confirmed.Usage).ObservedDuration);
         // Rebuilding the frontend without a new capture must not bill the same sample again.
         fixture.Service.RefreshPendingState();
         fixture.Service.RefreshPendingState();
         Assert.Equal(1000m, fixture.Service.State.Buffs!.ProratedCost);
+        Assert.True(Assert.Single(fixture.Service.State.Buffs.Consumptions).IsSessionStart);
+        Assert.Equal(1_200_000m, fixture.Service.State.Buffs.ConsumedCost);
     }
 
     [Fact]
@@ -46,7 +85,7 @@ public sealed partial class TrackerSessionServiceTests
         await ProcessBuffFrame(fixture, monitor, now.AddSeconds(-11));
         reading = BuffReading(1199);
         await ProcessBuffFrame(fixture, monitor, now.AddSeconds(-10));
-        Assert.Single(fixture.Service.State.Buffs!.Consumptions);
+        Assert.False(Assert.Single(fixture.Service.State.Buffs!.Consumptions).IsSessionStart);
         Assert.Equal(1_200_000m, fixture.Service.State.Buffs.ConsumedCost);
         Assert.Equal(1000m, fixture.Service.State.Buffs.ProratedCost);
 
@@ -84,7 +123,7 @@ public sealed partial class TrackerSessionServiceTests
         var now = DateTimeOffset.UtcNow;
         var ledger = new BuffLedger(BuffPriceCatalog.Definitions);
         BuffPrice? Price(BuffDefinition _) => new(1_200_000m, "eu", now.AddHours(-1), false);
-        ledger.Apply([], now.AddHours(-1), Price);
+        ledger.Apply(BuffReading(60).Observations, now.AddHours(-1), Price);
         ledger.Apply(BuffReading(1200).Observations, now.AddHours(-1).AddSeconds(1), Price);
         var old = ledger.Apply(BuffReading(1199).Observations, now.AddHours(-1).AddSeconds(2), Price);
         var saved = CurrentSessionStoreTests.Example() with { Buffs = old };
@@ -130,7 +169,8 @@ public sealed partial class TrackerSessionServiceTests
         reading = BuffReading(595);
         await ProcessBuffFrame(fixture, monitor, now.AddSeconds(-2));
         Assert.Equal(2000m, fixture.Service.State.Buffs!.ProratedCost);
-        Assert.Empty(fixture.Service.State.Buffs.Consumptions);
+        Assert.True(Assert.Single(fixture.Service.State.Buffs.Consumptions).IsSessionStart);
+        Assert.Equal(1_200_000m, fixture.Service.State.Buffs.ConsumedCost);
         Assert.True(fixture.Service.State.IsRunning);
         Assert.False(fixture.Service.State.IsError);
         Assert.True(fixture.Service.State.Loot.TotalQuantity > 0);
@@ -148,6 +188,50 @@ public sealed partial class TrackerSessionServiceTests
         Assert.True(fixture.Service.State.IsRunning);
         Assert.False(fixture.Service.State.IsError);
         Assert.Null(fixture.Service.State.TrackingBlockedReason);
+    }
+
+    [Fact]
+    public async Task UnreadableMealPreservesDraughtRenewalAndCountsTheHigherReturningMealTimer()
+    {
+        const string meal = "simple-cron-meal";
+        BuffFrameReading? reading = new([.. BuffReading(60).Observations,
+            new(meal, TimeSpan.FromSeconds(300), TimeSpan.FromSeconds(1))]);
+        var monitor = new BuffMonitor(new SessionBuffReader(() => reading), TimeSpan.FromSeconds(1));
+        await using var fixture = new Fixture(autoUpload: false, buffMonitor: monitor, lootScrollVisible: _ => true);
+        BeginBuffSession(fixture);
+        var now = DateTimeOffset.UtcNow;
+        await ProcessBuffFrame(fixture, monitor, now.AddSeconds(-10));
+        reading = new([.. BuffReading(59).Observations,
+            new(meal, TimeSpan.FromSeconds(299), TimeSpan.FromSeconds(1))]);
+        await ProcessBuffFrame(fixture, monitor, now.AddSeconds(-9));
+        reading = BuffReading(1200) with { UnknownBuffIds = [meal] };
+        await ProcessBuffFrame(fixture, monitor, now.AddSeconds(-8));
+        reading = BuffReading(1199) with { UnknownBuffIds = [meal] };
+        await ProcessBuffFrame(fixture, monitor, now.AddSeconds(-7));
+        var renewed = fixture.Service.State.Buffs!;
+        Assert.Equal(3, renewed.Consumptions.Count);
+        Assert.Equal(SessionBuff.Id, Assert.Single(renewed.Consumptions, item => !item.IsSessionStart).BuffId);
+        Assert.True(Assert.Single(renewed.Consumptions, item => item.BuffId == meal).IsSessionStart);
+        Assert.Equal(2_400_000m, renewed.KnownConsumedCost);
+        Assert.Null(renewed.ConsumedCost);
+        Assert.Equal(TimeSpan.FromSeconds(1), renewed.Usage.Single(item => item.BuffId == meal).ObservedDuration);
+
+        reading = new([.. BuffReading(1198).Observations,
+            new(meal, TimeSpan.FromSeconds(7200), TimeSpan.FromSeconds(1))]);
+        await ProcessBuffFrame(fixture, monitor, now.AddSeconds(-6));
+        var mealRenewal = Assert.Single(fixture.Service.State.Buffs!.Consumptions,
+            item => item.BuffId == meal && !item.IsSessionStart);
+        Assert.Equal(now.AddSeconds(-6), mealRenewal.ConsumedAt);
+        Assert.Null(mealRenewal.Cost);
+        reading = new([.. BuffReading(1197).Observations,
+            new(meal, TimeSpan.FromSeconds(7199), TimeSpan.FromSeconds(1))]);
+        await ProcessBuffFrame(fixture, monitor, now.AddSeconds(-5));
+        var recovered = fixture.Service.State.Buffs!;
+        Assert.Equal(4, recovered.Consumptions.Count);
+        Assert.Equal(mealRenewal, Assert.Single(recovered.Consumptions,
+            item => item.BuffId == meal && !item.IsSessionStart));
+        Assert.False(recovered.Active.Single(item => item.BuffId == meal).IsBaseline);
+        Assert.Equal(TimeSpan.FromSeconds(2), recovered.Usage.Single(item => item.BuffId == meal).ObservedDuration);
     }
 
     private static void BeginBuffSession(Fixture fixture)

@@ -45,13 +45,22 @@ Größenlimits und die Auswahl der gespeicherten Charakterdatei.
 
 ## Grenzen und Korrektur
 
-Die aktuelle Dateiauswahl verwendet die letzte **Schreibzeit** der gespeicherten
-Charakterdateien. Zugriffszeiten sind dafür ungeeignet: Schon das Lesen durch
-Grindcrest, BDO oder ein Diagnoseprogramm kann sie ändern. Die allgemeine Datei
-des Preset-Verzeichnisses wird nicht als Charakter ausgewählt, wenn darunter
-echte Charakterdateien vorhanden sind. Bei gleichen jüngsten Schreibzeiten
-müssen die Dateien dieselbe Klasse/Spezialisierung belegen; ansonsten bleibt
-die Erkennung unbekannt oder mehrdeutig. Eine ältere bekannte Klasse wird nicht
+Die aktuelle Dateiauswahl verwendet für das numerische UserCache-Profil die
+letzte **Schreibzeit der profilweiten `gameVariable.xml`**, wie die Kalibrierung.
+Das Ordnerdatum wird beim Speichern bestehender Dateien nicht aktualisiert und
+ist dafür unzuverlässig. Leere Cache-Ordner verdrängen kein gespeichertes Profil.
+Nur wenn überhaupt keine profilweite XML vorhanden ist, bleibt für ältere
+Verzeichnisstrukturen die Auswahl nach Profil-Ordnerdatum erhalten.
+
+Innerhalb des gewählten Profils werden alle direkten Preset-Verzeichnisse
+berücksichtigt. Die jüngste echte Charakterdatei gewinnt anhand ihrer Schreibzeit;
+gemeinsame Preset-Dateien werden nur verwendet, wenn keine Charakterdateien
+existieren. Zugriffszeiten sind dafür ungeeignet: Schon das Lesen durch Grindcrest,
+BDO oder ein Diagnoseprogramm kann sie ändern. Bei gleichen jüngsten Schreibzeiten
+von Profilen oder Charakterdateien müssen alle Kandidaten dieselbe
+Klasse/Spezialisierung belegen. Fehlende, unbekannte oder widersprüchliche Belege
+liefern keine automatische Klasse. Mehr als 16 gleich aktuelle Kandidaten werden
+nicht auf einen zufälligen Teil reduziert. Eine ältere bekannte Klasse wird nicht
 als Ersatz für einen unbekannten aktuellen Charakter gewählt.
 
 Die oben dokumentierte Companion-Auswahl nach Zugriffszeit ist damit eine
@@ -74,6 +83,9 @@ War die Klasse bisher unbekannt und wird sie später erkannt, werden Klasse,
 Verlauf und Wiederherstellungsstand gemeinsam gespeichert, auch während einer
 Pause. Abgeschlossene ältere Sessions werden dadurch nicht rückwirkend geändert;
 deren Klasse lässt sich über **Verlauf → Session bearbeiten** ergänzen.
+Fehlt die Klasse beim automatischen Stunden-Upload, bleiben die vollständigen
+Stunden vorgemerkt. Die Automatik wird dadurch nicht angehalten; nach erfolgreicher
+Erkennung überträgt sie die wartenden Stunden mit ihren ursprünglichen Lootmengen.
 „Agent“ ist im Garmoth-Metadatensatz enthalten, jedoch nicht in der Skilltabelle
 des untersuchten Companion: deshalb nur manuell auswählbar.
 

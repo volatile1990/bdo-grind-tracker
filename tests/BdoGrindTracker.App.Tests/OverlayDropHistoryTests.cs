@@ -8,6 +8,30 @@ namespace BdoGrindTracker.App.Tests;
 public sealed class OverlayDropHistoryTests
 {
     [Fact]
+    public void ClockTicksReuseFrozenSnapshotsAndRewindRestoreAndNewDropsInvalidateThem()
+    {
+        var history = new SessionDropHistory();
+        var state = new TrackerState { SessionId = Guid.NewGuid(), HasSession = true };
+        var empty = history.Update(state);
+        Assert.Same(empty, history.Update(state with { Elapsed = TimeSpan.FromSeconds(1) }));
+        state = WithLoot(state, 10, 1, 1);
+        var first = history.Update(state);
+        Assert.Same(first, history.Update(WithLoot(state, 20, 1, 1)));
+        // A manual edit updates the baseline but does not invent a drop.
+        Assert.Same(first, history.Update(WithLoot(state, 25, 5, 1)));
+        var second = history.Update(WithLoot(state, 30, 6, 2));
+        Assert.Equal(1, second[^1].Quantity);
+        Assert.Single(first);
+        Assert.Equal(2, second.Count);
+        var rewound = history.Update(WithLoot(state, 15, 5, 1));
+        Assert.Single(rewound);
+        Assert.Equal(2, second.Count);
+        history.Restore(state.SessionId, state.Loot, TimeSpan.FromSeconds(10), first);
+        Assert.Single(history.Update(state));
+        Assert.Empty(history.Update(state with { SessionId = Guid.NewGuid() }));
+    }
+
+    [Fact]
     public void TracksRepeatedDropsWithoutDuplicatingTicksOrManualEdits()
     {
         var history = new SessionDropHistory();

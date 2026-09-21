@@ -86,6 +86,12 @@ Das belegt diese Fälle, keine vollständige Erkennung jedes unlesbaren Drops.
 
 ## Aktueller Stand: unabhängige Quellen
 
+Die [Nutzervorgabe vom 17. September](LOOT_SOURCES.md) ordnet jedes Item fest
+dem normalen oder dem Rare-/Special-Droplog zu. Der Live-Pfad und sein
+Rohtextparser verwerfen Treffer aus dem jeweils falschen Kanal. Die folgenden
+Additionsregeln beschreiben weiterhin die Zusammenführung der unabhängigen
+Zählstände, einschließlich historischer Aufnahmen ohne diese Kanalbeschränkung.
+
 Ein physischer Drop erscheint ausschließlich im normalen oder im Special-Droplog.
 Beide Quellen führen deshalb eigene vollständige, korrigierbare Zählstände.
 Ihre Itemmengen und unterstützten Dropanzahlen werden addiert, auch wenn derselbe
@@ -126,6 +132,14 @@ identischer Drop ohne erkennbaren Wechsel oder Leerphase ist daraus nicht sicher
 ableitbar. Die offene Zeile hält höchstens 64 aktuelle Rohlesungen und bei Bedarf
 eine ältere Mengenlesung; dauerhaft sichtbare Meldungen speichern keine ganze
 Sitzung an Textbeobachtungen.
+
+Die Bewertungswahrscheinlichkeiten der einzelnen Special-Zeile bleiben konstant.
+Wiederholte Lesungen einer dauerhaft sichtbaren Meldung sind keine unabhängigen
+Trainingsbeispiele. Die frühere Anpassung anhand dieser Lesungen konnte einen
+kurz sichtbaren Drop vor dem nächsten Item als Lesefehler oder leere Anzeige
+verwerfen. Synthetische Tests prüfen deshalb auch kurze Meldungswechsel nach
+längerer Laufzeit sowie einzelne falsche OCR-Lesungen mit anschließender Rückkehr
+zum ursprünglichen Item. Sie ersetzen keine Aufnahme der gemeldeten Nutzerfälle.
 
 Die folgenden Abschnitte dokumentieren außerdem die historischen Teststände
 und die weiterhin verwendete normale Zähllogik. Deren damalige Messwerte sind
@@ -312,7 +326,9 @@ Spot ausreichend belegt feststeht, bleibt er wie bisher für die Sitzung fixiert
 
 ## Diagnose und Lebenszyklus
 
-Neue Aufnahmen verwenden Format 3 und die Engine `grindcrest-lifetime-v6`.
+Neue Aufnahmen verwenden Format 3 und die Engine `grindcrest-lifetime-v7`.
+Die Engine V7 verwendet konstante Bewertungswahrscheinlichkeiten für die
+Special-Zeile; ältere Aufnahmen behalten beim Replay deren frühere Anpassung.
 Der Marker `independent-special-v1` kennzeichnet die getrennte Special-Instanz
 und additive Quellenprojektion. Er bleibt auch bei ausgeblendetem Special-Panel
 an jedem Frame erhalten; ein Wechsel innerhalb derselben Aufnahme, unbekannte

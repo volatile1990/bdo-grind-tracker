@@ -48,7 +48,8 @@ internal sealed partial class LifetimeLootTextParser
         if (row.Source != _source || row.IsAlignmentAnchor ||
             _source == LootSource.Rare && row.RejectionReason == "ocr-geometry" ||
             row.RejectionReason == AutomaticLootSpotLock.OutsideSpotPoolReason ||
-            row.ItemName is { } originalName && !_names.Contains(originalName))
+            row.RejectionReason == LootSourceCatalog.WrongSourceReason ||
+            row.ItemName is { } originalName && (!_names.Contains(originalName) || !AllowsSource(originalName)))
             return LifetimeParsedReading.Excluded;
         if (string.IsNullOrWhiteSpace(row.RawText) || row.RawText.Length > 4096) return null;
         if (_source == LootSource.Rare && row.ItemName is { } acceptedName &&
@@ -101,8 +102,14 @@ internal sealed partial class LifetimeLootTextParser
         if (_source == LootSource.Rare && !best.Exact && HasEnhancementPrefix(normalized, best.Name)) return null;
         if (normalized.Length <= 4 && !best.Exact || best.Score < .86 ||
             candidates.Length > 1 && best.Score - candidates[1].Score < .025) return null;
+        // Rank the complete catalog first: an item from the other UI channel must
+        // be excluded, never replaced with a weaker same-channel candidate.
+        if (!AllowsSource(best.Name)) return LifetimeParsedReading.Excluded;
         return new(best.Name, quantity is not null && _catalog[best.Name].IsFixedUnit ? 1 : quantity, best.Score);
     }
+
+    private bool AllowsSource(string itemName) =>
+        _catalog[itemName].AllowedSource is not { } allowedSource || allowedSource == _source;
 
     private bool HasEnhancementPrefix(string observed, string candidate)
     {

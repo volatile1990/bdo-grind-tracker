@@ -47,7 +47,7 @@ public sealed class OverlayScaledPreviewTests
 
         Assert.True(content.LayoutWidget.Height - 16 - 18 * fontScale >= 40 - .000001);
         Assert.Contains("class=\"rotation-sector\" data-overlay-fit", markup);
-        Assert.Contains(RotationTimelinePresentation.Sector(rotation), markup);
+        Assert.Contains(RotationTimelinePresentation.Sector(rotation, "de"), markup);
         Assert.Contains("Bestzeit 00:25.0", markup);
     }
 
@@ -166,7 +166,7 @@ public sealed class OverlayScaledPreviewTests
             var rendered = await renderer.RenderComponentAsync<OverlayWidgetPreview>(ParameterView.FromDictionary(new Dictionary<string, object?>
             {
                 [nameof(OverlayWidgetPreview.Widget)] = widget,
-                [nameof(OverlayWidgetPreview.Snapshot)] = snapshot,
+                [nameof(OverlayWidgetPreview.Snapshot)] = snapshot with { UiLanguage = "de" },
             }));
             return WebUtility.HtmlDecode(rendered.ToHtmlString());
         });

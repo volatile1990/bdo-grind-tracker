@@ -1,13 +1,13 @@
 @inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment HostEnvironment
 
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="dark" />
     <base href="/" />
-    <title>Grindcrest · Browser-Vorschau</title>
+    <title>Grindcrest · Browser preview</title>
     <link rel="icon" href="assets/branding/grindcrest.ico" />
     <link rel="stylesheet" href="@AppStylesheet" />
     <link rel="stylesheet" href="garmoth.css" />
@@ -15,12 +15,14 @@
     <link rel="stylesheet" href="updates.css" />
     <link rel="stylesheet" href="overlay-editor.css" />
     <link rel="stylesheet" href="overlay-widgets.css" />
+    <link rel="stylesheet" href="overlay-consumables.css" />
+    <link rel="stylesheet" href="consumables.css" />
     <link rel="stylesheet" href="browser-preview.css" />
     <link rel="stylesheet" href="@ThemeStylesheet" />
 </head>
 <body>
     <div id="app"><PreviewShell @rendermode="@(new InteractiveServerRenderMode(prerender: false))" /></div>
-    <div id="blazor-error-ui" role="alert">Die Vorschau wurde unterbrochen. <a href="">Neu laden</a></div>
+    <div id="blazor-error-ui" role="alert"><span data-error-message>The preview was interrupted. </span><a href="">Reload</a></div>
     <script src="app.js"></script>
     <script src="overlay-editor.js"></script>
     <script src="_framework/blazor.web.js"></script>

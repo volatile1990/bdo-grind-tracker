@@ -1,16 +1,18 @@
 using System.Collections.ObjectModel;
 using BdoGrindTracker.App.Character;
+using BdoGrindTracker.App.Localization;
 using BdoGrindTracker.App.Components;
 using BdoGrindTracker.App.Integrations.Garmoth;
 using BdoGrindTracker.App.Pricing;
 using BdoGrindTracker.App.Services;
 using BdoGrindTracker.App.UI;
 using BdoGrindTracker.Core;
+using BdoGrindTracker.Core.Buffs;
 
 namespace BdoGrindTracker.App.Overlay;
 
 /// <summary>Projects existing session totals. This class never creates or changes loot events.</summary>
-internal sealed class OverlayMetrics
+internal sealed partial class OverlayMetrics
 {
     private string? _catalogLanguage;
     private IReadOnlyList<OverlayLootItem> _itemCatalog = [];
@@ -48,7 +50,10 @@ internal sealed class OverlayMetrics
     {
         ArgumentNullException.ThrowIfNull(state);
         ArgumentNullException.ThrowIfNull(preferences);
-        var session = new LiveSessionPresentation(state);
+        var session = new LiveSessionPresentation(state, preferences.UiLanguage);
+        var consumables = ProjectConsumables(state.Buffs, preferences.UiLanguage);
+        string T(string value) => AppText.Translate(value, preferences.UiLanguage);
+        string Number(long value) => value.ToString("N0", AppText.Culture(preferences.UiLanguage));
 
         var language = preferences.GameLanguage == "auto" ? state.DetectedGameLanguage ?? "en" : preferences.GameLanguage;
         if (_catalogLanguage != language)
@@ -61,61 +66,55 @@ internal sealed class OverlayMetrics
                 .OrderBy(item => item.Name, StringComparer.CurrentCultureIgnoreCase).ToArray());
         }
         var profile = Presentation.Profile(state.SpotId);
-        var positiveItems = state.Loot.Totals.Where(item => item.Value > 0).ToArray();
         var incomplete = !state.Silver.IsComplete;
         var valuationDetail = session.SilverDetail;
-        var drops = positiveItems
-            .OrderByDescending(item => string.Equals(item.Key, profile?.TrashItemName, StringComparison.Ordinal))
-            .ThenByDescending(item => item.Value)
-            .ThenBy(item => item.Key, StringComparer.Ordinal)
-            .Select(item => new OverlayLootItem(item.Key, ItemLocalizationCatalog.DisplayName(item.Key, language),
-                Presentation.Number(item.Value), Presentation.ItemIcon(item.Key), RareItems.Contains(item.Key),
-                item.Value, TrashItems.Contains(item.Key)))
-            .ToArray();
+        ProjectLoot(state.Loot.Totals, profile?.TrashItemName, language, preferences.UiLanguage);
+        ProjectDropHistory(state, preferences, prices, language);
+        var drops = _drops;
 
         var rateText = session.SilverPerHour + (session.PartialSilverHourly ? " *" : "");
         var grindRating = session.GrindRating;
         var rotation = BdoGrindTracker.App.Analysis.RotationProfiles.Present(state.SpotId, state.Rotation);
         var metrics = new Dictionary<string, OverlayMetric>(StringComparer.Ordinal)
         {
-            ["duration"] = new("Aktive Zeit", session.Duration, session.DurationNote, Tooltip: session.DurationDescription),
-            ["experience"] = new("Erfahrung", session.Experience.Gain, session.Experience.Hourly + " / h",
+            ["duration"] = new(T("Aktive Zeit"), session.Duration, session.DurationNote, Tooltip: session.DurationDescription),
+            ["experience"] = new(T("Erfahrung"), session.Experience.Gain, session.Experience.Hourly + " / h",
                 Tooltip: session.Experience.Description),
-            ["spot"] = new("Grindspot", Presentation.SpotName(state.SpotId), state.CharacterLabel),
-            ["silver"] = new("Silber netto", session.Silver + (session.PartialSilver ? " *" : ""), valuationDetail),
-            ["silver-hour"] = new("Silber / Stunde", rateText, incomplete ? valuationDetail : "Ø aktive Grindzeit"),
-            ["trash"] = new("Trashloot", session.Trash, profile is null ? "Spot wird erkannt" :
+            ["spot"] = new("Grindspot", Presentation.SpotName(state.SpotId, preferences.UiLanguage), state.CharacterLabel),
+            ["silver"] = new(T("Silber netto"), session.Silver + (session.PartialSilver ? " *" : ""), valuationDetail),
+            ["silver-hour"] = new(T("Silber / Stunde"), rateText, incomplete ? valuationDetail : T("Ø aktive Grindzeit")),
+            ["trash"] = new(T("Trashloot"), session.Trash, profile is null ? T("Spot wird erkannt") :
                 ItemLocalizationCatalog.DisplayName(profile.TrashItemName, language)),
-            ["trash-hour"] = new("Trash / Stunde", session.TrashHourly, "Ø aktive Grindzeit"),
-            ["drops"] = new("Drops", Presentation.Number(state.Loot.ItemTypeCount), "Verschiedene Items"),
-            ["rare-drops"] = new("Seltene Drops", Presentation.Number(drops.Count(item => item.IsRare)), "Auswahl seltener Items"),
-            ["total-drops"] = new("Bestätigte Drops", Presentation.Number(state.Loot.ConfirmedEventCount)),
-            ["chart"] = new("Silber / h · Verlauf", rateText, incomplete ? valuationDetail : "Session-Durchschnitt"),
+            ["trash-hour"] = new(T("Trash / Stunde"), session.TrashHourly, T("Ø aktive Grindzeit")),
+            ["drops"] = new("Drops", Number(state.Loot.ItemTypeCount), T("Verschiedene Items")),
+            ["consumables"] = new(T("Verbrauchte Items"), consumables.Cost, consumables.CostDescription,
+                IsWarning: consumables.HasMissingPrices),
+            ["rare-drops"] = new(T("Seltene Drops"), Number(_rareDrops.Count), T("Auswahl seltener Items")),
+            ["total-drops"] = new(T("Bestätigte Drops"), Number(state.Loot.ConfirmedEventCount)),
+            ["chart"] = new(T("Silber / h · Verlauf"), rateText, incomplete ? valuationDetail : T("Session-Durchschnitt")),
             ["controls"] = new("Tracking", session.Status),
             ["status"] = new("Session", session.Status, state.Status),
-            ["loot-scroll"] = new("Loot-Scroll", session.LootScroll, IsWarning: session.LootScrollWarning),
-            ["grind-rating"] = new("Grind-Bewertung", grindRating.Label, grindRating.Detail,
+            ["loot-scroll"] = new(T("Loot-Scroll"), session.LootScroll, IsWarning: session.LootScrollWarning),
+            ["grind-rating"] = new(T("Grind-Bewertung"), grindRating.Label, grindRating.Detail,
                 Tone: grindRating.Tone, Tooltip: grindRating.Description),
-            ["rotations-hour"] = RotationsPerHour(rotation),
-            ["rotation-count"] = RotationCount(rotation),
+            ["rotations-hour"] = RotationsPerHour(rotation, preferences.UiLanguage),
+            ["rotation-count"] = RotationCount(rotation, preferences.UiLanguage),
         };
 
         return new()
         {
-            ThemeId = BdoGrindTracker.App.Theming.AppThemes.Normalize(preferences.ThemeId),
+            UiLanguage = AppText.NormalizeLanguage(preferences.UiLanguage),
+            ThemeId = preferences.EffectiveOverlayThemeId,
             Metrics = new ReadOnlyDictionary<string, OverlayMetric>(metrics),
-            Drops = Array.AsReadOnly(drops),
-            RareDrops = Array.AsReadOnly(drops.Where(item => item.IsRare).ToArray()),
+            Drops = drops,
+            Consumables = consumables,
+            RareDrops = _rareDrops,
             ItemCatalog = _itemCatalog,
             SilverHistory = state.SilverHistory,
             SessionElapsed = session.Elapsed,
-            SilverDrops = SilverDrops(state, preferences, prices),
+            SilverDrops = _silverDrops,
             Rotation = rotation,
-            DropMarkers = Array.AsReadOnly(state.DropHistory
-                .Where(drop => IsMarked(drop.ItemName, preferences, prices))
-                .Select(drop => new OverlayDropMarker(drop.Elapsed, new OverlayLootItem(drop.ItemName,
-                    ItemLocalizationCatalog.DisplayName(drop.ItemName, language), Presentation.Number(drop.Quantity),
-                    Presentation.ItemIcon(drop.ItemName), true, drop.Quantity))).ToArray()),
+            DropMarkers = _dropMarkers,
             LootScroll = state.LootScroll,
             Status = state.Status,
             IsRunning = state.IsRunning,
@@ -124,43 +123,47 @@ internal sealed class OverlayMetrics
                 !state.IsBusy && !state.IsSubmitted && !state.IsInstallingOcrLanguage &&
                 state.AnalyzerAvailable && state.TrackingBlockedReason is null &&
                 state.MissingOcrLanguageTag is null && !state.OcrRestartRequired,
-            TrackingButtonLabel = state.IsRunning ? "Pausieren" : state.HasSession ? "Fortsetzen" : "Tracking starten",
+            TrackingButtonLabel = state.IsRunning ? T("Pausieren") : state.HasSession ? T("Fortsetzen") : T("Tracking starten"),
         };
     }
 
     // The recent tempo, not the whole session: earlier slow rotations stop affecting the estimate.
     internal const int RotationTempoSample = 3;
 
-    private static OverlayMetric RotationsPerHour(RotationMonitorSnapshot rotation)
+    private static OverlayMetric RotationsPerHour(RotationMonitorSnapshot rotation, string language)
     {
+        string T(string value) => AppText.Translate(value, language);
         const string label = "Rotations / h";
         const string tooltip = "Volle Rotationen pro Stunde beim aktuellen Tempo: 60 Minuten geteilt durch die " +
             "durchschnittliche Zeit der letzten bis zu drei in dieser Session vollständig abgeschlossenen Rotationen, " +
             "jeweils einschließlich Rückweg bis zum Start der nächsten Rotation. Bis die nächste Rotation beginnt, gilt " +
             "der durchschnittliche Rückweg dieser Session. Pausen über zwei Minuten, Aufbau und abgebrochene Versuche zählen nicht.";
-        if (!rotation.HasProfile) return new(label, "—", "Kein Rotationsprofil für diesen Spot", Tooltip: tooltip);
+        if (!rotation.HasProfile) return new(label, "—", T("Kein Rotationsprofil für diesen Spot"), Tooltip: T(tooltip));
         var completed = rotation.SessionRotations.Where(timing => double.IsFinite(timing.Duration) && timing.Duration > 0).ToArray();
         var recent = completed.TakeLast(RotationTempoSample).ToArray();
-        if (recent.Length == 0) return new(label, "—", "Nach der ersten vollständigen Rotation", Tooltip: tooltip);
+        if (recent.Length == 0) return new(label, "—", T("Nach der ersten vollständigen Rotation"), Tooltip: T(tooltip));
         var walks = completed.Where(timing => timing.WalkBack is { } walk && double.IsFinite(walk))
             .Select(timing => timing.WalkBack!.Value).ToArray();
         double? averageWalk = walks.Length > 0 ? walks.Average() : null;
         var average = recent.Average(timing => timing.Duration + (timing.WalkBack ?? averageWalk ?? 0));
         var rate = 3600 / average;
-        return new(label, Presentation.Number((decimal)Math.Floor(rate)),
-            $"{rate.ToString("0.0", Presentation.German)} / h · Ø {RotationPhases.Duration(average)} · " +
-            (averageWalk is null ? "ohne Rückweg" : recent.Length == 1 ? "1 Rotation" : $"letzte {recent.Length}"), Tooltip: tooltip);
+        return new(label, ((decimal)Math.Floor(rate)).ToString("N0", AppText.Culture(language)),
+            $"{rate.ToString("0.0", AppText.Culture(language))} / h · Ø {RotationPhases.Duration(average)} · " +
+            (averageWalk is null ? T("ohne Rückweg") : recent.Length == 1 ? T("1 Rotation") :
+                AppText.Format("letzte {0}", language, recent.Length)), Tooltip: T(tooltip));
     }
 
-    private static OverlayMetric RotationCount(RotationMonitorSnapshot rotation)
+    private static OverlayMetric RotationCount(RotationMonitorSnapshot rotation, string language)
     {
+        string T(string value) => AppText.Translate(value, language);
         const string label = "Rotation Counter";
         const string tooltip = "Vollständig abgeschlossene Rotationen am aktuellen Spot in dieser Session. " +
             "Abgebrochene oder unvollständig erkannte Rotationen zählen nicht.";
-        if (!rotation.HasProfile) return new(label, "—", "Kein Rotationsprofil für diesen Spot", Tooltip: tooltip);
+        if (!rotation.HasProfile) return new(label, "—", T("Kein Rotationsprofil für diesen Spot"), Tooltip: T(tooltip));
         var rotations = rotation.SessionRotations;
-        return new(label, Presentation.Number(rotations.Count),
-            rotations.Count == 0 ? "In dieser Session" : $"Zuletzt {RotationPhases.Duration(rotations[^1].Duration)}", Tooltip: tooltip);
+        return new(label, rotations.Count.ToString("N0", AppText.Culture(language)),
+            rotations.Count == 0 ? T("In dieser Session") :
+                AppText.Format("Zuletzt {0}", language, RotationPhases.Duration(rotations[^1].Duration)), Tooltip: T(tooltip));
     }
 
     /// <summary>Each recorded loot increase valued with the current prices, so a price update revalues the whole curve.</summary>
@@ -184,15 +187,18 @@ internal sealed class OverlayMetrics
 
     internal static OverlaySnapshot Demo { get; } = CreateDemo();
 
+    internal static OverlaySnapshot DemoFor(string language) => language == "en" ? EnglishDemo.Value : Demo;
+    private static readonly Lazy<OverlaySnapshot> EnglishDemo = new(() => CreateDemo("en"));
+
     /// <summary>The example session of <see cref="DemoSession"/>; loot scroll and daily goal target are illustrative.</summary>
-    private static OverlaySnapshot CreateDemo()
+    private static OverlaySnapshot CreateDemo(string language = "de")
     {
         var metrics = new OverlayMetrics();
         var history = new SessionSilverHistory();
         var prices = DemoSession.Prices;
         var preferences = new TrackerPreferences
         {
-            GameLanguage = "en", ValuePack = DemoSession.Tax.ValuePack, MerchantRing = DemoSession.Tax.MerchantRing,
+            GameLanguage = "en", UiLanguage = language, ValuePack = DemoSession.Tax.ValuePack, MerchantRing = DemoSession.Tax.MerchantRing,
             FamilyFame = DemoSession.Tax.FamilyFame,
         };
         var state = new TrackerState
@@ -200,14 +206,14 @@ internal sealed class OverlayMetrics
             SessionId = new Guid("45a2fa66-4b17-406e-bf52-29700850e9fc"),
             HasSession = true, IsRunning = true, CanPause = true, IsDemo = true, AnalyzerAvailable = true,
             SpotId = LootSpotCatalog.HermesiaId, CharacterLabel = CompanionCharacterClassCatalog.FindById("shai")?.DisplayName ?? "Shai",
-            DetectedGameLanguage = "en", Status = $"Beispieldaten · Hermesia-Session vom {DemoSession.Date}",
+            DetectedGameLanguage = "en", Status = AppText.Format("Beispieldaten · Hermesia-Session vom {0}", language, DemoSession.Date),
             ExperienceGainedPercentagePoints = DemoSession.ExperienceGainedPercentagePoints,
             ExperienceObservedDuration = DemoSession.ExperienceObservedDuration,
             ExperienceStartLevel = DemoSession.ExperienceLevel, ExperienceEndLevel = DemoSession.ExperienceLevel,
             LootScroll = new(LootScrollStatus.Active, Level: 2),
+            Buffs = DemoConsumptions(),
             GrindBenchmark = GarmothGrindBenchmarks.Find(LootSpotCatalog.HermesiaId),
         };
-
         // Replay the drop timeline in the tracker's ten-second history steps.
         var totals = new Dictionary<string, long>(StringComparer.Ordinal);
         var drops = DemoSession.DropHistory;
@@ -227,6 +233,28 @@ internal sealed class OverlayMetrics
             DropHistory = drops, Rotation = HermesiaRotationDemo.At(350),
         };
         var snapshot = metrics.Update(state, preferences, prices);
-        return snapshot with { DailyGoal = new(state.Silver.AfterTax, 10_000_000_000) };
+        return snapshot with { DailyGoal = new(state.Silver.AfterTax, 10_000_000_000) { UiLanguage = language } };
+    }
+
+    private static BuffLedgerSnapshot DemoConsumptions()
+    {
+        var at = DateTimeOffset.UnixEpoch;
+        var consumptions = new List<BuffConsumption>();
+        Add("simple-cron-meal", 1, 1_450_000m);
+        Add("harmony-draught-edania", 3, 9_200_000m);
+        Add("perfume-of-courage", 3, 4_800_000m);
+        Add("tent-body-enhancement-180", 1, 4_500_000m);
+        return new(consumptions.AsReadOnly(), [], []);
+
+        void Add(string id, int count, decimal price)
+        {
+            var definition = BuffPriceCatalog.ResolveRecognitionDefinition(id);
+            if (definition is null) return;
+            for (var index = 0; index < count; index++)
+                consumptions.Add(new(id, definition.Name, definition.MarketItemId, at.AddMinutes(index * 20),
+                    new(price, "EU", at, false)
+                    { Source = definition.FixedUnitPrice is null ? BuffPriceSource.CentralMarket : BuffPriceSource.FixedNpc })
+                { IsSessionStart = index == 0 });
+        }
     }
 }

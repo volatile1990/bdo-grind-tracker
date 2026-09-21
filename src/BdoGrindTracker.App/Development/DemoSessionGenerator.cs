@@ -78,7 +78,6 @@ internal static class DemoSessionGenerator
             var existing = store.Load();
             var retained = args.Contains("--replace-demo-sessions") ? existing.Where(entry => !IsDemo(entry)).ToList() : existing.ToList();
             var generated = Generate(LoadDataset(), spot, count, DateTimeOffset.Now);
-            if (retained.Count + generated.Count > LootHistoryStore.MaximumEntries) throw new InvalidOperationException("Zu viele Sessions: maximal 500. Alte Demo-Sessions zuerst ersetzen.");
             if (File.Exists(path)) File.Copy(path, path + ".backup-" + DateTime.UtcNow.ToString("yyyyMMddHHmmssfff"));
             store.Save(retained.Concat(generated));
             File.WriteAllText(Path.Combine(Path.GetDirectoryName(path)!, "demo-generation.json"), JsonSerializer.Serialize(new { Generated = generated.Count, Retained = retained.Count, Total = store.Load().Count, Source = "Garmoth 320% / 100%, 2026-08-20 bis 2026-09-10", Path = path }));

@@ -293,7 +293,7 @@ public sealed partial class TrackerSessionServiceTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task GarmothRejectedAttemptOnlyWarnsWhenItsUncorrectedFrozenRequestIsRetried(bool freshManual)
+    public async Task GarmothRejectedCorrectedAttemptRequiresFreshManualPreview(bool freshManual)
     {
         await using var fixture = new Fixture();
         var response = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -327,12 +327,17 @@ public sealed partial class TrackerSessionServiceTests
         {
             await fixture.Service.SavePreferencesAsync(fixture.Service.Preferences, resumeAutomaticUpload: true);
             await fixture.Service.UploadHourlyToGarmothAsync();
+            Assert.Single(fixture.Requests);
+            Assert.True(fixture.Service.State.AutomaticUploadNeedsReview);
+            Assert.True(fixture.Service.State.AutomaticSuspended);
+            Assert.Contains("manuell senden", fixture.Service.State.Status);
+            return;
         }
         Assert.Equal(2, fixture.Requests.Count);
-        AssertPayload(fixture.Requests.Last(), 60, freshManual ? 3 : 10);
+        AssertPayload(fixture.Requests.Last(), 60, 3);
         var saved = Assert.Single(fixture.HistoryStore.Load());
         Assert.True(saved.GarmothUploadBlocked);
-        Assert.Equal(!freshManual, saved.GarmothLocallyModified);
+        Assert.False(saved.GarmothLocallyModified);
         Assert.Empty(saved.GarmothPendingCorrectionIntervals);
     }
 

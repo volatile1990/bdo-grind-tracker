@@ -405,7 +405,7 @@ public sealed class GarmothBatchInteractionTests
     {
         public event Action? Changed { add { } remove { } }
         public TrackerState State { get; set; } = new() { HasApiKey = true };
-        public TrackerPreferences Preferences { get; } = new();
+        public TrackerPreferences Preferences { get; } = new() { UiLanguage = "de" };
         public IReadOnlyList<TrackerMonitor> Monitors { get; } = [];
         public IReadOnlyList<LootHistoryEntry> History { get; set; } = [];
         public LootPriceSnapshot Prices { get; } = LootPriceCatalog.FixedSnapshot("eu");
@@ -486,7 +486,6 @@ public sealed class GarmothBatchInteractionTests
         public Task<PreferenceSaveResult> SavePreferencesAsync(TrackerPreferences preferences, string? apiKey = null, bool resumeAutomaticUpload = false) => Task.FromResult(new PreferenceSaveResult());
         public Task RefreshPricesAsync() { RefreshCalls++; return RefreshResponse(); }
         public Task TickAsync() => Task.CompletedTask;
-        public Task PrepareUpdateRestartAsync() => Task.CompletedTask;
         public Task RunPreparedUpdateAsync(Func<Task> install) => Task.CompletedTask;
         public Task ShutdownAsync() => Task.CompletedTask;
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;

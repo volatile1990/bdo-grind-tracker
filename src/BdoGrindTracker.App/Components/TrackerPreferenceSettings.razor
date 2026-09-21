@@ -1,0 +1,134 @@
+@inherits TrackerComponentBase
+@using BdoGrindTracker.App.Theming
+
+<div class="@(Section is null ? "" : "setup-fields")">
+    @if (ActionError is not null) { <div class="notice error-notice" role="alert"><AppIcon Name="info" />@T(ActionError)</div> }
+    <form @onsubmit="CommitNumbers" @onsubmit:preventDefault>
+        <fieldset class="autosave-fields" disabled="@(Acting || State.IsBusy)">
+        <div class="settings-layout">
+            <div class="settings-column">
+                @if (Section is null or "appearance")
+                {
+                <section class="panel settings-panel theme-settings"><div class="settings-heading"><div class="settings-icon"><AppIcon Name="spark" /></div><h2>@T("Erscheinungsbild")</h2></div>
+                    <label class="field"><span>@T("Sprache der Oberfläche")</span><select id="interface-language" @bind:get="UiLanguage" @bind:set="UiLanguageChanged"><option value="de" lang="de">Deutsch</option><option value="en" lang="en">English</option></select><small>@T("Die Spielsprache für die Loot-Erkennung wird separat eingestellt.")</small></label>
+                    <label class="field"><span>@T("Theme für das Hauptfenster")</span><select id="appearance-theme" @bind:get="SelectedThemeId" @bind:set="ThemeChanged">@ThemeOptions</select><small>@ThemeDescription(SelectedThemeId)</small></label>
+                    <label class="field"><span>@T("Theme für die Overlays")</span><select id="overlay-appearance-theme" @bind:get="SelectedOverlayThemeId" @bind:set="OverlayThemeChanged"><option value="">@T("Wie Hauptfenster")</option>@ThemeOptions</select><small>@(SelectedOverlayThemeId.Length == 0 ? T("Alle Overlays übernehmen automatisch das Theme des Hauptfensters.") : ThemeDescription(SelectedOverlayThemeId))</small></label>
+                    @if (SelectedThemeId == AppThemes.Cats)
+                    {
+                        <div class="cats-theme-scene" aria-hidden="true"><img src="assets/themes/cats/settings-ribbon-kitten.png" alt="" draggable="false" /></div>
+                    }
+                </section>
+                }
+                @if (Section is null or "capture")
+                {
+                <section class="panel settings-panel"><div class="settings-heading"><div class="settings-icon"><AppIcon Name="monitor" /></div><h2>@T("Erfassung")</h2></div>
+                    @if (Tracker.CapturesGameWindow) { <p class="field-note">@T("Das Black-Desert-Spielfenster wird automatisch für die Aufnahme ausgewählt.")</p> }
+                    <label class="field"><span>@T("Spielsprache in Black Desert")</span><select @bind="_gameLanguage" @bind:after="GameLanguageChanged" disabled="@State.HasSession"><option value="auto">@T("Automatisch aus BDO-Einstellungen")</option><option value="en">@T("Englisch")</option><option value="de">@T("Deutsch")</option></select>@if (_gameLanguage == "auto") { <small>@T(State.GameLanguageStatus)</small> }</label>
+                    <label class="field"><span>@T("Charakterklasse")</span><select @bind="_characterClass" @bind:after="CharacterChanged" disabled="@(State.IsRunning || State.IsSubmitted)"><option value="">@T("Automatisch erkennen")</option>@foreach (var characterClass in CompanionCharacterClassCatalog.Classes) { <option value="@characterClass.Id">@characterClass.DisplayName</option> }</select>@if (string.IsNullOrEmpty(_characterClass)) { <small>@T("Die Automatik liest die von BDO gespeicherte Skillbelegung. Fehlt die Klasse, speichere die UI-Einstellungen im Spiel mit deinem aktiven Charakter oder wähle die Klasse hier während einer Pause aus.")</small> }</label>
+                    <label class="field"><span>@T("Automatische Pause nach")</span><div class="input-with-unit"><input type="number" min="1" max="60" step="1" required @bind="_autoPause" @bind:event="oninput" @bind:after="PauseInputChanged" @onblur="SaveAutoPause" /><span>@T("Minuten ohne neuen Loot")</span></div>@if (_autoPauseError is not null) { <small class="field-error" role="alert">@T(_autoPauseError)</small> }</label>
+                    @if (State.HasSession) { <p class="field-note"><AppIcon Name="info" />@T("Spielsprache und Aufzeichnung lassen sich vor dem Start einer neuen Session ändern.")</p> }
+                </section>
+                }
+                @if (Section is null)
+                {
+                <section class="panel settings-panel"><div class="settings-heading"><div class="settings-icon"><AppIcon Name="shield" /></div><h2>@T("Diagnose")</h2></div>
+                    <label class="toggle-row"><span><strong>@T("Loot-Diagnose aufzeichnen")</strong><small>@T("Loot-Ausschnitte und Erkennungsdaten dieser Session lokal speichern.")</small></span><input type="checkbox" class="switch" @bind="_recordLoot" @bind:after="RecordingChanged" disabled="@State.HasSession" /></label>
+                    @if (State.IsRecording && State.RecordingPath is { } path) { <div class="recording-path"><span class="record-dot"></span><span>@path</span></div> }
+                    <label class="toggle-row"><span><strong>@T("Rotation-Monitor-Diagnose aufzeichnen")</strong><small>@T("Alle 3 Sekunden den Meldungsausschnitt sowie erkannte Texte, Ereignisse und Rotationen speichern (etwa 55 MB pro Stunde bei 2560 × 1440).")</small></span><input type="checkbox" class="switch" @bind="_recordRotation" @bind:after="RotationRecordingChanged" disabled="@State.HasSession" /></label>
+                    @if (State.IsRecordingRotation && State.RotationRecordingPath is { } rotationPath) { <div class="recording-path"><span class="record-dot"></span><span>@rotationPath</span></div> }
+                    <div class="subtle-box"><AppIcon Name="info" /><span>@T("Die Dateien bleiben lokal, bis du sie selbst teilst.")</span></div>
+                    <p class="field-note">@T("Speicherort:") <code>@Tracker.DiagnosticsDirectory</code></p>
+                </section>
+                }
+            </div>
+            <div class="settings-column">
+                @if (Section is null or "silver")
+                {
+                <section class="panel settings-panel"><div class="settings-heading"><div class="settings-icon gold-icon"><AppIcon Name="silver" /></div><h2>@T("Silber & Zentralmarkt")</h2></div>
+                    <label class="field"><span>@T("Marktregion")</span><select @bind="_region" @bind:after="RegionChanged"><option value="eu">@T("Europa (EU)")</option><option value="na">@T("Nordamerika (NA)")</option></select></label>
+                    <label class="toggle-row"><span><strong>@T("Vorteilspaket")</strong><small>@T("30 % Bonus auf den Basis-Markterlös.")</small></span><input type="checkbox" class="switch" @bind="_valuePack" @bind:after="ValuePackChanged" /></label>
+                    <label class="toggle-row"><span><strong>@T("Ring eines reichen Händlers")</strong><small>@T("5 % Bonus auf den Basis-Markterlös.")</small></span><input type="checkbox" class="switch" @bind="_merchantRing" @bind:after="MerchantRingChanged" /></label>
+                    <label class="field"><span>@T("Familienruhm")</span><input type="number" min="0" max="2147483647" step="1" required @bind="_familyFame" @bind:event="oninput" @bind:after="FameInputChanged" @onblur="SaveFamilyFame" /><small>@T("Zusätzlicher Verkaufsbonus ab 1.000, 4.000 und 7.000 Ruhm.")</small>@if (_familyFameError is not null) { <small class="field-error" role="alert">@T(_familyFameError)</small> }</label>
+                    <div class="tax-preview"><span>@T("Dein effektiver Markterlös")</span><strong>@TaxPreview</strong><small>@T("NPC-Verkäufe bleiben steuerfrei.")</small></div>
+                </section>
+                }
+                @if (Section is null) { <AppUpdates /> }
+            </div>
+        </div>
+        </fieldset>
+    </form>
+</div>
+
+@code {
+    [Parameter] public string? Section { get; set; }
+    public async Task<bool> CommitAsync()
+    {
+        if (Acting || State.IsBusy) return false;
+        if (Section is null or "capture") await SaveAutoPause();
+        if (Section is null or "silver") await SaveFamilyFame();
+        StateHasChanged();
+        return ActionError is null && _autoPauseError is null && _familyFameError is null;
+    }
+    private string? _characterClass;
+    private string _autoPause = "3", _familyFame = "0";
+    private bool _recordLoot, _recordRotation, _valuePack, _merchantRing;
+    private string _region = "eu";
+    private string _gameLanguage = "auto";
+    private string SelectedThemeId => AppThemes.Normalize(Tracker.Preferences.ThemeId);
+    private string SelectedOverlayThemeId => AppThemes.NormalizeOverlay(Tracker.Preferences.OverlayThemeId) ?? "";
+    private RenderFragment ThemeOptions => @<text><option value="@AppThemes.Grindcrest">Grindcrest</option><option value="@AppThemes.BlackDesert">Black Desert</option><option value="@AppThemes.Light">Light</option><option value="@AppThemes.Cats">@T("Katzen")</option><option value="@AppThemes.Obsidian">Obsidian</option><option value="@AppThemes.Kamasylvia">Kamasylvia</option><option value="@AppThemes.Valencia">Valencia</option></text>;
+    private string ThemeDescription(string themeId) => themeId switch
+    {
+        AppThemes.BlackDesert => T("Dunkle Spielfenster, dezente Goldkanten und Loot-Elemente im Stil von Black Desert."),
+        AppThemes.Light => T("Helle Flächen, dunkle Schrift und ruhige blaue Akzente."),
+        AppThemes.Cats => T("Große Katzenmotive, Pfotenspuren und feine Ziernähte – auf warmen Espresso- und Leinentönen."),
+        AppThemes.Obsidian => T("Fast schwarze Flächen, klare Kontraste und kühle Akzente."),
+        AppThemes.Kamasylvia => T("Dunkles Waldgrün, warme Elfenbeintöne und dezente Blattdetails."),
+        AppThemes.Valencia => T("Warme Sandflächen, Terrakotta und gut lesbare dunkle Schrift."),
+        _ => T("Das ursprüngliche Grindcrest-Design mit dunklen Flächen und goldenen Akzenten."),
+    };
+    private string? _autoPauseError, _familyFameError;
+    private string TaxPreview => new SilverTaxOptions(_valuePack, _merchantRing, int.TryParse(_familyFame, out var fame) ? Math.Max(0, fame) : 0).MarketReturnRate.ToString("P2", UiCulture);
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        var preferences = Tracker.Preferences;
+        _characterClass = preferences.CharacterClassId;
+        _gameLanguage = preferences.GameLanguage;
+        _autoPause = preferences.AutoPauseMinutes.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        _recordLoot = preferences.RecordLoot;
+        _recordRotation = preferences.RecordRotation;
+        _region = preferences.MarketRegion;
+        _valuePack = preferences.ValuePack;
+        _merchantRing = preferences.MerchantRing;
+        _familyFame = preferences.FamilyFame.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    }
+    private Task UiLanguageChanged(string language) => SavePreferenceChange(p => p with { UiLanguage = language });
+    private Task ThemeChanged(string themeId) => Save(p => p with { ThemeId = themeId });
+    private Task OverlayThemeChanged(string themeId) => Save(p => p with { OverlayThemeId = themeId.Length == 0 ? null : themeId });
+    private Task GameLanguageChanged() => Save(p => p with { GameLanguage = _gameLanguage });
+    private Task CharacterChanged() => Save(p => p with { CharacterClassId = string.IsNullOrEmpty(_characterClass) ? null : _characterClass });
+    private Task RecordingChanged() => Save(p => p with { RecordLoot = _recordLoot });
+    private Task RotationRecordingChanged() => Save(p => p with { RecordRotation = _recordRotation });
+    private Task RegionChanged() => Save(p => p with { MarketRegion = _region });
+    private Task ValuePackChanged() => Save(p => p with { ValuePack = _valuePack });
+    private Task MerchantRingChanged() => Save(p => p with { MerchantRing = _merchantRing });
+    private void PauseInputChanged() => _autoPauseError = null;
+    private void FameInputChanged() => _familyFameError = null;
+    private async Task SaveAutoPause()
+    {
+        _autoPauseError = !int.TryParse(_autoPause, out var minutes) || minutes is < 1 or > 60 ? "Bitte eine ganze Zahl zwischen 1 und 60 eingeben." : null;
+        if (_autoPauseError is not null) return;
+        if (minutes != Tracker.Preferences.AutoPauseMinutes || ActionError is not null)
+            await Save(p => p with { AutoPauseMinutes = minutes });
+    }
+    private async Task SaveFamilyFame()
+    {
+        _familyFameError = !int.TryParse(_familyFame, out var fame) || fame < 0 ? "Bitte eine ganze Zahl ab 0 eingeben." : null;
+        if (_familyFameError is not null) return;
+        if (fame != Tracker.Preferences.FamilyFame || ActionError is not null)
+            await Save(p => p with { FamilyFame = fame });
+    }
+    private async Task CommitNumbers() { await SaveAutoPause(); await SaveFamilyFame(); }
+    private Task Save(Func<TrackerPreferences, TrackerPreferences> change) => SavePreferenceChange(change);
+}

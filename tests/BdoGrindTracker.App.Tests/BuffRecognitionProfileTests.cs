@@ -30,7 +30,7 @@ public sealed class BuffRecognitionProfileTests
     }
 
     [Theory]
-    [InlineData("harmony-draught", "immortal-harmony-draught")]
+    [InlineData("perfume-of-courage", "immortal-perfume-of-courage")]
     [InlineData("tent-body-enhancement-60", "tent-body-enhancement-120")]
     public void MultipleVariantsOfOneRecognitionGroupAreRejected(string first, string second)
     {
@@ -100,6 +100,26 @@ public sealed class BuffRecognitionProfileTests
         File.WriteAllText(Path.Combine(other, "gameVariable.xml"), "<UIData><UIData Index='81' IsShow='false'/></UIData>");
         Assert.NotNull(BuffHudConfigurationReader.Resolve(fixture.Profile with
         { UiDataIndex = 81, BlackDesertDirectory = fixture.Root, GameVariablePath = selected }, new(1920, 1080)));
+    }
+
+    [Theory]
+    [InlineData("utf-8")]
+    [InlineData("utf-16")]
+    [InlineData("windows-1252")]
+    public void SavedBuffPanelAcceptsLegacyAndUnicodeGameConfiguration(string encoding)
+    {
+        using var fixture = new Fixture();
+        var variables = fixture.WriteVariables("<UIData><UIData Index='81' IsShow='true' RelativePosX='0.25' RelativePosY='0.5'/></UIData>");
+        var text = File.ReadAllText(variables) + "<Notes Value='Größe und Würfel'/>";
+        var fileEncoding = encoding == "windows-1252"
+            ? System.Text.CodePagesEncodingProvider.Instance.GetEncoding(encoding)!
+            : System.Text.Encoding.GetEncoding(encoding);
+        File.WriteAllText(variables, text, fileEncoding);
+        var original = File.ReadAllBytes(variables);
+        var layout = BuffHudConfigurationReader.Resolve(fixture.Profile with
+        { UiDataIndex = 81, BlackDesertDirectory = fixture.Root, GameVariablePath = variables }, new(1920, 1080));
+        Assert.Equal(new Rectangle(510, 585, 450, 96), layout?.Region);
+        Assert.Equal(original, File.ReadAllBytes(variables));
     }
 
     private sealed class Fixture : IDisposable

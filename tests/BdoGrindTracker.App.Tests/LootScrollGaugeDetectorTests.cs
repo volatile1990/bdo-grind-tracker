@@ -11,6 +11,48 @@ namespace BdoGrindTracker.App.Tests;
 
 public sealed class LootScrollGaugeDetectorTests(ITestOutputHelper output)
 {
+    [Fact]
+    public void TemplateCacheKeepsResultsAcrossScaleChangesAndReusesEachWarmScan()
+    {
+        using var original = Load("inactive-user-20260910.png");
+        using var detector = new LootScrollGaugeDetector();
+        foreach (var scale in new[] { .5, 1, 1.13, 1 })
+        {
+            using var frame = new Bitmap((int)Math.Ceiling(original.Width * scale) + 93,
+                (int)Math.Ceiling(original.Height * scale) + 77, PixelFormat.Format24bppRgb);
+            using (var graphics = Graphics.FromImage(frame))
+            {
+                graphics.Clear(Color.FromArgb(57, 71, 49));
+                graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                graphics.DrawImage(original, new Rectangle(43, 31,
+                    (int)Math.Round(original.Width * scale), (int)Math.Round(original.Height * scale)));
+            }
+            using var cold = new LootScrollGaugeDetector();
+            var expected = cold.FindGauge(frame, CancellationToken.None);
+            Assert.NotNull(expected);
+            Assert.Equal(expected, detector.FindGauge(frame, CancellationToken.None));
+            var resizeCount = detector.TemplateResizeCount;
+            Assert.Equal(expected, detector.FindGauge(frame, CancellationToken.None));
+            Assert.Equal(resizeCount, detector.TemplateResizeCount);
+        }
+    }
+
+    [Fact]
+    public void WarmTemplatesStillRejectANewSeparatedGauge()
+    {
+        using var active = Load("active-2.png");
+        using var inactive = Load("inactive.png");
+        using var detector = new LootScrollGaugeDetector();
+        Assert.Equal(LootScrollStatus.Active, detector.Analyze(active, CancellationToken.None).Status);
+        using var both = new Bitmap(800, 500);
+        using (var graphics = Graphics.FromImage(both))
+        {
+            graphics.DrawImageUnscaled(active, 0, 0);
+            graphics.DrawImageUnscaled(inactive, 0, 250);
+        }
+        Assert.Equal(LootScrollReading.Unknown, detector.Analyze(both, CancellationToken.None));
+    }
+
     [Theory]
     [InlineData("inactive.png", LootScrollStatus.Inactive, null)]
     [InlineData("inactive-2024.png", LootScrollStatus.Inactive, null)]

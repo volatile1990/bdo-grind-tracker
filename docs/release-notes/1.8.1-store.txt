@@ -1,0 +1,5 @@
+Neu in Grindcrest 1.8.1:
+
+• HDR-Looterkennung korrigiert: Die Bildvorbereitung konnte lesbare Schrift im normalen Droplog entfernen und dadurch Drops übersehen. Der angepasste Helligkeitsfilter erhält die betroffenen Schriftzüge für die Texterkennung.
+
+Die Korrektur gilt für neue Erfassungen. Bereits gespeicherte Lootmengen werden nicht nachträglich geändert.

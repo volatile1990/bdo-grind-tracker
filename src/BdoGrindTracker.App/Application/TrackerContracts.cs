@@ -4,6 +4,7 @@ using BdoGrindTracker.App.UI;
 using BdoGrindTracker.App.Integrations.Garmoth;
 using BdoGrindTracker.App.Theming;
 using BdoGrindTracker.Core.Buffs;
+using BdoGrindTracker.App.Localization;
 
 namespace BdoGrindTracker.App.Services;
 
@@ -22,7 +23,11 @@ internal sealed record TrackerCommandResult(string? Error = null)
 
 internal sealed record TrackerPreferences
 {
+    public bool SetupCompleted { get; init; }
+    public string UiLanguage { get; init; } = AppText.DefaultLanguage;
     public string ThemeId { get; init; } = AppThemes.Grindcrest;
+    public string? OverlayThemeId { get; init; }
+    public string EffectiveOverlayThemeId => AppThemes.Normalize(AppThemes.NormalizeOverlay(OverlayThemeId) ?? ThemeId);
     public IReadOnlyList<string> FavoriteItems { get; init; } = [];
     public IReadOnlyDictionary<string, string[]> LootColumnOrders { get; init; } = new Dictionary<string, string[]>();
     public string? MonitorDeviceName { get; init; }
@@ -49,7 +54,6 @@ internal sealed record TrackerState
     public bool IsRunning { get; init; }
     public bool IsWaitingForFirstDrop { get; init; }
     public string? AutoStartStatus { get; init; }
-    public bool AutoStartSuspended { get; init; }
     public bool IsBusy { get; init; }
     public bool CanEditLoot { get; init; } = true;
     public bool CanSelectSpotVariant { get; init; }
@@ -72,9 +76,11 @@ internal sealed record TrackerState
     public string? CharacterClassId { get; init; }
     public string CharacterLabel { get; init; } = "Automatische Erkennung";
     public CombatStatsState CombatStats { get; init; } = CombatStatsState.Unknown;
+    // Current confirmed HUD selection, even when its numbers do not apply to the spot.
+    public CombatStatsCategory? ObservedCombatStatsCategory { get; init; }
     public CombatStatsState? SessionCombatStats { get; init; }
     public BuffLedgerSnapshot? Buffs { get; init; }
-    public string BuffStatus { get; init; } = "Buff-Erkennung noch nicht kalibriert.";
+    public string BuffStatus { get; init; } = "Buff-Erkennung wartet auf ein Spielbild.";
     public TimeSpan Elapsed { get; init; }
     public LootSessionSnapshot Loot { get; init; } = LootSessionSnapshot.Empty;
     public LootScrollState LootScroll { get; init; } = LootScrollState.Unknown;
@@ -103,6 +109,7 @@ internal sealed record TrackerState
     public bool HasApiKey { get; init; }
     public bool UploadBlocked { get; init; }
     public bool AutomaticSuspended { get; init; }
+    public bool AutomaticUploadNeedsReview { get; init; }
     public bool ShutdownFailed { get; init; }
 }
 
@@ -120,17 +127,12 @@ internal interface ITrackerSession : IAsyncDisposable
     Task<CaptureConfigurationPreview> PreviewCaptureConfigurationAsync(string? gameVariablePath) =>
         Task.FromResult(new CaptureConfigurationPreview(Error: "Die Vorschau ist hier nicht verfügbar."));
     Task<CaptureConfigurationOption?> BrowseCaptureConfigurationAsync() => Task.FromResult<CaptureConfigurationOption?>(null);
-    Task<string?> BrowseBuffRecognitionProfileAsync() => Task.FromResult<string?>(null);
-    Task<string?> CalibrateBuffRecognitionAsync() => Task.FromException<string?>(
-        new NotSupportedException("Die Buff-Kalibrierung ist in der Windows-App verfügbar."));
     Task<TrackerCommandResult> SelectCaptureConfigurationAsync(string? gameVariablePath) =>
         Task.FromResult(new TrackerCommandResult("Die Konfigurationsauswahl ist hier nicht verfügbar."));
     IReadOnlyList<LootHistoryEntry> History { get; }
     LootPriceSnapshot Prices { get; }
     Task<TrackerCommandResult> ToggleTrackingAsync();
     Task<TrackerCommandResult> PauseAsync();
-    Task<TrackerCommandResult> RearmAutoStartAsync() =>
-        Task.FromResult(new TrackerCommandResult("Die automatische Grinderkennung ist hier nicht verfügbar."));
     Task<TrackerCommandResult> NewSessionAsync();
     Task<TrackerCommandResult> SelectSpotVariantAsync(Guid sessionId, string spotId) =>
         Task.FromResult(new TrackerCommandResult("Für diese Session kann kein Spot ausgewählt werden."));
@@ -155,7 +157,6 @@ internal interface ITrackerSession : IAsyncDisposable
     Task RefreshPricesAsync();
     Task TickAsync();
     // Persist before irreversible shutdown; failure leaves the paused tracker usable.
-    Task PrepareUpdateRestartAsync();
     // Keep session commands blocked until the installer completes or is canceled.
     Task RunPreparedUpdateAsync(Func<Task> install);
     Task ShutdownAsync();

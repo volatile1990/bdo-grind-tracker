@@ -244,10 +244,11 @@ public sealed class OverlayCanvasResizeInteractionTests
     private static async Task Render(Func<OverlayEditor, OverlayService, Func<string>, Task> test, OverlaySettings? initial = null)
     {
         await using var tracker = new PreviewTrackerSession();
+        await tracker.SavePreferencesAsync(tracker.Preferences with { UiLanguage = "de" });
         using var overlay = new OverlayService(tracker);
         Assert.True((await overlay.SaveAsync(initial ?? InitialLayout())).Succeeded);
         var activator = new CapturingActivator();
-        using var provider = new ServiceCollection().AddLogging().AddSingleton<IOverlayService>(overlay)
+        using var provider = new ServiceCollection().AddLogging().AddSingleton<IOverlayService>(overlay).AddSingleton<ITrackerSession>(tracker)
             .AddSingleton<IJSRuntime, NoJavaScript>().AddSingleton<IComponentActivator>(activator).BuildServiceProvider();
         await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
         await renderer.Dispatcher.InvokeAsync(async () =>

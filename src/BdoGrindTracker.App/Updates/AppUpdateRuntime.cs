@@ -4,33 +4,28 @@ namespace BdoGrindTracker.App.Updates;
 
 internal enum AppPackageIdentity { Unpackaged, Packaged, Unknown }
 
-/// <summary>Only an unpackaged process may initialize or use the GitHub updater.</summary>
+/// <summary>Only a packaged installation may create the Microsoft Store update backend.</summary>
 internal sealed class AppUpdateRuntime(AppPackageIdentity packageIdentity)
 {
     private static readonly Lazy<AppUpdateRuntime> Runtime = new(() => new(DetectPackageIdentity()));
     public static AppUpdateRuntime Current => Runtime.Value;
     public AppPackageIdentity PackageIdentity => packageIdentity;
 
-    public void Bootstrap(Action initializeVelopack)
-    {
-        if (packageIdentity == AppPackageIdentity.Unpackaged) initializeVelopack();
-    }
-
-    public IAppUpdates CreateUpdates(bool enabled, Func<IAppUpdates> createUnpackagedUpdates,
-        Func<IAppUpdates>? createStoreUpdates = null)
+    public IAppUpdates CreateUpdates(bool enabled, Func<IAppUpdates>? createStoreUpdates = null)
     {
         if (!enabled)
-            return new DisabledAppUpdates(AppUpdateService.ApplicationVersion,
+            return new DisabledAppUpdates(AppBranding.Version,
                 "Updates sind in der Vorschau und bei Prüfungen deaktiviert.");
         if (packageIdentity == AppPackageIdentity.Packaged)
-            return createStoreUpdates?.Invoke() ?? new DisabledAppUpdates(AppUpdateService.ApplicationVersion,
+            return createStoreUpdates?.Invoke() ?? new DisabledAppUpdates(AppBranding.Version,
                 "Diese Version wird über den Microsoft Store aktualisiert.", UpdatePhase.StoreManaged);
         if (packageIdentity == AppPackageIdentity.Unknown)
-            return new DisabledAppUpdates(AppUpdateService.ApplicationVersion,
+            return new DisabledAppUpdates(AppBranding.Version,
                 "Die Installationsart konnte nicht erkannt werden. Grindcrest kann weiter verwendet werden; App-Updates sind vorübergehend deaktiviert.");
-        // Keep backend creation, channel preferences and network access behind
-        // the package check, including when a GitHub installation also exists.
-        return createUnpackagedUpdates();
+        // Development builds stay offline: package identity gates backend creation
+        // itself, so an unpackaged process never queries Store or another update feed.
+        return new DisabledAppUpdates(AppBranding.Version,
+            "App-Updates sind nur in der Microsoft-Store-Version verfügbar.");
     }
 
     private static AppPackageIdentity DetectPackageIdentity()

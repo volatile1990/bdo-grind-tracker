@@ -347,7 +347,7 @@ public sealed class OverlayLiveSessionParityTests
     {
         public event Action? Changed;
         public TrackerState State { get; private set; } = state;
-        public TrackerPreferences Preferences { get; } = new() { MonitorDeviceName = "synthetic", GameLanguage = "de" };
+        public TrackerPreferences Preferences { get; } = new() { UiLanguage = "de", MonitorDeviceName = "synthetic", GameLanguage = "de" };
         public IReadOnlyList<TrackerMonitor> Monitors { get; } = [new("synthetic", "Testbildschirm", new(0, 0, 1920, 1080), true)];
         public IReadOnlyList<LootHistoryEntry> History => [];
         public LootPriceSnapshot Prices { get; } = LootPriceCatalog.FixedSnapshot("eu");
@@ -369,7 +369,6 @@ public sealed class OverlayLiveSessionParityTests
         public Task<TrackerCommandResult> DeleteHistoryAsync(Guid sessionId) => Command();
         public Task RefreshPricesAsync() => Command();
         public Task TickAsync() => Command();
-        public Task PrepareUpdateRestartAsync() => Task.CompletedTask;
         public Task RunPreparedUpdateAsync(Func<Task> install) => Task.CompletedTask;
         public Task ShutdownAsync() => Task.CompletedTask;
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;

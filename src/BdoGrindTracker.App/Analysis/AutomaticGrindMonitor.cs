@@ -50,7 +50,7 @@ internal sealed class AutomaticGrindMonitor(
         replay.Add(first, _time.GetUtcNow());
         if (first.Bitmap.Width != calibration.ScreenWidth || first.Bitmap.Height != calibration.ScreenHeight)
             throw new InvalidOperationException("Die Spielfenstergröße passt nicht zur BDO-Konfiguration. " +
-                "Bitte UI-Konfiguration speichern und die Automatik erneut aktivieren.");
+                "Bitte UI-Konfiguration speichern.");
         if (!visual.Observe(first.Bitmap, calibration) ||
             (_lastBurstEnd is { } ended && _time.GetElapsedTime(ended) < BurstCooldown)) return null;
         ILootFrameAnalyzer? analyzer = null;
@@ -62,7 +62,10 @@ internal sealed class AutomaticGrindMonitor(
             if (!analyzer.IsAvailable) throw new InvalidOperationException(analyzer.Status);
             analyzer.ConfigureGameLanguage(language);
             analyzer.ValidateCaptureSetup(first.Bitmap.Size);
-            var confirmation = new GrindStartConfirmation(replay.Frames[0].Metadata.CapturedAtUtc);
+            // Observe already compared this row against an earlier visual
+            // baseline. Recognize that first arrival without requiring another.
+            var confirmation = new GrindStartConfirmation(replay.Frames[0].Metadata.CapturedAtUtc,
+                acceptInitialArrival: true);
             var started = _time.GetTimestamp();
             var frame = first;
             var at = replay.Frames[^1].Metadata.CapturedAtUtc;
@@ -112,7 +115,10 @@ internal sealed class AutomaticGrindMonitor(
                 cancellationToken.ThrowIfCancellationRequested();
                 if (!capture.IsGameForeground) return null;
                 if (analysis.LootProjection is { } projection && confirmation.Observe(projection))
+                {
+                    replay.DetectedDropAt = projection.LatestArrivalAt ?? at;
                     return replay.Detach();
+                }
                 if (_time.GetElapsedTime(started) >= BurstDuration) return null;
                 await Task.Delay(PassiveCaptureSession.LiveFrameInterval, _time, cancellationToken).ConfigureAwait(false);
                 if (!capture.IsGameForeground) return null;
@@ -163,6 +169,7 @@ internal sealed class AutoStartDetection : IDisposable
     private readonly List<(Bitmap Bitmap, CapturedFrameMetadata Metadata)> _frames = [];
     private long _bytes;
     public IReadOnlyList<(Bitmap Bitmap, CapturedFrameMetadata Metadata)> Frames => _frames;
+    public DateTimeOffset? DetectedDropAt { get; set; }
 
     public void Add(CapturedDesktopBitmap frame, DateTimeOffset at)
     {
@@ -194,11 +201,12 @@ internal sealed class AutoStartDetection : IDisposable
 
     public AutoStartDetection Detach()
     {
-        var owned = new AutoStartDetection();
+        var owned = new AutoStartDetection { DetectedDropAt = DetectedDropAt };
         owned._frames.AddRange(_frames);
         owned._bytes = _bytes;
         _frames.Clear();
         _bytes = 0;
+        DetectedDropAt = null;
         return owned;
     }
 

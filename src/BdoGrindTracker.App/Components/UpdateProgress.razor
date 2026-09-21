@@ -1,0 +1,93 @@
+@inherits LocalizedComponentBase
+
+<div class="update-progress-region">
+    <div class="update-progress">
+        @if (IsIndeterminate)
+        {
+            <div class="update-progress-wait" role="progressbar" aria-label="@T("Update wird verarbeitet")"><span></span></div>
+        }
+        else
+        {
+            <progress max="100" value="@Math.Clamp(DownloadPercent, 0, 100)" aria-label="@T("Update herunterladen")"></progress>
+            <span>@F("Download: {0} %", Math.Clamp(DownloadPercent, 0, 100))</span>
+        }
+    </div>
+    <div class="update-progress-details">
+        <span>@DownloadSize</span>
+        <span class="update-elapsed">@F("Vergangen: {0}", Elapsed)</span>
+    </div>
+</div>
+
+@code {
+    [Parameter] public bool IsIndeterminate { get; set; }
+    [Parameter] public int DownloadPercent { get; set; }
+    [Parameter] public ulong? DownloadedBytes { get; set; }
+    [Parameter] public ulong? TotalDownloadBytes { get; set; }
+    [Parameter] public DateTimeOffset? OperationStartedAt { get; set; }
+    [Parameter] public string Language { get; set; } = AppText.DefaultLanguage;
+    protected override string UiLanguage => Language;
+
+    private readonly CancellationTokenSource _stop = new();
+    private readonly DateTimeOffset _mountedAt = DateTimeOffset.UtcNow;
+    private DateTimeOffset _now = DateTimeOffset.UtcNow;
+    private bool _disposed;
+
+    private string DownloadSize => (DownloadedBytes, TotalDownloadBytes) switch
+    {
+        ({ } downloaded, > 0) => F("Heruntergeladen: {0} / {1}", Bytes(downloaded), Bytes(TotalDownloadBytes.Value)),
+        ({ } downloaded, _) => F("Heruntergeladen: {0} · Gesamtgröße noch unbekannt", Bytes(downloaded)),
+        (_, > 0) => F("Downloadgröße: {0}", Bytes(TotalDownloadBytes.Value)),
+        _ => T("Downloadgröße noch unbekannt"),
+    };
+
+    private string Elapsed
+    {
+        get
+        {
+            var seconds = (long)Math.Max(0, (_now - (OperationStartedAt ?? _mountedAt)).TotalSeconds);
+            return seconds >= 3600
+                ? $"{seconds / 3600}:{seconds / 60 % 60:00}:{seconds % 60:00}"
+                : $"{seconds / 60:00}:{seconds % 60:00}";
+        }
+    }
+
+    private string Bytes(ulong value) => value switch
+    {
+        >= 1_000_000_000 => (value / 1_000_000_000m).ToString("0.0", UiCulture) + " GB",
+        >= 1_000_000 => (value / 1_000_000m).ToString("0.0", UiCulture) + " MB",
+        >= 1_000 => (value / 1_000m).ToString("0.0", UiCulture) + " kB",
+        _ => value.ToString("N0", UiCulture) + " B",
+    };
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        _ = RefreshElapsedAsync(_stop.Token);
+    }
+
+    private async Task RefreshElapsedAsync(CancellationToken token)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(token))
+                await InvokeAsync(() =>
+                {
+                    if (_disposed) return;
+                    _now = DateTimeOffset.UtcNow;
+                    StateHasChanged();
+                });
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+        catch (ObjectDisposedException) when (_disposed) { }
+    }
+
+    public override void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _stop.Cancel();
+        _stop.Dispose();
+        base.Dispose();
+    }
+}

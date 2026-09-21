@@ -224,12 +224,13 @@ public sealed partial class CompanionCalibrationReader
         {
             ConformanceLevel = ConformanceLevel.Fragment,
             DtdProcessing = DtdProcessing.Prohibit,
+            XmlResolver = null,
             IgnoreComments = true,
             IgnoreProcessingInstructions = true,
             IgnoreWhitespace = true,
         };
 
-        using var reader = XmlReader.Create(path, settings);
+        using var reader = GameVariableXmlReader.Open(path, settings);
         var elements = new List<XElement>();
         while (!reader.EOF)
         {
@@ -253,8 +254,7 @@ public sealed partial class CompanionCalibrationReader
     private static (int? Width, int? Height) ReadVariableResolution(
         IReadOnlyList<XElement> elements)
     {
-        var element = DescendantsAndSelf(elements)
-            .FirstOrDefault(static element => element.Name == "Resolution");
+        var element = ReadActiveDisplayElement(elements, "Resolution");
         return element is null
             ? (null, null)
             : (ParseOptionalPositiveInt(element.Attribute("Width")),
@@ -276,11 +276,25 @@ public sealed partial class CompanionCalibrationReader
 
     private static float? ReadVariableScale(IReadOnlyList<XElement> elements)
     {
-        var value = DescendantsAndSelf(elements)
-            .Where(static element => element.Name == "UiScale")
-            .Select(element => element.Attribute("Value"))
-            .FirstOrDefault(attribute => attribute is not null);
+        var value = ReadActiveDisplayElement(elements, "UiScale")?.Attribute("Value");
         return value is null ? null : ParseFloat(value.Value, "UiScale Value");
+    }
+
+    private static XElement? ReadActiveDisplayElement(IReadOnlyList<XElement> elements, XName name)
+    {
+        var activeOptions = elements.Where(element => element.Name == "GameOptionGlobal").ToArray();
+        if (activeOptions.Length > 1)
+            throw new InvalidDataException("The active game-option configuration is ambiguous.");
+
+        // Current saves keep these fields directly in GameOptionGlobal. Older
+        // files also use independent top-level fields. Presets and other nested
+        // sections describe saved layouts, not the current screen configuration.
+        var candidates = elements.Where(element => element.Name == name)
+            .Concat(activeOptions.SelectMany(element => element.Elements(name)))
+            .Take(2).ToArray();
+        if (candidates.Length > 1)
+            throw new InvalidDataException($"The active {name} configuration is ambiguous.");
+        return candidates.SingleOrDefault();
     }
 
     private static float? ReadOptionScale(string optionText)

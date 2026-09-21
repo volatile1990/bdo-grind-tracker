@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -12,12 +12,14 @@
     <link rel="stylesheet" href="updates.css" />
     <link rel="stylesheet" href="overlay-editor.css" />
     <link rel="stylesheet" href="overlay-widgets.css" />
+    <link rel="stylesheet" href="overlay-consumables.css" />
+    <link rel="stylesheet" href="consumables.css" />
     <link rel="stylesheet" href="grind-goals.css" />
     <link rel="stylesheet" href="themes.css" />
 </head>
 <body>
-    <div id="app"><div class="boot-screen"><img src="assets/branding/grindcrest-header.png" alt="" /><strong>GRINDCREST</strong><span>Dein nächstes Abenteuer wartet.</span><span class="boot-loader"></span></div></div>
-    <div id="blazor-error-ui" role="alert">Die Oberfläche konnte nicht fortgesetzt werden. Bitte starte Grindcrest erneut.<button class="dismiss" aria-label="Meldung schließen">×</button></div>
+    <div id="app"><div class="boot-screen"><img src="assets/branding/grindcrest-header.png" alt="" /><strong>GRINDCREST</strong><span>Your next adventure awaits.</span><span class="boot-loader"></span></div></div>
+    <div id="blazor-error-ui" role="alert"><span data-error-message>The interface could not continue. Please restart Grindcrest.</span><button class="dismiss" aria-label="Dismiss message">×</button></div>
     <script src="app.js"></script>
     <script src="overlay-editor.js"></script>
     <script src="_framework/blazor.webview.js"></script>

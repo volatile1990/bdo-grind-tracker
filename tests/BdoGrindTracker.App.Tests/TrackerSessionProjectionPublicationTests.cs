@@ -91,11 +91,12 @@ public sealed partial class TrackerSessionServiceTests
     }
 
     private static async Task ProcessProjectionAfter(Fixture fixture, TimeSpan elapsed,
-        long revision, long quantity, int dropCount, DateTimeOffset latestArrival)
+        long revision, long quantity, int dropCount, DateTimeOffset latestArrival, long? correctionRevision = null)
     {
         fixture.Time.Advance(elapsed);
         var projection = new LootTotalsProjection(revision,
-            new Dictionary<string, long> { [ProjectionPublicationItem] = quantity }, dropCount, latestArrival);
+            new Dictionary<string, long> { [ProjectionPublicationItem] = quantity }, dropCount, latestArrival)
+            { QuantityCorrectionRevision = correctionRevision };
         var analysis = new FrameAnalysisResult([], [], 1, "synthetic-publication-test", 0, 0, 0, 0, null)
         {
             SpotId = LootSpotCatalog.HermesiaId,

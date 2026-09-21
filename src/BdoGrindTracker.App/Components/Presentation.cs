@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using BdoGrindTracker.App.Localization;
 using BdoGrindTracker.App.Character;
 using BdoGrindTracker.App.Pricing;
 using BdoGrindTracker.App.UI;
@@ -12,24 +13,24 @@ internal static class Presentation
     internal static readonly CultureInfo German = CultureInfo.GetCultureInfo("de-DE");
     private static readonly IReadOnlyDictionary<string, string> ItemIcons = ReadItemIcons();
 
-    internal static string Number(decimal value) => value.ToString("N0", German);
-    internal static string Silver(decimal value) => Math.Abs(value) switch
+    internal static string Number(decimal value, string? language = "de") => value.ToString("N0", AppText.Culture(language));
+    internal static string Silver(decimal value, string? language = "de") => Math.Abs(value) switch
     {
-        >= 1_000_000_000 => (value / 1_000_000_000).ToString("0.00", German) + " Mrd.",
-        >= 1_000_000 => (value / 1_000_000).ToString("0.0", German) + " Mio.",
-        >= 10_000 => (value / 1_000).ToString("0.0", German) + " Tsd.",
-        _ => Number(value)
+        >= 1_000_000_000 => (value / 1_000_000_000).ToString("0.00", AppText.Culture(language)) + " " + AppText.Translate("Mrd.", language),
+        >= 1_000_000 => (value / 1_000_000).ToString("0.0", AppText.Culture(language)) + " " + AppText.Translate("Mio.", language),
+        >= 10_000 => (value / 1_000).ToString("0.0", AppText.Culture(language)) + " " + AppText.Translate("Tsd.", language),
+        _ => Number(value, language)
     };
     internal static string Duration(TimeSpan duration) => $"{(int)duration.TotalHours:00}:{duration.Minutes:00}:{duration.Seconds:00}";
-    internal static string ShortDuration(TimeSpan duration) => duration.TotalHours >= 1
-        ? $"{(int)duration.TotalHours} Std. {duration.Minutes:00} Min."
-        : $"{Math.Max(0, (int)duration.TotalMinutes)} Min.";
-    internal static string CompactDuration(TimeSpan duration) => duration.TotalHours >= 1
+    internal static string ShortDuration(TimeSpan duration, string? language = "de") => duration.TotalHours >= 1
+        ? AppText.Format("{0} Std. {1:00} Min.", language, (int)duration.TotalHours, duration.Minutes)
+        : AppText.Format("{0} Min.", language, Math.Max(0, (int)duration.TotalMinutes));
+    internal static string CompactDuration(TimeSpan duration, string? language = "de") => duration.TotalHours >= 1
         ? $"{(int)duration.TotalHours}:{duration.Minutes:00} h"
         : $"{Math.Max(0, (int)duration.TotalMinutes)} min";
     internal static decimal Hours(TimeSpan duration) => (decimal)duration.Ticks / TimeSpan.TicksPerHour;
     internal static decimal Hourly(decimal amount, TimeSpan duration) => duration > TimeSpan.Zero ? amount / Hours(duration) : 0;
-    internal static string SpotName(string? id) => LootSpotCatalog.Spots.FirstOrDefault(spot => spot.Id == id)?.DisplayName ?? "Grindspot wird erkannt";
+    internal static string SpotName(string? id, string? language = "de") => LootSpotCatalog.Spots.FirstOrDefault(spot => spot.Id == id)?.DisplayName ?? AppText.Translate("Grindspot wird erkannt", language);
     internal static LootSpotPresentation? Profile(string? id) => LootSpotPresentationCatalog.Profiles.FirstOrDefault(profile => profile.SpotId == id);
     internal static string SpotBackgroundStyle(LootSpotPresentation? profile, bool shaded = false)
     {
@@ -38,10 +39,10 @@ internal static class Presentation
             ? "background-image:" + (shaded ? backdrop + "," : "") + "url('assets/spot-backgrounds/" + file + "')"
             : "background-image:" + backdrop;
     }
-    internal static string SpotGuidanceSummary(LootSpotPresentation profile) =>
+    internal static string SpotGuidanceSummary(LootSpotPresentation profile, string? language = "de") =>
         profile.RecommendedAp is { } ap && profile.RecommendedDp is { } dp
-            ? $"{Number(ap)} AP · {Number(dp)} DP"
-            : profile.MaxApLimit is { } limit ? $"AP-Limit {Number(limit)}" : profile.RegionName;
+            ? $"{Number(ap, language)} AP · {Number(dp, language)} DP"
+            : profile.MaxApLimit is { } limit ? AppText.Format("AP-Limit {0}", language, Number(limit, language)) : profile.RegionName;
     internal static string? ItemIcon(string name) => ItemIcons.TryGetValue(name, out var file) ? "assets/icons/" + file : null;
     internal static string? ClassIcon(string? idOrName)
     {
@@ -54,12 +55,12 @@ internal static class Presentation
     }
     internal static long Trash(IReadOnlyDictionary<string, long> totals, string? spotId) => Profile(spotId) is { } profile
         ? totals.GetValueOrDefault(profile.TrashItemName) : 0;
-    internal static string Kind(string name)
+    internal static string Kind(string name, string? language = "de")
     {
         var definition = LootPriceCatalog.Definitions.FirstOrDefault(item => item.ItemName == name);
-        return definition?.Kind switch { LootPriceKind.Fixed => "NPC / Festwert", LootPriceKind.AncientSpiritDust => "Verarbeitung", LootPriceKind.Market => "Zentralmarkt", _ => "Ohne Marktwert" };
+        return AppText.Translate(definition?.Kind switch { LootPriceKind.Fixed => "NPC / Festwert", LootPriceKind.AncientSpiritDust => "Verarbeitung", LootPriceKind.Market => "Zentralmarkt", _ => "Ohne Marktwert" }, language);
     }
-    internal static string Trait(string trait) => trait switch
+    internal static string Trait(string trait, string? language = "de") => AppText.Translate(trait switch
     {
         "#CombatEXP" => "Kampf-EP", "#MarnisRealmPrivate" => "Marnis Reich", "#Knockdown/Bound" => "Niederschlag / Umwerfen",
         "#Knockback/Floating" => "Rückstoß / Hochschleudern", "#Stun/Stiffness/Freezing" => "Betäuben / Erstarren / Einfrieren",
@@ -67,7 +68,7 @@ internal static class Presentation
         "#PartyOf3" => "Gruppe · 3 Spieler", "#FeverPowerfulMobs" => "Verstärkte Monster",
         "#Dehkia" => "Dehkias Laterne", "#DehkiaII" => "Dehkias Laterne · Stufe II", "#Elvia" => "Elvia",
         _ => trait.TrimStart('#')
-    };
+    }, language);
     private static IReadOnlyDictionary<string, string> ReadItemIcons()
     {
         try

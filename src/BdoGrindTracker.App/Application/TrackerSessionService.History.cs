@@ -1,3 +1,4 @@
+using BdoGrindTracker.App.Integrations.Garmoth;
 using BdoGrindTracker.App.Persistence;
 using BdoGrindTracker.App.Pricing;
 using BdoGrindTracker.App.UI;
@@ -55,6 +56,8 @@ internal sealed partial class TrackerSessionService
         }
         RecoverCurrentSessionIfNeeded();
         RefreshPendingState();
+        if (_provisionalAutomaticGrind)
+            throw new InvalidOperationException("Die automatische Session wird nach 5 getrennten Drops gespeichert.");
         PersistCurrentSession(DateTimeOffset.UtcNow, throwOnError: true);
         SavePendingHistory();
         if (!TrySaveSettings()) throw new IOException(_settingsSaveError);
@@ -64,10 +67,12 @@ internal sealed partial class TrackerSessionService
 
     private void SaveCheckpointIfDue()
     {
-        if (!_uiRunning || _operationInProgress || _sessionClock.Elapsed - _lastCheckpointDuration < CheckpointInterval ||
-            DateTimeOffset.UtcNow < _nextCheckpointRetry) return;
+        if (!_uiRunning || _operationInProgress || _provisionalAutomaticGrind ||
+            !_automaticGrindNeedsCheckpoint && (_sessionClock.Elapsed - _lastCheckpointDuration < CheckpointInterval ||
+            DateTimeOffset.UtcNow < _nextCheckpointRetry)) return;
         _nextCheckpointRetry = DateTimeOffset.UtcNow.AddSeconds(15);
         PersistCurrentSession(DateTimeOffset.UtcNow);
+        _automaticGrindNeedsCheckpoint = false;
     }
 
     private void PersistCurrentSession(DateTimeOffset updatedAt, bool throwOnError = false,
@@ -80,7 +85,7 @@ internal sealed partial class TrackerSessionService
     private void PersistCurrentHistory(DateTimeOffset updatedAt, bool throwOnError,
         Guid? pendingGarmothCorrectionInterval)
     {
-        if (!_hasSession || _demoMode || _sessionSpotId is null || _sessionClock.Elapsed < TimeSpan.Zero)
+        if (!_hasSession || _provisionalAutomaticGrind || _demoMode || _sessionSpotId is null || _sessionClock.Elapsed < TimeSpan.Zero)
             return;
         var rotations = _rotationMonitor.ExportSession();
         var timeline = _rotationMonitor.ExportTimeline();
@@ -114,6 +119,7 @@ internal sealed partial class TrackerSessionService
             CombatStats = _sessionCombatStats,
             Buffs = _hasBuffObservation ? _buffLedger.Snapshot : null,
             Totals = totals,
+            DropHistory = CaptureDropHistory(_sessionSummary, duration),
             SilverBeforeTax = valuation.BeforeTax,
             SilverAfterTax = valuation.AfterTax,
             SilverIsComplete = valuation.IsComplete,
@@ -284,7 +290,7 @@ internal sealed partial class TrackerSessionService
                         // a manual delta shares its confirmed-event count.
                         var previousSummary = _uiMailbox.ReadSnapshot(current => current);
                         _sessionSummary = previousSummary;
-                        _dropHistory.Update(State with { Loot = previousSummary, Elapsed = _sessionClock.Elapsed });
+                        CaptureDropHistory(previousSummary, _sessionClock.Elapsed);
                         var previousHistory = _historyEntries.ToArray();
                         var previousManual = _sessionManualLootItems.ToArray();
                         var previousModified = _sessionGarmothLocallyModified;
@@ -338,7 +344,10 @@ internal sealed partial class TrackerSessionService
                 catch { _historyEntries[index] = previous; throw; }
             }
             SetStatus(_demoMode && sessionId == _sessionId
-                ? "Menge in der Demo korrigiert." : "Lootmenge gespeichert.");
+                ? "Menge in der Demo korrigiert."
+                : sessionId == _sessionId && _garmothIntervals.CorrectionReviewRequired
+                    ? "Lootmenge gespeichert. " + GarmothUploadIntervals.CorrectionReviewMessage
+                    : "Lootmenge gespeichert.");
             return Task.CompletedTask;
         });
         _operationTask = task;
@@ -369,7 +378,5 @@ internal sealed partial class TrackerSessionService
         _historyChanged = true;
         _historyDirty = true;
         _historyEntries.Sort(static (left, right) => right.UpdatedAt.CompareTo(left.UpdatedAt));
-        if (_historyEntries.Count > LootHistoryStore.MaximumEntries)
-            _historyEntries.RemoveRange(LootHistoryStore.MaximumEntries, _historyEntries.Count - LootHistoryStore.MaximumEntries);
     }
 }

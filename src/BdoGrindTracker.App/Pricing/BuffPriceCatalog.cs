@@ -9,7 +9,7 @@ namespace BdoGrindTracker.App.Pricing;
 /// </summary>
 internal static class BuffPriceCatalog
 {
-    public static IReadOnlyList<BuffDefinition> Definitions { get; } = Array.AsReadOnly(new[]
+    private static IReadOnlyList<BuffDefinition> CatalogDefinitions { get; } = Array.AsReadOnly(new[]
     {
         // Cron-Mahlzeiten
         Market("exquisite-cron-meal", "Exquisite Cron Meal", 9693, 120,
@@ -20,25 +20,25 @@ internal static class BuffPriceCatalog
             "Cron-Mahlzeit: Einfach", "Cron-Mahlzeiten", "Standard", "simple-cron-meal"),
         // Harmony Draughts
         Market("harmony-draught-demihuman", "[Party] Harmony Draught - Demihuman", 1403, 20,
-            "[Gruppe] Arznei der Harmonie – Halbmenschen", "Harmony Draughts", "Gruppe", "harmony-draught-demihuman", party: true),
+            "[Gruppe] Arznei der Harmonie – Halbmenschen", "Harmony Draughts", "Gruppe", "harmony-draught-demihuman"),
         Market("harmony-draught-edania", "[Party] Harmony Draught - Edania", 1407, 20,
-            "[Gruppe] Arznei der Harmonie – Edania", "Harmony Draughts", "Gruppe", "harmony-draught-edania", party: true),
+            "[Gruppe] Arznei der Harmonie – Edania", "Harmony Draughts", "Gruppe", "harmony-draught-edania"),
         Market("harmony-draught-human", "[Party] Harmony Draught - Human", 1401, 20,
-            "[Gruppe] Arznei der Harmonie – Menschen", "Harmony Draughts", "Gruppe", "harmony-draught-human", party: true),
+            "[Gruppe] Arznei der Harmonie – Menschen", "Harmony Draughts", "Gruppe", "harmony-draught-human"),
         Market("harmony-draught-kamasylvia", "[Party] Harmony Draught - Kamasylvia", 1405, 20,
-            "[Gruppe] Arznei der Harmonie – Kamasilvia", "Harmony Draughts", "Gruppe", "harmony-draught-kamasylvia", party: true),
+            "[Gruppe] Arznei der Harmonie – Kamasilvia", "Harmony Draughts", "Gruppe", "harmony-draught-kamasylvia"),
         Market("immortal-harmony-draught-demihuman", "[Party] Immortal: Harmony Draught - Demihuman", 1404, 20,
-            "[Gruppe] Unsterblich: Arznei der Harmonie – Halbmenschen", "Harmony Draughts", "Unsterblich", "harmony-draught-demihuman", party: true),
+            "[Gruppe] Unsterblich: Arznei der Harmonie – Halbmenschen", "Harmony Draughts", "Unsterblich", "immortal-harmony-draught-demihuman"),
         Market("immortal-harmony-draught-edania", "[Party] Immortal: Harmony Draught - Edania", 1408, 20,
-            "[Gruppe] Unsterblich: Arznei der Harmonie – Edania", "Harmony Draughts", "Unsterblich", "harmony-draught-edania", party: true),
+            "[Gruppe] Unsterblich: Arznei der Harmonie – Edania", "Harmony Draughts", "Unsterblich", "immortal-harmony-draught-edania"),
         Market("immortal-harmony-draught-human", "[Party] Immortal: Harmony Draught - Human", 1402, 20,
-            "[Gruppe] Unsterblich: Arznei der Harmonie – Menschen", "Harmony Draughts", "Unsterblich", "harmony-draught-human", party: true),
+            "[Gruppe] Unsterblich: Arznei der Harmonie – Menschen", "Harmony Draughts", "Unsterblich", "immortal-harmony-draught-human"),
         Market("immortal-harmony-draught-kamasylvia", "[Party] Immortal: Harmony Draught - Kamasylvia", 1406, 20,
-            "[Gruppe] Unsterblich: Arznei der Harmonie – Kamasilvia", "Harmony Draughts", "Unsterblich", "harmony-draught-kamasylvia", party: true),
+            "[Gruppe] Unsterblich: Arznei der Harmonie – Kamasilvia", "Harmony Draughts", "Unsterblich", "immortal-harmony-draught-kamasylvia"),
         Market("harmony-draught", "Harmony Draught", 1399, 20,
             "Arznei der Harmonie", "Harmony Draughts", "Standard", "harmony-draught"),
         Market("immortal-harmony-draught", "Immortal: Harmony Draught", 1400, 20,
-            "Unsterblich: Arznei der Harmonie", "Harmony Draughts", "Unsterblich", "harmony-draught"),
+            "Unsterblich: Arznei der Harmonie", "Harmony Draughts", "Unsterblich", "immortal-harmony-draught"),
         // Parfüms
         Market("immortal-perfume-of-bracing-spirits", "Immortal: Perfume of Bracing Spirits", 875, 20,
             "Unsterblich: Belebendes Geisterparfüm", "Parfüms", "Unsterblich", "perfume-of-bracing-spirits"),
@@ -134,8 +134,13 @@ internal static class BuffPriceCatalog
             "Segen der mystischen Bestie – Max. LP", "Mystic-Beasts-Schriftrollen", "Standard", "mystic-beasts-max-hp"),
     });
 
-    /// <summary>Previously supported items remain valid when restoring saved sessions.</summary>
-    public static IReadOnlyList<BuffDefinition> HistoryDefinitions { get; } = Array.AsReadOnly(Definitions.Concat(new[]
+    public static IReadOnlyList<BuffDefinition> Definitions { get; } = CatalogDefinitions;
+
+    public static BuffDefinition? ResolveRecognitionDefinition(string? buffId) => string.IsNullOrWhiteSpace(buffId)
+        ? null : Definitions.FirstOrDefault(definition => definition.Id == buffId);
+
+    /// <summary>Previously supported items retain their identity and recorded costs when restoring sessions.</summary>
+    public static IReadOnlyList<BuffDefinition> HistoryDefinitions { get; } = Array.AsReadOnly(CatalogDefinitions.Concat(new[]
     {
         new BuffDefinition("beasts-draught", "Beast's Draught", 792, TimeSpan.FromMinutes(20)),
         new BuffDefinition("giants-draught", "Giant's Draught", 793, TimeSpan.FromMinutes(20)),
@@ -168,14 +173,13 @@ internal static class BuffPriceCatalog
             LootPriceKind.Market, definition.MarketItemId));
 
     private static BuffDefinition Market(string id, string name, int marketItemId, int durationMinutes,
-        string localizedName, string category, string variant, string recognitionGroup, bool party = false) =>
+        string localizedName, string category, string variant, string recognitionGroup) =>
         new(id, name, marketItemId, TimeSpan.FromMinutes(durationMinutes))
         {
             LocalizedName = localizedName,
             Category = category,
             Variant = variant,
             RecognitionGroup = recognitionGroup,
-            RequiresConsumptionConfirmation = party,
             SourceUrl = $"https://bdocodex.com/us/item/{marketItemId}/",
         };
 

@@ -141,33 +141,23 @@ Fehlerfällen: [Garmoth-Integration](GARMOTH_INTEGRATION.md).
 
 ## Programmupdates
 
-Über GitHub installierte Versionen prüfen beim Start und auf manuellen Wunsch die öffentlichen
-Releases von `https://github.com/volatile1990/bdo-grind-tracker` per HTTPS. Die
-Updateprüfung und der Paketdownload senden keine Sessions, Screenshots, OCR-Texte,
-Garmoth-Schlüssel oder GitHub-Zugangsdaten. Metadatenanfragen sind zeitlich begrenzt;
-ein Netzwerkfehler beeinflusst das Tracking nicht. Vorschau, UI-Prüfungen und
-Offline-Replay führen keine Updateprüfung aus.
+Grindcrest wird ausschließlich über Microsoft Store installiert und aktualisiert.
+Die App verwendet die Windows-Store-Schnittstelle bei vorhandener Paketidentität
+und prüft beim Start, alle sechs Stunden weiterer Nutzung und auf Knopfdruck auf
+freigegebene Updates. Diese Prüfung überträgt keine Sessions, Screenshots,
+OCR-Texte oder Garmoth-Schlüssel an Microsoft.
 
-Downloads beginnen ausdrücklich per Klick. Velopack prüft die Paketintegrität.
-Die Installation erfordert einen weiteren Klick bei pausiertem Tracking und ohne
-laufenden Session-Vorgang. Vor dem Start des Updaters wird der Verlauf gespeichert
-und das Tracking beendet. Scheitert die erste Sicherung, bleibt die App mit der
-Session im Arbeitsspeicher geöffnet und die Installation kann erneut versucht werden.
-Beim normalen App-Start werden heruntergeladene Pakete nicht automatisch angewendet.
-Die Programmdateien liegen unter `%LOCALAPPDATA%\Grindcrest`, getrennt von den
-bestehenden Nutzerdaten unter `%LOCALAPPDATA%\BdoGrindTracker`. Die Updateauswahl
-wird dort in `update-settings.json` gespeichert. Beta-Versionen und stabile
-Versionen verwenden getrennte Kanäle; es gibt keine automatischen Downgrades.
+**Jetzt aktualisieren** startet Download und Installation nach Nutzerbestätigung.
+Windows kann zusätzlich eine Bestätigung anzeigen. Vor der Installation müssen
+Tracking und andere Session-Vorgänge ruhen und die lokalen Daten erfolgreich
+gespeichert sein. Während der Store-Operation sind Session-Aktionen gesperrt.
+Bei Abbruch oder Fehler wird die Sperre aufgehoben; Microsoft übernimmt
+Paketprüfung und Installation. Die unabhängig von Grindcrest verwaltete
+automatische Updatefunktion des Stores bleibt verfügbar.
 
-Die Microsoft-Store-Ausgabe verwendet ausschließlich die Windows-Store-Schnittstelle.
-Ab 1.0.1 prüft sie beim Start, alle sechs Stunden weiterer Nutzung und auf Knopfdruck.
-Download und Installation werden getrennt durch den Nutzer gestartet; Windows kann
-eine Bestätigung anzeigen. Vor der Installation müssen Tracking und andere
-Session-Vorgänge ruhen und die lokalen Daten erfolgreich gespeichert sein. Während
-der Installation sind Session-Aktionen gesperrt. Bei Abbruch oder Fehler wird die
-Sperre aufgehoben; Microsoft übernimmt Paketprüfung und Installation. Die unabhängig
-von Grindcrest verwaltete automatische Updatefunktion des Stores bleibt verfügbar.
-Vorschau und Prüfmodi verwenden auch hier kein Update-Backend.
+Nutzerdaten liegen im `LocalState`-Ordner der Store-Paketfamilie. Vorschau,
+UI-Prüfungen, Offline-Replay und lokale Entwicklungsbuilds verwenden kein
+Update-Backend. [Store-Installation und Updates](MICROSOFT_STORE.md#installation-daten-und-updates).
 
 ## Öffentliche Marktpreise
 

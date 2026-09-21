@@ -55,3 +55,23 @@ internal sealed class GrindGoalStore(string? path)
             .Select(items => new KeyValuePair<string, long>(items.Key, items.Sum(item => item.Value)))
             .OrderBy(item => item.Key, StringComparer.Ordinal).ToArray());
 }
+
+/// <summary>History snapshots are replaced on edits/checkpoints, not on clock ticks.</summary>
+internal sealed class DailyNetProjection
+{
+    private IReadOnlyList<LootHistoryEntry>? _history;
+    private TimeZoneInfo? _timeZone;
+    private IReadOnlyDictionary<DateOnly, decimal> _daily = new Dictionary<DateOnly, decimal>();
+
+    internal IReadOnlyDictionary<DateOnly, decimal> Update(IReadOnlyList<LootHistoryEntry> history)
+    {
+        var timeZone = TimeZoneInfo.Local;
+        if (!ReferenceEquals(_history, history) || !ReferenceEquals(_timeZone, timeZone))
+        {
+            _daily = new System.Collections.ObjectModel.ReadOnlyDictionary<DateOnly, decimal>(GrindGoalStore.DailyNet(history));
+            _history = history;
+            _timeZone = timeZone;
+        }
+        return _daily;
+    }
+}

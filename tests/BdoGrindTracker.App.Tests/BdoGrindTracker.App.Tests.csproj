@@ -22,6 +22,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="..\fixtures\buffs\*.png" Link="fixtures\buffs\%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\fixtures\rotation\*.json" Link="fixtures\rotation\%(Filename)%(Extension)"
              CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\fixtures\garmoth\*.json" Link="fixtures\garmoth\%(Filename)%(Extension)"

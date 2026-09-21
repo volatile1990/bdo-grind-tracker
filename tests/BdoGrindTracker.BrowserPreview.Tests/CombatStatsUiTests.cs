@@ -15,8 +15,25 @@ namespace BdoGrindTracker.BrowserPreview.Tests;
 
 public sealed class CombatStatsUiTests
 {
+    [Fact]
+    public async Task EnglishReadoutLocalizesLabelsNumbersAndObservationContext()
+    {
+        var markup = await Render<CombatStatsReadout>(new PreviewTrackerSession(empty: true), new()
+        {
+            [nameof(CombatStatsReadout.Value)] = Observation(1650, 425, CombatStatsCategory.General),
+            [nameof(CombatStatsReadout.ObservedCategory)] = CombatStatsCategory.General,
+            [nameof(CombatStatsReadout.SpotId)] = LootSpotCatalog.AphrodonId,
+            [nameof(CombatStatsReadout.LastKnown)] = true,
+        }, language: "en");
+
+        Assert.Contains("AP 1,650, DP 425 · General · Last detected in game", markup);
+        Assert.DoesNotContain(">Last detected</span>", markup);
+        Assert.Contains(">Set in-game AP/DP to Edania.</span>", markup);
+        Assert.DoesNotContain("Allgemein", markup);
+    }
+
     [Theory]
-    [InlineData(CombatStatsCategory.General, "Allgemein", "general", LootSpotCatalog.AphrodonId)]
+    [InlineData(CombatStatsCategory.General, "Allgemein", "general", "yzrahid-highlands")]
     [InlineData(CombatStatsCategory.Edania, "Edania", "edania", LootSpotCatalog.AphrodonId)]
     [InlineData(CombatStatsCategory.Demihuman, "Halbmenschen", "demihuman", "stars-end")]
     [InlineData(CombatStatsCategory.Kamasylvian, "Kamasilvia", "kamasylvian", "dehkia-tunkuta")]
@@ -34,6 +51,7 @@ public sealed class CombatStatsUiTests
         Assert.Contains("AP <strong>1.650</strong>", markup);
         Assert.Contains("DP <strong>425</strong>", markup);
         Assert.DoesNotContain("AAP", markup);
+        Assert.DoesNotContain("combat-stats-hint", markup);
     }
 
     [Theory]
@@ -60,7 +78,7 @@ public sealed class CombatStatsUiTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task MissingFreshValuesUseTheSessionsLastObservationWithAnExplicitLabel(bool running)
+    public async Task MissingFreshValuesKeepTheSessionsLastObservationWithoutAnAgeTagOrSelectionWarning(bool running)
     {
         var tracker = EmptyLive();
         SetState(tracker, tracker.State with
@@ -72,7 +90,8 @@ public sealed class CombatStatsUiTests
         var markup = await Render<LiveDashboard>(tracker);
 
         Assert.Contains("AP 1.400, DP 410 · Edania · Zuletzt im Spiel erkannt", markup);
-        Assert.Contains(">Zuletzt erkannt</span>", markup);
+        Assert.DoesNotContain(">Zuletzt erkannt</span>", markup);
+        Assert.DoesNotContain("combat-stats-hint", markup);
     }
 
     [Fact]
@@ -91,6 +110,7 @@ public sealed class CombatStatsUiTests
         Assert.DoesNotContain("DP <strong>0", markup);
         Assert.DoesNotContain("combat-stats-edania", markup);
         Assert.DoesNotContain("combat-stats-general", markup);
+        Assert.DoesNotContain("combat-stats-hint", markup);
     }
 
     [Theory]
@@ -112,6 +132,7 @@ public sealed class CombatStatsUiTests
         Assert.DoesNotContain("AP 9.876", markup);
         Assert.DoesNotContain("DP 8.765", markup);
         Assert.DoesNotContain("Garmoth-Build", markup);
+        Assert.DoesNotContain("combat-stats-hint", markup);
         if (!chronological) Assert.Contains("class=\"session-combat-column\" scope=\"col\">AP / DP", markup);
     }
 
@@ -145,7 +166,8 @@ public sealed class CombatStatsUiTests
         });
         var markup = await Render<LiveDashboard>(tracker);
 
-        Assert.Contains("AP/DP noch nicht erkannt", markup);
+        Assert.Contains(">AP/DP im Spiel auf Edania stellen.</span>", markup);
+        Assert.DoesNotContain("AP/DP noch nicht erkannt", markup);
         Assert.DoesNotContain("combat-stats-values", markup);
         Assert.DoesNotContain("combat-stats-demihuman", markup);
         Assert.DoesNotContain("combat-stats-kamasylvian", markup);
@@ -154,7 +176,7 @@ public sealed class CombatStatsUiTests
     [Theory]
     [InlineData(CombatStatsCategory.Demihuman, CombatStatsCategory.Edania, "Edania")]
     [InlineData(CombatStatsCategory.Kamasylvian, CombatStatsCategory.General, "Allgemein")]
-    public async Task IncompatibleFreshValuesKeepACompatibleFallbackClearlyMarkedAsPrevious(
+    public async Task IncompatibleFreshValuesKeepACompatibleFallbackAndShowTheRequiredSelection(
         CombatStatsCategory freshCategory, CombatStatsCategory previousCategory, string label)
     {
         var tracker = EmptyLive();
@@ -167,7 +189,8 @@ public sealed class CombatStatsUiTests
         var markup = await Render<LiveDashboard>(tracker);
 
         Assert.Contains($"AP 1.400, DP 410 · {label} · Zuletzt im Spiel erkannt", markup);
-        Assert.Contains(">Zuletzt erkannt</span>", markup);
+        Assert.DoesNotContain(">Zuletzt erkannt</span>", markup);
+        Assert.Contains(">AP/DP im Spiel auf Edania stellen.</span>", markup);
         Assert.DoesNotContain("AP 1.650", markup);
     }
 
@@ -209,6 +232,7 @@ public sealed class CombatStatsUiTests
         Assert.DoesNotContain("combat-stats-edania", markup);
         Assert.DoesNotContain("combat-stats-demihuman", markup);
         Assert.DoesNotContain("combat-stats-kamasylvian", markup);
+        Assert.DoesNotContain("combat-stats-hint", markup);
     }
 
     [Theory]
@@ -236,6 +260,35 @@ public sealed class CombatStatsUiTests
         Assert.DoesNotContain("combat-stats-demihuman", markup);
         Assert.DoesNotContain("combat-stats-kamasylvian", markup);
         Assert.DoesNotContain("AP 9.876", markup);
+        Assert.DoesNotContain("combat-stats-hint", markup);
+    }
+
+    [Theory]
+    [InlineData("yzrahid-highlands", CombatStatsCategory.Edania, CombatStatsCategory.General, "Allgemein")]
+    [InlineData("stars-end", CombatStatsCategory.General, CombatStatsCategory.Demihuman, "Halbmenschen")]
+    [InlineData("dehkia-tunkuta", CombatStatsCategory.Demihuman, CombatStatsCategory.Kamasylvian, "Kamasilvia")]
+    [InlineData(LootSpotCatalog.AphrodonId, CombatStatsCategory.General, CombatStatsCategory.Edania, "Edania")]
+    public async Task SelectionHintNamesTheSpotsCategoryAndDisappearsAfterCorrectingTheHud(
+        string spotId, CombatStatsCategory wrong, CombatStatsCategory correct, string categoryLabel)
+    {
+        var tracker = EmptyLive();
+        SetState(tracker, tracker.State with
+        {
+            SpotId = spotId, IsRunning = true,
+            CombatStats = Observation(1650, 425, wrong), SessionCombatStats = null,
+        });
+
+        var mismatch = await Render<LiveDashboard>(tracker);
+
+        Assert.Contains($">AP/DP im Spiel auf {categoryLabel} stellen.</span>", mismatch);
+        Assert.DoesNotContain("combat-stats-age", mismatch);
+
+        SetState(tracker, tracker.State with { CombatStats = Observation(1800, 450, correct) });
+        var matching = await Render<LiveDashboard>(tracker);
+
+        Assert.Contains("AP <strong>1.800</strong>", matching);
+        Assert.DoesNotContain("combat-stats-hint", matching);
+        Assert.DoesNotContain("combat-stats-age", matching);
     }
 
     private static CombatStatsState Observation(int ap, int dp, CombatStatsCategory category) =>
@@ -275,9 +328,11 @@ public sealed class CombatStatsUiTests
     private static void SetState(PreviewTrackerSession tracker, TrackerState state) =>
         typeof(PreviewTrackerSession).GetProperty(nameof(PreviewTrackerSession.State))!.SetValue(tracker, state);
 
-    private static async Task<string> Render<T>(PreviewTrackerSession tracker, Dictionary<string, object?>? parameters = null)
+    private static async Task<string> Render<T>(PreviewTrackerSession tracker, Dictionary<string, object?>? parameters = null,
+        string language = "de")
         where T : IComponent
     {
+        await tracker.SavePreferencesAsync(tracker.Preferences with { UiLanguage = language });
         var directParameters = new Dictionary<string, object?>(parameters ?? new());
         var queryParameters = directParameters.Where(pair => typeof(T).GetProperty(pair.Key)?
             .IsDefined(typeof(SupplyParameterFromQueryAttribute), inherit: true) == true)

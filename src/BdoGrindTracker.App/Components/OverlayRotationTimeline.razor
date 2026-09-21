@@ -1,13 +1,14 @@
+@inherits LocalizedComponentBase
 @using BdoGrindTracker.App.Overlay
-<div class="rotation-timeline" title="@(State.SpotName + " · " + State.Status + (State.Error is null ? "" : " · " + State.Error))">
-    @if (State.Error is not null) { <div class="rotation-sector" role="status">@State.Error</div> }
+<div class="rotation-timeline" title="@(State.SpotName + " · " + T(State.Status) + (State.Error is null ? "" : " · " + T(State.Error)))">
+    @if (State.Error is not null) { <div class="rotation-sector" role="status">@T(State.Error)</div> }
     @if (RotationTimelinePresentation.ShowSetup(State))
     {
-        <div class="rotation-setup" role="status"><strong>@RotationTimelinePresentation.SetupCount(State)</strong><span>@RotationTimelinePresentation.SetupHint</span></div>
+        <div class="rotation-setup" role="status"><strong>@RotationTimelinePresentation.SetupCount(State)</strong><span>@T(RotationTimelinePresentation.SetupHint)</span></div>
     }
     else
     {
-    <svg viewBox="0 0 600 120" preserveAspectRatio="none" class="rotation-track" role="img" aria-label="Rotation Monitor: Referenz oben, aktuelle Rotation unten">
+    <svg viewBox="0 0 600 120" preserveAspectRatio="none" class="rotation-track" role="img" aria-label="@T("Rotation Monitor: Referenz oben, aktuelle Rotation unten")">
         @foreach (var group in RotationPhases.Create(State.SpotId, Reference?.Events ?? State.Events, Reference?.Duration ?? State.Elapsed, Colors).GroupBy(p => p.Group))
         {
             <rect x="@X(group.First().Start)" y="12" width="@Width(group.Last().End-group.First().Start)" height="98" rx="4" fill="@group.First().Color" fill-opacity=".18" />
@@ -20,11 +21,11 @@
             var end = row == 0 ? Reference?.Duration ?? 0 : State.Elapsed;
             var phases = RotationPhases.Create(State.SpotId, events, end, Colors);
             <line class="rotation-baseline" x1="0" x2="540" y1="@y" y2="@y" stroke="#44515c" stroke-width="2" />
-            <g><text class="rotation-total-duration" x="598" y="@(y+4)" text-anchor="end" fill="#ffffff" font-size="12"><title>@(row == 0 ? "Gesamtzeit der Referenzrotation" : "Gesamtzeit der aktuellen Rotation")</title>@(events.Count > 0 ? RotationPhases.Duration(end) : "–")</text></g>
+            <g><text class="rotation-total-duration" x="598" y="@(y+4)" text-anchor="end" fill="#ffffff" font-size="12"><title>@(row == 0 ? T("Gesamtzeit der Referenzrotation") : T("Gesamtzeit der aktuellen Rotation"))</title>@(events.Count > 0 ? RotationPhases.Duration(end) : "–")</text></g>
             @foreach (var phase in phases)
             {
                 <g class="rotation-phase" data-phase="@phase.Id">
-                    <title>@(phase.Name + " · " + RotationTimelinePresentation.Time(phase.Start) + "–" + RotationTimelinePresentation.Time(phase.End))</title>
+                    <title>@(T(phase.Name) + " · " + RotationTimelinePresentation.Time(phase.Start) + "–" + RotationTimelinePresentation.Time(phase.End))</title>
                     <rect x="@X(phase.Start)" y="@(y-14)" width="@Width(phase.End-phase.Start)" height="28" rx="2" fill="@phase.Color" fill-opacity=".75" />
                     @if ((phase.End-phase.Start)/Extent*540 >= 28)
                     {
@@ -35,7 +36,7 @@
             @foreach (var e in events.Where(e => e.Seconds <= end))
             {
                 <g>
-                    <title>@(e.Label + " · " + RotationTimelinePresentation.Time(e.Seconds) + (Mode == "sectors" && State.SectorBests.TryGetValue(e.Key, out var sector) ? " · Bestabschnitt " + RotationTimelinePresentation.Time(sector) : ""))</title>
+                    <title>@(T(e.Label) + " · " + RotationTimelinePresentation.Time(e.Seconds) + (Mode == "sectors" && State.SectorBests.TryGetValue(e.Key, out var sector) ? T(" · Bestabschnitt ") + RotationTimelinePresentation.Time(sector) : ""))</title>
                     @if (RotationTimelinePresentation.IsMarker(e))
                     {
                         <line class="rotation-pack-marker" x1="@X(e.Seconds)" x2="@X(e.Seconds)" y1="@(y-18)" y2="@(y-11)" stroke="@(e.Kind == "failure" ? "#E87C79" : RotationPhases.MarkerColor(Colors, row == 1))" stroke-width="2" vector-effect="non-scaling-stroke" />
@@ -51,11 +52,13 @@
     </svg>
     @if (Mode == "sectors")
     {
-        <div class="rotation-sector" data-overlay-fit>@RotationTimelinePresentation.Sector(State)</div>
+        <div class="rotation-sector" data-overlay-fit>@RotationTimelinePresentation.Sector(State, UiLanguage)</div>
     }
     }
 </div>
 @code {
+    [Parameter] public string? Language { get; set; }
+    protected override string UiLanguage => Language ?? base.UiLanguage;
     [Parameter] public RotationMonitorSnapshot State { get; set; } = new();
     [Parameter] public string Mode { get; set; } = "best";
     [Parameter] public string Colors { get; set; } = "colored";

@@ -7,11 +7,17 @@ using OpenCvSharp;
 
 namespace BdoGrindTracker.App.Analysis;
 
-internal sealed record BuffFrameReading(IReadOnlyList<BuffObservation> Observations);
+internal sealed record BuffFrameReading(IReadOnlyList<BuffObservation> Observations)
+{
+    /// <summary>Visible but unreadable or ambiguous buffs; only their accounting continuity is lost.</summary>
+    internal IReadOnlyList<string> UnknownBuffIds { get; init; } = [];
+}
 internal interface IBuffFrameReader : IDisposable
 {
     string? LastDiagnostic => null;
     BuffFrameReading? Read(Bitmap frame, CancellationToken cancellationToken);
+    BuffFrameReading? Read(Bitmap frame, DateTimeOffset capturedAt, CancellationToken cancellationToken) =>
+        Read(frame, cancellationToken);
 }
 
 /// <summary>Matches calibrated HUD icons across the bar, then OCRs only their associated timers.</summary>
@@ -121,10 +127,13 @@ internal sealed partial class BuffFrameReader(
         var matches = SelectUnambiguous(candidates);
         if (candidates.Count == 0)
             return Unknown("Keine ausgewählte Buff-Vorlage erkannt. Sichtbare Buffleiste, UI-Skalierung und Iconausschnitte prüfen.");
-        if (matches.Count == 0 || candidates.Any(candidate => !matches.Any(match =>
+        var unknownBuffIds = candidates.Where(candidate => !matches.Any(match =>
                 match.Template.BuffId == candidate.Template.BuffId ||
-                Overlap(match.Bounds, candidate.Bounds) && match.Score > candidate.Score + .04)))
-            return Unknown("Buffsymbole sind mehrdeutig oder mehrfach vorhanden. Vorlagen und gewählte Varianten prüfen; kein Verbrauch gebucht.");
+                Overlap(match.Bounds, candidate.Bounds) && match.Score > candidate.Score + .04))
+            .Select(candidate => candidate.Template.BuffId).ToHashSet(StringComparer.Ordinal);
+        var diagnostics = new List<string>();
+        if (unknownBuffIds.Count > 0)
+            diagnostics.Add("Einige Buffsymbole sind mehrdeutig oder mehrfach vorhanden. Vorlagen und gewählte Varianten prüfen.");
         if (recognize is null && (_engine ??= CompanionWindowsOcrRecognizer.TryCreate()) is null)
             return Unknown("Restzeiten-OCR nicht verfügbar. Eine unterstützte Windows-OCR-Sprache installieren.");
         var observations = new List<BuffObservation>();
@@ -137,17 +146,29 @@ internal sealed partial class BuffFrameReader(
                 (int)Math.Round(timer.Width * layout.Scale), (int)Math.Round(timer.Height * layout.Scale));
             if (!BuffHudConfigurationReader.Contains(new(bar.Width, bar.Height), region))
                 return Unknown($"Zeitbereich für {match.Template.BuffId} liegt außerhalb der Buffleiste. Den Bereich einschließlich Restzeit neu kalibrieren.");
-            var remaining = ReadTimer(bar, region, cancellationToken);
+            (TimeSpan Remaining, TimeSpan Precision)? remaining;
+            try { remaining = ReadTimer(bar, region, cancellationToken); }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception) { remaining = null; }
             if (remaining is not { } value)
-                return Unknown($"Restzeit für {match.Template.BuffId} ist unlesbar oder widersprüchlich. Den Zeitbereich im Screenshot-Test prüfen.");
+            {
+                unknownBuffIds.Add(match.Template.BuffId);
+                diagnostics.Add($"Restzeit für {match.Template.BuffId} ist unlesbar oder widersprüchlich. Den Zeitbereich im Screenshot-Test prüfen.");
+                continue;
+            }
             var definition = BuffPriceCatalog.Definitions.Single(definition => definition.Id == match.Template.BuffId);
             if (value.Remaining <= TimeSpan.Zero || value.Remaining > definition.Duration)
-                return Unknown($"Restzeit für {match.Template.BuffId} passt nicht zur gewählten Laufzeitvariante. Variante und Zeitbereich prüfen.");
+            {
+                unknownBuffIds.Add(match.Template.BuffId);
+                diagnostics.Add($"Restzeit für {match.Template.BuffId} passt nicht zur gewählten Laufzeitvariante. Variante und Zeitbereich prüfen.");
+                continue;
+            }
             observations.Add(new(definition.Id, value.Remaining, value.Precision)
             { ConsumptionAttributionConfirmed = match.Template.ConsumptionAttributionConfirmed });
         }
-        LastDiagnostic = $"{observations.Count} Buff(s) mit lesbarer Restzeit erkannt. Kosten beruhen auf den gewählten Varianten.";
-        return new(observations);
+        LastDiagnostic = $"{observations.Count} Buff(s) mit lesbarer Restzeit erkannt. Kosten beruhen auf den gewählten Varianten." +
+            (diagnostics.Count == 0 ? string.Empty : " " + string.Join(" ", diagnostics));
+        return new(observations) { UnknownBuffIds = unknownBuffIds.Order(StringComparer.Ordinal).ToArray() };
     }
 
     private Mat? GetTemplate(BuffIconTemplate template, double scale)
@@ -214,30 +235,46 @@ internal sealed partial class BuffFrameReader(
             (long)right.Width * right.Height) * .35;
     }
 
-    private (TimeSpan Remaining, TimeSpan Precision)? ReadTimer(Mat bar, Rectangle region, CancellationToken token)
+    internal (TimeSpan Remaining, TimeSpan Precision)? ReadTimer(Mat bar, Rectangle region, CancellationToken token)
     {
+        if (recognize is null && (_engine ??= CompanionWindowsOcrRecognizer.TryCreate()) is null) return null;
         using var crop = new Mat(bar, new Rect(region.X, region.Y, region.Width, region.Height));
         using var gray = new Mat();
         Cv2.CvtColor(crop, gray, ColorConversionCodes.BGR2GRAY);
-        using var large = new Mat();
-        var scale = Math.Clamp(48d / region.Height, 1, 4);
-        Cv2.Resize(gray, large, new OpenCvSharp.Size((int)Math.Round(gray.Width * scale),
-            (int)Math.Round(gray.Height * scale)), interpolation: InterpolationFlags.Cubic);
-        (TimeSpan Remaining, TimeSpan Precision)? accepted = null;
-        for (var variant = 0; variant < 2; variant++)
+        // Keep the narrow strokes of closed digits through the two resize stages.
+        // At 48 pixels the Strong Sword font's 8 can alias to 3 in grayscale.
+        for (var attempt = 0; attempt < 2; attempt++)
         {
-            token.ThrowIfCancellationRequested();
-            using var prepared = new Mat();
-            if (variant == 0) Cv2.BitwiseNot(large, prepared);
-            else Cv2.Threshold(large, prepared, 0, 255, ThresholdTypes.BinaryInv | ThresholdTypes.Otsu);
-            using var padded = new Mat();
-            Cv2.CopyMakeBorder(prepared, padded, 12, 12, 12, 12, BorderTypes.Constant, Scalar.All(255));
-            var result = recognize?.Invoke(padded, token) ?? _engine!.Recognize(padded, token);
-            var timer = ParseTimer(result.Text);
-            if (accepted is not null && timer is not null && accepted != timer) return null;
-            accepted ??= timer;
+            using var large = new Mat();
+            var scale = Math.Clamp((attempt == 0 ? 56d : 32d) / region.Height, 1, 4);
+            Cv2.Resize(gray, large, new OpenCvSharp.Size((int)Math.Round(gray.Width * scale),
+                (int)Math.Round(gray.Height * scale)), interpolation: InterpolationFlags.Cubic);
+            (TimeSpan Remaining, TimeSpan Precision)? accepted = null;
+            var readableVariants = 0;
+            for (var variant = 0; variant < 2; variant++)
+            {
+                token.ThrowIfCancellationRequested();
+                using var prepared = new Mat();
+                if (variant == 0) Cv2.BitwiseNot(large, prepared);
+                else Cv2.Threshold(large, prepared, 0, 255, ThresholdTypes.BinaryInv | ThresholdTypes.Otsu);
+                using var padded = new Mat();
+                Cv2.CopyMakeBorder(prepared, padded, 12, 12, 12, 12, BorderTypes.Constant, Scalar.All(255));
+                // A second interpolation after padding keeps tiny serifs connected:
+                // direct scaling can split 13m into 113m or the digits of 114m.
+                using var readable = new Mat();
+                Cv2.Resize(padded, readable, new OpenCvSharp.Size(), 1.5, 1.5, InterpolationFlags.Cubic);
+                var result = recognize?.Invoke(readable, token) ?? _engine!.Recognize(readable, token);
+                var timer = ParseTimer(result.Text);
+                if (accepted is not null && timer is not null && accepted != timer) return null;
+                if (timer is not null) readableVariants++;
+                accepted ??= timer;
+            }
+            if (accepted is not null && (attempt == 0 || readableVariants == 2)) return accepted;
+            // Very short labels such as 2h can disappear from OCR at the larger
+            // size. Retry unreadable labels at a smaller scale, requiring two
+            // agreeing preparations; never override a contradictory primary read.
         }
-        return accepted;
+        return null;
     }
 
     internal static (TimeSpan Remaining, TimeSpan Precision)? ParseTimer(string? text)

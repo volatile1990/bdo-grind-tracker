@@ -60,12 +60,14 @@ internal static class CaptureConfigurationErrorPresentation
                     "RelativePosX is not a valid single-precision number." or
                     "RelativePosY is not a valid single-precision number." => InvalidNormalPosition,
                 "No screen width was found." or "No screen height was found." or
+                    "The active Resolution configuration is ambiguous." or
                     "The calibrated screen resolution must be positive." or
                     "Width is not a positive 32-bit screen dimension." or
                     "Height is not a positive 32-bit screen dimension." or
                     "GameOption width is not a positive 32-bit screen dimension." or
                     "GameOption height is not a positive 32-bit screen dimension." => InvalidResolution,
                 "No UI scale was found." or
+                    "The active UiScale configuration is ambiguous." or
                     "The calibrated UI scale must be finite and positive." or
                     "UiScale Value is not a valid single-precision number." or
                     "GameOption uiScale is not a valid single-precision number." => InvalidScale,

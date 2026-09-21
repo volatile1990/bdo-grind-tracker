@@ -56,7 +56,8 @@ internal static class FrameAnalyzerFactory
                 catalog.Select(item => new LifetimeParsingCatalogEntry(item.Name,
                     ItemLocalizationCatalog.GermanNames.TryGetValue(item.Name, out var germanName)
                         ? new[] { germanName } : Array.Empty<string>(),
-                    DropQuantityCatalog.GetBounds(null, item.Name)?.IsFixedUnit == true)).ToArray());
+                    DropQuantityCatalog.GetBounds(null, item.Name)?.IsFixedUnit == true,
+                    LootSourceCatalog.GetRequired(item.Name))).ToArray());
             var analyzer = new CompanionLootFrameAnalyzer(
                 calibration,
                 matcher,
@@ -70,7 +71,8 @@ internal static class FrameAnalyzerFactory
                     useVisualSlotCoverage: false, source: LootSource.Rare, slotCount: 1),
                 captureGuard: new LootPanelCaptureGuard(calibration, ReadCalibration),
                 configureGameLanguage: ConfigureLanguage,
-                rowReview: new BackgroundLootRowReview(matcher, tag => PaddleLootOcrRecognizer.Create(tag)));
+                rowReview: new BackgroundLootRowReview(matcher, tag => PaddleLootOcrRecognizer.Create(tag)),
+                lootSourceResolver: LootSourceCatalog.GetRequired);
             rowPipeline = null;
             return analyzer;
         }

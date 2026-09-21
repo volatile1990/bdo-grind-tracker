@@ -6,15 +6,18 @@ namespace BdoGrindTracker.App.Persistence;
 internal static class AtomicFile
 {
     public static void WriteAllText(string path, string text)
+        => Write(path, stream => stream.Write(Encoding.UTF8.GetBytes(text)));
+
+    public static void Write(string path, Action<Stream> write)
     {
+        ArgumentNullException.ThrowIfNull(write);
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
         var temporary = path + ".tmp";
         try
         {
             using (var stream = new FileStream(temporary, FileMode.Create, FileAccess.Write, FileShare.None))
             {
-                var bytes = Encoding.UTF8.GetBytes(text);
-                stream.Write(bytes);
+                write(stream);
                 stream.Flush(flushToDisk: true);
             }
             if (File.Exists(path)) File.Replace(temporary, path, path + ".bak");

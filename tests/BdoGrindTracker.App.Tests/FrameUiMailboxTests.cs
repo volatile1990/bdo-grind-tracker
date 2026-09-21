@@ -8,6 +8,77 @@ namespace BdoGrindTracker.App.Tests;
 
 public sealed class FrameUiMailboxTests(ITestOutputHelper output)
 {
+    [Theory]
+    [InlineData(131, true)]
+    [InlineData(128, true)]
+    [InlineData(100, true)]
+    [InlineData(131, false)]
+    [InlineData(128, false)]
+    [InlineData(100, false)]
+    public void MixedProjectedRevisionAndArrivalRequireReviewEvenWhenCountsOrNetTotalsHideTheRevision(
+        long total, bool hasEvidence)
+    {
+        using var mailbox = new FrameUiMailbox();
+        var corrections = new List<(bool Correction, bool Review)>();
+        var first = ProjectedFrame(1, 1, "Helmet", 100);
+        var second = ProjectedFrame(2, 2, "Helmet", total);
+        if (hasEvidence)
+        {
+            first = first with { LootProjection = first.LootProjection! with { QuantityCorrectionRevision = 0 } };
+            second = second with { LootProjection = second.LootProjection! with { QuantityCorrectionRevision = 1 } };
+        }
+        second = second with { LootProjection = new LootTotalsProjection(2, second.LootProjection!.Totals, 2,
+            DateTimeOffset.UnixEpoch.AddMinutes(1)) { QuantityCorrectionRevision = second.LootProjection.QuantityCorrectionRevision } };
+        mailbox.Publish(first, onObserved: (_, _, correction, review) => corrections.Add((correction, review)));
+        mailbox.Publish(second, onObserved: (_, _, correction, review) => corrections.Add((correction, review)));
+
+        Assert.False(corrections[0].Review);
+        Assert.True(corrections[1].Review);
+        if (hasEvidence) Assert.True(corrections[1].Correction);
+    }
+
+    [Fact]
+    public void EvidenceOfPureProjectedAdditionsDoesNotRequestReview()
+    {
+        using var mailbox = new FrameUiMailbox();
+        var observed = new List<(bool Correction, bool Review)>();
+        foreach (var frame in new[] { ProjectedFrame(1, 1, "Helmet", 100), ProjectedFrame(2, 2, "Helmet", 131) })
+            mailbox.Publish(frame with { LootProjection = frame.LootProjection! with { QuantityCorrectionRevision = 0 } },
+                onObserved: (_, _, correction, review) => observed.Add((correction, review)));
+        Assert.All(observed, item => { Assert.False(item.Correction); Assert.False(item.Review); });
+    }
+
+    [Fact]
+    public void IgnoredStaleProjectionCannotSuspendUploads()
+    {
+        using var mailbox = new FrameUiMailbox();
+        var at = DateTimeOffset.UnixEpoch;
+        var current = ProjectedFrame(2, 2, "Helmet", 100);
+        mailbox.Publish(current, capturedAt: at);
+        mailbox.Publish(current, capturedAt: at.AddSeconds(2));
+        bool? requestedReview = null;
+        mailbox.Publish(ProjectedFrame(1, 1, "Helmet", 50), capturedAt: at.AddSeconds(3),
+            onObserved: (_, _, _, review) => requestedReview = review);
+        Assert.False(requestedReview);
+    }
+
+    [Fact]
+    public void UploadObserverDistinguishesBufferedConfirmationFromQuantityRevision()
+    {
+        using var mailbox = new FrameUiMailbox();
+        var observed = new List<(bool Arrival, bool Correction)>();
+        Action<IReadOnlyDictionary<string, long>, bool, bool, bool> observer = (_, arrival, correction, _) =>
+            observed.Add((arrival, correction));
+        var at = DateTimeOffset.UnixEpoch;
+        var frame = ProjectedFrame(1, 1, "Helmet", 4);
+        mailbox.Publish(frame, capturedAt: at, onObserved: observer);
+        mailbox.Publish(frame, capturedAt: at.AddSeconds(3), onObserved: observer);
+        mailbox.Publish(ProjectedFrame(2, 1, "Helmet", 8), capturedAt: at.AddSeconds(4), onObserved: observer);
+        mailbox.Publish(ProjectedFrame(2, 1, "Helmet", 8), capturedAt: at.AddSeconds(7), onObserved: observer);
+
+        Assert.Equal([(true, false), (false, false), (false, false), (false, true)], observed);
+    }
+
     [Fact]
     public void ProjectionIsAuthoritativeAndAuditDeltasAreNotAppliedAgain()
     {

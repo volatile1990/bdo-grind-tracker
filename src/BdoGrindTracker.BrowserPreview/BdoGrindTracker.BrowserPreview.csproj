@@ -2,7 +2,7 @@
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
     <RootNamespace>BdoGrindTracker.BrowserPreview</RootNamespace>
-    <Version>1.7.0</Version>
+    <Version>1.8.2</Version>
     <!-- Static files are copied from the same sources for both run and publish. -->
     <StaticWebAssetsEnabled>false</StaticWebAssetsEnabled>
   </PropertyGroup>
@@ -16,6 +16,7 @@
     <Content Update="wwwroot/**/*" CopyToOutputDirectory="PreserveNewest" />
     <Compile Include="../BdoGrindTracker.App/AppBranding.cs" Link="Shared/AppBranding.cs" />
     <Compile Include="../BdoGrindTracker.App/Theming/*.cs" Link="Shared/Theming/%(Filename)%(Extension)" />
+    <Compile Include="../BdoGrindTracker.App/Localization/*.cs" Link="Shared/Localization/%(Filename)%(Extension)" />
     <Compile Include="../BdoGrindTracker.App/Components/**/*.cs" Link="Components/%(RecursiveDir)%(Filename)%(Extension)" />
     <Content Include="../BdoGrindTracker.App/Components/**/*.razor" Link="Components/%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="../BdoGrindTracker.App/Application/TrackerContracts.cs;../BdoGrindTracker.App/Application/CaptureConfigurationContracts.cs;../BdoGrindTracker.App/Application/PreviewTrackerSession.cs;../BdoGrindTracker.App/Application/AssetNames.cs" Link="Shared/Application/%(Filename)%(Extension)" />
@@ -23,6 +24,8 @@
     <Compile Include="../BdoGrindTracker.App/Character/CompanionCharacterClassCatalog.cs" Link="Shared/Character/%(Filename)%(Extension)" />
     <Compile Include="../BdoGrindTracker.App/Pricing/BuffPriceCatalog.cs;../BdoGrindTracker.App/UI/BuffLedgerSnapshotJsonConverter.cs" Link="Shared/Buffs/%(Filename)%(Extension)" />
     <Compile Include="../BdoGrindTracker.App/Analysis/BuffRecognitionProfile.cs" Link="Shared/Analysis/BuffRecognitionProfile.cs" />
+    <Compile Include="../BdoGrindTracker.App/Analysis/AutomaticBuffCatalog.cs" Link="Shared/Analysis/AutomaticBuffCatalog.cs" />
+    <EmbeddedResource Include="../../data/ocr/buffs/catalog.json" LogicalName="BdoGrindTracker.App.Buffs.catalog.json" />
     <Compile Include="../BdoGrindTracker.App/UI/CombatStatsState.cs" Link="Shared/UI/CombatStatsState.cs" />
     <Compile Include="../BdoGrindTracker.App/UI/CombatStatsSpotRules.cs" Link="Shared/UI/CombatStatsSpotRules.cs" />
     <Compile Include="../BdoGrindTracker.App/Analysis/CombatStatsColorClassifier.cs" Link="Shared/Analysis/CombatStatsColorClassifier.cs" />
@@ -34,6 +37,7 @@
     <Compile Include="../BdoGrindTracker.App/Updates/IAppUpdates.cs" Link="Shared/Updates/%(Filename)%(Extension)" />
     <Content Include="../BdoGrindTracker.App/wwwroot/*.css;../BdoGrindTracker.App/wwwroot/*.js" Link="wwwroot/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="../../data/**/*.png;../../data/**/*.jpg;../../data/**/*.webp" Exclude="../../data/ocr/**/*" Link="wwwroot/assets/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../../data/ocr/buffs/client-*.png" Link="wwwroot/assets/buffs/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="../../data/branding/grindcrest.ico" Link="wwwroot/assets/branding/grindcrest.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="../../data/icons/catalog.json" Link="data/icons/catalog.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>

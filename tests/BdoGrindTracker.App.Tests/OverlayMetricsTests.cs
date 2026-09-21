@@ -19,13 +19,13 @@ public sealed class OverlayMetricsTests
     {
         var state = Session() with { Elapsed = TimeSpan.FromMinutes(30),
             ExperienceGainedPercentagePoints = 1.25m, ExperienceObservedDuration = TimeSpan.FromMinutes(30) };
-        var snapshot = new OverlayMetrics().Update(state, new());
+        var snapshot = new OverlayMetrics().Update(state, new() { UiLanguage = "de" });
         Assert.Equal("+1,250 %", snapshot.Metrics["experience"].Value);
         Assert.Equal("+2,500 % / h", snapshot.Metrics["experience"].Detail);
         var markup = await RenderAsync(OverlayCatalog.CreateWidget("experience") with { ShowLabel = false }, snapshot);
         Assert.Contains("+1,250 %", markup);
         Assert.Contains("+2,500 % / h", markup);
-        var missing = new OverlayMetrics().Update(new TrackerState(), new()).Metrics["experience"];
+        var missing = new OverlayMetrics().Update(new TrackerState(), new() { UiLanguage = "de" }).Metrics["experience"];
         Assert.Equal("—", missing.Value);
         Assert.Equal("— / h", missing.Detail);
     }
@@ -44,7 +44,7 @@ public sealed class OverlayMetricsTests
             Silver = new(60_000_000, 50_000_000, 3, [], [], false),
         };
 
-        var actual = new OverlayMetrics().Update(state, new() { GameLanguage = "auto" });
+        var actual = new OverlayMetrics().Update(state, new() { UiLanguage = "de", GameLanguage = "auto" });
 
         Assert.Equal("00:30:00", actual.Metrics["duration"].Value);
         Assert.Equal("1.735", actual.Metrics["trash"].Value);
@@ -72,7 +72,7 @@ public sealed class OverlayMetricsTests
                 ["Black Stone"] = 4, ["Caphras Stone"] = 2, ["Ancient Spirit Dust"] = 5,
                 ["BON Origin Shard"] = 1, ["Broken Vestige of Ebonmere"] = 1, ["Pure Black Stone"] = 1,
             }, 14, 8),
-        }, new());
+        }, new() { UiLanguage = "de" });
 
         Assert.Equal(6, actual.Drops.Count);
         Assert.Equal(new[] { "Broken Vestige of Ebonmere", "Pure Black Stone" }, actual.RareDrops.Select(item => item.CanonicalName));
@@ -83,24 +83,24 @@ public sealed class OverlayMetricsTests
     {
         var metrics = new OverlayMetrics();
         var state = Session() with { Silver = new(0, 0, 0, ["Black Crystal Fragment"], [], false) };
-        var unknown = metrics.Update(state, new());
+        var unknown = metrics.Update(state, new() { UiLanguage = "de" });
         Assert.Equal("—", unknown.Metrics["silver"].Value);
         Assert.Equal("—", unknown.Metrics["silver-hour"].Value);
         Assert.Empty(unknown.SilverHistory);
 
-        var partial = metrics.Update(state with { Silver = new(12_000_000, 12_000_000, 1, ["Black Stone"], [], false) }, new());
+        var partial = metrics.Update(state with { Silver = new(12_000_000, 12_000_000, 1, ["Black Stone"], [], false) }, new() { UiLanguage = "de" });
         Assert.Equal("12,0 Mio. *", partial.Metrics["silver"].Value);
         Assert.EndsWith(" *", partial.Metrics["silver-hour"].Value);
         Assert.Equal("Teilbetrag · Preise fehlen", partial.Metrics["chart"].Detail);
 
-        var stale = metrics.Update(state with { Silver = new(12_000_000, 12_000_000, 1, [], [], true) }, new());
+        var stale = metrics.Update(state with { Silver = new(12_000_000, 12_000_000, 1, [], [], true) }, new() { UiLanguage = "de" });
         Assert.Equal("Gespeicherte Marktpreise", stale.Metrics["silver"].Detail);
     }
 
     [Fact]
     public void EmptyOrZeroDurationSessionShowsNoInventedHourlyRate()
     {
-        var snapshot = new OverlayMetrics().Update(new(), new());
+        var snapshot = new OverlayMetrics().Update(new(), new() { UiLanguage = "de" });
         Assert.Equal("0", snapshot.Metrics["silver"].Value);
         Assert.Equal("—", snapshot.Metrics["silver-hour"].Value);
         Assert.Equal("0", snapshot.Metrics["trash-hour"].Value);
@@ -113,14 +113,14 @@ public sealed class OverlayMetricsTests
     {
         var metrics = new OverlayMetrics();
         var state = Session();
-        Assert.Empty(metrics.Update(state, new()).SilverHistory);
-        Assert.Empty(metrics.Update(state with { Elapsed = TimeSpan.FromHours(1) }, new()).SilverHistory);
+        Assert.Empty(metrics.Update(state, new() { UiLanguage = "de" }).SilverHistory);
+        Assert.Empty(metrics.Update(state with { Elapsed = TimeSpan.FromHours(1) }, new() { UiLanguage = "de" }).SilverHistory);
         var history = Array.AsReadOnly(new[]
         {
             new SessionSilverSample(TimeSpan.FromMinutes(1), 12_000_000),
             new SessionSilverSample(TimeSpan.FromMinutes(10), 6_000_000),
         });
-        var snapshot = metrics.Update(state with { SilverHistory = history }, new());
+        var snapshot = metrics.Update(state with { SilverHistory = history }, new() { UiLanguage = "de" });
         Assert.Same(history, snapshot.SilverHistory);
         Assert.Equal(snapshot.Metrics["silver-hour"].Value, snapshot.Metrics["chart"].Value);
         Assert.Equal("Session-Durchschnitt", snapshot.Metrics["chart"].Detail);
@@ -135,8 +135,8 @@ public sealed class OverlayMetricsTests
             SilverHistory = Array.AsReadOnly(Enumerable.Range(1, 200)
                 .Select(step => new SessionSilverSample(TimeSpan.FromSeconds(step * 10), 1_000_000)).ToArray()),
         };
-        Assert.Same(state.SilverHistory, new OverlayMetrics().Update(state, new()).SilverHistory);
-        Assert.Same(state.SilverHistory, new OverlayMetrics().Update(state with { IsRunning = false }, new()).SilverHistory);
+        Assert.Same(state.SilverHistory, new OverlayMetrics().Update(state, new() { UiLanguage = "de" }).SilverHistory);
+        Assert.Same(state.SilverHistory, new OverlayMetrics().Update(state with { IsRunning = false }, new() { UiLanguage = "de" }).SilverHistory);
     }
 
     [Theory]
@@ -158,18 +158,18 @@ public sealed class OverlayMetricsTests
             "submitted" => state with { IsSubmitted = true },
             _ => state with { AnalyzerAvailable = false },
         };
-        Assert.False(new OverlayMetrics().Update(state, new()).CanToggleTracking);
+        Assert.False(new OverlayMetrics().Update(state, new() { UiLanguage = "de" }).CanToggleTracking);
     }
 
     [Fact]
     public void RunningSessionCanAlwaysPauseWhenCaptureHasNoStartBlock()
     {
         var metrics = new OverlayMetrics();
-        var active = metrics.Update(Session(), new());
+        var active = metrics.Update(Session(), new() { UiLanguage = "de" });
         Assert.True(active.CanToggleTracking);
         Assert.Equal("Pausieren", active.TrackingButtonLabel);
-        Assert.Equal("Fortsetzen", metrics.Update(Session() with { IsRunning = false }, new()).TrackingButtonLabel);
-        Assert.Equal("Tracking starten", metrics.Update(new() { AnalyzerAvailable = true }, new()).TrackingButtonLabel);
+        Assert.Equal("Fortsetzen", metrics.Update(Session() with { IsRunning = false }, new() { UiLanguage = "de" }).TrackingButtonLabel);
+        Assert.Equal("Tracking starten", metrics.Update(new() { AnalyzerAvailable = true }, new() { UiLanguage = "de" }).TrackingButtonLabel);
     }
 
     [Theory]
@@ -178,14 +178,14 @@ public sealed class OverlayMetricsTests
     public void RunningControlsUseTheSamePauseCapabilityAsTheLiveDashboard(bool canPause)
     {
         var state = Session() with { IsBusy = true, CanPause = canPause };
-        Assert.Equal(canPause, new OverlayMetrics().Update(state, new()).CanToggleTracking);
+        Assert.Equal(canPause, new OverlayMetrics().Update(state, new() { UiLanguage = "de" }).CanToggleTracking);
     }
 
     [Fact]
     public void ExtremeRateDoesNotOverflowOrInventAValue()
     {
         var state = Session() with { Elapsed = TimeSpan.FromTicks(1), Silver = new(decimal.MaxValue, decimal.MaxValue, 1, [], [], false) };
-        var snapshot = new OverlayMetrics().Update(state, new());
+        var snapshot = new OverlayMetrics().Update(state, new() { UiLanguage = "de" });
         Assert.Equal("—", snapshot.Metrics["silver-hour"].Value);
         Assert.Empty(snapshot.SilverHistory);
     }
@@ -216,7 +216,7 @@ public sealed class OverlayMetricsTests
         Assert.Contains("role=\"img\"", chart);
         Assert.Contains("overlay-chart-line", chart);
         Assert.DoesNotContain("NaN", chart);
-        var empty = await RenderAsync(OverlayCatalog.CreateWidget("rare-drops"), new());
+        var empty = await RenderAsync(OverlayCatalog.CreateWidget("rare-drops"), new() { UiLanguage = "de" });
         Assert.Contains("Noch keine seltenen Drops", empty);
     }
 
@@ -236,14 +236,14 @@ public sealed class OverlayMetricsTests
     {
         var state = Session() with { LootScroll = new(LootScrollStatus.Inactive) };
         var widget = OverlayCatalog.CreateWidget("loot-scroll");
-        var warning = await RenderAsync(widget, new OverlayMetrics().Update(state, new()));
+        var warning = await RenderAsync(widget, new OverlayMetrics().Update(state, new() { UiLanguage = "de" }));
         Assert.Contains("is-warning", warning);
         Assert.Contains("Loot-Scroll ist nicht aktiv.", warning);
         Assert.Contains("Inaktiv", warning);
         Assert.DoesNotContain("<button", warning);
 
         var unknown = await RenderAsync(widget, new OverlayMetrics().Update(
-            state with { LootScroll = LootScrollState.Unknown }, new()));
+            state with { LootScroll = LootScrollState.Unknown }, new() { UiLanguage = "de" }));
         Assert.Contains("Nicht erkannt", unknown);
         Assert.DoesNotContain("is-warning", unknown);
         Assert.DoesNotContain("Loot-Scroll ist nicht aktiv.", unknown);

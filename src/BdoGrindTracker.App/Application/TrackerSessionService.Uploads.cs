@@ -60,6 +60,8 @@ internal sealed partial class TrackerSessionService
             return GarmothUploadPreview.Unavailable(historyError);
         if (_demoMode) return GarmothUploadPreview.Unavailable("Demo-Sessions werden nicht hochgeladen.");
         if (!_hasSession) return GarmothUploadPreview.Unavailable("Starte zuerst eine Live-Session.", "/", "Zur Live-Session");
+        if (_provisionalAutomaticGrind)
+            return GarmothUploadPreview.Unavailable("Die automatische Session wird nach 5 getrennten Drops gespeichert.");
         if (_sessionSubmitted || _garmothIntervals.IsBlocked || _garmothRestartBlocks.Contains(_sessionId))
             return GarmothUploadPreview.Unavailable("Weitere Uploads dieser Session sind gesperrt. Bitte den Status in Garmoth prüfen.");
         var interval = _garmothIntervals.PreviewManual(_sessionClock.Elapsed, _sessionSummary.Totals,
@@ -86,7 +88,7 @@ internal sealed partial class TrackerSessionService
 
     private async Task UploadCurrentSessionCoreAsync(GarmothUploadPreview? confirmed = null)
     {
-        if (_sessionSubmitted || _garmothIntervals.IsBlocked || _garmothRestartBlocks.Contains(_sessionId) || !_hasSession || _demoMode)
+        if (_sessionSubmitted || _provisionalAutomaticGrind || _garmothIntervals.IsBlocked || _garmothRestartBlocks.Contains(_sessionId) || !_hasSession || _demoMode)
             throw new InvalidOperationException("Diese Session kann derzeit nicht übertragen werden.");
         EnsureGarmothUploadAvailable();
         RefreshPendingState();
@@ -128,7 +130,7 @@ internal sealed partial class TrackerSessionService
 
     private async Task UploadHourlyCoreAsync()
     {
-        if (!Preferences.AutoUpload || !_hasSession || _restoredSessionNeedsCaptureSetup || IsBusy || _sessionSubmitted || _shutdownStarted ||
+        if (!Preferences.AutoUpload || !_hasSession || _provisionalAutomaticGrind || _restoredSessionNeedsCaptureSetup || IsBusy || _sessionSubmitted || _shutdownStarted ||
             _garmothIntervals.IsBlocked || _garmothIntervals.AutomaticSuspended || _garmothPersistenceError is not null ||
             _garmothRestartBlocks.Contains(_sessionId)) return;
         // Shared trash needs an explicit area/tier before a safe upload. Keep
@@ -138,6 +140,10 @@ internal sealed partial class TrackerSessionService
             var variants = BdoGrindTracker.Core.LootSpotCatalog.VariantsFor(spotId);
             if (variants.Count > 0 && !variants.Any(variant => variant.Id == spotId)) return;
         }
+        // Detection can recover on a later tick. Keep complete hours queued
+        // instead of turning a temporarily missing class into a rejected upload
+        // that permanently suspends the automatic path.
+        if ((_sessionClass ?? SelectedCharacterClass) is null) return;
         var interval = _garmothIntervals.PrepareAutomatic();
         if (interval is null) return;
         _garmothUploadInProgress = true;
@@ -156,7 +162,11 @@ internal sealed partial class TrackerSessionService
                 ? " Nur dieser Stundenabschnitt wurde übertragen."
                 : _garmothIntervals.IsBlocked
                     ? " Weitere Uploads dieser Sitzung sind gesperrt. Tracking läuft weiter; bitte in Garmoth prüfen."
+                    : _garmothIntervals.CorrectionReviewRequired
+                        ? " " + GarmothUploadIntervals.CorrectionReviewMessage
                     : " Auto-Upload angehalten. Korrigiere den Schlüssel oder wähle auf der Garmoth-Seite Automatik fortsetzen.";
+            if (result.Status == GarmothUploadStatus.Succeeded && _garmothIntervals.CorrectionReviewRequired)
+                guidance += " " + GarmothUploadIntervals.CorrectionReviewMessage;
             SetUploadResult(result, historySaved, guidance);
         }
         catch (Exception exception)

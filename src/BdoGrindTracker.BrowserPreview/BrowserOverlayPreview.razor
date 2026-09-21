@@ -1,22 +1,23 @@
 @implements IAsyncDisposable
+@inherits LocalizedComponentBase
 @inject IOverlayService Overlay
 @inject IJSRuntime JS
 
 <dialog id="browser-overlay-preview" class="browser-overlay-dialog" data-theme="@Overlay.Snapshot.ThemeId" aria-labelledby="browser-overlay-title" @onclose="Close" @oncancel="Close">
     <header class="browser-overlay-toolbar">
-        <div><h1 id="browser-overlay-title">@SelectedName</h1><p>Overlay-Vorschau · @Css(Settings.Width) × @Css(Settings.Height) px</p></div>
-        <label>Hintergrund
-            <select aria-label="Vorschau-Hintergrund" @bind="_background">
-                <option value="scene">Spotbild</option><option value="dark">Dunkel</option><option value="light">Hell</option><option value="grid">Transparenzraster</option>
+        <div><h1 id="browser-overlay-title">@SelectedName</h1><p>@F("Overlay-Vorschau · {0} × {1} px", Settings.Width, Settings.Height)</p></div>
+        <label>@T("Hintergrund")
+            <select aria-label="@T("Vorschau-Hintergrund")" @bind="_background">
+                <option value="scene">@T("Spotbild")</option><option value="dark">@T("Dunkel")</option><option value="light">@T("Hell")</option><option value="grid">@T("Transparenzraster")</option>
             </select>
         </label>
         @if (HasRotationWidget)
         {
-            <label class="oe-check" title="Hermesia-Beispieldaten nur für diese Vorschau; deine Session bleibt unverändert.">
-                <input type="checkbox" @bind="_rotationExample" /><span>Rotationsbeispiel</span>
+            <label class="oe-check" title="@T("Hermesia-Beispieldaten nur für diese Vorschau; deine Session bleibt unverändert.")">
+                <input type="checkbox" @bind="_rotationExample" /><span>@T("Rotationsbeispiel")</span>
             </label>
         }
-        <button type="button" class="button secondary" @onclick="Close" autofocus>Zurück zum Editor</button>
+        <button type="button" class="button secondary" @onclick="Close" autofocus>@T("Zurück zum Editor")</button>
     </header>
     <div class="browser-overlay-stage background-@_background">
         <div class="oe-stage-viewport">
@@ -34,10 +35,10 @@
                 </div>
             </div>
         </div>
-        @if (Settings.Widgets.Count == 0) { <p class="browser-overlay-empty">Dieses Overlay ist leer. Füge im Editor Module hinzu oder wähle eine Vorlage.</p> }
+        @if (Settings.Widgets.Count == 0) { <p class="browser-overlay-empty">@T("Dieses Overlay ist leer. Füge im Editor Module hinzu oder wähle eine Vorlage.")</p> }
     </div>
-    <footer class="browser-overlay-footer">Die Ansicht wird bei Bedarf verkleinert. Schrift und Details können unter Windows abweichen. Globale Tastenkürzel und Klickdurchleitung sind hier nicht aktiv.</footer>
-    @if (_error is not null) { <p role="alert">@_error</p> }
+    <footer class="browser-overlay-footer">@T("Die Ansicht wird bei Bedarf verkleinert. Schrift und Details können unter Windows abweichen. Globale Tastenkürzel und Klickdurchleitung sind hier nicht aktiv.")</footer>
+    @if (_error is not null) { <p role="alert">@T(_error)</p> }
 </dialog>
 
 @code {
@@ -47,6 +48,7 @@
     private bool _shown, _disposed, _startingSession;
     private bool _rotationExample = true;
     private double _rotationExampleSeconds = 350;
+    protected override string UiLanguage => Overlay.Snapshot.UiLanguage;
     private OverlaySettings Settings => Overlay.Settings;
     private bool HasRotationWidget => Settings.Widgets.Any(widget => widget.Kind == "rotation-monitor");
     private OverlaySnapshot PreviewSnapshot => _rotationExample && HasRotationWidget
@@ -59,7 +61,11 @@
     private string ContentStyle => $"inset:{Css(Chrome.Top)}px {Css(Chrome.Right)}px {Css(Chrome.Bottom)}px {Css(Chrome.Left)}px";
     private static string WidgetStyle(OverlayWidget widget) => $"left:{Css(widget.X)}px;top:{Css(widget.Y)}px;width:{Css(widget.Width)}px;height:{Css(widget.Height)}px";
 
-    protected override void OnInitialized() => Overlay.Changed += OnChanged;
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        Overlay.Changed += OnChanged;
+    }
     private void OnChanged()
     {
         if (!_disposed) _ = InvokeAsync(() => { if (!_disposed) StateHasChanged(); });
@@ -104,7 +110,7 @@
         try
         {
             _error = null;
-            if (await JS.InvokeAsync<bool>("confirm", "Neue Session beginnen? Die bisherige Session wird abgeschlossen."))
+            if (await JS.InvokeAsync<bool>("confirm", T("Neue Session beginnen? Die bisherige Session wird abgeschlossen.")))
                 await Overlay.NewSessionAsync();
         }
         catch (Exception error) when (error is InvalidOperationException or JSException) { _error = error.Message; }
@@ -114,6 +120,7 @@
     public async ValueTask DisposeAsync()
     {
         _disposed = true;
+        base.Dispose();
         Overlay.Changed -= OnChanged;
         try { await JS.InvokeVoidAsync("grindcrestOverlayEditor.unmount", DialogId); }
         catch (JSDisconnectedException) { }

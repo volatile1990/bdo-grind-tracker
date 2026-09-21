@@ -70,6 +70,7 @@ public static class OverlayCatalog
     public static IReadOnlyList<OverlayWidgetDefinition> Widgets { get; } = Array.AsReadOnly(new[]
     {
         new OverlayWidgetDefinition("drop-grid", "Drop-Raster", "Itemicons und Mengen der Live-Session", "loot", 344, 168),
+        new OverlayWidgetDefinition("consumables", "Verbrauchte Items", "Verwendete Buffs, Mengen und gesamte Silberkosten", "loot", 344, 128),
         new OverlayWidgetDefinition("drop-strip", "Drop-Leiste", "Kompakte Iconreihe mit Mengen", "loot", 344, 112),
         new OverlayWidgetDefinition("drop-list", "Drop-Liste", "Itemnamen und Mengen untereinander", "loot", 344, 224),
         new OverlayWidgetDefinition("drop-item", "Einzelnes Item", "Ein gewähltes Item als eigene Kachel", "loot", 168, 104),
@@ -234,13 +235,13 @@ public static class OverlayLayout
                 X = Finite(widget.X, 0, 0, 1600 - w), Y = Finite(widget.Y, 0, 0, 1200 - h),
                 FontScale = Finite(widget.FontScale, 1, .7, 2),
                 ItemLimit = Math.Clamp(widget.ItemLimit, 1, 24),
-                ItemView = widget.Kind == "drop-item" ? "card" :
+                ItemView = widget.Kind == "consumables" ? "grid" : widget.Kind == "drop-item" ? "card" :
                     widget.ItemView is "list" or "strip" or "card" ? widget.ItemView : "grid",
                 ItemSize = Finite(widget.ItemSize, 56, 32, 112),
-                ItemFilter = widget.Kind == "drop-item" ? "selected" : widget.Kind == "rare-drops" ? "rare" :
+                ItemFilter = widget.Kind == "consumables" ? "all" : widget.Kind == "drop-item" ? "selected" : widget.Kind == "rare-drops" ? "rare" :
                     widget.ItemFilter is "rare" or "trash" or "selected" ? widget.ItemFilter : "all",
                 ItemSort = widget.ItemSort is "quantity" or "name" ? widget.ItemSort : "default",
-                ItemNames = NormalizeNames(widget),
+                ItemNames = widget.Kind == "consumables" ? Array.Empty<string>() : NormalizeNames(widget),
                 ShowRealTime = widget.ShowRealTime || (!widget.ShowGameTime && !widget.ShowDayNightCountdown),
                 ClockOffsetMinutes = Math.Clamp(widget.ClockOffsetMinutes, -240, 240),
                 RotationComparison = widget.RotationComparison is "sectors" or "ideal" ? widget.RotationComparison : "best",

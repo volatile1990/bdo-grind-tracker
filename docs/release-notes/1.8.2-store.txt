@@ -1,0 +1,5 @@
+Neu in Grindcrest 1.8.2:
+
+• Stabilere Klassenerkennung: Die Erkennung berücksichtigt weitere Konfigurationsordner, alle relevanten UI-Voreinstellungen und die tatsächlichen Speicherzeiten der Konfigurationsdateien.
+• Automatische Garmoth-Stunden-Uploads warten bei vorübergehend fehlender Klasse und laufen nach erfolgreicher Erkennung weiter.
+• Zeit seit dem letzten Drop: In der Live-Drop-Liste steht bei Items aus dem Rare-Drop-Log rechts ein Zeit-Tag. Gezählt wird aktive Grindzeit ohne Pausen. Ohne bekannten Drop-Zeitpunkt erscheint „—“.

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using BdoGrindTracker.App.Analysis;
 using BdoGrindTracker.App.Persistence;
 using BdoGrindTracker.App.Pricing;
 using BdoGrindTracker.Core;
@@ -10,6 +11,32 @@ namespace BdoGrindTracker.App.Tests;
 public sealed class BuffPersistenceTests
 {
     private static readonly DateTimeOffset ObservedAt = new(2026, 9, 21, 12, 0, 20, TimeSpan.Zero);
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void SessionStartBookingsRoundTripAndLegacyMissingMarkersRemainRenewals(bool legacy)
+    {
+        using var files = new Files();
+        var snapshot = ExampleBuffs();
+        snapshot = snapshot with { Consumptions = snapshot.Consumptions.Select(item => item with { IsSessionStart = true }).ToArray() };
+        var history = JsonSerializer.SerializeToNode(HistoryEntry() with { Buffs = snapshot })!.AsObject();
+        var current = JsonSerializer.SerializeToNode(Checkpoint() with { Buffs = snapshot })!.AsObject();
+        if (legacy)
+            foreach (var document in new[] { history, current })
+                foreach (var item in document["Buffs"]!["Consumptions"]!.AsArray())
+                    item!.AsObject().Remove(nameof(BuffConsumption.IsSessionStart));
+        files.Write(history, current);
+
+        foreach (var restored in new[] { Assert.Single(files.History.Load()).Buffs!, files.Current.Load()!.Buffs! })
+        {
+            Assert.Equal(!legacy, Assert.Single(restored.Consumptions).IsSessionStart);
+            Assert.Equal(snapshot.ConsumedCost, restored.ConsumedCost);
+            Assert.Equal(snapshot.KnownProratedCost, restored.KnownProratedCost);
+        }
+        Assert.Null(files.History.LoadError);
+        Assert.Null(files.Current.LoadError);
+    }
 
     [Fact]
     public void HistoryAndCheckpointKeepConsumptionPricesAndUsageWithoutRestoringActiveTimers()
@@ -35,6 +62,38 @@ public sealed class BuffPersistenceTests
     }
 
     [Fact]
+    public void AutomaticUnknownVariantGroupsSurviveBothStoresAlongsidePricedConsumptions()
+    {
+        using var files = new Files();
+        var groups = AutomaticBuffCatalog.Default.GroupDefinitions;
+        Assert.NotEmpty(groups);
+        var priced = ExampleBuffs();
+        var snapshot = new BuffLedgerSnapshot(
+            priced.Consumptions.Concat(groups.Select(group => new BuffConsumption(
+                group.Id, group.Name, null, ObservedAt, null))).ToArray(),
+            priced.Usage.Concat(groups.Select(group => new BuffUsage(
+                group.Id, group.Name, null, TimeSpan.FromSeconds(10), 0, TimeSpan.FromSeconds(10)))).ToArray(),
+            priced.Active.Concat(groups.Select(group => new BuffActive(
+                group.Id, group.Name, null, group.Duration, ObservedAt, null, false))).ToArray());
+        files.History.Save([HistoryEntry() with { Buffs = snapshot }]);
+        files.Current.Save(Checkpoint() with { Buffs = snapshot });
+
+        foreach (var saved in new[] { Assert.Single(files.History.Load()).Buffs, files.Current.Load()!.Buffs })
+        {
+            Assert.NotNull(saved);
+            Assert.Equal(snapshot.Consumptions, saved.Consumptions);
+            Assert.Equal(snapshot.Usage.OrderBy(item => item.BuffId), saved.Usage.OrderBy(item => item.BuffId));
+            Assert.Equal(priced.KnownConsumedCost, saved.KnownConsumedCost);
+            Assert.Equal(priced.KnownProratedCost, saved.KnownProratedCost);
+            Assert.Null(saved.ConsumedCost);
+            Assert.Null(saved.ProratedCost);
+            Assert.Empty(saved.Active);
+        }
+        Assert.Null(files.History.LoadError);
+        Assert.Null(files.Current.LoadError);
+    }
+
+    [Fact]
     public void UnknownPricesSurviveSavingAndCannotBecomeFreeBuffs()
     {
         using var files = new Files();
@@ -48,6 +107,45 @@ public sealed class BuffPersistenceTests
             Assert.Null(Assert.Single(saved.Consumptions).Price);
             Assert.Equal(TimeSpan.FromSeconds(10), Assert.Single(saved.Usage).UnpricedDuration);
         }
+    }
+
+    [Theory]
+    [InlineData("automatic-harmony-draught", "Harmony Draught (variant unknown)", 20)]
+    [InlineData("automatic-cron-meal", "Cron-Mahlzeiten (variant unknown)", 120)]
+    public void EarlierAutomaticFamiliesSurviveCatalogRefinementAlongsidePricedVariants(
+        string legacyId, string legacyName, int durationMinutes)
+    {
+        using var files = new Files();
+        var catalog = AutomaticBuffCatalog.Default;
+        var legacy = Assert.Single(catalog.HistoricalGroupDefinitions, definition => definition.Id == legacyId);
+        Assert.Equal(TimeSpan.FromMinutes(durationMinutes), legacy.Duration);
+        Assert.Null(legacy.MarketItemId);
+        Assert.Null(legacy.FixedUnitPrice);
+        var normal = BuffPriceCatalog.Definitions.Single(definition => definition.Id == "harmony-draught");
+        var price = new BuffPrice(1_200_000m, "eu", ObservedAt, false);
+        var snapshot = new BuffLedgerSnapshot(
+            [new(normal.Id, normal.Name, normal.MarketItemId, ObservedAt, price),
+             new(legacyId, legacyName, null, ObservedAt, null)],
+            [new(normal.Id, normal.Name, normal.MarketItemId, TimeSpan.FromSeconds(10), 10_000, TimeSpan.Zero),
+             new(legacyId, legacyName, null, TimeSpan.FromSeconds(10), 0, TimeSpan.FromSeconds(10))],
+            [new(legacyId, legacyName, null, legacy.Duration, ObservedAt, null, false)]);
+        files.History.Save([HistoryEntry() with { Buffs = snapshot }]);
+        files.Current.Save(Checkpoint() with { Buffs = snapshot });
+
+        foreach (var saved in new[] { Assert.Single(files.History.Load()).Buffs, files.Current.Load()!.Buffs })
+        {
+            Assert.NotNull(saved);
+            var resumed = new BuffLedger(BuffPriceCatalog.HistoryDefinitions.Concat(catalog.HistoricalGroupDefinitions));
+            resumed.Restore(saved);
+            Assert.Equal(snapshot.Consumptions, resumed.Snapshot.Consumptions);
+            Assert.Equal(snapshot.Usage.OrderBy(item => item.BuffId), resumed.Snapshot.Usage.OrderBy(item => item.BuffId));
+            Assert.Equal(1_200_000m, resumed.Snapshot.KnownConsumedCost);
+            Assert.Null(resumed.Snapshot.ConsumedCost);
+            Assert.Null(resumed.Snapshot.ProratedCost);
+            Assert.Empty(resumed.Snapshot.Active);
+        }
+        Assert.Null(files.History.LoadError);
+        Assert.Null(files.Current.LoadError);
     }
 
     [Fact]
@@ -171,7 +269,7 @@ public sealed class BuffPersistenceTests
         var definition = BuffPriceCatalog.HistoryDefinitions.Single(item => item.Id == "frenzy-draught");
         var ledger = new BuffLedger(BuffPriceCatalog.HistoryDefinitions);
         BuffPrice? Price(BuffDefinition _) => withPrice ? new(1_200_000m, "eu", ObservedAt, true) : null;
-        ledger.Apply([], ObservedAt.AddSeconds(-20), Price);
+        ledger.Apply([new(definition.Id, TimeSpan.FromSeconds(60), TimeSpan.FromSeconds(1))], ObservedAt.AddSeconds(-20), Price);
         ledger.Apply([new(definition.Id, definition.Duration, TimeSpan.FromSeconds(1))], ObservedAt.AddSeconds(-10), Price);
         return ledger.Apply([new(definition.Id, definition.Duration - TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(1))], ObservedAt, Price);
     }

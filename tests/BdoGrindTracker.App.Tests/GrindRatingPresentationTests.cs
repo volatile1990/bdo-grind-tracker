@@ -23,7 +23,7 @@ public sealed class GrindRatingPresentationTests
             GrindBenchmark = GarmothGrindBenchmarks.Find(LootSpotCatalog.MagaiaId),
         };
         var presentation = new LiveSessionPresentation(state).GrindRating;
-        var metric = new OverlayMetrics().Update(state, new()).Metrics["grind-rating"];
+        var metric = new OverlayMetrics().Update(state, new() { UiLanguage = "de" }).Metrics["grind-rating"];
         var markup = await Render(state, OverlayCatalog.CreateWidget("grind-rating"));
 
         Assert.Equal("Average Tier", presentation.Label);
@@ -42,7 +42,7 @@ public sealed class GrindRatingPresentationTests
     {
         var state = State() with { Elapsed = TimeSpan.FromMinutes(3), Loot = Loot(815) };
         var presentation = new LiveSessionPresentation(state).GrindRating;
-        var metric = new OverlayMetrics().Update(state, new()).Metrics["grind-rating"];
+        var metric = new OverlayMetrics().Update(state, new() { UiLanguage = "de" }).Metrics["grind-rating"];
         var markup = await Render(state, OverlayCatalog.CreateWidget("grind-rating"));
 
         Assert.Equal("High Tier", presentation.Label);
@@ -68,7 +68,7 @@ public sealed class GrindRatingPresentationTests
             Elapsed = TimeSpan.FromMinutes(3), Loot = Loot(815), GrindBenchmarkStatus = status,
         };
         var presentation = new LiveSessionPresentation(state).GrindRating;
-        var metric = new OverlayMetrics().Update(state, new()).Metrics["grind-rating"];
+        var metric = new OverlayMetrics().Update(state, new() { UiLanguage = "de" }).Metrics["grind-rating"];
         var markup = await Render(state, OverlayCatalog.CreateWidget("grind-rating"));
 
         Assert.Contains(status, presentation.Description);
@@ -86,7 +86,7 @@ public sealed class GrindRatingPresentationTests
     {
         var state = State() with { GrindBenchmark = null, GrindBenchmarkStatus = status };
         var presentation = new LiveSessionPresentation(state).GrindRating;
-        var metric = new OverlayMetrics().Update(state, new()).Metrics["grind-rating"];
+        var metric = new OverlayMetrics().Update(state, new() { UiLanguage = "de" }).Metrics["grind-rating"];
 
         Assert.Equal("—", presentation.Label);
         Assert.Equal("Keine Bewertung verfügbar. " + status, presentation.Description);
@@ -120,7 +120,7 @@ public sealed class GrindRatingPresentationTests
         Assert.Equal(16300m, presentation.Result.TrashPerHour);
         Assert.Equal(differing, presentation.Description.Contains("Abweichende Loot-Buffs", StringComparison.Ordinal));
         Assert.Equal(differing ? "Abweichende Loot-Buffs" : null, presentation.Detail);
-        Assert.False(new OverlayMetrics().Update(state, new()).Metrics["grind-rating"].IsWarning);
+        Assert.False(new OverlayMetrics().Update(state, new() { UiLanguage = "de" }).Metrics["grind-rating"].IsWarning);
     }
 
     [Theory]
@@ -138,7 +138,7 @@ public sealed class GrindRatingPresentationTests
             "source" => state with { GrindBenchmark = state.GrindBenchmark! with { SourceUrl = "" } },
             _ => state with { Elapsed = TimeSpan.Zero },
         };
-        var metric = new OverlayMetrics().Update(state, new()).Metrics["grind-rating"];
+        var metric = new OverlayMetrics().Update(state, new() { UiLanguage = "de" }).Metrics["grind-rating"];
         var markup = await Render(state, OverlayCatalog.CreateWidget("grind-rating"));
 
         Assert.Equal("—", new LiveSessionPresentation(state).GrindRating.Label);
@@ -220,7 +220,7 @@ public sealed class GrindRatingPresentationTests
             var rendered = await renderer.RenderComponentAsync<OverlayWidgetPreview>(ParameterView.FromDictionary(new Dictionary<string, object?>
             {
                 [nameof(OverlayWidgetPreview.Widget)] = widget,
-                [nameof(OverlayWidgetPreview.Snapshot)] = new OverlayMetrics().Update(state, new()),
+                [nameof(OverlayWidgetPreview.Snapshot)] = new OverlayMetrics().Update(state, new() { UiLanguage = "de" }),
             }));
             return WebUtility.HtmlDecode(rendered.ToHtmlString());
         });

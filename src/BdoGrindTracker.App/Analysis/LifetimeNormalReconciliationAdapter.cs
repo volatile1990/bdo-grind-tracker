@@ -25,14 +25,14 @@ internal sealed class LifetimeNormalReconciliationAdapter : ICompanionReconcilia
 
     public LifetimeNormalReconciliationAdapter(LifetimeParsingContext? context, bool useVisualSlotCoverage,
         LootSource source = LootSource.Normal, int slotCount = LifetimeLootReconciler.SlotCount,
-        bool useUnreadableSlotCoverage = false, bool useFadeEvidence = false)
+        bool useUnreadableSlotCoverage = false, bool useFadeEvidence = false, bool useLegacySingleRowLearning = false)
     {
         _initialContext = context;
         if (context is not null) _textParser = new(context, source);
         _reconciler = new(_textParser is null ? null : _textParser.Parse,
             _textParser is null ? null : _textParser.GetAliases, useVisualSlotCoverage: useVisualSlotCoverage,
             source: source, slotCount: slotCount, useUnreadableSlotCoverage: useUnreadableSlotCoverage,
-            useFadeEvidence: useFadeEvidence);
+            useFadeEvidence: useFadeEvidence, useLegacySingleRowLearning: useLegacySingleRowLearning);
     }
 
     public void UpdateParsingContext(LifetimeParsingContext context)

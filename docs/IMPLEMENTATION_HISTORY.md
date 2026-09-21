@@ -11,6 +11,8 @@ Für Installation, aktuelle Bedienung und Entwicklung gilt die [README](../READM
 [Versionshinweisen für 1.4.1](release-notes/1.4.1.md) und den dort verlinkten
 Detaildokumenten. Die ursprünglichen Angaben unten bleiben als Referenz erhalten;
 relative Dokumentlinks wurden an den neuen Ablageort angepasst.
+Die inzwischen entfallenen Anweisungen für einen separaten Installer und seine
+Updatekanäle wurden durch den aktuellen Store-Verweis ersetzt.
 
 ---
 
@@ -176,43 +178,17 @@ lassen sich vorab am Desktop testen; das bisherige Overlay wird übernommen.
 
 ### Installation und Updates
 
-Den Windows-x64-Installer `Grindcrest-win-x64-stable-Setup.exe` aus den
-[GitHub Releases](https://github.com/volatile1990/bdo-grind-tracker/releases) laden.
-Version 1.0.0 verwendet den stabilen Updatekanal. Das Setup enthält .NET und installiert bei Bedarf WebView2 und
-die benötigte Visual-C++-Laufzeit. Eine passende Windows-OCR-Sprache wird weiterhin benötigt.
-Fehlt die Texterkennung für die Spielsprache, bietet Grindcrest in der Live-Session
-**OCR-Sprachpaket installieren** an. Windows fragt nach Administratorrechten;
-anschließend prüft Grindcrest die Verfügbarkeit erneut. [Details](GAME_LANGUAGES.md#windows-ocr-sprachpaket-installieren).
+Der hier archivierte Stand beschrieb noch einen separaten Installer mit eigenen
+Updatekanälen. Dieser Vertriebsweg ist inzwischen entfernt. Aktuelle Installation
+und Updates erfolgen ausschließlich über den
+[Microsoft Store](https://apps.microsoft.com/detail/9NQPWC1CMWS0).
+Die damaligen Download- und Kanalwechselanweisungen sind nicht mehr gültig.
 
-Installierte Versionen suchen beim Start nach Updates. Unter **Einstellungen →
-App-Updates** lassen sich Updates herunterladen und mit **Installieren und neu starten**
-anwenden. Dazu muss die Session pausiert sein. Vor dem Neustart wird sie im Verlauf
-gespeichert; nach dem Neustart wird dieselbe Session pausiert geladen. Es gibt keinen erzwungenen
-Neustart während eines Grinds. Beta-Updates lassen sich dort ein- und ausschalten;
-beim Wechsel zurück zu stabil wartet die App auf die nächste höhere stabile Version.
-
-Für den Wechsel von **0.10.0-test.2** zu **1.0.0** unter **App-Updates → Beta-Updates
-erhalten** den Schalter ausschalten. Die App sucht dann im stabilen Kanal und bietet
-1.0.0 zum Download an. Alternativ den aktuellen stabilen Installer ausführen.
-
-Einstellungen, Verlauf und Garmoth-Key bleiben unter `%LOCALAPPDATA%\BdoGrindTracker`.
-Die Installation liegt getrennt unter `%LOCALAPPDATA%\Grindcrest`. Für eine bisher
-entpackte Version den Installer einmal ausführen; die vorhandenen Daten werden
-weiterverwendet. Vorschau und Prüfmodi rufen keine Updates ab.
-
-[Neue Version über GitHub veröffentlichen und lokal bauen](RELEASING.md).
-
-Die Microsoft-Store-Ausgabe sucht beim Start und alle sechs Stunden nach
-freigegebenen Updates. Ein Popup meldet **Update verfügbar**;
-**Jetzt aktualisieren** startet Download und Installation in einem Schritt,
-ohne die Store-App zu öffnen. **Später** schließt den Hinweis; er lässt sich
-anschließend wieder öffnen. Die Aktion steht auch unter
-**Einstellungen → App-Updates** bereit. Vor der Installation muss das Tracking
-pausiert sein; Session und Einstellungen werden gespeichert. Windows kann eine
-Bestätigung anzeigen und Grindcrest schließen. Die Freigabe neuer Pakete erfolgt
-weiterhin über Microsoft. Installierte **1.0.0**-Versionen müssen zuerst über ihren
-bisherigen Store-Updateweg aktualisiert werden, bevor die neue Benachrichtigung
-verfügbar ist. [Store-Paket erstellen und einreichen](MICROSOFT_STORE.md).
+Die weiterhin relevante Entwicklung des Store-Updates umfasste den Hinweis
+**Update verfügbar**, **Jetzt aktualisieren**, das Aufschieben mit **Später** und
+die Sicherung der pausierten Session vor der Installation. Den aktuellen Ablauf
+beschreibt [MICROSOFT_STORE.md](MICROSOFT_STORE.md); neue Pakete werden nach
+[RELEASING.md](RELEASING.md) gebaut und im Partner Center eingereicht.
 
 ### Tracking starten
 
@@ -509,7 +485,7 @@ zur visuellen Prüfung. Eine Übereinstimmung mit der Aufnahme ist kein Abgleich
 mit dem tatsächlichen Inventarloot; dafür werden manuell überprüfte Sollwerte benötigt.
 
 Neue Aufnahmen verwenden Formatversion **3** und die Enginekennung
-`grindcrest-lifetime-v6`. Der Header enthält unter anderem die App-Version,
+`grindcrest-lifetime-v7`. Der Header enthält unter anderem die App-Version,
 die aktive Mindestmengen-Tabelle, den Aufnahmetakt und die Queue-Grenze.
 Frames kennzeichnen den Normalzähler in `recognitionVariant` mit `lifetime-v5`
 und den Messungsmarkern `visual-occupancy-v2` sowie `visual-fade-v1`; `independent-special-v1` kennzeichnet

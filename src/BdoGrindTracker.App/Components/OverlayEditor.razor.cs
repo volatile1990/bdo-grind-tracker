@@ -22,15 +22,15 @@ public partial class OverlayEditor
     private LayoutChange? _pendingLayoutChange;
     private bool _confirmingLayout;
     private bool PendingClearLayout => _pendingLayoutChange?.Preset is null && _pendingLayoutChange?.Template is null;
-    private string LayoutConfirmationTitle => PendingClearLayout ? "Layout leeren?" : "Vorlage anwenden?";
-    private string LayoutConfirmationAction => PendingClearLayout ? "Layout leeren" : "Vorlage anwenden";
+    private string LayoutConfirmationTitle => PendingClearLayout ? T("Layout leeren?") : T("Vorlage anwenden?");
+    private string LayoutConfirmationAction => PendingClearLayout ? T("Layout leeren") : T("Vorlage anwenden");
     private string PendingPresetLabel => _pendingLayoutChange?.Template?.Name ?? (_pendingLayoutChange?.Preset switch
     {
-        "loot" => "Loot-Inventar", "loot-strip" => "Loot-Leiste", "compact" => "Kompakt", "dashboard" => "Dashboard", "rotation-monitor" => "Rotation Monitor", _ => "Vorlage"
+        "loot" => T("Loot-Inventar"), "loot-strip" => T("Loot-Leiste"), "compact" => T("Kompakt"), "dashboard" => "Dashboard", "rotation-monitor" => "Rotation Monitor", _ => T("Vorlage")
     });
     private static IReadOnlyList<OverlayWidgetDefinition> Modules => OverlayCatalog.Widgets;
     private OverlayWidget? SelectedWidget => _settings.Widgets.FirstOrDefault(w => w.Id == _selectedId);
-    private OverlaySnapshot PreviewSnapshot => _demo ? OverlaySnapshot.Demo with { ThemeId = Overlay.Snapshot.ThemeId,
+    private OverlaySnapshot PreviewSnapshot => _demo ? OverlayMetrics.DemoFor(UiLanguage) with { ThemeId = Overlay.Snapshot.ThemeId, UiLanguage = UiLanguage,
         Rotation = Overlay.Snapshot.Rotation.SpotId switch
         {
             BdoGrindTracker.Core.LootSpotCatalog.AphrodonId =>
@@ -44,29 +44,30 @@ public partial class OverlayEditor
     private string ContentStyle => $"inset:{Css(Chrome.Top)}px {Css(Chrome.Right)}px {Css(Chrome.Bottom)}px {Css(Chrome.Left)}px";
     private static string WidgetStyle(OverlayWidget widget) => $"left:{Css(widget.X)}px;top:{Css(widget.Y)}px;width:{Css(widget.Width)}px;height:{Css(widget.Height)}px";
     private static string Css(double value) => value.ToString("0.##", CultureInfo.InvariantCulture);
-    private static string Percent(double value) => value.ToString("P0", CultureInfo.GetCultureInfo("de-DE"));
+    private string Percent(double value) => value.ToString("P0", UiCulture);
     private static string Text(ChangeEventArgs e) => e.Value?.ToString() ?? "";
     private static bool Checked(ChangeEventArgs e) => e.Value is true;
     private static int WholeNumber(ChangeEventArgs e, int current) =>
         int.TryParse(Text(e), NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) ? value : current;
-    private static string PeakHelp(string mode) => mode switch
+    private string PeakHelp(string mode) => T(mode switch
     {
         OverlayChartSections.ExcludePeaks => "Ihr Silber fließt nicht in die Kurve ein; so bleibt nur der übrige Loot sichtbar.",
         OverlayChartSections.LogarithmicPeaks => "Große Werte werden gestaucht: ein Hundertstel des höchsten Abschnitts erreicht noch die halbe Höhe.",
         _ => "Die Höhe richtet sich nach den Abschnitten ohne wertvolle Drops; höhere Abschnitte werden oben gekappt und mit zwei Strichen markiert.",
-    };
-    private static string Label(string kind) => OverlayCatalog.Find(kind)?.Label ?? "Modul";
-    private string InteractionLabel => _settings.Interaction switch { "passthrough" => "Klicks gehen ans Spiel", "locked" => "Position gesperrt", _ => "Verschiebbar" };
-    private string VisibilityLabel => _settings.Visibility switch { "session" => "Während der Session", "always" => "Immer sichtbar", _ => "Im Spiel sichtbar" };
+    });
+    private string Label(string kind) => T(OverlayCatalog.Find(kind)?.Label ?? "Modul");
+    private string InteractionLabel => _settings.Interaction switch { "passthrough" => T("Klicks gehen ans Spiel"), "locked" => T("Position gesperrt"), _ => T("Verschiebbar") };
+    private string VisibilityLabel => _settings.Visibility switch { "session" => T("Während der Session"), "always" => T("Immer sichtbar"), _ => T("Im Spiel sichtbar") };
     private string InteractionHint => _settings.Interaction switch
     {
-        "passthrough" => "Das Overlay reagiert nicht auf die Maus. Spiele auch durch das Overlay hindurch.",
-        "locked" => "Die Position bleibt fest. Tracking-Buttons lassen sich weiterhin anklicken.",
-        _ => "Zum Verschieben den Overlay-Hintergrund ziehen.",
+        "passthrough" => T("Das Overlay reagiert nicht auf die Maus. Spiele auch durch das Overlay hindurch."),
+        "locked" => T("Die Position bleibt fest. Tracking-Buttons lassen sich weiterhin anklicken."),
+        _ => T("Zum Verschieben den Overlay-Hintergrund ziehen."),
     };
 
     protected override void OnInitialized()
     {
+        base.OnInitialized();
         LoadSelectedOverlay();
         Overlay.Changed += OverlayChanged;
         _rotationDemoTimer = new System.Threading.Timer(_ =>
@@ -430,6 +431,7 @@ public partial class OverlayEditor
 
     public async ValueTask DisposeAsync()
     {
+        base.Dispose();
         _disposed = true;
         _rotationDemoTimer?.Dispose();
         Overlay.Changed -= OverlayChanged;

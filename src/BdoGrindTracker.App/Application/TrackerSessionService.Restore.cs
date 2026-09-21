@@ -52,6 +52,11 @@ internal sealed partial class TrackerSessionService
                     : CompanionCharacterClassCatalog.Classes.FirstOrDefault(character =>
                         character.DisplayName == newerHistory.CharacterClass)?.Id ?? saved.CharacterClassId,
                 Totals = new(newerHistory.Totals, StringComparer.OrdinalIgnoreCase),
+                // Legacy history can recover quantities but cannot establish a
+                // newer last-drop time for items whose quantities changed.
+                DropHistory = newerHistory.DropHistory ?? saved.DropHistory?.Where(drop =>
+                    newerHistory.Totals.TryGetValue(drop.ItemName, out var quantity) &&
+                    saved.Totals.TryGetValue(drop.ItemName, out var previous) && quantity == previous).ToArray(),
                 ManualLootItems = saved.ManualLootItems.Concat(newerHistory.ManualLootItems)
                     .Where(newerHistory.Totals.ContainsKey).Distinct(StringComparer.OrdinalIgnoreCase).ToArray(),
                 GarmothLocallyModified = saved.GarmothLocallyModified || newerHistory.GarmothLocallyModified,
@@ -75,6 +80,7 @@ internal sealed partial class TrackerSessionService
         else _garmothIntervals.SuspendAutomatic();
         var summary = new LootSessionSnapshot(saved.Totals, saved.Totals.Values.Sum(), saved.ConfirmedEventCount);
         _uiMailbox.Restore(summary, saved.ManualLootItems);
+        _dropHistory.Restore(saved.SessionId, summary, saved.Duration, saved.DropHistory);
         _sessionClock.RestorePaused(saved.Duration);
         _agrisSessionTracker.Restore(saved.Duration, new(saved.AgrisActiveDuration, saved.AgrisObservedDuration));
         _experienceSessionTracker.Restore(saved.Duration, new(saved.ExperienceGainedPercentagePoints,
@@ -89,6 +95,12 @@ internal sealed partial class TrackerSessionService
         {
             _buffLedger.Restore(buffs);
             _hasBuffObservation = true;
+        }
+        else
+        {
+            // Resuming an existing grind is never a new start, including older
+            // checkpoints created before any readable buff observation.
+            _buffLedger.Restore(BdoGrindTracker.Core.Buffs.BuffLedgerSnapshot.Empty);
         }
         _sessionSubmitted = saved.SessionSubmitted;
         _sessionSummary = summary;
@@ -122,10 +134,22 @@ internal sealed partial class TrackerSessionService
         if (_currentSessionStore.LoadError is { } error) throw new IOException(error);
     }
 
+    // UI delivery can lag behind the drop. Use the activity clock so removing
+    // idle time on automatic pause does not also remove the newest marker.
+    private IReadOnlyList<SessionDropSample> CaptureDropHistory(LootSessionSnapshot summary, TimeSpan duration) =>
+        _dropHistory.Update(State with
+        {
+            SessionId = _sessionId,
+            HasSession = _hasSession,
+            IsDemo = _demoMode,
+            Elapsed = duration,
+            Loot = summary,
+        }, _demoMode ? null : _sessionClock.GetElapsedExcludingTrailingIdle(_inactivityTimer.IdleDuration));
+
     private void PersistCurrentSessionCheckpoint(DateTimeOffset updatedAt, bool throwOnError = false,
         LootSessionSnapshot? proposedSnapshot = null)
     {
-        if (!_hasSession || _demoMode) return;
+        if (!_hasSession || _provisionalAutomaticGrind || _demoMode) return;
         try
         {
             UpdateAgrisSession();
@@ -136,9 +160,13 @@ internal sealed partial class TrackerSessionService
             {
                 var summary = proposedSnapshot ?? aggregate;
                 var duration = _sessionClock.Elapsed;
+                // Pair the timing baseline with these exact producer totals. A
+                // subsequent UI publish must not regress to an older aggregate.
+                _sessionSummary = summary;
+                var drops = CaptureDropHistory(summary, duration);
                 var agris = _agrisSessionTracker.Snapshot(duration);
                 var experience = _experienceSessionTracker.Snapshot(duration);
-                var uploads = _garmothIntervals.ExportState();
+                var uploads = _garmothIntervals.ExportState(proposedSnapshot?.Totals);
                 if (proposedSnapshot is not null)
                     uploads = uploads with
                     {
@@ -159,6 +187,7 @@ internal sealed partial class TrackerSessionService
                     Buffs = _hasBuffObservation ? _buffLedger.Snapshot : null,
                     SessionSubmitted = _sessionSubmitted,
                     Totals = new(summary.Totals, StringComparer.OrdinalIgnoreCase),
+                    DropHistory = drops,
                     ConfirmedEventCount = summary.ConfirmedEventCount,
                     ManualLootItems = _sessionManualLootItems.ToArray(),
                     GarmothLocallyModified = _sessionGarmothLocallyModified,

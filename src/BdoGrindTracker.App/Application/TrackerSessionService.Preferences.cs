@@ -1,10 +1,11 @@
 ﻿using System.Net.Http;
 using System.Security.Cryptography;
 using BdoGrindTracker.App.Character;
+using BdoGrindTracker.App.Integrations.Garmoth;
 using BdoGrindTracker.App.Persistence;
 using BdoGrindTracker.App.Pricing;
 using BdoGrindTracker.App.Theming;
-using BdoGrindTracker.App.Analysis;
+using BdoGrindTracker.App.Localization;
 
 namespace BdoGrindTracker.App.Services;
 
@@ -22,22 +23,17 @@ internal sealed partial class TrackerSessionService
         var result = await RunOperationAsync(async () =>
         {
             ArgumentNullException.ThrowIfNull(preferences);
+            preferences = preferences with { BuffRecognitionProfilePath = null };
+            if (!AppText.IsKnownLanguage(preferences.UiLanguage))
+                throw new ArgumentException("Bitte wähle Deutsch oder Englisch als App-Sprache.");
             if (!AppThemes.IsKnown(preferences.ThemeId))
                 throw new ArgumentException("Bitte wähle ein bekanntes Theme aus der Liste.");
+            if (preferences.OverlayThemeId is not null && !AppThemes.IsKnown(preferences.OverlayThemeId))
+                throw new ArgumentException("Bitte wähle ein bekanntes Overlay-Theme oder „Wie Hauptfenster“.");
             // A form populated from fallback values must never overwrite an unread file.
             if (_settingsStore.LoadError is { } loadError) throw new IOException(loadError);
             var captureConfigurationChanged = !string.Equals(preferences.CaptureConfigurationPath,
                 Preferences.CaptureConfigurationPath, StringComparison.OrdinalIgnoreCase);
-            var buffProfileChanged = !string.Equals(preferences.BuffRecognitionProfilePath,
-                Preferences.BuffRecognitionProfilePath, StringComparison.OrdinalIgnoreCase);
-            if (buffProfileChanged && _hasSession)
-                throw new ArgumentException("Das Buff-Profil kann erst für eine neue Session geändert werden.");
-            if (buffProfileChanged && !string.IsNullOrWhiteSpace(preferences.BuffRecognitionProfilePath))
-            {
-                var profileStore = new BuffRecognitionProfileStore(preferences.BuffRecognitionProfilePath);
-                if (profileStore.Load() is null)
-                    throw new ArgumentException(profileStore.LastError ?? "Das Buff-Profil ist ungültig.");
-            }
             if (_hasSession && (preferences.MonitorDeviceName != Preferences.MonitorDeviceName ||
                 captureConfigurationChanged ||
                 preferences.GameLanguage != Preferences.GameLanguage ||
@@ -87,11 +83,11 @@ internal sealed partial class TrackerSessionService
             _garmothApiKey = nextKey;
             var regionChanged = region != Preferences.MarketRegion;
             var previousCaptureConfiguration = Preferences.CaptureConfigurationPath;
-            var previousBuffProfile = Preferences.BuffRecognitionProfilePath;
             var wasAutoStartEnabled = Preferences.AutoStartGrinding;
-            var previousAutoStartSuspended = _autoStartSuspended;
             _settingsChangesPending = true;
-            Preferences = preferences with { MarketRegion = region, AutoUpload = preferences.AutoUpload && nextKey.Length > 0 };
+            // Setup completion is published only after its setting is durable.
+            Preferences = preferences with { SetupCompleted = Preferences.SetupCompleted,
+                MarketRegion = region, AutoUpload = preferences.AutoUpload && nextKey.Length > 0 };
             if (!_hasSession && Preferences.GameLanguage == "auto") _gameLanguageDetection = _detectGameLanguage();
             if (!_hasSession) RefreshMissingOcrLanguageOffer();
             if (classChanged || (!_hasSession && !_demoMode)) _sessionClass = SelectedCharacterClass;
@@ -102,32 +98,22 @@ internal sealed partial class TrackerSessionService
                 _priceStatus = FormatPriceStatus(Prices);
                 _nextPriceRefreshAt = DateTimeOffset.MinValue;
             }
-            if (!wasAutoStartEnabled && Preferences.AutoStartGrinding)
+            if (wasAutoStartEnabled != Preferences.AutoStartGrinding || captureConfigurationChanged)
+                ResetAutoStartRetry();
+            if (!TrySaveSettings(preferences.SetupCompleted))
             {
-                _autoStartSuspended = false;
-                _autoStartError = null;
-            }
-            if (!TrySaveSettings())
-            {
-                _autoStartSuspended = previousAutoStartSuspended;
                 // A failed save must not silently switch the capture source for this run.
-                Preferences = Preferences with { CaptureConfigurationPath = previousCaptureConfiguration,
-                    BuffRecognitionProfilePath = previousBuffProfile };
+                Preferences = Preferences with { CaptureConfigurationPath = previousCaptureConfiguration };
                 _settings.CaptureConfigurationPath = previousCaptureConfiguration;
-                _settings.BuffRecognitionProfilePath = previousBuffProfile;
                 return;
             }
             if (captureConfigurationChanged) RebuildCaptureAnalyzer();
-            if (buffProfileChanged)
-            {
-                _buffMonitor.Reset();
-                _buffLedger.BreakContinuity();
-                Volatile.Write(ref _buffProfileError, null);
-            }
             if (resumeAutomaticUpload) _garmothIntervals.ResumeAutomatic();
             PersistCurrentSession(DateTimeOffset.UtcNow, throwOnError: true);
             SetStatus(_garmothIntervals.IsBlocked
                 ? "Einstellungen gespeichert. Das unklare Upload-Ergebnis muss in Garmoth geprüft werden; diese Sitzung bleibt für Uploads gesperrt."
+                : _garmothIntervals.CorrectionReviewRequired
+                    ? GarmothUploadIntervals.CorrectionReviewMessage
                 : Preferences.AutoUpload && _garmothIntervals.AutomaticSuspended
                     ? "Einstellungen gespeichert. Der automatische Upload bleibt angehalten. Korrigiere den Schlüssel oder setze die Automatik auf der Garmoth-Seite fort."
                     : Preferences.AutoUpload
@@ -142,7 +128,7 @@ internal sealed partial class TrackerSessionService
         return new(result.Error);
     }
 
-    private bool TrySaveSettings()
+    private bool TrySaveSettings(bool? setupCompleted = null)
     {
         if (_settingsStore.LoadError is { } loadError)
         {
@@ -150,13 +136,16 @@ internal sealed partial class TrackerSessionService
             SetStatus(loadError, true);
             return false;
         }
+        var previousSetupCompleted = _settings.SetupCompleted;
+        _settings.SetupCompleted = setupCompleted ?? Preferences.SetupCompleted;
         _settings.UpdateCapturePreferences(Preferences.MonitorDeviceName);
         _settings.ThemeId = Preferences.ThemeId;
+        _settings.OverlayThemeId = Preferences.OverlayThemeId;
+        _settings.UiLanguage = Preferences.UiLanguage;
         _settings.CaptureConfigurationPath = Preferences.CaptureConfigurationPath;
-        _settings.BuffRecognitionProfilePath = Preferences.BuffRecognitionProfilePath;
+        _settings.BuffRecognitionProfilePath = null;
         _settings.AutoPauseMinutes = Preferences.AutoPauseMinutes;
         _settings.AutoStartGrinding = Preferences.AutoStartGrinding;
-        _settings.AutoStartSuspended = _autoStartSuspended;
         _settings.GameLanguage = Preferences.GameLanguage;
         _settings.FavoriteItems = Preferences.FavoriteItems.ToArray();
         _settings.LootColumnOrders = Preferences.LootColumnOrders.ToDictionary(pair => pair.Key, pair => pair.Value.ToArray());
@@ -166,12 +155,14 @@ internal sealed partial class TrackerSessionService
         try
         {
             _settingsStore.Save(_settings);
+            Preferences = Preferences with { SetupCompleted = _settings.SetupCompleted };
             _settingsChangesPending = false;
             _settingsSaveError = null;
             return true;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
+            _settings.SetupCompleted = previousSetupCompleted;
             // Settings persistence is optional for local capture. Keep the error
             // visible across producer updates, while explicit Save still fails.
             _settingsSaveError = "Einstellungen nicht gespeichert: " + exception.Message;
@@ -187,16 +178,20 @@ internal sealed partial class TrackerSessionService
         var recovered = _settingsStore.Load();
         if (_settingsStore.LoadError is { } error) throw new IOException(error);
         _settings = recovered;
-        _autoStartSuspended = recovered.AutoStartSuspended;
+        _settings.BuffRecognitionProfilePath = null;
+        ResetAutoStartRetry();
         Preferences = Preferences with
         {
+            SetupCompleted = recovered.SetupCompleted,
             ThemeId = recovered.ThemeId,
+            OverlayThemeId = recovered.OverlayThemeId,
+            UiLanguage = recovered.UiLanguage,
             MonitorDeviceName = _hasSession ? Preferences.MonitorDeviceName
                 : Monitors.FirstOrDefault(monitor => monitor.DeviceName == recovered.MonitorDeviceName)?.DeviceName
                     ?? Monitors.FirstOrDefault(monitor => monitor.IsPrimary)?.DeviceName ?? Monitors.FirstOrDefault()?.DeviceName,
             GameLanguage = _hasSession ? Preferences.GameLanguage : recovered.GameLanguage,
             CaptureConfigurationPath = _hasSession ? Preferences.CaptureConfigurationPath : recovered.CaptureConfigurationPath,
-            BuffRecognitionProfilePath = _hasSession ? Preferences.BuffRecognitionProfilePath : recovered.BuffRecognitionProfilePath,
+            BuffRecognitionProfilePath = null,
             AutoPauseMinutes = recovered.AutoPauseMinutes,
             AutoStartGrinding = recovered.AutoStartGrinding,
             FavoriteItems = recovered.FavoriteItems ?? [],

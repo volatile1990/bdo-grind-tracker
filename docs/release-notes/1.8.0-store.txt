@@ -1,0 +1,12 @@
+Neu in Grindcrest 1.8.0:
+
+• Obsidian, Kamasylvia und Valencia: Sieben Themes stehen jetzt getrennt für Hauptfenster und Overlays zur Wahl. EXP-Verluste bleiben in allen Designs rot.
+• Rotation Monitor für Event Horizon, verbesserte Hermesia-Erkennung und neue Module für Rotationen pro Stunde und abgeschlossene Rotationen. Die Module unterstützen Hermesia, Aphrodon und Event Horizon.
+• Silberkurve mit 5-, 10- oder 30-Sekunden-Abschnitten, wählbarem Zeitraum und markierten wertvollen Drops.
+• Optionale Rotation-Diagnose mit Meldungsausschnitten und erkannten Ereignissen.
+• Zuverlässigeres Lesen der BDO-Konfiguration: Umlaute verhindern die Klassenerkennung nicht mehr; Presets überschreiben die aktiven Anzeigeparameter nicht.
+• Spätere Mengenkorrekturen fließen in ausstehende Garmoth-Stundenuploads ein. Bei unklarer Zuordnung pausiert der automatische Versand zur Prüfung; bereits gesendete Uploads bleiben unverändert.
+• Sessionverlauf ohne künstliche Anzahl- oder Dateigrößengrenze und weniger Mehrfachberechnungen im Grind-Goals-Kalender.
+• Installation und Updates ausschließlich über Microsoft Store. Nach deiner Updatebestätigung entfällt der zusätzliche Windows-Dialog, wenn Windows dies erlaubt.
+
+Die Rotationserkennung benötigt englische Systemmeldungen im Spiel. Die deutsche und englische Oberfläche sowie die Einführung aus 1.7.3 bleiben enthalten.

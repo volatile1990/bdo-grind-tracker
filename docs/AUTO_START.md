@@ -2,16 +2,29 @@
 
 In der **Live-Session** neben **Tracking starten** und **Neue Session** wird mit
 **Grind automatisch erkennen** die standardmäßig ausgeschaltete Automatik ein-
-oder ausgeschaltet. Sie startet die aktuelle
-Session erst nach bestätigten neuen Monsterdrops. Eine automatisch pausierte
-Session wird fortgesetzt. Ein Spot- oder Klassenwechsel benötigt weiterhin
+oder ausgeschaltet. Beim ersten erkannten Monsterdrop startet die Session samt
+Uhr sofort. Eine neue automatische Session bleibt bis zu fünf getrennten
+Drop-Ankünften vorläufig: Nach einer vollen Minute ohne neuen Drop wird sie
+verworfen, und die Automatik wartet wieder auf einen Grind. Jeder neue Drop setzt
+diese Minute zurück. Wiederholte OCR-Lesungen, mehrere Items derselben Ankunft
+und Mengenkorrekturen zählen nicht als getrennte Drops.
+Ab der fünften Ankunft wird die Session gespeichert und verwendet die normale
+Auto-Pause-Einstellung. Vorher werden weder Verlauf noch Wiederherstellungspunkt
+gespeichert oder Garmoth-Uploads erlaubt. Manuell gestartete und bereits bestehende
+Sessions bleiben erhalten; eine automatisch pausierte Session wird fortgesetzt.
+Ein Spot- oder Klassenwechsel benötigt weiterhin
 **Neue Session**.
 
-Manuelle Pause sperrt den Autostart auch nach einem Neustart. **Automatik wieder
-aktivieren** direkt am Schalter, ein manueller Start, **Neue Session** oder erneutes Einschalten der
-Option geben ihn wieder frei. Fehlende OCR-Sprachpakete, ungültige Kalibrierung,
-ungesicherte Einstellungen und noch laufende abgebrochene OCR blockieren die
-Automatik; Fehler sind in der Statusanzeige sichtbar.
+Nur der Schalter schaltet die automatische Erkennung aus. Eine manuelle Pause
+stoppt die Session; solange der Schalter aktiviert bleibt, überwacht die Automatik
+anschließend wieder neue Drops und setzt eine bestehende Session fort. Auch
+**Neue Session** und ein App-Neustart benötigen keine separate Reaktivierung.
+Alte gespeicherte Automatik-Pausen werden ignoriert.
+
+Nach einem Erkennungs- oder Startfehler erfolgt frühestens nach zehn Sekunden
+ein neuer Versuch. Fehlende OCR-Sprachpakete, ungültige Kalibrierung,
+ungesicherte Einstellungen und noch laufende abgebrochene OCR verhindern weiterhin
+eine Erfassung; nach Behebung arbeitet die eingeschaltete Automatik weiter.
 
 ## Ablauf und Ressourcen
 
@@ -30,16 +43,17 @@ Automatik; Fehler sind in der Statusanzeige sichtbar.
   200 ms Abstand nach jeder Analyse. Nach einem erfolglosen Versuch folgen
   mindestens 15 Sekunden ohne neue OCR-Versuche. Ein einzelner OCR-Aufruf hat
   zusätzlich eine Grenze von fünf Sekunden.
-- Ein vorhandenes Log reicht nicht: Zwei spätere Ankünfte müssen sowohl die
-  physische Dropzahl als auch bekannten Monster-Trash erhöhen. Mengenrevisionen,
-  globale Items, Eventloot und direkte Silberdrops allein lösen keinen Start aus.
+- Nach einer visuellen Änderung reicht das erste positive OCR-Ergebnis mit
+  bekanntem Monster-Trash für den vorläufigen Start. Ein unverändertes vorhandenes
+  Log löst keinen visuellen Verdacht aus. Globale Items, Eventloot und direkte
+  Silberdrops allein lösen keinen Start aus.
 - Höchstens drei aktuelle Bilder mit zusammen maximal 128 MiB werden im RAM
   gepuffert. Nach Bestätigung übernimmt der Live-Reconciler diese Bilder in
   zeitlicher Reihenfolge über seine bestehende begrenzte Warteschlange und
   OCR-Zeitbegrenzung. Es gibt keine separate Übernahme von Probe-Lootsummen.
 - Reagiert native OCR nicht auf Abbruch, bleiben genau ihr Analyzer und ihre
   Bilddaten bis zu ihrem Ende erhalten. Weitere automatische oder manuelle Starts
-  warten auf dieses Ende; ein erneutes Aktivieren erzeugt keine weiteren Worker.
+  warten auf dieses Ende; Wiederholungsversuche erzeugen keine weiteren Worker.
 
 ## Grenzen und Prüfung
 
@@ -51,8 +65,8 @@ praktisch gemessen werden.
 
 Sehr kurze erste Drops oder pixelidentische Meldungen zwischen den Stichproben
 können fehlen. Der begrenzte Puffer kann ältere Startmeldungen verdrängen. Die
-aktive Sessionzeit beginnt wie beim manuellen Start mit dem ersten im Livepfad
-bestätigten Drop, ohne rückwirkend geschätzte Sekunden.
+aktive Sessionzeit beginnt unmittelbar mit dem automatischen Start nach dem
+ersten erkannten Monsterdrop, ohne rückwirkend geschätzte Sekunden.
 
 Portable Tests prüfen die Bestätigungslogik, Glyphstruktur und Einstellungs-/UI-
 Verträge. Windows-Tests prüfen zusätzlich native Vordergrundereignisse,

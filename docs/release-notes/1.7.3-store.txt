@@ -1,0 +1,9 @@
+Neu in Grindcrest 1.7.3:
+
+• Einführung für neue Nutzer: Fünf Schritte helfen bei Sprache, Darstellung, sichtbaren Droplogs, OCR, Erfassung und Silberbewertung. Die Einführung lässt sich aufschieben und jederzeit unter Einstellungen erneut öffnen.
+• Deutsche und englische Oberfläche: App, Dialoge, Kennzahlen und Overlays folgen der gewählten Sprache. Englisch ist der Standard; eine gespeicherte deutsche Sprachwahl bleibt erhalten. Die Spielsprache wird weiterhin separat eingestellt.
+• Einfachere Erfassung: Die Monitorauswahl entfällt. Grindcrest erkennt das Black-Desert-Spielfenster automatisch.
+• Feste Droplog-Zuordnung: Gegenstände werden nur aus dem zugehörigen normalen oder Special-Droplog gezählt. Falsch zugeordnete Meldungen werden ausgeschlossen.
+• Overlay-Darstellung: Dünne horizontale Linien in der Schattierung hinter Lootmengen wurden entfernt.
+
+Die Einführung startet kein Tracking und kann auch ohne geöffnetes Spiel abgeschlossen werden. Halte die Lootanzeigen frei sichtbar; ohne eingerichtetes Special-Droplog werden Special-Drops nicht erfasst. Bestehende Lootmengen werden nicht nachträglich geändert.

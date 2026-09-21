@@ -52,6 +52,8 @@ jobs:
         run: ./scripts/Test-Ui.ps1
       - name: Test packaged runtime validation
         run: ./scripts/tests/Test-PackagedRuntime.Tests.ps1
+      - name: Test Store version and payload validation
+        run: ./scripts/tests/Test-StoreValidation.Tests.ps1
       - name: Test Windows application
         run: dotnet test BdoGrindTracker.slnx -c Release --nologo --logger trx --results-directory artifacts/test-results
       - name: Save results, including missing native OCR prerequisites

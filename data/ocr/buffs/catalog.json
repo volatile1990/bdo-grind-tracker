@@ -1,0 +1,692 @@
+{
+  "schemaVersion": 1,
+  "templates": [
+    {
+      "id": "client-exquisite-cron-meal",
+      "groupId": "exquisite-cron-meal",
+      "candidateBuffIds": [
+        "exquisite-cron-meal"
+      ],
+      "iconPath": "client-exquisite-cron-meal.png",
+      "timerRegion": {
+        "x": -2,
+        "y": 32,
+        "width": 36,
+        "height": 14
+      },
+      "minimumSimilarity": 0.9,
+      "sourcePage": "https://github.com/iDevelopThings/bdo-data-extractor/blob/5bf11bd7bc60dcbb6126be34bf3d76633abdd8b2/FORMATS.md#7-consumable-effect-chain-itemskillbuff",
+      "sourceImage": "New_Icon/04_PC_Skill/03_Buff/Cooking_Attack_Cook.dds",
+      "evidence": "client-buff-record"
+    },
+    {
+      "id": "client-harmony-draught",
+      "groupId": "harmony-draught",
+      "candidateBuffIds": [
+        "harmony-draught"
+      ],
+      "iconPath": "client-harmony-draught.png",
+      "timerRegion": {
+        "x": -2,
+        "y": 32,
+        "width": 36,
+        "height": 14
+      },
+      "minimumSimilarity": 0.9,
+      "sourcePage": "https://github.com/iDevelopThings/bdo-data-extractor/blob/5bf11bd7bc60dcbb6126be34bf3d76633abdd8b2/FORMATS.md#7-consumable-effect-chain-itemskillbuff",
+      "sourceImage": "New_Icon/04_PC_Skill/03_Buff/Alchemy_Draught6.dds",
+      "evidence": "client-buff-record"
+    },
+    {
+      "id": "client-harmony-draught-demihuman",
+      "groupId": "harmony-draught-demihuman",
+      "candidateBuffIds": [
+        "harmony-draught-demihuman"
+      ],
+      "iconPath": "client-harmony-draught-demihuman.png",
+      "timerRegion": {
+        "x": -2,
+        "y": 32,
+        "width": 36,
+        "height": 14
+      },
+      "minimumSimilarity": 0.9,
+      "sourcePage": "https://github.com/iDevelopThings/bdo-data-extractor/blob/5bf11bd7bc60dcbb6126be34bf3d76633abdd8b2/FORMATS.md#7-consumable-effect-chain-itemskillbuff",
+      "sourceImage": "New_Icon/04_PC_Skill/03_Buff/Alchemy_Draught8.dds",
+      "evidence": "client-buff-record"
+    },
+    {
+      "id": "client-harmony-draught-edania",
+      "groupId": "harmony-draught-edania",
+      "candidateBuffIds": [
+        "harmony-draught-edania"
+      ],
+      "iconPath": "client-harmony-draught-edania.png",
+      "timerRegion": {
+        "x": -3,
+        "y": 44,
+        "width": 50,
+        "height": 19
+      },
+      "minimumSimilarity": 0.9,
+      "sourcePage": "https://github.com/iDevelopThings/bdo-data-extractor/blob/5bf11bd7bc60dcbb6126be34bf3d76633abdd8b2/FORMATS.md#7-consumable-effect-chain-itemskillbuff",
+      "sourceImage": "New_Icon/03_ETC/08_Potion/00001407.dds",
+      "evidence": "client-buff-record"
+    },
+    {
+      "id": "client-harmony-draught-human",
+      "groupId": "harmony-draught-human",
+      "candidateBuffIds": [
+        "harmony-draught-human"
+      ],
+      "iconPath": "client-harmony-draught-human.png",
+      "timerRegion": {
+        "x": -2,
+        "y": 32,
+        "width": 36,
+        "height": 14
+      },
+      "minimumSimilarity": 0.9,
+      "sourcePage": "https://github.com/iDevelopThings/bdo-data-extractor/blob/5bf11bd7bc60dcbb6126be34bf3d76633abdd8b2/FORMATS.md#7-consumable-effect-chain-itemskillbuff",
+      "sourceImage": "New_Icon/04_PC_Skill/03_Buff/Alchemy_Draught7.dds",
+      "evidence": "client-buff-record"
+    },
+    {
+      "id": "client-harmony-draught-kamasylvia",
+      "groupId": "harmony-draught-kamasylvia",
+      "candidateBuffIds": [
+        "harmony-draught-kamasylvia"
+      ],
+      "iconPath": "client-harmony-draught-kamasylvia.png",
+      "timerRegion": {
+        "x": -2,
+        "y": 32,
+        "width": 36,
+        "height": 14
+      },
+      "minimumSimilarity": 0.9,
+      "sourcePage": "https://github.com/iDevelopThings/bdo-data-extractor/blob/5bf11bd7bc60dcbb6126be34bf3d76633abdd8b2/FORMATS.md#7-consumable-effect-chain-itemskillbuff",
+      "sourceImage": "New_Icon/04_PC_Skill/03_Buff/Alchemy_Draught9.dds",
+      "evidence": "client-buff-record"
+    },
+    {
+      "id": "client-perfume-of-bracing-spirits",
+      "groupId": "perfume-of-bracing-spirits",
+      "candidateBuffIds": [
+        "immortal-perfume-of-bracing-spirits",
+        "perfume-of-bracing-spirits"
+      ],
+      "iconPath": "client-perfume-of-bracing-spirits.png",
+      "timerRegion": {
+        "x": -2,
+        "y": 32,
+        "width": 36,
+        "height": 14
+      },
+      "minimumSimilarity": 0.9,
+      "sourcePage": "https://github.com/iDevelopThings/bdo-data-extractor/blob/5bf11bd7bc60dcbb6126be34bf3d76633abdd8b2/FORMATS.md#7-consumable-effect-chain-itemskillbuff",
+      "sourceImage": "New_Icon/04_PC_Skill/03_Buff/SpiritPerfume_Premium_Alchemy.dds",
+      "evidence": "client-buff-record"
+    },
+    {
+      "id": "client-perfume-of-charm",
+      "groupId": "perfume-of-charm",
+      "candidateBuffIds": [
+        "immortal-perfume-of-charm",
+        "perfume-of-charm"
+      ],
+      "iconPath": "client-perfume-of-charm.png",
+      "timerRegion": {
+        "x": -2,
+        "y": 32,
+        "width": 36,
+        "height": 14
+      },
+      "minimumSimilarity": 0.9,
+      "sourcePage": "https://github.com/iDevelopThings/bdo-data-extractor/blob/5bf11bd7bc60dcbb6126be34bf3d76633abdd8b2/FORMATS.md#7-consumable-effect-chain-itemskillbuff",
+      "sourceImage": "New_Icon/04_PC_Skill/03_Buff/Premium_Alchemy_6.dds",
+      "evidence": "client-buff-record"
+    },
+    {
+      "id": "client-perfume-of-courage",
+      "groupId": "perfume-of-courage",
+      "candidateBuffIds": [
+        "immortal-perfume-of-courage",
+        "perfume-of-courage"
+      ],
+      "iconPath": "client-perfume-of-courage.png",
+      "timerRegion": {
+        "x": -2,
+        "y": 32,
+        "width": 36,
+        "height": 14
+      },
+      "minimumSimilarity": 0.9,
+      "sourcePage": "https://github.com/iDevelopThings/bdo-data-extractor/blob/5bf11bd7bc60dcbb6126be34bf3d76633abdd8b2/FORMATS.md#7-consumable-effect-chain-itemskillbuff",
+      "sourceImage": "New_Icon/04_PC_Skill/03_Buff/Premium_Alchemy_1.dds",
+      "evidence": "client-buff-record"
+    },
+    {
+      "id": "client-perfume-of-deep-sea",
+      "groupId": "perfume-of-deep-sea",
+      "candidateBuffIds": [
+        "immortal-perfume-of-deep-sea",
+        "perfume-of-deep-sea"
+      ],
+      "iconPath": "client-perfume-of-deep-sea.png",
+      "timerRegion": {
+        "x": -2,
+        "y": 32,
+        "width": 36,
+        "height": 14
+      },
+      "minimumSimilarity": 0.9,
+      "sourcePage": "https://github.com/iDevelopThings/bdo-data-extractor/blob/5bf11bd7bc60dcbb6126be34bf3d76633abdd8b2/FORMATS.md#7-consumable-effect-chain-itemskillbuff",
+      "sourceImage": "New_Icon/04_PC_Skill/03_Buff/Premium_Alchemy_3.dds",
+      "evidence": "client-buff-record"
+    },
+    {
+      "id": "client-immortal-perfume-of-envy",
+      "groupId": "immortal-perfume-of-envy",
+      "candidateBuffIds": [
+        "immortal-perfume-of-envy"
+      ],
+      "iconPath": "client-immortal-perfume-of-envy.png",
+      "timerRegion": {
+        "x": -3,
+        "y": 44,
+        "width": 50,
+        "height": 19
+      },
+      "minimumSimilarity": 0.9,
+      "sourcePage": "https://github.com/iDevelopThings/bdo-data-extractor/blob/5bf11bd7bc60dcbb6126be34bf3d76633abdd8b2/FORMATS.md#7-consumable-effect-chain-itemskillbuff",
+      "sourceImage": "New_Icon/03_ETC/08_Potion/00001413.dds",
+      "evidence": "client-buff-record"
+    },
+    {
+      "id": "client-perfume-of-insight",
+      "groupId": "perfume-of-insight",
+      "candidateBuffIds": [
+        "immortal-perfume-of-insight",
+        "perfume-of-insight"
+      ],
+      "iconPath": "client-perfume-of-insight.png",
+      "timerRegion": {
+        "x": -2,
+        "y": 32,
+        "width": 36,
+        "height": 14
+      },
+      "minimumSimilarity": 0.9,
+      "sourcePage": "https://github.com/iDevelopThings/bdo-data-extractor/blob/5bf11bd7bc60dcbb6126be34bf3d76633abdd8b2/FORMATS.md#7-consumable-effect-chain-itemskillbuff",
+      "sourceImage": "New_Icon/04_PC_Skill/03_Buff/InsightPremium_Alchemy.dds",
+      "evidence": "client-buff-record"
+    },
+    {
+      "id": "client-perfume-of-khalk",
+      "groupId": "perfume-of-khalk",
+      "candidateBuffIds": [
+        "immortal-perfume-of-khalk",
+        "perfume-of-khalk"
+      ],
+      "iconPath": "client-perfume-of-khalk.png",
+      "timerRegion": {
+        "x": -2,
+        "y": 32,
+        "width": 36,
+        "height": 14
+      },
+      "minimumSimilarity": 0.9,
+      "sourcePage": "https://github.com/iDevelopThings/bdo-data-extractor/blob/5bf11bd7bc60dcbb6126be34bf3d76633abdd8b2/FORMATS.md#7-consumable-effect-chain-itemskillbuff",
+      "sourceImage": "New_Icon/04_PC_Skill/03_Buff/Premium_Alchemy_4.dds",
+      "evidence": "client-buff-record"
+    },
+    {
+      "id": "client-perfume-of-spirits",
+      "groupId": "perfume-of-spirits",
+      "candidateBuffIds": [
+        "immortal-perfume-of-spirits",
+        "perfume-of-spirits"
+      ],
+      "iconPath": "client-perfume-of-spirits.png",
+      "timerRegion": {
+        "x": -2,
+        "y": 32,
+        "width": 36,
+        "height": 14
+      },
+      "minimumSimilarity": 0.9,
+      "sourcePage": "https://github.com/iDevelopThings/bdo-data-extractor/blob/5bf11bd7bc60dcbb6126be34bf3d76633abdd8b2/FORMATS.md#7-consumable-effect-chain-itemskillbuff",
+      "sourceImage": "New_Icon/04_PC_Skill/03_Buff/Premium_Alchemy_5.dds",
+      "evidence": "client-buff-record"
+    },
+    {
+      "id": "client-immortal-perfume-of-tenacity",
+      "groupId": "immortal-perfume-of-tenacity",
+      "candidateBuffIds": [
+        "immortal-perfume-of-tenacity"
+      ],
+      "iconPath": "client-immortal-perfume-of-tenacity.png",
+      "timerRegion": {
+        "x": -3,
+        "y": 44,
+        "width": 50,
+        "height": 19
+      },
+      "minimumSimilarity": 0.9,
+      "sourcePage": "https://github.com/iDevelopThings/bdo-data-extractor/blob/5bf11bd7bc60dcbb6126be34bf3d76633abdd8b2/FORMATS.md#7-consumable-effect-chain-itemskillbuff",
+      "sourceImage": "New_Icon/03_ETC/08_Potion/00001414.dds",
+      "evidence": "client-buff-record"
+    },
+    {
+      "id": "client-mystic-beasts-accuracy",
+      "groupId": "mystic-beasts-accuracy",
+      "candidateBuffIds": [
+        "mystic-beasts-accuracy"
+      ],
+      "iconPath": "client-mystic-beasts-accuracy.png",
+      "timerRegion": {
+        "x": -3,
+        "y": 44,
+        "width": 50,
+        "height": 19
+      },
+      "minimumSimilarity": 0.9,
+      "sourcePage": "https://github.com/iDevelopThings/bdo-data-extractor/blob/5bf11bd7bc60dcbb6126be34bf3d76633abdd8b2/FORMATS.md#7-consumable-effect-chain-itemskillbuff",
+      "sourceImage": "New_Icon/03_ETC/00767901_1.dds",
+      "evidence": "client-buff-record"
+    },
+    {
+      "id": "client-mystic-beasts-all-ap",
+      "groupId": "mystic-beasts-all-ap",
+      "candidateBuffIds": [
+        "mystic-beasts-all-ap"
+      ],
+      "iconPath": "client-mystic-beasts-all-ap.png",
+      "timerRegion": {
+        "x": -3,
+        "y": 44,
+        "width": 50,
+        "height": 19
+      },
+      "minimumSimilarity": 0.9,
+      "sourcePage": "https://github.com/iDevelopThings/bdo-data-extractor/blob/5bf11bd7bc60dcbb6126be34bf3d76633abdd8b2/FORMATS.md#7-consumable-effect-chain-itemskillbuff",
+      "sourceImage": "New_Icon/03_ETC/00767900_1.dds",
+      "evidence": "client-buff-record"
+    },
+    {
+      "id": "client-mystic-beasts-damage-reduction",
+      "groupId": "mystic-beasts-damage-reduction",
+      "candidateBuffIds": [
+        "mystic-beasts-damage-reduction"
+      ],
+      "iconPath": "client-mystic-beasts-damage-reduction.png",
+      "timerRegion": {
+        "x": -3,
+        "y": 44,
+        "width": 50,
+        "height": 19
+      },
+      "minimumSimilarity": 0.9,
+      "sourcePage": "https://github.com/iDevelopThings/bdo-data-extractor/blob/5bf11bd7bc60dcbb6126be34bf3d76633abdd8b2/FORMATS.md#7-consumable-effect-chain-itemskillbuff",
+      "sourceImage": "New_Icon/03_ETC/00767902_1.dds",
+      "evidence": "client-buff-record"
+    },
+    {
+      "id": "client-mystic-beasts-evasion",
+      "groupId": "mystic-beasts-evasion",
+      "candidateBuffIds": [
+        "mystic-beasts-evasion"
+      ],
+      "iconPath": "client-mystic-beasts-evasion.png",
+      "timerRegion": {
+        "x": -3,
+        "y": 44,
+        "width": 50,
+        "height": 19
+      },
+      "minimumSimilarity": 0.9,
+      "sourcePage": "https://github.com/iDevelopThings/bdo-data-extractor/blob/5bf11bd7bc60dcbb6126be34bf3d76633abdd8b2/FORMATS.md#7-consumable-effect-chain-itemskillbuff",
+      "sourceImage": "New_Icon/03_ETC/00767903_1.dds",
+      "evidence": "client-buff-record"
+    },
+    {
+      "id": "client-mystic-beasts-life-skill-mastery",
+      "groupId": "mystic-beasts-life-skill-mastery",
+      "candidateBuffIds": [
+        "mystic-beasts-life-skill-mastery"
+      ],
+      "iconPath": "client-mystic-beasts-life-skill-mastery.png",
+      "timerRegion": {
+        "x": -3,
+        "y": 44,
+        "width": 50,
+        "height": 19
+      },
+      "minimumSimilarity": 0.9,
+      "sourcePage": "https://github.com/iDevelopThings/bdo-data-extractor/blob/5bf11bd7bc60dcbb6126be34bf3d76633abdd8b2/FORMATS.md#7-consumable-effect-chain-itemskillbuff",
+      "sourceImage": "New_Icon/03_ETC/00790781.dds",
+      "evidence": "client-buff-record"
+    },
+    {
+      "id": "client-mystic-beasts-max-hp",
+      "groupId": "mystic-beasts-max-hp",
+      "candidateBuffIds": [
+        "mystic-beasts-max-hp"
+      ],
+      "iconPath": "client-mystic-beasts-max-hp.png",
+      "timerRegion": {
+        "x": -3,
+        "y": 44,
+        "width": 50,
+        "height": 19
+      },
+      "minimumSimilarity": 0.9,
+      "sourcePage": "https://github.com/iDevelopThings/bdo-data-extractor/blob/5bf11bd7bc60dcbb6126be34bf3d76633abdd8b2/FORMATS.md#7-consumable-effect-chain-itemskillbuff",
+      "sourceImage": "New_Icon/03_ETC/00767904_1.dds",
+      "evidence": "client-buff-record"
+    },
+    {
+      "id": "client-perfume-of-envy",
+      "groupId": "perfume-of-envy",
+      "candidateBuffIds": [
+        "perfume-of-envy"
+      ],
+      "iconPath": "client-perfume-of-envy.png",
+      "timerRegion": {
+        "x": -3,
+        "y": 44,
+        "width": 50,
+        "height": 19
+      },
+      "minimumSimilarity": 0.9,
+      "sourcePage": "https://github.com/iDevelopThings/bdo-data-extractor/blob/5bf11bd7bc60dcbb6126be34bf3d76633abdd8b2/FORMATS.md#7-consumable-effect-chain-itemskillbuff",
+      "sourceImage": "New_Icon/03_ETC/08_Potion/00001411.dds",
+      "evidence": "client-buff-record"
+    },
+    {
+      "id": "client-perfume-of-swiftness",
+      "groupId": "perfume-of-swiftness",
+      "candidateBuffIds": [
+        "perfume-of-swiftness"
+      ],
+      "iconPath": "client-perfume-of-swiftness.png",
+      "timerRegion": {
+        "x": -2,
+        "y": 32,
+        "width": 36,
+        "height": 14
+      },
+      "minimumSimilarity": 0.9,
+      "sourcePage": "https://github.com/iDevelopThings/bdo-data-extractor/blob/5bf11bd7bc60dcbb6126be34bf3d76633abdd8b2/FORMATS.md#7-consumable-effect-chain-itemskillbuff",
+      "sourceImage": "New_Icon/04_PC_Skill/03_Buff/Premium_Alchemy_2.dds",
+      "evidence": "client-buff-record"
+    },
+    {
+      "id": "client-perfume-of-tenacity",
+      "groupId": "perfume-of-tenacity",
+      "candidateBuffIds": [
+        "perfume-of-tenacity"
+      ],
+      "iconPath": "client-perfume-of-tenacity.png",
+      "timerRegion": {
+        "x": -3,
+        "y": 44,
+        "width": 50,
+        "height": 19
+      },
+      "minimumSimilarity": 0.9,
+      "sourcePage": "https://github.com/iDevelopThings/bdo-data-extractor/blob/5bf11bd7bc60dcbb6126be34bf3d76633abdd8b2/FORMATS.md#7-consumable-effect-chain-itemskillbuff",
+      "sourceImage": "New_Icon/03_ETC/08_Potion/00001412.dds",
+      "evidence": "client-buff-record"
+    },
+    {
+      "id": "client-perfume-of-verdure",
+      "groupId": "perfume-of-verdure",
+      "candidateBuffIds": [
+        "perfume-of-verdure"
+      ],
+      "iconPath": "client-perfume-of-verdure.png",
+      "timerRegion": {
+        "x": -3,
+        "y": 44,
+        "width": 50,
+        "height": 19
+      },
+      "minimumSimilarity": 0.9,
+      "sourcePage": "https://github.com/iDevelopThings/bdo-data-extractor/blob/5bf11bd7bc60dcbb6126be34bf3d76633abdd8b2/FORMATS.md#7-consumable-effect-chain-itemskillbuff",
+      "sourceImage": "New_Icon/03_ETC/07_ProductMaterial/00000890.dds",
+      "evidence": "client-buff-record"
+    },
+    {
+      "id": "client-seafood-cron-meal",
+      "groupId": "seafood-cron-meal",
+      "candidateBuffIds": [
+        "seafood-cron-meal"
+      ],
+      "iconPath": "client-seafood-cron-meal.png",
+      "timerRegion": {
+        "x": -2,
+        "y": 32,
+        "width": 36,
+        "height": 14
+      },
+      "minimumSimilarity": 0.9,
+      "sourcePage": "https://github.com/iDevelopThings/bdo-data-extractor/blob/5bf11bd7bc60dcbb6126be34bf3d76633abdd8b2/FORMATS.md#7-consumable-effect-chain-itemskillbuff",
+      "sourceImage": "New_Icon/04_PC_Skill/03_Buff/Cooking_Product_Cook.dds",
+      "evidence": "client-buff-record"
+    },
+    {
+      "id": "client-simple-cron-meal",
+      "groupId": "simple-cron-meal",
+      "candidateBuffIds": [
+        "simple-cron-meal"
+      ],
+      "iconPath": "client-simple-cron-meal.png",
+      "timerRegion": {
+        "x": -2,
+        "y": 32,
+        "width": 36,
+        "height": 14
+      },
+      "minimumSimilarity": 0.9,
+      "sourcePage": "https://github.com/iDevelopThings/bdo-data-extractor/blob/5bf11bd7bc60dcbb6126be34bf3d76633abdd8b2/FORMATS.md#7-consumable-effect-chain-itemskillbuff",
+      "sourceImage": "New_Icon/04_PC_Skill/03_Buff/Cooking_Monster_Cook.dds",
+      "evidence": "client-buff-record"
+    },
+    {
+      "id": "client-tent-adventurers-confidence",
+      "groupId": "tent-adventurers-confidence",
+      "candidateBuffIds": [
+        "tent-adventurers-confidence"
+      ],
+      "iconPath": "client-tent-adventurers-confidence.png",
+      "timerRegion": {
+        "x": -2,
+        "y": 32,
+        "width": 36,
+        "height": 14
+      },
+      "minimumSimilarity": 0.9,
+      "sourcePage": "https://github.com/iDevelopThings/bdo-data-extractor/blob/5bf11bd7bc60dcbb6126be34bf3d76633abdd8b2/FORMATS.md#7-consumable-effect-chain-itemskillbuff",
+      "sourceImage": "New_Icon/04_PC_Skill/03_Buff/PioneersTime_Up.dds",
+      "evidence": "client-buff-record"
+    },
+    {
+      "id": "client-tent-adventurers-luck-i",
+      "groupId": "tent-adventurers-luck",
+      "candidateBuffIds": [
+        "tent-adventurers-luck-i",
+        "tent-adventurers-luck-ii",
+        "tent-adventurers-luck-iii",
+        "tent-adventurers-luck-iv",
+        "tent-adventurers-luck-v"
+      ],
+      "iconPath": "client-tent-adventurers-luck-i.png",
+      "timerRegion": {
+        "x": -2,
+        "y": 32,
+        "width": 36,
+        "height": 14
+      },
+      "minimumSimilarity": 0.9,
+      "sourcePage": "https://github.com/iDevelopThings/bdo-data-extractor/blob/5bf11bd7bc60dcbb6126be34bf3d76633abdd8b2/FORMATS.md#7-consumable-effect-chain-itemskillbuff",
+      "sourceImage": "New_Icon/04_PC_Skill/03_Buff/PioneersTime_DropUp.dds",
+      "evidence": "client-buff-record"
+    },
+    {
+      "id": "client-tent-adventures-boon-120",
+      "groupId": "tent-adventures-boon",
+      "candidateBuffIds": [
+        "tent-adventures-boon-120",
+        "tent-adventures-boon-300",
+        "tent-adventures-boon-60"
+      ],
+      "iconPath": "client-tent-adventures-boon-120.png",
+      "timerRegion": {
+        "x": -2,
+        "y": 32,
+        "width": 36,
+        "height": 14
+      },
+      "minimumSimilarity": 0.9,
+      "sourcePage": "https://github.com/iDevelopThings/bdo-data-extractor/blob/5bf11bd7bc60dcbb6126be34bf3d76633abdd8b2/FORMATS.md#7-consumable-effect-chain-itemskillbuff",
+      "sourceImage": "New_Icon/04_PC_Skill/03_Buff/SilverBless.dds",
+      "evidence": "client-buff-record"
+    },
+    {
+      "id": "client-tent-body-enhancement-120",
+      "groupId": "tent-body-enhancement",
+      "candidateBuffIds": [
+        "tent-body-enhancement-120",
+        "tent-body-enhancement-180",
+        "tent-body-enhancement-300",
+        "tent-body-enhancement-60",
+        "tent-body-enhancement-90"
+      ],
+      "iconPath": "client-tent-body-enhancement-120.png",
+      "timerRegion": {
+        "x": -2,
+        "y": 32,
+        "width": 36,
+        "height": 14
+      },
+      "minimumSimilarity": 0.9,
+      "sourcePage": "https://github.com/iDevelopThings/bdo-data-extractor/blob/5bf11bd7bc60dcbb6126be34bf3d76633abdd8b2/FORMATS.md#7-consumable-effect-chain-itemskillbuff",
+      "sourceImage": "New_Icon/04_PC_Skill/03_Buff/SkillAndExp_Up.dds",
+      "evidence": "client-buff-record"
+    },
+    {
+      "id": "client-tent-turning-gates-120",
+      "groupId": "tent-turning-gates",
+      "candidateBuffIds": [
+        "tent-turning-gates-120",
+        "tent-turning-gates-180",
+        "tent-turning-gates-300",
+        "tent-turning-gates-60",
+        "tent-turning-gates-90"
+      ],
+      "iconPath": "client-tent-turning-gates-120.png",
+      "timerRegion": {
+        "x": -2,
+        "y": 32,
+        "width": 36,
+        "height": 14
+      },
+      "minimumSimilarity": 0.9,
+      "sourcePage": "https://github.com/iDevelopThings/bdo-data-extractor/blob/5bf11bd7bc60dcbb6126be34bf3d76633abdd8b2/FORMATS.md#7-consumable-effect-chain-itemskillbuff",
+      "sourceImage": "New_Icon/04_PC_Skill/03_Buff/WisdomOfLife_Up.dds",
+      "evidence": "client-buff-record"
+    },
+    {
+      "id": "client-harmony-draught-1400",
+      "groupId": "immortal-harmony-draught",
+      "candidateBuffIds": [
+        "immortal-harmony-draught"
+      ],
+      "iconPath": "client-harmony-draught-1400.png",
+      "timerRegion": {
+        "x": -2,
+        "y": 32,
+        "width": 36,
+        "height": 14
+      },
+      "minimumSimilarity": 0.9,
+      "sourcePage": "https://github.com/iDevelopThings/bdo-data-extractor/blob/5bf11bd7bc60dcbb6126be34bf3d76633abdd8b2/FORMATS.md#7-consumable-effect-chain-itemskillbuff",
+      "sourceImage": "New_Icon/04_PC_Skill/03_Buff/Alchemy_Draught6_1.dds",
+      "evidence": "client-buff-record"
+    },
+    {
+      "id": "client-harmony-draught-demihuman-1404",
+      "groupId": "immortal-harmony-draught-demihuman",
+      "candidateBuffIds": [
+        "immortal-harmony-draught-demihuman"
+      ],
+      "iconPath": "client-harmony-draught-demihuman-1404.png",
+      "timerRegion": {
+        "x": -2,
+        "y": 32,
+        "width": 36,
+        "height": 14
+      },
+      "minimumSimilarity": 0.9,
+      "sourcePage": "https://github.com/iDevelopThings/bdo-data-extractor/blob/5bf11bd7bc60dcbb6126be34bf3d76633abdd8b2/FORMATS.md#7-consumable-effect-chain-itemskillbuff",
+      "sourceImage": "New_Icon/04_PC_Skill/03_Buff/Alchemy_Draught8_1.dds",
+      "evidence": "client-buff-record"
+    },
+    {
+      "id": "client-harmony-draught-edania-1408",
+      "groupId": "immortal-harmony-draught-edania",
+      "candidateBuffIds": [
+        "immortal-harmony-draught-edania"
+      ],
+      "iconPath": "client-harmony-draught-edania-1408.png",
+      "timerRegion": {
+        "x": -3,
+        "y": 44,
+        "width": 50,
+        "height": 19
+      },
+      "minimumSimilarity": 0.9,
+      "sourcePage": "https://github.com/iDevelopThings/bdo-data-extractor/blob/5bf11bd7bc60dcbb6126be34bf3d76633abdd8b2/FORMATS.md#7-consumable-effect-chain-itemskillbuff",
+      "sourceImage": "New_Icon/03_ETC/08_Potion/00001408.dds",
+      "evidence": "client-buff-record"
+    },
+    {
+      "id": "client-harmony-draught-human-1402",
+      "groupId": "immortal-harmony-draught-human",
+      "candidateBuffIds": [
+        "immortal-harmony-draught-human"
+      ],
+      "iconPath": "client-harmony-draught-human-1402.png",
+      "timerRegion": {
+        "x": -2,
+        "y": 32,
+        "width": 36,
+        "height": 14
+      },
+      "minimumSimilarity": 0.9,
+      "sourcePage": "https://github.com/iDevelopThings/bdo-data-extractor/blob/5bf11bd7bc60dcbb6126be34bf3d76633abdd8b2/FORMATS.md#7-consumable-effect-chain-itemskillbuff",
+      "sourceImage": "New_Icon/04_PC_Skill/03_Buff/Alchemy_Draught7_1.dds",
+      "evidence": "client-buff-record"
+    },
+    {
+      "id": "client-harmony-draught-kamasylvia-1406",
+      "groupId": "immortal-harmony-draught-kamasylvia",
+      "candidateBuffIds": [
+        "immortal-harmony-draught-kamasylvia"
+      ],
+      "iconPath": "client-harmony-draught-kamasylvia-1406.png",
+      "timerRegion": {
+        "x": -2,
+        "y": 32,
+        "width": 36,
+        "height": 14
+      },
+      "minimumSimilarity": 0.9,
+      "sourcePage": "https://github.com/iDevelopThings/bdo-data-extractor/blob/5bf11bd7bc60dcbb6126be34bf3d76633abdd8b2/FORMATS.md#7-consumable-effect-chain-itemskillbuff",
+      "sourceImage": "New_Icon/04_PC_Skill/03_Buff/Alchemy_Draught9_1.dds",
+      "evidence": "client-buff-record"
+    }
+  ]
+}

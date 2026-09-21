@@ -86,13 +86,13 @@ public static class RotationTimelinePresentation
         "drakania" => "D", "drakania-kill" => "D✓", "transfer" => "B", "mine-enter" => "M" + e.Occurrence,
         "mine-second" => "P2", "mine-cleared" => "M✓", "dragon" => "R", "afk" => "AFK", "end" => "E", _ => "" };
     public const string Legend = "D Drakania · B Buff · M Mine · P2 Phase 2 · R Drache · kleine Striche: Träger";
-    public static string Sector(RotationMonitorSnapshot state)
+    public static string Sector(RotationMonitorSnapshot state, string? language = null)
     {
         var checkpoints = state.Events.Where(IsCheckpoint).ToArray();
-        if (checkpoints.Length < 2) return "Bestabschnitt: noch keine Mechanik abgeschlossen";
+        if (checkpoints.Length < 2) return BdoGrindTracker.App.Localization.AppText.Translate("Bestabschnitt: noch keine Mechanik abgeschlossen", language);
         var current = checkpoints[^1];
-        if (!state.SectorBests.TryGetValue(current.Key, out var best)) return "Bestabschnitt: noch keine passende Referenz";
-        return "Abschnitt " + Time(current.Seconds - checkpoints[^2].Seconds) + " · Bestzeit " + Time(best);
+        if (!state.SectorBests.TryGetValue(current.Key, out var best)) return BdoGrindTracker.App.Localization.AppText.Translate("Bestabschnitt: noch keine passende Referenz", language);
+        return BdoGrindTracker.App.Localization.AppText.Format("Abschnitt {0} · Bestzeit {1}", language, Time(current.Seconds - checkpoints[^2].Seconds), Time(best));
     }
     public static RotationRun? Reference(RotationMonitorSnapshot state, string mode) => mode == "ideal" ? state.Ideal : state.Best;
     public static double Extent(RotationMonitorSnapshot state, string mode) => Math.Max(60, Math.Max(state.Elapsed + 10, Reference(state, mode)?.Duration ?? 620));

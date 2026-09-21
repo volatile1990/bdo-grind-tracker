@@ -10,7 +10,7 @@ public sealed class BuffLedgerTests
     private static readonly BuffPrice Price = new(360_000m, "EU", Start, false);
 
     [Fact]
-    public void ExistingBuffNeedsConfirmationAndOnlyChargesObservedRunningTime()
+    public void ExistingBuffNeedsConfirmationAndCountsOnceAlongsideObservedRunningTime()
     {
         var ledger = CreateLedger();
         var initial = Apply(ledger, 0, 1800);
@@ -20,53 +20,54 @@ public sealed class BuffLedgerTests
 
         var confirmed = Apply(ledger, 10, 1790);
         Assert.True(Assert.Single(confirmed.Active).IsBaseline);
-        Assert.Empty(confirmed.Consumptions);
+        AssertOnlyStartCharges(confirmed, Buff.Id);
+        Assert.Equal(Start, Assert.Single(confirmed.Consumptions).ConsumedAt);
         Assert.Equal(TimeSpan.FromSeconds(10), Assert.Single(confirmed.Usage).ObservedDuration);
         Assert.Equal(1000m, confirmed.ProratedCost);
-        Assert.Equal(0m, confirmed.ConsumedCost);
+        Assert.Equal(Price.UnitPrice, confirmed.ConsumedCost);
     }
 
     [Fact]
-    public void NewlyAppearingBuffBooksOneItemAfterTwoReadings()
+    public void FirstSeenFullBuffCountsOnceAfterItsOwnConfirmation()
     {
         var ledger = CreateLedger();
         ApplyEmpty(ledger, 0);
         Assert.Empty(Apply(ledger, 10, 3600).Consumptions);
         var confirmed = Apply(ledger, 20, 3590);
-        Assert.False(Assert.Single(confirmed.Active).IsBaseline);
-        var consumption = Assert.Single(confirmed.Consumptions);
-        Assert.Equal(Start.AddSeconds(10), consumption.ConsumedAt);
-        Assert.Equal(360_000m, consumption.Cost);
+        Assert.True(Assert.Single(confirmed.Active).IsBaseline);
+        AssertOnlyStartCharges(confirmed, Buff.Id);
         Assert.Equal(1000m, confirmed.ProratedCost);
 
-        Assert.Single(Apply(ledger, 30, 3580).Consumptions);
+        AssertOnlyStartCharges(Apply(ledger, 30, 3580), Buff.Id);
     }
 
     [Fact]
-    public void RecastRequiresTwoConsistentReadingsAndCapturesNewPrice()
+    public void RecastCountsImmediatelyAndCapturesNewPrice()
     {
         var ledger = CreateLedger();
         Apply(ledger, 0, 120);
         Apply(ledger, 10, 110);
         var newPrice = Price with { UnitPrice = 720_000m, IsStale = true };
-        Assert.Empty(Apply(ledger, 20, 3600, newPrice).Consumptions);
+        Assert.Equal(2, Apply(ledger, 20, 3600, newPrice).Consumptions.Count);
         var result = Apply(ledger, 30, 3590, Price);
-        Assert.Equal(newPrice, Assert.Single(result.Consumptions).Price);
-        Assert.Equal(3000m, result.ProratedCost);
-        Assert.Equal(720_000m, result.ConsumedCost);
+        Assert.Equal(2, result.Consumptions.Count);
+        Assert.Equal(Price, Assert.Single(result.Consumptions, item => item.IsSessionStart).Price);
+        Assert.Equal(newPrice, Assert.Single(result.Consumptions, item => !item.IsSessionStart).Price);
+        Assert.Equal(4000m, result.ProratedCost);
+        Assert.Equal(1_080_000m, result.ConsumedCost);
     }
 
     [Fact]
-    public void MinuteTimerRoundingAndJitterDoNotCountAsRecasts()
+    public void AnyReadMinuteTimerIncreaseCountsAsARecast()
     {
         var ledger = CreateLedger();
         Apply(ledger, 0, 1800, precisionSeconds: 60);
         Apply(ledger, 10, 1800, precisionSeconds: 60);
         Apply(ledger, 20, 1740, precisionSeconds: 60);
         var result = Apply(ledger, 30, 1800, precisionSeconds: 60);
-        Assert.Empty(result.Consumptions);
-        // The backwards timer jump is an unconfirmed candidate, so this ambiguous interval is not charged.
-        Assert.Equal(TimeSpan.FromSeconds(20), Assert.Single(result.Usage).ObservedDuration);
+        Assert.Equal(2, result.Consumptions.Count);
+        Assert.Single(result.Consumptions, item => !item.IsSessionStart);
+        Assert.Equal(TimeSpan.FromSeconds(30), Assert.Single(result.Usage).ObservedDuration);
     }
 
     [Fact]
@@ -77,12 +78,93 @@ public sealed class BuffLedgerTests
         Apply(ledger, 10, 1800, precisionSeconds: 60);
         Apply(ledger, 20, 1800, precisionSeconds: 60);
         var result = Apply(ledger, 30, 1800, precisionSeconds: 60);
-        Assert.Empty(result.Consumptions);
+        AssertOnlyStartCharges(result, Buff.Id);
         Assert.Equal(3000m, result.ProratedCost);
     }
 
     [Fact]
-    public void SingleTimerSpikeDoesNotConsumeOrChargeAmbiguousIntervals()
+    public void LaterMinuteTimerDecreaseDoesNotUndoAnAlreadyReadIncrease()
+    {
+        var ledger = CreateLedger();
+        Apply(ledger, 0, 1800, precisionSeconds: 60);
+        Apply(ledger, 10, 1800, precisionSeconds: 60);
+        Apply(ledger, 20, 1740, precisionSeconds: 60);
+        Apply(ledger, 30, 1800, precisionSeconds: 60);
+        var decreased = Apply(ledger, 40, 1740, precisionSeconds: 60);
+        Assert.Equal(2, decreased.Consumptions.Count);
+        Assert.Single(decreased.Active);
+        var recovered = Apply(ledger, 50, 1740, precisionSeconds: 60);
+        Assert.Equal(2, recovered.Consumptions.Count);
+        Assert.False(Assert.Single(recovered.Active).IsBaseline);
+        Assert.Equal(TimeSpan.FromSeconds(50), Assert.Single(recovered.Usage).ObservedDuration);
+    }
+
+    [Fact]
+    public void IncreaseBeforeInitialConfirmationCountsOnlyTheNewUse()
+    {
+        var ledger = CreateLedger();
+        Apply(ledger, 0, 1740, precisionSeconds: 60);
+        Apply(ledger, 10, 1800, precisionSeconds: 60);
+        Apply(ledger, 20, 1740, precisionSeconds: 60);
+        var result = Apply(ledger, 30, 1740, precisionSeconds: 60);
+        Assert.False(Assert.Single(result.Consumptions).IsSessionStart);
+        Assert.False(Assert.Single(result.Active).IsBaseline);
+    }
+
+    [Fact]
+    public void ClearlyRenewedMinuteTimerStillBooksEveryConfirmedConsumptionExactlyOnce()
+    {
+        var ledger = CreateLedger();
+        Apply(ledger, 0, 1800, precisionSeconds: 60);
+        Apply(ledger, 10, 1800, precisionSeconds: 60);
+        Apply(ledger, 20, 3600, precisionSeconds: 60);
+        Apply(ledger, 30, 3600, precisionSeconds: 60);
+        Apply(ledger, 40, 3540, precisionSeconds: 60);
+        Apply(ledger, 50, 3540, precisionSeconds: 60);
+        Apply(ledger, 60, 3600, precisionSeconds: 60);
+        var result = Apply(ledger, 70, 3600, precisionSeconds: 60);
+        Assert.Equal(3, result.Consumptions.Count);
+        Assert.Single(result.Consumptions, item => item.IsSessionStart);
+        Assert.Equal(2, result.Consumptions.Count(item => !item.IsSessionStart));
+        Assert.Equal(1_080_000m, result.ConsumedCost);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void OneUnreadableBuffCanConfirmARefreshWhileOtherBuffsKeepTheirContinuity(bool recoveredBeforeDelivery)
+    {
+        var second = Buff with { Id = "perfume", Name = "Perfume" };
+        var ledger = new BuffLedger([Buff, second]);
+        BuffObservation Other(int seconds) => Observation(seconds) with { BuffId = second.Id };
+        ledger.Apply([Observation(120), Other(600)], Start, _ => Price);
+        ledger.Apply([Observation(110), Other(590)], Start.AddSeconds(10), _ => Price);
+        var scan = recoveredBeforeDelivery ? new[] { Observation(3600), Other(580) } : [Other(580)];
+        ledger.Apply(scan, Start.AddSeconds(20), _ => Price, [Buff.Id]);
+        ledger.Apply([Observation(3590), Other(570)], Start.AddSeconds(30), _ => Price);
+        var result = ledger.Apply([Observation(3580), Other(560)], Start.AddSeconds(40), _ => Price);
+        Assert.Equal(3, result.Consumptions.Count);
+        Assert.Equal(Buff.Id, Assert.Single(result.Consumptions, item => !item.IsSessionStart).BuffId);
+        Assert.Equal(2, result.Active.Count);
+        Assert.False(result.Active.Single(item => item.BuffId == Buff.Id).IsBaseline);
+        Assert.True(result.Active.Single(item => item.BuffId == second.Id).IsBaseline);
+        Assert.Equal(TimeSpan.FromSeconds(recoveredBeforeDelivery ? 30 : 20), result.Usage.Single(item => item.BuffId == Buff.Id).ObservedDuration);
+        Assert.Equal(TimeSpan.FromSeconds(40), result.Usage.Single(item => item.BuffId == second.Id).ObservedDuration);
+    }
+
+    [Fact]
+    public void DelayedUnreadableScanCannotDiscardAnAlreadyConfirmedBuff()
+    {
+        var ledger = CreateLedger();
+        Apply(ledger, 0, 1800);
+        Apply(ledger, 10, 1790);
+        var ignored = ledger.Apply([], Start.AddSeconds(5), _ => Price, [Buff.Id]);
+        Assert.Single(ignored.Active);
+        Assert.Equal(TimeSpan.FromSeconds(20), Assert.Single(Apply(ledger, 20, 1780).Usage).ObservedDuration);
+    }
+
+    [Fact]
+    public void HigherReadTimerIsBookedEvenWhenALaterTimerDrops()
     {
         var ledger = CreateLedger();
         Apply(ledger, 0, 120);
@@ -90,8 +172,8 @@ public sealed class BuffLedgerTests
         Apply(ledger, 20, 3600);
         Apply(ledger, 30, 90);
         var result = Apply(ledger, 40, 80);
-        Assert.Empty(result.Consumptions);
-        Assert.Equal(TimeSpan.FromSeconds(20), Assert.Single(result.Usage).ObservedDuration);
+        Assert.Equal(2, result.Consumptions.Count);
+        Assert.Equal(TimeSpan.FromSeconds(30), Assert.Single(result.Usage).ObservedDuration);
     }
 
     [Fact]
@@ -103,37 +185,83 @@ public sealed class BuffLedgerTests
         Assert.Empty(ApplyEmpty(ledger, 20).Active);
         Apply(ledger, 30, 1770);
         var result = Apply(ledger, 40, 1760);
-        Assert.Empty(result.Consumptions);
+        AssertOnlyStartCharges(result, Buff.Id);
         Assert.Equal(TimeSpan.FromSeconds(20), Assert.Single(result.Usage).ObservedDuration);
     }
 
+    [Theory]
+    [InlineData(20)]
+    [InlineData(600)]
+    public void MissingIconRetainsItsLastReadTimerAcrossShortAndLongGaps(int lastMissingAt)
+    {
+        var second = Buff with { Id = "perfume", Name = "Perfume" };
+        var ledger = new BuffLedger([Buff, second]);
+        BuffObservation Other(int elapsed) => Observation(3000 - elapsed) with { BuffId = second.Id };
+        ledger.Apply([Observation(600), Other(0)], Start, _ => Price);
+        ledger.Apply([Observation(590), Other(10)], Start.AddSeconds(10), _ => Price);
+        for (var elapsed = 20; elapsed <= lastMissingAt; elapsed += 10)
+            ledger.Apply([Other(elapsed)], Start.AddSeconds(elapsed), _ => Price);
+        ledger.Apply([Observation(3600), Other(lastMissingAt + 10)], Start.AddSeconds(lastMissingAt + 10), _ => Price);
+        var state = ledger.Apply([Observation(3590), Other(lastMissingAt + 20)], Start.AddSeconds(lastMissingAt + 20), _ => Price);
+
+        Assert.Equal(3, state.Consumptions.Count);
+        Assert.Equal(Buff.Id, Assert.Single(state.Consumptions, item => !item.IsSessionStart).BuffId);
+        Assert.Equal(2, state.Active.Count);
+        Assert.False(state.Active.Single(item => item.BuffId == Buff.Id).IsBaseline);
+        Assert.True(state.Active.Single(item => item.BuffId == second.Id).IsBaseline);
+        Assert.Equal(TimeSpan.FromSeconds(20), state.Usage.Single(item => item.BuffId == Buff.Id).ObservedDuration);
+        Assert.Equal(TimeSpan.FromSeconds(lastMissingAt + 20), state.Usage.Single(item => item.BuffId == second.Id).ObservedDuration);
+    }
+
     [Fact]
-    public void MissingInitialConfirmationDoesNotTurnSessionStartBuffIntoConsumption()
+    public void DelayedFirstIconDetectionCountsOnceAndLaterIncreaseAddsOne()
+    {
+        var second = Buff with { Id = "perfume", Name = "Perfume" };
+        var ledger = new BuffLedger([Buff, second]);
+        BuffObservation Other(int remaining) => Observation(remaining) with { BuffId = second.Id };
+        ledger.Apply([Other(600)], Start, _ => Price);
+        ledger.Apply([Other(590), Observation(3590, 60)], Start.AddSeconds(10), _ => Price);
+        var baseline = ledger.Apply([Other(580), Observation(3580, 60)], Start.AddSeconds(20), _ => Price);
+        AssertOnlyStartCharges(baseline, second.Id, Buff.Id);
+        Assert.True(baseline.Active.Single(item => item.BuffId == Buff.Id).IsBaseline);
+
+        // A later continuously observed, clearly renewed countdown still counts once.
+        ledger.Apply([Other(570), Observation(1800, 60)], Start.AddSeconds(30), _ => Price);
+        ledger.Apply([Other(560), Observation(1790, 60)], Start.AddSeconds(40), _ => Price);
+        ledger.Apply([Other(550), Observation(3600, 60)], Start.AddSeconds(50), _ => Price);
+        var renewed = ledger.Apply([Other(540), Observation(3590, 60)], Start.AddSeconds(60), _ => Price);
+        Assert.Equal(3, renewed.Consumptions.Count);
+        Assert.Equal(2, renewed.Consumptions.Count(item => item.IsSessionStart));
+        Assert.Equal(Buff.Id, Assert.Single(renewed.Consumptions, item => !item.IsSessionStart).BuffId);
+    }
+
+    [Fact]
+    public void MissingInitialConfirmationDelaysTheSingleStartChargeUntilReconfirmed()
     {
         var ledger = CreateLedger();
         Apply(ledger, 0, 3600);
         ApplyEmpty(ledger, 10);
         Apply(ledger, 20, 3580);
         var result = Apply(ledger, 30, 3570);
-        Assert.Empty(result.Consumptions);
+        AssertOnlyStartCharges(result, Buff.Id);
         Assert.True(Assert.Single(result.Active).IsBaseline);
         Assert.Equal(TimeSpan.FromSeconds(10), Assert.Single(result.Usage).ObservedDuration);
     }
 
     [Fact]
-    public void InitialBaselineEvidenceStillAllowsClearlyRenewedTimerAfterMissingReading()
+    public void HigherTimerAfterAnUnconfirmedInitialReadingCountsOneUse()
     {
         var ledger = CreateLedger();
         Apply(ledger, 0, 60);
         ApplyEmpty(ledger, 10);
         Apply(ledger, 20, 3600);
         var result = Apply(ledger, 30, 3590);
-        Assert.Single(result.Consumptions);
+        Assert.False(Assert.Single(result.Consumptions).IsSessionStart);
         Assert.False(Assert.Single(result.Active).IsBaseline);
     }
 
     [Fact]
-    public void ReappearanceWithClearlyRenewedTimerCountsAsConsumption()
+    public void ReappearanceWithHigherTimerCountsOneNewUse()
     {
         var ledger = CreateLedger();
         Apply(ledger, 0, 60);
@@ -141,25 +269,26 @@ public sealed class BuffLedgerTests
         ApplyEmpty(ledger, 20);
         Apply(ledger, 30, 3600);
         var result = Apply(ledger, 40, 3590);
-        Assert.Single(result.Consumptions);
+        Assert.Equal(2, result.Consumptions.Count);
+        Assert.False(Assert.Single(result.Active).IsBaseline);
         Assert.Equal(TimeSpan.FromSeconds(20), Assert.Single(result.Usage).ObservedDuration);
     }
 
     [Fact]
-    public void LongCaptureGapStartsBaselineWithoutChargingOfflineTime()
+    public void LongCaptureGapRetainsTimerComparisonWithoutChargingOfflineTime()
     {
         var ledger = CreateLedger();
         Apply(ledger, 0, 120);
         Apply(ledger, 10, 110);
         Apply(ledger, 300, 3600);
         var result = Apply(ledger, 310, 3590);
-        Assert.Empty(result.Consumptions);
-        Assert.True(Assert.Single(result.Active).IsBaseline);
+        Assert.Equal(2, result.Consumptions.Count);
+        Assert.False(Assert.Single(result.Active).IsBaseline);
         Assert.Equal(TimeSpan.FromSeconds(20), Assert.Single(result.Usage).ObservedDuration);
     }
 
     [Fact]
-    public void ExplicitBreakPreventsChargingPauseOrInferringUnseenConsumption()
+    public void ExplicitBreakRetainsTimerComparisonButDoesNotChargeThePause()
     {
         var ledger = CreateLedger();
         Apply(ledger, 0, 120);
@@ -168,7 +297,7 @@ public sealed class BuffLedgerTests
         Assert.Empty(ledger.Snapshot.Active);
         Apply(ledger, 20, 3600);
         var result = Apply(ledger, 30, 3590);
-        Assert.Empty(result.Consumptions);
+        Assert.Equal(2, result.Consumptions.Count);
         Assert.Equal(TimeSpan.FromSeconds(20), Assert.Single(result.Usage).ObservedDuration);
     }
 
@@ -176,7 +305,7 @@ public sealed class BuffLedgerTests
     public void MissingPriceRemainsUnknownForPastConsumptionAndPastRunningTime()
     {
         var ledger = CreateLedger();
-        ApplyEmpty(ledger, 0);
+        Apply(ledger, 0, 60);
         ledger.Apply([Observation(3600)], Start.AddSeconds(10), _ => null);
         var result = Apply(ledger, 20, 3590);
         Assert.Null(result.ConsumedCost);
@@ -199,7 +328,7 @@ public sealed class BuffLedgerTests
     public void PricesAreCapturedPerCycleAndNeverRetroactivelyRevalued()
     {
         var ledger = CreateLedger();
-        ApplyEmpty(ledger, 0);
+        Apply(ledger, 0, 60);
         Apply(ledger, 10, 3600);
         Apply(ledger, 20, 3590, Price with { UnitPrice = 1 });
         var result = Apply(ledger, 30, 3580, Price with { UnitPrice = 2 });
@@ -208,13 +337,13 @@ public sealed class BuffLedgerTests
     }
 
     [Fact]
-    public void LateFirstDetectionWithPartialTimerIsBaseline()
+    public void LateFirstDetectionWithPartialTimerCountsOneInitialUse()
     {
         var ledger = CreateLedger();
         ApplyEmpty(ledger, 0);
         Apply(ledger, 10, 1800);
         var result = Apply(ledger, 20, 1790);
-        Assert.Empty(result.Consumptions);
+        AssertOnlyStartCharges(result, Buff.Id);
         Assert.True(Assert.Single(result.Active).IsBaseline);
     }
 
@@ -227,6 +356,7 @@ public sealed class BuffLedgerTests
         Assert.Empty(Apply(ledger, 0, 1810).Active);
         var result = Apply(ledger, 20, 1790);
         Assert.Equal(1000m, result.ProratedCost);
+        AssertOnlyStartCharges(result, Buff.Id);
     }
 
     [Fact]
@@ -246,7 +376,7 @@ public sealed class BuffLedgerTests
     public void RestoreRoundTripsTotalsAndDoesNotResumePersistedTimers()
     {
         var ledger = CreateLedger();
-        ApplyEmpty(ledger, 0);
+        Apply(ledger, 0, 60);
         Apply(ledger, 10, 3600);
         var snapshot = Apply(ledger, 20, 3590);
         var serialized = JsonSerializer.Serialize(snapshot);
@@ -304,17 +434,17 @@ public sealed class BuffLedgerTests
         var snapshot = ApplyEmpty(ledger, 20);
         Assert.True(snapshot.HasStalePrices);
         Assert.Empty(snapshot.Active);
-        Assert.Empty(snapshot.Consumptions);
+        AssertOnlyStartCharges(snapshot, Buff.Id);
         var restored = CreateLedger();
         restored.Restore(snapshot);
         Assert.True(restored.Snapshot.HasStalePrices);
     }
 
     [Fact]
-    public void ResetClearsHistoryAndStartsNewBaseline()
+    public void ResetClearsHistoryAndAllowsOneNewSessionStartCharge()
     {
         var ledger = CreateLedger();
-        ApplyEmpty(ledger, 0);
+        Apply(ledger, 0, 60);
         Apply(ledger, 10, 3600);
         Apply(ledger, 20, 3590);
         ledger.Reset();
@@ -322,7 +452,7 @@ public sealed class BuffLedgerTests
         Assert.Empty(ledger.Snapshot.Consumptions);
         Assert.Empty(ledger.Snapshot.Usage);
         Apply(ledger, 30, 3580);
-        Assert.Empty(Apply(ledger, 40, 3570).Consumptions);
+        AssertOnlyStartCharges(Apply(ledger, 40, 3570), Buff.Id);
     }
 
     [Theory]
@@ -332,9 +462,9 @@ public sealed class BuffLedgerTests
     {
         var party = Buff with { RequiresConsumptionConfirmation = true };
         var ledger = new BuffLedger([party]);
-        ApplyEmpty(ledger, 0);
         BuffObservation Reading(int seconds) => Observation(seconds) with
         { ConsumptionAttributionConfirmed = ownConsumption };
+        ledger.Apply([Reading(60)], Start, _ => Price);
         ledger.Apply([Reading(3600)], Start.AddSeconds(10), _ => Price);
         var snapshot = ledger.Apply([Reading(3590)], Start.AddSeconds(20), _ => Price);
         if (ownConsumption)
@@ -355,7 +485,7 @@ public sealed class BuffLedgerTests
     {
         var ledger = CreateLedger();
         var npc = Price with { Source = BuffPriceSource.FixedNpc, Region = "NPC", FetchedAt = null };
-        ApplyEmpty(ledger, 0);
+        Apply(ledger, 0, 60, npc);
         Apply(ledger, 10, 3600, npc);
         var snapshot = Apply(ledger, 20, 3590, npc);
         var restored = CreateLedger();
@@ -365,6 +495,11 @@ public sealed class BuffLedgerTests
         Assert.Equal(1000m, restored.Snapshot.ProratedCost);
     }
 
+    private static void AssertOnlyStartCharges(BuffLedgerSnapshot snapshot, params string[] expectedIds)
+    {
+        Assert.Equal(expectedIds.Order(), snapshot.Consumptions.Select(item => item.BuffId).Order());
+        Assert.All(snapshot.Consumptions, item => Assert.True(item.IsSessionStart));
+    }
     private static BuffLedger CreateLedger() => new([Buff]);
 
     private static BuffObservation Observation(int remainingSeconds, int precisionSeconds = 1) =>

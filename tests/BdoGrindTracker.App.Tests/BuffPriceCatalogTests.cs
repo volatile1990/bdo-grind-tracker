@@ -41,6 +41,107 @@ public sealed class BuffPriceCatalogTests
         Assert.Null(BuffPriceCatalog.GetPrice(buff with { MarketItemId = int.MaxValue }, snapshot));
     }
 
+    [Theory]
+    [InlineData("immortal-harmony-draught", "harmony-draught", 1399)]
+    [InlineData("immortal-harmony-draught-human", "harmony-draught-human", 1401)]
+    [InlineData("immortal-harmony-draught-demihuman", "harmony-draught-demihuman", 1403)]
+    [InlineData("immortal-harmony-draught-kamasylvia", "harmony-draught-kamasylvia", 1405)]
+    [InlineData("immortal-harmony-draught-edania", "harmony-draught-edania", 1407)]
+    public void HarmonyRecognitionRetainsBothVariantsAndUsesTheirOwnMarketPrices(string immortalId, string normalId, int normalMarketId)
+    {
+        var normal = Assert.IsType<BuffDefinition>(BuffPriceCatalog.ResolveRecognitionDefinition(normalId));
+        var immortal = Assert.IsType<BuffDefinition>(BuffPriceCatalog.ResolveRecognitionDefinition(immortalId));
+        Assert.Equal(normalId, normal.Id);
+        Assert.Equal(immortalId, immortal.Id);
+        Assert.Equal(normalMarketId, normal.MarketItemId);
+        Assert.Equal(normalMarketId + 1, immortal.MarketItemId);
+        Assert.NotEqual(normal.RecognitionGroup, immortal.RecognitionGroup);
+        Assert.Contains(BuffPriceCatalog.MarketDefinitions(), item => item.MarketItemId == immortal.MarketItemId);
+        var fetched = DateTimeOffset.Parse("2026-09-21T10:00:00Z");
+        var snapshot = new LootPriceSnapshot("na", [
+            new(normal.Name, 1_200_000m, 0, LootPriceOrigin.CachedMarket, fetched, true),
+            new(immortal.Name, 9_000_000m, 0, LootPriceOrigin.LiveMarket, fetched),
+        ]);
+
+        Assert.Equal(new BuffPrice(1_200_000m, "na", fetched, true), BuffPriceCatalog.GetPrice(normal, snapshot));
+        Assert.Equal(new BuffPrice(9_000_000m, "na", fetched, false), BuffPriceCatalog.GetPrice(immortal, snapshot));
+        Assert.Null(BuffPriceCatalog.GetPrice(immortal, new LootPriceSnapshot("na", [
+            new(normal.Name, 1_200_000m, 0, LootPriceOrigin.LiveMarket, fetched),
+        ])));
+        Assert.Null(BuffPriceCatalog.GetPrice(normal, new LootPriceSnapshot("na", [
+            new(immortal.Name, 9_000_000m, 0, LootPriceOrigin.LiveMarket, fetched),
+        ])));
+    }
+
+    [Fact]
+    public void NewImmortalConsumptionPreservesPreviouslyBookedNormalHarmonyIdentityAndCost()
+    {
+        var at = DateTimeOffset.Parse("2026-09-21T10:00:00Z");
+        var normal = BuffPriceCatalog.ResolveRecognitionDefinition("harmony-draught")!;
+        var immortal = BuffPriceCatalog.ResolveRecognitionDefinition("immortal-harmony-draught")!;
+        var historicalPrice = new BuffPrice(1_200_000m, "eu", at.AddDays(-1), false);
+        var old = new BuffConsumption(normal.Id, normal.Name, normal.MarketItemId, at.AddDays(-1), historicalPrice);
+        var ledger = new BuffLedger(BuffPriceCatalog.HistoryDefinitions);
+        ledger.Restore(new([old], [], []));
+        var prices = new LootPriceSnapshot("eu", [new(immortal.Name, 9_000_000m, 0, LootPriceOrigin.LiveMarket, at)]);
+        BuffPrice? Price(BuffDefinition definition) => BuffPriceCatalog.GetPrice(definition, prices);
+        BuffObservation Observe(string id, int seconds) => new(
+            BuffPriceCatalog.ResolveRecognitionDefinition(id)!.Id, TimeSpan.FromSeconds(seconds), TimeSpan.FromSeconds(1));
+        ledger.Apply([Observe(immortal.Id, 60)], at, Price);
+        ledger.Apply([Observe(immortal.Id, 59)], at.AddSeconds(1), Price);
+        ledger.Apply([Observe(immortal.Id, 1200)], at.AddSeconds(2), Price);
+        ledger.Apply([Observe(immortal.Id, 1199)], at.AddSeconds(3), Price);
+        var state = ledger.Apply([Observe(immortal.Id, 1198)], at.AddSeconds(4), Price);
+
+        Assert.Equal(old, state.Consumptions[0]);
+        Assert.Equal(3, state.Consumptions.Count);
+        var current = state.Consumptions.Where(item => item.BuffId == immortal.Id).ToArray();
+        Assert.Equal(at, Assert.Single(current, item => item.IsSessionStart).ConsumedAt);
+        Assert.Equal(at.AddSeconds(2), Assert.Single(current, item => !item.IsSessionStart).ConsumedAt);
+        Assert.All(current, item =>
+        {
+            Assert.Equal(1400, item.MarketItemId);
+            Assert.Equal(9_000_000m, item.Cost);
+        });
+        Assert.Equal(19_200_000m, state.ConsumedCost);
+    }
+
+    [Theory]
+    [InlineData("immortal-perfume-of-courage")]
+    [InlineData("simple-cron-meal")]
+    public void RecognitionResolvesExactKnownIdentitiesOnly(string id)
+    {
+        Assert.Equal(id, BuffPriceCatalog.ResolveRecognitionDefinition(id)!.Id);
+        Assert.Null(BuffPriceCatalog.ResolveRecognitionDefinition("immortal-harmony-unknown"));
+    }
+
+    [Theory]
+    [InlineData("harmony-draught-demihuman")]
+    [InlineData("immortal-harmony-draught-demihuman")]
+    public void PartyHarmonyCountsAHigherVisibleTimerImmediatelyWithoutOwnConsumptionAttribution(string id)
+    {
+        var at = DateTimeOffset.Parse("2026-09-21T10:00:00Z");
+        var buff = BuffPriceCatalog.ResolveRecognitionDefinition(id)!;
+        var ledger = new BuffLedger(BuffPriceCatalog.Definitions);
+        BuffObservation Observe(int seconds) => new(id, TimeSpan.FromSeconds(seconds), TimeSpan.FromSeconds(1));
+        BuffPrice? Price(BuffDefinition _) => new(2_000_000m, "eu", at, false);
+
+        ledger.Apply([Observe(60)], at, Price);
+        Assert.True(Assert.Single(ledger.Apply([Observe(59)], at.AddSeconds(1), Price).Consumptions).IsSessionStart);
+        var renewed = ledger.Apply([Observe(1200)], at.AddSeconds(2), Price);
+        Assert.Equal(2, renewed.Consumptions.Count);
+        Assert.Equal(at.AddSeconds(2), Assert.Single(renewed.Consumptions,
+            item => !item.IsSessionStart).ConsumedAt);
+        ledger.Apply([Observe(1199)], at.AddSeconds(3), Price);
+        var state = ledger.Apply([Observe(1198)], at.AddSeconds(4), Price);
+
+        Assert.Equal(2, state.Consumptions.Count);
+        var consumed = Assert.Single(state.Consumptions, item => !item.IsSessionStart);
+        Assert.Equal(id, consumed.BuffId);
+        Assert.Equal(buff.MarketItemId, consumed.MarketItemId);
+        Assert.Equal(4_000_000m, state.ConsumedCost);
+    }
+
     [Fact]
     public async Task BuffsShareMarketFallbackAndNeverBorrowAnotherRegionsPrices()
     {

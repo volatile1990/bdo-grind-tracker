@@ -179,7 +179,7 @@ public sealed class BdoClockTests
             var rendered = await renderer.RenderComponentAsync<OverlayWidgetPreview>(ParameterView.FromDictionary(new Dictionary<string, object?>
             {
                 [nameof(OverlayWidgetPreview.Widget)] = widget,
-                [nameof(OverlayWidgetPreview.Snapshot)] = snapshot,
+                [nameof(OverlayWidgetPreview.Snapshot)] = snapshot with { UiLanguage = "de" },
             }));
             return WebUtility.HtmlDecode(rendered.ToHtmlString());
         });

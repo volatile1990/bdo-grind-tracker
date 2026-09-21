@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Text.RegularExpressions;
 using BdoGrindTracker.App.Components;
 using BdoGrindTracker.App.Overlay;
+using BdoGrindTracker.App.Services;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
@@ -180,9 +181,11 @@ public sealed class OverlayEditorConfirmationTests
     private static async Task Render(RecordingOverlayService overlay,
         Func<OverlayEditor, Func<string>, RecordingJs, Task> test)
     {
+        await using var tracker = new PreviewTrackerSession();
+        await tracker.SavePreferencesAsync(tracker.Preferences with { UiLanguage = "de" });
         var activator = new CapturingActivator();
         var js = new RecordingJs();
-        using var provider = new ServiceCollection().AddLogging().AddSingleton<IOverlayService>(overlay)
+        using var provider = new ServiceCollection().AddLogging().AddSingleton<IOverlayService>(overlay).AddSingleton<ITrackerSession>(tracker)
             .AddSingleton<IJSRuntime>(js).AddSingleton<IComponentActivator>(activator).BuildServiceProvider();
         await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
         await renderer.Dispatcher.InvokeAsync(async () =>

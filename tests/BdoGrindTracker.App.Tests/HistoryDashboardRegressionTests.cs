@@ -230,7 +230,7 @@ public sealed class HistoryDashboardRegressionTests
     {
         public event Action? Changed { add { } remove { } }
         public TrackerState State { get; } = new() { AnalyzerAvailable = true };
-        public TrackerPreferences Preferences { get; } = new();
+        public TrackerPreferences Preferences { get; } = new() { UiLanguage = "de" };
         public IReadOnlyList<TrackerMonitor> Monitors { get; } = [];
         public IReadOnlyList<LootHistoryEntry> History { get; set; } = [Entry(LootSpotCatalog.HermesiaId, 10, DateTimeOffset.Now.AddDays(-1), "Warrior · Awakening")];
         public LootPriceSnapshot Prices { get; } = LootPriceCatalog.FixedSnapshot("eu");
@@ -249,7 +249,6 @@ public sealed class HistoryDashboardRegressionTests
         public Task<PreferenceSaveResult> SavePreferencesAsync(TrackerPreferences preferences, string? apiKey = null, bool resumeAutomaticUpload = false) => throw new InvalidOperationException("Unexpected save.");
         public Task RefreshPricesAsync() => Command();
         public Task TickAsync() => Command();
-        public Task PrepareUpdateRestartAsync() => Command();
         public Task RunPreparedUpdateAsync(Func<Task> install) => Command();
         public Task ShutdownAsync() => Command();
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;

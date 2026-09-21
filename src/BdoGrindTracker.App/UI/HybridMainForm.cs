@@ -12,6 +12,7 @@ using BdoGrindTracker.App.Overlay;
 using BdoGrindTracker.App.Overlay.Native;
 using BdoGrindTracker.App.Integrations.Garmoth;
 using BdoGrindTracker.App.Theming;
+using BdoGrindTracker.App.Localization;
 
 namespace BdoGrindTracker.App.UI;
 
@@ -44,6 +45,7 @@ internal sealed class HybridMainForm : Form
     private string? _appliedTheme;
 
     public int ExitCode { get; private set; }
+    private string T(string message) => AppText.Translate(message, _session.Preferences.UiLanguage);
 
     internal Task<GarmothBenchmarkPayload> ReadGarmothBenchmarksAsync(CancellationToken cancellationToken)
         => new GarmothWebViewBenchmarkReader(this,
@@ -56,7 +58,7 @@ internal sealed class HybridMainForm : Form
         _startupPlacement = _persistPlacement ? _placementStore.Load() : null;
         _smokeTest = smokeTest;
         _hidden = smokeTest || hidden;
-        Text = AppBranding.WindowTitle + (preview ? " · Vorschau" : "");
+        Text = AppBranding.WindowTitle + (preview ? " · " + T("Vorschau") : "");
         Icon = AppBranding.CreateWindowIcon();
         ApplyTheme();
         AutoScaleDimensions = new SizeF(96, 96);
@@ -88,11 +90,10 @@ internal sealed class HybridMainForm : Form
             preview || smokeTest ? null : new OverlayTemplateStore(), grindGoals);
         services.AddSingleton<IOverlayService>(_overlay);
         _nativeOverlay = new NativeOverlayHost(_overlay, session, this, validationMode: preview || smokeTest);
-        _updates = AppUpdateService.Create(!preview && !smokeTest,
-            () => session.State.IsRunning, () => session.State.IsBusy, PrepareUpdateRestartAsync,
+        _updates = AppUpdateRuntime.Current.CreateUpdates(!preview && !smokeTest,
             () => new StoreAppUpdateService(new StoreUpdateBackend(() => IsDisposed ? 0 : Handle, RunOnUiThreadAsync),
                 () => _closing || session.State.IsRunning || session.State.IsBusy,
-                PrepareStoreInstallAsync, AppUpdateService.ApplicationVersion));
+                PrepareStoreInstallAsync, AppBranding.Version));
         services.AddSingleton<IAppUpdates>(_updates);
         _services = services.BuildServiceProvider();
         _web.Services = _services;
@@ -167,10 +168,13 @@ internal sealed class HybridMainForm : Form
         {
             AppThemes.Light => Color.FromArgb(245, 246, 248),
             AppThemes.Cats => Color.FromArgb(41, 35, 47),
+            AppThemes.Obsidian => Color.FromArgb(16, 18, 22),
+            AppThemes.Kamasylvia => Color.FromArgb(20, 35, 30),
+            AppThemes.Valencia => Color.FromArgb(243, 234, 219),
             _ => Color.FromArgb(13, 17, 24),
         };
         if (_webReady) _web.WebView.DefaultBackgroundColor = BackColor;
-        BdoWindowChrome.Apply(this, darkMode: theme != AppThemes.Light);
+        BdoWindowChrome.Apply(this, darkMode: theme is not (AppThemes.Light or AppThemes.Valencia));
         _appliedTheme = theme;
     }
 
@@ -246,7 +250,7 @@ internal sealed class HybridMainForm : Form
         if (_closing) return;
         ExitCode = 1;
         if (_hidden) Console.Error.WriteLine(message);
-        else MessageBox.Show(this, message, "Grindcrest", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        else MessageBox.Show(this, T(message), "Grindcrest", MessageBoxButtons.OK, MessageBoxIcon.Error);
         Close();
     }
 
@@ -280,89 +284,9 @@ internal sealed class HybridMainForm : Form
             _timer.Start();
             if (_hidden) Console.Error.WriteLine(error.Message);
             else MessageBox.Show(this,
-                "Die Session konnte nicht vollständig gespeichert werden. Grindcrest bleibt geöffnet. " +
-                "Prüfe den freien Speicherplatz oder die Dateisperre und wähle „Erneut sichern“.\n\n" + error.Message,
-                "Session noch nicht gespeichert", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-        }
-    }
-
-    private Task<bool> PrepareUpdateRestartAsync(Action scheduleApply)
-    {
-        if (!InvokeRequired) return PrepareUpdateRestartCoreAsync(scheduleApply);
-        var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        BeginInvoke(async () =>
-        {
-            try { completion.SetResult(await PrepareUpdateRestartCoreAsync(scheduleApply)); }
-            catch (Exception error) { completion.SetException(error); }
-        });
-        return completion.Task;
-    }
-
-    private async Task<bool> PrepareUpdateRestartCoreAsync(Action scheduleApply)
-    {
-        // Recheck at the host boundary: tracking may have resumed since rendering.
-        if (_closing || _session.State.IsRunning || _session.State.IsBusy) return false;
-        _closing = true;
-        _timer.Stop();
-        Enabled = false;
-        try
-        {
-            // Keep the live service available for retry until the paused session
-            // has a durable snapshot. Shutdown itself disposes the service.
-            await _session.PrepareUpdateRestartAsync();
-            SaveWindowPlacement();
-        }
-        catch (Exception)
-        {
-            _closing = false;
-            Enabled = true;
-            _timer.Start();
-            MessageBox.Show(this,
-                "Deine Session konnte nicht gespeichert werden. Grindcrest bleibt geöffnet und das Update wartet. " +
-                "Bitte prüfe den freien Speicherplatz und versuche es erneut.",
-                "Session noch nicht gespeichert", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            return false;
-        }
-        var closeAfterShutdown = true;
-        try
-        {
-            await _session.ShutdownAsync();
-            if (_session.State.ShutdownFailed)
-            {
-                // A save can fail after the preflight succeeded. Shutdown keeps
-                // its resources alive in that case, so preserve the retry path.
-                closeAfterShutdown = false;
-                _closing = false;
-                Enabled = true;
-                _timer.Start();
-                MessageBox.Show(this,
-                    "Deine Session konnte nicht vollständig gespeichert werden. Grindcrest bleibt geöffnet und das Update wartet. " +
-                    "Prüfe den freien Speicherplatz oder die Dateisperre und wähle „Erneut sichern“.\n\n" +
-                    (_session.State.PersistenceError ?? _session.State.Status),
-                    "Session noch nicht gespeichert", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return false;
-            }
-            await _session.DisposeAsync();
-            // Start the updater's bounded exit wait only after all saves finish.
-            scheduleApply();
-            return true;
-        }
-        catch (Exception)
-        {
-            ExitCode = 1;
-            MessageBox.Show(this,
-                "Das Update wurde nicht gestartet, weil das Speichern oder Vorbereiten fehlgeschlagen ist. " +
-                "Bitte starte Grindcrest erneut und prüfe deinen Verlauf. Das Update kannst du danach erneut versuchen.",
-                "Update nicht installiert", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            return false;
-        }
-        finally
-        {
-            if (closeAfterShutdown)
-            {
-                _closed = true;
-                Close();
-            }
+                T("Die Session konnte nicht vollständig gespeichert werden. Grindcrest bleibt geöffnet. " +
+                "Prüfe den freien Speicherplatz oder die Dateisperre und wähle „Erneut sichern“.") + "\n\n" + T(error.Message),
+                T("Session noch nicht gespeichert"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
     }
 

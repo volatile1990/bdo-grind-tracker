@@ -1,8 +1,9 @@
 @implements IAsyncDisposable
+@inherits LocalizedComponentBase
 @inject IOverlayService Overlay
 
 <CascadingValue Name="IsBrowserPreview" Value="true" IsFixed="true">
-    <div class="browser-preview-banner" role="note"><strong>Browser-Vorschau</strong><span>Beispieldaten · Änderungen gelten bis zum Neuladen · Aufnahme und Uploads werden simuliert</span></div>
+    <div class="browser-preview-banner" role="note"><strong>@T("Browser-Vorschau")</strong><span>@T("Beispieldaten · Änderungen gelten bis zum Neuladen · Aufnahme und Uploads werden simuliert")</span></div>
     <TrackerApp />
     <BrowserOverlayPreview @ref="_overlayPreview" />
 </CascadingValue>
@@ -12,7 +13,11 @@
     private Task? _clock;
     private BrowserOverlayPreview? _overlayPreview;
 
-    protected override void OnInitialized() => _clock = RunClockAsync();
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        _clock = RunClockAsync();
+    }
 
     private async Task RunClockAsync()
     {
@@ -31,6 +36,7 @@
 
     public async ValueTask DisposeAsync()
     {
+        base.Dispose();
         await _stop.CancelAsync();
         if (_clock is not null) await _clock;
         _stop.Dispose();

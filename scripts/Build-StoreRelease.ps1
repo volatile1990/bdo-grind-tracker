@@ -11,10 +11,7 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 if (-not $IsWindows) { throw 'Windows is required to build an MSIX package.' }
-$metadata = & (Join-Path $PSScriptRoot 'Get-ReleaseMetadata.ps1') -Version $Version -Channel stable
-if ($metadata.IsPrerelease -or [int]$Version.Split('.')[0] -eq 0) {
-    throw 'Store packages require a stable version with a nonzero major component.'
-}
+$packageVersion = & (Join-Path $PSScriptRoot 'Get-StorePackageVersion.ps1') -Version $Version
 $workspaceRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 if (-not $OutputDirectory) { $OutputDirectory = Join-Path $workspaceRoot "artifacts/store/$Version" }
 $OutputDirectory = [IO.Path]::GetFullPath($OutputDirectory)
@@ -43,7 +40,6 @@ function Invoke-DotNet([string[]] $Arguments) {
 
 $workDirectory = Join-Path $workspaceRoot "artifacts/store-work/$Version-$([guid]::NewGuid().ToString('N'))"
 $publishDirectory = Join-Path $workDirectory 'publish'
-$packageVersion = "$Version.0"
 $packageName = "Grindcrest-$packageVersion-x64.msix"
 [IO.Directory]::CreateDirectory($workDirectory) | Out-Null
 Push-Location $workspaceRoot
@@ -51,6 +47,8 @@ try {
     $versionProperties = @("-p:Version=$Version", "-p:InformationalVersion=$Version",
         '-p:IncludeSourceRevisionInInformationalVersion=false')
     if (-not $SkipTests) {
+        & (Join-Path $PSScriptRoot 'tests/Test-PackagedRuntime.Tests.ps1')
+        & (Join-Path $PSScriptRoot 'tests/Test-StoreValidation.Tests.ps1')
         & (Join-Path $PSScriptRoot 'Test-Ui.ps1')
         $previousOcrRequirement = $env:GRINDCREST_REQUIRE_WINDOWS_OCR
         try {
@@ -85,7 +83,7 @@ try {
     }
 
     # Partner Center accepts unsigned MSIX submissions and signs them after certification.
-    # Do not run Velopack, inject an installer, or embed a private signing key in this package.
+    # Keep the payload free of external updaters, installers and private signing keys.
     $packLog = Join-Path $workDirectory 'makeappx.log'
     & $makeAppx pack /d $publishDirectory /p (Join-Path $workDirectory $packageName) /h SHA256 /o *> $packLog
     if ($LASTEXITCODE -ne 0) {

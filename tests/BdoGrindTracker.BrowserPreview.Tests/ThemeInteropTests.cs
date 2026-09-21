@@ -9,6 +9,25 @@ namespace BdoGrindTracker.BrowserPreview.Tests;
 public sealed class ThemeInteropTests
 {
     [Fact]
+    public async Task IndependentOverlayThemeNeverChangesTheDocumentTheme()
+    {
+        await using var tracker = new PreviewTrackerSession();
+        await tracker.SavePreferencesAsync(tracker.Preferences with { ThemeId = AppThemes.Light });
+        var js = new DelayedJavaScript();
+        var component = CreateComponent(tracker, js);
+        var initial = AfterRender(component);
+        js.Calls[0].Acknowledge();
+        await initial;
+
+        await tracker.SavePreferencesAsync(tracker.Preferences with { OverlayThemeId = AppThemes.Obsidian });
+        await AfterRender(component);
+
+        Assert.Single(js.Calls);
+        Assert.Equal(AppThemes.Light, js.DocumentTheme);
+        Assert.Equal(AppThemes.Obsidian, tracker.Preferences.EffectiveOverlayThemeId);
+    }
+
+    [Fact]
     public async Task RapidThemeSwitchesBeforePriorAcknowledgementsKeepTheLatestDocumentTheme()
     {
         var tracker = new PreviewTrackerSession();
@@ -82,6 +101,7 @@ public sealed class ThemeInteropTests
 
         public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args)
         {
+            if (identifier == "grindcrest.setLanguage") return ValueTask.FromResult(default(TValue)!);
             Assert.Equal("grindcrest.setTheme", identifier);
             DocumentTheme = Assert.IsType<string>(Assert.Single(args!));
             var call = new PendingCall(DocumentTheme);

@@ -49,6 +49,7 @@ internal sealed class RotationMonitor : IDisposable
     private readonly List<SessionRotation> _sessionRotations = [];
     private readonly List<RotationTimelineEntry> _timeline = [];
     private readonly Dictionary<Guid, (int Revision, int Quantity)> _lootSeen = [];
+    private readonly Dictionary<Guid, RotationTimelineEntry> _lastLootEntry = [];
     private RotationDiagnosticRecording? _diagnostics;
     private void CollectCompleted()
     {
@@ -59,7 +60,12 @@ internal sealed class RotationMonitor : IDisposable
             _sessionRotations.Add(new SessionRotation(_spotId, startedAt, run));
             _diagnostics?.Completed(_spotId, startedAt, run);
         }
-        _timeline.AddRange(_profile.DrainTimeline());
+        foreach (var entry in _profile.DrainTimeline()) AppendTimeline(entry);
+    }
+    private void AppendTimeline(RotationTimelineEntry entry)
+    {
+        _timeline.Add(entry);
+        if (entry.LootEventId is { } id) _lastLootEntry[id] = entry;
     }
     /// <summary>Records the current and every later profile, including the provisional ones before spot detection.</summary>
     internal void AttachDiagnostics(RotationDiagnosticRecording? recording)
@@ -98,9 +104,10 @@ internal sealed class RotationMonitor : IDisposable
             _sessionRotations.Clear();
             _sessionRotations.AddRange(restored.Select(r => r.Run.Outcome == "active"
                 ? r with { Run = r.Run with { Outcome = "aborted", Reason = "Session nach Neustart wiederhergestellt · Warte auf Erkennung" } } : r));
-            _timeline.Clear(); _timeline.AddRange(timeline ?? []); _lootSeen.Clear();
+            _timeline.Clear(); _lootSeen.Clear(); _lastLootEntry.Clear();
+            foreach (var entry in timeline ?? []) AppendTimeline(entry);
             foreach (var run in restored.Where(r => r.Run.Outcome == "active"))
-                _timeline.Add(new(Guid.NewGuid(), run.StartedAt.AddSeconds(run.Run.Duration), run.SpotId, "decision", "finish",
+                AppendTimeline(new(Guid.NewGuid(), run.StartedAt.AddSeconds(run.Run.Duration), run.SpotId, "decision", "finish",
                     "aborted: Session nach Neustart wiederhergestellt · Warte auf Erkennung", run.Run.Id));
             foreach (var entry in _timeline.Where(e => e.LootEventId is not null && e.Quantity is not null))
                 _lootSeen[entry.LootEventId!.Value] = (entry.Revision, (int)entry.Quantity!.Value);
@@ -168,9 +175,9 @@ internal sealed class RotationMonitor : IDisposable
             {
                 var value = (loot.Revision, loot.TotalDropQuantity ?? loot.Quantity);
                 if (_lootSeen.TryGetValue(loot.EventId, out var old) && (value.Revision < old.Revision || value == old)) continue;
-                var previous = _timeline.LastOrDefault(e => e.LootEventId == loot.EventId);
+                var previous = _lastLootEntry.GetValueOrDefault(loot.EventId);
                 _lootSeen[loot.EventId] = value;
-                _timeline.Add(new(Guid.NewGuid(), loot.DetectedAt, spotId, "loot", previous is null ? "drop" : "correction",
+                AppendTimeline(new(Guid.NewGuid(), loot.DetectedAt, spotId, "loot", previous is null ? "drop" : "correction",
                     previous is null ? "Loot erkannt" : "Lootmenge korrigiert", Corrects: previous?.Id,
                     ItemName: loot.ItemName, Quantity: value.Item2, LootEventId: loot.EventId, Revision: loot.Revision));
             }
