@@ -1283,7 +1283,8 @@ public sealed partial class TrackerSessionServiceTests
             LootScrollMonitor? lootScrollMonitor = null, Func<Rectangle, bool>? lootScrollVisible = null,
             AgrisMonitor? agrisMonitor = null, ExperienceMonitor? experienceMonitor = null,
             PassiveCaptureSession? suppliedCapture = null, IGarmothGrindBenchmarkProvider? benchmarkProvider = null,
-            CurrentSessionSnapshot? restoredSession = null, Func<Task<bool>>? prepareWindowCapture = null)
+            CurrentSessionSnapshot? restoredSession = null, Func<Task<bool>>? prepareWindowCapture = null,
+            Func<IAutomaticGrindMonitor>? autoStartMonitorFactory = null)
         {
             Analyzer = analyzer ?? new();
             Directory.CreateDirectory(DirectoryPath);
@@ -1318,7 +1319,7 @@ public sealed partial class TrackerSessionServiceTests
                 languageDetector ?? (() => new("en", "Erkannt: Englisch")),
                 lootScrollMonitor: lootScrollMonitor, isLootScrollCaptureVisible: lootScrollVisible ?? (_ => false),
                 agrisMonitor: agrisMonitor, experienceMonitor: experienceMonitor, benchmarkProvider: benchmarkProvider,
-                prepareWindowCapture: prepareWindowCapture);
+                prepareWindowCapture: prepareWindowCapture, autoStartMonitorFactory: autoStartMonitorFactory);
         }
 
         public string DirectoryPath { get; } = Path.Combine(Path.GetTempPath(), "BdoGrindTracker.Tests", Guid.NewGuid().ToString("N"));

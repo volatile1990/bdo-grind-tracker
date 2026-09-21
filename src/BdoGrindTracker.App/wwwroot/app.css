@@ -95,7 +95,16 @@ small,.item-cell small,.panel-heading p,.page-heading p,.field small,.toggle-row
 .live-session-meta>span{display:inline-flex;align-items:center;gap:6px;min-width:0;overflow-wrap:anywhere}
 .live-session-meta .class-image{width:18px;height:18px}
 .live-session-meta .icon{width:14px;height:14px;flex-shrink:0;color:#9cafaa}
-.live-session-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.live-session-actions{display:flex;flex-direction:column;align-items:stretch;gap:8px;flex-shrink:0;max-width:340px}
+.live-session-buttons{display:flex;gap:8px}
+.live-session-buttons .button{flex:1;white-space:nowrap}
+.live-auto-start{border:1px solid #a6b8ac35;border-radius:7px;background:#101b17b3}
+.live-auto-start-toggle{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:9px 12px;cursor:pointer;color:#c7d7cf;font-size:13px;line-height:1.4}
+.live-auto-start-toggle .switch{flex-shrink:0}
+.live-auto-start-toggle:has(input:checked){color:#e5c991}
+.live-auto-start-status{padding:0 12px 10px;margin:0;color:#a6b9ae;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+.live-auto-start-rearm{margin:0 12px 10px;font-size:12px}
+.live-auto-start-toggle:has(input:disabled){cursor:default;opacity:.65}
 .live-session-actions .button{min-height:40px}
 .live-session-actions .button.primary{min-width:143px}
 .live-session-actions .button.secondary{background:#14201bbd;border-color:#a6b8ac44;color:#d5dfd8}
@@ -132,7 +141,7 @@ small,.item-cell small,.panel-heading p,.page-heading p,.field small,.toggle-row
 @media(min-width:761px) and (max-width:880px){.live-session-metrics .metric-card{padding:12px 14px}.live-page .metric-value{font-size:24px}.live-page .time-value{font-size:23px}}
 @media(max-width:880px){.live-page .session-aside{grid-template-columns:1fr}.live-page .price-status{grid-column:auto}.live-spot-copy h2{font-size:22px}}
 @media(max-width:760px){.live-page .live-session-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.live-session-metrics .metric-card:nth-child(2){border-right:0}.live-session-metrics .metric-card:nth-child(n+3){border-top:1px solid #adbdac20}}
-@media(max-width:700px){.live-header-main{align-items:stretch;flex-direction:column;gap:16px}.live-session-actions{flex-direction:row;flex-wrap:wrap}.live-session-actions .button{flex:1}.live-page .live-demo-notice{flex-wrap:wrap}.live-demo-notice .text-button{margin-left:auto}}
+@media(max-width:700px){.live-header-main{align-items:stretch;flex-direction:column;gap:16px}.live-session-actions{flex-direction:column;max-width:none}.live-session-buttons{flex-wrap:wrap}.live-session-actions .button{flex:1}.live-page .live-demo-notice{flex-wrap:wrap}.live-demo-notice .text-button{margin-left:auto}}
 
 /* Quantities reveal their editable field on hover or keyboard focus without shifting the table. */
 .loot-quantity-control{display:inline-flex;align-items:center;justify-content:flex-end;width:112px;max-width:100%;vertical-align:middle}

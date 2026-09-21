@@ -189,10 +189,10 @@ abweichen. Die Uhr verwendet die Systemzeit und liest keine Daten aus dem Spiel.
 Die Sichtbarkeit kann auf das aktive Black-Desert-Fenster beschränkt werden,
 während einer vorhandenen Session gelten oder dauerhaft eingeschaltet bleiben.
 Der Monitor wird über das Black-Desert-Fenster erkannt; ohne erkanntes Spiel dient
-der eingestellte Tracking-Monitor als Rückfall. Positionen werden relativ zum
+der Windows-Hauptbildschirm als Rückfall. Positionen werden relativ zum
 Monitor und Größen in logischen Pixeln gespeichert. Auflösung, Windows-Skalierung
 und negative Monitorpositionen werden berücksichtigt; das Overlay bleibt innerhalb
-des gewählten Bildschirms. **Position zurücksetzen** holt es an seine Ausgangsposition.
+dieses Bildschirms. **Position zurücksetzen** holt es an seine Ausgangsposition.
 
 Deckkraft, Größe, Skalierung, Rahmen und Raster sind einstellbar.
 

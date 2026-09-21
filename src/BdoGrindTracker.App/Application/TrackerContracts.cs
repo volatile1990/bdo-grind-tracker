@@ -29,6 +29,7 @@ internal sealed record TrackerPreferences
     public string GameLanguage { get; init; } = "auto";
     public string? CharacterClassId { get; init; }
     public int AutoPauseMinutes { get; init; } = 3;
+    public bool AutoStartGrinding { get; init; }
     public bool RecordLoot { get; init; }
     public bool RecordRotation { get; init; }
     public bool AutoUpload { get; init; }
@@ -45,6 +46,8 @@ internal sealed record TrackerState
     public bool HasSession { get; init; }
     public bool IsRunning { get; init; }
     public bool IsWaitingForFirstDrop { get; init; }
+    public string? AutoStartStatus { get; init; }
+    public bool AutoStartSuspended { get; init; }
     public bool IsBusy { get; init; }
     public bool CanEditLoot { get; init; } = true;
     public bool CanSelectSpotVariant { get; init; }
@@ -117,6 +120,8 @@ internal interface ITrackerSession : IAsyncDisposable
     LootPriceSnapshot Prices { get; }
     Task<TrackerCommandResult> ToggleTrackingAsync();
     Task<TrackerCommandResult> PauseAsync();
+    Task<TrackerCommandResult> RearmAutoStartAsync() =>
+        Task.FromResult(new TrackerCommandResult("Die automatische Grinderkennung ist hier nicht verfügbar."));
     Task<TrackerCommandResult> NewSessionAsync();
     Task<TrackerCommandResult> SelectSpotVariantAsync(Guid sessionId, string spotId) =>
         Task.FromResult(new TrackerCommandResult("Für diese Session kann kein Spot ausgewählt werden."));

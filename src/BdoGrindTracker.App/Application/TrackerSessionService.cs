@@ -113,7 +113,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         IGarmothGrindBenchmarkProvider? benchmarkProvider = null,
         Func<Task<bool>>? prepareWindowCapture = null,
         CaptureConfigurationCatalog? captureConfigurations = null,
-        Func<string?>? browseCaptureConfiguration = null)
+        Func<string?>? browseCaptureConfiguration = null,
+        Func<IAutomaticGrindMonitor>? autoStartMonitorFactory = null)
     {
         _captureSession = capture ?? throw new ArgumentNullException(nameof(capture));
         _prepareWindowCapture = prepareWindowCapture;
@@ -130,6 +131,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         ArgumentNullException.ThrowIfNull(monitors);
         Monitors = Array.AsReadOnly(monitors.ToArray());
         _settings = settingsStore.Load();
+        _autoStartSuspended = _settings.AutoStartSuspended;
         _settingsSaveError = settingsStore.LoadError;
         _sessionClock = sessionClock ?? new GrindSessionClock();
         _inactivityTimer = inactivityTimer ?? new GrindInactivityTimer();
@@ -162,6 +164,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             MonitorDeviceName = Monitors.FirstOrDefault(m => m.DeviceName == _settings.MonitorDeviceName)?.DeviceName
                 ?? Monitors.FirstOrDefault(m => m.IsPrimary)?.DeviceName ?? Monitors.FirstOrDefault()?.DeviceName,
             AutoPauseMinutes = _settings.AutoPauseMinutes,
+            AutoStartGrinding = _settings.AutoStartGrinding,
             GameLanguage = _settings.GameLanguage,
             CaptureConfigurationPath = _settings.CaptureConfigurationPath,
             FavoriteItems = _settings.FavoriteItems ?? [],
@@ -174,6 +177,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             FamilyFame = _settings.SilverFamilyFame,
         };
         _analyzerFactory = analyzerFactory ?? (language => FrameAnalyzerFactory.Create(language, Preferences.CaptureConfigurationPath));
+        _createAutoStartMonitor = autoStartMonitorFactory ?? CreateAutomaticGrindMonitor;
         _status = analyzer.IsAvailable ? "Bereit für deine nächste Session." : analyzer.Status;
         _isError = !analyzer.IsAvailable;
         RestoreCurrentSession();
@@ -197,25 +201,32 @@ internal sealed partial class TrackerSessionService : ITrackerSession
     public Task<TrackerCommandResult> ToggleTrackingAsync() => _uiRunning ? PauseAsync() : RunOperationAsync(async () =>
     {
         if (_demoMode) ClearDemo();
+        _autoStartSuspended = false;
+        _autoStartError = null;
         if (_uiRunning) await StopTrackingAsync(excludeTrailingIdle: true);
         else await StartTrackingAsync();
     });
 
     public Task<TrackerCommandResult> PauseAsync() => RunOperationAsync(async () =>
     {
+        _autoStartSuspended = true;
+        _autoStartError = null;
+        if (Preferences.AutoStartGrinding) TrySaveSettings();
         if (_uiRunning) await StopTrackingAsync(excludeTrailingIdle: true);
     }, allowDuringUpload: true);
 
     public Task<TrackerCommandResult> NewSessionAsync() => RunOperationAsync(() =>
     {
         if (_currentSessionStore.LoadError is { } loadError) throw new IOException(loadError);
-        if (_captureSession.HasPendingAnalysis)
+        if (_captureSession.HasPendingAnalysis || !_autoStartPendingAnalysis.IsCompleted)
             throw new InvalidOperationException("Die abgebrochene Texterkennung wird noch beendet. Bitte Grindcrest neu starten, falls sie nicht reagiert.");
         if (_uiRunning)
         {
             SetStatus("Bitte die laufende Session zuerst pausieren.", true);
             return Task.CompletedTask;
         }
+        _autoStartSuspended = false;
+        _autoStartError = null;
         RefreshPendingState();
         PersistCurrentSession(DateTimeOffset.UtcNow, throwOnError: true);
         SavePendingHistory();
@@ -254,6 +265,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         _captureSegmentCompleted = true;
         _restoredSessionNeedsCaptureSetup = false;
         Interlocked.Exchange(ref _lastCaptureStopError, null);
+        if (Preferences.AutoStartGrinding) TrySaveSettings();
         SetStatus("Neue Session angelegt. Die Diagnose-Aufzeichnung ist ausgeschaltet.");
         return Task.CompletedTask;
     });
@@ -298,10 +310,10 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         _sessionGarmothLocallyModified = false;
     }
 
-    private async Task StartTrackingAsync()
+    private async Task StartTrackingAsync(AutoStartDetection? autoStart = null)
     {
         if (_currentSessionStore.LoadError is { } loadError) throw new IOException(loadError);
-        if (_captureSession.HasPendingAnalysis)
+        if (_captureSession.HasPendingAnalysis || !_autoStartPendingAnalysis.IsCompleted)
             throw new InvalidOperationException("Die abgebrochene Texterkennung wird noch beendet. Bitte Grindcrest neu starten, falls sie nicht reagiert.");
         if (_sessionSubmitted) return;
         var monitor = Monitors.FirstOrDefault(m => m.DeviceName == Preferences.MonitorDeviceName);
@@ -313,6 +325,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             throw panelError;
         var captureRegion = _captureSession.ResolveCaptureRegion(monitor?.Bounds ?? Rectangle.Empty);
         _analyzer.ValidateCaptureSetup(captureRegion.Size);
+        if (autoStart is not null && autoStart.Frames.Any(frame => frame.Bitmap.Size != captureRegion.Size))
+            throw new InvalidOperationException("Das Spielfenster hat sich während des Autostarts geändert.");
         if (_captureSession.UsesWindowCapture && _prepareWindowCapture is not null)
         {
             var proceed = await _prepareWindowCapture();
@@ -373,7 +387,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             _sessionClock.Start(waitForFirstDrop: true);
             _lastCaptureDesktopRegion = captureRegion;
             _captureSession.StartCompanion(captureRegion, ProcessFrameAsync,
-                _captureSession.UsesWindowCapture ? null : () => _isLootScrollCaptureVisible(captureRegion));
+                _captureSession.UsesWindowCapture ? null : () => _isLootScrollCaptureVisible(captureRegion),
+                autoStart is null ? null : autoStart.TakeFrames);
             _restoredSessionNeedsCaptureSetup = false;
             _priceRefreshEnabled = true;
             RefreshGrindBenchmarksIfDue();
@@ -616,10 +631,15 @@ internal sealed partial class TrackerSessionService : ITrackerSession
                 _inactivityTimer.ShouldPause(TimeSpan.FromMinutes(Preferences.AutoPauseMinutes))))
             {
                 _operationInProgress = true;
-                try { await StopTrackingAsync(automatic: !failed); }
+                try
+                {
+                    if (failed) _autoStartSuspended = true;
+                    await StopTrackingAsync(automatic: !failed);
+                }
                 finally { _operationInProgress = false; }
             }
             if (_shutdownStarted) return;
+            await TickAutoStartAsync();
             RefreshGrindBenchmarksIfDue();
             // Never await hourly HTTP in the timer: the next tick must still be
             // able to pause, consume producer snapshots, and update the duration.
@@ -654,7 +674,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         var previous = _commandOutcome.Value;
         var outcome = new CommandOutcome();
         _commandOutcome.Value = outcome;
-        try { await action(); }
+        try { await StopAutoStartProbeAsync(); await action(); }
         catch (Exception exception) { outcome.Error = exception.Message; SetStatus(exception.Message, true); }
         finally
         {
@@ -689,6 +709,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         State = new TrackerState
         {
             SessionId = _sessionId, HasSession = _hasSession, IsRunning = _uiRunning,
+            AutoStartStatus = AutoStartStatus, AutoStartSuspended = _autoStartSuspended,
             IsBusy = IsBusy, IsDemo = _demoMode, IsSubmitted = _sessionSubmitted,
             CanEditLoot = !_operationInProgress && !_shutdownStarted && !_disposed,
             CanSelectSpotVariant = !IsBusy && !_shutdownStarted && !_disposed && CanChangeSpotVariant,
@@ -760,6 +781,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         _operationInProgress = true;
         try
         {
+            await StopAutoStartProbeAsync();
             // Keep every resource and the in-memory aggregate alive until both
             // files have been saved. On failure the host can remain open/retry.
             RefreshPendingState();
@@ -798,6 +820,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         _inactivityTimer.Pause();
         try
         {
+            await StopAutoStartProbeAsync();
             await _captureSession.StopAsync();
             await _rotationMonitor.FlushAsync();
             _rotationMonitor.Interrupt();

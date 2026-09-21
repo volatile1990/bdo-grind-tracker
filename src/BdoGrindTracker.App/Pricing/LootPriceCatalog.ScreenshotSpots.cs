@@ -126,7 +126,6 @@ internal static partial class LootPriceCatalog
         Market("Scroll Written in Ancient Language", 40228),
         Fixed("Shattered Treasures", 59415),
         Fixed("Shiny Treasure", 59415),
-        Fixed("Silver", 1),
         Fixed("Specter's Energy", 30000000),
         Fixed("Starlit Jade Powder", 20140),
         Fixed("Starlit Jade's Breath", 100000),

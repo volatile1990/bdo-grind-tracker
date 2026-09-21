@@ -59,6 +59,8 @@ public sealed class SettingsStoreTests
         Assert.Equal(3, settings.AutoPauseMinutes);
         Assert.Equal(6, settings.SettingsVersion);
         Assert.False(settings.GarmothAutoUploadEnabled);
+        Assert.False(settings.AutoStartGrinding);
+        Assert.False(settings.AutoStartSuspended);
     }
 
     [Fact]
@@ -125,6 +127,41 @@ public sealed class SettingsStoreTests
         reloaded.GarmothAutoUploadEnabled = false;
         fixture.Store.Save(reloaded);
         Assert.False(fixture.Store.Load().GarmothAutoUploadEnabled);
+    }
+
+    [Fact]
+    public void AutomaticGrindDetectionCanBeEnabledAndDisabledPersistently()
+    {
+        using var fixture = new IsolatedStore();
+        var settings = fixture.Store.Load();
+        settings.AutoStartGrinding = true;
+
+        fixture.Store.Save(settings);
+        var reloaded = fixture.Store.Load();
+        Assert.True(reloaded.AutoStartGrinding);
+
+        reloaded.AutoStartGrinding = false;
+        fixture.Store.Save(reloaded);
+        Assert.False(fixture.Store.Load().AutoStartGrinding);
+    }
+
+    [Fact]
+    public void ManualAutoStartSuspensionPersistsUntilExplicitlyCleared()
+    {
+        using var fixture = new IsolatedStore();
+        var settings = fixture.Store.Load();
+        settings.AutoStartGrinding = true;
+        settings.AutoStartSuspended = true;
+        fixture.Store.Save(settings);
+
+        var reloaded = fixture.Store.Load();
+        Assert.True(reloaded.AutoStartGrinding);
+        Assert.True(reloaded.AutoStartSuspended);
+        reloaded.AutoStartSuspended = false;
+        fixture.Store.Save(reloaded);
+
+        Assert.True(fixture.Store.Load().AutoStartGrinding);
+        Assert.False(fixture.Store.Load().AutoStartSuspended);
     }
 
     [Fact]

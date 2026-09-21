@@ -12,6 +12,7 @@ Silber und Stundenwerte im Dashboard und in anpassbaren Ingame-Overlays.
 - Lokaler Verlauf mit Sessiondetails, Spotansicht und Silberbewertung für EU/NA einschließlich Steuern und Boni.
 - Mehrere unabhängige Overlays mit frei angeordneten Kennzahlen, Lootlisten, Silberverlauf, Uhr und Tracking-Steuerung.
 - Automatische Pause, Klassenerkennung und pausierte Wiederherstellung der aktuellen Session nach einem Neustart.
+- Optionale automatische Grinderkennung mit sparsamer Bereitschaft und kurzer Lootprüfung bei einem Startverdacht.
 - Optionaler Garmoth-Upload mit Vorschau, Bestätigung und Schutz vor doppelten Übertragungen; automatische Stundenuploads sind separat einschaltbar.
 - Windows-OCR-Installation mit Fortschrittsanzeige, erneuter Verfügbarkeitsprüfung und lokaler Diagnose.
 
@@ -33,6 +34,17 @@ eigenen Installations- und Updateweg.
 3. Ab dem ersten neu gezählten Drop läuft die aktive Zeit. Aus dem Trashloot wird der Spot erkannt. Bei Varianten mit gleichem Trashloot das konkrete Gebiet vor einem Garmoth-Upload auswählen.
 4. **Pausieren** erhält die Session und zieht die Zeit seit dem letzten erkannten Drop ab; **Fortsetzen** zählt ab dem nächsten neuen Drop weiter. Ohne neue Drops pausiert Grindcrest standardmäßig nach drei Minuten und zieht ebenfalls die abschließende Leerlaufzeit ab. Das Intervall ist einstellbar.
 5. Vor einem Spot- oder Charakterwechsel **Neue Session** wählen. Beim nächsten Programmstart wird die zuletzt gespeicherte aktuelle Session pausiert geladen.
+
+In der **Live-Session** neben **Tracking starten** und **Neue Session** lässt sich
+**Grind automatisch erkennen** ein- und ausschalten. Die Option ist standardmäßig aus. Während der
+Bereitschaft wird der Lootbereich nur sparsam geprüft, solange Black Desert im
+Vordergrund ist; ein möglicher Drop löst eine kurze Texterkennung aus. Bestätigter
+Loot startet eine neue Session oder setzt eine automatisch pausierte Session fort.
+Manuelles Pausieren unterbricht die Automatik auch über einen Neustart hinweg.
+**Automatik wieder aktivieren** direkt am Schalter, manuelles Fortsetzen und **Neue Session**
+geben sie wieder frei. Kurz sichtbare erste Drops können wegen der sparsamen
+Prüfung fehlen; die Sessionzeit beginnt mit dem ersten bestätigten Drop.
+[Ablauf, Ressourcen und Grenzen](docs/AUTO_START.md).
 
 Unter **Overlay** lassen sich Fenster erstellen, konfigurieren und am Desktop
 vorab ansehen. Neue Overlay-Fenster sind zunächst ausgeschaltet.

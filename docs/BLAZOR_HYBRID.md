@@ -80,10 +80,17 @@ Der Schlüssel wird nie zurück in das Eingabefeld geladen. Entfernen und Speich
 schaltet auch die Automatik aus. Nur das Speichern im Garmoth-Bereich gibt eindeutig
 fehlgeschlagene automatische Versuche wieder frei; unklare Ergebnisse bleiben gesperrt.
 
-**Einstellungen** bündelt Monitor, Klasse, Auto-Pause, Diagnoseaufzeichnung,
-Marktregion und Steuern. Monitor, Lootfilter und Aufzeichnung werden vor einer
+**Einstellungen** bündelt Klasse, Auto-Pause, Diagnoseaufzeichnung,
+Marktregion und Steuern. Lootfilter und Aufzeichnung werden vor einer
 neuen Session festgelegt; die Klasse lässt sich vor dem Start oder während einer noch
 nicht abgeschlossenen Pause korrigieren. Änderungen werden explizit gespeichert.
+
+Die automatische Grinderkennung ist ein separates Opt-in (`AutoStartGrinding`).
+In der Live-Ansicht lässt sie sich direkt unter **Tracking starten** und **Neue Session**
+ein- und ausschalten. Dort erscheinen auch der Bereitschaftsstatus und nach
+manueller Pause **Automatik wieder aktivieren**. Dieser Befehl gibt die
+Erkennung frei, ohne selbst das Tracking zu starten. Die Browser-Vorschau
+simuliert die Einstellung und Pausensteuerung ausschließlich im Arbeitsspeicher.
 
 ## Bestehende Daten und Voraussetzungen
 

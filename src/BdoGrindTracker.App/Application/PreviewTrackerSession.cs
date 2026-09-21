@@ -20,6 +20,7 @@ internal sealed class PreviewTrackerSession : ITrackerSession
     public IReadOnlyList<TrackerMonitor> Monitors { get; } =
         [new("preview", "Bildschirm 1 · 3840 × 2160 · Hauptbildschirm", new(0, 0, 3840, 2160), true),
          new("preview-secondary", "Bildschirm 2 · 2560 × 1440", new(3840, 0, 2560, 1440), false)];
+    public bool CapturesGameWindow => true;
     public IReadOnlyList<LootHistoryEntry> History => _history.ToArray();
     public LootPriceSnapshot Prices { get; private set; } = LootPriceCatalog.FixedSnapshot("eu");
     public string DiagnosticsDirectory => Path.Combine(Path.GetTempPath(), "Grindcrest.UiPreview", "diagnostics");
@@ -77,13 +78,28 @@ internal sealed class PreviewTrackerSession : ITrackerSession
     private void Change(TrackerState state)
     {
         State = state with { CanPause = state.IsRunning, DetectedGameLanguage = "en",
+            AutoStartStatus = !Preferences.AutoStartGrinding ? null : state.AutoStartSuspended
+                ? "Vorschau · Automatik nach manueller Pause unterbrochen."
+                : "Vorschau · Automatische Grinderkennung wird nur simuliert.",
             GrindBenchmark = GarmothGrindBenchmarks.Find(state.SpotId),
             GameLanguageStatus = "Vorschau: Englisch · keine BDO-Konfiguration gelesen" };
         State = State with { SilverHistory = _silverHistory.Update(State), DropHistory = _dropHistory.Update(State) };
         Changed?.Invoke();
     }
-    public Task<TrackerCommandResult> ToggleTrackingAsync() { Change(State with { IsRunning = !State.IsRunning, HasSession = true, Status = "Vorschau · Tracking wird nur simuliert." }); return Task.FromResult(TrackerCommandResult.Success); }
-    public Task<TrackerCommandResult> PauseAsync() { Change(State with { IsRunning = false }); return Task.FromResult(TrackerCommandResult.Success); }
+    public Task<TrackerCommandResult> ToggleTrackingAsync()
+    {
+        if (State.IsRunning) return PauseAsync();
+        Change(State with { IsRunning = true, AutoStartSuspended = false, HasSession = true, Status = "Vorschau · Tracking wird nur simuliert." });
+        return Task.FromResult(TrackerCommandResult.Success);
+    }
+    public Task<TrackerCommandResult> PauseAsync() { Change(State with { IsRunning = false, AutoStartSuspended = Preferences.AutoStartGrinding }); return Task.FromResult(TrackerCommandResult.Success); }
+    public Task<TrackerCommandResult> RearmAutoStartAsync()
+    {
+        if (!Preferences.AutoStartGrinding)
+            return Task.FromResult(new TrackerCommandResult("Aktiviere zuerst die automatische Grinderkennung in den Einstellungen."));
+        Change(State with { AutoStartSuspended = false });
+        return Task.FromResult(TrackerCommandResult.Success);
+    }
     public Task<TrackerCommandResult> InstallOcrLanguageAsync() { Change(State with { OcrInstallationStatus = "Vorschau · Es wird kein Windows-Sprachpaket installiert." }); return Task.FromResult(TrackerCommandResult.Success); }
     public Task<TrackerCommandResult> RecheckOcrLanguageAsync() { Change(State with { OcrInstallationStatus = "Vorschau · Windows-Sprachpakete werden nicht geprüft." }); return Task.FromResult(TrackerCommandResult.Success); }
     public Task<TrackerCommandResult> NewSessionAsync() { Change(new() { SessionId = Guid.NewGuid(), AnalyzerAvailable = true, IsDemo = true, HasApiKey = State.HasApiKey, Status = "Vorschau · Neue Session bereit." }); return Task.FromResult(TrackerCommandResult.Success); }
@@ -95,9 +111,10 @@ internal sealed class PreviewTrackerSession : ITrackerSession
         if (!AppThemes.IsKnown(preferences.ThemeId))
             return Task.FromResult(new PreferenceSaveResult("Bitte wähle ein bekanntes Theme aus der Liste."));
         var hasApiKey = apiKey is null ? State.HasApiKey : !string.IsNullOrWhiteSpace(apiKey);
+        var autoStartChanged = Preferences.AutoStartGrinding != preferences.AutoStartGrinding;
         Preferences = preferences with { AutoUpload = preferences.AutoUpload && hasApiKey };
         Prices = LootPriceCatalog.FixedSnapshot(preferences.MarketRegion);
-        Change(State with { HasApiKey = hasApiKey,
+        Change(State with { HasApiKey = hasApiKey, AutoStartSuspended = !autoStartChanged && State.AutoStartSuspended,
             Silver = SilverValuation.Calculate(State.Loot.Totals, Prices, Preferences.Tax), Status = "Vorschau · Einstellungen nur im Arbeitsspeicher gespeichert." });
         return Task.FromResult(new PreferenceSaveResult());
     }

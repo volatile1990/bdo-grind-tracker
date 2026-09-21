@@ -9,7 +9,7 @@
     <base href="/" />
     <title>Grindcrest · Browser-Vorschau</title>
     <link rel="icon" href="assets/branding/grindcrest.ico" />
-    <link rel="stylesheet" href="app.css" />
+    <link rel="stylesheet" href="@AppStylesheet" />
     <link rel="stylesheet" href="garmoth.css" />
     <link rel="stylesheet" href="grind-goals.css" />
     <link rel="stylesheet" href="updates.css" />
@@ -28,6 +28,7 @@
 </html>
 
 @code {
-    // A republished theme must replace the browser's cached stylesheet on reload.
+    // Republished styles must replace the browser's cached stylesheet on reload.
+    private string AppStylesheet => $"app.css?v={System.IO.File.GetLastWriteTimeUtc(System.IO.Path.Combine(HostEnvironment.WebRootPath, "app.css")).Ticks}";
     private string ThemeStylesheet => $"themes.css?v={System.IO.File.GetLastWriteTimeUtc(System.IO.Path.Combine(HostEnvironment.WebRootPath, "themes.css")).Ticks}";
 }

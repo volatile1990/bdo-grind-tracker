@@ -88,7 +88,7 @@ sie ist auf 8 KiB begrenzt. Normale Pausen erzeugen keinen Eintrag. Schreibfehle
 beeinflussen weder den Tracking-Stopp noch die Sicherung der Sitzung. Die Datei
 wird nicht hochgeladen.
 
-Die Einstellungsdatei speichert Monitor, Auto-Pause, Preisregion, Steueroptionen,
+Die Einstellungsdatei speichert Monitor, Auto-Pause, das Opt-in für automatische Grinderkennung, Preisregion, Steueroptionen,
 das Opt-in für stündliche Garmoth-Uploads und technische Versionsangaben, keine
 Bilder oder Klartext-Zugangsdaten.
 Eine aus 0.6.0/0.6.1 vorhandene manuelle Spot-Einstellung wird für die Erkennung

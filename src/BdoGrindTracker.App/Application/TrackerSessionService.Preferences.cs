@@ -76,6 +76,8 @@ internal sealed partial class TrackerSessionService
             _garmothApiKey = nextKey;
             var regionChanged = region != Preferences.MarketRegion;
             var previousCaptureConfiguration = Preferences.CaptureConfigurationPath;
+            var wasAutoStartEnabled = Preferences.AutoStartGrinding;
+            var previousAutoStartSuspended = _autoStartSuspended;
             _settingsChangesPending = true;
             Preferences = preferences with { MarketRegion = region, AutoUpload = preferences.AutoUpload && nextKey.Length > 0 };
             if (!_hasSession && Preferences.GameLanguage == "auto") _gameLanguageDetection = _detectGameLanguage();
@@ -88,8 +90,14 @@ internal sealed partial class TrackerSessionService
                 _priceStatus = FormatPriceStatus(Prices);
                 _nextPriceRefreshAt = DateTimeOffset.MinValue;
             }
+            if (!wasAutoStartEnabled && Preferences.AutoStartGrinding)
+            {
+                _autoStartSuspended = false;
+                _autoStartError = null;
+            }
             if (!TrySaveSettings())
             {
+                _autoStartSuspended = previousAutoStartSuspended;
                 // A failed save must not silently switch the capture source for this run.
                 Preferences = Preferences with { CaptureConfigurationPath = previousCaptureConfiguration };
                 _settings.CaptureConfigurationPath = previousCaptureConfiguration;
@@ -126,6 +134,8 @@ internal sealed partial class TrackerSessionService
         _settings.ThemeId = Preferences.ThemeId;
         _settings.CaptureConfigurationPath = Preferences.CaptureConfigurationPath;
         _settings.AutoPauseMinutes = Preferences.AutoPauseMinutes;
+        _settings.AutoStartGrinding = Preferences.AutoStartGrinding;
+        _settings.AutoStartSuspended = _autoStartSuspended;
         _settings.GameLanguage = Preferences.GameLanguage;
         _settings.FavoriteItems = Preferences.FavoriteItems.ToArray();
         _settings.LootColumnOrders = Preferences.LootColumnOrders.ToDictionary(pair => pair.Key, pair => pair.Value.ToArray());
@@ -156,6 +166,7 @@ internal sealed partial class TrackerSessionService
         var recovered = _settingsStore.Load();
         if (_settingsStore.LoadError is { } error) throw new IOException(error);
         _settings = recovered;
+        _autoStartSuspended = recovered.AutoStartSuspended;
         Preferences = Preferences with
         {
             ThemeId = recovered.ThemeId,
@@ -165,6 +176,7 @@ internal sealed partial class TrackerSessionService
             GameLanguage = _hasSession ? Preferences.GameLanguage : recovered.GameLanguage,
             CaptureConfigurationPath = _hasSession ? Preferences.CaptureConfigurationPath : recovered.CaptureConfigurationPath,
             AutoPauseMinutes = recovered.AutoPauseMinutes,
+            AutoStartGrinding = recovered.AutoStartGrinding,
             FavoriteItems = recovered.FavoriteItems ?? [],
             LootColumnOrders = recovered.LootColumnOrders ?? new(),
             CharacterClassId = _hasSession ? Preferences.CharacterClassId

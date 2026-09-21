@@ -36,8 +36,24 @@
                 </div>
             </div>
             <div class="live-session-actions">
-                <button class="button primary" @onclick="() => Act(State.IsRunning ? Tracker.PauseAsync : Tracker.ToggleTrackingAsync)" disabled="@(Acting || (State.IsRunning ? !State.CanPause : State.IsBusy || State.IsSubmitted || !State.AnalyzerAvailable || State.TrackingBlockedReason is not null || State.MissingOcrLanguageTag is not null || State.OcrRestartRequired))" title="@(State.IsSubmitted ? "Diese Session ist abgeschlossen. Beginne eine neue Session." : State.TrackingBlockedReason)"><AppIcon Name="@(State.IsRunning ? "pause" : "play")" />@(State.IsRunning ? "Pausieren" : State.HasSession ? "Fortsetzen" : "Tracking starten")</button>
-                <button class="button secondary" @onclick="RequestNew" disabled="@(Acting || State.IsBusy)"><AppIcon Name="plus" />Neue Session</button>
+                <div class="live-session-buttons">
+                    <button class="button primary" @onclick="() => Act(State.IsRunning ? Tracker.PauseAsync : Tracker.ToggleTrackingAsync)" disabled="@(Acting || (State.IsRunning ? !State.CanPause : State.IsBusy || State.IsSubmitted || !State.AnalyzerAvailable || State.TrackingBlockedReason is not null || State.MissingOcrLanguageTag is not null || State.OcrRestartRequired))" title="@(State.IsSubmitted ? "Diese Session ist abgeschlossen. Beginne eine neue Session." : State.TrackingBlockedReason)"><AppIcon Name="@(State.IsRunning ? "pause" : "play")" />@(State.IsRunning ? "Pausieren" : State.HasSession ? "Fortsetzen" : "Tracking starten")</button>
+                    <button class="button secondary" @onclick="RequestNew" disabled="@(Acting || State.IsBusy)"><AppIcon Name="plus" />Neue Session</button>
+                </div>
+                <div class="live-auto-start">
+                    <label class="live-auto-start-toggle" title="Startet bei bestätigten Monsterdrops, solange Black Desert im Vordergrund ist.">
+                        <span>Grind automatisch erkennen</span>
+                        <input id="auto-start-grinding" type="checkbox" class="switch" aria-label="Grind automatisch erkennen" @bind:get="Tracker.Preferences.AutoStartGrinding" @bind:set="AutoStartChanged" disabled="@(Acting || State.IsBusy)" />
+                    </label>
+                    @if (!State.IsDemo && Tracker.Preferences.AutoStartGrinding && State.AutoStartStatus is { } autoStartStatus)
+                    {
+                        <p class="live-auto-start-status" role="status" aria-live="polite">@autoStartStatus</p>
+                    }
+                    @if (!State.IsDemo && Tracker.Preferences.AutoStartGrinding && State.AutoStartSuspended && !State.IsRunning && !State.IsSubmitted)
+                    {
+                        <button type="button" class="text-button live-auto-start-rearm" @onclick="RearmAutoStart" disabled="@(Acting || State.IsBusy)">Automatik wieder aktivieren <AppIcon Name="refresh" /></button>
+                    }
+                </div>
             </div>
         </div>
         <div class="metrics-grid live-session-metrics" aria-label="Session-Kennzahlen">
@@ -138,6 +154,8 @@
 </dialog>
 
 @code {
+    private Task AutoStartChanged(bool enabled) => SavePreferenceChange(p => p with { AutoStartGrinding = enabled });
+    private Task RearmAutoStart() => Act(Tracker.RearmAutoStartAsync);
     private void OpenSettings() => Navigation.NavigateTo("/settings");
     private bool _recheckingOcrLanguage;
     private bool OcrActionDisabled => Acting || State.IsBusy || State.IsRunning || State.IsInstallingOcrLanguage || State.IsOcrInstallerRunning;

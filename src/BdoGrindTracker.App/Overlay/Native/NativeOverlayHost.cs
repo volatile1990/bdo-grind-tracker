@@ -131,8 +131,7 @@ internal sealed class NativeOverlayWindowHost(string id, IOverlayService service
                 _captureExcluded = settings.CaptureExcluded;
             }
             var (gameScreen, foreground) = gameLocation;
-            var screen = gameScreen ?? Screen.AllScreens.FirstOrDefault(value =>
-                value.DeviceName == tracker.Preferences.MonitorDeviceName) ?? Screen.PrimaryScreen ?? Screen.AllScreens.FirstOrDefault();
+            var screen = gameScreen ?? Screen.PrimaryScreen ?? Screen.AllScreens.FirstOrDefault();
             if (screen is null)
             {
                 _window.Hide();

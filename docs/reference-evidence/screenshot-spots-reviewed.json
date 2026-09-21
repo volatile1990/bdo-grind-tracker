@@ -1012,7 +1012,6 @@
         "Quturan's Black Leaf",
         "Quturan's Left Lung",
         "Sealed Black Magic Crystal",
-        "Silver",
         "Specter's Energy",
         "Tainted Moonlight Spirit Powder",
         "Venomous Night Fang",
@@ -1055,7 +1054,6 @@
         "Lesha's Artifact - All Damage Reduction": "100001004_0",
         "Lesha's Artifact - Magic Damage Reduction": "100001004_0",
         "Lesha's Artifact - All Evasion": "100001004_0",
-        "Silver": "1_0",
         "Specter's Energy": "721044_0",
         "Quturan's Left Lung": "45013_0"
       },
@@ -1527,7 +1525,6 @@
         "Quturan's Ashen Leaf",
         "Quturan's Right Lung",
         "Sealed Black Magic Crystal",
-        "Silver",
         "Tainted Broken Horn Fragment",
         "Thick Turo Blood",
         "Turo Heart",
@@ -1575,7 +1572,6 @@
         "Lesha's Artifact - All Damage Reduction": "100001004_0",
         "Lesha's Artifact - Magic Damage Reduction": "100001004_0",
         "Lesha's Artifact - All Evasion": "100001004_0",
-        "Silver": "1_0",
         "Quturan's Right Lung": "45014_0"
       },
       "ambiguousDrops": {}

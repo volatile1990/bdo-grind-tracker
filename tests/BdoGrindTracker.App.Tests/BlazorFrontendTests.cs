@@ -20,6 +20,53 @@ namespace BdoGrindTracker.App.Tests;
 public sealed class BlazorFrontendTests
 {
     [Fact]
+    public async Task PausedAutoStartShowsItsStatusAndExplicitRearmActionWithoutInvokingCommands()
+    {
+        var session = new SnapshotSession { Preferences = new() { AutoStartGrinding = true }, State = new()
+        {
+            AnalyzerAvailable = true, HasSession = true, AutoStartSuspended = true,
+            AutoStartStatus = "Nach manueller Pause unterbrochen.",
+        } };
+
+        var markup = WebUtility.HtmlDecode(await RenderAsync<LiveDashboard>(session));
+
+        Assert.Contains("Nach manueller Pause unterbrochen.", markup);
+        Assert.Contains("live-auto-start", markup);
+        Assert.False(IsDisabled(ButtonAttributes(markup, "Automatik wieder aktivieren")));
+        Assert.Equal(0, session.CommandCalls);
+    }
+
+    [Fact]
+    public async Task BusyAutoStartKeepsStatusVisibleAndDisablesRearmAction()
+    {
+        var session = new SnapshotSession { Preferences = new() { AutoStartGrinding = true }, State = new()
+        {
+            AnalyzerAvailable = true, IsBusy = true, AutoStartSuspended = true,
+            AutoStartStatus = "Nach manueller Pause unterbrochen.",
+        } };
+
+        var markup = WebUtility.HtmlDecode(await RenderAsync<LiveDashboard>(session));
+
+        Assert.True(IsDisabled(ButtonAttributes(markup, "Automatik wieder aktivieren")));
+        Assert.Equal(0, session.CommandCalls);
+    }
+
+    [Fact]
+    public async Task SubmittedSessionDoesNotOfferAutomaticResume()
+    {
+        var session = new SnapshotSession { Preferences = new() { AutoStartGrinding = true }, State = new()
+        {
+            AnalyzerAvailable = true, HasSession = true, IsSubmitted = true, AutoStartSuspended = true,
+            AutoStartStatus = "Nach manueller Pause unterbrochen.",
+        } };
+
+        var markup = WebUtility.HtmlDecode(await RenderAsync<LiveDashboard>(session));
+
+        Assert.Contains("live-auto-start", markup);
+        Assert.DoesNotContain("Automatik wieder aktivieren", markup);
+    }
+
+    [Fact]
     public async Task SettingsShowTheResolvedRecordingFolderFromTheSession()
     {
         var session = new SnapshotSession { DiagnosticsDirectory = @"C:\Users\Example\AppData\Local\Packages\Grindcrest_family\LocalState\diagnostics" };
@@ -486,7 +533,6 @@ public sealed class BlazorFrontendTests
     {
         var session = new SnapshotSession { State = ActiveState() with { IsRunning = running } };
         var markup = await RenderAsync<TrackerSettings>(session);
-        Assert.True(IsDisabled(FieldSelectAttributes(markup, "Spielbildschirm")));
         Assert.Equal(running, IsDisabled(FieldSelectAttributes(markup, "Charakterklasse")));
         Assert.DoesNotContain("Event-Loot mitzählen", markup);
         Assert.True(IsDisabled(ToggleAttributes(markup, "Loot-Diagnose aufzeichnen")));

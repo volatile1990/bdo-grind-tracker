@@ -113,3 +113,10 @@ eine Garantie aller theoretisch möglichen oder künftigen Eventdrops wäre dahe
 nicht belegt. Neue bestätigte Drops müssen im Vokabular und im passenden Pool
 ergänzt werden. Die Windows-OCR-Trefferquote wird durch diese Datenkorrektur
 nicht garantiert.
+
+## Direkte Silberdrops
+
+Direkte Währungsdrops (`Silver` / `Silber`) sind global vom Tracking ausgeschlossen.
+Sie gehören weder zum OCR-Wortschatz noch zu den Spot-Lootpools, Dropmengen,
+Festpreisen oder Garmoth-Dropzuordnungen. Der Silberwert der erfassten Items wird
+weiterhin wie bisher berechnet.

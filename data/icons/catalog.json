@@ -2731,17 +2731,6 @@
       "addedAtUtc": "2026-09-13T11:33:16.484783+00:00"
     },
     {
-      "itemId": "1",
-      "name": "Silver",
-      "file": "silver.png",
-      "page": "https://bdocodex.com/us/item/1/",
-      "sourceIcon": "https://bdocodex.com/items/new_icon/00000001_special.webp",
-      "sha256": "4053deb70b8ed72131b05fb0e2f913b82df0ea24039f61940962e6e42c264b19",
-      "width": 44,
-      "height": 44,
-      "addedAtUtc": "2026-09-13T11:33:16.484783+00:00"
-    },
-    {
       "itemId": "44525",
       "name": "Tainted Cadry's Token",
       "file": "tainted-cadrys-token.png",

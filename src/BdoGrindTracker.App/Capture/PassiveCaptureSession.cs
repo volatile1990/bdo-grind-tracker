@@ -181,7 +181,8 @@ internal sealed class PassiveCaptureSession : IAsyncDisposable
     internal void StartCompanion(
         Rectangle desktopRegion,
         Func<Bitmap, CapturedFrameMetadata, CancellationToken, Task> onFrame,
-        Func<bool>? canObserveHud = null)
+        Func<bool>? canObserveHud = null,
+        Func<IReadOnlyList<(Bitmap Bitmap, CapturedFrameMetadata Metadata)>>? takeInitialFrames = null)
     {
         ArgumentNullException.ThrowIfNull(onFrame);
         ValidateArguments(desktopRegion);
@@ -199,8 +200,9 @@ internal sealed class PassiveCaptureSession : IAsyncDisposable
             _cancellation?.Dispose();
             _cancellation = new CancellationTokenSource();
             var token = _cancellation.Token;
+            var initialFrames = takeInitialFrames?.Invoke() ?? [];
             _runTask = Task.Run(
-                () => RunAsync(desktopRegion, onFrame, canObserveHud, token),
+                () => RunAsync(desktopRegion, onFrame, canObserveHud, initialFrames, token),
                 CancellationToken.None);
         }
     }
@@ -234,6 +236,7 @@ internal sealed class PassiveCaptureSession : IAsyncDisposable
         Rectangle desktopRegion,
         Func<Bitmap, CapturedFrameMetadata, CancellationToken, Task> onFrame,
         Func<bool>? canObserveHud,
+        IReadOnlyList<(Bitmap Bitmap, CapturedFrameMetadata Metadata)> initialFrames,
         CancellationToken cancellationToken)
     {
         Exception? failure = null;
@@ -246,7 +249,7 @@ internal sealed class PassiveCaptureSession : IAsyncDisposable
             AllowSynchronousContinuations = false
         });
         var producer = Task.Run(
-            () => CaptureFramesAsync(desktopRegion, frames.Writer, canObserveHud, producerCancellation.Token),
+            () => CaptureFramesAsync(desktopRegion, frames.Writer, canObserveHud, initialFrames, producerCancellation.Token),
             CancellationToken.None);
 
         try
@@ -302,14 +305,26 @@ internal sealed class PassiveCaptureSession : IAsyncDisposable
         Rectangle desktopRegion,
         ChannelWriter<QueuedCapture> frames,
         Func<bool>? canObserveHud,
+        IReadOnlyList<(Bitmap Bitmap, CapturedFrameMetadata Metadata)> initialFrames,
         CancellationToken cancellationToken)
     {
+        var replayIndex = 0;
         long? lastCaptureTimestamp = null;
         long sequence = 0;
         Exception? failure = null;
 
         try
         {
+            // Autostart's small replay buffer goes through the same ordering,
+            // ownership, backpressure and OCR watchdog as normal live images.
+            for (; replayIndex < initialFrames.Count; replayIndex++)
+            {
+                var buffered = initialFrames[replayIndex];
+                if (!await frames.WaitToWriteAsync(cancellationToken).ConfigureAwait(false)) break;
+                if (!frames.TryWrite(new QueuedCapture(buffered.Bitmap, buffered.Metadata with { Sequence = ++sequence },
+                        _timeProvider.GetTimestamp())))
+                    throw new InvalidOperationException("Ein Autostart-Bild konnte nicht übernommen werden.");
+            }
             while (true)
             {
                 var queueWaitStarted = _timeProvider.GetTimestamp();
@@ -374,6 +389,7 @@ internal sealed class PassiveCaptureSession : IAsyncDisposable
         }
         finally
         {
+            for (; replayIndex < initialFrames.Count; replayIndex++) initialFrames[replayIndex].Bitmap.Dispose();
             try
             {
                 if (_captureOwner is PassiveWindowCapture windowCapture) windowCapture.StopCapture();

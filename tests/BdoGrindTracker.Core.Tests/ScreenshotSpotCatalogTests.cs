@@ -118,8 +118,23 @@ public sealed class ScreenshotSpotCatalogTests
     [InlineData("Any Artifact")]
     [InlineData("[EVENT] Eternal Darkseeker")]
     [InlineData("Ulutuka (Boss)")]
+    [InlineData("Silver")]
     public void RemovedItemsAndTrackerCountersDoNotEnterTheOcrLootPools(string item) =>
         Assert.All(LootSpotCatalog.Spots, spot => Assert.False(spot.Allows(item)));
+
+    [Theory]
+    [InlineData("Silver")]
+    [InlineData("Silber")]
+    public void DirectSilverDropsDoNotMatchAnyTrackedLoot(string observed)
+    {
+        var names = LootSpotCatalog.Spots.SelectMany(spot => spot.AllowedItems)
+            .Concat(LootSpotCatalog.EventItems).Distinct().ToArray();
+        var matcher = new CompanionItemMatcher(names);
+
+        Assert.False(matcher.TryMatch(observed, 100, false, out _));
+        Assert.False(matcher.TryMatch(observed, 100, true, out _));
+        Assert.DoesNotContain(DropQuantityCatalog.Entries, entry => entry.ItemName == "Silver");
+    }
 
     private static CompanionRecognizedEntry Drop(string name) => new(name, 1)
     {

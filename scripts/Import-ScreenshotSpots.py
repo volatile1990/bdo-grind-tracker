@@ -41,7 +41,10 @@ def quoted(value):
 def write(path, content):
     (ROOT / path).write_text(content, encoding='utf-8', newline='\n')
 
-items = [item for item in ENRICHED['items'] if not item.get('verificationError')]
+# Direct currency drops are excluded globally from tracking and uploads.
+EXCLUDED_ITEMS = {'Silver'}
+items = [item for item in ENRICHED['items']
+         if not item.get('verificationError') and item['name'] not in EXCLUDED_ITEMS]
 by_key = defaultdict(list)
 by_name = {}
 for item in items:
@@ -107,14 +110,18 @@ core += '''    public static IReadOnlyList<LootSpot> VariantsFor(string spotId)
 write('src/BdoGrindTracker.Core/LootSpotCatalog.ScreenshotSpots.cs', core)
 
 existing_vocabulary = ROOT / 'data/items.en.txt'
-old_lines = existing_vocabulary.read_text(encoding='utf-8').splitlines()
+old_lines = [line for line in existing_vocabulary.read_text(encoding='utf-8').splitlines()
+             if line not in EXCLUDED_ITEMS]
 old_names = {line for line in old_lines if line and not line.startswith('#')}
 new_names = sorted({name for spot in spots for name in spot['loot']} - old_names)
 if new_names:
     write('data/items.en.txt', '\n'.join(old_lines) + '\n\n# Additional screenshot spots, September 2026.\n' + '\n'.join(new_names) + '\n')
+else:
+    write('data/items.en.txt', '\n'.join(old_lines) + '\n')
 
 german_path = ROOT / 'data/items.de.json'
 german = json.loads(german_path.read_text(encoding='utf-8'))
+german['items'] = [item for item in german['items'] if item['canonicalName'] not in EXCLUDED_ITEMS]
 known_german = {i['canonicalName'] for i in german['items']}
 for name in sorted({name for spot in spots for name in spot['loot']} - known_german):
     i = by_name[name]
@@ -162,6 +169,7 @@ garmoth += '    };\n}\n'
 write('src/BdoGrindTracker.App/Integrations/Garmoth/GarmothCatalog.ScreenshotSpots.cs', garmoth)
 
 quantities = json.loads((ROOT / 'data/drop-quantities.json').read_text(encoding='utf-8'))
+quantities['entries'] = [entry for entry in quantities['entries'] if entry['itemName'] not in EXCLUDED_ITEMS]
 known_pairs = {(e['spotId'], e['itemName']) for e in quantities['entries']}
 for spot in spots:
     for name in [*spot['loot'], '[Event] Mysterious Ore']:
