@@ -99,7 +99,7 @@ internal static partial class LootPriceCatalog
         Market("White Primordial Luster - Sovereign", 821419),
         Market("White Primordial Pigment - Edana", 767344),
         Market("White Primordial Pigment - Sovereign", 767343),
-    }.Concat(ScreenshotDefinitions()).ToArray());
+    }.Concat(ScreenshotDefinitions()).Concat(BuffPriceCatalog.MarketDefinitions()).ToArray());
 
     public static IReadOnlyList<int> MarketItemIds { get; } = Array.AsReadOnly(Definitions
         .Where(static definition => definition.Kind == LootPriceKind.Market)

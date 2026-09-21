@@ -1,4 +1,5 @@
 using System.Text.Json;
+using BdoGrindTracker.App.UI;
 using BdoGrindTracker.Core;
 
 namespace BdoGrindTracker.App.Persistence;
@@ -87,6 +88,7 @@ internal sealed class LootHistoryStore
             {
                 Rotations = entry.Rotations ?? [],
                 RotationTimeline = entry.RotationTimeline ?? [],
+                CombatStats = CombatStatsSpotRules.ForSpot(entry.CombatStats, entry.SpotId),
                 CharacterClass = string.IsNullOrWhiteSpace(entry.CharacterClass)
                     ? null
                     : entry.CharacterClass.Trim(),

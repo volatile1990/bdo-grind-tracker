@@ -21,6 +21,11 @@
     <Compile Include="../BdoGrindTracker.App/Application/TrackerContracts.cs;../BdoGrindTracker.App/Application/CaptureConfigurationContracts.cs;../BdoGrindTracker.App/Application/PreviewTrackerSession.cs;../BdoGrindTracker.App/Application/AssetNames.cs" Link="Shared/Application/%(Filename)%(Extension)" />
     <Compile Include="../BdoGrindTracker.App/Analysis/RotationProfiles.Presentation.cs" Link="Shared/Analysis/RotationProfiles.Presentation.cs" />
     <Compile Include="../BdoGrindTracker.App/Character/CompanionCharacterClassCatalog.cs" Link="Shared/Character/%(Filename)%(Extension)" />
+    <Compile Include="../BdoGrindTracker.App/Pricing/BuffPriceCatalog.cs;../BdoGrindTracker.App/UI/BuffLedgerSnapshotJsonConverter.cs" Link="Shared/Buffs/%(Filename)%(Extension)" />
+    <Compile Include="../BdoGrindTracker.App/Analysis/BuffRecognitionProfile.cs" Link="Shared/Analysis/BuffRecognitionProfile.cs" />
+    <Compile Include="../BdoGrindTracker.App/UI/CombatStatsState.cs" Link="Shared/UI/CombatStatsState.cs" />
+    <Compile Include="../BdoGrindTracker.App/UI/CombatStatsSpotRules.cs" Link="Shared/UI/CombatStatsSpotRules.cs" />
+    <Compile Include="../BdoGrindTracker.App/Analysis/CombatStatsColorClassifier.cs" Link="Shared/Analysis/CombatStatsColorClassifier.cs" />
     <Compile Include="../BdoGrindTracker.App/Pricing/LootPrice*.cs;../BdoGrindTracker.App/Pricing/SilverValuation.cs" Link="Shared/Pricing/%(Filename)%(Extension)" />
     <Compile Include="../BdoGrindTracker.App/UI/AgrisState.cs;../BdoGrindTracker.App/UI/ExperienceState.cs;../BdoGrindTracker.App/UI/LootScrollState.cs;../BdoGrindTracker.App/UI/GrindBenchmark.cs;../BdoGrindTracker.App/UI/GrindRatingEvaluator.cs;../BdoGrindTracker.App/UI/LiveDetectionDebugSnapshot.cs;../BdoGrindTracker.App/UI/LootSessionSnapshot.cs;../BdoGrindTracker.App/UI/LootSpotPresentationCatalog*.cs;../BdoGrindTracker.App/UI/SessionSilverHistory.cs;../BdoGrindTracker.App/UI/SessionDropHistory.cs" Link="Shared/UI/%(Filename)%(Extension)" />
     <Compile Include="../BdoGrindTracker.App/Persistence/LootHistoryEntry.cs;../BdoGrindTracker.App/Persistence/GrindGoalStore.cs;../BdoGrindTracker.App/Persistence/AtomicFile.cs" Link="Shared/Persistence/%(Filename)%(Extension)" />

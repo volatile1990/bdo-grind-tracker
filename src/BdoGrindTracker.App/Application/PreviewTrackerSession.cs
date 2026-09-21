@@ -51,6 +51,9 @@ internal sealed class PreviewTrackerSession : ITrackerSession
                     ExperienceGainedPercentagePoints = i == 0 ? .123m : i == 1 ? .082m : null,
                     ExperienceObservedDuration = i == 0 ? TimeSpan.FromHours(1) : i == 1 ? TimeSpan.FromMinutes(30) : null,
                     ExperienceStartLevel = i < 2 ? 61 : null, ExperienceEndLevel = i < 2 ? 61 : null,
+                    CombatStats = i < 2 ? new(2374 - i * 20, 826 - i * 5,
+                        CombatStatsSpotRules.CategoryForSpot(profile.SpotId) ?? CombatStatsCategory.General,
+                        DateTimeOffset.Now.AddDays(-i).AddHours(-1)) : null,
                     SilverBeforeTax = value.BeforeTax, SilverAfterTax = value.AfterTax, SilverIsComplete = value.IsComplete
                 });
             }
@@ -71,6 +74,8 @@ internal sealed class PreviewTrackerSession : ITrackerSession
             Agris = new(AgrisStatus.Active), AgrisActiveDuration = TimeSpan.FromMinutes(12), AgrisObservedDuration = TimeSpan.FromHours(1),
             Experience = new(61, .579m), ExperienceGainedPercentagePoints = .123m, ExperienceObservedDuration = TimeSpan.FromHours(1),
             ExperienceStartLevel = 61, ExperienceEndLevel = 61,
+            CombatStats = new(2374, 826, CombatStatsCategory.Edania, DateTimeOffset.UtcNow),
+            SessionCombatStats = new(2374, 826, CombatStatsCategory.Edania, DateTimeOffset.UtcNow),
             Loot = new(totals, totals.Values.Sum(), 147), Silver = SilverValuation.Calculate(totals, Prices, Preferences.Tax),
             Status = "Vorschau · Beispieldaten werden weder aufgezeichnet noch hochgeladen.", PriceStatus = "EU · NPC- und Festwerte"
         });
@@ -78,6 +83,8 @@ internal sealed class PreviewTrackerSession : ITrackerSession
     private void Change(TrackerState state)
     {
         State = state with { CanPause = state.IsRunning, DetectedGameLanguage = "en",
+            CombatStats = CombatStatsSpotRules.ForSpot(state.CombatStats, state.SpotId) ?? CombatStatsState.Unknown,
+            SessionCombatStats = CombatStatsSpotRules.ForSpot(state.SessionCombatStats, state.SpotId),
             AutoStartStatus = !Preferences.AutoStartGrinding ? null : state.AutoStartSuspended
                 ? "Vorschau · Automatik nach manueller Pause unterbrochen."
                 : "Vorschau · Automatische Grinderkennung wird nur simuliert.",
@@ -92,7 +99,8 @@ internal sealed class PreviewTrackerSession : ITrackerSession
         Change(State with { IsRunning = true, AutoStartSuspended = false, HasSession = true, Status = "Vorschau · Tracking wird nur simuliert." });
         return Task.FromResult(TrackerCommandResult.Success);
     }
-    public Task<TrackerCommandResult> PauseAsync() { Change(State with { IsRunning = false, AutoStartSuspended = Preferences.AutoStartGrinding }); return Task.FromResult(TrackerCommandResult.Success); }
+    public Task<TrackerCommandResult> PauseAsync() { Change(State with { IsRunning = false, CombatStats = CombatStatsState.Unknown,
+        AutoStartSuspended = Preferences.AutoStartGrinding }); return Task.FromResult(TrackerCommandResult.Success); }
     public Task<TrackerCommandResult> RearmAutoStartAsync()
     {
         if (!Preferences.AutoStartGrinding)

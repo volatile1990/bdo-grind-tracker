@@ -1,6 +1,7 @@
 using System.Text.Json;
 using BdoGrindTracker.App.Character;
 using BdoGrindTracker.App.Integrations.Garmoth;
+using BdoGrindTracker.App.UI;
 using BdoGrindTracker.Core;
 
 namespace BdoGrindTracker.App.Persistence;
@@ -16,6 +17,9 @@ internal sealed record CurrentSessionSnapshot
     public required TimeSpan Duration { get; init; }
     public required string? SpotId { get; init; }
     public required string? CharacterClassId { get; init; }
+    public CombatStatsState? CombatStats { get; init; }
+    [System.Text.Json.Serialization.JsonConverter(typeof(BuffLedgerSnapshotJsonConverter))]
+    public BdoGrindTracker.Core.Buffs.BuffLedgerSnapshot? Buffs { get; init; }
     public required bool SessionSubmitted { get; init; }
     public required Dictionary<string, long> Totals { get; init; }
     public required int ConfirmedEventCount { get; init; }
@@ -123,6 +127,7 @@ internal sealed class CurrentSessionStore(string path)
         }
         return snapshot with
         {
+            CombatStats = CombatStatsSpotRules.ForSpot(snapshot.CombatStats, snapshot.SpotId),
             Totals = totals,
             ManualLootItems = snapshot.ManualLootItems.Distinct(StringComparer.OrdinalIgnoreCase).ToArray(),
         };

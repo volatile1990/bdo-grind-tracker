@@ -85,6 +85,7 @@
   <ItemGroup>
     <Content Include="..\..\docs\BLAZOR_HYBRID.md" Link="docs\BLAZOR_HYBRID.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="..\..\docs\OVERLAY.md" Link="docs\OVERLAY.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\docs\BUFF_TRACKING.md;..\..\docs\buff-recognition-profile.example.json;..\..\docs\BUFF_PRICE_SOURCES.md" Link="docs\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="..\..\docs\GRIND_RATING.md" Link="docs\GRIND_RATING.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="..\..\licenses\*" Link="licenses\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="..\..\README.md" Link="README.md">

@@ -114,7 +114,9 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         Func<Task<bool>>? prepareWindowCapture = null,
         CaptureConfigurationCatalog? captureConfigurations = null,
         Func<string?>? browseCaptureConfiguration = null,
-        Func<IAutomaticGrindMonitor>? autoStartMonitorFactory = null)
+        Func<IAutomaticGrindMonitor>? autoStartMonitorFactory = null,
+        CombatStatsMonitor? combatStatsMonitor = null,
+        BuffMonitor? buffMonitor = null)
     {
         _captureSession = capture ?? throw new ArgumentNullException(nameof(capture));
         _prepareWindowCapture = prepareWindowCapture;
@@ -123,6 +125,9 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         _agrisMonitor = agrisMonitor ?? new AgrisMonitor(new AgrisFrameDetector());
         _experienceMonitor = experienceMonitor ?? new ExperienceMonitor(new ExperienceFrameReader(
             readConfiguration: new ExperienceHudConfigurationReader().ReadDefault));
+        _combatStatsMonitor = combatStatsMonitor ?? new CombatStatsMonitor(new CombatStatsFrameReader(
+            readConfiguration: new ExperienceHudConfigurationReader().ReadDefault));
+        _buffMonitor = buffMonitor ?? new BuffMonitor(new BuffFrameReader(ReadBuffProfile));
         _isLootScrollCaptureVisible = isLootScrollCaptureVisible ?? CreateLootScrollVisibilityCheck();
         _ocrLanguageInstaller = ocrLanguageInstaller ?? new WindowsOcrLanguageInstaller();
         _captureConfigurations = captureConfigurations ?? new CaptureConfigurationCatalog();
@@ -167,6 +172,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             AutoStartGrinding = _settings.AutoStartGrinding,
             GameLanguage = _settings.GameLanguage,
             CaptureConfigurationPath = _settings.CaptureConfigurationPath,
+            BuffRecognitionProfilePath = _settings.BuffRecognitionProfilePath,
             FavoriteItems = _settings.FavoriteItems ?? [],
             LootColumnOrders = _settings.LootColumnOrders ?? new(),
             CharacterClassId = CompanionCharacterClassCatalog.FindById(_settings.CharacterClassId ?? "")?.Id,
@@ -237,7 +243,12 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         _agrisMonitor.Reset();
         _agrisSessionTracker.Reset();
         _experienceMonitor.Reset();
+        _combatStatsMonitor.Reset();
+        _buffMonitor.Reset();
         _experienceSessionTracker.Reset();
+        _sessionCombatStats = null;
+        _buffLedger.Reset();
+        _hasBuffObservation = false;
         _recording?.Dispose();
         _recording = null;
         StopRotationRecording();
@@ -301,7 +312,12 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         _agrisMonitor.Reset();
         _agrisSessionTracker.Reset();
         _experienceMonitor.Reset();
+        _combatStatsMonitor.Reset();
+        _buffMonitor.Reset();
         _experienceSessionTracker.Reset();
+        _sessionCombatStats = null;
+        _buffLedger.Reset();
+        _hasBuffObservation = false;
         _demoMode = false;
         _sessionSpotId = null;
         _sessionClass = null;
@@ -380,6 +396,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             _agrisMonitor.Reset();
             _agrisSessionTracker.Pause(_sessionClock.Elapsed);
             _experienceMonitor.Reset();
+            _combatStatsMonitor.Reset();
+            _buffMonitor.Reset();
             _experienceSessionTracker.Pause(_sessionClock.Elapsed);
             _uiRunning = true;
             _rotationMonitor.Interrupt("Grind gestartet · warte auf erstes Ereignis");
@@ -404,6 +422,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             _agrisMonitor.Reset();
             _agrisSessionTracker.Pause(_sessionClock.Elapsed);
             _experienceMonitor.Reset();
+            _combatStatsMonitor.Reset();
+            _buffMonitor.Reset();
             _experienceSessionTracker.Pause(_sessionClock.Elapsed);
             _inactivityTimer.Pause();
             await _captureSession.StopAsync();
@@ -423,6 +443,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
     {
         UpdateAgrisSession();
         UpdateExperienceSession();
+        UpdateCombatStatsSession();
+        UpdateBuffSession();
         if (!automatic)
         {
             // Freeze at the user's pause request, before draining outstanding
@@ -436,12 +458,16 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         if (automatic)
             _sessionClock.Pause(_inactivityTimer.PauseAndGetIdleDuration());
         CompleteCaptureSegment(DateTimeOffset.UtcNow);
+        UpdateCombatStatsSession();
+        UpdateBuffSession();
         _uiRunning = false;
         _rotationMonitor.Interrupt();
         _lootScrollMonitor.Reset();
         _agrisMonitor.Reset();
         _agrisSessionTracker.Pause(_sessionClock.Elapsed);
         _experienceMonitor.Reset();
+        _combatStatsMonitor.Reset();
+        _buffMonitor.Reset();
         _experienceSessionTracker.Pause(_sessionClock.Elapsed);
         PersistCurrentSession(DateTimeOffset.UtcNow, throwOnError: true);
         var failure = Interlocked.CompareExchange(ref _lastCaptureStopError, null, null);
@@ -500,12 +526,17 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             _lootScrollMonitor.Observe(frame, metadata.CapturedAtUtc);
             _agrisMonitor.Observe(frame, metadata.CapturedAtUtc);
             _experienceMonitor.Observe(frame, metadata.CapturedAtUtc);
+            _combatStatsMonitor.Observe(frame, metadata.CapturedAtUtc);
+            if (!_sessionClock.IsWaitingForFirstDrop)
+                _buffMonitor.Observe(frame, metadata.CapturedAtUtc);
         }
         else
         {
             _rotationMonitor.Interrupt("Bildsignal fehlt · warte auf erstes Ereignis");
             _agrisMonitor.Reset();
             _experienceMonitor.Reset();
+            _combatStatsMonitor.Reset();
+            _buffMonitor.Reset();
         }
     }
 
@@ -530,6 +561,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
                 // sample from the waiting phase must not contribute earlier gains.
                 _agrisMonitor.Reset();
                 _experienceMonitor.Reset();
+                _combatStatsMonitor.Reset();
+                _buffMonitor.Reset();
             }
             _inactivityTimer.RecordDrop();
         }
@@ -700,6 +733,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         var agris = UpdateAgrisSession();
         var agrisDuration = _agrisSessionTracker.Snapshot(_sessionClock.Elapsed);
         var experience = UpdateExperienceSession();
+        var combatStats = UpdateCombatStatsSession();
+        UpdateBuffSession();
         var experienceProgress = _experienceSessionTracker.Snapshot(_sessionClock.Elapsed);
         var character = _hasSession || _demoMode ? _sessionClass : SelectedCharacterClass;
         var trackingBlockedReason = _demoMode ? null : _ocrLanguageError ?? (!_analyzer.IsAvailable ? _analyzer.Status :
@@ -737,6 +772,10 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             AgrisActiveDuration = agrisDuration.ActiveDuration,
             AgrisObservedDuration = agrisDuration.ObservedDuration,
             Experience = experience,
+            CombatStats = _demoMode ? new(2374, 826, CombatStatsCategory.Edania, DateTimeOffset.UtcNow) : combatStats,
+            SessionCombatStats = _demoMode ? null : _sessionCombatStats,
+            Buffs = !_demoMode && _hasBuffObservation ? _buffLedger.Snapshot : null,
+            BuffStatus = _demoMode ? "Buff-Erkennung ist in der Demo inaktiv." : BuffStatus,
             ExperienceGainedPercentagePoints = experienceProgress.GainedPercentagePoints,
             ExperienceObservedDuration = experienceProgress.ObservedDuration,
             ExperienceStartLevel = experienceProgress.StartLevel,
@@ -816,6 +855,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         ResetGrindBenchmarkRefresh();
         UpdateAgrisSession();
         UpdateExperienceSession();
+        UpdateCombatStatsSession();
+        UpdateBuffSession();
         _sessionClock.Pause();
         _inactivityTimer.Pause();
         try
@@ -867,6 +908,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             _lootScrollMonitor.Dispose();
             _agrisMonitor.Dispose();
             _experienceMonitor.Dispose();
+            _combatStatsMonitor.Dispose();
+            _buffMonitor.Dispose();
             _rotationMonitor.Dispose();
             _priceProvider.Dispose();
             _benchmarkProvider?.Dispose();

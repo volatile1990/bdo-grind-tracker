@@ -90,6 +90,8 @@ internal sealed partial class TrackerSessionService
         var valuation = SilverValuation.Calculate(totals, Prices, Preferences.Tax);
         UpdateAgrisSession();
         UpdateExperienceSession();
+        UpdateCombatStatsSession();
+        UpdateBuffSession();
         var duration = _sessionClock.Elapsed;
         var agris = _agrisSessionTracker.Snapshot(duration);
         var experience = _experienceSessionTracker.Snapshot(duration);
@@ -109,6 +111,8 @@ internal sealed partial class TrackerSessionService
             ExperienceEndLevel = experience.EndLevel,
             SpotId = _sessionSpotId,
             CharacterClass = (_sessionClass ?? SelectedCharacterClass)?.DisplayName,
+            CombatStats = _sessionCombatStats,
+            Buffs = _hasBuffObservation ? _buffLedger.Snapshot : null,
             Totals = totals,
             SilverBeforeTax = valuation.BeforeTax,
             SilverAfterTax = valuation.AfterTax,

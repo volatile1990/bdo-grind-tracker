@@ -17,6 +17,113 @@ namespace BdoGrindTracker.App.Tests;
 public sealed class TrackerSessionRestoreTests
 {
     [Theory]
+    [InlineData(false, 0)]
+    [InlineData(true, -10)]
+    [InlineData(true, 10)]
+    public async Task RestoreKeepsNewestConfirmedStatsFromTheSameSessionWithoutClaimingLiveObservation(
+        bool historyHasStats, int historySampleOffsetSeconds)
+    {
+        using var directory = new TestDirectory();
+        var original = CurrentSessionStoreTests.Example();
+        var checkpointStats = new CombatStatsState(2401, 841, CombatStatsCategory.Edania,
+            original.UpdatedAt.AddSeconds(-20));
+        original = original with { CombatStats = checkpointStats };
+        var historyStats = historyHasStats
+            ? new CombatStatsState(1560, 740, CombatStatsCategory.General,
+                checkpointStats.ObservedAt!.Value.AddSeconds(historySampleOffsetSeconds)) : null;
+        var history = new LootHistoryEntry
+        {
+            SessionId = original.SessionId, StartedAt = original.StartedAt!.Value,
+            UpdatedAt = original.UpdatedAt.AddMinutes(1), Duration = original.Duration,
+            SpotId = original.SpotId!, Totals = new(original.Totals), CombatStats = historyStats,
+            SilverBeforeTax = 0, SilverAfterTax = 0, SilverIsComplete = false,
+        };
+        // A newer, unrelated session must never supply a restored session's AP/DP.
+        var unrelated = history with
+        {
+            SessionId = Guid.NewGuid(), UpdatedAt = history.UpdatedAt.AddHours(1),
+            CombatStats = new(999, 999, CombatStatsCategory.General, history.UpdatedAt),
+        };
+        new CurrentSessionStore(directory.CurrentPath).Save(original);
+        new LootHistoryStore(Path.Combine(directory.Path, "loot-history-v1.json")).Save([history, unrelated]);
+
+        await using var fixture = new Fixture(directory.Path);
+        var expected = historyHasStats && historySampleOffsetSeconds > 0 ? historyStats : checkpointStats;
+        Assert.Equal(expected, fixture.Service.State.SessionCombatStats);
+        Assert.False(fixture.Service.State.CombatStats.IsKnown);
+        Assert.False(fixture.Service.State.IsRunning);
+        Assert.Equal(0, fixture.Captures);
+
+        Assert.True((await fixture.Service.SaveSessionAsync()).Succeeded);
+
+        Assert.Equal(expected, new CurrentSessionStore(directory.CurrentPath).Load()!.CombatStats);
+        Assert.Equal(expected, fixture.History.Load().Single(entry => entry.SessionId == original.SessionId).CombatStats);
+        Assert.Equal(unrelated.CombatStats, fixture.History.Load().Single(entry => entry.SessionId == unrelated.SessionId).CombatStats);
+    }
+
+    [Fact]
+    public async Task LegacyCheckpointNeverBorrowsCombatStatsFromAnotherHistoricalSession()
+    {
+        using var directory = new TestDirectory();
+        var original = CurrentSessionStoreTests.Example();
+        new CurrentSessionStore(directory.CurrentPath).Save(original);
+        var unrelated = new LootHistoryEntry
+        {
+            SessionId = Guid.NewGuid(), StartedAt = original.StartedAt!.Value,
+            UpdatedAt = original.UpdatedAt.AddHours(1), Duration = original.Duration,
+            SpotId = original.SpotId!, Totals = new(original.Totals),
+            CombatStats = new(2401, 841, CombatStatsCategory.Edania, original.UpdatedAt),
+            SilverBeforeTax = 0, SilverAfterTax = 0, SilverIsComplete = false,
+        };
+        new LootHistoryStore(Path.Combine(directory.Path, "loot-history-v1.json")).Save([unrelated]);
+
+        await using var fixture = new Fixture(directory.Path);
+        Assert.Null(fixture.Service.State.SessionCombatStats);
+        Assert.False(fixture.Service.State.CombatStats.IsKnown);
+        Assert.True((await fixture.Service.SaveSessionAsync()).Succeeded);
+        Assert.Null(new CurrentSessionStore(directory.CurrentPath).Load()!.CombatStats);
+        Assert.Null(fixture.History.Load().Single(entry => entry.SessionId == original.SessionId).CombatStats);
+        Assert.Equal(unrelated.CombatStats, fixture.History.Load().Single(entry => entry.SessionId == unrelated.SessionId).CombatStats);
+    }
+
+    [Theory]
+    [InlineData(CombatStatsCategory.Edania, CombatStatsCategory.General, true)]
+    [InlineData(CombatStatsCategory.Edania, CombatStatsCategory.Demihuman, true)]
+    [InlineData(CombatStatsCategory.General, CombatStatsCategory.Demihuman, false)]
+    public async Task CorrectedSpotSelectsNewestCompatibleSampleBeforeComparingTimestamps(
+        CombatStatsCategory checkpointCategory, CombatStatsCategory historyCategory, bool expectHistory)
+    {
+        using var directory = new TestDirectory();
+        var original = CurrentSessionStoreTests.Example();
+        var checkpointStats = new CombatStatsState(2401, 841, checkpointCategory, original.UpdatedAt.AddSeconds(-20));
+        original = original with { CombatStats = checkpointStats };
+        var historyStats = new CombatStatsState(1560, 740, historyCategory, original.UpdatedAt.AddSeconds(-30));
+        var history = new LootHistoryEntry
+        {
+            SessionId = original.SessionId, StartedAt = original.StartedAt!.Value,
+            UpdatedAt = original.UpdatedAt.AddMinutes(1), Duration = original.Duration,
+            SpotId = "tungrad-ruins", Totals = new(original.Totals), CombatStats = historyStats,
+            SilverBeforeTax = 0, SilverAfterTax = 0, SilverIsComplete = false,
+        };
+        new CurrentSessionStore(directory.CurrentPath).Save(original);
+        new LootHistoryStore(Path.Combine(directory.Path, "loot-history-v1.json")).Save([history]);
+
+        await using var fixture = new Fixture(directory.Path);
+        var expected = expectHistory ? historyStats : checkpointStats;
+        Assert.Equal("tungrad-ruins", fixture.Service.State.SpotId);
+        Assert.Equal(expected, fixture.Service.State.SessionCombatStats);
+        Assert.False(fixture.Service.State.CombatStats.IsKnown);
+        Assert.Equal(original.Totals, fixture.Service.State.Loot.Totals);
+        Assert.Equal(0, fixture.Captures);
+
+        Assert.True((await fixture.Service.SaveSessionAsync()).Succeeded);
+
+        Assert.Equal(expected, new CurrentSessionStore(directory.CurrentPath).Load()!.CombatStats);
+        Assert.Equal(expected, Assert.Single(fixture.History.Load()).CombatStats);
+        Assert.Equal(original.Totals, Assert.Single(fixture.History.Load()).Totals);
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task UnreadSettingsStayUnchangedAndDoNotPreventClosingWhenPreferenceChangesWereRejected(bool locked)

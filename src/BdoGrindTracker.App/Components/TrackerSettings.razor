@@ -40,6 +40,14 @@
                     <label class="field"><span>Familienruhm</span><input type="number" min="0" max="2147483647" step="1" required @bind="_familyFame" @bind:event="oninput" @bind:after="FameInputChanged" @onblur="SaveFamilyFame" /><small>Zusätzlicher Verkaufsbonus ab 1.000, 4.000 und 7.000 Ruhm.</small>@if (_familyFameError is not null) { <small class="field-error" role="alert">@_familyFameError</small> }</label>
                     <div class="tax-preview"><span>Dein effektiver Markterlös</span><strong>@TaxPreview</strong><small>NPC-Verkäufe bleiben steuerfrei.</small></div>
                 </section>
+                <section class="panel settings-panel"><div class="settings-heading"><div class="settings-icon"><AppIcon Name="spark" /></div><h2>Buff-Erkennung</h2></div>
+                    <label class="field"><span>Kalibrierungsprofil</span><input type="text" @bind="_buffProfilePath" @bind:after="BuffProfileChanged" disabled="@State.HasSession" placeholder="Pfad zur Buff-Profil-Datei (.json)" /><small>Das Profil enthält die Position der Buff-Leiste und Vorlagen ihrer Icons. Ein kalibrierter BDO-UI-Eintrag kann die gespeicherte Position automatisch nachführen.</small></label>
+                    <button type="button" class="button primary" @onclick="CalibrateBuffProfile" disabled="@State.HasSession">Buffs per Screenshot einrichten</button>
+                    <button type="button" class="button secondary" @onclick="BrowseBuffProfile" disabled="@State.HasSession">Profil auswählen</button>
+                    <p class="field-note">@State.BuffStatus</p>
+                    <p class="field-note">Cron-Mahlzeiten, Harmony Draughts, Parfüme, kostenpflichtige Zeltbuffs und Mystic-Beasts-Schriftrollen. Nur die eingerichteten Symbole werden alle 10 Sekunden geprüft. Kosten: Zentralmarktpreis deiner Region bzw. fester NPC-Preis beim Zelt.</p>
+                    <p class="field-note">Im Assistenten einen vollständigen Spiel-Screenshot laden, Leiste, Symbol und Restzeit markieren und die Erkennung testen. Anleitung: docs/BUFF_TRACKING.md im Programmordner.</p>
+                </section>
                 <AppUpdates />
             </div>
         </div>
@@ -54,6 +62,7 @@
     private bool _recordLoot, _recordRotation, _valuePack, _merchantRing;
     private string _region = "eu";
     private string _gameLanguage = "auto";
+    private string? _buffProfilePath;
     private string SelectedThemeId => AppThemes.Normalize(Tracker.Preferences.ThemeId);
     private string ThemeDescription => SelectedThemeId switch
     {
@@ -70,6 +79,7 @@
         var preferences = Tracker.Preferences;
         _characterClass = preferences.CharacterClassId;
         _gameLanguage = preferences.GameLanguage;
+        _buffProfilePath = preferences.BuffRecognitionProfilePath;
         _autoPause = preferences.AutoPauseMinutes.ToString(System.Globalization.CultureInfo.InvariantCulture);
         _recordLoot = preferences.RecordLoot;
         _recordRotation = preferences.RecordRotation;
@@ -80,6 +90,23 @@
     }
     private Task ThemeChanged(string themeId) => Save(p => p with { ThemeId = themeId });
     private Task GameLanguageChanged() => Save(p => p with { GameLanguage = _gameLanguage });
+    private Task BuffProfileChanged() => Save(p => p with { BuffRecognitionProfilePath = string.IsNullOrWhiteSpace(_buffProfilePath) ? null : _buffProfilePath.Trim() });
+    private async Task BrowseBuffProfile()
+    {
+        string? selected = null;
+        if (!await Act(async () => { selected = await Tracker.BrowseBuffRecognitionProfileAsync(); })) return;
+        if (selected is null) return;
+        _buffProfilePath = selected;
+        await BuffProfileChanged();
+    }
+    private async Task CalibrateBuffProfile()
+    {
+        string? selected = null;
+        if (!await Act(async () => { selected = await Tracker.CalibrateBuffRecognitionAsync(); })) return;
+        if (selected is null) return;
+        _buffProfilePath = selected;
+        await BuffProfileChanged();
+    }
     private Task CharacterChanged() => Save(p => p with { CharacterClassId = string.IsNullOrEmpty(_characterClass) ? null : _characterClass });
     private Task RecordingChanged() => Save(p => p with { RecordLoot = _recordLoot });
     private Task RotationRecordingChanged() => Save(p => p with { RecordRotation = _recordRotation });

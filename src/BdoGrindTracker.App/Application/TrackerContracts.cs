@@ -3,6 +3,7 @@ using BdoGrindTracker.App.Pricing;
 using BdoGrindTracker.App.UI;
 using BdoGrindTracker.App.Integrations.Garmoth;
 using BdoGrindTracker.App.Theming;
+using BdoGrindTracker.Core.Buffs;
 
 namespace BdoGrindTracker.App.Services;
 
@@ -26,6 +27,7 @@ internal sealed record TrackerPreferences
     public IReadOnlyDictionary<string, string[]> LootColumnOrders { get; init; } = new Dictionary<string, string[]>();
     public string? MonitorDeviceName { get; init; }
     public string? CaptureConfigurationPath { get; init; }
+    public string? BuffRecognitionProfilePath { get; init; }
     public string GameLanguage { get; init; } = "auto";
     public string? CharacterClassId { get; init; }
     public int AutoPauseMinutes { get; init; } = 3;
@@ -69,6 +71,10 @@ internal sealed record TrackerState
     public string? SpotId { get; init; }
     public string? CharacterClassId { get; init; }
     public string CharacterLabel { get; init; } = "Automatische Erkennung";
+    public CombatStatsState CombatStats { get; init; } = CombatStatsState.Unknown;
+    public CombatStatsState? SessionCombatStats { get; init; }
+    public BuffLedgerSnapshot? Buffs { get; init; }
+    public string BuffStatus { get; init; } = "Buff-Erkennung noch nicht kalibriert.";
     public TimeSpan Elapsed { get; init; }
     public LootSessionSnapshot Loot { get; init; } = LootSessionSnapshot.Empty;
     public LootScrollState LootScroll { get; init; } = LootScrollState.Unknown;
@@ -114,6 +120,9 @@ internal interface ITrackerSession : IAsyncDisposable
     Task<CaptureConfigurationPreview> PreviewCaptureConfigurationAsync(string? gameVariablePath) =>
         Task.FromResult(new CaptureConfigurationPreview(Error: "Die Vorschau ist hier nicht verfügbar."));
     Task<CaptureConfigurationOption?> BrowseCaptureConfigurationAsync() => Task.FromResult<CaptureConfigurationOption?>(null);
+    Task<string?> BrowseBuffRecognitionProfileAsync() => Task.FromResult<string?>(null);
+    Task<string?> CalibrateBuffRecognitionAsync() => Task.FromException<string?>(
+        new NotSupportedException("Die Buff-Kalibrierung ist in der Windows-App verfügbar."));
     Task<TrackerCommandResult> SelectCaptureConfigurationAsync(string? gameVariablePath) =>
         Task.FromResult(new TrackerCommandResult("Die Konfigurationsauswahl ist hier nicht verfügbar."));
     IReadOnlyList<LootHistoryEntry> History { get; }

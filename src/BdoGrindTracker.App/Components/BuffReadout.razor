@@ -1,0 +1,56 @@
+@using BdoGrindTracker.Core.Buffs
+
+<section class="panel buff-summary" aria-label="Buffs und Kosten">
+    <div class="panel-heading"><h2>Buffs &amp; Kosten</h2><AppIcon Name="spark" /></div>
+    @if (!string.IsNullOrEmpty(Status)) { <p class="buff-status">@Status</p> }
+    @if (Value is { } buffs)
+    {
+        <dl class="detail-list">
+            <div><dt>Beobachtete Laufzeit</dt><dd>@Cost(buffs.ProratedCost, buffs.KnownProratedCost)</dd></div>
+            <div><dt>Konsumierte Gegenstände</dt><dd>@buffs.Consumptions.Count · @Cost(buffs.ConsumedCost, buffs.KnownConsumedCost)</dd></div>
+        </dl>
+        <p class="buff-explanation">Laufzeitkosten = Gegenstandspreis × beobachtete Zeit / Wirkungsdauer. Zeltbuffs verwenden den festen NPC-Preis. Verbrauch wird aus bestätigten Buff-Wechseln abgeleitet; beide Beträge werden nicht addiert. Bereits aktive Buffs zählen beim Start nicht als konsumiert. Die Zuordnung zur verwendeten Variante stammt aus deinem Profil.</p>
+        @if (buffs.ProratedCost is null || buffs.ConsumedCost is null)
+        { <p class="buff-status">* Teilbetrag: Für einige Buffs lag bei der Erkennung kein Marktpreis vor.</p> }
+        @if (buffs.HasStalePrices)
+        { <p class="buff-status">Einige Kosten basieren auf gespeicherten Marktpreisen.</p> }
+        @if (!Saved && buffs.Active.Count > 0)
+        {
+            <ul class="buff-list" aria-label="Aktive Buffs">
+                @foreach (var buff in buffs.Active)
+                {
+                    <li><span><strong>@buff.Name</strong><small>@(buff.IsBaseline ? "Bereits aktiv / Verbrauch unbekannt" : "Verbrauch bestätigt")</small></span><span title="Zuletzt gelesene Restzeit">@Duration(buff.Remaining)</span></li>
+                }
+            </ul>
+        }
+        @if (buffs.Usage.Count > 0)
+        {
+            <details class="buff-details"><summary>Laufzeit je Buff</summary><ul class="buff-list">
+                @foreach (var buff in buffs.Usage)
+                { <li><span><strong>@buff.Name</strong><small>@Duration(buff.ObservedDuration) beobachtet</small></span><span>@Cost(buff.ProratedCost, buff.KnownProratedCost)</span></li> }
+            </ul></details>
+        }
+        @if (buffs.Consumptions.Count > 0)
+        {
+            <details class="buff-details"><summary>Verbrauchsprotokoll (@buffs.Consumptions.Count)</summary><ol class="buff-list" aria-label="Konsumierte Buffs">
+                @foreach (var buff in buffs.Consumptions.Reverse())
+                {
+                    <li><span><strong>@buff.Name</strong><small>@buff.ConsumedAt.ToLocalTime().ToString("HH:mm:ss", German) · @PriceSource(buff.Price)@(buff.Price?.IsStale == true ? " · Cache" : "")</small></span><span>@(buff.Cost is { } cost ? Silver(cost) : "—")</span></li>
+                }
+            </ol></details>
+        }
+    }
+    else
+    {
+        <p class="buff-status">Noch keine Buff-Beobachtungen gespeichert.</p>
+    }
+</section>
+
+@code {
+    [Parameter] public BuffLedgerSnapshot? Value { get; set; }
+    [Parameter] public string? Status { get; set; }
+    [Parameter] public bool Saved { get; set; }
+    private static string Cost(decimal? complete, decimal known) => Silver(complete ?? known) + (complete is null ? " *" : "") + " Silber";
+    private static string PriceSource(BuffPrice? price) => price is null ? "Preis unbekannt" :
+        price.Source == BuffPriceSource.FixedNpc ? "NPC-Festpreis" : "Zentralmarkt · " + price.Region.ToUpperInvariant();
+}

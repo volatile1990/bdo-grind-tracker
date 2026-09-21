@@ -43,7 +43,7 @@
                     <details class="chronological-session-card" @key="session.SessionId">
                         <summary class="chronological-session-header" style="@SpotBackgroundStyle(Profile(session.SpotId), shaded: true)">
                             <span class="chronological-date"><strong>@session.StartedAt.ToLocalTime().ToString("dd.MM.yy", German)</strong><small>@session.StartedAt.ToLocalTime().ToString("HH:mm 'Uhr'", German)</small></span>
-                            <span class="chronological-spot"><AssetImage Src="@("assets/spot-icons/" + Profile(session.SpotId)?.IconFileName)" Alt="" Class="chronological-spot-icon" /><span><strong>@SpotName(session.SpotId)</strong><small>@(session.CharacterClass ?? "Klasse nicht erkannt")</small>@if (session.GarmothLocallyModified) { <small class="session-local-correction">Lokal korrigiert; Garmoth unverändert</small> }</span></span>
+                            <span class="chronological-spot"><AssetImage Src="@("assets/spot-icons/" + Profile(session.SpotId)?.IconFileName)" Alt="" Class="chronological-spot-icon" /><span><strong>@SpotName(session.SpotId)</strong><small>@(session.CharacterClass ?? "Klasse nicht erkannt")</small><CombatStatsReadout Value="@session.CombatStats" SpotId="@session.SpotId" Saved="true" Compact="true" />@if (session.GarmothLocallyModified) { <small class="session-local-correction">Lokal korrigiert; Garmoth unverändert</small> }</span></span>
                             <span class="chronological-loot-preview">
                                 @foreach (var item in ChronologicalLoot(session))
                                 {
@@ -62,6 +62,7 @@
                                 <button class="button secondary danger" @onclick="() => AskDelete(session)" disabled="@(Acting || State.IsBusy || IsCurrent(session))"><AppIcon Name="delete" />Löschen</button>
                             </div></div>
                             <LootTable Totals="SessionTotals(session)" DurationTicks="session.Duration.Ticks" TrashName="@(Profile(session.SpotId)?.TrashItemName)" Title="Loot der Session" Subtitle="Mengen und Bewertung im Detail" EditableSessionId="session.SessionId" />
+                            @if (session.Buffs is not null) { <BuffReadout Value="session.Buffs" Saved="true" /> }
                         </div>
                     </details>
                 }
@@ -139,6 +140,7 @@
                             <th class="session-fixed session-duration-column" scope="col">GRINDZEIT</th>
                             <th class="session-fixed session-silver-column numeric" scope="col">SILBER / H</th>
                             <th class="session-experience-column" scope="col">ERFAHRUNG</th>
+                            <th class="session-combat-column" scope="col">AP / DP</th>
                             @for (var columnIndex = 0; columnIndex < lootColumns.Count; columnIndex++)
                             {
                                 var column = lootColumns[columnIndex];
@@ -155,6 +157,7 @@
                                 <td class="session-fixed session-duration-column">@CompactDuration(session.Duration)<small class="session-agris-time" title="@HistoryPresentation.AgrisTime(session).Description" aria-label="@HistoryPresentation.AgrisTime(session).Description">Agris @HistoryPresentation.AgrisTime(session).Duration</small></td>
                                 <td class="session-fixed session-silver-column numeric gold">@Silver(Hourly(session.SilverAfterTax, session.Duration))@(!session.SilverIsComplete ? " *" : "")</td>
                                 <td class="session-experience-column @(HistoryPresentation.Experience(session).IsLoss ? "is-loss" : "")" title="@HistoryPresentation.Experience(session).Description"><strong class="experience-gain">@HistoryPresentation.Experience(session).Gain</strong>@if (HistoryPresentation.Experience(session).HasObservation) { <small class="experience-hourly">@HistoryPresentation.Experience(session).Hourly / h</small> }</td>
+                                <td class="session-combat-column"><CombatStatsReadout Value="@session.CombatStats" SpotId="@session.SpotId" Saved="true" Compact="true" /></td>
                                 @foreach (var column in lootColumns)
                                 {
                                     var quantity = SessionTotals(session).GetValueOrDefault(column.Name);
@@ -176,6 +179,7 @@
 <dialog id="history-edit" class="modal edit-modal" aria-labelledby="history-edit-title" @oncancel="CloseDialogs"><div class="modal-heading"><div><span class="eyebrow">SESSION BEARBEITEN</span><h2 id="history-edit-title">Lootmengen korrigieren</h2></div><button class="icon-button" @onclick="CloseDialogs" aria-label="Dialog schließen"><AppIcon Name="close" /></button></div><p>Trage die tatsächlichen Gesamtmengen ein. Mit 0 setzt du die Menge eines Gegenstands zurück.</p>
     @if (_target?.GarmothUploadedAt is not null || _target?.GarmothUploadBlocked == true) { <div class="notice warning-notice"><AppIcon Name="info" />Bereits übertragene Garmoth-Einträge werden dadurch nicht geändert.</div> }
     @if (_dialogError is not null) { <div class="notice error-notice" role="alert">@_dialogError</div> }
+    @if (_target is { } editSession) { <div class="history-edit-combat"><span>Im Spiel erfasste Werte dieser Session</span><CombatStatsReadout Value="@editSession.CombatStats" SpotId="@editSession.SpotId" Saved="true" /></div>@if (editSession.Buffs is not null) { <BuffReadout Value="editSession.Buffs" Saved="true" /> } }
     <form @onsubmit="SaveEdit" @onsubmit:preventDefault><label class="field history-class-edit"><span>Klasse dieser Session</span><select @bind="_editClass"><option value="">Klasse nicht erkannt</option>@foreach (var characterClass in CompanionCharacterClassCatalog.Classes) { <option value="@characterClass.DisplayName">@characterClass.DisplayName</option> }</select></label><div class="edit-loot-list">@foreach (var row in _editRows) { <label class="edit-loot-row"><span><AssetImage Src="@ItemIcon(row.Name)" Alt="" Class="item-image" />@ItemLabel(row.Name)</span><input type="number" min="0" max="9223372036854775807" step="1" required @bind="row.Quantity" aria-label="@("Menge " + ItemLabel(row.Name))" /></label> }</div><div class="modal-actions"><button type="button" class="button secondary" @onclick="CloseDialogs">Abbrechen</button><button type="submit" class="button primary" disabled="@Acting"><AppIcon Name="check" />Session speichern</button></div></form>
 </dialog>
 <dialog id="history-confirm" class="modal confirm-modal" aria-labelledby="history-confirm-title" @oncancel="CloseDialogs">
@@ -441,5 +445,5 @@
         StateHasChanged();
     }
     private static string SessionTableWidth(int lootColumnCount) =>
-        $"min-width:{586 + Math.Max(1, lootColumnCount) * 88}px";
+        $"min-width:{752 + Math.Max(1, lootColumnCount) * 88}px";
 }

@@ -15,6 +15,7 @@ internal sealed class AppSettings
 
     public string? MonitorDeviceName { get; set; }
     public string? CaptureConfigurationPath { get; set; }
+    public string? BuffRecognitionProfilePath { get; set; }
     public string GameLanguage { get; set; } = "auto";
     public string ThemeId { get; set; } = AppThemes.Grindcrest;
 

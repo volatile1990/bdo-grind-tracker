@@ -361,3 +361,26 @@ small,.item-cell small,.panel-heading p,.page-heading p,.field small,.toggle-row
 .live-spot-variant small{opacity:.75;line-height:1.5}
 .live-spot-variant select{width:100%;min-width:0;min-height:38px;background:#11181f;border:1px solid #38434e;border-radius:6px;color:#d4dde6;padding:8px 11px;font-size:14px}
 .live-spot-variant select:disabled{opacity:.55;cursor:not-allowed}
+.live-combat-stats{margin-top:13px}
+.combat-stats{--combat-color:var(--text);display:inline-flex;align-items:center;flex-wrap:wrap;gap:5px 11px;font-size:13px;line-height:1.5;color:var(--combat-color)}
+.combat-stats-edania{--combat-color:#c6a3fa}
+.combat-stats-demihuman{--combat-color:#edbf66}
+.combat-stats-kamasylvian{--combat-color:#89baff}
+.combat-stats-values{display:inline-flex;align-items:center;gap:12px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.combat-stats .combat-stats-values span strong{display:inline;font-size:inherit;color:inherit;font-weight:650;line-height:inherit;margin:0}
+.combat-stats-category{font-size:11px;border:1px solid currentColor;border-radius:4px;padding:1px 6px;white-space:nowrap}
+.combat-stats-age{font-size:11px;color:var(--muted)}
+.combat-stats-unknown{color:var(--muted);font-size:12px}
+.combat-stats-compact{gap:5px 8px;font-size:12px}
+.combat-stats-compact .combat-stats-category{font-size:10px;padding:0 5px}
+.chronological-spot .combat-stats{margin-top:6px}
+.spot-session-table .session-combat-column{width:166px;white-space:normal}
+.session-combat-column .combat-stats{display:flex;align-items:flex-start;flex-direction:column}
+.history-edit-combat{display:flex;align-items:center;gap:8px 16px;flex-wrap:wrap;margin:17px 0;padding:12px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.history-edit-combat>span:first-child{font-size:12px;color:var(--muted)}
+[data-theme="light"] .combat-stats-edania{--combat-color:#7951b7}
+[data-theme="light"] .combat-stats-demihuman{--combat-color:#916000}
+[data-theme="light"] .combat-stats-kamasylvian{--combat-color:#285da4}
+
+/* Buff observations and immutable purchase-price history. */
+.buff-summary{padding:20px;min-width:0}.buff-summary .panel-heading{margin-bottom:14px}.buff-status,.buff-explanation{font-size:12px;line-height:1.65;color:var(--muted,#8494a5);margin:8px 0 12px}.buff-list{list-style:none;margin:10px 0 0;padding:0;max-height:320px;overflow:auto}.buff-list li{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid #8494a526;font-size:12px;font-variant-numeric:tabular-nums}.buff-list li>span:first-child{min-width:0;overflow-wrap:anywhere}.buff-list strong{font-weight:500}.buff-list small{display:block;color:var(--muted,#8494a5);margin-top:4px;font-size:11px;line-height:1.5}.buff-list li>span:last-child{flex-shrink:0}.buff-details{margin-top:12px;font-size:12px}.buff-details summary{cursor:pointer;line-height:1.6}.chronological-session-details>.buff-summary{margin-top:14px}.edit-modal .buff-summary{margin:12px 0}

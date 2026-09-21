@@ -33,10 +33,17 @@ internal sealed partial class TrackerSessionService
              newerHistory.Totals.Count != saved.Totals.Count ||
              newerHistory.Totals.Any(pair => saved.Totals.GetValueOrDefault(pair.Key) != pair.Value));
         if (newerHistory is not null)
+        {
+            // The newer record may correct the spot. Compare timestamps only after
+            // filtering both candidates for that final spot, so an incompatible newer
+            // checkpoint sample cannot hide an older, still applicable history sample.
+            var checkpointStats = CombatStatsSpotRules.ForSpot(saved.CombatStats, newerHistory.SpotId);
+            var historyStats = CombatStatsSpotRules.ForSpot(newerHistory.CombatStats, newerHistory.SpotId);
             saved = saved with
             {
                 UpdatedAt = newerHistory.UpdatedAt,
                 Rotations = newerHistory.Rotations,
+                Buffs = newerHistory.Buffs ?? saved.Buffs,
                 RotationTimeline = newerHistory.RotationTimeline,
                 StartedAt = newerHistory.StartedAt,
                 Duration = newerHistory.Duration,
@@ -54,9 +61,15 @@ internal sealed partial class TrackerSessionService
                 ExperienceObservedDuration = newerHistory.ExperienceObservedDuration ?? TimeSpan.Zero,
                 ExperienceStartLevel = newerHistory.ExperienceStartLevel,
                 ExperienceEndLevel = newerHistory.ExperienceEndLevel,
+                // Both records belong to this session. A loot-only correction
+                // or legacy history entry must not erase its newer HUD sample.
+                CombatStats = historyStats is not null &&
+                    historyStats.ObservedAt > (checkpointStats?.ObservedAt ?? DateTimeOffset.MinValue)
+                    ? historyStats : checkpointStats,
                 // Changed history cannot prove the matching remote watermark.
                 Uploads = reconciledHistory ? null : saved.Uploads,
             };
+        }
 
         if (saved.Uploads is { } uploads) _garmothIntervals.RestoreState(uploads);
         else _garmothIntervals.SuspendAutomatic();
@@ -71,6 +84,12 @@ internal sealed partial class TrackerSessionService
         _sessionStartedAt = saved.StartedAt;
         _sessionSpotId = saved.SpotId;
         _sessionClass = CompanionCharacterClassCatalog.FindById(saved.CharacterClassId);
+        _sessionCombatStats = CombatStatsSpotRules.ForSpot(saved.CombatStats, saved.SpotId);
+        if (saved.Buffs is { } buffs)
+        {
+            _buffLedger.Restore(buffs);
+            _hasBuffObservation = true;
+        }
         _sessionSubmitted = saved.SessionSubmitted;
         _sessionSummary = summary;
         _sessionManualLootItems.UnionWith(saved.ManualLootItems);
@@ -111,6 +130,8 @@ internal sealed partial class TrackerSessionService
         {
             UpdateAgrisSession();
             UpdateExperienceSession();
+            UpdateCombatStatsSession();
+            UpdateBuffSession();
             var checkpoint = _uiMailbox.ReadSnapshot(aggregate =>
             {
                 var summary = proposedSnapshot ?? aggregate;
@@ -134,6 +155,8 @@ internal sealed partial class TrackerSessionService
                     Duration = duration,
                     SpotId = _sessionSpotId,
                     CharacterClassId = _sessionClass?.Id,
+                    CombatStats = _sessionCombatStats,
+                    Buffs = _hasBuffObservation ? _buffLedger.Snapshot : null,
                     SessionSubmitted = _sessionSubmitted,
                     Totals = new(summary.Totals, StringComparer.OrdinalIgnoreCase),
                     ConfirmedEventCount = summary.ConfirmedEventCount,

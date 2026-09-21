@@ -1,3 +1,5 @@
+using BdoGrindTracker.App.UI;
+
 namespace BdoGrindTracker.App.Persistence;
 
 internal sealed record LootHistoryEntry
@@ -18,6 +20,10 @@ internal sealed record LootHistoryEntry
     public int? ExperienceEndLevel { get; init; }
     public required string SpotId { get; init; }
     public string? CharacterClass { get; init; }
+    // Last confirmed HUD observation belonging to this session; legacy sessions remain unknown.
+    public CombatStatsState? CombatStats { get; init; }
+    [System.Text.Json.Serialization.JsonConverter(typeof(BuffLedgerSnapshotJsonConverter))]
+    public BdoGrindTracker.Core.Buffs.BuffLedgerSnapshot? Buffs { get; init; }
     public required Dictionary<string, long> Totals { get; init; }
     public required decimal SilverBeforeTax { get; init; }
     public required decimal SilverAfterTax { get; init; }

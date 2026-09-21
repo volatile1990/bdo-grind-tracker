@@ -32,6 +32,7 @@
                             <span><AssetImage Src="@ClassIcon(State.CharacterClassId)" Alt="" Class="class-image" Fallback="shield" />@State.CharacterLabel</span>
                             <span title="@MonitorLabel"><AppIcon Name="monitor" />@ShortMonitorLabel</span>
                         </div>
+                        <div class="live-combat-stats"><CombatStatsReadout Value="@DisplayCombatStats" SpotId="@State.SpotId" LastKnown="@(!State.IsRunning || FreshCombatStats is null)" /></div>
                     </div>
                 </div>
             </div>
@@ -133,6 +134,7 @@
                 </dl>
                 <div class="subtle-box"><AppIcon Name="shield" /><span>Die automatische Pause greift, wenn kein neuer Loot erkannt wird.</span></div>
             </section>
+            <BuffReadout Value="State.Buffs" Status="@State.BuffStatus" />
             <div class="price-status"><span class="status-dot @(State.Silver.IsStale ? "" : "running")"></span><span>@State.PriceStatus</span><button class="icon-button" title="Marktpreise aktualisieren" aria-label="Marktpreise aktualisieren" @onclick="() => Act(Tracker.RefreshPricesAsync)" disabled="@(State.IsBusy || Acting)"><AppIcon Name="refresh" /></button></div>
             @if (!State.Silver.IsComplete || State.Silver.IsStale)
             {
@@ -154,6 +156,8 @@
 </dialog>
 
 @code {
+    private CombatStatsState? FreshCombatStats => CombatStatsSpotRules.ForSpot(State.CombatStats, State.SpotId);
+    private CombatStatsState? DisplayCombatStats => FreshCombatStats ?? CombatStatsSpotRules.ForSpot(State.SessionCombatStats, State.SpotId);
     private Task AutoStartChanged(bool enabled) => SavePreferenceChange(p => p with { AutoStartGrinding = enabled });
     private Task RearmAutoStart() => Act(Tracker.RearmAutoStartAsync);
     private void OpenSettings() => Navigation.NavigateTo("/settings");

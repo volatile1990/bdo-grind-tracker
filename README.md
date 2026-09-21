@@ -12,6 +12,8 @@ Silber und Stundenwerte im Dashboard und in anpassbaren Ingame-Overlays.
 - Lokaler Verlauf mit Sessiondetails, Spotansicht und Silberbewertung für EU/NA einschließlich Steuern und Boni.
 - Mehrere unabhängige Overlays mit frei angeordneten Kennzahlen, Lootlisten, Silberverlauf, Uhr und Tracking-Steuerung.
 - Automatische Pause, Klassenerkennung und pausierte Wiederherstellung der aktuellen Session nach einem Neustart.
+- AP/DP aus der Spielanzeige mit farblich erkannter Kategorie (Allgemein, Edania, Halbmenschen oder Kamasilvia), live und zur jeweiligen Session gespeichert.
+- Buff-Erkennung mit Screenshot-Kalibrierung, Restzeiten, Verbrauchsprotokoll und getrennten Laufzeit-/Verbrauchskosten aus EU-/NA-Zentralmarktpreisen bzw. festen Zeltpreisen.
 - Optionale automatische Grinderkennung mit sparsamer Bereitschaft und kurzer Lootprüfung bei einem Startverdacht.
 - Optionaler Garmoth-Upload mit Vorschau, Bestätigung und Schutz vor doppelten Übertragungen; automatische Stundenuploads sind separat einschaltbar.
 - Windows-OCR-Installation mit Fortschrittsanzeige, erneuter Verfügbarkeitsprüfung und lokaler Diagnose.
@@ -34,6 +36,27 @@ eigenen Installations- und Updateweg.
 3. Ab dem ersten neu gezählten Drop läuft die aktive Zeit. Aus dem Trashloot wird der Spot erkannt. Bei Varianten mit gleichem Trashloot das konkrete Gebiet vor einem Garmoth-Upload auswählen.
 4. **Pausieren** erhält die Session und zieht die Zeit seit dem letzten erkannten Drop ab; **Fortsetzen** zählt ab dem nächsten neuen Drop weiter. Ohne neue Drops pausiert Grindcrest standardmäßig nach drei Minuten und zieht ebenfalls die abschließende Leerlaufzeit ab. Das Intervall ist einstellbar.
 5. Vor einem Spot- oder Charakterwechsel **Neue Session** wählen. Beim nächsten Programmstart wird die zuletzt gespeicherte aktuelle Session pausiert geladen.
+
+AP/DP werden während des Trackings aus der Anzeige links oben im Spielfenster
+gelesen. Die Schriftfarbe bestimmt die Kategorie. Die Live-Ansicht zeigt bestätigte
+Werte; im Verlauf bleibt der zuletzt bestätigte Stand der jeweiligen Session
+erhalten. Dafür ist kein Garmoth-Build-Link nötig.
+[Erkennung und Nachweisgrenzen](docs/COMBAT_STATS_HUD.md).
+
+Die optionale **Buff-Erkennung** prüft die Leiste alle zehn Sekunden. Dafür unter
+**Einstellungen → Buff-Erkennung → Buffs per Screenshot einrichten** einen
+vollständigen Spiel-Screenshot laden und Leiste, Symbol und Restzeit markieren.
+Der Assistent speichert das Profil samt Symbolvorlagen und kann die Erkennung am
+Screenshot testen. Die Auswahl enthält 58 Varianten aus Cron-Mahlzeiten, Harmony
+Draughts, Parfümen, kostenpflichtigen Zeltbuffs und Mystic-Beasts-Schriftrollen.
+Nur die eingerichteten Symbole werden abgeglichen; gleiche Variantenfamilien
+werden im Profil auf den tatsächlich verwendeten Gegenstand festgelegt.
+Ein im Profil belegter BDO-UI-Eintrag kann die Position
+aus der Spielkonfiguration nachführen. Bestätigte Verbräuche und zeitanteilige
+Kosten erscheinen unter **Buffs & Kosten** und bleiben im Verlauf gespeichert.
+Bereits aktive Buffs, unlesbare Zeiten und Pausen werden konservativ behandelt;
+eine Erkennung ohne Kalibrierung ist noch nicht verfügbar.
+[Einrichtung, Beispielprofil und Grenzen](docs/BUFF_TRACKING.md).
 
 In der **Live-Session** neben **Tracking starten** und **Neue Session** lässt sich
 **Grind automatisch erkennen** ein- und ausschalten. Die Option ist standardmäßig aus. Während der

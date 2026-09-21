@@ -4,6 +4,7 @@ using BdoGrindTracker.App.Character;
 using BdoGrindTracker.App.Persistence;
 using BdoGrindTracker.App.Pricing;
 using BdoGrindTracker.App.Theming;
+using BdoGrindTracker.App.Analysis;
 
 namespace BdoGrindTracker.App.Services;
 
@@ -27,6 +28,16 @@ internal sealed partial class TrackerSessionService
             if (_settingsStore.LoadError is { } loadError) throw new IOException(loadError);
             var captureConfigurationChanged = !string.Equals(preferences.CaptureConfigurationPath,
                 Preferences.CaptureConfigurationPath, StringComparison.OrdinalIgnoreCase);
+            var buffProfileChanged = !string.Equals(preferences.BuffRecognitionProfilePath,
+                Preferences.BuffRecognitionProfilePath, StringComparison.OrdinalIgnoreCase);
+            if (buffProfileChanged && _hasSession)
+                throw new ArgumentException("Das Buff-Profil kann erst für eine neue Session geändert werden.");
+            if (buffProfileChanged && !string.IsNullOrWhiteSpace(preferences.BuffRecognitionProfilePath))
+            {
+                var profileStore = new BuffRecognitionProfileStore(preferences.BuffRecognitionProfilePath);
+                if (profileStore.Load() is null)
+                    throw new ArgumentException(profileStore.LastError ?? "Das Buff-Profil ist ungültig.");
+            }
             if (_hasSession && (preferences.MonitorDeviceName != Preferences.MonitorDeviceName ||
                 captureConfigurationChanged ||
                 preferences.GameLanguage != Preferences.GameLanguage ||
@@ -76,6 +87,7 @@ internal sealed partial class TrackerSessionService
             _garmothApiKey = nextKey;
             var regionChanged = region != Preferences.MarketRegion;
             var previousCaptureConfiguration = Preferences.CaptureConfigurationPath;
+            var previousBuffProfile = Preferences.BuffRecognitionProfilePath;
             var wasAutoStartEnabled = Preferences.AutoStartGrinding;
             var previousAutoStartSuspended = _autoStartSuspended;
             _settingsChangesPending = true;
@@ -99,11 +111,19 @@ internal sealed partial class TrackerSessionService
             {
                 _autoStartSuspended = previousAutoStartSuspended;
                 // A failed save must not silently switch the capture source for this run.
-                Preferences = Preferences with { CaptureConfigurationPath = previousCaptureConfiguration };
+                Preferences = Preferences with { CaptureConfigurationPath = previousCaptureConfiguration,
+                    BuffRecognitionProfilePath = previousBuffProfile };
                 _settings.CaptureConfigurationPath = previousCaptureConfiguration;
+                _settings.BuffRecognitionProfilePath = previousBuffProfile;
                 return;
             }
             if (captureConfigurationChanged) RebuildCaptureAnalyzer();
+            if (buffProfileChanged)
+            {
+                _buffMonitor.Reset();
+                _buffLedger.BreakContinuity();
+                Volatile.Write(ref _buffProfileError, null);
+            }
             if (resumeAutomaticUpload) _garmothIntervals.ResumeAutomatic();
             PersistCurrentSession(DateTimeOffset.UtcNow, throwOnError: true);
             SetStatus(_garmothIntervals.IsBlocked
@@ -133,6 +153,7 @@ internal sealed partial class TrackerSessionService
         _settings.UpdateCapturePreferences(Preferences.MonitorDeviceName);
         _settings.ThemeId = Preferences.ThemeId;
         _settings.CaptureConfigurationPath = Preferences.CaptureConfigurationPath;
+        _settings.BuffRecognitionProfilePath = Preferences.BuffRecognitionProfilePath;
         _settings.AutoPauseMinutes = Preferences.AutoPauseMinutes;
         _settings.AutoStartGrinding = Preferences.AutoStartGrinding;
         _settings.AutoStartSuspended = _autoStartSuspended;
@@ -175,6 +196,7 @@ internal sealed partial class TrackerSessionService
                     ?? Monitors.FirstOrDefault(monitor => monitor.IsPrimary)?.DeviceName ?? Monitors.FirstOrDefault()?.DeviceName,
             GameLanguage = _hasSession ? Preferences.GameLanguage : recovered.GameLanguage,
             CaptureConfigurationPath = _hasSession ? Preferences.CaptureConfigurationPath : recovered.CaptureConfigurationPath,
+            BuffRecognitionProfilePath = _hasSession ? Preferences.BuffRecognitionProfilePath : recovered.BuffRecognitionProfilePath,
             AutoPauseMinutes = recovered.AutoPauseMinutes,
             AutoStartGrinding = recovered.AutoStartGrinding,
             FavoriteItems = recovered.FavoriteItems ?? [],
