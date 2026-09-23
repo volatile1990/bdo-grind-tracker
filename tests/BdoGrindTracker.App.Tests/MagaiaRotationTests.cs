@@ -184,6 +184,60 @@ public sealed class MagaiaRotationTests
         Assert.Equal("#E87C79", RotationPhases.MarkerStroke(LootSpotCatalog.MagaiaId, new("away", "Tot", 71), null, true));
     }
 
+    [Fact]
+    public void AFinalPhaseThatBeginsHalfAMinuteAfterTheLastKnightKeepsTheRotation()
+    {
+        // Live session 23.09.2026: the day's first rotations saw the final phase of the third cycle 5 to 9 seconds after
+        // the last knight. Twice that average aborted every later rotation whose final phase took 20 to 35 seconds.
+        var tracker = new RotationPlatform(RotationDefinition.Magaia);
+        tracker.Observe("start", "Sünder beschworen", Epoch);
+        foreach (var (gap, i) in new double[] { 4.9, 7.2, 7.8, 8.5 }.Select((gap, i) => (gap, i))) PlayedRotation(tracker, i, gap);
+        PlayedRotation(tracker, 4, 35);
+
+        var runs = tracker.DrainCompleted().Where(r => r.Run.Outcome != "superseded").ToArray();
+        Assert.Equal(5, runs.Length);
+        Assert.All(runs, run => Assert.Equal("complete", run.Run.Outcome));
+    }
+
+    [Fact]
+    public void AfterATimeoutTheFinalPhaseResumesInItsOwnCycle()
+    {
+        var tracker = new RotationPlatform(RotationDefinition.Magaia);
+        tracker.Observe("start", "Sünder beschworen", Epoch);
+        for (var i = 0; i < 4; i++) PlayedRotation(tracker, i, 7);
+        // A real stall past the average plus a minute aborts the rotation in its third cycle.
+        PlayedRotation(tracker, 4, 100);
+        var stalled = tracker.DrainCompleted().Where(r => r.Run.Outcome != "superseded").ToArray();
+        Assert.Equal("aborted", stalled[^2].Run.Outcome);
+        Assert.Contains("cycle-3-knight-3", stalled[^2].Run.Reason);
+        // The final phase that follows resumes in the third cycle, not the first: the AFK end is the rotation's end and
+        // opens the next rotation cleanly.
+        Assert.Equal("incomplete", stalled[^1].Run.Outcome);
+        Assert.Equal("cycle-3-afk", stalled[^1].Run.Sections[^1].Id);
+        PlayedRotation(tracker, 5, 7);
+        Assert.Equal("complete", tracker.DrainCompleted().Last(r => r.Run.Outcome != "superseded").Run.Outcome);
+    }
+
+    private const double CycleSeconds = 630, RotationSeconds = CycleSeconds * RotationDefinition.MagaiaCycles;
+
+    // One rotation as played on 23.09.2026, begun by the previous rotation's AFK end (or the start banner at zero). The
+    // third cycle's last knight falls `lastKnight` seconds before its final phase.
+    private static void PlayedRotation(RotationPlatform tracker, int number, double lastKnight)
+    {
+        for (var cycle = 1; cycle <= RotationDefinition.MagaiaCycles; cycle++)
+        {
+            var offset = number * RotationSeconds + (cycle - 1) * CycleSeconds;
+            void Message(string kind, double seconds) => tracker.Observe(kind, kind, Epoch.AddSeconds(offset + seconds));
+            Message("prayer", 250);
+            Message("knight", 330); Message("knight", 390); Message("knight", 430);
+            var doubt = 430 + (cycle == 3 ? lastKnight : 12);
+            Message("doubt", doubt);
+            if (cycle == 1) Message("sacred", doubt + 4);
+            Message("afk", CycleSeconds - 77);
+            Message("end", CycleSeconds);
+        }
+    }
+
     // One cycle from its start to the AFK end that starts the next one.
     private static void Cycle(RotationPlatform tracker, double offset, double duration, bool tears, int fragments = 0, int knights = 3)
     {

@@ -38,6 +38,7 @@ internal class RotationPlatform : IRotationEventTracker
     private DateTimeOffset _clock;
     private Guid _runId;
     private int _position = -1, _setupCount;
+    private int? _resumeAfter;
     private bool _completeStart, _missing, _boundaryAvailable;
     private string _status = "Warte auf Erkennung";
     private string? _error;
@@ -174,7 +175,7 @@ internal class RotationPlatform : IRotationEventTracker
         _sectionSamples.Clear();
         foreach (var run in _history) RecordSectionSamples(run);
         _start = _lootAllowedAt = _sectionStart = null; _runId = Guid.Empty; _position = -1;
-        _setupCount = 0; _completeStart = _missing = _boundaryAvailable = false; _finishedElapsed = 0;
+        _setupCount = 0; _completeStart = _missing = _boundaryAvailable = false; _finishedElapsed = 0; _resumeAfter = null;
         if (_restoredBoundary is { } restored)
         { _lootAllowedAt = restored.AddSeconds(5); _boundaryAvailable = _restoredCleanStart; }
         _status = "Warte auf Erkennung"; _building = [];
@@ -211,6 +212,7 @@ internal class RotationPlatform : IRotationEventTracker
         if (input.Type == "tick") return;
         if (input.Type == "interrupt")
         {
+            _resumeAfter = null; // Nobody knows where the rotation stands after a pause.
             Finish(input, "aborted", input.Label);
             _status = input.Label + " · Warte auf Erkennung";
             return;
@@ -274,6 +276,9 @@ internal class RotationPlatform : IRotationEventTracker
         { Decision(input, "duplicate", "Wiederholte Starteinblendung ignoriert"); return; }
         if (indices.Length == 0 && !explicitStart)
         { Decision(input, "unknown", "Unbekannte Mitteilung · Warte auf Erkennung"); return; }
+        // After a timeout the rotation went on where it stopped: a message several cycles share (Magaia's final phase)
+        // resumes after the last known step instead of falling back to the first cycle.
+        var resumeAfter = _start is null && !explicitStart ? _resumeAfter : null;
         if (_start is null) Begin(input, explicitStart);
         // Start-only messages always open a clean run, even inside the loot lockout.
         else if (explicitStart && indices.Length == 0)
@@ -284,7 +289,7 @@ internal class RotationPlatform : IRotationEventTracker
         if (_position >= 0 && _definition.Steps[_position].Matches(input.Kind) && _definition.AfkEndMessages.Contains(input.Kind) &&
             _sectionStart is { } entered && input.At - entered < TimeSpan.FromMinutes(1))
         { Decision(input, "duplicate", "Wiederholte Einblendung ignoriert"); return; }
-        var next = Next(indices);
+        var next = Next(indices, resumeAfter is { } resumed && indices.Any(s => s.Index > resumed) ? resumed : _position);
         if (next.Step is null && InferOpening(input, indices)) next = Next(indices);
         // A message that belongs to exactly one step (several orbs of Elion's Tears) may repeat inside its own phase.
         // Where the rotation models the repetition itself (Hermesia's five offerings, Aphrodon's nine waves), one more
@@ -311,8 +316,10 @@ internal class RotationPlatform : IRotationEventTracker
     private bool Required(RotationStep step) => !step.Optional ||
         step.RequiredWhenBranchObserved && step.Requires is { } required && _visited.Contains(required);
 
-    private (RotationStep Step, int Index) Next((RotationStep Step, int Index)[] indices) => indices.FirstOrDefault(s =>
-        s.Index > _position && (s.Step.Requires is null || _visited.Contains(s.Step.Requires)));
+    private (RotationStep Step, int Index) Next((RotationStep Step, int Index)[] indices) => Next(indices, _position);
+
+    private (RotationStep Step, int Index) Next((RotationStep Step, int Index)[] indices, int after) => indices.FirstOrDefault(s =>
+        s.Index > after && (s.Step.Requires is null || _visited.Contains(s.Step.Requires)));
 
     private void Enter(Input input, int index, string kind, string label, DateTimeOffset at, bool inferred = false)
     {
@@ -384,7 +391,7 @@ internal class RotationPlatform : IRotationEventTracker
     {
         _start = _sectionStart = input.At; _runId = input.Id; _position = -1; _sectionId = "startup";
         _events.Clear(); _sections.Clear(); _visited.Clear(); _completeStart = complete; _missing = false;
-        _boundaryAvailable = false;
+        _boundaryAvailable = false; _resumeAfter = null;
         AddEvent("start", "Rotationsstart", input.At);
         _status = "Warte auf Erkennung";
         Decision(input, "start", complete ? "Rotationsstart erkannt" : "Einstieg ohne bestätigten Rotationsbeginn · unvollständig");
@@ -430,8 +437,15 @@ internal class RotationPlatform : IRotationEventTracker
         }
     }
 
+    /// <summary>
+    /// A section may take twice its own average, and never less than its average plus this. Twice a few seconds is no
+    /// slack at all: Magaia's last knight falls on average seven seconds before the final phase, but half a minute is
+    /// just as normal.
+    /// </summary>
+    internal const double MinimumTimeoutSlackSeconds = 60;
+
     private double? TimeoutSeconds() => _sectionSamples.TryGetValue(_sectionId, out var samples) && samples.Count >= 3
-        ? samples.Average() * 2 : null;
+        ? Math.Max(samples.Average() * 2, samples.Average() + MinimumTimeoutSlackSeconds) : null;
 
     private void CheckTimeout(DateTimeOffset now, Input input)
     {
@@ -439,7 +453,9 @@ internal class RotationPlatform : IRotationEventTracker
         var at = start.AddSeconds(limit);
         // A special event whose middle was seen is over, not stalled, when its closing banner never came.
         if (InferClosing(input with { At = at }, _definition.Steps.Length, at)) { CheckTimeout(now, input); return; }
-        Finish(input with { At = at }, "aborted", $"Abschnitt {_sectionId}: doppelte eigene Durchschnittszeit überschritten");
+        var position = _position;
+        Finish(input with { At = at }, "aborted", $"Abschnitt {_sectionId}: Zeitgrenze der eigenen Durchschnittszeit überschritten");
+        _resumeAfter = position;
     }
 
     private void Decision(Input input, string kind, string detail) =>

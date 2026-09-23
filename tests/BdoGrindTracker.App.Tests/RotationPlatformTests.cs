@@ -84,10 +84,11 @@ public sealed class RotationPlatformTests
         var tracker = new RotationPlatform(Simple());
         Full(tracker); Full(tracker, 100); Full(tracker, 200); tracker.DrainCompleted();
         Message(tracker, "start", 300);
-        tracker.Advance(Epoch.AddSeconds(331));
+        tracker.Advance(Epoch.AddSeconds(385));
         var aborted = Assert.Single(tracker.DrainCompleted()).Run;
         Assert.Equal("aborted", aborted.Outcome);
-        Assert.Equal(20, aborted.Duration);
+        // Twice ten seconds is no slack: a section may always take its average plus a minute.
+        Assert.Equal(10 + RotationPlatform.MinimumTimeoutSlackSeconds, aborted.Duration);
     }
 
     [Fact]
@@ -266,9 +267,9 @@ public sealed class RotationPlatformTests
             Message(tracker, "a", 210); Message(tracker, "b", 220); Message(tracker, "afk", 230); Message(tracker, "end", 240);
             var restored = new RotationPlatform(Simple(), path);
             Message(restored, "start", 300);
-            Assert.False(restored.Snapshot(Epoch.AddSeconds(331)).Synchronized);
+            Assert.False(restored.Snapshot(Epoch.AddSeconds(385)).Synchronized);
             var failed = Assert.Single(restored.DrainCompleted());
-            Assert.Equal(20, failed.Run.Duration);
+            Assert.Equal(70, failed.Run.Duration);
             Assert.Contains("Durchschnitt", failed.Run.Reason);
         }
         finally { File.Delete(path); }
@@ -282,9 +283,10 @@ public sealed class RotationPlatformTests
         for (var i = 0; i < 20; i++) Full(tracker, 300 + i * 100, 1.5);
         tracker.DrainCompleted();
         Message(tracker, "start", 2400);
-        Assert.True(tracker.Snapshot(Epoch.AddSeconds(2435)).Synchronized);
-        Assert.False(tracker.Snapshot(Epoch.AddSeconds(2441)).Synchronized);
-        Assert.Equal(30, Assert.Single(tracker.DrainCompleted()).Run.Duration);
+        // The fastest samples (10 s) would expire after 70 s plus the confirmation allowance, the recent ones (15 s) after 75.
+        Assert.True(tracker.Snapshot(Epoch.AddSeconds(2483)).Synchronized);
+        Assert.False(tracker.Snapshot(Epoch.AddSeconds(2486)).Synchronized);
+        Assert.Equal(75, Assert.Single(tracker.DrainCompleted()).Run.Duration);
     }
 
     [Theory]
