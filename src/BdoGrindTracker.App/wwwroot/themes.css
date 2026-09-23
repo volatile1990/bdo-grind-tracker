@@ -606,7 +606,7 @@ html:is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme
 :is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) :is(.silver-cell, .chronological-session-silver, .favorite-tag, .session-favorite-star, .spot-card-stats strong, .history-secondary-metrics strong, .oe-module > .icon:first-child, .oe-window-heading > .icon, .oe-module-group-label:first-child, .oe-canvas-empty strong, .gold-metric .metric-value, .spot-session-table .session-silver-column, .garmoth-transfer-icon, .session-loot-column small) { color: var(--gold-bright); }
 :is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) :is(.oe-save-state, .settings-autosave, .settings-savebar > span, .oe-shortcuts-state.enabled) { color: var(--teal); }
 :is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) .spot-card-footer > span:last-child { color: var(--gold-bright); }
-:is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) .agris-live-value small { color: var(--muted); }
+:is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) :is(.agris-live-value, .rotation-live-value) small { color: var(--muted); }
 :is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) :is(.filter-count, .spot-detail-identity p, .spot-guidance span, .spot-guidance small, .session-identity small, .session-duration, .session-agris-time, .chronological-session-duration .session-agris-time, .garmoth-key-explainer, .garmoth-connection-actions .text-button, .garmoth-session-identity > div > span, .garmoth-session-state, .garmoth-total-caption span, .garmoth-current-metrics span, .garmoth-valuation, .garmoth-current-transfer p, .garmoth-current-actions > span, .garmoth-history-count, .garmoth-history-identity small, .garmoth-history-identity small.garmoth-history-class, .garmoth-duration, .garmoth-history-status small, .garmoth-history-footnote p, .garmoth-confirm-note, .garmoth-status-label.is-pending) { color: var(--muted); }
 :is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) :is(.garmoth-session-identity h3, .garmoth-current-transfer strong) { color: var(--text); }
 :is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) :is(.garmoth-silver, .garmoth-total-caption, .garmoth-history-footnote p > span) { color: var(--gold); }
@@ -1029,5 +1029,35 @@ html:is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme
     background-color: var(--theme-inset);
     background-image: linear-gradient(rgba(var(--overlay-line-rgb), .09) 1px, transparent 1px), linear-gradient(90deg, rgba(var(--overlay-line-rgb), .09) 1px, transparent 1px);
 }
+
+/* The session timeline paints from its own tokens; a theme only redefines them. The phase and group
+   colours stay with the mechanic palette, exactly as in the rotation monitor. */
+:is(:scope[data-theme="black-desert"], :scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) .session-timeline {
+    --timeline-surface: var(--theme-inset, var(--panel));
+    --timeline-inset: var(--theme-inset, var(--panel));
+    --timeline-raised: var(--theme-input, var(--panel-raised));
+    --timeline-hover: var(--theme-hover, var(--panel-raised));
+    --timeline-line: var(--line);
+    --timeline-grid: var(--line);
+    --timeline-axis: var(--rotation-line);
+    --timeline-scale: var(--line);
+    --timeline-ink: var(--text);
+    --timeline-dim: var(--muted);
+    --timeline-tick: var(--muted);
+    --timeline-total: var(--gold);
+    --timeline-silver: var(--gold);
+    --timeline-rare: var(--gold-bright);
+    --timeline-special: var(--teal);
+    --timeline-now: var(--text);
+    --timeline-complete: var(--teal);
+    --timeline-failed: var(--red);
+    --timeline-partial: var(--muted);
+    --timeline-active: var(--gold-bright);
+    --timeline-fastest: var(--teal);
+    --timeline-selected: var(--text);
+}
+:is(:scope[data-theme="light"], :scope[data-theme="valencia"]) .session-timeline-phase text { fill: #fff; stroke: #18212b; stroke-width: 1.8px; stroke-linejoin: round; paint-order: stroke fill; }
+:is(:scope[data-theme="light"], :scope[data-theme="valencia"]) .session-timeline-phase-marker line { filter: brightness(.58); }
+:scope[data-theme="light"] .session-timeline-now :is(line, path) { filter: drop-shadow(0 0 1px #fff); }
 
 } /* theme boundary */

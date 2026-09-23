@@ -185,14 +185,17 @@ public sealed class SessionSilverHistoryTests
     {
         await using var session = new PreviewTrackerSession();
         var initial = session.State;
-        Assert.Equal(initial.Elapsed, Assert.Single(initial.SilverHistory).Elapsed);
+        // The sample session carries its recorded curve; the live sample continues it at the current elapsed time.
+        Assert.InRange(initial.SilverHistory.Count, 2, 200);
+        Assert.Equal(initial.Elapsed, initial.SilverHistory[^1].Elapsed);
         Assert.Equal(Presentation.Hourly(initial.Silver.AfterTax, initial.Elapsed), initial.SilverHistory[^1].SilverPerHour);
-        var quantity = initial.Loot.Totals["Branch of Abundance"];
+        var trash = Overlay.MagaiaDemoSession.Trash;
+        var quantity = initial.Loot.Totals[trash];
 
-        await session.UpdateLootQuantityAsync(initial.SessionId, "Branch of Abundance", quantity + 1000, quantity);
+        await session.UpdateLootQuantityAsync(initial.SessionId, trash, quantity + 1000, quantity);
 
         var actual = session.State;
-        Assert.Single(actual.SilverHistory);
+        Assert.Equal(initial.SilverHistory.Count, actual.SilverHistory.Count);
         Assert.Equal(Presentation.Hourly(actual.Silver.AfterTax, actual.Elapsed), actual.SilverHistory[^1].SilverPerHour);
         Assert.NotEqual(initial.SilverHistory[^1].SilverPerHour, actual.SilverHistory[^1].SilverPerHour);
     }

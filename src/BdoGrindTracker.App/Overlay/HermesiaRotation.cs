@@ -18,7 +18,30 @@ public sealed record RotationRun(double Duration, IReadOnlyList<RotationEvent> E
 public sealed record SessionRotation(string SpotId, DateTimeOffset StartedAt, RotationRun Run);
 /// <param name="Duration">Seconds from the rotation start to its end.</param>
 /// <param name="WalkBack">Seconds from its end to the start of the next rotation; null until that start or after a break.</param>
-public sealed record SessionRotationTiming(double Duration, double? WalkBack = null);
+/// <param name="Special">The rotation contained at least one special event.</param>
+/// <param name="StartedAt">When the rotation started, for placing it on the session timeline.</param>
+/// <param name="SpecialEventSeconds">Each special event's seconds from this rotation's start.</param>
+/// <param name="RunId">Identifies the run across updates, so its place on the session timeline stays put.</param>
+/// <param name="StartedAfter">
+/// Session time of the start on the active-time axis of the drop history, recorded when the rotation first appeared.
+/// Null for rotations restored or replayed without that axis; the timeline then falls back to the wall clock.
+/// </param>
+/// <param name="Outcome">complete, incomplete, aborted or active: only complete rotations count as statistics.</param>
+/// <param name="Events">The rotation's recorded mechanics, for showing its phases on the session timeline.</param>
+public sealed record SessionRotationTiming(double Duration, double? WalkBack = null, bool Special = false,
+    DateTimeOffset StartedAt = default, IReadOnlyList<double>? SpecialEventSeconds = null,
+    Guid RunId = default, TimeSpan? StartedAfter = null, string Outcome = "complete",
+    IReadOnlyList<RotationEvent>? Events = null)
+{
+    public bool IsComplete => Outcome == "complete";
+    public bool IsActive => Outcome == "active";
+
+    /// <summary>Special events observed during this rotation.</summary>
+    public int SpecialEvents => SpecialEventSeconds?.Count ?? 0;
+}
+/// <summary>Best, ideal and mechanic bests of one reference pool.</summary>
+public sealed record RotationComparisonView(RotationRun? Best, RotationRun? Ideal,
+    IReadOnlyDictionary<string, double> SectorBests, int Completed);
 public sealed record RotationMonitorSnapshot
 {
     public int? SmallScarecrows { get; init; }
@@ -38,8 +61,22 @@ public sealed record RotationMonitorSnapshot
     public RotationRun? Ideal { get; init; }
     public IReadOnlyDictionary<string, double> SectorBests { get; init; } = new Dictionary<string, double>();
     public int Completed { get; init; }
-    /// <summary>The rotations completed at this spot in the current session, oldest first.</summary>
+    /// <summary>The rotations observed at this spot in the current session, oldest first, failed ones included.</summary>
     public IReadOnlyList<SessionRotationTiming> SessionRotations { get; init; } = [];
+    /// <summary>The spot knows special events: random extra or replacing mechanics a full rotation does not need.</summary>
+    public bool SupportsSpecialEvents { get; init; }
+    /// <summary>Special events of the current rotation.</summary>
+    public int SpecialEvents { get; init; }
+    /// <summary>The current phase belongs to a special event.</summary>
+    public bool SpecialEventActive { get; init; }
+    /// <summary>Special events in this session across all spots, including aborted and running rotations.</summary>
+    public int SessionSpecialEvents { get; init; }
+    /// <summary>Best, ideal, mechanic bests and count shown exclude rotations with special events.</summary>
+    public bool ExcludesSpecialEvents { get; init; }
+    /// <summary>For spots compared by their number of special events: the number the shown best and ideal have.</summary>
+    public int? ComparedSpecialEvents { get; init; }
+    /// <summary>The comparison without rotations that contained a special event.</summary>
+    public RotationComparisonView? WithoutSpecialEvents { get; init; }
     public string? Error { get; init; }
 }
 
@@ -79,9 +116,11 @@ public static class RotationTimelinePresentation
     public static string SetupCount(RotationMonitorSnapshot state) => $"{Math.Clamp(state.SmallScarecrows ?? 0, 0, 3)}/3 Small Scarecrows spawned";
     // Event Horizon's banner variants and the mini-AFK midpoint mark a moment inside a phase, not its end.
     public static bool IsCheckpoint(RotationEvent e) =>
-        e.Kind is not "porter" and not "offer" and not "big-scarecrow" and not "reception" and not "debris" and not "distortion";
+        e.Kind is not "porter" and not "offer" and not "big-scarecrow" and not "reception" and not "debris" and not "distortion"
+            and not "fragment" and not "away" and not "back";
     /// <summary>Short strokes above the band: pack spawns, wave events and moments inside a phase.</summary>
-    public static bool IsMarker(RotationEvent e) => e.Kind is "porter" or "offer" or "hog" or "agris" or "failure" or "distortion";
+    public static bool IsMarker(RotationEvent e) => e.Kind is "porter" or "offer" or "hog" or "agris" or "failure" or "distortion"
+        or "fragment" or "away" or "back";
     public static string Mark(RotationEvent e) => e.Kind switch {
         "drakania" => "D", "drakania-kill" => "D✓", "transfer" => "B", "mine-enter" => "M" + e.Occurrence,
         "mine-second" => "P2", "mine-cleared" => "M✓", "dragon" => "R", "afk" => "AFK", "end" => "E", _ => "" };

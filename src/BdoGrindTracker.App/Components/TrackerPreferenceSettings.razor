@@ -31,6 +31,12 @@
                 }
                 @if (Section is null or "diagnostics")
                 {
+                <section class="panel settings-panel"><div class="settings-heading"><div class="settings-icon"><AppIcon Name="trend" /></div><h2>Rotation Monitor</h2></div>
+                    <label class="toggle-row"><span><strong>@T("Rotationen mit Special Events werten")</strong><small>@T("Special Events sind zufällige Mechaniken, die eine volle Rotation nicht braucht und die zusätzlich oder ersetzend auftreten: das Agris-Event in Aphrodon und das Mini-AFK in Event Horizon. Ausgeschaltet zählen Rotationen mit Special Event nicht für Bestzeit, Idealrotation, Bestabschnitte und Rotations / h. Die Fragmente of Divinity in Magaia kommen in fast jeder Rotation vor; dort vergleicht der Rotation Monitor immer Rotationen mit gleicher Fragmentanzahl.")</small></span><input id="rotation-special-events" type="checkbox" class="switch" @bind="_includeSpecialEvents" @bind:after="SpecialEventsChanged" /></label>
+                </section>
+                }
+                @if (Section is null or "diagnostics")
+                {
                 <section class="panel settings-panel"><div class="settings-heading"><div class="settings-icon"><AppIcon Name="shield" /></div><h2>@T("Diagnose")</h2></div>
                     <label class="toggle-row"><span><strong>@T("Debuglogs automatisch aufzeichnen")</strong><small>@T("Erkennungs- und Sessiondaten als lokale Textlogs ohne Bilder in einem eigenen Ordner pro Session speichern.")</small></span><input id="automatic-debug-logging" type="checkbox" class="switch" @bind="_automaticDebugLogging" @bind:after="AutomaticDebugLoggingChanged" /></label>
                     <label class="field"><span>@T("Debuglogs aufbewahren für")</span><div class="input-with-unit"><input id="debug-log-retention-hours" type="number" min="@AppSettings.MinimumDebugLogRetentionHours" max="@AppSettings.MaximumDebugLogRetentionHours" step="1" required @bind="_debugLogRetentionHours" @bind:event="oninput" @bind:after="DebugLogRetentionInputChanged" @onblur="SaveDebugLogRetention" /><span>@T("Stunden")</span></div><small>@T("Standard: 3 Stunden. Ältere Debuglog-Einträge werden automatisch gelöscht.")</small>@if (_debugLogRetentionError is not null) { <small class="field-error" role="alert">@T(_debugLogRetentionError)</small> }</label>
@@ -77,7 +83,7 @@
     private string? _characterClass;
     private string _autoPause = "3", _familyFame = "0";
     private string _debugLogRetentionHours = AppSettings.DefaultDebugLogRetentionHours.ToString(CultureInfo.InvariantCulture);
-    private bool _recordLoot, _recordRotation, _valuePack, _merchantRing;
+    private bool _recordLoot, _recordRotation, _valuePack, _merchantRing, _includeSpecialEvents = true;
     private bool _automaticDebugLogging;
     private string _region = "eu";
     private string _gameLanguage = "auto";
@@ -107,6 +113,7 @@
         _recordRotation = preferences.RecordRotation;
         _automaticDebugLogging = preferences.AutomaticDebugLogging;
         _debugLogRetentionHours = preferences.DebugLogRetentionHours.ToString(CultureInfo.InvariantCulture);
+        _includeSpecialEvents = preferences.IncludeSpecialEventRotations;
         _region = preferences.MarketRegion;
         _valuePack = preferences.ValuePack;
         _merchantRing = preferences.MerchantRing;
@@ -124,6 +131,7 @@
         await Save(p => p with { AutomaticDebugLogging = _automaticDebugLogging });
         _automaticDebugLogging = Tracker.Preferences.AutomaticDebugLogging;
     }
+    private Task SpecialEventsChanged() => Save(p => p with { IncludeSpecialEventRotations = _includeSpecialEvents });
     private Task RegionChanged() => Save(p => p with { MarketRegion = _region });
     private Task ValuePackChanged() => Save(p => p with { ValuePack = _valuePack });
     private Task MerchantRingChanged() => Save(p => p with { MerchantRing = _merchantRing });

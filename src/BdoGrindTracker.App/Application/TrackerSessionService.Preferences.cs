@@ -159,6 +159,7 @@ internal sealed partial class TrackerSessionService
         _settings.AutoStartGrinding = Preferences.AutoStartGrinding;
         _settings.AutomaticDebugLogging = Preferences.AutomaticDebugLogging;
         _settings.DebugLogRetentionHours = Preferences.DebugLogRetentionHours;
+        _settings.RotationIncludeSpecialEvents = Preferences.IncludeSpecialEventRotations;
         _settings.GameLanguage = Preferences.GameLanguage;
         _settings.FavoriteItems = Preferences.FavoriteItems.ToArray();
         _settings.LootColumnOrders = Preferences.LootColumnOrders.ToDictionary(pair => pair.Key, pair => pair.Value.ToArray());
@@ -210,6 +211,7 @@ internal sealed partial class TrackerSessionService
             AutoStartGrinding = recovered.AutoStartGrinding,
             AutomaticDebugLogging = recovered.AutomaticDebugLogging,
             DebugLogRetentionHours = recovered.DebugLogRetentionHours,
+            IncludeSpecialEventRotations = recovered.RotationIncludeSpecialEvents,
             FavoriteItems = recovered.FavoriteItems ?? [],
             LootColumnOrders = recovered.LootColumnOrders ?? new(),
             CharacterClassId = _hasSession ? Preferences.CharacterClassId

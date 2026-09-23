@@ -2,8 +2,9 @@ using BdoGrindTracker.Core;
 
 namespace BdoGrindTracker.App.Overlay;
 
+/// <param name="Special">The phase belongs to a special event (random extra or replacing mechanic).</param>
 public sealed record RotationPhase(string Id, string Group, string Name, double Start, double End,
-    string Color, string GroupColor);
+    string Color, string GroupColor, bool Special = false);
 
 /// <summary>Projects recorded boundaries without estimating future mechanic times.</summary>
 public static class RotationPhases
@@ -24,6 +25,7 @@ public static class RotationPhases
     {
         if (spotId == LootSpotCatalog.AphrodonId) return CreateAphrodon(events, elapsed, colors);
         if (spotId == LootSpotCatalog.EventHorizonId) return CreateEventHorizon(events, elapsed, colors);
+        if (spotId == LootSpotCatalog.MagaiaId) return CreateMagaia(events, elapsed, colors);
         if (spotId != LootSpotCatalog.HermesiaId || events.Count == 0 || !double.IsFinite(elapsed) || elapsed <= 0) return [];
         var phases = new List<RotationPhase>();
         string? active = null;
@@ -91,7 +93,8 @@ public static class RotationPhases
                 "slate" => i % 2 == 0 ? "#45535E" : "#61717E",
                 "minimal" => i % 2 == 0 ? "#39434B" : "#505B64", _ => color };
             var name = e.Kind switch { "start" => "Anlauf", "hog" => $"{wave}. Hog + Scarecrow", "agris" => $"{wave}. Agris + Scarecrow", "big-scarecrow" => "Vogelscheuche", _ => "AFK" };
-            result.Add(new(e.Key, e.Kind is "start" or "afk" ? e.Kind : $"wave-{wave}", name, e.Seconds, end, color, color));
+            result.Add(new(e.Key, e.Kind is "start" or "afk" ? e.Kind : $"wave-{wave}", name, e.Seconds, end, color, color,
+                RotationDefinition.Aphrodon.IsSpecial(e.Kind)));
         }
         return result;
     }
@@ -152,9 +155,90 @@ public static class RotationPhases
                 "minimal" => (index % 2 == 0 ? "#39434B" : "#505B64", "#C8AA67"),
                 _ => (color, groupColor)
             };
+            phases.Add(new(active, group, name, start, end, color, groupColor, active.EndsWith("-debris", StringComparison.Ordinal)));
+        }
+    }
+
+    private static readonly string[] MagaiaParts = ["dps", "knight-1", "knight-2", "knight-3", "clear", "final", "afk"];
+    private static readonly string[] MagaiaOrder = [.. Enumerable.Range(1, RotationDefinition.MagaiaCycles)
+        .SelectMany(cycle => MagaiaParts.Select(part => $"cycle-{cycle}-{part}"))];
+    // The final mechanics in their fixed order; each names its cycle and colors its group.
+    private static readonly (string Name, string Color, string GroupColor)[] MagaiaFinals =
+        [("Elion's Tears", "#665493", "#B397E1"), ("Unbroken Oath", "#B7733E", "#E7AA6E"), ("Priest of the End", "#A25165", "#DB8398")];
+
+    /// <summary>
+    /// Magaia: three cycles, each with the DPS check until the flames of prayer, the double packs until each knight
+    /// falls, the remaining packs, its final mechanic and the AFK phase until the next cycle begins.
+    /// </summary>
+    private static IReadOnlyList<RotationPhase> CreateMagaia(IReadOnlyList<RotationEvent> events, double elapsed, string? colors)
+    {
+        if (events.Count == 0 || !double.IsFinite(elapsed) || elapsed <= 0) return [];
+        var phases = new List<RotationPhase>();
+        string? active = null;
+        double start = 0;
+        var lastRank = -1;
+        var cycle = 1;
+        var knights = 0;
+        foreach (var e in events.Where(e => double.IsFinite(e.Seconds) && e.Seconds >= 0 && e.Seconds <= elapsed).OrderBy(e => e.Seconds))
+        {
+            if (e.Kind == "failure" || e.Kind == "end" && cycle == RotationDefinition.MagaiaCycles) { Finish(e.Seconds); active = null; break; }
+            if (e.Kind == "end") { cycle++; knights = 0; }
+            if (e.Kind == "knight") knights++;
+            var part = e.Kind switch
+            {
+                "start" or "end" => "dps",
+                "prayer" => "knight-1",
+                "knight" => knights < 3 ? $"knight-{knights + 1}" : "clear",
+                "doubt" => "final",
+                "afk" => "afk",
+                _ => null,
+            };
+            if (part is null) continue;
+            var next = $"cycle-{cycle}-{part}";
+            if (next == active) continue;
+            var rank = Array.IndexOf(MagaiaOrder, next);
+            // Repeated or late OCR messages must not send a phase backwards.
+            if (rank <= lastRank) continue;
+            Finish(e.Seconds);
+            active = next; start = e.Seconds; lastRank = rank;
+        }
+        Finish(elapsed);
+        return phases;
+
+        void Finish(double end)
+        {
+            if (active is null || end <= start) return;
+            var index = Array.IndexOf(MagaiaOrder, active);
+            var number = index / MagaiaParts.Length + 1;
+            var final = MagaiaFinals[number - 1];
+            var group = $"cycle-{number}";
+            var (name, color) = MagaiaParts[index % MagaiaParts.Length] switch
+            {
+                "dps" => ($"Zyklus {number} · DPS-Check", "#A58B48"),
+                "clear" => ($"Zyklus {number} · Restliche Packs", "#45535E"),
+                "final" => (final.Name, final.Color),
+                "afk" => ($"Zyklus {number} · AFK-Phase", "#4D6275"),
+                var knight => ($"Zyklus {number} · Ritter {knight[^1]}", index % 2 == 0 ? "#32788F" : "#519EB1"),
+            };
+            var groupColor = final.GroupColor;
+            (color, groupColor) = NormalizeColors(colors) switch
+            {
+                "gold" => (index % 2 == 0 ? "#78643C" : "#948052", "#D8BD75"),
+                "slate" => (index % 2 == 0 ? "#45535E" : "#61717E", "#A0B0BD"),
+                "minimal" => (index % 2 == 0 ? "#39434B" : "#505B64", "#C8AA67"),
+                _ => (color, groupColor)
+            };
             phases.Add(new(active, group, name, start, end, color, groupColor));
         }
     }
+
+    /// <summary>Stroke of a marker: special events in the special color, absences like failures.</summary>
+    public static string MarkerStroke(string? spotId, RotationEvent e, string? colors, bool current) =>
+        e.Kind is "failure" or "away" ? "#E87C79"
+        : RotationDefinition.Find(spotId)?.IsSpecial(e.Kind) == true ? SpecialColor : MarkerColor(colors, current);
+
+    /// <summary>Outline of special-event phases, identical for every spot and color scheme.</summary>
+    public const string SpecialColor = "#F2C14E";
 
     private static (string Group, string Name, string Color, string GroupColor) EventHorizonStyle(string id)
     {

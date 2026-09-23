@@ -43,6 +43,8 @@ internal sealed class AppSettings
 
     public int DebugLogRetentionHours { get; set; } = DefaultDebugLogRetentionHours;
 
+    public bool RotationIncludeSpecialEvents { get; set; } = true;
+
     public bool GarmothAutoUploadEnabled { get; set; }
 
     public string MarketRegion { get; set; } = LootPriceCatalog.DefaultRegion;

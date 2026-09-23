@@ -12,7 +12,7 @@ public sealed class NativeOverlayChromeGeometryTests
     [InlineData(96)]
     [InlineData(144)]
     [InlineData(192)]
-    public void ResizingAFramedWindowChangesOnlyTheContentCanvas(int dpi)
+    public void ZoomingAFramedWindowKeepsItsCanvasAndCountsTheTitleBar(int dpi)
     {
         var monitor = new Rectangle(-1920, -200, 3840, 2160);
         var original = new OverlaySettings { Width = 400, Height = 296, SnapToGrid = true };
@@ -22,17 +22,21 @@ public sealed class NativeOverlayChromeGeometryTests
 
         var frame = resize.Update(new Size((int)(80 * factor), (int)(64 * factor)));
 
-        Assert.Equal(480, frame.Settings.Width);
-        Assert.Equal(360, frame.Settings.Height);
+        // The five-percent grid step of the same relative drag, whatever the DPI enlarges the window to.
+        Assert.Equal(1.2, frame.Settings.Scale, 8);
+        Assert.Equal(400, frame.Settings.Width);
+        Assert.Equal(296, frame.Settings.Height);
         Assert.Equal(original.Widgets, frame.Settings.Widgets);
         Assert.Equal(bounds.Location, frame.Bounds.Location);
-        Assert.Equal(new Size((int)(484 * factor), (int)(394 * factor)), frame.Bounds.Size);
+        // The frame grows with the content: the title bar is part of the zoomed window.
+        Assert.Equal(new Size((int)Math.Round(Chrome.OuterWidth(400) * 1.2 * factor),
+            (int)Math.Round(Chrome.OuterHeight(296) * 1.2 * factor)), frame.Bounds.Size);
         Assert.Equal(frame.Bounds, Place(frame.Settings, monitor, dpi));
         Assert.Equal(bounds, resize.Update(Size.Empty).Bounds);
     }
 
     [Fact]
-    public void MonitorFittingIncludesTheTitleBarAndResizePersistsTheVisibleOuterSize()
+    public void MonitorFittingIncludesTheTitleBarAndTheSavedZoomMatchesTheVisibleSize()
     {
         var monitor = new Rectangle(0, 0, 1000, 700);
         var original = new OverlaySettings { Width = 1600, Height = 1200, Scale = 2, SnapToGrid = false };
@@ -43,14 +47,16 @@ public sealed class NativeOverlayChromeGeometryTests
         var frame = new NativeOverlayResize(original, bounds, monitor, 96, Chrome).Update(new(-100, -50));
 
         Assert.True(monitor.Contains(frame.Bounds));
+        // A layout fitted on screen keeps a zoom that reopens at the size the drag ended with.
         Assert.Equal(frame.Bounds, Place(frame.Settings, monitor, 96));
         Assert.Equal(original.Widgets, frame.Settings.Widgets);
-        Assert.Equal(bounds.Width - 100, frame.Bounds.Width);
-        Assert.Equal(bounds.Height - 50, frame.Bounds.Height);
+        Assert.Equal(original.Width, frame.Settings.Width);
+        Assert.Equal(original.Height, frame.Settings.Height);
+        Assert.True(frame.Bounds.Width < bounds.Width && frame.Bounds.Height < bounds.Height);
     }
 
     [Fact]
-    public void FittedShortCanvasDoesNotJumpUntilTheTitleAndMinimumContentHeightFit()
+    public void AFittedWideCanvasZoomsWithinTheMonitorAndKeepsItsShape()
     {
         var monitor = new Rectangle(0, 0, 800, 600);
         var original = new OverlaySettings { Width = 1600, Height = 64, Scale = 2, SnapToGrid = false };
@@ -59,9 +65,11 @@ public sealed class NativeOverlayChromeGeometryTests
 
         var frame = resize.Update(new(-50, 1));
 
-        Assert.Equal(bounds, frame.Bounds);
+        Assert.True(monitor.Contains(frame.Bounds));
+        Assert.Equal(frame.Bounds, Place(frame.Settings, monitor, 96));
         Assert.Equal(original.Width, frame.Settings.Width);
         Assert.Equal(original.Height, frame.Settings.Height);
+        Assert.True(frame.Settings.Scale < original.Scale);
     }
 
     [Theory]
@@ -97,8 +105,9 @@ public sealed class NativeOverlayChromeGeometryTests
         var monitor = new Rectangle(0, 0, 1920, 1080);
         var bounds = Place(settings, monitor, 144);
         var frame = new NativeOverlayResize(settings, bounds, monitor, 144, cats).Update(new(120, 96));
-        Assert.Equal(480, frame.Settings.Width);
-        Assert.Equal(360, frame.Settings.Height);
+        Assert.Equal(400, frame.Settings.Width);
+        Assert.Equal(296, frame.Settings.Height);
+        Assert.True(frame.Settings.Scale > 1);
         Assert.Equal(frame.Bounds, Place(frame.Settings, monitor, 144));
         Assert.Equal(settings.Widgets, frame.Settings.Widgets);
     }

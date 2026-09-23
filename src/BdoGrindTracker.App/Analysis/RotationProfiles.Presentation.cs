@@ -9,7 +9,7 @@ namespace BdoGrindTracker.App.Analysis;
 internal static partial class RotationProfiles
 {
     internal static IReadOnlyList<string> SupportedSpotIds { get; } =
-        [LootSpotCatalog.HermesiaId, LootSpotCatalog.AphrodonId, LootSpotCatalog.EventHorizonId];
+        [LootSpotCatalog.HermesiaId, LootSpotCatalog.AphrodonId, LootSpotCatalog.EventHorizonId, LootSpotCatalog.MagaiaId];
     internal static bool Supports(string? spotId) => spotId is not null && SupportedSpotIds.Contains(spotId);
 
     internal static RotationMonitorSnapshot Present(string? spotId, RotationMonitorSnapshot? snapshot = null)

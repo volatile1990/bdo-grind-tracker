@@ -1,6 +1,8 @@
 using System.Reflection;
 using BdoGrindTracker.App.Analysis;
+using BdoGrindTracker.App.Capture;
 using BdoGrindTracker.App.Persistence;
+using BdoGrindTracker.Core;
 
 namespace BdoGrindTracker.App.Tests;
 
@@ -301,6 +303,54 @@ public sealed partial class TrackerSessionServiceTests
         Assert.NotNull(new CurrentSessionStore(Path.Combine(fixture.DirectoryPath,
             CurrentSessionStore.FileName)).Load());
     }
+
+    [Fact]
+    public async Task TheRecognizedStartBannerBecomesTheFirstRotationsStartTime()
+    {
+        var monitor = new ControlledAutoStartMonitor();
+        await using var fixture = new Fixture(autoUpload: false,
+            initialSettings: new() { AutoStartGrinding = true }, autoStartMonitorFactory: () => monitor,
+            lootScrollVisible: _ => true);
+        // The profile recognizes nothing by itself: only the banner handed over by the automatic start can begin a run.
+        var profile = new BufferedRotationProfileMonitor(new Overlay.RotationPlatform(Overlay.RotationDefinition.Magaia),
+            RotationMessageProfile.Magaia, _ => "");
+        SetField(fixture.Service, "_rotationMonitor",
+            new RotationMonitor(spot => spot == LootSpotCatalog.MagaiaId ? profile : null));
+
+        fixture.Time.Advance(TimeSpan.FromSeconds(10));
+        await fixture.Service.TickAsync();
+        await monitor.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        // Capture stamps its frames with its own clock, the one the rotation is measured against.
+        var now = DateTimeOffset.UtcNow;
+        // Every frame of this session reports the same Magaia trash drop, so the spot stays Magaia.
+        var trash = MagaiaTrash(now);
+        fixture.Analyzer.Analyze = () => Task.FromResult(trash);
+        using var detection = new AutoStartDetection();
+        detection.Add(new CapturedDesktopBitmap(new Bitmap(1920, 1080), false), now);
+        // The brazier's banner appeared 90 seconds before the trash drop that confirmed the grind.
+        var banner = now - TimeSpan.FromSeconds(90);
+        detection.RotationStart = new RotationStartSighting(LootSpotCatalog.MagaiaId, "start", "Sünder beschworen", banner);
+        monitor.Complete(detection);
+        await WaitForAutoStartProbeAsync(fixture);
+        await fixture.Service.TickAsync();
+        var lastCapture = fixture.Service.GetType().GetField("_lastProcessedCaptureAt",
+            BindingFlags.Instance | BindingFlags.NonPublic)!;
+        await WaitUntilAsync(() => fixture.Analyzer.Calls >= 2 &&
+            lastCapture.GetValue(fixture.Service) is DateTimeOffset at && at > fixture.Time.GetUtcNow());
+
+        fixture.Service.RefreshPendingState();
+        var rotation = fixture.Service.State.Rotation;
+        Assert.Equal(LootSpotCatalog.MagaiaId, fixture.Service.State.SpotId);
+
+        // The rotation is measured from its banner, not from the drop that confirmed the grind.
+        Assert.True(rotation.Synchronized);
+        Assert.InRange(rotation.Elapsed, 90, 95);
+        Assert.Equal("start", Assert.Single(rotation.Events).Kind);
+    }
+
+    private static FrameAnalysisResult MagaiaTrash(DateTimeOffset at) => new(
+        [new LootEventView(Guid.NewGuid(), at, Overlay.MagaiaDemoSession.Trash, 1)],
+        [], 1, "synthetic-service-test", 0, 0, 0, 0, null) { SpotId = LootSpotCatalog.MagaiaId };
 
     private static async Task StartProvisionalAutomaticGrind(Fixture fixture,
         ControlledAutoStartMonitor monitor, bool replayLoot = true, TimeSpan? detectedDropAge = null)

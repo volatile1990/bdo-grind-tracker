@@ -265,16 +265,16 @@ public sealed class OverlaySectionsAndRotationModulesTests
 
         // The latest walk back is still running and counts with the session average of 20 seconds.
         var rate = metrics["rotations-hour"];
-        Assert.Equal(("Rotations / h", "5", "5,6 / h · Ø 10:40 · letzte 3"), (rate.Label, rate.Value, rate.Detail));
+        Assert.Equal(("Rotations / h", "5,6", "Ø 10:40 · letzte 3"), (rate.Label, rate.Value, rate.Detail));
         Assert.Contains("letzten bis zu drei", rate.Tooltip);
         Assert.Contains("Rückweg", rate.Tooltip);
         var count = metrics["rotation-count"];
         Assert.Equal(("Rotation Counter", "4", "Zuletzt 10:40"), (count.Label, count.Value, count.Detail));
 
         var single = new OverlayMetrics().Update(WithRotations(new SessionRotationTiming(1180, 20)), new() { UiLanguage = "de" }).Metrics["rotations-hour"];
-        Assert.Equal(("3", "3,0 / h · Ø 20:00 · 1 Rotation"), (single.Value, single.Detail));
+        Assert.Equal(("3,0", "Ø 20:00 · 1 Rotation"), (single.Value, single.Detail));
         var unknownWalk = new OverlayMetrics().Update(WithRotations(new SessionRotationTiming(1200)), new() { UiLanguage = "de" }).Metrics["rotations-hour"];
-        Assert.Equal(("3", "3,0 / h · Ø 20:00 · ohne Rückweg"), (unknownWalk.Value, unknownWalk.Detail));
+        Assert.Equal(("3,0", "Ø 20:00 · ohne Rückweg"), (unknownWalk.Value, unknownWalk.Detail));
     }
 
     [Fact]
@@ -306,12 +306,16 @@ public sealed class OverlaySectionsAndRotationModulesTests
         profile.Completed.Add((start.AddMinutes(20), new RotationRun(600, [])));
 
         var waiting = monitor.Snapshot(start.AddMinutes(30).AddSeconds(10), LootSpotCatalog.HermesiaId);
-        Assert.Equal(new SessionRotationTiming[] { new(420), new(590, 10), new(600) }, waiting.SessionRotations);
+        Assert.Equal([(420d, (double?)null), (590, 10), (600, null)],
+            waiting.SessionRotations.Select(timing => (timing.Duration, timing.WalkBack)));
+        // Their start times place them on the session timeline.
+        Assert.Equal([start, start.AddMinutes(10), start.AddMinutes(20)], waiting.SessionRotations.Select(timing => timing.StartedAt));
 
         // The next rotation began 30 seconds after the last one ended.
         profile.Current = new() { Status = "Test", Synchronized = true, Elapsed = 30 };
         var running = monitor.Snapshot(start.AddMinutes(31), LootSpotCatalog.HermesiaId);
-        Assert.Equal(new SessionRotationTiming[] { new(420), new(590, 10), new(600, 30) }, running.SessionRotations);
+        Assert.Equal([(420d, (double?)null), (590, 10), (600, 30)],
+            running.SessionRotations.Select(timing => (timing.Duration, timing.WalkBack)));
         Assert.Equal(3, monitor.ExportSession().Count(rotation => rotation.SpotId == LootSpotCatalog.HermesiaId));
     }
 
@@ -341,7 +345,8 @@ public sealed class OverlaySectionsAndRotationModulesTests
         var rotations = await RenderAsync(OverlayCatalog.CreateWidget("rotations-hour"), snapshot);
         Assert.Contains("Rotations / h", rotations);
         // Six completed rotations of the example session with walk backs of 14 to 18 seconds.
-        Assert.Contains("5,7 / h · Ø 10:35 · letzte 3", rotations);
+        Assert.Contains("Ø 10:35 · letzte 3", rotations);
+        Assert.Contains("5,7", rotations);
         Assert.Contains("Rotation Counter", await RenderAsync(OverlayCatalog.CreateWidget("rotation-count"), snapshot));
     }
 

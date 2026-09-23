@@ -5,9 +5,12 @@ using OpenCvSharp;
 namespace BdoGrindTracker.App.Analysis;
 
 /// <param name="GapSamples">Unreadable samples a backward search may bridge inside one banner sighting.</param>
+/// <param name="CountLines">For <paramref name="CountedKinds"/>: how many lines of that message one sample shows.</param>
+/// <param name="CountedKinds">Messages that repeat within seconds and stack; every new line counts once.</param>
 internal sealed record RotationMessageProfile(
     Func<string, IReadOnlyList<(string Kind, string Label)>> Parse,
-    Func<int, int, Rectangle> Crop, bool SingleLine = false, int GapSamples = 2, double DuplicateSeconds = 8)
+    Func<int, int, Rectangle> Crop, bool SingleLine = false, int GapSamples = 2, double DuplicateSeconds = 8,
+    Func<string, string, int>? CountLines = null, string[]? CountedKinds = null)
 {
     internal string Recognize(Mat pixels, CompanionWindowsOcrRecognizer engine)
     {
@@ -32,6 +35,11 @@ internal sealed record RotationMessageProfile(
     // Same banner stack as Hermesia. Teleport black screens hide a banner for about 2.5 seconds,
     // so up to seven unreadable samples keep one sighting together.
     internal static readonly RotationMessageProfile EventHorizon = new(EventHorizonMessages.Parse, BannerStack, GapSamples: 7, DuplicateSeconds: 15);
+
+    // DaVinci crop of the supplied Magaia recording: 38.6–61.7 % of the width, 54.3–64 % of the height, inside the
+    // shared banner stack. Aetos can drop several fragments within seconds; their stacked banners count one by one.
+    internal static readonly RotationMessageProfile Magaia = new(MagaiaMessages.Parse, BannerStack,
+        CountLines: MagaiaMessages.Lines, CountedKinds: ["fragment"]);
 
     // Resolve crop: left 0.40625, right 0.4072916667,
     // top 0.6166666667, bottom 0.3611111111. Verified on the source video.
@@ -66,6 +74,43 @@ internal static class EventHorizonMessages
         return Definitions.Where(d => normalized.Contains(d.Phrase, StringComparison.Ordinal))
             .Select(d => (d.Kind, d.Label)).Distinct().ToArray();
     }
+}
+
+/// <summary>Magaia banners. Short phrases survive the OCR's usual misreads ("Hames", "Flarnes", "srnolder").</summary>
+internal static class MagaiaMessages
+{
+    internal static readonly (string Kind, string Label, string Phrase)[] Definitions = [
+        ("start", "Sünder beschworen", "the sinners are summoned"),
+        ("fragment", "Fragment of Divinity", "aetos drops"),
+        ("prayer", "DPS-Check bestanden", "prayer rise from"),
+        ("knight", "Ritter besiegt", "passes judg"),
+        ("doubt", "Schlussphase", "of doubt"),
+        ("sacred", "Elion's Tears", "sacred power"),
+        // Either sentence of the two-part AFK banner is enough.
+        ("afk", "AFK-Phase", "of sin blaze"),
+        ("afk", "AFK-Phase", "falls upon the sinners"),
+        // Ends the AFK phase and starts the next cycle, after the third cycle the next rotation.
+        ("end", "Neuer Zyklus", "history of sin begins"),
+        ("away", "Spieler tot oder abwesend", "history begins to fade"),
+        ("back", "Spieler zurück", "speaker awakens"),
+        ("failure", "DPS-Check gescheitert", "sin stained history"),
+    ];
+
+    internal static IReadOnlyList<(string Kind, string Label)> Parse(string text)
+    {
+        var normalized = Normalize(text);
+        return Definitions.Where(d => normalized.Contains(d.Phrase, StringComparison.Ordinal))
+            .Select(d => (d.Kind, d.Label)).Distinct().ToArray();
+    }
+
+    /// <summary>Lines of one message in a sample: the raw and the enlarged pass each read the whole stack once.</summary>
+    internal static int Lines(string text, string kind) => text.Split('\n').Max(pass =>
+    {
+        var normalized = Normalize(pass);
+        return Definitions.Where(d => d.Kind == kind).Max(d => Regex.Count(normalized, Regex.Escape(d.Phrase)));
+    });
+
+    private static string Normalize(string text) => Regex.Replace(text.ToLowerInvariant(), "[^a-z0-9]+", " ").Trim();
 }
 
 internal static class AphrodonMessages

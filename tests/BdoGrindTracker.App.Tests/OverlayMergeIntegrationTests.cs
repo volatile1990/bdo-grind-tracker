@@ -30,7 +30,7 @@ public sealed class OverlayMergeIntegrationTests
         Assert.Equal("24,438", english.Metrics["trash"].Value);
         Assert.Equal("24.438", german.Metrics["trash"].Value);
         Assert.Equal("6", english.Metrics["rotation-count"].Value);
-        Assert.Equal("5.7 / h · Ø 10:35 · last 3", english.Metrics["rotations-hour"].Detail);
+        Assert.Equal(("5.7", "Ø 10:35 · last 3"), (english.Metrics["rotations-hour"].Value, english.Metrics["rotations-hour"].Detail));
         Assert.StartsWith("Sample data · Hermesia session from ", english.Status);
         Assert.Equal("en", english.DailyGoal.UiLanguage);
         Assert.Equal(german.DailyGoal.Earned, english.DailyGoal.Earned);
@@ -52,7 +52,7 @@ public sealed class OverlayMergeIntegrationTests
         var snapshot = metrics.Update(state, preferences);
 
         Assert.Equal(AppThemes.Kamasylvia, snapshot.ThemeId);
-        Assert.Equal("5.6 / h · Ø 10:40 · last 3", snapshot.Metrics["rotations-hour"].Detail);
+        Assert.Equal(("5.6", "Ø 10:40 · last 3"), (snapshot.Metrics["rotations-hour"].Value, snapshot.Metrics["rotations-hour"].Detail));
         Assert.Equal("Latest 10:40", snapshot.Metrics["rotation-count"].Detail);
         Assert.Contains("walk back", snapshot.Metrics["rotations-hour"].Tooltip);
         Assert.DoesNotContain("Rückweg", snapshot.Metrics["rotations-hour"].Tooltip);

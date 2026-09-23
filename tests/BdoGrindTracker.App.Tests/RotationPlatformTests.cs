@@ -326,4 +326,35 @@ public sealed class RotationPlatformTests
         }
         finally { File.Delete(path); }
     }
+
+    [Fact]
+    public void ARepeatBeyondTheModelledOnesResynchronisesInsteadOfCountingAsADuplicate()
+    {
+        var tracker = new RotationPlatform(RotationDefinition.Hermesia);
+        for (var i = 0; i < 5; i++) Message(tracker, "offer", i * 20);
+        // A sixth offering before the Drakania means the rotation restarted. The five modelled steps are exhausted,
+        // so it must abort and resynchronise rather than silently extend the running one.
+        Message(tracker, "offer", 100);
+
+        var aborted = Assert.Single(tracker.DrainCompleted(), run => run.Run.Outcome == "aborted");
+        Assert.StartsWith("Mitteilung außerhalb der erlaubten Reihenfolge", aborted.Run.Reason);
+        Assert.Equal(Epoch.AddSeconds(100), tracker.ActiveRun()!.Value.StartedAt);
+    }
+
+    [Fact]
+    public void AMessageOfItsOwnSingleStepMayRepeatInsideThatPhase()
+    {
+        var tracker = new RotationPlatform(Simple());
+        Message(tracker, "start", 0);
+        Message(tracker, "a", 10);
+        Message(tracker, "b", 20);
+        // Several orbs of one mechanic: the message belongs to this step alone and keeps the phase.
+        Message(tracker, "b", 26);
+        Message(tracker, "afk", 30);
+        Message(tracker, "end", 40);
+
+        var run = Assert.Single(tracker.DrainCompleted());
+        Assert.Equal("complete", run.Run.Outcome);
+        Assert.Equal(40, run.Run.Duration, 1);
+    }
 }

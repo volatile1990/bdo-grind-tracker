@@ -53,8 +53,9 @@ die Inhalte nicht: Die knappere Achse begrenzt die gemeinsame Skalierung, die
 andere Achse bietet zusätzlichen Layoutplatz. Lange Texte werden passend
 verkleinert. Schrift- und Icongröße bleiben als relative Gestaltung einstellbar.
 Escape bricht eine laufende Größenänderung am Ziehgriff ab. **Größe im Spiel**
-bleibt ein separater Zoomregler, der das gesamte Overlay einschließlich seiner
-Module skaliert.
+ist derselbe Zoom, den der Eckgriff im Spiel verstellt: Er skaliert das gesamte
+Overlay einschließlich seiner Module. Die Canvasgröße wird nur hier im Editor
+geändert.
 Die Moduleigenschaften erlauben genaue Positionen und Größen sowie Beschriftung,
 Icons und Textgröße. Das Drop-Inventar unterstützt Liste und Iconraster.
 
@@ -101,7 +102,7 @@ Alle Einstellungen werden automatisch gespeichert. Bestehende Layouts bleiben er
 
 Verfügbare Module: aktive Zeit, Uhrzeit, Grindspot, Silber netto, Silber pro Stunde,
 Trashloot, Trash pro Stunde, Drop-Inventar, seltene Drops, Verbrauchte Items, Silberverlauf,
-Rotations / h, Rotation Counter, Tracking-Status, Loot-Scroll, Grind-Bewertung und
+Rotations / h, Rotation Counter, Special Events, Special Events / h, Tracking-Status, Loot-Scroll, Grind-Bewertung und
 Start-/Pause-Steuerung. Der Filter für seltene Drops ist eine
 explizite Auswahl bekannter seltener Gegenstände, keine neue Klassifizierung durch
 OCR. Das Drop-Inventar enthält weiterhin alle gezählten Gegenstände.
@@ -149,8 +150,8 @@ Offlinezeit zählt nicht mit. Bei älteren Sessions ohne gespeicherte Dropzeiten
 bleiben frühere Zeitpunkte unbekannt, bis neue Drops erfasst werden. Nachträgliche
 Mengenkorrekturen nach unten verändern bereits gezählte Abschnitte nicht.
 
-**Rotations / h** zeigt, wie viele volle Rotationen beim aktuellen Tempo in einer Stunde
-möglich sind: 60 Minuten geteilt durch die durchschnittliche Zeit der letzten bis zu drei
+**Rotations / h** zeigt mit einer Nachkommastelle, wie viele volle Rotationen beim
+aktuellen Tempo in einer Stunde möglich sind: 60 Minuten geteilt durch die durchschnittliche Zeit der letzten bis zu drei
 in dieser Session vollständig abgeschlossenen Rotationen am aktuellen Spot. Anders als die
 Rotationsdauer im Rotation Monitor (ab dem Rotationsstart) enthält diese Zeit den Rückweg bis
 zum Start der nächsten Rotation. Solange die nächste Rotation noch nicht begonnen hat, gilt für
@@ -159,8 +160,20 @@ steht „ohne Rückweg“ in der Detailzeile. Lücken über zwei Minuten gelten 
 nicht als Rückweg. Die Detailzeile nennt den genauen Wert und die Durchschnittszeit. Aufbau und
 abgebrochene Versuche zählen nicht. **Rotation Counter** zeigt die in der Session vollständig
 abgeschlossenen Rotationen am aktuellen Spot und die Dauer der letzten. Beide Module
-benötigen einen Spot mit Rotationsprofil (derzeit Hermesia, Aphrodon und Event Horizon) und verwenden
+benötigen einen Spot mit Rotationsprofil (derzeit Hermesia, Aphrodon, Event Horizon und Magaia) und verwenden
 dieselben gespeicherten Rotationen wie der Rotation Monitor.
+
+**Special Events** sind zufällige Mechaniken, die eine volle Rotation nicht braucht und die zusätzlich
+oder ersetzend auftreten: das Agris-Event in Aphrodon (ersetzt eine Hog-Welle), das Mini-AFK in
+Event Horizon (zusätzlich nach herabfallenden Trümmern) und die Fragmente of Divinity in Magaia. Weil
+Magaia-Fragmente in fast jeder Rotation vorkommen, vergleicht der Rotation Monitor dort nur Rotationen mit
+gleicher Fragmentanzahl, unabhängig von der Einstellung unten. Das Modul **Special Events** zählt jedes in
+der Session erkannte Special Event, auch in abgebrochenen oder laufenden Rotationen; **Special Events / h**
+teilt diese Zahl durch die aktive Grindzeit. Im Rotation Monitor sind Special-Event-Phasen gestrichelt
+goldgelb umrandet. Unter Einstellungen → Rotation Monitor legt „Rotationen mit Special Events werten“
+fest, ob Rotationen mit Special Event für Bestzeit, Idealrotation, Bestabschnitte und Rotations / h
+zählen (Standard: ja). Ausgeschaltet vergleicht der Rotation Monitor nur mit Rotationen ohne Special
+Event, und Rotations / h nutzt nur solche Rotationen; der Rotation Counter zählt weiterhin alle.
 
 **Grind-Bewertung** vergleicht den Trash-pro-Stunde-Wert der vollständigen
 Live-Session mit den Garmoth-Referenzen des erkannten Spots. Es zeigt Unter Average,
@@ -169,6 +182,11 @@ Bewertung vorläufig. Beschriftung, Icon, Textgröße und Modulgröße sind wie 
 anderen Modulen einstellbar. Editor und natives Overlay verwenden dieselbe
 Bewertung wie die Live-Session. Quellen, Vergleichsbedingungen, fehlende Stufen
 und Datenstand sind in [GRIND_RATING.md](GRIND_RATING.md) dokumentiert.
+
+Beim Überfahren eines Moduls in der Liste erscheint neben der Liste eine Vorschau
+des Moduls in seiner Standardgröße, immer mit den Beispieldaten und unabhängig
+davon, ob die Fläche Live- oder Beispieldaten zeigt. Sie folgt derselben Tastatur-
+und Mausbedienung: Auch der Fokus per Tabulator zeigt sie.
 
 Der Editor zeigt standardmäßig die Live-Session. Optional zuschaltbare
 Beispieldaten helfen auch ohne laufende Session beim Anordnen. Sie stammen aus
@@ -204,12 +222,17 @@ abweichen. Die Uhr verwendet die Systemzeit und liest keine Daten aus dem Spiel.
 ## Verhalten
 
 - **Verschiebbar:** Das Overlay kann am Hintergrund mit der linken Maustaste
-  gezogen und am Griff unten rechts in der Größe geändert werden. Breite und
-  Höhe lassen sich unabhängig vergrößern und verkleinern, auch gleichzeitig in
-  entgegengesetzte Richtungen. Module und Inhalte behalten dabei ihre Position
-  und Größe wie im Editor. Beim Loslassen werden die neuen Fenstermaße
-  gespeichert; der eingestellte Zoomfaktor bleibt erhalten. Das
-  optionale 8-Pixel-Raster gilt auch hier. Die Tracking-Steuerung bleibt klickbar.
+  gezogen und am Griff unten rechts skaliert werden. Der Zug vergrößert oder
+  verkleinert das ganze Overlay: Module, Schrift und Icons wachsen gemeinsam, das
+  Seitenverhältnis bleibt erhalten. Beide Achsen steuern denselben Zoom über die
+  Strecke entlang der Fensterdiagonale. Die gezogene Ecke bleibt an ihrem Platz;
+  der Zoom wächst höchstens so weit, bis die gegenüberliegende Kante den
+  Bildschirmrand erreicht, und bleibt zwischen 50 % und 200 %. Beim Loslassen
+  wird der neue Zoom gespeichert, die Canvasgröße und alle Module bleiben
+  unverändert. Bei eingeschaltetem 8-Pixel-Raster springt der Zoom in
+  5-Prozent-Schritten, sonst in 1-Prozent-Schritten. Die Tracking-Steuerung
+  bleibt klickbar. Die Fläche selbst (Breite und Höhe der Canvas) wird im Editor
+  geändert.
 - **Position gesperrt:** Die Position bleibt fest, enthaltene Steuerungen sind
   weiterhin bedienbar.
 - **Mausdurchlässig:** Sämtliche Mausklicks erreichen das darunterliegende Spiel.

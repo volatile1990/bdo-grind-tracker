@@ -41,6 +41,8 @@ internal sealed record TrackerPreferences
     public bool RecordRotation { get; init; }
     public bool AutomaticDebugLogging { get; init; }
     public int DebugLogRetentionHours { get; init; } = AppSettings.DefaultDebugLogRetentionHours;
+    /// <summary>Rotations with a special event count for best times, ideal, mechanic bests and the rotation tempo.</summary>
+    public bool IncludeSpecialEventRotations { get; init; } = true;
     public bool AutoUpload { get; init; }
     public string MarketRegion { get; init; } = "eu";
     public bool ValuePack { get; init; }
@@ -84,6 +86,8 @@ internal sealed record TrackerState
     public BuffLedgerSnapshot? Buffs { get; init; }
     public string BuffStatus { get; init; } = "Buff-Erkennung wartet auf ein Spielbild.";
     public TimeSpan Elapsed { get; init; }
+    /// <summary>Capture time of this state: converts absolute event times into session time.</summary>
+    public DateTimeOffset ObservedAt { get; init; } = DateTimeOffset.UtcNow;
     public LootSessionSnapshot Loot { get; init; } = LootSessionSnapshot.Empty;
     public LootScrollState LootScroll { get; init; } = LootScrollState.Unknown;
     public AgrisState Agris { get; init; } = AgrisState.Unknown;

@@ -52,7 +52,7 @@
     private OverlaySettings Settings => Overlay.Settings;
     private bool HasRotationWidget => Settings.Widgets.Any(widget => widget.Kind == "rotation-monitor");
     private OverlaySnapshot PreviewSnapshot => _rotationExample && HasRotationWidget
-        ? Overlay.Snapshot with { Rotation = HermesiaRotationDemo.At(_rotationExampleSeconds) }
+        ? Overlay.Snapshot with { Rotation = RotationDemos.At(Overlay.Snapshot.Rotation.SpotId, _rotationExampleSeconds) }
         : Overlay.Snapshot;
     private string SelectedName => Overlay.Overlays.First(overlay => overlay.Id == Overlay.SelectedOverlayId).Name;
     private static string Css(double value) => value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
@@ -93,7 +93,7 @@
     internal void AdvanceRotationExample()
     {
         if (_disposed || !Overlay.State.Previewing || !_rotationExample || !HasRotationWidget) return;
-        _rotationExampleSeconds = (_rotationExampleSeconds + 1) % HermesiaRotationDemo.Reference.Duration;
+        _rotationExampleSeconds = (_rotationExampleSeconds + 1) % RotationDemos.Duration(Overlay.Snapshot.Rotation.SpotId);
         StateHasChanged();
     }
 

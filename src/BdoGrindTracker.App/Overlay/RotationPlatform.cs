@@ -238,12 +238,17 @@ internal class RotationPlatform : IRotationEventTracker
         if (_definition.SetupCountMessages?.Contains(input.Kind) == true)
         { _setupCount = Math.Min(_definition.SetupTarget, _setupCount + 1); _status = $"Aufbau · {_setupCount} / {_definition.SetupTarget} · Warte auf Erkennung"; return; }
         if (_start is not null && _definition.AmbientMessages?.Contains(input.Kind) == true &&
-            _definition.AmbientAfter is { } after && _visited.Contains(after) && _position != _definition.Steps.Length - 1)
-        { AddEvent(input.Kind, input.Label, input.At); return; }
+            (_definition.AmbientAfter is not { } after || _visited.Contains(after)) && _position != _definition.Steps.Length - 1)
+        {
+            AddEvent(input.Kind, input.Label, input.At);
+            return;
+        }
 
         // Some spots reuse a combat banner at AFK end; only the final AFK disambiguates it.
         var end = _definition.AfkEndMessages.Contains(input.Kind) &&
             (!_definition.Steps.Any(s => s.Matches(input.Kind)) || _position == _definition.Steps.Length - 1);
+        if (end && _definition.AfkEndStartsRun && _start is { } began && _position < 0 && input.At - began < TimeSpan.FromMinutes(1))
+        { Decision(input, "duplicate", "Wiederholte Einblendung des Rotationsbeginns ignoriert"); return; }
         if (end)
         {
             if (_start is not null)
@@ -257,6 +262,8 @@ internal class RotationPlatform : IRotationEventTracker
             _boundaryAvailable = true;
             _status = "AFK beendet · Warte auf Erkennung";
             Decision(input, "afk-end", "AFK-Ende erkannt · Lootstart für 5 Sekunden gesperrt");
+            // The spot restarts on its own while the player stays: the same banner opens the next rotation.
+            if (_definition.AfkEndStartsRun) Begin(input, true);
             return;
         }
 
@@ -273,8 +280,17 @@ internal class RotationPlatform : IRotationEventTracker
         { Finish(input, "aborted", "Neue Startmeldung vor Rotationsabschluss"); Begin(input, true); }
         if (indices.Length == 0) { _setupCount = _definition.SetupTarget; return; }
 
+        // A late sighting of the AFK-end banner that just opened the current step must not open the step after it.
+        if (_position >= 0 && _definition.Steps[_position].Matches(input.Kind) && _definition.AfkEndMessages.Contains(input.Kind) &&
+            _sectionStart is { } entered && input.At - entered < TimeSpan.FromMinutes(1))
+        { Decision(input, "duplicate", "Wiederholte Einblendung ignoriert"); return; }
         var next = indices.FirstOrDefault(s => s.Index > _position &&
             (s.Step.Requires is null || _visited.Contains(s.Step.Requires)));
+        // A message that belongs to exactly one step (several orbs of Elion's Tears) may repeat inside its own phase.
+        // Where the rotation models the repetition itself (Hermesia's five offerings, Aphrodon's nine waves), one more
+        // than modelled means the sequence is off: that must still abort and resynchronise.
+        if (next.Step is null && _position >= 0 && indices.Length == 1 && indices[0].Index == _position)
+        { Decision(input, "duplicate", "Wiederholung innerhalb der laufenden Phase"); return; }
         if (next.Step is null && _completeStart && !_missing && indices.All(s => s.Step.Requires is not null && !_visited.Contains(s.Step.Requires)))
         { Decision(input, "unconfirmed", "Mitteilung ohne passende optionale Mechanik · letzte bestätigte Phase bleibt erhalten"); return; }
         if (next.Step is null)
@@ -290,7 +306,7 @@ internal class RotationPlatform : IRotationEventTracker
             Decision(input, "missing", "Erwartete Mitteilungen fehlen · Durchlauf wird nicht gewertet");
         }
         CloseSection(input.At);
-        _position = next.Index; _sectionId = next.Step.Id; _sectionStart = input.At;
+        _position = next.Index; _sectionId = _definition.SectionId(next.Step, input.Kind); _sectionStart = input.At;
         _visited.Add(next.Step.Id);
         AddEvent(input.Kind, input.Label, input.At);
         _status = input.Label + (_completeStart && !_missing ? " · erkannt" : " · unvollständig erfasst");
@@ -376,7 +392,23 @@ internal class RotationPlatform : IRotationEventTracker
     public RotationMonitorSnapshot Snapshot(DateTimeOffset now)
     {
         ExpireIfNecessary(now);
-        var (best, ideal, sectors) = RotationComparison.Compare(References().ToArray());
+        var references = References().ToArray();
+        int? matchedSpecial = null;
+        var pool = references;
+        if (_definition.CompareBySpecialCount && references.Length > 0)
+        {
+            // The current rotation's count so far; between rotations the latest one's.
+            var count = _definition.SpecialEventCount(_start is not null ? _events : _finished.LastOrDefault().Run?.Events ?? []);
+            var counts = references.Select(run => _definition.SpecialEventCount(run.Events)).Distinct().ToArray();
+            matchedSpecial = counts.Contains(count) ? count
+                : counts.Where(c => c > count).Order().Cast<int?>().FirstOrDefault() ?? counts.Where(c => c < count).Max();
+            pool = references.Where(run => _definition.SpecialEventCount(run.Events) == matchedSpecial).ToArray();
+        }
+        var (best, ideal, sectors) = RotationComparison.Compare(pool);
+        // Runs with a special event are also compared separately: the regular pool leaves them out entirely.
+        var regular = _definition.MarksSpecialRotations
+            ? references.Where(run => _definition.SpecialEventCount(run.Events) == 0).ToArray() : references;
+        var withoutSpecial = _definition.MarksSpecialRotations ? RotationComparison.Compare(regular) : (Best: best, Ideal: ideal, Sectors: sectors);
         return new() { Elapsed = _start is { } at ? Math.Max(0, (now - at).TotalSeconds) : _finishedElapsed,
             Synchronized = _start is not null, IsAfk = _position >= 0 && _definition.Steps[_position].Afk,
             TrackingState = _start is null || _position < 0 ? "waiting" : _completeStart && !_missing ? "confirmed" : "partial",
@@ -384,8 +416,14 @@ internal class RotationPlatform : IRotationEventTracker
             LastInterruptionReason = _finished.Where(r => r.Run.Outcome == "aborted").Select(r => r.Run.Reason).LastOrDefault(),
             LootStartAllowedAt = _lootAllowedAt,
             Status = _status, Events = _events.ToArray(), Best = best, Ideal = ideal, SectorBests = sectors,
-            Completed = References().Count(), Error = _error,
-            SmallScarecrows = _definition.SetupCountMessages is null ? null : _setupCount };
+            Completed = references.Length, Error = _error,
+            SmallScarecrows = _definition.SetupCountMessages is null ? null : _setupCount,
+            SupportsSpecialEvents = _definition.HasSpecialEvents,
+            SpecialEvents = _definition.SpecialEventCount(_events),
+            SpecialEventActive = _position >= 0 && (_sectionId.EndsWith("-special", StringComparison.Ordinal) ||
+                _definition.Steps[_position].Messages.All(_definition.IsSpecial)),
+            WithoutSpecialEvents = new(withoutSpecial.Best, withoutSpecial.Ideal, withoutSpecial.Sectors, regular.Length),
+            ComparedSpecialEvents = matchedSpecial };
     }
 
     private void Save()

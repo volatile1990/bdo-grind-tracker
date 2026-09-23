@@ -75,9 +75,12 @@ internal sealed class HermesiaMessageGate
 }
 
 /// <summary>Searches cached samples only when a regular probe finds a new banner.</summary>
-internal class BufferedRotationSearch(Func<string, IReadOnlyList<(string Kind, string Label)>> parse, int gapSamples = 2, double duplicateSeconds = 8)
+internal class BufferedRotationSearch(Func<string, IReadOnlyList<(string Kind, string Label)>> parse, int gapSamples = 2, double duplicateSeconds = 8,
+    Func<string, string, int>? countLines = null, IReadOnlyCollection<string>? countedKinds = null)
 {
     private readonly Dictionary<string, (DateTimeOffset First, DateTimeOffset Last)> _emitted = [];
+    // Emitted lines of counted messages, by the sample in which each line first appeared.
+    private readonly Dictionary<string, List<(DateTimeOffset First, DateTimeOffset Last)>> _lines = [];
 
     internal IReadOnlyList<(string Kind, string Label, DateTimeOffset At)> Read(
         IReadOnlyList<DateTimeOffset> times, Func<int, string> text)
@@ -87,6 +90,8 @@ internal class BufferedRotationSearch(Func<string, IReadOnlyList<(string Kind, s
         var now = times[^1];
         foreach (var (kind, label) in parse(text(times.Count - 1)))
         {
+            if (countLines is not null && countedKinds?.Contains(kind) == true)
+            { ReadLines(kind, label, times, text, result); continue; }
             if (_emitted.TryGetValue(kind, out var previous) &&
                 (now - previous.First < TimeSpan.FromSeconds(duplicateSeconds) || now - previous.Last <= TimeSpan.FromSeconds(4)))
             {
@@ -111,6 +116,47 @@ internal class BufferedRotationSearch(Func<string, IReadOnlyList<(string Kind, s
             result.Add((kind, label, first));
         }
         return result.OrderBy(e => e.At).ToArray();
+    }
+
+    /// <summary>
+    /// A stacked message: each increase of its line count in the buffer is a new occurrence, confirmed by the next
+    /// sample. Single unreadable samples are bridged; lines already present at the buffer start continue known lines.
+    /// </summary>
+    private void ReadLines(string kind, string label, IReadOnlyList<DateTimeOffset> times, Func<int, string> text,
+        List<(string Kind, string Label, DateTimeOffset At)> result)
+    {
+        var now = times[^1];
+        var start = times.Count - 1;
+        // A capture gap must never join separate occurrences.
+        while (start > 0 && times[start] - times[start - 1] <= TimeSpan.FromSeconds(2)) start--;
+        var counts = Enumerable.Range(start, times.Count - start).Select(i => countLines!(text(i), kind)).ToArray();
+        var smoothed = counts.Select((count, i) => i > 0 && i < counts.Length - 1
+            ? Math.Max(count, Math.Min(counts[i - 1], counts[i + 1])) : count).ToArray();
+        if (!_lines.TryGetValue(kind, out var lines)) _lines[kind] = lines = [];
+        lines.RemoveAll(line => now - line.Last > TimeSpan.FromSeconds(30));
+        var matched = new HashSet<int>();
+        // Lines visible at the buffer start continue known lines that are still alive, oldest first.
+        var alive = Enumerable.Range(0, lines.Count).Where(index => lines[index].Last >= times[start] - TimeSpan.FromSeconds(2))
+            .OrderBy(index => lines[index].First).ToList();
+        for (var i = 0; i < smoothed.Length; i++)
+        {
+            var before = i == 0 ? 0 : smoothed[i - 1];
+            // An increase needs a second sample; the newest one waits for the next probe.
+            if (smoothed[i] <= before || i == smoothed.Length - 1 || smoothed[i + 1] < smoothed[i]) continue;
+            var at = times[start + i];
+            for (var line = before; line < smoothed[i]; line++)
+            {
+                // Lines at the buffer start are the oldest alive ones; later increases are matched by their first sample.
+                var known = i == 0 ? alive.FirstOrDefault(index => !matched.Contains(index), -1)
+                    : Enumerable.Range(0, lines.Count).FirstOrDefault(index => !matched.Contains(index) &&
+                        (lines[index].First - at).Duration() <= TimeSpan.FromSeconds(1.5), -1);
+                if (known >= 0) { matched.Add(known); continue; }
+                lines.Add((at, now));
+                matched.Add(lines.Count - 1);
+                result.Add((kind, label, at));
+            }
+        }
+        foreach (var index in matched) lines[index] = (lines[index].First, now);
     }
 }
 
@@ -151,7 +197,8 @@ internal class BufferedRotationProfileMonitor : IRotationProfileMonitor
 
     internal BufferedRotationProfileMonitor(IRotationEventTracker tracker, RotationMessageProfile profile, Func<Bitmap, string>? recognize = null)
     { _tracker = tracker; _profile = profile; _search = NewSearch(); _recognize = recognize; }
-    private BufferedRotationSearch NewSearch() => new(_profile.Parse, _profile.GapSamples, _profile.DuplicateSeconds);
+    private BufferedRotationSearch NewSearch() => new(_profile.Parse, _profile.GapSamples, _profile.DuplicateSeconds,
+        _profile.CountLines, _profile.CountedKinds);
     public RotationMonitorSnapshot Snapshot(DateTimeOffset now)
     {
         lock (_sync)
@@ -178,6 +225,16 @@ internal class BufferedRotationProfileMonitor : IRotationProfileMonitor
     }
     public void Interrupt(string status = "Tracking pausiert · warte auf erstes Ereignis")
     { lock (_sync) InterruptCore(status); }
+    public void ObserveMessage(string kind, string label, DateTimeOffset at)
+    {
+        lock (_sync)
+        {
+            if (_disposed) return;
+            _tracker.Observe(kind, label, at);
+            _recognitions.Add(new(Guid.NewGuid(), at, _diagnosticSpot, "recognition", kind, label));
+            _diagnostics?.Event(_diagnosticSpot, kind, label, at, at);
+        }
+    }
     public void AttachDiagnostics(RotationDiagnosticRecording? recording, string spotId)
     { lock (_sync) (_diagnostics, _diagnosticSpot) = (recording, spotId); }
     private void InterruptCore(string status)

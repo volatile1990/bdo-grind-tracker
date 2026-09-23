@@ -18,9 +18,24 @@ internal sealed class AutomaticGrindMonitor(
     IGrindStartVisualDetector visual,
     CompanionCalibration calibration,
     Func<string, ILootFrameAnalyzer> createAnalyzer,
-    TimeProvider? timeProvider = null) : IAutomaticGrindMonitor
+    TimeProvider? timeProvider = null,
+    RotationStartWatcher? rotationStart = null) : IAutomaticGrindMonitor
 {
     private readonly TimeProvider _time = timeProvider ?? TimeProvider.System;
+    private readonly RotationStartWatcher _rotationStart = rotationStart ?? new RotationStartWatcher();
+    private RotationStartSighting? _seenRotationStart;
+
+    /// <summary>The rotation start banner that is still recent enough to confirm the next trash drop.</summary>
+    public RotationStartSighting? RecentRotationStart => _seenRotationStart is { } seen &&
+        _time.GetUtcNow() - seen.At <= RotationStartWatcher.Validity ? seen : null;
+
+    /// <summary>The sighting a starting session takes over: one banner confirms one start, never a later drop too.</summary>
+    private RotationStartSighting? TakeRecentRotationStart()
+    {
+        var recent = RecentRotationStart;
+        _seenRotationStart = null;
+        return recent;
+    }
     private long? _lastSample;
     private long? _lastBurstEnd;
     private volatile bool _confirming;
@@ -51,6 +66,11 @@ internal sealed class AutomaticGrindMonitor(
         if (first.Bitmap.Width != calibration.ScreenWidth || first.Bitmap.Height != calibration.ScreenHeight)
             throw new InvalidOperationException("Die Spielfenstergröße passt nicht zur BDO-Konfiguration. " +
                 "Bitte UI-Konfiguration speichern.");
+        // A rotation start banner alone never starts a session: walking past a spot can show it. It only marks the
+        // spot as grinding, so the next trash drop starts the session without waiting for five of them.
+        if (_rotationStart.Observe(first.Bitmap, _time.GetUtcNow()) is { } sighting) _seenRotationStart = sighting;
+        else if (_seenRotationStart is { } seen && _time.GetUtcNow() - seen.At > RotationStartWatcher.Validity)
+            _seenRotationStart = null;
         if (!visual.Observe(first.Bitmap, calibration) ||
             (_lastBurstEnd is { } ended && _time.GetElapsedTime(ended) < BurstCooldown)) return null;
         ILootFrameAnalyzer? analyzer = null;
@@ -117,6 +137,7 @@ internal sealed class AutomaticGrindMonitor(
                 if (analysis.LootProjection is { } projection && confirmation.Observe(projection))
                 {
                     replay.DetectedDropAt = projection.LatestArrivalAt ?? at;
+                    replay.RotationStart = TakeRecentRotationStart();
                     return replay.Detach();
                 }
                 if (_time.GetElapsedTime(started) >= BurstDuration) return null;
@@ -159,7 +180,7 @@ internal sealed class AutomaticGrindMonitor(
         }
     }
 
-    public void Dispose() { capture.Dispose(); visual.Reset(); }
+    public void Dispose() { capture.Dispose(); visual.Reset(); _rotationStart.Dispose(); }
 }
 
 /// <summary>At most three recent full frames and 128 MiB; replay uses the live reconciler.</summary>
@@ -170,6 +191,8 @@ internal sealed class AutoStartDetection : IDisposable
     private long _bytes;
     public IReadOnlyList<(Bitmap Bitmap, CapturedFrameMetadata Metadata)> Frames => _frames;
     public DateTimeOffset? DetectedDropAt { get; set; }
+    /// <summary>Set when a rotation start banner preceded this drop: the session starts confirmed and from that banner.</summary>
+    public RotationStartSighting? RotationStart { get; set; }
 
     public void Add(CapturedDesktopBitmap frame, DateTimeOffset at)
     {
@@ -201,7 +224,7 @@ internal sealed class AutoStartDetection : IDisposable
 
     public AutoStartDetection Detach()
     {
-        var owned = new AutoStartDetection { DetectedDropAt = DetectedDropAt };
+        var owned = new AutoStartDetection { DetectedDropAt = DetectedDropAt, RotationStart = RotationStart };
         owned._frames.AddRange(_frames);
         owned._bytes = _bytes;
         _frames.Clear();

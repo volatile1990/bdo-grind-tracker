@@ -1,6 +1,6 @@
 @inherits LocalizedComponentBase
 @using BdoGrindTracker.App.Overlay
-<div class="rotation-timeline" title="@(State.SpotName + " · " + T(State.Status) + (State.Error is null ? "" : " · " + T(State.Error)))">
+<div class="rotation-timeline" title="@(State.SpotName + " · " + T(State.Status) + (State.ComparedSpecialEvents is { } compared ? " · " + BdoGrindTracker.App.Localization.AppText.Format("Referenz mit {0} Special Events", UiLanguage, compared) : "") + (State.Error is null ? "" : " · " + T(State.Error)))">
     @if (State.Error is not null) { <div class="rotation-sector" role="status">@T(State.Error)</div> }
     @if (RotationTimelinePresentation.ShowSetup(State))
     {
@@ -13,6 +13,10 @@
         {
             <rect x="@X(group.First().Start)" y="12" width="@Width(group.Last().End-group.First().Start)" height="98" rx="4" fill="@group.First().Color" fill-opacity=".18" />
             <rect x="@X(group.First().Start)" y="12" width="@Width(group.Last().End-group.First().Start)" height="3" fill="@group.First().GroupColor" />
+            @if (group.Count() > 1 && (group.Last().End - group.First().Start) / Extent * 540 >= 40)
+            {
+                <g class="rotation-group-duration"><title>@(T(group.First().Group.StartsWith("cycle-", StringComparison.Ordinal) ? "Zyklus" : "Abschnitt") + " · " + RotationPhases.Duration(group.Last().End - group.First().Start))</title><text x="@X(group.Last().End)" y="9" text-anchor="end" fill="@group.First().GroupColor" font-size="10">@RotationPhases.Duration(group.Last().End - group.First().Start)</text></g>
+            }
         }
         @foreach (var row in new[] { 0, 1 })
         {
@@ -25,8 +29,12 @@
             @foreach (var phase in phases)
             {
                 <g class="rotation-phase" data-phase="@phase.Id">
-                    <title>@(T(phase.Name) + " · " + RotationTimelinePresentation.Time(phase.Start) + "–" + RotationTimelinePresentation.Time(phase.End))</title>
+                    <title>@((phase.Special ? T("Special Event") + " · " : "") + T(phase.Name) + " · " + RotationTimelinePresentation.Time(phase.Start) + "–" + RotationTimelinePresentation.Time(phase.End))</title>
                     <rect x="@X(phase.Start)" y="@(y-14)" width="@Width(phase.End-phase.Start)" height="28" rx="2" fill="@phase.Color" fill-opacity=".75" />
+                    @if (phase.Special)
+                    {
+                        <rect class="rotation-special-event" x="@X(phase.Start)" y="@(y-14)" width="@Width(phase.End-phase.Start)" height="28" rx="2" fill="none" stroke="@RotationPhases.SpecialColor" stroke-width="2" stroke-dasharray="4 3" vector-effect="non-scaling-stroke" />
+                    }
                     @if ((phase.End-phase.Start)/Extent*540 >= 28)
                     {
                         <g><text class="rotation-phase-duration" x="@X((phase.Start+phase.End)/2)" y="@(y+4)" text-anchor="middle" fill="#ffffff" font-size="11">@RotationPhases.Duration(phase.End-phase.Start)</text></g>
@@ -39,7 +47,7 @@
                     <title>@(T(e.Label) + " · " + RotationTimelinePresentation.Time(e.Seconds) + (Mode == "sectors" && State.SectorBests.TryGetValue(e.Key, out var sector) ? T(" · Bestabschnitt ") + RotationTimelinePresentation.Time(sector) : ""))</title>
                     @if (RotationTimelinePresentation.IsMarker(e))
                     {
-                        <line class="rotation-pack-marker" x1="@X(e.Seconds)" x2="@X(e.Seconds)" y1="@(y-18)" y2="@(y-11)" stroke="@(e.Kind == "failure" ? "#E87C79" : RotationPhases.MarkerColor(Colors, row == 1))" stroke-width="2" vector-effect="non-scaling-stroke" />
+                        <line class="rotation-pack-marker" x1="@X(e.Seconds)" x2="@X(e.Seconds)" y1="@(y-18)" y2="@(y-11)" stroke="@RotationPhases.MarkerStroke(State.SpotId, e, Colors, row == 1)" stroke-width="2" vector-effect="non-scaling-stroke" />
                     }
                 </g>
             }

@@ -373,6 +373,8 @@ small,.item-cell small,.panel-heading p,.page-heading p,.field small,.toggle-row
 
 .detail-list .agris-live-value{display:flex;flex-direction:column;align-items:flex-end;gap:3px;text-align:right}
 .agris-live-value small{font-size:11px;line-height:1.35;color:#b4a27b}
+.detail-list .rotation-live-value{display:flex;flex-direction:column;align-items:flex-end;gap:3px;text-align:right}
+.rotation-live-value small{font-size:11px;line-height:1.35;color:#a5b3c0}
 .session-agris-time{display:block;margin-top:4px;font-size:11px;line-height:1.35;font-weight:400;color:#b4a27b;white-space:normal}
 .spot-session-table{--duration-width:112px}
 .chronological-session-duration .session-agris-time{margin-top:0;font-size:11px;color:#b4a27b}
