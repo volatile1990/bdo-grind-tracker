@@ -277,7 +277,6 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         _rotationMonitor.RestoreSession([]);
         _sessionStartedAt = null;
         _sessionSpotId = null;
-        _spotVariantChosen = false;
         _demoMode = false;
         _sessionSubmitted = false;
         _sessionClass = null;
@@ -339,7 +338,6 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         _hasBuffObservation = false;
         _demoMode = false;
         _sessionSpotId = null;
-        _spotVariantChosen = false;
         _sessionClass = null;
         _sessionSummary = LootSessionSnapshot.Empty;
         _sessionManualLootItems.Clear();
@@ -391,7 +389,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
                 }
                 _analyzer.Reset();
                 _lastProcessedCaptureAt = null;
-                if (!continuesExistingSession) { _sessionSpotId = null; _spotVariantChosen = false; }
+                if (!continuesExistingSession) _sessionSpotId = null;
                 _recording?.Dispose();
                 _recording = Preferences.RecordLoot
                     ? DiagnosticRecordingSession.Start(DiagnosticsDirectory,

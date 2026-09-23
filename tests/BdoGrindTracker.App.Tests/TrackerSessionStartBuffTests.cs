@@ -150,33 +150,31 @@ public sealed partial class TrackerSessionServiceTests
         await ProcessBuffFrame(fixture, monitor, now.AddSeconds(-12));
         Assert.Empty(fixture.Service.State.Buffs!.Consumptions);
 
-        // Tent buffs are always priced as their five-hour variant, so only a boon read near that full
-        // duration can have been applied during this session.
-        reading = ReadAll(599, 67, 299);
+        reading = ReadAll(599, 67, 119);
         await ProcessBuffFrame(fixture, monitor, now.AddSeconds(-11));
         Assert.Empty(fixture.Service.State.Buffs!.Consumptions);
-        reading = ReadAll(598, 67, 299);
+        reading = ReadAll(598, 67, 119);
         await ProcessBuffFrame(fixture, monitor, now.AddSeconds(-10));
         var first = fixture.Service.State.Buffs!;
         var boon = Assert.Single(first.Consumptions);
-        Assert.Equal("tent-adventures-boon-300", boon.BuffId);
+        Assert.Equal("tent-adventures-boon-120", boon.BuffId);
         Assert.False(boon.IsSessionStart);
         Assert.True(first.Active.Single(item => item.BuffId == mealId).IsBaseline);
         Assert.True(first.Active.Single(item => item.BuffId == SessionBuff.Id).IsBaseline);
-        Assert.Equal(12_000_000m, boon.Cost);
+        Assert.Equal(3_500_000m, boon.Cost);
         Assert.Equal(BuffPriceSource.FixedNpc, boon.Price!.Source);
         Assert.Equal(now.AddSeconds(-11), boon.ConsumedAt);
-        Assert.Equal(12_000_000m, first.ConsumedCost);
+        Assert.Equal(3_500_000m, first.ConsumedCost);
 
-        reading = ReadAll(597, 67, 298);
+        reading = ReadAll(597, 67, 119);
         await ProcessBuffFrame(fixture, monitor, now.AddSeconds(-9));
         fixture.Service.RefreshPendingState();
         Assert.Equal(first.Consumptions, fixture.Service.State.Buffs!.Consumptions);
         Assert.True((await fixture.Service.PauseAsync()).Succeeded);
         fixture.ResumeClocks();
-        reading = ReadAll(594, 66, 297);
+        reading = ReadAll(594, 66, 119);
         await ProcessBuffFrame(fixture, monitor, now.AddSeconds(-6));
-        reading = ReadAll(593, 66, 296);
+        reading = ReadAll(593, 66, 119);
         await ProcessBuffFrame(fixture, monitor, now.AddSeconds(-5));
         Assert.Equal(first.Consumptions, fixture.Service.State.Buffs!.Consumptions);
         Assert.Equal(TimeSpan.FromSeconds(3), fixture.Service.State.Buffs.Usage.Single(item => item.BuffId == mealId).ObservedDuration);
@@ -185,7 +183,7 @@ public sealed partial class TrackerSessionServiceTests
         var checkpoint = new CurrentSessionStore(Path.Combine(fixture.DirectoryPath, CurrentSessionStore.FileName)).Load()!;
         Assert.Equal(first.Consumptions, checkpoint.Buffs!.Consumptions);
         Assert.Equal(first.Consumptions, Assert.Single(fixture.HistoryStore.Load()).Buffs!.Consumptions);
-        BuffFrameReading? restartedReading = ReadAll(591, 66, 295);
+        BuffFrameReading? restartedReading = ReadAll(591, 66, 119);
         var restartedMonitor = new BuffMonitor(new SessionBuffReader(() => restartedReading), TimeSpan.FromSeconds(1));
         await using var restarted = new Fixture(autoUpload: false, buffMonitor: restartedMonitor,
             lootScrollVisible: _ => true, restoredSession: checkpoint);
@@ -193,7 +191,7 @@ public sealed partial class TrackerSessionServiceTests
         restarted.ResumeClocks();
         SetField(restarted.Service, "_lastCaptureDesktopRegion", new Rectangle(0, 0, 1920, 1080));
         await ProcessBuffFrame(restarted, restartedMonitor, now.AddSeconds(-3));
-        restartedReading = ReadAll(590, 66, 294);
+        restartedReading = ReadAll(590, 66, 119);
         await ProcessBuffFrame(restarted, restartedMonitor, now.AddSeconds(-2));
         Assert.Equal(first.Consumptions, restarted.Service.State.Buffs!.Consumptions);
         Assert.Equal(3, restarted.Service.State.Buffs.Active.Count);
