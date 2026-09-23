@@ -60,8 +60,8 @@
             <article class="metric-card"><div class="metric-label"><span>@T("SILBER / STUNDE")</span><AppIcon Name="trend" /></div><strong class="metric-value">@SessionMetrics.SilverPerHour@if (SessionMetrics.PartialSilverHourly) { <span class="estimate-mark"> *</span> }</strong><span class="metric-note">@T("Ø aktive Grindzeit")</span></article>
         </div>
         <ConsumablesReadout Value="State.Buffs" />
-        <SessionTimeline />
     </section>
+    <SessionTimeline />
 
     @if (State.IsDemo)
     {
