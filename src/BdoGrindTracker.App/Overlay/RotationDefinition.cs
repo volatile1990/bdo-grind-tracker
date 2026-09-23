@@ -3,10 +3,27 @@ using BdoGrindTracker.Core;
 namespace BdoGrindTracker.App.Overlay;
 
 // A spot describes its ordered mechanics, optional branches and messages, not recovery policy.
+/// <param name="Midpoint">
+/// Seconds each half of the step's branch usually lasts, when its message reliably marks the middle of that branch
+/// (Event Horizon's "Distortion escalated" inside the debris mini AFK). A loading screen can swallow the branch's opening
+/// and closing banners but never this one: seen alone, it fills in the unread opening, and the unread closing once the
+/// branch is over.
+/// </param>
 internal sealed record RotationStep(string Id, string[] Messages, bool Optional = false, bool Afk = false,
-    string? Requires = null, bool RequiredWhenBranchObserved = false)
+    string? Requires = null, bool RequiredWhenBranchObserved = false, double Midpoint = 0)
 {
     internal bool Matches(string kind) => Messages.Contains(kind);
+}
+
+/// <summary>How rotations with special events are compared with each other.</summary>
+internal enum SpecialEventComparison
+{
+    /// <summary>Rotations with a special event form their own pool; the setting decides which pool is shown.</summary>
+    Separate,
+    /// <summary>Only rotations with the same number of special events, else the nearest higher, else the nearest lower.</summary>
+    ByCount,
+    /// <summary>Special events are counted, but they never change a rotation's length: every rotation is compared.</summary>
+    Ignored,
 }
 
 internal sealed record RotationDefinition(string SpotId, RotationStep[] Steps, string[] StartMessages,
@@ -15,13 +32,10 @@ internal sealed record RotationDefinition(string SpotId, RotationStep[] Steps, s
     string[]? AmbientMessages = null, string? AmbientAfter = null, int FailureSetupDelta = 0,
     string? StartupCounterMessage = null, int StartupCounterTarget = 0, string StartupCounterLabel = "",
     int SetupTarget = 3, string[]? SpecialMessages = null, string[]? SpecialStartMessages = null,
-    bool CompareBySpecialCount = false, bool AfkEndStartsRun = false)
+    SpecialEventComparison SpecialComparison = SpecialEventComparison.Separate, bool AfkEndStartsRun = false)
 {
-    /// <summary>
-    /// Special events that occur in almost every rotation: rotations are compared only with those that had the same
-    /// number of them (else the nearest higher, else the nearest lower number), and none is left out as special.
-    /// </summary>
-    internal bool MarksSpecialRotations => HasSpecialEvents && !CompareBySpecialCount;
+    /// <summary>Rotations with a special event count as special and can be left out of the comparison.</summary>
+    internal bool MarksSpecialRotations => HasSpecialEvents && SpecialComparison == SpecialEventComparison.Separate;
 
     /// <summary>
     /// Special events are mechanics a full rotation does not need. They appear at random, either in addition to the
@@ -53,11 +67,13 @@ internal sealed record RotationDefinition(string SpotId, RotationStep[] Steps, s
             new($"wormhole-{i}-mobs", ["halted"]),
             new($"wormhole-{i}-reception", ["reception"], true),
             new($"wormhole-{i}-debris", ["debris"], true, true),
-            new($"wormhole-{i}-distortion", ["distortion"], true, true, $"wormhole-{i}-debris"),
+            new($"wormhole-{i}-distortion", ["distortion"], true, true, $"wormhole-{i}-debris", Midpoint: 20),
             new($"wormhole-{i}-resumed", ["spacetime"], true, false, $"wormhole-{i}-debris", true),
             .. (i < 3 ? new RotationStep[] { new($"wormhole-{i + 1}-approach", ["expansion"]) } : []) ]),
             new("boss", ["boss"]), new("afk", ["boss-kill"], Afk: true)], [], ["end"], [],
-        SpecialMessages: ["debris", "distortion", "spacetime"], SpecialStartMessages: ["debris"]);
+        SpecialMessages: ["debris", "distortion", "spacetime"], SpecialStartMessages: ["debris"],
+        // Every debris mini AFK lengthens the rotation, so rotations are compared with those that had as many.
+        SpecialComparison: SpecialEventComparison.ByCount);
 
     internal static readonly RotationDefinition Aphrodon = new(LootSpotCatalog.AphrodonId,
         [.. Enumerable.Range(1, 9).SelectMany(i => (RotationStep[]) [
@@ -81,7 +97,8 @@ internal sealed record RotationDefinition(string SpotId, RotationStep[] Steps, s
     // Priest of the End. "The sinners are summoned" starts it at the brazier. After each cycle's AFK phase "The history
     // of sin begins to repeat itself once more" starts the next cycle; after the third it ends the rotation and starts
     // the next one. Elion's Tears ("Sacred power …") is required: it anchors the first cycle, so tracking that began
-    // in another cycle realigns there. Aetos' fragments are special events of almost every cycle. Death or leaving
+    // in another cycle realigns there. Aetos' fragments are special events of almost every cycle; the phases they appear in
+// are fixed in time, so they never change a rotation's length and every rotation is compared. Death or leaving
     // ("… begins to fade") and the return ("The voice of the speaker …") are only marked. The third knight of a cycle
     // does not have to fall before its final phase begins.
     internal const int MagaiaCycles = 3;
@@ -98,7 +115,8 @@ internal sealed record RotationDefinition(string SpotId, RotationStep[] Steps, s
         // Magaia always starts with a banner, never with loot: a rotation that began with the first trash loot
         // would measure from that kill instead of the brazier and could never be a fair best time.
         ["start"], ["end"], ["failure"], LootStart: false, AmbientMessages: ["fragment", "away", "back"],
-        SpecialMessages: ["fragment"], SpecialStartMessages: ["fragment"], CompareBySpecialCount: true, AfkEndStartsRun: true);
+        SpecialMessages: ["fragment"], SpecialStartMessages: ["fragment"], SpecialComparison: SpecialEventComparison.Ignored,
+        AfkEndStartsRun: true);
 
     internal static RotationDefinition? Find(string? spotId) => spotId switch {
         LootSpotCatalog.HermesiaId => Hermesia, LootSpotCatalog.AphrodonId => Aphrodon,

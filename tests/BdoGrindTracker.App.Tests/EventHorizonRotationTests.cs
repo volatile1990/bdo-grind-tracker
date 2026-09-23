@@ -142,7 +142,7 @@ public sealed class EventHorizonRotationTests
     }
 
     [Fact]
-    public void TheMiniAfkIsOnlyTrackedAfterFallingDebris()
+    public void TheEndBannerAloneIsNoMiniAfk()
     {
         var tracker = new EventHorizonRotationTracker();
         tracker.Observe("end", "AFK-Ende", Epoch.AddSeconds(-10));
@@ -151,8 +151,92 @@ public sealed class EventHorizonRotationTests
         tracker.Observe("halted", "Geräumt", Epoch.AddSeconds(53));
         tracker.Observe("reception", "Will_Reception", Epoch.AddSeconds(53));
         tracker.Observe("spacetime", "Ende", Epoch.AddSeconds(55));
-        tracker.Observe("distortion", "Hälfte", Epoch.AddSeconds(70));
-        Assert.DoesNotContain(tracker.Snapshot(Epoch.AddSeconds(80)).Events, e => e.Kind is "spacetime" or "distortion");
+        var state = tracker.Snapshot(Epoch.AddSeconds(80));
+        Assert.DoesNotContain(state.Events, e => e.Kind is "spacetime" or "debris");
+        Assert.Equal(0, state.SpecialEvents);
+    }
+
+    [Fact]
+    public void TheMiddleOfAMiniAfkFillsInItsUnreadBeginning()
+    {
+        // A loading screen swallowed both "Debris falling" banners; their middles were read.
+        var tracker = new RotationPlatform(RotationDefinition.EventHorizon);
+        var run = Rotation(tracker, 0, EventHorizonRotationDemo.Reference, e => e.Kind != "debris");
+
+        Assert.Equal("complete", run.Outcome);
+        Assert.Equal(2, RotationDefinition.EventHorizon.SpecialEventCount(run.Events));
+        var debris = run.Events.Where(e => e.Kind == "debris").ToArray();
+        Assert.All(debris, e => Assert.True(e.Inferred));
+        // Half a branch before the middle, but never before the phase that was already recorded.
+        Assert.Equal([161.517, 341.283], debris.Select(e => Math.Round(e.Seconds, 3)));
+        Assert.Contains(RotationPhases.Create(LootSpotCatalog.EventHorizonId, run.Events, run.Duration),
+            phase => phase.Name == "Wurmloch 2 · Trümmer-AFK");
+    }
+
+    [Fact]
+    public void TheMiddleOfAMiniAfkFillsInItsUnreadEnd()
+    {
+        var tracker = new RotationPlatform(RotationDefinition.EventHorizon);
+        var run = Rotation(tracker, 0, EventHorizonRotationDemo.Reference, e => e.Kind != "spacetime" || e.Occurrence != 1);
+
+        Assert.Equal("complete", run.Outcome);
+        var end = run.Events.First(e => e.Kind == "spacetime");
+        Assert.True(end.Inferred);
+        Assert.Equal(181.25 + 20, end.Seconds, 3);
+        // An estimated time never borders a mechanic best.
+        Assert.False(RotationTimelinePresentation.IsCheckpoint(end));
+    }
+
+    [Fact]
+    public void AnUnreadEndDoesNotAbortTheRotationAtTheMiddlesTimeout()
+    {
+        var tracker = new RotationPlatform(RotationDefinition.EventHorizon);
+        var reference = EventHorizonRotationDemo.Reference;
+        var offset = 0.0;
+        for (var i = 0; i < 3; i++, offset += reference.Duration + 10) Rotation(tracker, offset, reference, _ => true);
+        tracker.DrainCompleted();
+
+        // The next wormhole opens long after twice the average second half of the mini AFK.
+        var run = Rotation(tracker, offset, reference, e => e.Kind != "spacetime" || e.Occurrence != 1);
+        Assert.Equal("complete", run.Outcome);
+        Assert.Equal(200.65, run.Events.First(e => e.Kind == "spacetime").Seconds, 2);
+        Assert.Equal(4, tracker.Snapshot(Epoch.AddSeconds(offset + reference.Duration + 1)).Completed);
+    }
+
+    [Fact]
+    public void WithoutItsMiddleAnUnreadEndStillLeavesTheRotationIncomplete()
+    {
+        var tracker = new RotationPlatform(RotationDefinition.EventHorizon);
+        var run = Rotation(tracker, 0, EventHorizonRotationDemo.Reference,
+            e => e.Kind is not "spacetime" and not "distortion" || e.Occurrence != 1);
+        Assert.Equal("incomplete", run.Outcome);
+    }
+
+    [Fact]
+    public void RotationsCompareWithThoseThatHadAsManyMiniAfks()
+    {
+        var tracker = new RotationPlatform(RotationDefinition.EventHorizon);
+        var twice = EventHorizonRotationDemo.Reference;
+        // A faster rotation whose second wormhole had no mini AFK.
+        var once = twice with { Duration = twice.Duration - 40, Events = [.. twice.Events
+            .Where(e => e.Kind is not "debris" and not "distortion" and not "spacetime" || e.Occurrence != 1)
+            .Select(e => e.Seconds > 161.517 ? e with { Seconds = e.Seconds - 40 } : e)] };
+        Rotation(tracker, 0, twice, _ => true);
+        Rotation(tracker, 600, once, _ => true);
+        Assert.False(RotationDefinition.EventHorizon.MarksSpecialRotations);
+
+        // A fresh rotation without a mini AFK yet compares with the nearest higher number.
+        tracker.ObserveLoot(Epoch.AddSeconds(1200));
+        var fresh = tracker.Snapshot(Epoch.AddSeconds(1210));
+        Assert.Equal(1, fresh.ComparedSpecialEvents);
+        Assert.Equal(once.Duration, fresh.Best!.Duration, 3);
+
+        foreach (var e in twice.Events.Where(e => e.Kind is not "start" && e.Seconds <= 345))
+            tracker.Observe(e.Kind, e.Label, Epoch.AddSeconds(1200 + e.Seconds));
+        var second = tracker.Snapshot(Epoch.AddSeconds(1200 + 346));
+        Assert.Equal(2, second.SpecialEvents);
+        Assert.Equal(2, second.ComparedSpecialEvents);
+        Assert.Equal(twice.Duration, second.Best!.Duration, 3);
     }
 
     [Fact]
@@ -198,6 +282,16 @@ public sealed class EventHorizonRotationTests
         Assert.True(state.Synchronized);
         Assert.Equal(4, state.Elapsed);
         Assert.Equal("Warte auf Erkennung", state.Status);
+    }
+
+    // One rotation from its first loot to the AFK end, begun after the previous rotation's AFK end.
+    private static RotationRun Rotation(RotationPlatform tracker, double offset, RotationRun run, Func<RotationEvent, bool> keep)
+    {
+        tracker.Observe("end", "AFK-Ende", Epoch.AddSeconds(offset - 10));
+        tracker.ObserveLoot(Epoch.AddSeconds(offset));
+        foreach (var e in run.Events.Where(e => e.Kind != "start" && keep(e)))
+            tracker.Observe(e.Kind, e.Label, Epoch.AddSeconds(offset + e.Seconds));
+        return tracker.DrainCompleted().Where(r => r.Run.Outcome != "superseded").Last().Run;
     }
 
     private static void Replay(EventHorizonRotationTracker tracker, RotationRun run, double until)

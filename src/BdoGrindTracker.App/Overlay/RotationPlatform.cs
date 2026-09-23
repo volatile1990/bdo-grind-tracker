@@ -284,8 +284,8 @@ internal class RotationPlatform : IRotationEventTracker
         if (_position >= 0 && _definition.Steps[_position].Matches(input.Kind) && _definition.AfkEndMessages.Contains(input.Kind) &&
             _sectionStart is { } entered && input.At - entered < TimeSpan.FromMinutes(1))
         { Decision(input, "duplicate", "Wiederholte Einblendung ignoriert"); return; }
-        var next = indices.FirstOrDefault(s => s.Index > _position &&
-            (s.Step.Requires is null || _visited.Contains(s.Step.Requires)));
+        var next = Next(indices);
+        if (next.Step is null && InferOpening(input, indices)) next = Next(indices);
         // A message that belongs to exactly one step (several orbs of Elion's Tears) may repeat inside its own phase.
         // Where the rotation models the repetition itself (Hermesia's five offerings, Aphrodon's nine waves), one more
         // than modelled means the sequence is off: that must still abort and resynchronise.
@@ -300,15 +300,8 @@ internal class RotationPlatform : IRotationEventTracker
             next = indices[0];
             _status = "Synchronisiere … · " + input.Label;
         }
-        if (_definition.Steps.Skip(_position + 1).Take(next.Index - _position - 1).Any(Required))
-        {
-            _missing = true;
-            Decision(input, "missing", "Erwartete Mitteilungen fehlen · Durchlauf wird nicht gewertet");
-        }
-        CloseSection(input.At);
-        _position = next.Index; _sectionId = _definition.SectionId(next.Step, input.Kind); _sectionStart = input.At;
-        _visited.Add(next.Step.Id);
-        AddEvent(input.Kind, input.Label, input.At);
+        InferClosing(input, next.Index, input.At);
+        Enter(input, next.Index, input.Kind, input.Label, input.At);
         _status = input.Label + (_completeStart && !_missing ? " · erkannt" : " · unvollständig erfasst");
         if (_definition.StartupCounterMessage is { } counter && !_visited.Contains(_definition.AmbientAfter ?? ""))
             _status = $"Startup · {_events.Count(e => e.Kind == counter)} / {_definition.StartupCounterTarget} {_definition.StartupCounterLabel}";
@@ -317,6 +310,75 @@ internal class RotationPlatform : IRotationEventTracker
 
     private bool Required(RotationStep step) => !step.Optional ||
         step.RequiredWhenBranchObserved && step.Requires is { } required && _visited.Contains(required);
+
+    private (RotationStep Step, int Index) Next((RotationStep Step, int Index)[] indices) => indices.FirstOrDefault(s =>
+        s.Index > _position && (s.Step.Requires is null || _visited.Contains(s.Step.Requires)));
+
+    private void Enter(Input input, int index, string kind, string label, DateTimeOffset at, bool inferred = false)
+    {
+        if (_definition.Steps.Skip(_position + 1).Take(index - _position - 1).Any(Required))
+        {
+            _missing = true;
+            Decision(input, "missing", "Erwartete Mitteilungen fehlen · Durchlauf wird nicht gewertet");
+        }
+        CloseSection(at);
+        var step = _definition.Steps[index];
+        _position = index; _sectionId = _definition.SectionId(step, kind); _sectionStart = at;
+        _visited.Add(step.Id);
+        AddEvent(kind, label, at, inferred);
+    }
+
+    /// <summary>
+    /// The reliable middle of a branch whose opening banner was lost (Event Horizon's distortion without the falling
+    /// debris): the opening is filled in half a branch earlier, so the special event still counts. Only where the
+    /// middle fits the order, so a late repetition can never invent the next wormhole's mini AFK.
+    /// </summary>
+    private bool InferOpening(Input input, (RotationStep Step, int Index)[] indices)
+    {
+        if (_start is not { } start) return false;
+        foreach (var (step, index) in indices)
+        {
+            if (index <= _position || step.Midpoint <= 0 || step.Requires is not { } branch || _visited.Contains(branch)) continue;
+            var opening = Array.FindIndex(_definition.Steps, s => s.Id == branch);
+            if (opening <= _position || opening > index ||
+                _position >= 0 && _definition.Steps.Skip(_position + 1).Take(opening - _position - 1).Any(Required)) continue;
+            var openingStep = _definition.Steps[opening];
+            var half = SectionAverage(_definition.SectionId(openingStep, openingStep.Messages[0])) ?? step.Midpoint;
+            // Never before what was already recorded: the events stay in order.
+            var earliest = start.AddSeconds(_events.Count == 0 ? 0 : _events[^1].Seconds);
+            var at = input.At.AddSeconds(-half);
+            Infer(input, opening, at < earliest ? earliest : at > input.At ? input.At : at);
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// A branch whose reliable middle was seen is over, but its closing banner was lost: the closing is filled in half
+    /// a branch after the middle (or halfway to the message that followed), and the run stays complete.
+    /// </summary>
+    private bool InferClosing(Input input, int beforeIndex, DateTimeOffset before)
+    {
+        if (_position < 0 || _sectionStart is not { } entered ||
+            _definition.Steps[_position] is not { Midpoint: > 0, Requires: { } branch } middle) return false;
+        var closing = _position + 1;
+        if (closing >= beforeIndex || closing >= _definition.Steps.Length ||
+            _definition.Steps[closing] is not { RequiredWhenBranchObserved: true } step || step.Requires != branch) return false;
+        var at = entered.AddSeconds(SectionAverage(_sectionId) ?? middle.Midpoint);
+        if (at >= before) at = entered + (before - entered) / 2;
+        Infer(input, closing, at);
+        return true;
+    }
+
+    private void Infer(Input input, int index, DateTimeOffset at)
+    {
+        var step = _definition.Steps[index];
+        Enter(input, index, step.Messages[0], "Nicht gelesen · nachgetragen", at, inferred: true);
+        Decision(input, "inferred-" + step.Id, "Nicht gelesene Mitteilung nachgetragen: " + step.Id);
+    }
+
+    private double? SectionAverage(string sectionId) =>
+        _sectionSamples.TryGetValue(sectionId, out var samples) && samples.Count > 0 ? samples.Average() : null;
 
     private void Begin(Input input, bool complete)
     {
@@ -328,10 +390,11 @@ internal class RotationPlatform : IRotationEventTracker
         Decision(input, "start", complete ? "Rotationsstart erkannt" : "Einstieg ohne bestätigten Rotationsbeginn · unvollständig");
     }
 
-    private void AddEvent(string kind, string label, DateTimeOffset at)
+    private void AddEvent(string kind, string label, DateTimeOffset at, bool inferred = false)
     {
         if (_start is not { } start) return;
-        _events.Add(new(kind, label, Math.Max(0, (at - start).TotalSeconds), _events.Count(e => e.Kind == kind) + 1));
+        _events.Add(new(kind, label, Math.Max(0, (at - start).TotalSeconds), _events.Count(e => e.Kind == kind) + 1)
+            { Inferred = inferred });
     }
 
     private void CloseSection(DateTimeOffset at)
@@ -374,6 +437,8 @@ internal class RotationPlatform : IRotationEventTracker
     {
         if (_sectionStart is not { } start || TimeoutSeconds() is not { } limit || (now - start).TotalSeconds <= limit) return;
         var at = start.AddSeconds(limit);
+        // A special event whose middle was seen is over, not stalled, when its closing banner never came.
+        if (InferClosing(input with { At = at }, _definition.Steps.Length, at)) { CheckTimeout(now, input); return; }
         Finish(input with { At = at }, "aborted", $"Abschnitt {_sectionId}: doppelte eigene Durchschnittszeit überschritten");
     }
 
@@ -395,7 +460,7 @@ internal class RotationPlatform : IRotationEventTracker
         var references = References().ToArray();
         int? matchedSpecial = null;
         var pool = references;
-        if (_definition.CompareBySpecialCount && references.Length > 0)
+        if (_definition.SpecialComparison == SpecialEventComparison.ByCount && references.Length > 0)
         {
             // The current rotation's count so far; between rotations the latest one's.
             var count = _definition.SpecialEventCount(_start is not null ? _events : _finished.LastOrDefault().Run?.Events ?? []);

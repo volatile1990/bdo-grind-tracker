@@ -47,7 +47,7 @@ internal static class MagaiaRotationDemo
             Elapsed = seconds, Synchronized = true, IsAfk = events.LastOrDefault(e => e.Kind is "afk" or "end" or "start")?.Kind == "afk",
             Events = events, Best = Reference, Ideal = Reference, SectorBests = new Dictionary<string, double>(), Completed = 1,
             SessionRotations = [new(Reference.Duration * 1.03)], SupportsSpecialEvents = true,
-            SpecialEvents = RotationDefinition.Magaia.SpecialEventCount(events), ComparedSpecialEvents = 16,
+            SpecialEvents = RotationDefinition.Magaia.SpecialEventCount(events),
             Status = "Beispieldaten · Magaia-Aufnahme als Referenz" };
     }
 }

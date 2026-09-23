@@ -66,11 +66,11 @@ public sealed class MagaiaRotationTests
         Assert.Equal([599.5, 1240.5, 1878], run.Run.Events.Where(e => e.Kind == "end").Select(e => Math.Round(e.Seconds, 1)));
         Assert.Equal([599.5, 1240.5], run.Run.Sections.Where(s => s.Id is "cycle-2" or "cycle-3").Select(s => Math.Round(s.Start, 1)));
 
-        // The last AFK end already opened the next rotation; with no fragment yet it compares with the nearest higher count.
+        // The last AFK end already opened the next rotation; it compares with every rotation, whatever its fragments.
         var next = tracker.Snapshot(Epoch.AddSeconds(1900));
         Assert.True(next.Synchronized);
         Assert.Equal(9.5, next.Elapsed, 1);
-        Assert.Equal(16, next.ComparedSpecialEvents);
+        Assert.Null(next.ComparedSpecialEvents);
         Assert.Equal(1878, next.Best!.Duration, 1);
 
         var phases = RotationPhases.Create(LootSpotCatalog.MagaiaId, run.Run.Events, run.Run.Duration);
@@ -87,13 +87,11 @@ public sealed class MagaiaRotationTests
     }
 
     [Theory]
-    // Same number of fragments first, then the nearest higher number, then the nearest lower one.
-    [InlineData(12, 12, 1920)]
-    [InlineData(16, 16, 1860)]
-    [InlineData(0, 12, 1920)]
-    [InlineData(14, 16, 1860)]
-    [InlineData(20, 16, 1860)]
-    public void TheBestRotationHasTheCurrentNumberOfFragments(int fragments, int compared, double best)
+    // The fragments fall into phases with a fixed timing: however many the current rotation has, all rotations compare.
+    [InlineData(0)]
+    [InlineData(12)]
+    [InlineData(20)]
+    public void EveryRotationIsComparedWhateverItsFragments(int fragments)
     {
         var tracker = new RotationPlatform(RotationDefinition.Magaia);
         tracker.Observe("start", "Sünder beschworen", Epoch);
@@ -104,11 +102,13 @@ public sealed class MagaiaRotationTests
         for (var i = 0; i < fragments; i++) tracker.Observe("fragment", "Fragment", Epoch.AddSeconds(5690 + i * 15));
 
         var snapshot = tracker.Snapshot(Epoch.AddSeconds(6100));
-        Assert.Equal(compared, snapshot.ComparedSpecialEvents);
-        Assert.Equal(best, snapshot.Best!.Duration);
+        Assert.Null(snapshot.ComparedSpecialEvents);
+        Assert.Equal(1860, snapshot.Best!.Duration);
         Assert.Equal(3, snapshot.Completed);
-        // Fragments are expected in almost every cycle: no rotation counts as special, and none is excluded.
-        Assert.Equal(best, snapshot.WithoutSpecialEvents!.Best!.Duration);
+        Assert.Equal(fragments, snapshot.SpecialEvents);
+        // No rotation counts as special, and none is excluded.
+        Assert.Equal(1860, snapshot.WithoutSpecialEvents!.Best!.Duration);
+        Assert.Equal(3, snapshot.WithoutSpecialEvents.Completed);
     }
 
     [Fact]

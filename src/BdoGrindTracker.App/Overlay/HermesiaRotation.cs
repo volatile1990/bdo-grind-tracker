@@ -3,6 +3,9 @@ namespace BdoGrindTracker.App.Overlay;
 public sealed record RotationEvent(string Kind, string Label, double Seconds, int Occurrence = 1)
 {
     public string Key => Kind + ":" + Occurrence;
+    /// <summary>The banner was not read; its time is estimated from a message that always is (see RotationStep.Midpoint).</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public bool Inferred { get; init; }
 }
 public sealed record RotationRun(double Duration, IReadOnlyList<RotationEvent> Events)
 {
@@ -114,8 +117,9 @@ public static class RotationTimelinePresentation
     public static bool ShowSetup(RotationMonitorSnapshot state) => state.SpotId == BdoGrindTracker.Core.LootSpotCatalog.AphrodonId && !state.Synchronized;
     public const string SetupHint = "Rotation tracking startet, sobald alle 3 Scarecrows aufgestellt sind.";
     public static string SetupCount(RotationMonitorSnapshot state) => $"{Math.Clamp(state.SmallScarecrows ?? 0, 0, 3)}/3 Small Scarecrows spawned";
-    // Event Horizon's banner variants and the mini-AFK midpoint mark a moment inside a phase, not its end.
-    public static bool IsCheckpoint(RotationEvent e) =>
+    // Event Horizon's banner variants and the mini-AFK midpoint mark a moment inside a phase, not its end. An estimated
+    // banner time is no measurement: it never borders a mechanic best.
+    public static bool IsCheckpoint(RotationEvent e) => !e.Inferred &&
         e.Kind is not "porter" and not "offer" and not "big-scarecrow" and not "reception" and not "debris" and not "distortion"
             and not "fragment" and not "away" and not "back";
     /// <summary>Short strokes above the band: pack spawns, wave events and moments inside a phase.</summary>

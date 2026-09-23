@@ -139,7 +139,8 @@ public sealed class RotationPlatformTests
     {
         var tracker = new RotationPlatform(RotationDefinition.EventHorizon);
         Message(tracker, "end", -10); tracker.ObserveLoot(Epoch);
-        foreach (var e in EventHorizonRotationDemo.Reference.Events.Where(e => e.Kind is not "start" and not "spacetime"))
+        // Without the mini AFK's middle nothing can fill in its end.
+        foreach (var e in EventHorizonRotationDemo.Reference.Events.Where(e => e.Kind is not "start" and not "spacetime" and not "distortion"))
             Message(tracker, e.Kind, e.Seconds);
         Assert.Equal("incomplete", Assert.Single(tracker.DrainCompleted()).Run.Outcome);
         Assert.Null(tracker.Snapshot(Epoch.AddSeconds(600)).Best);
