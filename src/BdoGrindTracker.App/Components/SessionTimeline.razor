@@ -62,7 +62,8 @@
                 </ul>
             }
             <div class="session-timeline-track" @ref="_track" @onwheel="Wheel"
-                 @onpointerdown="PointerDown" @onpointermove="PointerMove" @onpointerup="PointerUp" @onpointerleave="PointerUp">
+                 @onpointerdown="PointerDown" @onpointerdown:preventDefault="true" @onpointermove="PointerMove"
+                 @onpointerup="PointerUp" @onpointercancel="PointerUp" @onlostpointercapture="PointerUp">
                 <svg viewBox="0 0 1000 240" preserveAspectRatio="none" role="img" aria-label="@T("Zeitstrahl der Session")">
                     @foreach (var tick in Ticks)
                     {

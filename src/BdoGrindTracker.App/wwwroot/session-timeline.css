@@ -29,7 +29,9 @@
 .session-timeline-rotation-list button.is-failed strong{color:var(--timeline-failed)}
 .session-timeline-loot-list .session-timeline-layer{width:100%;border-radius:6px}
 .session-timeline-loot-list small{margin-left:auto;color:var(--timeline-dim);font-variant-numeric:tabular-nums}
-.session-timeline-track{position:relative;border:1px solid var(--line);border-radius:8px;background:var(--timeline-surface);overflow:hidden;touch-action:none;cursor:grab}
+/* Dragging the view must not select the times or pick up an icon as an image. */
+.session-timeline-track{position:relative;border:1px solid var(--line);border-radius:8px;background:var(--timeline-surface);overflow:hidden;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}
+.session-timeline-track img{-webkit-user-drag:none}
 .session-timeline-track:active{cursor:grabbing}
 .session-timeline-track svg{display:block;width:100%;height:240px}
 .session-timeline-grid{stroke:var(--timeline-grid);stroke-width:1;vector-effect:non-scaling-stroke}

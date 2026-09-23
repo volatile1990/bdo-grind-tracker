@@ -8,6 +8,14 @@ window.sessionTimeline = {
             if (event.shiftKey) event.preventDefault();
         }, { passive: false });
     },
+    // The pointer keeps belonging to the timeline while it is dragged, even when it leaves the element or the
+    // window. Without that a drag ends silently as soon as the pointer crosses the edge.
+    capture(element, pointerId) {
+        try { element?.setPointerCapture(pointerId); } catch { /* the pointer is already gone */ }
+    },
+    release(element, pointerId) {
+        try { element?.releasePointerCapture(pointerId); } catch { /* it was never captured */ }
+    },
     width(element) {
         const measured = element ? element.getBoundingClientRect().width : 0;
         return measured > 0 ? measured : 0;

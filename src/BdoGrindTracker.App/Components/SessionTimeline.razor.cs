@@ -304,10 +304,18 @@ public partial class SessionTimeline
     private async Task PointerDown(PointerEventArgs e)
     {
         _dragFrom = e.ClientX;
+        // The pointer belongs to the timeline until it is released, so a drag that leaves the element keeps working.
+        try { await JS.InvokeVoidAsync("sessionTimeline.capture", _track, e.PointerId); }
+        catch (Exception) { /* Without the capture a drag simply ends at the edge. */ }
         // Dragging moves the window by the share of the track the pointer crossed, so it needs its rendered width.
         await Measure();
     }
-    private void PointerUp(PointerEventArgs e) => _dragFrom = null;
+    private async Task PointerUp(PointerEventArgs e)
+    {
+        _dragFrom = null;
+        try { await JS.InvokeVoidAsync("sessionTimeline.release", _track, e.PointerId); }
+        catch (Exception) { /* Nothing was captured. */ }
+    }
     private void PointerMove(PointerEventArgs e)
     {
         if (_dragFrom is not { } start) return;
