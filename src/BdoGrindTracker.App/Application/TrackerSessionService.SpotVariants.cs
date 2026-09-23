@@ -19,9 +19,12 @@ internal sealed partial class TrackerSessionService
         return variants.Count > 1 || variants.Count == 1 && variants[0].Id != spotId;
     }
 
+    /// <summary>The user resolved this session's area themselves; no later detection relabels it.</summary>
+    private bool _spotVariantChosen;
+
     private void ApplyDetectedSpot(string? detectedSpotId)
     {
-        if (detectedSpotId is null || SessionSpotIsFrozen) return;
+        if (detectedSpotId is null || SessionSpotIsFrozen || _spotVariantChosen) return;
         // Shared trash identifies a family. Preserve the user's concrete area
         // across frames, capture completion and a restored analyzer segment.
         if (_sessionSpotId is { } current && LootSpotCatalog.VariantsFor(detectedSpotId)
@@ -54,6 +57,7 @@ internal sealed partial class TrackerSessionService
             catch (Exception error) when (error is IOException or UnauthorizedAccessException) { }
             throw;
         }
+        _spotVariantChosen = true;
         SetStatus("Spot-Auswahl gespeichert: " + variant.DisplayName);
         return Task.CompletedTask;
     });
