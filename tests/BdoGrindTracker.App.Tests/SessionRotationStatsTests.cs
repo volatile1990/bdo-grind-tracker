@@ -83,23 +83,25 @@ public sealed class SessionRotationStatsTests
     }
 
     [Fact]
-    public void ARotationFromBeforeTheSessionsActiveTimeIsLeftOffTheAxis()
+    public void OnlyARotationThatEndedBeforeTheAxisIsLeftOffIt()
     {
-        // A session restored after a restart: this rotation ran during the offline gap the session clock never
-        // counted, so its wall clock maps before the first active second. It has no place on that axis.
+        // A session restored after a restart: the first rotation ran and ended during the offline gap the session
+        // clock never counted. The second began before the clock ran - as it does when the automatic start measures
+        // from a banner - and reaches into the session.
         var session = Session(new SessionRotationTiming(600, 20, StartedAt: Observed.AddHours(-3)),
+            new SessionRotationTiming(1800, StartedAt: Observed.AddMinutes(-41)),
             new SessionRotationTiming(540, StartedAt: Observed.AddMinutes(-20)));
 
-        var span = Assert.Single(SessionRotationStats.Spans(session, TimeSpan.FromMinutes(40), Observed));
+        var spans = SessionRotationStats.Spans(session, TimeSpan.FromMinutes(40), Observed);
 
-        Assert.Equal(TimeSpan.FromMinutes(20), span.Start);
-        Assert.Equal(540, span.Duration);
-        // The statistics keep both: they do not depend on a place on the timeline.
-        Assert.Equal(2, SessionRotationStats.Count(session));
+        Assert.Equal([TimeSpan.FromMinutes(-1), TimeSpan.FromMinutes(20)], spans.Select(span => span.Start));
+        // The statistics keep every one of them: they do not depend on a place on the timeline.
+        Assert.Equal(3, SessionRotationStats.Count(session));
 
         var timeline = new SessionRotationTimeline();
         var mapped = timeline.Update(Guid.NewGuid(), TimeSpan.FromMinutes(40), Observed, session);
-        Assert.Equal([null, TimeSpan.FromMinutes(20)], mapped.SessionRotations.Select(timing => timing.StartedAfter));
+        Assert.Equal([TimeSpan.FromHours(-2) - TimeSpan.FromMinutes(20), TimeSpan.FromMinutes(-1), TimeSpan.FromMinutes(20)],
+            mapped.SessionRotations.Select(timing => timing.StartedAfter));
     }
 
     [Fact]

@@ -28,10 +28,9 @@ internal sealed class SessionRotationTimeline
     {
         if (timing.RunId != Guid.Empty && _starts.TryGetValue(timing.RunId, out var known)) return known;
         if (timing.StartedAt == default || observedAt == default) return timing.StartedAfter;
+        // A rotation may well begin before the session's first active second: the automatic start measures from a
+        // banner seen before the clock ran. Its true place is kept, negative and all, and the timeline clips it.
         var start = elapsed - (observedAt - timing.StartedAt);
-        // Restored rotations ran before the offline gap, which the session clock never counted. Clamping them to
-        // zero would stack them all on the session's first second and claim a place they never had.
-        if (start < TimeSpan.Zero) return null;
         if (timing.RunId != Guid.Empty) _starts[timing.RunId] = start;
         return start;
     }

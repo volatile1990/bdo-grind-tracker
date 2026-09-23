@@ -2,7 +2,7 @@ using BdoGrindTracker.App.Overlay;
 
 namespace BdoGrindTracker.App.UI;
 
-/// <param name="Start">Session time at which the rotation started, on the axis of the drop history.</param>
+/// <param name="Start">Session time of the start on the drop history's axis; negative when it began before it.</param>
 /// <param name="SpecialEvents">Session time of each special event of this rotation.</param>
 /// <param name="Outcome">complete, incomplete, aborted or active, as the rotation monitor decided it.</param>
 /// <param name="Events">The rotation's mechanics, for drawing its phases like the rotation monitor does.</param>
@@ -68,8 +68,9 @@ public static class SessionRotationStats
         var timings = Attempts(rotation)
             .Where(timing => timing.StartedAfter is not null || timing.StartedAt != default && observedAt != default)
             .Select(timing => (Timing: timing, Start: timing.StartedAfter ?? elapsed - (observedAt - timing.StartedAt)))
-            // A rotation that maps before the session's first active second ran before a restart and has no place here.
-            .Where(entry => entry.Start >= TimeSpan.Zero).ToArray();
+            // A rotation that also ends before the axis begins ran during an offline gap the session clock never
+            // counted; it has no place here. One that reaches into the session keeps its place and is clipped.
+            .Where(entry => entry.Start + TimeSpan.FromSeconds(entry.Timing.Duration) > TimeSpan.Zero).ToArray();
         if (timings.Length == 0) return [];
         var fastest = timings.Where(entry => entry.Timing.IsComplete).Select(entry => entry.Timing.Duration)
             .DefaultIfEmpty(double.NaN).Min();

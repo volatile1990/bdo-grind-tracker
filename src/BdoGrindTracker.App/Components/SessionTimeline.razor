@@ -55,7 +55,7 @@
                             <button type="button" class="@(_selected == span.Number ? "is-selected" : null) @(span.IsFailed ? "is-failed" : null)" @onclick="() => Focus(span)">
                                 <span>@F("Rotation {0}", span.Number)</span>
                                 <strong>@RotationPhases.Duration(span.Duration)</strong>
-                                <small>@Presentation.Duration(span.Start)@(span.IsComplete ? "" : " · " + T(span.IsActive ? "läuft" : span.IsFailed ? "fehlgeschlagen" : "unvollständig"))@(span.SpecialEvents.Count > 0 ? $" · {span.SpecialEvents.Count} Special" : "")</small>
+                                <small>@Presentation.Duration(span.Start < TimeSpan.Zero ? TimeSpan.Zero : span.Start)@(span.IsComplete ? "" : " · " + T(span.IsActive ? "läuft" : span.IsFailed ? "fehlgeschlagen" : "unvollständig"))@(span.SpecialEvents.Count > 0 ? $" · {span.SpecialEvents.Count} Special" : "")</small>
                             </button>
                         </li>
                     }
@@ -204,7 +204,7 @@
                              style="left:@Num((rotation.Left + 1.5) / 10)%;top:@Percent(222)%">
                             @if (rotation.Span.IsFastest) { <span class="session-timeline-rotation-dot"></span> }
                             <span>@F("Rotation {0}", rotation.Span.Number)</span>
-                            @if (pixels >= 200) { <small>@Presentation.Duration(rotation.Span.Start)</small> }
+                            @if (pixels >= 200) { <small>@Presentation.Duration(rotation.Span.Start < TimeSpan.Zero ? TimeSpan.Zero : rotation.Span.Start)</small> }
                         </div>
                         @if (pixels >= 110)
                         {
