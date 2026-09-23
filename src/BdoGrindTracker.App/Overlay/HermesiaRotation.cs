@@ -76,6 +76,13 @@ public sealed record RotationMonitorSnapshot
     public int SessionSpecialEvents { get; init; }
     /// <summary>Best, ideal, mechanic bests and count shown exclude rotations with special events.</summary>
     public bool ExcludesSpecialEvents { get; init; }
+    /// <summary>
+    /// Seconds into the current rotation from which its phases are certain: 0 for a rotation that began with its start;
+    /// for one picked up mid-way the first message that fits exactly one phase; null while none has.
+    /// </summary>
+    public double? AlignedAt { get; init; }
+    /// <summary>The section that message opened, to find the same moment in the reference.</summary>
+    public string? AlignedSection { get; init; }
     /// <summary>For spots compared by their number of special events: the number the shown best and ideal have.</summary>
     public int? ComparedSpecialEvents { get; init; }
     /// <summary>The comparison without rotations that contained a special event.</summary>
@@ -138,7 +145,8 @@ public static class RotationTimelinePresentation
         return BdoGrindTracker.App.Localization.AppText.Format("Abschnitt {0} · Bestzeit {1}", language, Time(current.Seconds - checkpoints[^2].Seconds), Time(best));
     }
     public static RotationRun? Reference(RotationMonitorSnapshot state, string mode) => mode == "ideal" ? state.Ideal : state.Best;
-    public static double Extent(RotationMonitorSnapshot state, string mode) => Math.Max(60, Math.Max(state.Elapsed + 10, Reference(state, mode)?.Duration ?? 620));
+    public static double Extent(RotationMonitorSnapshot state, string mode) => Math.Max(60, Math.Max(
+        state.Elapsed + RotationCurrentRow.OffsetOf(state, Reference(state, mode)) + 10, Reference(state, mode)?.Duration ?? 620));
     public static string Time(double seconds) => TimeSpan.FromSeconds(Math.Max(0, seconds)).ToString(@"mm\:ss\.f");
     public static string Mode(string mode) => mode switch { "ideal" => "Ideale Rotation", "sectors" => "Bestrotation + Mechanik-Bestzeiten", _ => "Beste vollständige Rotation" };
     public static string Delta(RotationMonitorSnapshot state, string mode)

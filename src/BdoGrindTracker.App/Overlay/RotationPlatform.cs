@@ -39,6 +39,8 @@ internal class RotationPlatform : IRotationEventTracker
     private Guid _runId;
     private int _position = -1, _setupCount;
     private int? _resumeAfter;
+    private double? _alignedAt;
+    private string? _alignedSection;
     private bool _completeStart, _missing, _boundaryAvailable;
     private string _status = "Warte auf Erkennung";
     private string? _error;
@@ -176,6 +178,7 @@ internal class RotationPlatform : IRotationEventTracker
         foreach (var run in _history) RecordSectionSamples(run);
         _start = _lootAllowedAt = _sectionStart = null; _runId = Guid.Empty; _position = -1;
         _setupCount = 0; _completeStart = _missing = _boundaryAvailable = false; _finishedElapsed = 0; _resumeAfter = null;
+        _alignedAt = null; _alignedSection = null;
         if (_restoredBoundary is { } restored)
         { _lootAllowedAt = restored.AddSeconds(5); _boundaryAvailable = _restoredCleanStart; }
         _status = "Warte auf Erkennung"; _building = [];
@@ -289,7 +292,8 @@ internal class RotationPlatform : IRotationEventTracker
         if (_position >= 0 && _definition.Steps[_position].Matches(input.Kind) && _definition.AfkEndMessages.Contains(input.Kind) &&
             _sectionStart is { } entered && input.At - entered < TimeSpan.FromMinutes(1))
         { Decision(input, "duplicate", "Wiederholte Einblendung ignoriert"); return; }
-        var next = Next(indices, resumeAfter is { } resumed && indices.Any(s => s.Index > resumed) ? resumed : _position);
+        var resumes = resumeAfter is { } resumed && indices.Any(s => s.Index > resumed);
+        var next = Next(indices, resumes ? resumeAfter!.Value : _position);
         if (next.Step is null && InferOpening(input, indices)) next = Next(indices);
         // A message that belongs to exactly one step (several orbs of Elion's Tears) may repeat inside its own phase.
         // Where the rotation models the repetition itself (Hermesia's five offerings, Aphrodon's nine waves), one more
@@ -307,6 +311,10 @@ internal class RotationPlatform : IRotationEventTracker
         }
         InferClosing(input, next.Index, input.At);
         Enter(input, next.Index, input.Kind, input.Label, input.At);
+        // A rotation picked up mid-way knows where it stands once a message fits exactly one phase, or continues the
+        // step a timeout left.
+        if (_alignedAt is null && (indices.Length == 1 || resumes) && _start is { } runStart)
+        { _alignedAt = Math.Max(0, (input.At - runStart).TotalSeconds); _alignedSection = _sectionId; }
         _status = input.Label + (_completeStart && !_missing ? " · erkannt" : " · unvollständig erfasst");
         if (_definition.StartupCounterMessage is { } counter && !_visited.Contains(_definition.AmbientAfter ?? ""))
             _status = $"Startup · {_events.Count(e => e.Kind == counter)} / {_definition.StartupCounterTarget} {_definition.StartupCounterLabel}";
@@ -392,6 +400,7 @@ internal class RotationPlatform : IRotationEventTracker
         _start = _sectionStart = input.At; _runId = input.Id; _position = -1; _sectionId = "startup";
         _events.Clear(); _sections.Clear(); _visited.Clear(); _completeStart = complete; _missing = false;
         _boundaryAvailable = false; _resumeAfter = null;
+        _alignedAt = complete ? 0 : null; _alignedSection = null;
         AddEvent("start", "Rotationsstart", input.At);
         _status = "Warte auf Erkennung";
         Decision(input, "start", complete ? "Rotationsstart erkannt" : "Einstieg ohne bestätigten Rotationsbeginn · unvollständig");
@@ -504,7 +513,8 @@ internal class RotationPlatform : IRotationEventTracker
             SpecialEventActive = _position >= 0 && (_sectionId.EndsWith("-special", StringComparison.Ordinal) ||
                 _definition.Steps[_position].Messages.All(_definition.IsSpecial)),
             WithoutSpecialEvents = new(withoutSpecial.Best, withoutSpecial.Ideal, withoutSpecial.Sectors, regular.Length),
-            ComparedSpecialEvents = matchedSpecial };
+            ComparedSpecialEvents = matchedSpecial,
+            AlignedAt = _start is null ? null : _alignedAt, AlignedSection = _start is null ? null : _alignedSection };
     }
 
     private void Save()

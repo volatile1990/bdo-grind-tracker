@@ -73,6 +73,33 @@ public sealed class OverlayMergeLocalizationTests
         Assert.Equal(expectedMarkers, html.Split("rotation-pack-marker").Length - 1);
     }
 
+    [Fact]
+    public async Task APickedUpRotationMeetsTheReferenceAtItsFirstCertainPhase()
+    {
+        var reference = EventHorizonRotationDemo.Reference with { Sections = [new("boss", 418.133, 447.717)] };
+        // Tracking began mid-rotation; only the boss spawn fits exactly one phase.
+        var state = new RotationMonitorSnapshot
+        {
+            SpotId = BdoGrindTracker.Core.LootSpotCatalog.EventHorizonId, HasProfile = true, Synchronized = true,
+            TrackingState = "partial", Elapsed = 40, Best = reference, AlignedAt = 30, AlignedSection = "boss",
+            Events = [new("start", "Rotationsstart", 0), new("anomaly", "Wurmloch gestartet", 12), new("boss", "Boss-Spawn", 30)],
+        };
+        var html = await RenderAsync<OverlayRotationTimeline>(new()
+        {
+            [nameof(OverlayRotationTimeline.State)] = state,
+            [nameof(OverlayRotationTimeline.Language)] = "en",
+        });
+
+        Assert.Contains("rotation-tracking-error", html);
+        Assert.Contains("Tracking error", html);
+        // The boss spawn sits where the reference's does; the guessed wormhole before it is not drawn as a phase.
+        var x = (418.133 / RotationTimelinePresentation.Extent(state, "best") * 540).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+        Assert.Contains($"x=\"{x}\" y=\"71\"", html);
+        Assert.Equal(1, html.Split("Wormhole 1 · Waves").Length - 1);
+        var now = ((418.133 + 10) / RotationTimelinePresentation.Extent(state, "best") * 540).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+        Assert.Contains($"class=\"rotation-playhead\" x1=\"{now}\"", html);
+    }
+
     private static OverlayWidget Sections() => OverlayCatalog.CreateWidget("chart") with
     {
         ChartMode = OverlayChartSections.SectionsMode,

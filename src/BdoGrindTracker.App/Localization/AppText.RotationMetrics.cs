@@ -27,6 +27,9 @@ internal static partial class AppText
             "the Agris event at Aphrodon, the mini AFK at Event Horizon and the fragments of divinity at Magaia. Every detected " +
             "special event of this session counts, including those in abandoned or running rotations.";
         text["Special Event"] = "Special event";
+        text["Tracking-Fehler"] = "Tracking error";
+        text["Tracking-Fehler · der Beginn dieser Rotation wurde nicht sicher erfasst"] =
+            "Tracking error · the beginning of this rotation was not reliably captured";
         text["Referenz mit {0} Special Events"] = "Reference with {0} special events";
         text["Zuletzt {0}"] = "Latest {0}";
         text["Beispieldaten · Hermesia-Session vom {0}"] = "Sample data · Hermesia session from {0}";

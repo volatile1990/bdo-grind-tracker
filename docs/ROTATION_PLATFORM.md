@@ -40,6 +40,10 @@ Special events are mechanics a full rotation does not need. They appear at rando
 
 Event Horizon has no explicit failure message (confirmed by the user). Its failure-message list is intentionally empty; recovery uses the shared ordering, timeout and capture-recovery rules. This is a complete spot definition, not a missing message pattern. Hermesia and Aphrodon retain their known explicit failure phrases.
 
+## Rotations picked up mid-way
+
+A run that began with its start knows every phase (`AlignedAt` 0). One picked up mid-way cannot know where it stands until a message fits exactly one step (Magaia's Elion's Tears, Event Horizon's boss spawn) or continues the step a timeout left. The snapshot names that moment (`AlignedAt`, seconds into the run) and the section it opened (`AlignedSection`). `RotationCurrentRow` lays that moment onto the same section of the reference (best or ideal; the ideal carries the best run's sections, retimed): the lower row, its total time and the playhead move by that offset, and everything before the moment is drawn as a tracking error. The reference's events before the moment count the cycles and wormholes, so the phases after it carry their true names. Until then the whole row is a tracking error.
+
 ## Capture time and corrections
 
 Confirmed messages carry their first visible capture time, not their OCR completion time. The platform replays ordered observations when new messages arrive. This also handles an AFK-end confirmation arriving after loot in its lockout window, or an earlier phase arriving after a later one. Active loot only buffers timestamps; replay work is performed for message/timeout changes. Section-reference queues avoid scanning all stored runs for each loot observation.

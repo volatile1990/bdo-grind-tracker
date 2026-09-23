@@ -737,16 +737,30 @@ internal sealed class NativeOverlayRenderer : IDisposable
                     Math.Clamp(headroom*.8f, 9, 14), ColorTranslator.FromHtml(group.First().GroupColor), false,
                     StringAlignment.Far, StringAlignment.Center);
         }
+        var current = RotationCurrentRow.Create(rotation, reference, widget.RotationColors);
         for (var row = 0; row < 2; row++)
         {
-            var events = row == 0 ? reference?.Events ?? [] : rotation.Events;
+            var events = row == 0 ? reference?.Events ?? [] : current.Events;
             var y = graph.Top + graph.Height * (row == 0 ? .25f : .78f);
             graphics.DrawLine(baseline, graph.Left, y, graph.Right, y);
-            var end = row == 0 ? reference?.Duration ?? 0 : rotation.Elapsed;
+            var end = row == 0 ? reference?.Duration ?? 0 : current.End;
             Draw(graphics, events.Count > 0 ? RotationPhases.Duration(end) : "–",
                 new RectangleF(graph.Right+4, y-bandHeight/2, Math.Max(1,totalWidth-4), bandHeight),
                 Math.Clamp(bandHeight*.45f,11,18), Text, false, StringAlignment.Far, StringAlignment.Center);
-            var phases = RotationPhases.Create(rotation.SpotId, events, end, widget.RotationColors);
+            if (row == 1 && current.HasTrackingError)
+            {
+                // Everything before the first certain phase of a rotation picked up mid-way.
+                var error = ColorTranslator.FromHtml(RotationCurrentRow.TrackingErrorColor);
+                var bounds = new RectangleF(graph.Left, y-bandHeight/2, Math.Max(0, X(current.ErrorEnd)-graph.Left-2), bandHeight);
+                using var fill = new SolidBrush(Color.FromArgb(55, error));
+                using var outline = new Pen(error, 1.5f) { DashPattern = [3, 2] };
+                graphics.FillRectangle(fill, bounds);
+                if (bounds.Width >= 2) graphics.DrawRectangle(outline, bounds.X, bounds.Y, bounds.Width, bounds.Height);
+                if (bounds.Width >= 90 && bandHeight >= 12)
+                    Draw(graphics, T("Tracking-Fehler"), bounds, Math.Clamp(bandHeight*.4f, 10, 16), error, false,
+                        StringAlignment.Center, StringAlignment.Center);
+            }
+            var phases = row == 0 ? RotationPhases.Create(rotation.SpotId, events, end, widget.RotationColors) : current.Phases;
             foreach (var phase in phases)
             {
                 using var fill = new SolidBrush(Color.FromArgb(190, ColorTranslator.FromHtml(phase.Color)));
@@ -773,7 +787,7 @@ internal sealed class NativeOverlayRenderer : IDisposable
         if (rotation.Synchronized || rotation.Events.Count > 0)
         {
             using var playhead = new Pen(Text, 2);
-            graphics.DrawLine(playhead, X(rotation.Elapsed), graph.Top, X(rotation.Elapsed), graph.Bottom);
+            graphics.DrawLine(playhead, X(current.End), graph.Top, X(current.End), graph.Bottom);
         }
 
     }

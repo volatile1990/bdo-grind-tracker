@@ -27,16 +27,20 @@ internal static class RotationComparison
             double total = 0;
             var checkpoints = Checkpoints(best);
             var idealTimes = checkpoints.ToDictionary(e => e.Key, e => e.Kind == "start" ? 0 : total += sectors[e.Key]);
-            var events = best.Events.Select(e =>
+            double Retimed(double seconds)
             {
-                if (idealTimes.TryGetValue(e.Key, out var time)) return e with { Seconds = time };
-                var right = Array.FindIndex(checkpoints, p => p.Seconds >= e.Seconds);
-                if (right <= 0) return e with { Seconds = 0 };
+                var right = Array.FindIndex(checkpoints, p => p.Seconds >= seconds);
+                if (right < 0) return total;
+                if (right == 0) return 0;
                 var a = checkpoints[right - 1]; var b = checkpoints[right];
-                var fraction = (e.Seconds - a.Seconds) / Math.Max(.001, b.Seconds - a.Seconds);
-                return e with { Seconds = idealTimes[a.Key] + fraction * (idealTimes[b.Key] - idealTimes[a.Key]) };
-            }).ToArray();
-            ideal = new(total, events);
+                var fraction = (seconds - a.Seconds) / Math.Max(.001, b.Seconds - a.Seconds);
+                return idealTimes[a.Key] + fraction * (idealTimes[b.Key] - idealTimes[a.Key]);
+            }
+            var events = best.Events.Select(e => e with
+                { Seconds = idealTimes.TryGetValue(e.Key, out var time) ? time : Retimed(e.Seconds) }).ToArray();
+            // Its sections follow along, so a rotation picked up mid-way can find its moment in the ideal as well.
+            ideal = new(total, events)
+                { Sections = [.. best.Sections.Select(s => s with { Start = Retimed(s.Start), End = Retimed(s.End) })] };
         }
         return (best, ideal, sectors);
     }

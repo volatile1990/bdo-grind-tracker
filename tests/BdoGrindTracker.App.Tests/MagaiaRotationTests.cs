@@ -218,16 +218,80 @@ public sealed class MagaiaRotationTests
         Assert.Equal("complete", tracker.DrainCompleted().Last(r => r.Run.Outcome != "superseded").Run.Outcome);
     }
 
+    [Fact]
+    public void AfterATimeoutTheCurrentRowMeetsTheReferencesThirdCycle()
+    {
+        var tracker = new RotationPlatform(RotationDefinition.Magaia);
+        tracker.Observe("start", "Sünder beschworen", Epoch);
+        for (var i = 0; i < 4; i++) PlayedRotation(tracker, i, 7);
+        var clean = Shown(tracker, Epoch.AddSeconds(4 * RotationSeconds + 300));
+        Assert.Equal(0, clean.AlignedAt);
+        Assert.False(RotationCurrentRow.Create(clean, clean.Best).HasTrackingError);
+
+        // The third cycle stalls past its timeout; its final phase resumes the third cycle.
+        PlayedRotation(tracker, 4, 100, until: 2 * CycleSeconds + 530);
+        var picked = Shown(tracker, Epoch.AddSeconds(4 * RotationSeconds + 2 * CycleSeconds + 540));
+        Assert.Equal("partial", picked.TrackingState);
+        Assert.Equal(("cycle-3-doubt", 0.0), (picked.AlignedSection, picked.AlignedAt!.Value));
+
+        // Its first certain moment meets the same moment of the reference; what came before is a tracking error.
+        var row = RotationCurrentRow.Create(picked, picked.Best);
+        var reference = picked.Best!.Sections.Single(section => section.Id == "cycle-3-doubt").Start;
+        Assert.Equal(2 * CycleSeconds + 437, reference, 3);
+        Assert.Equal(reference, row.Offset, 3);
+        Assert.Equal(reference, row.ErrorEnd, 3);
+        Assert.Equal(reference + 10, row.End, 3);
+        var phase = Assert.Single(row.Phases);
+        Assert.Equal(("Priest of the End", "cycle-3"), (phase.Name, phase.Group));
+        Assert.Equal(reference, phase.Start, 3);
+        Assert.True(RotationTimelinePresentation.Extent(picked, "best") >= row.End);
+        // The ideal keeps the sections, so the same holds against it.
+        Assert.Contains(picked.Ideal!.Sections, section => section.Id == "cycle-3-doubt");
+    }
+
+    [Fact]
+    public void APickedUpRotationIsATrackingErrorUntilAMessageFitsExactlyOnePhase()
+    {
+        var tracker = new RotationPlatform(RotationDefinition.Magaia);
+        tracker.Observe("start", "Sünder beschworen", Epoch);
+        for (var i = 0; i < 4; i++) PlayedRotation(tracker, i, 7);
+        tracker.Interrupt("Tracking pausiert");
+        var at = 4 * RotationSeconds + 442;
+        // "Flames of doubt" opens the final phase of every cycle: it says nothing about which one.
+        tracker.Observe("doubt", "Schlussphase", Epoch.AddSeconds(at));
+        var unsure = Shown(tracker, Epoch.AddSeconds(at + 2));
+        Assert.Null(unsure.AlignedAt);
+        var row = RotationCurrentRow.Create(unsure, unsure.Best);
+        Assert.Empty(row.Phases);
+        Assert.Equal(unsure.Elapsed, row.ErrorEnd, 3);
+
+        // Elion's Tears exists in the first cycle only.
+        tracker.Observe("sacred", "Elion's Tears", Epoch.AddSeconds(at + 4));
+        var sure = Shown(tracker, Epoch.AddSeconds(at + 20));
+        Assert.Equal(("cycle-1-tears", 4.0), (sure.AlignedSection, sure.AlignedAt!.Value));
+        row = RotationCurrentRow.Create(sure, sure.Best);
+        var reference = sure.Best!.Sections.Single(section => section.Id == "cycle-1-tears").Start;
+        Assert.Equal(reference, row.ErrorEnd, 3);
+        Assert.Equal(("Elion's Tears", reference), (row.Phases[0].Name, row.Phases[0].Start));
+    }
+
+    // The monitor names the spot of the platform's snapshot.
+    private static RotationMonitorSnapshot Shown(RotationPlatform tracker, DateTimeOffset at) =>
+        tracker.Snapshot(at) with { SpotId = LootSpotCatalog.MagaiaId };
+
     private const double CycleSeconds = 630, RotationSeconds = CycleSeconds * RotationDefinition.MagaiaCycles;
 
     // One rotation as played on 23.09.2026, begun by the previous rotation's AFK end (or the start banner at zero). The
     // third cycle's last knight falls `lastKnight` seconds before its final phase.
-    private static void PlayedRotation(RotationPlatform tracker, int number, double lastKnight)
+    private static void PlayedRotation(RotationPlatform tracker, int number, double lastKnight, double until = double.MaxValue)
     {
         for (var cycle = 1; cycle <= RotationDefinition.MagaiaCycles; cycle++)
         {
             var offset = number * RotationSeconds + (cycle - 1) * CycleSeconds;
-            void Message(string kind, double seconds) => tracker.Observe(kind, kind, Epoch.AddSeconds(offset + seconds));
+            void Message(string kind, double seconds)
+            {
+                if (offset - number * RotationSeconds + seconds <= until) tracker.Observe(kind, kind, Epoch.AddSeconds(offset + seconds));
+            }
             Message("prayer", 250);
             Message("knight", 330); Message("knight", 390); Message("knight", 430);
             var doubt = 430 + (cycle == 3 ? lastKnight : 12);

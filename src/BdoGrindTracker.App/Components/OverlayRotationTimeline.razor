@@ -20,11 +20,23 @@
         }
         @foreach (var row in new[] { 0, 1 })
         {
-            var events = row == 0 ? Reference?.Events ?? [] : State.Events;
+            var current = row == 1 ? RotationCurrentRow.Create(State, Reference, Colors) : null;
+            var events = current?.Events ?? Reference?.Events ?? [];
             var y = row == 0 ? 35 : 85;
-            var end = row == 0 ? Reference?.Duration ?? 0 : State.Elapsed;
-            var phases = RotationPhases.Create(State.SpotId, events, end, Colors);
+            var end = current?.End ?? Reference?.Duration ?? 0;
+            var phases = current?.Phases ?? RotationPhases.Create(State.SpotId, events, end, Colors);
             <line class="rotation-baseline" x1="0" x2="540" y1="@y" y2="@y" stroke="#44515c" stroke-width="2" />
+            @if (current is { HasTrackingError: true })
+            {
+                <g class="rotation-tracking-error">
+                    <title>@T(RotationCurrentRow.TrackingErrorTitle)</title>
+                    <rect x="0" y="@(y-14)" width="@Width(current.ErrorEnd)" height="28" rx="2" fill="@RotationCurrentRow.TrackingErrorColor" fill-opacity=".2" stroke="@RotationCurrentRow.TrackingErrorColor" stroke-width="1.5" stroke-dasharray="4 3" vector-effect="non-scaling-stroke" />
+                    @if (current.ErrorEnd / Extent * 540 >= 90)
+                    {
+                        <g><text x="@X(current.ErrorEnd / 2)" y="@(y+4)" text-anchor="middle" fill="@RotationCurrentRow.TrackingErrorColor" font-size="11">@T("Tracking-Fehler")</text></g>
+                    }
+                </g>
+            }
             <g><text class="rotation-total-duration" x="598" y="@(y+4)" text-anchor="end" fill="#ffffff" font-size="12"><title>@(row == 0 ? T("Gesamtzeit der Referenzrotation") : T("Gesamtzeit der aktuellen Rotation"))</title>@(events.Count > 0 ? RotationPhases.Duration(end) : "–")</text></g>
             @foreach (var phase in phases)
             {
@@ -54,8 +66,9 @@
         }
         @if (State.Synchronized || State.Events.Count > 0)
         {
-            <line class="rotation-playhead" x1="@X(State.Elapsed)" x2="@X(State.Elapsed)" y1="0" y2="120" stroke="#ffffff" stroke-width="2" vector-effect="non-scaling-stroke" />
-            <path class="rotation-playhead-tip" d="@($"M {X(State.Elapsed-Extent*.008)} 0 H {X(State.Elapsed+Extent*.008)} L {X(State.Elapsed)} 7 Z")" fill="#ffffff" />
+            var now = State.Elapsed + RotationCurrentRow.OffsetOf(State, Reference);
+            <line class="rotation-playhead" x1="@X(now)" x2="@X(now)" y1="0" y2="120" stroke="#ffffff" stroke-width="2" vector-effect="non-scaling-stroke" />
+            <path class="rotation-playhead-tip" d="@($"M {X(now-Extent*.008)} 0 H {X(now+Extent*.008)} L {X(now)} 7 Z")" fill="#ffffff" />
         }
     </svg>
     @if (Mode == "sectors")
