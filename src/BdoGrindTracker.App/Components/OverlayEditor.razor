@@ -82,6 +82,16 @@
     }
 
     <div class="oe-workbench">
+        @if (Modules.FirstOrDefault(module => module.Kind == _previewModule) is { } preview)
+        {
+            @* Beside the module list, above the canvas: the list itself scrolls and would clip the card. *@
+            <div class="oe-module-preview" data-theme="@DemoSnapshot.ThemeId" aria-hidden="true">
+                <div class="oe-module-preview-stage" style="@ModulePreviewStyle(preview)">
+                    <div class="oe-widget-content" style="@ModulePreviewSize(preview)"><OverlayWidgetPreview Widget="@OverlayCatalog.CreateWidget(preview.Kind)" Snapshot="@DemoSnapshot" /></div>
+                </div>
+                <small>@(T(preview.Label) + " · " + T("Beispieldaten"))</small>
+            </div>
+        }
         <section class="panel oe-library" aria-labelledby="oe-library-title">
             <div class="oe-section-title"><h2 id="oe-library-title">@T("Module")</h2><span>@_settings.Widgets.Count / @OverlayCatalog.MaximumWidgets</span></div>
             <p>@T("Auf die Fläche ziehen oder anklicken.")</p>
@@ -91,7 +101,9 @@
                     <div class="oe-module-group-label">@(group.Key ? "Drops" : T("Metriken & Steuerung"))</div>
                     @foreach (var module in group)
                     {
-                    <button class="oe-module" data-module-kind="@module.Kind" data-module-width="@Css(module.Width)" data-module-height="@Css(module.Height)" disabled="@(_settings.Widgets.Count >= OverlayCatalog.MaximumWidgets)" @onclick="() => AddModule(module.Kind)"><AppIcon Name="@module.Icon" /><span><strong>@T(module.Label)</strong><small>@T(module.Description)</small></span><AppIcon Name="plus" /></button>
+                    <div class="oe-module-row" @onmouseenter="() => ShowModulePreview(module.Kind)" @onmouseleave="HideModulePreview" @onfocusin="() => ShowModulePreview(module.Kind)" @onfocusout="HideModulePreview">
+                        <button class="oe-module" data-module-kind="@module.Kind" data-module-width="@Css(module.Width)" data-module-height="@Css(module.Height)" disabled="@(_settings.Widgets.Count >= OverlayCatalog.MaximumWidgets)" @onclick="() => AddModule(module.Kind)"><AppIcon Name="@module.Icon" /><span><strong>@T(module.Label)</strong><small>@T(module.Description)</small></span><AppIcon Name="plus" /></button>
+                    </div>
                     }
                 }
             </div>
@@ -158,7 +170,7 @@
                                 <option value="ideal">@T("Ideale Rotation aus Bestabschnitten")</option>
                             </select>
                         </label>
-                        <p class="oe-help">@T("Der Rotation Monitor übernimmt den Spot automatisch aus dem Tracker. Mechaniken und Bestzeiten gehören zum jeweiligen Spot-Profil. Verfügbar für Hermesia, Aphrodon und Event Horizon mit englischen Spielmeldungen.")</p>
+                        <p class="oe-help">@T("Der Rotation Monitor übernimmt den Spot automatisch aus dem Tracker. Mechaniken und Bestzeiten gehören zum jeweiligen Spot-Profil. Verfügbar für Hermesia, Aphrodon, Event Horizon und Magaia mit englischen Spielmeldungen.")</p>
                     }
                     @if (selected.Kind == "chart")
                     {

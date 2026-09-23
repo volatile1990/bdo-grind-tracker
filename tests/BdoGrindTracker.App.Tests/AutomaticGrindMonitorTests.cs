@@ -8,6 +8,65 @@ namespace BdoGrindTracker.App.Tests;
 public sealed class AutomaticGrindMonitorTests
 {
     [Fact]
+    public async Task ARotationStartBannerAloneStartsNothingButConfirmsTheNextTrashDrop()
+    {
+        using var fixture = new Fixture(2560, 1440);
+        fixture.Visual.Candidate = false;
+        fixture.BannerText = "The sinners are summoned.";
+        fixture.Behavior = (_, _, at, _) => Task.FromResult(Result(Projection(5, 1, at.AddMilliseconds(-50))));
+
+
+        // Walking past the spot shows the banner; without loot nothing starts.
+        Assert.Null(await fixture.Monitor.CheckAsync("en", CancellationToken.None));
+        Assert.Empty(fixture.Analyzers);
+        Assert.Equal(LootSpotCatalog.MagaiaId, fixture.Monitor.RecentRotationStart?.SpotId);
+
+        // The next trash drop starts the session, and the detection carries the spot.
+        fixture.Time.Advance(TimeSpan.FromSeconds(2));
+        fixture.Visual.Candidate = true;
+        fixture.BannerText = "";
+        using var detection = await fixture.Monitor.CheckAsync("en", CancellationToken.None);
+
+        Assert.NotNull(detection);
+        Assert.Equal(LootSpotCatalog.MagaiaId, detection!.RotationStart?.SpotId);
+        Assert.Equal("start", detection.RotationStart!.Kind);
+        // One banner confirms one start: it is consumed, so a later drop needs its own proof.
+        Assert.Null(fixture.Monitor.RecentRotationStart);
+    }
+
+    [Fact]
+    public async Task ADropWithoutARotationBannerStaysUnconfirmed()
+    {
+        using var fixture = new Fixture(2560, 1440);
+        fixture.Behavior = (_, _, at, _) => Task.FromResult(Result(Projection(5, 1, at.AddMilliseconds(-50))));
+
+        using var detection = await fixture.Monitor.CheckAsync("en", CancellationToken.None);
+
+        Assert.NotNull(detection);
+        Assert.Null(detection!.RotationStart);
+        Assert.Null(fixture.Monitor.RecentRotationStart);
+    }
+
+    [Fact]
+    public async Task ABannerOlderThanThreeMinutesNoLongerConfirmsADrop()
+    {
+        using var fixture = new Fixture(2560, 1440);
+        fixture.Visual.Candidate = false;
+        fixture.BannerText = "The sinners are summoned.";
+        fixture.Behavior = (_, _, at, _) => Task.FromResult(Result(Projection(5, 1, at.AddMilliseconds(-50))));
+
+        Assert.Null(await fixture.Monitor.CheckAsync("en", CancellationToken.None));
+
+        fixture.Time.Advance(RotationStartWatcher.Validity + TimeSpan.FromSeconds(1));
+        fixture.Visual.Candidate = true;
+        fixture.BannerText = "";
+        using var detection = await fixture.Monitor.CheckAsync("en", CancellationToken.None);
+
+        Assert.NotNull(detection);
+        Assert.Null(detection!.RotationStart);
+    }
+
+    [Fact]
     public async Task BackgroundGameResetsVisualBaselineWithoutCaptureOrOcr()
     {
         using var fixture = new Fixture();
@@ -244,17 +303,21 @@ public sealed class AutomaticGrindMonitorTests
             (_, _, _, _) => Task.FromResult(Result());
         internal readonly AutomaticGrindMonitor Monitor;
 
-        internal Fixture()
+        /// <summary>Banner text the rotation start watcher reads from each captured frame.</summary>
+        internal string BannerText = "";
+
+        internal Fixture(int width = 2, int height = 2)
         {
+            Capture.FrameSize = new Size(width, height);
             Monitor = new AutomaticGrindMonitor(Capture, Visual,
-                new CompanionCalibration("", "", "", 1, 1, 2, 2, 1,
+                new CompanionCalibration("", "", "", 1, 1, width, height, 1,
                     CompanionFontType.StrongSword, 0, false),
                 _ =>
                 {
                     var analyzer = new FakeAnalyzer((call, frame, at, token) => Behavior(call, frame, at, token));
                     Analyzers.Add(analyzer);
                     return analyzer;
-                }, Time);
+                }, Time, new RotationStartWatcher(_ => BannerText));
         }
 
         public void Dispose() => Monitor.Dispose();

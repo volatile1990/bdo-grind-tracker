@@ -4,7 +4,7 @@ internal static partial class AppText
 {
     private static void AddSecondary(Dictionary<string, string> text)
     {
-        text["Der Rotation Monitor übernimmt den Spot automatisch aus dem Tracker. Mechaniken und Bestzeiten gehören zum jeweiligen Spot-Profil. Verfügbar für Hermesia, Aphrodon und Event Horizon mit englischen Spielmeldungen."] = "The Rotation Monitor automatically uses the tracker's spot. Mechanics and best times belong to each spot's profile. Available for Hermesia, Aphrodon and Event Horizon with English game messages.";
+        text["Der Rotation Monitor übernimmt den Spot automatisch aus dem Tracker. Mechaniken und Bestzeiten gehören zum jeweiligen Spot-Profil. Verfügbar für Hermesia, Aphrodon, Event Horizon und Magaia mit englischen Spielmeldungen."] = "The Rotation Monitor automatically uses the tracker's spot. Mechanics and best times belong to each spot's profile. Available for Hermesia, Aphrodon, Event Horizon and Magaia with English game messages.";
         text["Silberverlauf-Darstellung"] = "Silver chart display";
         text["Session-Durchschnitt Silber / Stunde"] = "Session average silver / hour";
         text["Silber je Zeitabschnitt als Kurve"] = "Silver per time interval as a curve";
@@ -61,6 +61,46 @@ internal static partial class AppText
             text[$"Wurmloch {wormhole} aktiviert"] = $"Wormhole {wormhole} activated";
         }
         text["Wurmloch 3 · Mobs bis zum Boss"] = "Wormhole 3 · Mobs until the boss";
+        text["Beispieldaten · Magaia-Aufnahme als Referenz"] = "Sample data · Magaia recording as reference";
+        for (var cycle = 1; cycle <= 3; cycle++)
+        {
+            text[$"Zyklus {cycle} · DPS-Check"] = $"Cycle {cycle} · DPS check";
+            for (var knight = 1; knight <= 3; knight++) text[$"Zyklus {cycle} · Ritter {knight}"] = $"Cycle {cycle} · Knight {knight}";
+            text[$"Zyklus {cycle} · Restliche Packs"] = $"Cycle {cycle} · Remaining packs";
+            text[$"Zyklus {cycle} · AFK-Phase"] = $"Cycle {cycle} · AFK phase";
+        }
+        text["Schlussphase"] = "Final phase";
+        text["Zyklus"] = "Cycle";
+        text["Grind gestartet · Rotationsstart erkannt und Trashloot bestätigt."] =
+            "Grind started · rotation start recognized and trash loot confirmed.";
+        text["Rotationen"] = "Rotations";
+        text["Schnellste Rotation"] = "Fastest rotation";
+        text["Beim aktuellen Tempo: 60 Minuten geteilt durch die durchschnittliche Zeit der letzten bis zu drei Rotationen, jeweils mit Rückweg."] =
+            "At the current pace: 60 minutes divided by the average time of the last up to three rotations, each including the walk back.";
+        text["Session-Timeline"] = "Session timeline";
+        text["Zeitstrahl der Session"] = "Timeline of the session";
+        text["Ebenen"] = "Layers";
+        text["Seltene Drops & Favoriten"] = "Rare drops & favorites";
+        text["Silber je Abschnitt"] = "Silver per interval";
+        text["Alle Drops"] = "All drops";
+        text["Show specific rotation"] = "Show specific rotation";
+        text["Ganze Session"] = "Whole session";
+        text["Session-Länge"] = "Session length";
+        text["Ø Rotation"] = "Avg. rotation";
+        text["Ausschnitt"] = "Section";
+        text["Shift + Mausrad zoomt, Ziehen verschiebt den Ausschnitt."] = "Shift + mouse wheel zooms, dragging pans the view.";
+        text["schnellste"] = "fastest";
+        text["{0} · {1} Drops"] = "{0} · {1} drops";
+        text["Rotation {0}"] = "Rotation {0}";
+        text["Ø {0}"] = "Avg. {0}";
+        text["Abschnitt"] = "Section";
+        text["Neuer Zyklus"] = "New cycle";
+        text["Sünder beschworen"] = "Sinners summoned";
+        text["DPS-Check bestanden"] = "DPS check passed";
+        text["DPS-Check gescheitert"] = "DPS check failed";
+        text["Ritter besiegt"] = "Knight defeated";
+        text["Spieler tot oder abwesend"] = "Player dead or away";
+        text["Spieler zurück"] = "Player back";
         text["Browser-Vorschau · App-Updates sind deaktiviert."] = "Browser preview · App updates are disabled.";
         text["DEINE ZIELE"] = "YOUR GOALS";
         text["Plane deinen Grind und verfolge deinen täglichen Netto-Silbergewinn."] = "Plan your grind and track your daily net silver earnings.";

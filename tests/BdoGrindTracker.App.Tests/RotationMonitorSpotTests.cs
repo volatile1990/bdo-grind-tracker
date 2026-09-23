@@ -111,6 +111,28 @@ public sealed class RotationMonitorSpotTests
     }
 
     [Fact]
+    public void ARotationStartSeenBeforeTheSessionIsMeasuredFromItsBanner()
+    {
+        // The automatic grind detection recognizes the banner while no session exists; the trash drop that starts
+        // the session arrives forty seconds later, and only then is the spot known.
+        using var monitor = new RotationMonitor(spot => spot == LootSpotCatalog.MagaiaId
+            ? new BufferedRotationProfileMonitor(new RotationPlatform(RotationDefinition.Magaia), RotationMessageProfile.Magaia)
+            : null);
+        var start = DateTimeOffset.UnixEpoch;
+
+        monitor.ObserveRotationStart(new RotationStartSighting(LootSpotCatalog.MagaiaId, "start", "Sünder beschworen", start));
+        var state = monitor.Snapshot(start.AddSeconds(40), LootSpotCatalog.MagaiaId);
+
+        Assert.True(state.Synchronized);
+        Assert.Equal(40, state.Elapsed, 1);
+        Assert.Equal("start", Assert.Single(state.Events).Kind);
+
+        // A sighting for another spot never reaches the running one.
+        monitor.ObserveRotationStart(new RotationStartSighting(LootSpotCatalog.AphrodonId, "restart", "Rotation aktiviert", start.AddSeconds(50)));
+        Assert.Equal(60, monitor.Snapshot(start.AddSeconds(60), LootSpotCatalog.MagaiaId).Elapsed, 1);
+    }
+
+    [Fact]
     public void ExistingModuleMigratesWithoutLosingGeometryOrComparison()
     {
         var widget = new OverlayWidget { Kind = "hermesia-rotation", X = 20, Y = 40, Width = 500,

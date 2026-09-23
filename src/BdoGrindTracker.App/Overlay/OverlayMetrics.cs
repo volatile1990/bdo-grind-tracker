@@ -97,8 +97,10 @@ internal sealed partial class OverlayMetrics
             ["loot-scroll"] = new(T("Loot-Scroll"), session.LootScroll, IsWarning: session.LootScrollWarning),
             ["grind-rating"] = new(T("Grind-Bewertung"), grindRating.Label, grindRating.Detail,
                 Tone: grindRating.Tone, Tooltip: grindRating.Description),
-            ["rotations-hour"] = RotationsPerHour(rotation, preferences.UiLanguage),
+            ["rotations-hour"] = RotationsPerHour(rotation, preferences.UiLanguage, preferences.IncludeSpecialEventRotations),
             ["rotation-count"] = RotationCount(rotation, preferences.UiLanguage),
+            ["special-events"] = SpecialEvents(rotation, preferences.UiLanguage),
+            ["special-events-hour"] = SpecialEventsPerHour(rotation, session.Elapsed, preferences.UiLanguage),
         };
 
         return new()
@@ -127,10 +129,7 @@ internal sealed partial class OverlayMetrics
         };
     }
 
-    // The recent tempo, not the whole session: earlier slow rotations stop affecting the estimate.
-    internal const int RotationTempoSample = 3;
-
-    private static OverlayMetric RotationsPerHour(RotationMonitorSnapshot rotation, string language)
+    private static OverlayMetric RotationsPerHour(RotationMonitorSnapshot rotation, string language, bool includeSpecialEvents = true)
     {
         string T(string value) => AppText.Translate(value, language);
         const string label = "Rotations / h";
@@ -139,18 +138,18 @@ internal sealed partial class OverlayMetrics
             "jeweils einschließlich Rückweg bis zum Start der nächsten Rotation. Bis die nächste Rotation beginnt, gilt " +
             "der durchschnittliche Rückweg dieser Session. Pausen über zwei Minuten, Aufbau und abgebrochene Versuche zählen nicht.";
         if (!rotation.HasProfile) return new(label, "—", T("Kein Rotationsprofil für diesen Spot"), Tooltip: T(tooltip));
-        var completed = rotation.SessionRotations.Where(timing => double.IsFinite(timing.Duration) && timing.Duration > 0).ToArray();
-        var recent = completed.TakeLast(RotationTempoSample).ToArray();
-        if (recent.Length == 0) return new(label, "—", T("Nach der ersten vollständigen Rotation"), Tooltip: T(tooltip));
-        var walks = completed.Where(timing => timing.WalkBack is { } walk && double.IsFinite(walk))
-            .Select(timing => timing.WalkBack!.Value).ToArray();
-        double? averageWalk = walks.Length > 0 ? walks.Average() : null;
-        var average = recent.Average(timing => timing.Duration + (timing.WalkBack ?? averageWalk ?? 0));
+        // Without special events the tempo follows regular rotations only; the walk back stays a session average.
+        if (UI.SessionRotationStats.Tempo(rotation, includeSpecialEvents) is not { } average)
+            return new(label, "—", T(includeSpecialEvents || UI.SessionRotationStats.Count(rotation) == 0
+                ? "Nach der ersten vollständigen Rotation" : "Nach der ersten Rotation ohne Special Event"), Tooltip: T(tooltip));
+        var recent = UI.SessionRotationStats.RecentCount(rotation, includeSpecialEvents);
+        var knownWalk = UI.SessionRotationStats.HasKnownWalkBack(rotation);
         var rate = 3600 / average;
-        return new(label, ((decimal)Math.Floor(rate)).ToString("N0", AppText.Culture(language)),
-            $"{rate.ToString("0.0", AppText.Culture(language))} / h · Ø {RotationPhases.Duration(average)} · " +
-            (averageWalk is null ? T("ohne Rückweg") : recent.Length == 1 ? T("1 Rotation") :
-                AppText.Format("letzte {0}", language, recent.Length)), Tooltip: T(tooltip));
+        // One decimal: between two and six rotations per hour a whole number hides most of the tempo.
+        return new(label, rate.ToString("0.0", AppText.Culture(language)),
+            $"Ø {RotationPhases.Duration(average)} · " +
+            (!knownWalk ? T("ohne Rückweg") : recent == 1 ? T("1 Rotation") :
+                AppText.Format("letzte {0}", language, recent)), Tooltip: T(tooltip));
     }
 
     private static OverlayMetric RotationCount(RotationMonitorSnapshot rotation, string language)
@@ -164,6 +163,32 @@ internal sealed partial class OverlayMetrics
         return new(label, rotations.Count.ToString("N0", AppText.Culture(language)),
             rotations.Count == 0 ? T("In dieser Session") :
                 AppText.Format("Zuletzt {0}", language, RotationPhases.Duration(rotations[^1].Duration)), Tooltip: T(tooltip));
+    }
+
+    private const string SpecialEventsTooltip = "Special Events sind zufällige Mechaniken, die eine volle Rotation nicht braucht " +
+        "und die zusätzlich oder ersetzend auftreten: das Agris-Event in Aphrodon, das Mini-AFK in Event Horizon und die " +
+        "Fragmente of Divinity in Magaia. Gezählt wird jedes erkannte Special Event dieser Session, auch in abgebrochenen " +
+        "oder laufenden Rotationen.";
+
+    private static OverlayMetric SpecialEvents(RotationMonitorSnapshot rotation, string language)
+    {
+        string T(string value) => AppText.Translate(value, language);
+        const string label = "Special Events";
+        var count = rotation.SessionSpecialEvents.ToString("N0", AppText.Culture(language));
+        return new(label, count, rotation.SpecialEventActive ? T("Special Event läuft") :
+            rotation.HasProfile && !rotation.SupportsSpecialEvents ? T("Keine Special Events an diesem Spot") : T("In dieser Session"),
+            Tooltip: T(SpecialEventsTooltip));
+    }
+
+    private static OverlayMetric SpecialEventsPerHour(RotationMonitorSnapshot rotation, TimeSpan elapsed, string language)
+    {
+        string T(string value) => AppText.Translate(value, language);
+        const string label = "Special Events / h";
+        if (elapsed <= TimeSpan.Zero) return new(label, "—", T("Ø aktive Grindzeit"), Tooltip: T(SpecialEventsTooltip));
+        var rate = rotation.SessionSpecialEvents / elapsed.TotalHours;
+        return new(label, rate.ToString("0.0", AppText.Culture(language)),
+            AppText.Format("{0} in {1}", language, rotation.SessionSpecialEvents.ToString("N0", AppText.Culture(language)),
+                Presentation.Duration(elapsed)), Tooltip: T(SpecialEventsTooltip));
     }
 
     /// <summary>Each recorded loot increase valued with the current prices, so a price update revalues the whole curve.</summary>
@@ -182,8 +207,7 @@ internal sealed partial class OverlayMetrics
 
     /// <summary>Favorites and items worth more than 200 million appear as chart markers.</summary>
     private static bool IsMarked(string itemName, TrackerPreferences preferences, LootPriceSnapshot? prices) =>
-        preferences.FavoriteItems.Contains(itemName, StringComparer.Ordinal) ||
-        prices is not null && prices.TryGetQuote(itemName, out var quote) && quote.UnitPrice > 200_000_000m;
+        UI.SessionLootMarkers.IsMarked(itemName, preferences, prices);
 
     internal static OverlaySnapshot Demo { get; } = CreateDemo();
 

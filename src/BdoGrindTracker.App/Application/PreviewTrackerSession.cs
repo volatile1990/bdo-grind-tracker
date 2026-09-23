@@ -64,23 +64,48 @@ internal sealed class PreviewTrackerSession : ITrackerSession
 
     private void ShowSample()
     {
-        var totals = new Dictionary<string, long> { ["Branch of Abundance"] = 18_420, ["Ancient Spirit Dust"] = 76,
-            ["Black Stone"] = 51, ["WON Origin Shard"] = 4, ["WON Wandering Origin Crystal"] = 1,
-            ["Broken Vestige of Goldroot"] = 1, ["Nev's Fragment"] = 9 };
+        // The recorded Magaia session of 22.09.2026: its drops, rotations and special events fill the session timeline.
+        var totals = Overlay.MagaiaDemoSession.Totals.ToDictionary(item => item.Key, item => item.Value, StringComparer.Ordinal);
+        var observed = DateTimeOffset.UtcNow;
         Change(new()
         {
             SessionId = Guid.NewGuid(), AnalyzerAvailable = true, IsDemo = true, HasApiKey = State.HasApiKey,
-            SpotId = LootSpotCatalog.AphrodonId,
-            CharacterLabel = "Warrior · Awakening", CharacterClassId = "warrior-awakening", Elapsed = TimeSpan.FromMinutes(60),
-            Agris = new(AgrisStatus.Active), AgrisActiveDuration = TimeSpan.FromMinutes(12), AgrisObservedDuration = TimeSpan.FromHours(1),
-            Experience = new(61, .579m), ExperienceGainedPercentagePoints = .123m, ExperienceObservedDuration = TimeSpan.FromHours(1),
-            ExperienceStartLevel = 61, ExperienceEndLevel = 61,
-            CombatStats = new(2374, 826, CombatStatsCategory.Edania, DateTimeOffset.UtcNow),
-            SessionCombatStats = new(2374, 826, CombatStatsCategory.Edania, DateTimeOffset.UtcNow),
-            Loot = new(totals, totals.Values.Sum(), 147), Silver = SilverValuation.Calculate(totals, Prices, Preferences.Tax),
+            SpotId = LootSpotCatalog.MagaiaId, ObservedAt = observed,
+            CharacterLabel = "Shai · Succession", CharacterClassId = "shai", Elapsed = Overlay.MagaiaDemoSession.Elapsed,
+            Agris = new(AgrisStatus.Inactive), AgrisObservedDuration = Overlay.MagaiaDemoSession.Elapsed,
+            Experience = new(Overlay.MagaiaDemoSession.ExperienceLevel, .812m),
+            ExperienceGainedPercentagePoints = Overlay.MagaiaDemoSession.ExperienceGainedPercentagePoints,
+            ExperienceObservedDuration = Overlay.MagaiaDemoSession.ExperienceObservedDuration,
+            ExperienceStartLevel = Overlay.MagaiaDemoSession.ExperienceLevel, ExperienceEndLevel = Overlay.MagaiaDemoSession.ExperienceLevel,
+            CombatStats = new(Overlay.MagaiaDemoSession.Ap, Overlay.MagaiaDemoSession.Dp, CombatStatsCategory.Edania, observed),
+            SessionCombatStats = new(Overlay.MagaiaDemoSession.Ap, Overlay.MagaiaDemoSession.Dp, CombatStatsCategory.Edania, observed),
+            Loot = new(totals, totals.Values.Sum(), Overlay.MagaiaDemoSession.ConfirmedEventCount),
+            Silver = SilverValuation.Calculate(totals, Prices, Preferences.Tax),
+            DropHistory = Overlay.MagaiaDemoSession.DropHistory, SilverHistory = SampleSilverHistory(),
+            Rotation = new() { SpotId = LootSpotCatalog.MagaiaId, HasProfile = true, SupportsSpecialEvents = true,
+                SessionRotations = Overlay.MagaiaDemoSession.Completed(observed),
+                SessionSpecialEvents = Overlay.MagaiaDemoSession.Rotations.Sum(rotation => Overlay.MagaiaDemoSession.Fragments(rotation.Messages).Count) },
             Status = "Vorschau · Beispieldaten werden weder aufgezeichnet noch hochgeladen.", PriceStatus = "EU · NPC- und Festwerte"
         });
     }
+    /// <summary>The recorded session's rate curve: everything dropped up to a moment, valued per hour of grind.</summary>
+    private IReadOnlyList<SessionSilverSample> SampleSilverHistory()
+    {
+        var drops = Overlay.MagaiaDemoSession.DropHistory;
+        List<SessionSilverSample> samples = [];
+        var value = 0m;
+        var index = 0;
+        for (var second = 30d; second <= Overlay.MagaiaDemoSession.Elapsed.TotalSeconds; second += 30)
+        {
+            var at = TimeSpan.FromSeconds(second);
+            for (; index < drops.Count && drops[index].Elapsed <= at; index++)
+                if (Prices is { } prices && prices.TryGetQuote(drops[index].ItemName, out var quote))
+                    value += SilverValuation.UnitAfterTax(quote, Preferences.Tax) * drops[index].Quantity;
+            samples.Add(new(at, value / (decimal)at.TotalHours));
+        }
+        return samples;
+    }
+
     private void Change(TrackerState state)
     {
         // Keep a filtered-out selection through unrelated preview updates, but
@@ -96,7 +121,14 @@ internal sealed class PreviewTrackerSession : ITrackerSession
                 : "Vorschau · Automatische Grinderkennung wird nur simuliert.",
             GrindBenchmark = GarmothGrindBenchmarks.Find(state.SpotId),
             GameLanguageStatus = "Vorschau: Englisch · keine BDO-Konfiguration gelesen" };
-        State = State with { SilverHistory = _silverHistory.Update(State), DropHistory = _dropHistory.Update(State) };
+        // The sample session brings its own recorded history; the live samples continue it.
+        var silver = _silverHistory.Update(State);
+        var drops = _dropHistory.Update(State);
+        State = State with
+        {
+            SilverHistory = [.. State.SilverHistory.Where(sample => silver.Count == 0 || sample.Elapsed < silver[0].Elapsed), .. silver],
+            DropHistory = drops.Count > State.DropHistory.Count ? drops : State.DropHistory,
+        };
         Changed?.Invoke();
     }
     public Task<TrackerCommandResult> ToggleTrackingAsync()

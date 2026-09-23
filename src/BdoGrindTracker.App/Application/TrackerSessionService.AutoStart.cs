@@ -22,9 +22,18 @@ internal sealed partial class TrackerSessionService
     private int _automaticGrindDropCount;
     private DateTimeOffset? _automaticGrindLastArrival;
     private bool _automaticGrindNeedsCheckpoint;
+    private bool _startedByRotationBanner;
 
     private void BeginAutomaticGrindConfirmation(AutoStartDetection detection)
     {
+        // A recognized rotation start plus this trash drop is proof enough: the session counts right away.
+        if (detection.RotationStart is not null)
+        {
+            ResetAutomaticGrindConfirmation();
+            _automaticGrindNeedsCheckpoint = true;
+            _startedByRotationBanner = true;
+            return;
+        }
         _provisionalAutomaticGrind = true;
         _automaticGrindDropCount = 1;
         _automaticGrindLastArrival = detection.DetectedDropAt ??
@@ -51,6 +60,7 @@ internal sealed partial class TrackerSessionService
 
     private void ResetAutomaticGrindConfirmation()
     {
+        _startedByRotationBanner = false;
         _provisionalAutomaticGrind = false;
         _automaticGrindDropCount = 0;
         _automaticGrindLastArrival = null;
@@ -74,6 +84,7 @@ internal sealed partial class TrackerSessionService
     private string? AutoStartStatus => !Preferences.AutoStartGrinding ? null :
         _autoStartError is { } error ? error :
         _provisionalAutomaticGrind ? "Grind gestartet · Bestätigung nach 5 getrennten Drops. Nach 1 Minute ohne neuen Drop wird die unbestätigte Session verworfen." :
+        _uiRunning && _startedByRotationBanner ? "Grind gestartet · Rotationsstart erkannt und Trashloot bestätigt." :
         _uiRunning ? "Automatische Grind-Erkennung aktiviert." :
         !CanWatchForGrind ? "Automatik wartet · Tracking ist derzeit nicht verfügbar." :
         _autoStartMonitor?.IsConfirming == true ? "Automatik prüft neue Monsterdrops …" :

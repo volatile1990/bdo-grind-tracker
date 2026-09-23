@@ -45,6 +45,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
     private readonly SessionSilverHistory _silverHistory = new();
     private readonly SessionDropHistory _dropHistory = new();
     private readonly RotationMonitor _rotationMonitor = new();
+    private readonly SessionRotationTimeline _rotationTimeline = new();
     private readonly GarmothUploadIntervals _garmothIntervals = new();
     private readonly CancellationTokenSource _priceLifetime = new();
     private readonly AsyncLocal<CommandOutcome?> _commandOutcome = new();
@@ -177,6 +178,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
                 ?? Monitors.FirstOrDefault(m => m.IsPrimary)?.DeviceName ?? Monitors.FirstOrDefault()?.DeviceName,
             AutoPauseMinutes = _settings.AutoPauseMinutes,
             AutoStartGrinding = _settings.AutoStartGrinding,
+            IncludeSpecialEventRotations = _settings.RotationIncludeSpecialEvents,
             GameLanguage = _settings.GameLanguage,
             CaptureConfigurationPath = _settings.CaptureConfigurationPath,
             FavoriteItems = _settings.FavoriteItems ?? [],
@@ -410,6 +412,9 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             _experienceSessionTracker.Pause(_sessionClock.Elapsed);
             _uiRunning = true;
             _rotationMonitor.Interrupt("Grind gestartet · warte auf erstes Ereignis");
+            // The banner that started this session appeared before any capture: without it the first rotation would
+            // be measured from the drop that confirmed the start instead of from its own beginning.
+            if (autoStart?.RotationStart is { } rotationStart) _rotationMonitor.ObserveRotationStart(rotationStart);
             _inactivityTimer.Start();
             _sessionClock.Start(waitForFirstDrop: autoStart is null && waitForFirstDrop);
             _lastCaptureDesktopRegion = captureRegion;
@@ -515,9 +520,12 @@ internal sealed partial class TrackerSessionService : ITrackerSession
                 capturedAt: metadata.CapturedAtUtc);
             if (newLoot) ObserveAutomaticGrindDrop(analysis.LootProjection?.LatestArrivalAt ?? metadata.CapturedAtUtc);
         }
+        // The session spot is only stored when the frame reaches the UI. Until then this frame's own detection is
+        // what the rotation monitor must follow: a spot that falls back to unknown would discard its running rotation.
+        var detectedSpot = _sessionSpotId ?? analysis.SpotId;
         if (_uiRunning)
         {
-            var spot = _sessionSpotId ?? analysis.SpotId;
+            var spot = detectedSpot;
             _rotationMonitor.ObserveLootEvents(analysis.NewEvents, spot);
             var trash = TrashLootMinimumCatalog.Entries.Where(s => spot is null ? RotationProfiles.Supports(s.SpotId) : s.SpotId == spot)
                 .Select(s => s.ItemName).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -539,7 +547,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         cancellationToken.ThrowIfCancellationRequested();
         if (_uiRunning && metadata.CanObserveHud)
         {
-            _rotationMonitor.Observe(frame, metadata.CapturedAtUtc, _sessionSpotId);
+            _rotationMonitor.Observe(frame, metadata.CapturedAtUtc, detectedSpot);
             _lootScrollMonitor.Observe(frame, metadata.CapturedAtUtc);
             _agrisMonitor.Observe(frame, metadata.CapturedAtUtc);
             _experienceMonitor.Observe(frame, metadata.CapturedAtUtc);
@@ -836,8 +844,11 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             AutomaticUploadNeedsReview = _garmothIntervals.CorrectionReviewRequired,
             ShutdownFailed = _shutdownFailed,
         };
-        State = State with { SilverHistory = _silverHistory.Update(State), DropHistory = CaptureDropHistory(State.Loot, State.Elapsed),
-            Rotation = _rotationMonitor.Snapshot(_captureSession.ObservationTime, _sessionSpotId) };
+        State = State with { ObservedAt = _captureSession.ObservationTime,
+            SilverHistory = _silverHistory.Update(State), DropHistory = CaptureDropHistory(State.Loot, State.Elapsed),
+            Rotation = _rotationTimeline.Update(_sessionId, State.Elapsed, _captureSession.ObservationTime,
+                _rotationMonitor.Snapshot(_captureSession.ObservationTime, _sessionSpotId,
+                    Preferences.IncludeSpecialEventRotations)) };
         if (_historyChanged)
         {
             History = Array.AsReadOnly(_historyEntries.Select(entry => entry with

@@ -2,6 +2,25 @@
 
 `RotationPlatform` owns timing, recovery, reference samples and decision history for Hermesia, Aphrodon and Event Horizon. The old tracker names are thin compatibility constructors. New spots describe their messages/crop in `RotationMessageProfile` and their ordered steps, alternatives, optional branches, start/failure/AFK-end messages and setup counters in `RotationDefinition`. They register in `RotationProfiles`; they do not implement another tracker.
 
+## Special events
+
+Special events are mechanics a full rotation does not need. They appear at random, either in addition to the regular mechanics or in place of one. `RotationDefinition.SpecialMessages` lists all their messages and `SpecialStartMessages` the message that counts one occurrence: Aphrodon's `agris` (replaces a Hog wave) and Event Horizon's debris mini AFK (`debris`, `distortion`, `spacetime`; counted by `debris`). Hermesia has none.
+
+- A step shared by a regular and a replacing special message records the special variant as its own section (`wave-3-special`), so its timeout and mechanic reference never mix with the regular wave. Extra branches already have their own steps.
+- The snapshot carries the regular comparison as well (`WithoutSpecialEvents`: best, ideal, mechanic bests and count over rotations without a special event). The preference `IncludeSpecialEventRotations` (settings key `RotationIncludeSpecialEvents`, default true) selects which pool `RotationMonitor.Snapshot` shows, and whether Rotations / h uses rotations with special events.
+- `SessionSpecialEvents` counts every special event of the session at the shown spot, including aborted and running rotations; superseded run versions do not count twice. A session that moved between spots keeps each count with its spot. `SessionRotationTiming.Special` marks completed rotations with a special event, and `SpecialEventSeconds` holds the seconds at which each one was recognized, so the session timeline can place them.
+- `RotationPhase.Special` marks the phases; both overlay renderers outline them with `RotationPhases.SpecialColor`.
+
+## Spot options
+
+- `AmbientMessages` without `AmbientAfter` are recorded at any time during a run without moving the phase (Magaia's fragments, death and return).
+- `AfkEndStartsRun`: the AFK-end banner also opens the next clean run (Magaia resets itself while the player stays). A repeated sighting within a minute of that start is ignored. The AFK-end message may also be a step (Magaia's cycle boundaries); only at the last step does it end the run, and a repeated sighting within a minute of entering that step is ignored.
+- A message that belongs to exactly one step of the definition may repeat inside that phase (Elion's Tears' orbs) and is ignored. Where the definition models the repetition itself (Hermesia's five offerings, Aphrodon's nine waves, Magaia's three knights), one more than modelled is out of order: the run aborts and resynchronises.
+- `CompareBySpecialCount`: special events that occur in almost every rotation (Magaia's fragments). Best, ideal and mechanic bests use only rotations with the current run's count so far, else the nearest higher, else the nearest lower count (`ComparedSpecialEvents`). Such rotations are never excluded as special.
+- Ein Spot bleibt gewählt, bis ein *anderer* Spot erkannt wird. Ein Aufrufer ohne Spot sagt nichts über den bereits erkannten aus, deshalb behält der Monitor sein Profil samt laufender Rotation.
+- `UnmistakableStartMessages`: the start messages the definition uses neither as a step nor as an ambient banner. Only these are watched for before a session (`RotationStartWatcher`) and handed to `RotationMonitor.ObserveRotationStart`, which replays them into the spot's provisional profile so the first rotation is measured from its banner. Hermesia's offering and Event Horizon's loot start qualify for nothing here.
+- `RotationMessageProfile.CountedKinds`: stacked banners of one message. The search counts the lines per sample (`CountLines`); every increase that holds for a second sample is a new occurrence, single unreadable samples are bridged, and lines already visible at the buffer start continue the oldest known lines.
+
 ## Recovery contract
 
 - A message can synchronize tracking in the middle of a run. This remains a partial observation and cannot become a best time or train timeout averages.

@@ -1,0 +1,236 @@
+@inherits TrackerComponentBase
+@inject IJSRuntime JS
+@using BdoGrindTracker.App.Overlay
+@using BdoGrindTracker.App.UI
+
+@{ Refresh(); }
+<details class="panel session-timeline" @attributes="Expanded">
+    <summary @onclick="ToggleOpen"><span class="session-timeline-title"><AppIcon Name="trend" /><strong>@T("Session-Timeline")</strong></span><small>@F("{0} · {1} Drops", Presentation.Duration(State.Elapsed), Number(Drops.Count))</small></summary>
+    @if (_open)
+    {
+        <div class="session-timeline-body">
+            <div class="session-timeline-layers" role="group" aria-label="@T("Ebenen")">
+                @foreach (var layer in SessionTimelineLayers.All)
+                {
+                    <label class="session-timeline-layer @(IsOn(layer.Id) ? "is-on" : null)" style="--layer-color:@layer.Color">
+                        <input type="checkbox" checked="@IsOn(layer.Id)" @onchange="e => Toggle(layer.Id, e.Value is true)" />
+                        <span>@T(layer.Label)</span>
+                    </label>
+                }
+                <span class="session-timeline-divider"></span>
+                <button type="button" class="text-button" @onclick="() => _lootList = !_lootList"
+                        disabled="@(LootItems.Count == 0)" aria-expanded="@_lootList">
+                    <AppIcon Name="loot" />@T("Loot Selector")@(_chosen.Length > 0 ? $" · {_chosen.Length}" : "")
+                </button>
+                <button type="button" class="text-button" @onclick="() => _rotationList = !_rotationList"
+                        disabled="@(_spans.Count == 0)" aria-expanded="@_rotationList">
+                    <AppIcon Name="history" />@T("Show specific rotation")
+                </button>
+                @if (_zoom > 1 || _selected is not null)
+                {
+                    <button type="button" class="text-button session-timeline-reset" @onclick="ResetView"><AppIcon Name="close" />@T("Ganze Session")</button>
+                }
+            </div>
+            @if (_lootList)
+            {
+                <ul class="session-timeline-loot-list">
+                    @foreach (var item in LootItems)
+                    {
+                        <li>
+                            <label class="session-timeline-layer @(_items.Contains(item) ? "is-on" : null)" style="--layer-color:@ItemColor(item)">
+                                <input type="checkbox" checked="@_items.Contains(item)" @onchange="e => ToggleItem(item, e.Value is true)" />
+                                <span>@ItemLabel(item)</span>
+                                <small>@Number(State.Loot.Totals[item])</small>
+                            </label>
+                        </li>
+                    }
+                </ul>
+            }
+            @if (_rotationList)
+            {
+                <ul class="session-timeline-rotation-list">
+                    @foreach (var span in _spans.OrderBy(span => span.IsComplete ? 0 : 1).ThenBy(span => span.Duration))
+                    {
+                        <li>
+                            <button type="button" class="@(_selected == span.Number ? "is-selected" : null) @(span.IsFailed ? "is-failed" : null)" @onclick="() => Focus(span)">
+                                <span>@F("Rotation {0}", span.Number)</span>
+                                <strong>@RotationPhases.Duration(span.Duration)</strong>
+                                <small>@Presentation.Duration(span.Start)@(span.IsComplete ? "" : " · " + T(span.IsActive ? "läuft" : span.IsFailed ? "fehlgeschlagen" : "unvollständig"))@(span.SpecialEvents.Count > 0 ? $" · {span.SpecialEvents.Count} Special" : "")</small>
+                            </button>
+                        </li>
+                    }
+                </ul>
+            }
+            <div class="session-timeline-track" @ref="_track" @onwheel="Wheel"
+                 @onpointerdown="PointerDown" @onpointermove="PointerMove" @onpointerup="PointerUp" @onpointerleave="PointerUp">
+                <svg viewBox="0 0 1000 240" preserveAspectRatio="none" role="img" aria-label="@T("Zeitstrahl der Session")">
+                    @foreach (var tick in Ticks)
+                    {
+                        <line x1="@Num(X(tick))" x2="@Num(X(tick))" y1="16" y2="@Num(Baseline)" class="session-timeline-grid" />
+                        <g>
+                            <text x="@Num(X(tick) > 920 ? X(tick) - 4 : X(tick) + 4)" y="12" text-anchor="@(X(tick) > 920 ? "end" : "start")"
+                                  class="session-timeline-tick">@Presentation.Duration(tick)</text>
+                        </g>
+                    }
+                    @if (_series.Count > 0)
+                    {
+                        <line x1="0" x2="1000" y1="@Num(PlotTop)" y2="@Num(PlotTop)" class="session-timeline-scale" />
+                    }
+                    @for (var index = 0; index < _series.Count; index++)
+                    {
+                        var series = _series[index];
+                        var column = index;
+                        <g class="session-timeline-bars" style="--layer-color:@series.Color">
+                            @foreach (var bar in series.Bars.Where(bar => bar.Value > 0))
+                            {
+                                var width = (bar.End - bar.Start) * 1000 / _series.Count;
+                                var height = bar.Filled * PlotHeight;
+                                <rect x="@Num(bar.Start * 1000 + column * width)" y="@Num(Baseline - height)"
+                                      width="@Num(Math.Max(.8, width))" height="@Num(Math.Max(1, height))">
+                                    <title>@BarTitle(series, bar)</title>
+                                </rect>
+                            }
+                        </g>
+                    }
+                    @if (_silver is { } silver)
+                    {
+                        <polygon points="@SilverArea" class="session-timeline-silver-area" />
+                        <g class="session-timeline-silver">
+                            <title>@(silver.Label + " · " + T("Höhen abgeflacht"))</title>
+                            <polyline points="@SilverCurve" />
+                        </g>
+                    }
+                    <line x1="0" x2="1000" y1="@Num(Baseline)" y2="@Num(Baseline)" class="session-timeline-axis" />
+                    @foreach (var at in SpecialEvents)
+                    {
+                        <g class="session-timeline-special">
+                            <title>@(T("Special Event") + " · " + Presentation.Duration(at))</title>
+                            <polygon points="@($"{Num(X(at))},{Num(Baseline - 6)} {Num(X(at) + 3.5)},{Num(Baseline)} {Num(X(at))},{Num(Baseline + 6)} {Num(X(at) - 3.5)},{Num(Baseline)}")" />
+                        </g>
+                    }
+                    @foreach (var rotation in _rotations)
+                    {
+                        var span = rotation.Span;
+                        <g class="session-timeline-rotation @(_selected == span.Number ? "is-selected" : null) @(span.IsActive ? "is-active" : span.IsFailed ? "is-failed" : span.IsComplete ? "is-complete" : "is-partial") @(span.IsFastest ? "is-fastest" : null)">
+                            <title>@(F("Rotation {0}", span.Number) + " · " + RotationPhases.Duration(span.Duration) + " · " + T(span.IsActive ? "läuft" : span.IsFailed ? "fehlgeschlagen" : span.IsComplete ? "vollständig" : "unvollständig") + (span.IsFastest ? " · " + T("schnellste") : ""))</title>
+                            <rect class="session-timeline-rotation-backdrop" x="@Num(rotation.Left + 1.5)" y="@Num(BandTop)"
+                                  width="@Num(Math.Max(1, rotation.Width - 3))" height="@Num(BandBottom - BandTop)" rx="3" />
+                            @foreach (var group in rotation.Phases.GroupBy(phase => phase.Group))
+                            {
+                                var first = group.First();
+                                var last = group.Last();
+                                var left = PhaseX(span, first.Start) + 1;
+                                var width = Math.Max(1, PhaseWidth(span, first.Start, last.End) - 2);
+                                <rect x="@Num(left)" y="@Num(BandTop)" width="@Num(width)" height="@Num(BandBottom - BandTop)"
+                                      fill="@first.GroupColor" fill-opacity=".12" />
+                                <rect x="@Num(left)" y="@Num(BandTop)" width="@Num(width)" height="@Num(GroupBar)" rx="1" fill="@first.GroupColor" />
+                                @if (group.Count() > 1 && width >= 42 && PhaseX(span, last.End) <= 1000)
+                                {
+                                    <g class="session-timeline-group-duration">
+                                        <title>@(T(GroupLabel(first)) + " · " + RotationPhases.Duration(last.End - first.Start))</title>
+                                        <text x="@Num(Math.Min(994, PhaseX(span, last.End) - 2))" y="@Num(BandTop - 4)" text-anchor="end" fill="@first.GroupColor">@RotationPhases.Duration(last.End - first.Start)</text>
+                                    </g>
+                                }
+                            }
+                            @foreach (var phase in rotation.Phases)
+                            {
+                                var width = PhaseWidth(span, phase.Start, phase.End);
+                                <g class="session-timeline-phase">
+                                    <title>@((phase.Special ? T("Special Event") + " · " : "") + T(phase.Name) + " · " + RotationTimelinePresentation.Time(phase.Start) + "–" + RotationTimelinePresentation.Time(phase.End))</title>
+                                    <rect x="@Num(PhaseX(span, phase.Start))" y="@Num(PhaseTop)" width="@Num(Math.Max(.6, width - 1))"
+                                          height="@Num(PhaseHeight)" rx="2" fill="@phase.Color" fill-opacity=".9" />
+                                    @if (phase.Special)
+                                    {
+                                        <rect class="session-timeline-phase-special" x="@Num(PhaseX(span, phase.Start) + 1)" y="@Num(PhaseTop + 1)"
+                                              width="@Num(Math.Max(.6, width - 3))" height="@Num(PhaseHeight - 2)" rx="2" />
+                                    }
+                                    @if (ShowsPhaseTime(span, width))
+                                    {
+                                        <g><text x="@Num(PhaseX(span, (phase.Start + phase.End) / 2))" y="@Num(PhaseTop + 17)" text-anchor="middle">@RotationPhases.Duration(phase.End - phase.Start)</text></g>
+                                    }
+                                </g>
+                            }
+                            @foreach (var mark in (span.Events ?? []).Where(e => e.Seconds <= span.Duration && RotationTimelinePresentation.IsMarker(e)))
+                            {
+                                <g class="session-timeline-phase-marker">
+                                    <title>@(T(mark.Label) + " · " + RotationTimelinePresentation.Time(mark.Seconds))</title>
+                                    <line x1="@Num(PhaseX(span, mark.Seconds))" x2="@Num(PhaseX(span, mark.Seconds))"
+                                          y1="@Num(PhaseTop + 1)" y2="@Num(PhaseTop + 7)"
+                                          stroke="@RotationPhases.MarkerStroke(State.SpotId, mark, "colored", false)" />
+                                </g>
+                            }
+                            <rect class="session-timeline-rotation-rail" x="@Num(rotation.Left + 1.5)" y="@Num(RailTop)"
+                                  width="@Num(Math.Max(1, rotation.Width - 3))" height="4" rx="1" />
+                            <rect class="session-timeline-rotation-frame" x="@Num(rotation.Left + 1.5)" y="@Num(BandTop)"
+                                  width="@Num(Math.Max(1, rotation.Width - 3))" height="@Num(BandBottom - BandTop)" rx="3" />
+                        </g>
+                    }
+                    @foreach (var marker in _markers)
+                    {
+                        <line class="session-timeline-marker-stem" x1="@Num(Math.Clamp(X(marker.At), 8, 992))" x2="@Num(Math.Clamp(X(marker.At), 8, 992))"
+                              y1="@Num(marker.Icon + 10)" y2="@Num(Baseline)" stroke="@marker.Color" />
+                    }
+                    <g class="session-timeline-now">
+                        <line x1="@Num(Math.Min(X(State.Elapsed), 998))" x2="@Num(Math.Min(X(State.Elapsed), 998))" y1="16" y2="@Num(BandBottom)" />
+                        <path d="@($"M {Num(Math.Min(X(State.Elapsed), 998) - 4)} 16 H {Num(Math.Min(X(State.Elapsed), 998) + 4)} L {Num(Math.Min(X(State.Elapsed), 998))} 23 Z")" />
+                    </g>
+                </svg>
+                @if (ScaleCaption is { } caption)
+                {
+                    <div class="session-timeline-scale-caption" style="top:@Percent(PlotTop - 2)%">@caption</div>
+                }
+                @foreach (var label in BarLabels)
+                {
+                    <div class="session-timeline-bar-label @(label.Inside ? "is-inside" : null)" title="@label.Title"
+                         style="left:@Num(label.Left)%;top:@Num(label.Top)%;@(label.Inside ? "" : $"color:{label.Color}")">@label.Text</div>
+                }
+                @foreach (var marker in _markers)
+                {
+                    <div class="session-timeline-drop @(marker.Count > 1 ? "is-stacked" : null)" title="@marker.Title"
+                         style="left:clamp(13px, @Num(Math.Clamp(X(marker.At), 0, 1000) / 10)%, calc(100% - 13px));top:@Percent(marker.Icon)%;--layer-color:@marker.Color">
+                        <AssetImage Src="@Presentation.ItemIcon(marker.Item)" Alt="@ItemLabel(marker.Item)" Class="session-timeline-drop-icon" />
+                        @if (marker.Count > 1)
+                        {
+                            <span class="session-timeline-drop-count">@Number(marker.Count)</span>
+                        }
+                    </div>
+                }
+                @foreach (var rotation in _rotations)
+                {
+                    var pixels = rotation.Width / 1000 * _trackWidth;
+                    @if (pixels >= 40)
+                    {
+                        <div class="session-timeline-rotation-label @(rotation.Span.IsFailed ? "is-failed" : null) @(rotation.Span.IsFastest ? "is-fastest" : null)"
+                             style="left:@Num((rotation.Left + 1.5) / 10)%;top:@Percent(222)%">
+                            @if (rotation.Span.IsFastest) { <span class="session-timeline-rotation-dot"></span> }
+                            <span>@F("Rotation {0}", rotation.Span.Number)</span>
+                            @if (pixels >= 200) { <small>@Presentation.Duration(rotation.Span.Start)</small> }
+                        </div>
+                        @if (pixels >= 110)
+                        {
+                            <strong class="session-timeline-rotation-total"
+                                    style="left:@Num((rotation.Left + rotation.Width - 1.5) / 10)%;top:@Percent(222)%">@RotationPhases.Duration(rotation.Span.Duration)</strong>
+                        }
+                    }
+                }
+            </div>
+            <dl class="session-timeline-summary">
+                <div><dt>@T("Session-Länge")</dt><dd>@Presentation.Duration(State.Elapsed)</dd></div>
+                <div><dt>@T("Ø Rotation")</dt><dd>@(Average is { } average ? Presentation.Duration(TimeSpan.FromSeconds(average)) : "—")</dd></div>
+                @if (RotationCount >= 2)
+                {
+                    <div><dt>@T("Schnellste Rotation")</dt><dd>@(Fastest is { } fastest ? Presentation.Duration(TimeSpan.FromSeconds(fastest)) : "—")</dd></div>
+                }
+                else
+                {
+                    <div><dt>@T("Rotationen")</dt><dd>@Number(_spans.Count)</dd></div>
+                }
+                @if (_zoom > 1 || _selected is not null)
+                {
+                    <div><dt>@T("Ausschnitt")</dt><dd>@(Presentation.Duration(_from) + " – " + Presentation.Duration(_to))</dd></div>
+                }
+            </dl>
+            <p class="session-timeline-help">@T("Shift + Mausrad zoomt, Ziehen verschiebt den Ausschnitt.")</p>
+        </div>
+    }
+</details>

@@ -8,6 +8,29 @@ Drop-Ankünften vorläufig: Nach einer vollen Minute ohne neuen Drop wird sie
 verworfen, und die Automatik wartet wieder auf einen Grind. Jeder neue Drop setzt
 diese Minute zurück. Wiederholte OCR-Lesungen, mehrere Items derselben Ankunft
 und Mengenkorrekturen zählen nicht als getrennte Drops.
+Eindeutige Rotationsmeldungen verkürzen das: Zeigt der Spot im Wartezustand seine
+unverwechselbare Startmeldung (Aphrodon `A golden fragrance rides the wind.`,
+Magaia `The sinners are summoned.`), merkt sich die Automatik die Meldung für drei
+Minuten. Der nächste erkannte Trashloot startet die Session dann sofort als bestätigt,
+ohne die fünf Drops abzuwarten, und die gemerkte Meldung ist damit verbraucht. Die
+Meldung allein startet nie eine Session: Man kann an einem Spot vorbeilaufen und sie
+auslösen; erst der Trashloot belegt, dass wirklich gegrindet wird. Der Wartezustand
+liest dafür alle drei Sekunden denselben Meldungsausschnitt wie der Rotation Monitor,
+jeden Ausschnitt nur einmal für alle Spots, die ihn teilen.
+
+Unverwechselbar ist eine Startmeldung nur, wenn die Rotation sie nicht selbst als
+Schritt oder Hintergrundmeldung benutzt. Hermesias Opfergabe eröffnet zwar die
+Rotation, erscheint darin aber rund zwanzigmal und sagt deshalb nichts über den
+Rotationsbeginn; Event Horizon startet ohne Meldung. Beide Spots melden hier nichts.
+
+Die so erkannte Meldung wird beim Sessionstart an den Rotation Monitor übergeben:
+Die erste Rotation wird ab ihrem Banner gemessen, nicht erst ab dem Trashloot, der
+die Session bestätigt hat. Der Spot ist zu diesem Zeitpunkt meist noch unbekannt,
+deshalb übernimmt sie das vorläufige Profil des gemeldeten Spots. Dasselbe Profil
+übernimmt der erkannte Spot später unverändert: Solange ein Frame den Spot noch nicht
+kennt, folgt der Rotation Monitor der Erkennung dieses Frames statt einem noch leeren
+Sessionspot — ein Rückfall auf „unbekannt" würde die laufende Rotation verwerfen.
+
 Ab der fünften Ankunft wird die Session gespeichert und verwendet die normale
 Auto-Pause-Einstellung. Vorher werden weder Verlauf noch Wiederherstellungspunkt
 gespeichert oder Garmoth-Uploads erlaubt. Manuell gestartete und bereits bestehende

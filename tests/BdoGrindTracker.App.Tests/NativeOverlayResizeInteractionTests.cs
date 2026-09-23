@@ -18,10 +18,12 @@ public sealed class NativeOverlayResizeInteractionTests
             Mouse(form, "OnMouseDown", new(358, 258));
             Mouse(form, "OnMouseMove", new(478, 198));
 
-            Assert.Equal(new Size(480, 200), form.Size);
+            // The drag zooms: the canvas keeps its size, the window follows its aspect ratio.
+            Assert.Equal(new Size(396, 286), form.Size);
             var preview = Assert.IsType<OverlaySettings>(form.ResizePreview);
-            Assert.Equal(480, preview.Width);
-            Assert.Equal(200, preview.Height);
+            Assert.Equal(360, preview.Width);
+            Assert.Equal(260, preview.Height);
+            Assert.Equal(1.1, preview.Scale, 8);
             var originalModules = new OverlaySettings().Widgets;
             Assert.Equal(originalModules.Select(widget => (widget.Kind, widget.X, widget.Y, widget.Width, widget.Height)),
                 preview.Widgets.Select(widget => (widget.Kind, widget.X, widget.Y, widget.Width, widget.Height)));
@@ -33,7 +35,7 @@ public sealed class NativeOverlayResizeInteractionTests
             Assert.Empty(commits);
             // Regular host refreshes must not restore the persisted old size.
             form.Present(new Rectangle(form.Location, new Size(360, 260)));
-            Assert.Equal(new Size(480, 200), form.Size);
+            Assert.Equal(new Size(396, 286), form.Size);
             Mouse(form, "OnMouseUp", new(478, 198));
 
             var committed = Assert.Single(commits);
@@ -57,7 +59,7 @@ public sealed class NativeOverlayResizeInteractionTests
             Assert.NotNull(form.ResizePreview);
             Mouse(form, "OnMouseMove", new(458, 258));
             Mouse(form, "OnMouseUp", new(458, 258));
-            Assert.Equal(new Size(460, 260), form.Size);
+            Assert.Equal(new Size(418, 302), form.Size);
             Assert.Empty(actions);
         });
     }

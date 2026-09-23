@@ -14,8 +14,39 @@ internal sealed record RotationDefinition(string SpotId, RotationStep[] Steps, s
     string[]? SetupMessages = null, string[]? SetupCountMessages = null,
     string[]? AmbientMessages = null, string? AmbientAfter = null, int FailureSetupDelta = 0,
     string? StartupCounterMessage = null, int StartupCounterTarget = 0, string StartupCounterLabel = "",
-    int SetupTarget = 3)
+    int SetupTarget = 3, string[]? SpecialMessages = null, string[]? SpecialStartMessages = null,
+    bool CompareBySpecialCount = false, bool AfkEndStartsRun = false)
 {
+    /// <summary>
+    /// Special events that occur in almost every rotation: rotations are compared only with those that had the same
+    /// number of them (else the nearest higher, else the nearest lower number), and none is left out as special.
+    /// </summary>
+    internal bool MarksSpecialRotations => HasSpecialEvents && !CompareBySpecialCount;
+
+    /// <summary>
+    /// Special events are mechanics a full rotation does not need. They appear at random, either in addition to the
+    /// regular mechanics (Event Horizon's debris mini AFK) or in place of one (Aphrodon's Agris wave). All their
+    /// messages are special; each start message counts one occurrence.
+    /// </summary>
+    internal bool IsSpecial(string kind) => SpecialMessages?.Contains(kind) == true;
+    internal bool HasSpecialEvents => SpecialStartMessages is { Length: > 0 };
+    internal int SpecialEventCount(IEnumerable<RotationEvent> events) =>
+        SpecialStartMessages is { Length: > 0 } starts ? events.Count(e => starts.Contains(e.Kind)) : 0;
+    /// <summary>When each special event occurred, in seconds from the rotation's start.</summary>
+    internal IReadOnlyList<double> SpecialEventSeconds(IEnumerable<RotationEvent> events) =>
+        SpecialStartMessages is { Length: > 0 } starts ? [.. events.Where(e => starts.Contains(e.Kind)).Select(e => e.Seconds)] : [];
+
+    /// <summary>
+    /// Messages that can mean nothing but the start of a fresh rotation, watched for before a session begins. A
+    /// message the rotation itself uses as a step or as an ambient banner (Hermesia's offering appears about twenty
+    /// times per rotation) says nothing about where a rotation began and never qualifies.
+    /// </summary>
+    internal string[] UnmistakableStartMessages => [.. StartMessages.Where(kind =>
+        !Steps.Any(step => step.Matches(kind)) && AmbientMessages?.Contains(kind) != true)];
+    /// <summary>A step shared by a regular and a replacing special message keeps separate section references for both.</summary>
+    internal string SectionId(RotationStep step, string kind) =>
+        IsSpecial(kind) && step.Messages.Any(message => !IsSpecial(message)) ? step.Id + "-special" : step.Id;
+
     internal static readonly RotationDefinition EventHorizon = new(LootSpotCatalog.EventHorizonId,
         [.. Enumerable.Range(1, 3).SelectMany(i => (RotationStep[]) [
             new($"wormhole-{i}-waves", ["anomaly"]),
@@ -25,13 +56,15 @@ internal sealed record RotationDefinition(string SpotId, RotationStep[] Steps, s
             new($"wormhole-{i}-distortion", ["distortion"], true, true, $"wormhole-{i}-debris"),
             new($"wormhole-{i}-resumed", ["spacetime"], true, false, $"wormhole-{i}-debris", true),
             .. (i < 3 ? new RotationStep[] { new($"wormhole-{i + 1}-approach", ["expansion"]) } : []) ]),
-            new("boss", ["boss"]), new("afk", ["boss-kill"], Afk: true)], [], ["end"], []);
+            new("boss", ["boss"]), new("afk", ["boss-kill"], Afk: true)], [], ["end"], [],
+        SpecialMessages: ["debris", "distortion", "spacetime"], SpecialStartMessages: ["debris"]);
 
     internal static readonly RotationDefinition Aphrodon = new(LootSpotCatalog.AphrodonId,
         [.. Enumerable.Range(1, 9).SelectMany(i => (RotationStep[]) [
             new($"wave-{i}", ["hog", "agris"]), new($"scarecrow-{i}", ["big-scarecrow"], true) ]),
             new("afk", ["afk"], Afk: true)], ["restart"], ["end"], ["failure"],
-        SetupMessages: ["setup"], SetupCountMessages: ["small-scarecrow"], FailureSetupDelta: -1);
+        SetupMessages: ["setup"], SetupCountMessages: ["small-scarecrow"], FailureSetupDelta: -1,
+        SpecialMessages: ["agris"], SpecialStartMessages: ["agris"]);
 
     internal static readonly RotationDefinition Hermesia = new(LootSpotCatalog.HermesiaId,
         [.. Enumerable.Range(1, 5).SelectMany(i => (RotationStep[]) [
@@ -44,7 +77,32 @@ internal sealed record RotationDefinition(string SpotId, RotationStep[] Steps, s
         AmbientMessages: ["offer", "porter"], AmbientAfter: "drakania", StartupCounterMessage: "offer", StartupCounterTarget: 5,
         StartupCounterLabel: "Opfergaben");
 
-    internal static RotationDefinition For(string spotId) => spotId switch {
+    // One Magaia rotation is three cycles whose final mechanics always follow each other: Elion's Tears, Unbroken Oath,
+    // Priest of the End. "The sinners are summoned" starts it at the brazier. After each cycle's AFK phase "The history
+    // of sin begins to repeat itself once more" starts the next cycle; after the third it ends the rotation and starts
+    // the next one. Elion's Tears ("Sacred power …") is required: it anchors the first cycle, so tracking that began
+    // in another cycle realigns there. Aetos' fragments are special events of almost every cycle. Death or leaving
+    // ("… begins to fade") and the return ("The voice of the speaker …") are only marked. The third knight of a cycle
+    // does not have to fall before its final phase begins.
+    internal const int MagaiaCycles = 3;
+    internal static readonly RotationDefinition Magaia = new(LootSpotCatalog.MagaiaId,
+        [.. Enumerable.Range(1, MagaiaCycles).SelectMany(c => (RotationStep[]) [
+            new($"cycle-{c}-prayer", ["prayer"]),
+            new($"cycle-{c}-knight-1", ["knight"]), new($"cycle-{c}-knight-2", ["knight"]),
+            // The final phase can begin before the third knight falls.
+            new($"cycle-{c}-knight-3", ["knight"], Optional: true),
+            new($"cycle-{c}-doubt", ["doubt"]),
+            .. (c == 1 ? new RotationStep[] { new("cycle-1-tears", ["sacred"]) } : []),
+            new($"cycle-{c}-afk", ["afk"], Afk: true),
+            .. (c < MagaiaCycles ? new RotationStep[] { new($"cycle-{c + 1}", ["end"]) } : []) ])],
+        // Magaia always starts with a banner, never with loot: a rotation that began with the first trash loot
+        // would measure from that kill instead of the brazier and could never be a fair best time.
+        ["start"], ["end"], ["failure"], LootStart: false, AmbientMessages: ["fragment", "away", "back"],
+        SpecialMessages: ["fragment"], SpecialStartMessages: ["fragment"], CompareBySpecialCount: true, AfkEndStartsRun: true);
+
+    internal static RotationDefinition? Find(string? spotId) => spotId switch {
         LootSpotCatalog.HermesiaId => Hermesia, LootSpotCatalog.AphrodonId => Aphrodon,
-        LootSpotCatalog.EventHorizonId => EventHorizon, _ => throw new ArgumentException("Unknown rotation spot", nameof(spotId)) };
+        LootSpotCatalog.EventHorizonId => EventHorizon, LootSpotCatalog.MagaiaId => Magaia, _ => null };
+
+    internal static RotationDefinition For(string spotId) => Find(spotId) ?? throw new ArgumentException("Unknown rotation spot", nameof(spotId));
 }

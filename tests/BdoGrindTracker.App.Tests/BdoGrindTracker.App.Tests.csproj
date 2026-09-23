@@ -26,6 +26,8 @@
              CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\fixtures\rotation\*.json" Link="fixtures\rotation\%(Filename)%(Extension)"
              CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\fixtures\rotation\*.tsv.gz" Link="fixtures\rotation\%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\fixtures\garmoth\*.json" Link="fixtures\garmoth\%(Filename)%(Extension)"
              CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\fixtures\lifetime\*.txt" Link="fixtures\lifetime\%(Filename)%(Extension)"

@@ -68,6 +68,10 @@ deren Farben und Dekoration vom Hauptfenster unabhängig.
 der Rendercache berücksichtigt Theme-Wechsel auch bei pausierten oder leeren
 Overlays. Der Windows-Renderer und die Browser-Widgets teilen Layoutdaten und
 eine abgestimmte Farbpalette, verwenden aber weiterhin verschiedene Zeichensysteme.
+Die **Session-Timeline** malt ausschließlich aus eigenen Tokens (`--timeline-*` auf
+`.session-timeline`); ein Theme definiert nur diese Tokens neu. Ohne Theme bleiben die
+Grindcrest-Farben unverändert. Die Farben der Phasen und Zyklen kommen wie im Rotation Monitor
+aus der Mechanik-Palette und folgen dem Theme nicht.
 `OverlayWindowChrome` teilt die Rahmengeometrie zwischen Editor, Browser und Windows.
 `NativeOverlayPalette` enthält die mit CSS abgestimmten Farben der drei neuen
 Themes. EXP-Verluste in Liveansicht und Verlauf behalten unabhängig vom Theme ihre rote Bedeutungsfarbe;

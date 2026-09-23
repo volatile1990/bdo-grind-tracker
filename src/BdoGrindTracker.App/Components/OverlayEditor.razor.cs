@@ -30,15 +30,20 @@ public partial class OverlayEditor
     });
     private static IReadOnlyList<OverlayWidgetDefinition> Modules => OverlayCatalog.Widgets;
     private OverlayWidget? SelectedWidget => _settings.Widgets.FirstOrDefault(w => w.Id == _selectedId);
-    private OverlaySnapshot PreviewSnapshot => _demo ? OverlayMetrics.DemoFor(UiLanguage) with { ThemeId = Overlay.Snapshot.ThemeId, UiLanguage = UiLanguage,
-        Rotation = Overlay.Snapshot.Rotation.SpotId switch
-        {
-            BdoGrindTracker.Core.LootSpotCatalog.AphrodonId =>
-                AphrodonRotationDemo.At((350 + _rotationDemoClock.Elapsed.TotalSeconds) % AphrodonRotationDemo.Reference.Duration),
-            BdoGrindTracker.Core.LootSpotCatalog.EventHorizonId =>
-                EventHorizonRotationDemo.At((350 + _rotationDemoClock.Elapsed.TotalSeconds) % EventHorizonRotationDemo.Reference.Duration),
-            _ => HermesiaRotationDemo.At((350 + _rotationDemoClock.Elapsed.TotalSeconds) % HermesiaRotationDemo.Reference.Duration),
-        } } : Overlay.Snapshot;
+    /// <summary>The example session, also used for the hovered module's preview while the canvas shows live data.</summary>
+    private OverlaySnapshot DemoSnapshot => OverlayMetrics.DemoFor(UiLanguage) with { ThemeId = Overlay.Snapshot.ThemeId, UiLanguage = UiLanguage,
+        Rotation = RotationDemos.At(Overlay.Snapshot.Rotation.SpotId, 350 + _rotationDemoClock.Elapsed.TotalSeconds) };
+    private OverlaySnapshot PreviewSnapshot => _demo ? DemoSnapshot : Overlay.Snapshot;
+    private string? _previewModule;
+    // The library is narrow; the card keeps the module's aspect ratio and scales it down to fit beside the list.
+    private const double ModulePreviewWidth = 340;
+    private static double ModulePreviewScale(OverlayWidgetDefinition module) => Math.Min(1, ModulePreviewWidth / module.Width);
+    private string ModulePreviewStyle(OverlayWidgetDefinition module) =>
+        $"width:{Css(module.Width * ModulePreviewScale(module))}px;height:{Css(module.Height * ModulePreviewScale(module))}px";
+    private string ModulePreviewSize(OverlayWidgetDefinition module) =>
+        $"width:{Css(module.Width)}px;height:{Css(module.Height)}px;transform:scale({Css(ModulePreviewScale(module))})";
+    private void ShowModulePreview(string kind) { _previewModule = kind; StateHasChanged(); }
+    private void HideModulePreview() { _previewModule = null; StateHasChanged(); }
     private OverlayWindowChrome Chrome => OverlayWindowChrome.For(PreviewSnapshot.ThemeId, _settings.ShowBorder);
     private string StageStyle => $"width:{Css(Chrome.OuterWidth(_settings.Width))}px;height:{Css(Chrome.OuterHeight(_settings.Height))}px;--overlay-opacity:{Css(_settings.BackgroundOpacity)};background:rgba(var(--overlay-surface-rgb,17,23,30),{Css(_settings.BackgroundOpacity)})";
     private string ContentStyle => $"inset:{Css(Chrome.Top)}px {Css(Chrome.Right)}px {Css(Chrome.Bottom)}px {Css(Chrome.Left)}px";

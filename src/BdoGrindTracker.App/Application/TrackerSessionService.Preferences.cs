@@ -146,6 +146,7 @@ internal sealed partial class TrackerSessionService
         _settings.BuffRecognitionProfilePath = null;
         _settings.AutoPauseMinutes = Preferences.AutoPauseMinutes;
         _settings.AutoStartGrinding = Preferences.AutoStartGrinding;
+        _settings.RotationIncludeSpecialEvents = Preferences.IncludeSpecialEventRotations;
         _settings.GameLanguage = Preferences.GameLanguage;
         _settings.FavoriteItems = Preferences.FavoriteItems.ToArray();
         _settings.LootColumnOrders = Preferences.LootColumnOrders.ToDictionary(pair => pair.Key, pair => pair.Value.ToArray());
@@ -194,6 +195,7 @@ internal sealed partial class TrackerSessionService
             BuffRecognitionProfilePath = null,
             AutoPauseMinutes = recovered.AutoPauseMinutes,
             AutoStartGrinding = recovered.AutoStartGrinding,
+            IncludeSpecialEventRotations = recovered.RotationIncludeSpecialEvents,
             FavoriteItems = recovered.FavoriteItems ?? [],
             LootColumnOrders = recovered.LootColumnOrders ?? new(),
             CharacterClassId = _hasSession ? Preferences.CharacterClassId

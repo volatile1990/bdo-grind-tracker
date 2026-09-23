@@ -8,6 +8,8 @@ internal interface IRotationProfileMonitor : IDisposable
 {
     void Observe(Bitmap frame, DateTimeOffset at);
     void Interrupt(string status);
+    /// <summary>A message recognized outside this monitor's own capture, replayed at the time it appeared.</summary>
+    void ObserveMessage(string kind, string label, DateTimeOffset at) { }
     RotationMonitorSnapshot Snapshot(DateTimeOffset now);
     (DateTimeOffset StartedAt, RotationRun Run)[] DrainCompleted() => [];
     Task FlushAsync(CancellationToken cancellationToken) => Task.CompletedTask;
@@ -27,6 +29,8 @@ internal static partial class RotationProfiles
             [LootSpotCatalog.HermesiaId] = () => CreateShared(LootSpotCatalog.HermesiaId, RotationMessageProfile.Hermesia),
             [LootSpotCatalog.AphrodonId] = () => new BufferedRotationProfileMonitor(
                 new RotationPlatform(RotationDefinition.Aphrodon, RotationPlatform.DefaultPath(LootSpotCatalog.AphrodonId)), RotationMessageProfile.Aphrodon),
+            [LootSpotCatalog.MagaiaId] = () => new BufferedRotationProfileMonitor(
+                new RotationPlatform(RotationDefinition.Magaia, RotationPlatform.DefaultPath(LootSpotCatalog.MagaiaId)), RotationMessageProfile.Magaia),
             [LootSpotCatalog.EventHorizonId] = () => new BufferedRotationProfileMonitor(
                 new RotationPlatform(RotationDefinition.EventHorizon, RotationPlatform.DefaultPath(LootSpotCatalog.EventHorizonId)), RotationMessageProfile.EventHorizon),
         };
@@ -36,6 +40,19 @@ internal static partial class RotationProfiles
 
     internal static IRotationProfileMonitor? Create(string? spotId) =>
         spotId is not null && Factories.TryGetValue(spotId, out var create) ? create() : null;
+
+    private static readonly IReadOnlyDictionary<string, RotationMessageProfile> Recognition =
+        new Dictionary<string, RotationMessageProfile>(StringComparer.Ordinal)
+        {
+            [LootSpotCatalog.HermesiaId] = RotationMessageProfile.Hermesia,
+            [LootSpotCatalog.AphrodonId] = RotationMessageProfile.Aphrodon,
+            [LootSpotCatalog.EventHorizonId] = RotationMessageProfile.EventHorizon,
+            [LootSpotCatalog.MagaiaId] = RotationMessageProfile.Magaia,
+        };
+
+    /// <summary>The spot's message recognition, also used while watching for a rotation start before a session.</summary>
+    internal static RotationMessageProfile? Messages(string? spotId) =>
+        spotId is not null && Recognition.TryGetValue(spotId, out var profile) ? profile : null;
 }
 
 /// <summary>Follows the tracker's selected/detected spot without leaking a previous spot's run.</summary>
@@ -121,7 +138,9 @@ internal sealed class RotationMonitor : IDisposable
     internal RotationMonitor(Func<string?, IRotationProfileMonitor?>? create = null) => _create = create ?? RotationProfiles.Create;
     private void Select(string? spotId)
     {
-        if (_disposed || _spotId == spotId) return;
+        // A caller that does not know the spot yet says nothing about the one already detected: only a different
+        // spot is a spot change. Falling back to unknown would throw away the running rotation.
+        if (_disposed || _spotId == spotId || spotId is null && _spotId is not null) return;
         _profile?.Interrupt("Spotwechsel");
         CollectCompleted();
         _profile?.Dispose();
@@ -149,8 +168,30 @@ internal sealed class RotationMonitor : IDisposable
         {
             if (_disposed) return;
             Select(spotId);
-            if (spotId is not null) { _profile?.Observe(frame, at); return; }
+            if (_spotId is not null) { _profile?.Observe(frame, at); return; }
             foreach (var candidate in Candidates(at)) candidate.Observe(frame, at);
+        }
+    }
+
+    /// <summary>
+    /// A rotation start the automatic grind detection recognized before this session existed. The spot is usually
+    /// still unknown at that moment, so the sighting goes to its provisional profile and the first rotation is
+    /// measured from its banner instead of from the first drop that started the session.
+    /// </summary>
+    internal void ObserveRotationStart(RotationStartSighting sighting)
+    {
+        lock (_sync)
+        {
+            if (_disposed || _spotId is not null && _spotId != sighting.SpotId) return;
+            var profile = _profile;
+            if (_spotId != sighting.SpotId)
+            {
+                foreach (var _ in Candidates(sighting.At)) { } // Every provisional profile exists after this.
+                profile = _candidates.GetValueOrDefault(sighting.SpotId);
+            }
+            profile?.ObserveMessage(sighting.Kind, sighting.Label, sighting.At);
+            _diagnostics?.Note(sighting.SpotId, sighting.At, "auto-start",
+                "Rotationsstart vor dem Sessionstart erkannt · " + sighting.Label);
         }
     }
 
@@ -162,7 +203,7 @@ internal sealed class RotationMonitor : IDisposable
             if (_disposed) return;
             Select(spotId);
             // The first loot usually arrives before the spot is known; every provisional profile sees it.
-            if (spotId is not null) _profile?.ObserveLoot(at);
+            if (_spotId is not null) _profile?.ObserveLoot(at);
             else foreach (var candidate in Candidates(at)) candidate.ObserveLoot(at);
         }
     }
@@ -204,7 +245,8 @@ internal sealed class RotationMonitor : IDisposable
         foreach (var candidate in _candidates.Values) candidate?.Dispose();
         _candidates.Clear();
     }
-    internal RotationMonitorSnapshot Snapshot(DateTimeOffset now, string? spotId)
+    /// <param name="includeSpecialEvents">False compares only with rotations that had no special event.</param>
+    internal RotationMonitorSnapshot Snapshot(DateTimeOffset now, string? spotId, bool includeSpecialEvents = true)
     {
         lock (_sync)
         {
@@ -213,15 +255,43 @@ internal sealed class RotationMonitor : IDisposable
             var snapshot = _profile?.Snapshot(now);
             var presented = RotationProfiles.Present(spotId, snapshot is null ? null : snapshot with { SpotId = spotId });
             CollectCompleted();
-            var rotations = _sessionRotations.Where(rotation => rotation.SpotId == spotId && rotation.Run.EligibleForStatistics).OrderBy(rotation => rotation.StartedAt).ToArray();
+            var definition = RotationDefinition.Find(spotId);
+            // Failed attempts and the running rotation belong on the session timeline as well; only complete ones
+            // become statistics.
+            var active = _spotId == spotId && _profile?.ActiveRun() is { } run && run.Run.Duration > 0
+                ? new SessionRotation(spotId!, run.StartedAt, run.Run) : null;
+            var rotations = _sessionRotations.Where(rotation => rotation.SpotId == spotId &&
+                rotation.Run.Outcome != "superseded" && rotation.Run.Duration > 0 && rotation.Run.Id != active?.Run.Id)
+                .Append(active).OfType<SessionRotation>()
+                .OrderBy(rotation => rotation.StartedAt).ToArray();
             // The running rotation's start also ends the walk back after the latest completed one.
             DateTimeOffset? running = presented.Synchronized ? now.AddSeconds(-presented.Elapsed) : null;
+            if (!includeSpecialEvents && presented.WithoutSpecialEvents is { } regular)
+                presented = presented with { Best = regular.Best, Ideal = regular.Ideal, SectorBests = regular.SectorBests,
+                    Completed = regular.Completed, ExcludesSpecialEvents = true };
             return presented with
             {
                 SessionRotations = rotations.Select((rotation, index) => new SessionRotationTiming(rotation.Run.Duration,
-                    WalkBack(rotation, index + 1 < rotations.Length ? rotations[index + 1].StartedAt : running))).ToArray(),
+                    rotation.Run.EligibleForStatistics ? WalkBack(rotation, rotations.Skip(index + 1)
+                        .FirstOrDefault(next => next.Run.EligibleForStatistics)?.StartedAt ?? running) : null,
+                    definition is { MarksSpecialRotations: true } && definition.SpecialEventCount(rotation.Run.Events) > 0,
+                    rotation.StartedAt, definition?.SpecialEventSeconds(rotation.Run.Events) ?? [],
+                    rotation.Run.Id, Outcome: rotation.Run.Outcome, Events: rotation.Run.Events)).ToArray(),
+                SessionSpecialEvents = SessionSpecialEvents(spotId),
             };
         }
+    }
+
+    // Every special event observed at this spot counts, whether its rotation completed, aborted or is still running.
+    // A session that moved between spots keeps each spot's count with that spot.
+    private int SessionSpecialEvents(string? spotId)
+    {
+        if (RotationDefinition.Find(spotId) is not { } definition) return 0;
+        var active = _spotId == spotId && _profile?.ActiveRun() is { } run ? new SessionRotation(spotId!, run.StartedAt, run.Run) : null;
+        return _sessionRotations.Where(rotation => rotation.SpotId == spotId &&
+                rotation.Run.Outcome != "superseded" && rotation.Run.Id != active?.Run.Id)
+            .Append(active).OfType<SessionRotation>()
+            .Sum(rotation => definition.SpecialEventCount(rotation.Run.Events));
     }
 
     // Longer gaps are breaks, failed attempts or interruptions rather than the way back to the start.

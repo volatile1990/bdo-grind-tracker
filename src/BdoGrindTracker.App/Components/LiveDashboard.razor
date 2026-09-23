@@ -60,6 +60,7 @@
             <article class="metric-card"><div class="metric-label"><span>@T("SILBER / STUNDE")</span><AppIcon Name="trend" /></div><strong class="metric-value">@SessionMetrics.SilverPerHour@if (SessionMetrics.PartialSilverHourly) { <span class="estimate-mark"> *</span> }</strong><span class="metric-note">@T("Ø aktive Grindzeit")</span></article>
         </div>
         <ConsumablesReadout Value="State.Buffs" />
+        <SessionTimeline />
     </section>
 
     @if (State.IsDemo)
@@ -127,6 +128,16 @@
                     <div><dt>Loot-Scroll</dt><dd class="@(SessionMetrics.LootScrollWarning ? "gold" : null)">@SessionMetrics.LootScroll</dd></div>
                     <div><dt>Agris</dt><dd class="agris-live-value"><span>@SessionMetrics.Agris</span>@if (SessionMetrics.AgrisTime.HasObservation) { <small title="@SessionMetrics.AgrisTime.Description" aria-label="@SessionMetrics.AgrisTime.Description">@F("{0} aktiv", SessionMetrics.AgrisTime.Duration)</small> }</dd></div>
                     <div><dt>@T("Erfahrung")</dt><dd class="experience-live-value @(SessionMetrics.Experience.IsLoss ? "is-loss" : "")" title="@SessionMetrics.Experience.Description"><span class="experience-gain">@SessionMetrics.Experience.Gain</span>@if (SessionMetrics.Experience.HasObservation) { <small class="experience-hourly">@SessionMetrics.Experience.Hourly / h</small> }</dd></div>
+                    @if (State.Rotation.HasProfile)
+                    {
+                        <div><dt>@T("Rotationen")</dt><dd class="rotation-live-value"><span>@Number(RotationCount)</span>@if (RotationAverage is { } average) { <small>@F("Ø {0}", BdoGrindTracker.App.Overlay.RotationPhases.Duration(average))</small> }</dd></div>
+                        <div><dt>@T("Schnellste Rotation")</dt><dd>@(RotationFastest is { } fastest ? BdoGrindTracker.App.Overlay.RotationPhases.Duration(fastest) : "—")</dd></div>
+                        <div><dt>Rotations / h</dt><dd title="@T("Beim aktuellen Tempo: 60 Minuten geteilt durch die durchschnittliche Zeit der letzten bis zu drei Rotationen, jeweils mit Rückweg.")">@(RotationsPerHour is { } perHour ? perHour.ToString("0.0", UiCulture) : "—")</dd></div>
+                        @if (State.Rotation.SupportsSpecialEvents)
+                        {
+                            <div><dt>Special Events</dt><dd class="rotation-live-value"><span>@Number(State.Rotation.SessionSpecialEvents)</span>@if (SpecialEventsPerHour is { } specialRate) { <small>@F("{0} / h", specialRate.ToString("0.0", UiCulture))</small> }</dd></div>
+                        }
+                    }
                     <div><dt>@T("Automatische Pause")</dt><dd>@F("{0} Min.", Tracker.Preferences.AutoPauseMinutes)</dd></div>
                 </dl>
                 <div class="subtle-box"><AppIcon Name="shield" /><span>@T("Die automatische Pause greift, wenn kein neuer Loot erkannt wird.")</span></div>
@@ -154,6 +165,12 @@
     private CombatStatsState? FreshCombatStats => CombatStatsSpotRules.ForSpot(State.CombatStats, State.SpotId);
     private CombatStatsState? DisplayCombatStats => FreshCombatStats ?? CombatStatsSpotRules.ForSpot(State.SessionCombatStats, State.SpotId);
     private Task AutoStartChanged(bool enabled) => SavePreferenceChange(p => p with { AutoStartGrinding = enabled });
+
+    private int RotationCount => SessionRotationStats.Count(State.Rotation);
+    private double? RotationAverage => SessionRotationStats.Average(State.Rotation);
+    private double? RotationFastest => SessionRotationStats.Fastest(State.Rotation);
+    private double? RotationsPerHour => SessionRotationStats.PerHour(State.Rotation, Tracker.Preferences.IncludeSpecialEventRotations);
+    private double? SpecialEventsPerHour => SessionRotationStats.PerHour(State.Rotation.SessionSpecialEvents, State.Elapsed);
     private void OpenSettings() => Navigation.NavigateTo("/settings");
     private bool _recheckingOcrLanguage;
     private bool OcrActionDisabled => Acting || State.IsBusy || State.IsRunning || State.IsInstallingOcrLanguage || State.IsOcrInstallerRunning;

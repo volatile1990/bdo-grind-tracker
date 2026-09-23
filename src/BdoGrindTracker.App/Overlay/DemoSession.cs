@@ -169,4 +169,11 @@ internal static class DemoSession
         // Longer gaps were breaks in the session, not the way back.
         return new SessionRotationTiming(rotation.Run.Duration, gap <= 120 ? Math.Max(0, gap) : null);
     }).ToArray();
+
+    /// <summary>The same rotations on a session timeline that ends at <paramref name="observedAt"/>.</summary>
+    internal static IReadOnlyList<SessionRotationTiming> CompletedAt(DateTimeOffset observedAt, int count) =>
+        CompletedBefore(count).Select((timing, index) => timing with
+        {
+            StartedAt = observedAt - Elapsed + TimeSpan.FromSeconds(Rotations[index].StartedAt),
+        }).ToArray();
 }

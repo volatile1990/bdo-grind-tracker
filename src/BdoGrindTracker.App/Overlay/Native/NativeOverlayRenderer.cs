@@ -661,6 +661,13 @@ internal sealed class NativeOverlayRenderer : IDisposable
             var width = Math.Max(0, X(group.Last().End)-X(group.First().Start)-2);
             graphics.FillRectangle(background, X(group.First().Start), graph.Top+2, width, graph.Height-2);
             graphics.FillRectangle(accent, X(group.First().Start), graph.Top+2, width, 2);
+            // Short phases have no room for their own duration; the group keeps a readable total.
+            var headroom = graph.Height * .25f - bandHeight / 2 - 4;
+            if (group.Count() > 1 && width >= 40 && headroom >= 8)
+                Draw(graphics, RotationPhases.Duration(group.Last().End-group.First().Start),
+                    new RectangleF(X(group.First().Start), graph.Top+4, width-2, headroom),
+                    Math.Clamp(headroom*.8f, 9, 14), ColorTranslator.FromHtml(group.First().GroupColor), false,
+                    StringAlignment.Far, StringAlignment.Center);
         }
         for (var row = 0; row < 2; row++)
         {
@@ -678,16 +685,20 @@ internal sealed class NativeOverlayRenderer : IDisposable
                 var width = Math.Max(0, X(phase.End)-X(phase.Start)-2);
                 var bounds = new RectangleF(X(phase.Start), y-bandHeight/2, width, bandHeight);
                 graphics.FillRectangle(fill, bounds);
+                if (phase.Special && width >= 2)
+                {
+                    using var special = new Pen(ColorTranslator.FromHtml(RotationPhases.SpecialColor), 1.5f) { DashPattern = [3, 2] };
+                    graphics.DrawRectangle(special, bounds.X, bounds.Y, bounds.Width, bounds.Height);
+                }
                 if (width >= 28 && bandHeight >= 12)
                     Draw(graphics, RotationPhases.Duration(phase.End-phase.Start), bounds,
                         Math.Clamp(bandHeight*.45f, 11, 18), Color.White, false, StringAlignment.Center, StringAlignment.Center,
                         darkOutline: _light);
             }
-            using var pen = new Pen(ColorTranslator.FromHtml(RotationPhases.MarkerColor(widget.RotationColors, row == 1)), 2);
-            using var failurePen = new Pen(ColorTranslator.FromHtml("#E87C79"), 2);
             foreach (var e in events.Where(e => e.Seconds <= end && RotationTimelinePresentation.IsMarker(e)))
             {
-                graphics.DrawLine(e.Kind == "failure" ? failurePen : pen, X(e.Seconds), y-bandHeight/2-4, X(e.Seconds), y-bandHeight/2+3);
+                using var pen = new Pen(ColorTranslator.FromHtml(RotationPhases.MarkerStroke(rotation.SpotId, e, widget.RotationColors, row == 1)), 2);
+                graphics.DrawLine(pen, X(e.Seconds), y-bandHeight/2-4, X(e.Seconds), y-bandHeight/2+3);
 
             }
         }
@@ -807,7 +818,7 @@ internal sealed class NativeOverlayRenderer : IDisposable
         graphics.TranslateTransform(bounds.X, bounds.Y);
         graphics.ScaleTransform(bounds.Width / 16, bounds.Height / 16);
         using var pen = new Pen(Gold, 1.3f) { StartCap = LineCap.Round, EndCap = LineCap.Round, LineJoin = LineJoin.Round };
-        if (kind is "silver-hour" or "trash-hour" or "chart" or "grind-rating" or "experience" or "rotations-hour")
+        if (kind is "silver-hour" or "trash-hour" or "chart" or "grind-rating" or "experience" or "rotations-hour" or "special-events-hour")
         {
             graphics.DrawLines(pen, [new PointF(1, 12), new(6, 7), new(9, 9), new(14, 3)]);
             graphics.DrawLines(pen, [new PointF(10, 3), new(14, 3), new(14, 7)]);
@@ -824,6 +835,9 @@ internal sealed class NativeOverlayRenderer : IDisposable
             graphics.DrawLines(pen, [new PointF(4, 7), new(8, 15), new(12, 7)]);
             graphics.DrawEllipse(pen, 7, 4, 2, 2);
         }
+        else if (kind == "special-events")
+            graphics.DrawPolygon(pen, [new PointF(8, 1), new(10, 6), new(15, 6), new(11, 9.5f), new(12.5f, 15), new(8, 11.5f),
+                new(3.5f, 15), new(5, 9.5f), new(1, 6), new(6, 6)]);
         else if (kind == "status")
             graphics.DrawLines(pen, [new PointF(1, 8), new(4, 8), new(6, 2), new(9, 14), new(11, 8), new(15, 8)]);
         else

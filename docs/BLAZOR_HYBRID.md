@@ -34,6 +34,50 @@ Die Loot-Tabelle unterstützt Suche, Sortierung und Gesamt-/Stundenwerte. Fehlen
 werden als fehlend oder Teilbetrag kenntlich gemacht. Start/Pause und neue Session
 greifen auf dieselbe Sitzungssteuerung zu wie die automatische Pause.
 
+Die **Session-Details** nennen an Spots mit Rotationsprofil zusätzlich die Zahl der
+abgeschlossenen Rotationen mit ihrer Durchschnittsdauer, die schnellste Rotation und
+Rotations / h. Kennt der Spot Special Events, kommt deren Zahl mit Rate pro Stunde dazu.
+
+Unter den verbrauchten Items liegt die ausklappbare **Session-Timeline**: waagerecht die
+aktive Grindzeit der ganzen Session, senkrecht der jeweils getrackte Wert. Jede Wertreihe
+wird auf ihren eigenen Höchstwert im sichtbaren Ausschnitt normiert, weil die Ebenen zwar
+die Fläche teilen, nicht aber ihre Einheiten.
+
+- **Rotationen** liegen als Band unter der Zeitachse, gezeichnet wie im Rotation Monitor:
+  Gruppenbalken mit Zyklus- bzw. Abschnittszeit, darunter die Phasen mit ihren Farben und
+  Dauern, gestrichelte Umrandung für Phasen eines Special Events und kurze Marker-Striche
+  darüber. Vollständige, fehlgeschlagene, unvollständige und die gerade laufende Rotation
+  sind eigens gekennzeichnet, die schnellste zusätzlich.
+- **Seltene Drops & Favoriten** erscheinen wie im Silberverlauf-Widget als Item-Icon im
+  Kästchen mit Stiel bis zur Zeitachse. Sie setzen sich über den höchsten Punkt aller
+  eingeblendeten Werte, etwa über den Trashloot-Balken dieses Moments.
+- **Silber je Abschnitt** zeigt als Kurve, wie viel Silber die Drops jedes Zeitabschnitts wert
+  sind, bewertet wie der Sessionwert. Die Abschnitte sind dieselben wie bei den Balken. Die
+  Höhen sind abgeflacht (Anteil am Höchstwert hoch 0,4), sonst drückt ein einzelner wertvoller
+  Drop die ganze übrige Kurve auf die Achse. Ein Logarithmus wäre zu grob: Er hebt ein
+  Tausendstel des Höchstwerts auf zwei Drittel der Höhe und ebnet damit den ganzen normalen
+  Bereich zu einer Linie ein.
+- **Special Events** stehen als Raute auf der Zeitachse, an dem Zeitpunkt, an dem sie
+  auftraten.
+- **Trashloot** zeigt als Balken, wie viel Trash zu welchem Zeitpunkt erkannt wurde. Über
+  jedem Balken steht seine Menge; oben links nennt der Maßstab, wofür die volle Höhe jeder
+  Ebene steht. Die Intervalle liegen auf
+  festen Schritten (1 s bis 1 h) ab Sessionbeginn, damit die Balken einer laufenden Session
+  nicht mit jedem Tick in ein anderes Intervall rutschen und dabei wachsen und schrumpfen.
+- Der **Loot Selector** listet alle gedroppten Items mit Checkbox; jedes ausgewählte Item
+  erscheint wie seltene Drops mit seinem Symbol auf dem Zeitstrahl, umrandet in seiner Farbe.
+  Symbole, die einander überdecken würden, werden zu einem zusammengefasst und tragen die
+  Zahl der Drops.
+
+Shift + Mausrad zoomt, Ziehen verschiebt den Ausschnitt um genau den Anteil des Zeitstrahls,
+den der Zeiger überstrichen hat. Nur mit Shift wird das Mausrad abgefangen
+(`wwwroot/session-timeline.js`), sonst scrollt die Seite weiter. Zugeklappt wird der
+Zeitstrahl gar nicht erst gezeichnet. Alle Koordinaten werden invariant geschrieben: ein
+Dezimalkomma würde jeden Pfad zerstören. **Show specific rotation** klappt die Rotationen
+aus, vollständige zuerst und von der schnellsten zur langsamsten sortiert; eine Auswahl
+zoomt auf diese Rotation und hebt sie hervor. Unter dem Zeitstrahl stehen Session-Länge,
+durchschnittliche Rotationsdauer, schnellste Rotation und der sichtbare Ausschnitt.
+
 Ein fehlender oder ungültiger Haupt-Droplog blockiert die Erfassung und erscheint
 als roter Fehler in der Live-Ansicht.
 

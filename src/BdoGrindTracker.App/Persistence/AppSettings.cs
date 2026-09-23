@@ -35,6 +35,8 @@ internal sealed class AppSettings
 
     public bool AutoStartGrinding { get; set; }
 
+    public bool RotationIncludeSpecialEvents { get; set; } = true;
+
     public bool GarmothAutoUploadEnabled { get; set; }
 
     public string MarketRegion { get; set; } = LootPriceCatalog.DefaultRegion;

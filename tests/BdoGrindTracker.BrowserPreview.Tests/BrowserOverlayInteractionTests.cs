@@ -67,8 +67,9 @@ public sealed class BrowserOverlayInteractionTests
             var component = activator.Components.OfType<BrowserOverlayPreview>().Single();
             var widget = activator.Components.OfType<OverlayWidgetPreview>().Single();
             Assert.Contains("Rotationsbeispiel", WebUtility.HtmlDecode(rendered.ToHtmlString()));
-            Assert.Contains("data-phase=\"drakania\"", rendered.ToHtmlString());
-            Assert.Equal(LootSpotCatalog.HermesiaId, widget.Snapshot.Rotation.SpotId);
+            // The example follows the session's spot, like the editor preview.
+            Assert.Contains("data-phase=\"cycle-1-", rendered.ToHtmlString());
+            Assert.Equal(LootSpotCatalog.MagaiaId, widget.Snapshot.Rotation.SpotId);
             Assert.Equal(350, widget.Snapshot.Rotation.Elapsed);
             Assert.Equal(AppThemes.Cats, widget.Snapshot.ThemeId);
 
@@ -83,7 +84,7 @@ public sealed class BrowserOverlayInteractionTests
             await overlay.SetPreviewAsync(false);
             Assert.Same(overlay.Snapshot, widget.Snapshot);
             Assert.True(widget.Snapshot.Rotation.HasProfile);
-            Assert.Equal(LootSpotCatalog.AphrodonId, widget.Snapshot.Rotation.SpotId);
+            Assert.Equal(LootSpotCatalog.MagaiaId, widget.Snapshot.Rotation.SpotId);
             Assert.Empty(widget.Snapshot.Rotation.Events);
             Assert.DoesNotContain("rotation-playhead\"", rendered.ToHtmlString());
 
