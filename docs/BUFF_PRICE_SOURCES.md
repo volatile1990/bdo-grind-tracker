@@ -87,11 +87,14 @@ ihre unbekannten Preise werden nicht nachträglich durch eine geratene Variante 
 Diese 19 Varianten verwenden **NPC-Kaufpreise**, auch wenn ein zugehöriger
 Effekt eine Item-ID besitzt. Sie werden nicht beim Zentralmarkt angefragt.
 Direktbuff und Schriftrolle werden bei gleichem Effekt und gleicher Laufzeit
-nicht als zwei Käufe gezählt. Adventure's Boon, Body Enhancement und Turning Gates
-werden anhand der bei einer neuen Anwendung gelesenen Restzeit einer Laufzeitvariante
-zugeordnet und mit deren NPC-Preis gebucht. Unterschiedliche Dauern bleiben getrennte
-Verbrauchsidentitäten. Grobe Stundenanzeigen werden als Zeitintervall berücksichtigt;
-passen mehrere Kaufdauern hinein, bleibt die Variante ohne Preis unbekannt.
+nicht als zwei Käufe gezählt. Adventure's Boon und Body Enhancement werden
+automatisch unabhängig von der Restzeit ausschließlich als 300-Minuten-Variante
+gezählt: mit 12.000.000 beziehungsweise 10.000.000 Silber je neuer Anwendung.
+Turning Gates wird anhand der bei einer neuen Anwendung gelesenen Restzeit einer
+Laufzeitvariante zugeordnet und mit deren NPC-Preis gebucht. Grobe Stundenanzeigen
+werden dabei als Zeitintervall berücksichtigt; passen mehrere Kaufdauern hinein,
+bleibt die Variante ohne Preis unbekannt. Die kürzeren Varianten von Adventure's
+Boon und Body Enhancement bleiben als Preisreferenz in der Tabelle erhalten.
 Anfangs aktive Buffs erzeugen keine Verbrauchsbuchung. Historische Buchungen
 werden nicht nachträglich neu bewertet. Manuelle Profile sind in der automatischen
 Erkennung nicht aktiv.
@@ -145,8 +148,9 @@ Standard- und Immortal-Versionen bleiben separate Preisidentitäten. Harmony
 besitzt unterscheidbare normale und unsterbliche Symbole. Einige Parfümvarianten
 verwenden dagegen denselben Client-Symbolpfad und bleiben automatisch als
 unbekannte Gruppe ohne Preis erfasst, weil auch die Dauer gleich ist. Dasselbe
-gilt für die Glücksstufen. Bei Adventure's Boon und den Villa-Buffs wird die
-Laufzeit zur Unterscheidung herangezogen. In einem alten Profil wurde pro
+gilt für die Glücksstufen. Bei Turning Gates wird die Laufzeit zur Unterscheidung
+herangezogen; Adventure's Boon und Body Enhancement werden immer der
+300-Minuten-Variante zugeordnet. In einem alten Profil wurde pro
 Erkennungsfamilie eine konkrete Variante ausgewählt; ein Profil darf
 nicht gleichzeitig mehrere mutmaßlich gleiche Effekte auf unterschiedliche
 Preise abbilden. Dasselbe gilt für die Laufzeitvarianten eines Zeltbuffs.

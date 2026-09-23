@@ -22,10 +22,11 @@ public sealed class AutomaticBuffCatalogTests
     }
 
     [Theory]
-    [InlineData("tent-body-enhancement", 5)]
-    [InlineData("tent-turning-gates", 5)]
-    [InlineData("tent-adventures-boon", 3)]
-    public void DurationFamiliesExposeEveryPurchaseDurationForRecognition(string family, int count)
+    [InlineData("tent-body-enhancement", 5, true)]
+    [InlineData("tent-turning-gates", 5, false)]
+    [InlineData("tent-adventures-boon", 3, true)]
+    public void DurationFamiliesRetainHistoricalVariantsAndPreferFiveHoursOnlyForBoonAndBody(
+        string family, int count, bool preferMaximumDuration)
     {
         var catalog = AutomaticBuffCatalog.Default;
         var template = Assert.Single(catalog.Templates, item => item.GroupId == family);
@@ -33,6 +34,7 @@ public sealed class AutomaticBuffCatalogTests
 
         Assert.Equal(count, definition.DurationVariantIds.Count);
         Assert.Equal(template.CandidateBuffIds.Order(), definition.DurationVariantIds.Order());
+        Assert.Equal(preferMaximumDuration, definition.PreferMaximumDurationVariant);
         Assert.Null(definition.FixedUnitPrice);
     }
 

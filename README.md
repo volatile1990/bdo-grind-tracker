@@ -51,13 +51,16 @@ und keine vorherige Screenshot-Kalibrierung nötig. Die **37 mitgelieferten
 Client-Symbolvorlagen** decken alle 58 Einträge der Kostenliste ab: Cron-Mahlzeiten,
 Harmony, Parfüme, kostenpflichtige Zeltbuffs und Mystic-Beasts-Schriftrollen.
 Die drei Cron-Mahlzeiten, zehn Harmony-Varianten und sechs Mystic-Beasts-Effekte
-haben jeweils eigene Symbole. Bei Zeltbuffs wird die kleinste angebotene Kaufdauer
-angenommen, die mindestens der zuerst gelesenen Restzeit entspricht: 280 Minuten
-werden etwa der 300-Minuten-Variante zugeordnet, 160 Minuten der 180-Minuten-Variante.
-Grobe Stundenanzeigen berücksichtigen ihr Zeitintervall; passen mehrere
-Laufzeitvarianten hinein, bleibt die Zuordnung unbekannt.
-Beim durchgängigen Countdown bleibt diese Annahme bis zur bestätigten Erneuerung
-bestehen. Identische Symbole mit gleicher Laufzeit, etwa bei einigen normalen und
+haben jeweils eigene Symbole. **Adventure's Boon und Body Enhancement werden
+unabhängig von der Restzeit ausschließlich als 300-Minuten-Variante erkannt und
+zum entsprechenden NPC-Preis gezählt.** Das Unterschreiten kürzerer Kaufdauern
+erzeugt dadurch keine andere Variante oder zusätzliche Buchung.
+Bei Turning Gates wird die kleinste angebotene Kaufdauer angenommen, die die
+zuerst gelesene Restzeit abdeckt: etwa 280 Minuten zu 300 Minuten und 160 Minuten
+zu 180 Minuten. Grobe Stundenanzeigen berücksichtigen ihr Zeitintervall; passen
+mehrere Laufzeitvarianten hinein, bleibt die Zuordnung unbekannt. Beim durchgängigen
+Countdown bleibt diese Annahme bis zur bestätigten Erneuerung bestehen.
+Identische Symbole mit gleicher Laufzeit, etwa bei einigen normalen und
 unsterblichen Parfümen oder Glücksstufen, bleiben ohne eindeutige Zuordnung unbekannt.
 Unter **Verbrauchte Items** im Kopf der Live-Session stehen kompakte Bufficons mit
 der gezählten Menge in der Ecke und den Gesamtkosten daneben. Beim Überfahren
@@ -84,7 +87,7 @@ vorherige lesbare Prüfung ihre Abwesenheit zeigte und der erste Timer nahe der
 vollen erkannten Laufzeit liegt. Spät lesbare Teil-Timer sowie erstmals nach
 Pause oder Erkennungslücke erkannte Buffs bleiben ungezählte Ausgangszustände.
 Ein höherer erneut gelesener Timer zählt sofort als neue Anwendung. Die zugehörige
-Laufzeitvariante wird dabei erneut bestimmt und in Live-Session, Verlauf und
+Laufzeitvariante folgt der obigen Zuordnung und wird in Live-Session, Verlauf und
 Overlay getrennt gezählt. Nicht über Symbol oder Dauer zuordenbare Varianten
 bleiben als unbekannte Gruppe ohne Preis sichtbar. Gespeicherte Buchungen und
 Preise, einschließlich historischer Erstanrechnungen, bleiben unverändert.

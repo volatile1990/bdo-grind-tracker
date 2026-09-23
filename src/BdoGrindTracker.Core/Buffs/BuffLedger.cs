@@ -369,7 +369,14 @@ public sealed class BuffLedger
 
         var minimumDuration = observation.Remaining;
         BuffDefinition? selected = null;
-        if (observation.TimerPrecision >= TimeSpan.FromHours(1))
+        if (family.PreferMaximumDurationVariant)
+        {
+            // Keep one purchase identity across every countdown bucket, including
+            // coarse hour labels and baselines re-established after a reading gap.
+            selected = candidates.Where(candidate => candidate.Duration >= minimumDuration)
+                .MaxBy(candidate => candidate.Duration);
+        }
+        else if (observation.TimerPrecision >= TimeSpan.FromHours(1))
         {
             // Whole-hour labels are floored: a newly applied three-hour buff
             // already reads "2h". Only a unique duration in that interval is identifiable.

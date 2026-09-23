@@ -43,15 +43,19 @@ public sealed partial class TrackerSessionServiceTests
     }
 
     [Theory]
-    [InlineData(59, "tent-body-enhancement-60", 1_000_000)]
-    [InlineData(89, "tent-body-enhancement-90", 1_500_000)]
-    [InlineData(119, "tent-body-enhancement-120", 2_250_000)]
-    [InlineData(280, "tent-body-enhancement-300", 10_000_000)]
-    [InlineData(160, "tent-body-enhancement-180", 4_500_000)]
-    public async Task AutomaticTentRefreshPublishesAndPersistsTheRecognizedDurationPrice(
-        int remainingMinutes, string expectedId, int price)
+    [InlineData("tent-body-enhancement", 59, 10_000_000)]
+    [InlineData("tent-body-enhancement", 89, 10_000_000)]
+    [InlineData("tent-body-enhancement", 119, 10_000_000)]
+    [InlineData("tent-body-enhancement", 280, 10_000_000)]
+    [InlineData("tent-body-enhancement", 160, 10_000_000)]
+    [InlineData("tent-adventures-boon", 59, 12_000_000)]
+    [InlineData("tent-adventures-boon", 119, 12_000_000)]
+    [InlineData("tent-adventures-boon", 280, 12_000_000)]
+    public async Task AutomaticBoonAndBodyRefreshPublishesAndPersistsOnlyTheFiveHourPrice(
+        string family, int remainingMinutes, int price)
     {
-        BuffFrameReading Reading(int minutes) => new([new("automatic-tent-body-enhancement",
+        var expectedId = family + "-300";
+        BuffFrameReading Reading(int minutes) => new([new("automatic-" + family,
             TimeSpan.FromMinutes(minutes), TimeSpan.FromMinutes(1))]);
         BuffFrameReading? reading = Reading(1);
         var monitor = new BuffMonitor(new SessionBuffReader(() => reading), TimeSpan.FromSeconds(1));

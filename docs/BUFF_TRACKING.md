@@ -31,20 +31,25 @@ Die drei Cron-Mahlzeiten, zehn Harmony-Varianten (fünf normale und fünf
 unsterbliche) und sechs Mystic-Beasts-Effekte besitzen jeweils eigene
 Client-Symbole. Einige normale
 und unsterbliche Parfüme, mehrere Zeltlaufzeiten und die Glücksstufen verwenden
-dagegen nachweislich denselben Client-Symbolpfad. Bei unterschiedlichen Laufzeiten
-wird jede neue Anwendung der **kleinsten angebotenen Dauer zugeordnet, die ihre
-gelesene Restzeit abdeckt**: etwa 280 Minuten zu 300 Minuten und 160 Minuten zu
-180 Minuten. Es gilt der hinterlegte NPC-Preis dieser Variante. Die Variante
-bleibt während eines durchgängigen Countdowns erhalten und wird bei einer neuen
-Anwendung erneut bestimmt. Eine pauschale Bewertung mit 300 Minuten entfällt.
-Grobe Stundenanzeigen werden als Intervall ausgewertet: `2h` kann beispielsweise
-einen gerade angewendeten 180-Minuten-Villabuff zeigen, `4h` die 300-Minuten-Variante.
-Passen mehrere Kaufdauern in dasselbe Intervall, bleibt die Variante unbekannt.
-Die Restzeit erlaubt nur eine Dauerannahme.
+dagegen nachweislich denselben Client-Symbolpfad. **Adventure's Boon und Body
+Enhancement werden unabhängig von ihrer Restzeit ausschließlich der
+300-Minuten-Variante zugeordnet und mit deren NPC-Preis bewertet.** Kürzere
+Laufzeitvarianten werden automatisch nicht separat erkannt oder gezählt.
+Damit führt das Unterschreiten ihrer Kaufdauern zu keinem Variantenwechsel.
+
+Bei Turning Gates wird jede neue Anwendung der **kleinsten angebotenen Dauer
+zugeordnet, die ihre gelesene Restzeit abdeckt**: etwa 280 Minuten zu 300 Minuten
+und 160 Minuten zu 180 Minuten. Es gilt der hinterlegte NPC-Preis dieser Variante.
+Die Variante bleibt während eines durchgängigen Countdowns erhalten und wird bei
+einer neuen Anwendung erneut bestimmt. Grobe Stundenanzeigen werden als Intervall
+ausgewertet: `2h` kann beispielsweise einen gerade angewendeten 180-Minuten-Buff
+zeigen, `4h` die 300-Minuten-Variante. Passen mehrere Kaufdauern in dasselbe
+Intervall, bleibt die Variante unbekannt. Diese Zuordnungen sind Annahmen zur
+Bewertung und kein Beleg für die tatsächlich gekaufte Dauer.
 
 Gleichbleibende oder sinkende Restzeiten erzeugen weiterhin keine weitere Buchung.
 Eine höhere gelesene Restzeit zählt auch nach einer Pause oder Erkennungslücke
-als neue Anwendung und erhält die zu ihrer Restzeit passende Laufzeitvariante.
+als neue Anwendung und erhält die oben beschriebene Laufzeitvariante.
 Sekunden-, Minuten- und Stundenangaben behalten ihre jeweilige Anzeigeauflösung.
 Ein Wechsel von einer groben Stundenanzeige zu einer genaueren Minutenanzeige
 innerhalb desselben verbleibenden Zeitintervalls zählt nicht als Erneuerung.
@@ -193,9 +198,9 @@ bestätigte Timer-Erneuerungen dieser Gruppe können sichtbar sein; ihre Preise
 und Kosten bleiben unbekannt. Das betrifft nachgewiesene gemeinsame Symbole
 normaler und unsterblicher Parfümvarianten mit gleicher Dauer sowie
 unterschiedlich teurer Glücksstufen. Fehlende Preise erscheinen nie als null
-Silber. Bei unterschiedlichen Zeltlaufzeiten erlaubt dagegen die oben erläuterte
-Dauerannahme eine getrennte Bewertung neuer Anwendungen; sie ist kein Beleg des
-ursprünglichen Kaufs.
+Silber. Turning Gates verwendet die oben erläuterte Dauerannahme; Adventure's
+Boon und Body Enhancement verwenden immer die 300-Minuten-Variante. Diese
+Bewertung ist kein Beleg des ursprünglichen Kaufs.
 
 Die Kosten verwenden den vollen Zentralmarktpreis der ausgewählten Marktregion,
 ohne Verkaufssteuerabzug. Zeltbuffs verwenden den festen NPC-Kaufpreis der

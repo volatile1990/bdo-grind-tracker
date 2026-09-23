@@ -80,26 +80,25 @@ price identity for that exact client texture path.
   graphics. Where a standard/Immortal pair shares the path, both remain price
   candidates. The engine must not infer the more expensive version from the icon.
 - **Tent buffs:** Body Enhancement, Turning Gates and Adventure's Boon preserve
-  their duration candidates in the source mapping. Automatic valuation assumes
-  the shortest offered duration greater than or equal to the first observed
-  remaining time. For Body Enhancement or Turning Gates, 280 minutes selects
-  the 300-minute variant and 160 selects the 180-minute variant. The existing
-  documented NPC price applies. The chosen duration remains fixed throughout
-  continuously observed countdowns until a confirmed refresh. A pause or missing
-  observation starts a new baseline and a new duration assumption; historical
-  bookings remain unchanged. A more precise timer exceeding the assumed purchase
-  duration also requires a new confirmed baseline, without an extra consumption.
-  This is a valuation assumption, not proof of the
-  original purchase duration. Adventurer's Luck levels share both their icon and
-  duration, so they remain an unknown, unpriced group. The same rule preserves
+  their duration candidates in the source mapping. Automatic recognition and
+  valuation always use the 300-minute variant for Body Enhancement and Adventure's
+  Boon, regardless of remaining time. Their NPC prices are 10,000,000 and
+  12,000,000 silver respectively. Falling below a shorter purchase duration does
+  not change their identity or add consumption. Turning Gates still assumes the
+  shortest offered duration covering the first observed remaining time: 280
+  minutes selects 300 minutes and 160 selects 180 minutes. Coarse hour displays
+  are treated as intervals; multiple candidate durations within one interval
+  remain ambiguous. A continuous countdown retains the chosen variant until a
+  refresh. Historical bookings remain unchanged. These are valuation assumptions,
+  not proof of the original purchase duration. Adventurer's Luck levels share both
+  their icon and duration, so they remain an unknown, unpriced group. The same rule preserves
   ambiguity for standard/Immortal perfume pairs with identical icons and durations.
 
-Session valuation counts a buff already present in a new grind's first readable
-scan once after a second consistent observation confirms it. This marked start
-booking uses the identified or assumed variant's price; it does not claim that
-a purchase was observed. Later confirmed refreshes add further bookings. Buffs
-first detected later, pauses, missing observations and timer-precision changes
-do not create another start booking. Restoring a saved session never inserts
+Buffs already active at the start of a grind establish an uncounted baseline.
+Later new appearances require a near-full timer and two consistent observations
+after readable absence; a genuinely higher timer counts as a renewal. Pauses,
+missing observations and timer-precision changes do not create starting costs.
+Restoring a saved session preserves historical bookings without inserting
 retroactive starting costs. These are accounting rules, not additional evidence
 about the source graphic or the player's inventory.
 

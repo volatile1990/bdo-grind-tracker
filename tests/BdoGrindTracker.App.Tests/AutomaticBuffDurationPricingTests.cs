@@ -8,21 +8,21 @@ public sealed class AutomaticBuffDurationPricingTests
 {
     [Theory]
     [InlineData("tent-body-enhancement", 280, 300, 10_000_000)]
-    [InlineData("tent-body-enhancement", 160, 180, 4_500_000)]
-    [InlineData("tent-body-enhancement", 120, 120, 2_250_000)]
-    [InlineData("tent-body-enhancement", 91, 120, 2_250_000)]
-    [InlineData("tent-body-enhancement", 90, 90, 1_500_000)]
-    [InlineData("tent-body-enhancement", 61, 90, 1_500_000)]
-    [InlineData("tent-body-enhancement", 60, 60, 1_000_000)]
+    [InlineData("tent-body-enhancement", 160, 300, 10_000_000)]
+    [InlineData("tent-body-enhancement", 120, 300, 10_000_000)]
+    [InlineData("tent-body-enhancement", 91, 300, 10_000_000)]
+    [InlineData("tent-body-enhancement", 90, 300, 10_000_000)]
+    [InlineData("tent-body-enhancement", 61, 300, 10_000_000)]
+    [InlineData("tent-body-enhancement", 60, 300, 10_000_000)]
     [InlineData("tent-turning-gates", 280, 300, 2_000_000)]
     [InlineData("tent-turning-gates", 160, 180, 900_000)]
     [InlineData("tent-turning-gates", 110, 120, 450_000)]
     [InlineData("tent-turning-gates", 80, 90, 300_000)]
     [InlineData("tent-turning-gates", 50, 60, 200_000)]
     [InlineData("tent-adventures-boon", 160, 300, 12_000_000)]
-    [InlineData("tent-adventures-boon", 110, 120, 3_500_000)]
-    [InlineData("tent-adventures-boon", 50, 60, 1_750_000)]
-    public void BoonAndVillaRenewalsSelectTheirObservedPurchaseDurationAndNpcPrice(
+    [InlineData("tent-adventures-boon", 110, 300, 12_000_000)]
+    [InlineData("tent-adventures-boon", 50, 300, 12_000_000)]
+    public void RenewalsUseFixedFiveHourBoonAndBodyVariantsWhileTurningGatesRetainsDurationPricing(
         string family, int remainingMinutes, int purchasedMinutes, int price)
     {
         var ledger = CreateLedger();
@@ -47,13 +47,16 @@ public sealed class AutomaticBuffDurationPricingTests
     }
 
     [Theory]
-    [InlineData("tent-body-enhancement", 2, 180, 4_500_000)]
+    [InlineData("tent-body-enhancement", 1, 300, 10_000_000)]
+    [InlineData("tent-body-enhancement", 2, 300, 10_000_000)]
     [InlineData("tent-body-enhancement", 4, 300, 10_000_000)]
+    [InlineData("tent-body-enhancement", 5, 300, 10_000_000)]
     [InlineData("tent-turning-gates", 2, 180, 900_000)]
     [InlineData("tent-turning-gates", 4, 300, 2_000_000)]
-    [InlineData("tent-adventures-boon", 1, 120, 3_500_000)]
+    [InlineData("tent-adventures-boon", 1, 300, 12_000_000)]
     [InlineData("tent-adventures-boon", 4, 300, 12_000_000)]
-    public void FlooredHourRenewalUsesTheUniqueDurationWithinItsDisplayedInterval(
+    [InlineData("tent-adventures-boon", 5, 300, 12_000_000)]
+    public void FlooredHourRenewalRespectsFixedFiveHourVariantsAndTurningGatesDurationPricing(
         string family, int remainingHours, int purchasedMinutes, int price)
     {
         var ledger = CreateLedger();
@@ -73,11 +76,9 @@ public sealed class AutomaticBuffDurationPricingTests
     }
 
     [Theory]
-    [InlineData("tent-body-enhancement", false)]
-    [InlineData("tent-body-enhancement", true)]
     [InlineData("tent-turning-gates", false)]
     [InlineData("tent-turning-gates", true)]
-    public void AmbiguousOneHourVillaApplicationCountsWithoutAnArbitraryDurationOrPrice(string family, bool renewal)
+    public void AmbiguousOneHourTurningGatesApplicationCountsWithoutAnArbitraryDurationOrPrice(string family, bool renewal)
     {
         var ledger = CreateLedger();
         var at = DateTimeOffset.Parse("2026-09-21T12:00:00Z");
@@ -98,10 +99,8 @@ public sealed class AutomaticBuffDurationPricingTests
     }
 
     [Theory]
-    [InlineData("tent-body-enhancement", 2_250_000, 10_000_000)]
     [InlineData("tent-turning-gates", 450_000, 2_000_000)]
-    [InlineData("tent-adventures-boon", 3_500_000, 12_000_000)]
-    public void InitialBuffIsExcludedAndRenewalDurationsHaveSeparateConsumptionTiles(
+    public void InitialTurningGatesBuffIsExcludedAndRenewalDurationsHaveSeparateConsumptionTiles(
         string family, int shortPrice, int longPrice)
     {
         var ledger = CreateLedger();
@@ -124,11 +123,85 @@ public sealed class AutomaticBuffDurationPricingTests
     }
 
     [Theory]
-    [InlineData("tent-body-enhancement", 2_250_000)]
-    [InlineData("tent-turning-gates", 450_000)]
-    [InlineData("tent-adventures-boon", 3_500_000)]
-    public void RestoringAShorterPurchaseKeepsItsRecordedCostAndPricesTheNextRenewalAtItsDetectedDuration(
-        string family, int renewalPrice)
+    [InlineData("tent-body-enhancement", 60, 1)]
+    [InlineData("tent-body-enhancement", 90, 1)]
+    [InlineData("tent-body-enhancement", 120, 1)]
+    [InlineData("tent-body-enhancement", 180, 1)]
+    [InlineData("tent-body-enhancement", 60, 60)]
+    [InlineData("tent-adventures-boon", 60, 1)]
+    [InlineData("tent-adventures-boon", 120, 1)]
+    [InlineData("tent-adventures-boon", 60, 60)]
+    public void FirstAppearanceAtAShorterDurationThresholdDoesNotInventAPurchase(
+        string family, int remainingMinutes, int precisionMinutes)
+    {
+        var ledger = CreateLedger();
+        var at = DateTimeOffset.Parse("2026-09-23T12:00:00Z");
+        BuffObservation[] readings = [new("automatic-" + family,
+            TimeSpan.FromMinutes(remainingMinutes), TimeSpan.FromMinutes(precisionMinutes))];
+        ledger.Apply([], at, Price);
+        ledger.Apply(readings, at.AddSeconds(10), Price);
+
+        var result = ledger.Apply(readings, at.AddSeconds(20), Price);
+
+        Assert.Empty(result.Consumptions);
+        var active = Assert.Single(result.Active);
+        Assert.Equal(family + "-300", active.BuffId);
+        Assert.True(active.IsBaseline);
+    }
+
+    [Theory]
+    [InlineData("tent-body-enhancement", 10_000_000)]
+    [InlineData("tent-adventures-boon", 12_000_000)]
+    public void CountdownAcrossEveryShorterThresholdKeepsOneFiveHourPurchaseUntilATrueRefresh(
+        string family, int price)
+    {
+        var ledger = CreateLedger();
+        var at = DateTimeOffset.Parse("2026-09-23T12:00:00Z");
+        BuffObservation[] Reading(int minutes, int precisionMinutes) => [new("automatic-" + family,
+            TimeSpan.FromMinutes(minutes), TimeSpan.FromMinutes(precisionMinutes))];
+        ledger.Apply([], at, Price);
+        ledger.Apply(Reading(240, 60), at.AddSeconds(10), Price);
+        var applied = ledger.Apply(Reading(240, 60), at.AddSeconds(20), Price);
+        Assert.Equal(family + "-300", Assert.Single(applied.Consumptions).BuffId);
+
+        foreach (var (elapsedMinutes, remainingMinutes, precisionMinutes) in new[]
+        {
+            (60, 180, 60), (120, 120, 60), (180, 60, 60),
+            (181, 119, 1), (209, 91, 1), (210, 90, 1), (211, 89, 1),
+            (239, 61, 1), (240, 60, 1), (241, 59, 1),
+        })
+        {
+            var observedAt = at.AddMinutes(elapsedMinutes);
+            var reading = Reading(remainingMinutes, precisionMinutes);
+            ledger.Apply(reading, observedAt, Price);
+            var countedDown = ledger.Apply(reading, observedAt.AddSeconds(10), Price);
+
+            Assert.Equal(applied.Consumptions, countedDown.Consumptions);
+            Assert.Equal(family + "-300", Assert.Single(countedDown.Active).BuffId);
+            Assert.Equal(price, countedDown.ConsumedCost);
+        }
+
+        ledger.Apply(Reading(240, 60), at.AddMinutes(242), Price);
+        var refreshed = ledger.Apply(Reading(240, 60), at.AddMinutes(242).AddSeconds(10), Price);
+
+        Assert.Equal(2, refreshed.Consumptions.Count);
+        Assert.All(refreshed.Consumptions, purchase =>
+        {
+            Assert.Equal(family + "-300", purchase.BuffId);
+            Assert.Equal(price, purchase.Cost);
+            Assert.False(purchase.IsSessionStart);
+        });
+        var tile = Assert.Single(BdoGrindTracker.App.Components.ConsumablesPresentation.Create(refreshed, "en").Items);
+        Assert.Equal(2, tile.Count);
+        Assert.Equal(price * 2m, tile.KnownCost);
+    }
+
+    [Theory]
+    [InlineData("tent-body-enhancement", 300, 10_000_000)]
+    [InlineData("tent-turning-gates", 120, 450_000)]
+    [InlineData("tent-adventures-boon", 300, 12_000_000)]
+    public void RestoringAShorterPurchaseKeepsItsRecordedCostAndUsesCurrentRecognitionForTheNextRenewal(
+        string family, int renewalMinutes, int renewalPrice)
     {
         var ledger = CreateLedger();
         var old = BuffPriceCatalog.HistoryDefinitions.Single(item => item.Id == family + "-60");
@@ -149,7 +222,7 @@ public sealed class AutomaticBuffDurationPricingTests
         var renewed = ledger.Apply(Reading(110), at.AddSeconds(20), Price);
         Assert.Equal(previous, renewed.Consumptions[0]);
         var purchase = Assert.Single(renewed.Consumptions, item => !item.IsSessionStart);
-        Assert.Equal(family + "-120", purchase.BuffId);
+        Assert.Equal(family + "-" + renewalMinutes, purchase.BuffId);
         Assert.Equal(renewalPrice, purchase.Cost);
         Assert.Equal(123_456m + renewalPrice, renewed.ConsumedCost);
     }

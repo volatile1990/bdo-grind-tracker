@@ -20,6 +20,7 @@
     <Compile Include="../../src/BdoGrindTracker.App/Persistence/LootHistoryStore.cs;../../src/BdoGrindTracker.App/Persistence/CurrentSessionStore.cs;../../src/BdoGrindTracker.App/Integrations/Garmoth/GarmothUploadIntervals*.cs" Link="Shared/%(Filename)%(Extension)" />
     <Compile Include="../BdoGrindTracker.App.Tests/CombatStatsPersistenceTests.cs;../BdoGrindTracker.App.Tests/CombatStatsColorClassifierTests.cs" Link="Shared/%(Filename)%(Extension)" />
     <Compile Include="../BdoGrindTracker.App.Tests/BuffPersistenceTests.cs" Link="Shared/%(Filename)%(Extension)" />
+    <Compile Include="../BdoGrindTracker.App.Tests/AutomaticBuffCatalogTests.cs;../BdoGrindTracker.App.Tests/AutomaticBuffDurationPricingTests.cs" Link="Shared/%(Filename)%(Extension)" />
     <Content Include="../fixtures/experience/combat-stats-number-colors-20260911.json" Link="fixtures/experience/combat-stats-number-colors-20260911.json" CopyToOutputDirectory="PreserveNewest" />
     <Compile Include="../../src/BdoGrindTracker.App/Analysis/GrindStartVisualEvidence.cs" Link="Shared/GrindStartVisualEvidence.cs" />
     <Compile Include="../BdoGrindTracker.App.Tests/GrindStartVisualEvidenceTests.cs" Link="Shared/GrindStartVisualEvidenceTests.cs" />

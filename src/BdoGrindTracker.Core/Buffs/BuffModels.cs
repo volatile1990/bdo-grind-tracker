@@ -12,11 +12,15 @@ public sealed record BuffDefinition(string Id, string Name, int? MarketItemId, T
     public string RecognitionGroup { get; init; } = string.Empty;
 
     /// <summary>
-    /// Visually identical duration variants. Minute/second timers use the shortest duration
+    /// Visually identical duration variants. By default, minute/second timers use the shortest duration
     /// covering their remaining time. Floored hour timers use a unique duration within their
     /// displayed interval, or the shortest duration covering that interval; ambiguous variants stay unresolved.
+    /// PreferMaximumDurationVariant always selects the longest fitting variant instead.
     /// </summary>
     public IReadOnlyList<string> DurationVariantIds { get; init; } = [];
+
+    /// <summary>Use the longest duration variant regardless of the remaining timer's duration bucket.</summary>
+    public bool PreferMaximumDurationVariant { get; init; }
 
     /// <summary>Fixed purchase cost for a tent buff, independent of Central Market quotes.</summary>
     public decimal? FixedUnitPrice { get; init; }
