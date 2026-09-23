@@ -145,7 +145,7 @@ public sealed partial class TrackerSessionServiceTests
     }
 
     [Fact]
-    public async Task ManualPauseWorksWhileHourlyHttpIsPending()
+    public async Task CompletedSessionIsSavedBeforeAutomaticHttpFinishes()
     {
         await using var fixture = new Fixture();
         var response = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -153,17 +153,21 @@ public sealed partial class TrackerSessionServiceTests
         fixture.Begin();
         await fixture.ProcessAfter(TimeSpan.FromHours(1), ("Black Crystal Fragment", 100));
         await fixture.Service.TickAsync();
-        await WaitUntilAsync(() => fixture.Requests.Count == 1);
+        Assert.Empty(fixture.Requests);
+        Assert.True(fixture.Service.State.CanPause);
+        Assert.True((await fixture.Service.PauseAsync()).Succeeded);
+        Assert.Empty(fixture.Requests);
+        var pending = fixture.Service.NewSessionAsync();
         try
         {
-            Assert.True(fixture.Service.State.CanPause);
-            Assert.True((await fixture.Service.PauseAsync()).Succeeded);
+            await WaitUntilAsync(() => fixture.Requests.Count == 1);
             Assert.False(fixture.Service.State.IsRunning);
             Assert.Equal(100, Assert.Single(fixture.HistoryStore.Load()).Totals["Black Crystal Fragment"]);
         }
         finally
         {
             response.TrySetResult(new HttpResponseMessage(HttpStatusCode.OK));
+            await pending;
             await fixture.Service.ShutdownAsync();
         }
         Assert.True(Assert.Single(fixture.HistoryStore.Load()).GarmothUploadBlocked);

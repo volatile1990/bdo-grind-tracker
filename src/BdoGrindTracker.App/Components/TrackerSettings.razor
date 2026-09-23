@@ -9,16 +9,7 @@
         <a class="text-button settings-setup-link" href="setup"><AppIcon Name="info" />@T("Einführung & Einrichtung")</a>
     </div>
     <div class="settings-workspace">
-        <nav class="settings-navigation" aria-label="@T("Einstellungsbereiche")">
-            @foreach (var category in Categories)
-            {
-                <a class="settings-category @(SelectedSection == category.Id ? "is-active" : "")"
-                   href="@($"settings/{category.Id}")" aria-current="@(SelectedSection == category.Id ? "page" : null)"
-                   @onclick="() => SelectSection(category.Id)" @onclick:preventDefault>
-                    <AppIcon Name="@category.Icon" /><span>@T(category.Label)</span><AppIcon Name="chevron" />
-                </a>
-            }
-        </nav>
+        <MenuNavigation Label="Einstellungsbereiche" Sections="Categories" Selected="@SelectedSection" OnSelect="SelectSection" Disabled="State.IsBusy" />
         <div class="settings-content">
             <TrackerPreferenceSettings @ref="_fields" Section="@SelectedSection" />
             <div hidden="@(SelectedSection != "capture")"><CaptureConfigurationSettings /></div>
@@ -33,13 +24,13 @@
 @code {
     [Parameter] public string? Section { get; set; }
     private TrackerPreferenceSettings? _fields;
-    private static readonly (string Id, string Label, string Icon)[] Categories =
+    private static readonly MenuSection[] Categories =
     [
-        ("appearance", "Erscheinungsbild", "spark"),
-        ("capture", "Erfassung", "monitor"),
-        ("silver", "Silber & Markt", "silver"),
-        ("diagnostics", "Diagnose", "shield"),
-        ("updates", "App-Updates", "refresh"),
+        new("appearance", "Erscheinungsbild", "spark", "settings/appearance"),
+        new("capture", "Erfassung", "monitor", "settings/capture"),
+        new("silver", "Silber & Markt", "silver", "settings/silver"),
+        new("diagnostics", "Diagnose", "shield", "settings/diagnostics"),
+        new("updates", "App-Updates", "refresh", "settings/updates"),
     ];
     private string SelectedSection => Categories.Any(category => category.Id == Section) ? Section! : "appearance";
 

@@ -167,6 +167,18 @@ small,.item-cell small,.panel-heading p,.page-heading p,.field small,.toggle-row
 .autosave-fields{border:0;padding:0;margin:0;min-width:0}
 /* Settings use one quiet surface, with compact categories and aligned controls. */
 .settings-page{max-width:1180px;margin-inline:auto}
+.menu-page{max-width:1180px;margin-inline:auto}
+.menu-page>.page-heading{align-items:center;gap:20px;margin-bottom:24px}
+.menu-page>.page-heading h1{font-size:28px}
+.menu-page>.page-heading .text-button{display:inline-flex;align-items:center;gap:7px;font-size:13px}
+.menu-content{min-width:0}
+.menu-content[hidden],.menu-content [hidden]{display:none!important}
+.menu-panel{min-width:0;padding:22px 24px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius)}
+.menu-panel>h2,.menu-section-heading h2{font-size:16px}
+.menu-section-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px}
+.menu-navigation .settings-category[aria-disabled=true]{opacity:.55;cursor:default}
+@media(max-width:1050px){.menu-panel{padding:20px}}
+@media(max-width:600px){.menu-page>.page-heading{align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:18px}.menu-panel{padding:18px 16px}}
 .settings-page .settings-page-heading{align-items:center;gap:20px;margin-bottom:24px}
 .settings-page-heading h1{font-size:28px}
 .settings-page-heading p{margin-top:7px;color:var(--muted);font-size:13px}
@@ -476,3 +488,32 @@ small,.item-cell small,.panel-heading p,.page-heading p,.field small,.toggle-row
 .buff-active-heading{display:flex;justify-content:space-between;gap:12px;margin-top:18px;font-size:12px;font-weight:600}
 .buff-active-heading>span{color:var(--muted);font-variant-numeric:tabular-nums}
 .buff-details .buff-list li>span:last-child{max-width:45%;overflow-wrap:anywhere;text-align:right}
+
+/* History adapts to the space beside its category navigation. */
+.history-menu-content{container:history-menu / inline-size}
+.history-menu-content .spot-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr))}
+.history-menu-content .history-filters{gap:12px;margin-bottom:20px}
+.history-menu-content .history-filters .search-field{min-width:180px;max-width:none}
+.history-menu-content .history-overview-stats>div{min-width:0;padding-inline:16px}
+.history-menu-content .history-overview-stats>div:first-child{padding-left:0}
+.history-menu-content .history-overview-stats strong{font-size:23px}
+.history-menu-content .spot-guidance{flex-wrap:wrap;row-gap:16px}
+.history-menu-content .chronological-session-header{grid-template-columns:90px minmax(150px,1fr) 95px 115px 105px 16px;gap:12px}
+.history-menu-content .chronological-date{grid-column:1;grid-row:1}
+.history-menu-content .chronological-spot{grid-column:2;grid-row:1}
+.history-menu-content .chronological-session-duration{grid-column:3;grid-row:1}
+.history-menu-content .chronological-session-experience{grid-column:4;grid-row:1;flex-direction:column;align-items:stretch;text-align:right;gap:6px}
+.history-menu-content .chronological-session-silver{grid-column:5;grid-row:1;text-align:right}
+.history-menu-content .chronological-expand{grid-column:6;grid-row:1}
+.history-menu-content .chronological-loot-preview{grid-column:2/6;grid-row:2}
+@container history-menu (max-width:700px){
+    .history-overview-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;padding-block:20px}
+    .history-menu-content .history-overview-stats>div{padding:0;border:0}
+    .history-metrics-grid,.history-secondary-metrics{grid-template-columns:minmax(0,1fr)}
+    .history-menu-content .chronological-session-header{grid-template-columns:100px minmax(0,1fr) 20px}
+    .history-menu-content .chronological-session-duration{grid-column:1;grid-row:2}
+    .history-menu-content .chronological-session-silver{grid-column:2;grid-row:2;text-align:left}
+    .history-menu-content .chronological-session-experience{grid-column:1/3;grid-row:3;flex-direction:row;align-items:center;flex-wrap:wrap;text-align:left;gap:6px 12px}
+    .history-menu-content .chronological-loot-preview{grid-column:1/3;grid-row:4}
+    .history-menu-content .chronological-expand{grid-column:3}
+}

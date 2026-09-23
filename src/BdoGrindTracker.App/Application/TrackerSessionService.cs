@@ -84,7 +84,6 @@ internal sealed partial class TrackerSessionService : ITrackerSession
     private string _priceStatus = "NPC- und Festwerte";
     private Task _operationTask = Task.CompletedTask;
     private Task _tickTask = Task.CompletedTask;
-    private Task _automaticUploadTask = Task.CompletedTask;
     private Task? _shutdownTask;
     private Task? _classDetectionTask;
     private DateTimeOffset _nextClassDetectionAt = DateTimeOffset.MinValue;
@@ -230,7 +229,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         if (_uiRunning) await StopTrackingAsync(excludeTrailingIdle: true);
     }, allowDuringUpload: true);
 
-    public Task<TrackerCommandResult> NewSessionAsync() => RunOperationAsync(() =>
+    public Task<TrackerCommandResult> NewSessionAsync() => RunOperationAsync(async () =>
     {
         if (_currentSessionStore.LoadError is { } loadError) throw new IOException(loadError);
         if (_captureSession.HasPendingAnalysis || !_autoStartPendingAnalysis.IsCompleted)
@@ -238,17 +237,21 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         if (_uiRunning)
         {
             SetStatus("Bitte die laufende Session zuerst pausieren.", true);
-            return Task.CompletedTask;
+            return;
         }
         ResetAutoStartRetry();
         RefreshPendingState();
         PersistCurrentSession(DateTimeOffset.UtcNow, throwOnError: true);
         SavePendingHistory();
         ClearCurrentSessionCheckpoint();
+        var completedSessionId = _hasSession && !_demoMode && !_provisionalAutomaticGrind &&
+            !_sessionSubmitted && !_garmothIntervals.IsBlocked && !_garmothIntervals.HasTransmittedLoot
+            ? _sessionId : (Guid?)null;
         ResetCurrentGrind(clearSessionPreferences: true);
         if (Preferences.AutoStartGrinding) TrySaveSettings();
         SetStatus("Neue Session angelegt. Die manuelle Diagnose-Aufzeichnung ist ausgeschaltet.");
-        return Task.CompletedTask;
+        if (completedSessionId is { } sessionId)
+            await UploadCompletedSessionAutomaticallyAsync(sessionId);
     });
 
     private void ResetCurrentGrind(bool clearSessionPreferences)
@@ -602,8 +605,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             _inactivityTimer.RecordDrop();
         }
         var duration = _sessionClock.GetElapsedExcludingTrailingIdle(_inactivityTimer.IdleDuration);
-        _garmothIntervals.Observe(duration, totals, DateTimeOffset.UtcNow,
-            isCorrection: isCorrection, includesNewDrops: hasNewDrop, requiresReview: requiresUploadReview);
+        _garmothIntervals.ObserveSessionTotals(duration, totals, DateTimeOffset.UtcNow,
+            isCorrection: isCorrection, requiresReview: requiresUploadReview);
     }
 
     internal void RefreshPendingState(bool publish = true)
@@ -731,10 +734,6 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             if (_shutdownStarted) return;
             await TickAutoStartAsync();
             RefreshGrindBenchmarksIfDue();
-            // Never await hourly HTTP in the timer: the next tick must still be
-            // able to pause, consume producer snapshots, and update the duration.
-            if (_automaticUploadTask.IsCompleted)
-                _automaticUploadTask = UploadHourlyToGarmothAsync();
             SaveCheckpointIfDue();
             if (_priceRefreshEnabled && (_priceRefreshTask is null || _priceRefreshTask.IsCompleted) &&
                 DateTimeOffset.UtcNow >= _nextPriceRefreshAt)
@@ -936,7 +935,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             _uiRunning = false;
             // A possibly committed HTTP request must settle before disposing its
             // client or forgetting its upload/history guard.
-            await Task.WhenAll(_operationTask, _automaticUploadTask, _tickTask);
+            await Task.WhenAll(_operationTask, _tickTask);
             await Task.WhenAll(_benchmarkRefreshTasks);
             if (_priceRefreshTask is { } pricing) await pricing;
             if (_classDetectionTask is { } classes) await classes;

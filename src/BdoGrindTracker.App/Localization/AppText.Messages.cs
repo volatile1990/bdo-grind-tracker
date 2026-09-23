@@ -64,7 +64,7 @@ internal static partial class AppText
         text["Der Garmoth-Key darf keine Leerzeichen enthalten und muss ein gültiger API-Key sein."] = "The Garmoth key must be a valid API key without spaces.";
         text["Der Garmoth-Key konnte nicht sicher gespeichert werden."] = "The Garmoth key could not be saved securely.";
         text["Einstellungen gespeichert."] = "Settings saved.";
-        text["Einstellungen gespeichert. Jede volle Grindstunde wird einmal automatisch übertragen."] = "Settings saved. Each full grind hour is uploaded automatically once.";
+        text["Einstellungen gespeichert. Abgeschlossene Sessions werden beim Anlegen einer neuen Session automatisch übertragen."] = "Settings saved. Completed sessions will be uploaded automatically when a new session is created.";
         text["Einstellungen gespeichert. Der automatische Upload bleibt angehalten. Korrigiere den Schlüssel oder setze die Automatik auf der Garmoth-Seite fort."] = "Settings saved. Automatic uploads remain suspended. Correct the key or resume automatic uploads on the Garmoth page.";
         text["Einstellungen gespeichert. Das unklare Upload-Ergebnis muss in Garmoth geprüft werden; diese Sitzung bleibt für Uploads gesperrt."] = "Settings saved. Check the uncertain upload result in Garmoth; uploads remain blocked for this session.";
         text["Weitere Uploads dieser Session sind gesperrt. Bitte den Status in Garmoth prüfen."] = "Further uploads of this session are blocked. Please check the status in Garmoth.";
@@ -72,7 +72,7 @@ internal static partial class AppText
         text["Die Uploadvorschau ist nicht verfügbar."] = "The upload preview is unavailable.";
         text["Diese Session kann derzeit nicht übertragen werden."] = "This session cannot be uploaded right now.";
         text["Noch nicht übertragener Grind wird gesendet …"] = "Uploading the remaining grind …";
-        text["Garmoth automatisch: abgeschlossene Grindstunde wird übertragen …"] = "Automatic Garmoth upload: sending the completed grind hour …";
+        text["Garmoth automatisch: abgeschlossene Session wird übertragen …"] = "Automatic Garmoth upload: sending the completed session …";
         text["Diese Session ist nicht mehr verfügbar oder bereits gegen weitere Uploads gesperrt."] = "This session is no longer available or further uploads are already blocked.";
         text["Grind aus dem Verlauf wird übertragen …"] = "Uploading grind from history …";
         text["Bitte zuerst im Bereich Garmoth einen API-Schlüssel hinterlegen."] = "Please add an API key on the Garmoth page first.";

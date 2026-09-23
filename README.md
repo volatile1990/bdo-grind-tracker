@@ -15,7 +15,7 @@ Silber und Stundenwerte im Dashboard und in anpassbaren Ingame-Overlays.
 - AP/DP aus der Spielanzeige mit farblich erkannter Kategorie (Allgemein, Edania, Halbmenschen oder Kamasilvia), live und zur jeweiligen Session gespeichert.
 - Automatische Buff-Erkennung ohne manuelle Einrichtung, mit Verbrauchsicons, Mengen und Gesamtkosten im Live-Header, Verlauf und Overlay.
 - Optionale automatische Grinderkennung mit sparsamer Bereitschaft und kurzer Lootprüfung bei einem Startverdacht.
-- Optionaler Garmoth-Upload mit Vorschau, Bestätigung und Schutz vor doppelten Übertragungen; automatische Stundenuploads sind separat einschaltbar.
+- Optionaler Garmoth-Upload mit Vorschau, Bestätigung und Schutz vor doppelten Übertragungen; abgeschlossene Sessions können auf Wunsch automatisch hochgeladen werden.
 - Windows-OCR-Installation mit Fortschrittsanzeige, erneuter Verfügbarkeitsprüfung und lokaler Diagnose.
 - Deutsche und englische Oberfläche einschließlich Overlays, Zahlen- und Datumsformaten; die Auswahl wird lokal gespeichert.
 

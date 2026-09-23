@@ -9,9 +9,9 @@ internal sealed record GarmothUploadInterval(
     DateTimeOffset StartedAt);
 
 /// <summary>
-/// Keeps hourly cutoffs independently of the upload switch. Quantities
-/// are cumulative local counters; only positive differences from already sent
-/// quantities can leave the ledger. All methods may run concurrently with capture.
+/// Tracks cumulative local counters and quantities already sent to Garmoth.
+/// Legacy hourly cutoffs remain readable for persisted sessions; live sessions
+/// use their complete totals. All methods may run concurrently with capture.
 /// </summary>
 internal sealed partial class GarmothUploadIntervals
 {
@@ -40,6 +40,40 @@ internal sealed partial class GarmothUploadIntervals
     public bool AutomaticSuspended { get { lock (_gate) return _automaticSuspended; } }
     public bool CorrectionReviewRequired { get { lock (_gate) return _correctionReviewRequired; } }
     public Guid? PreparedIntervalId { get { lock (_gate) return _prepared?.Interval.Id; } }
+
+    public void ObserveSessionTotals(TimeSpan confirmedActiveDuration,
+        IReadOnlyDictionary<string, long> totals, DateTimeOffset observedAt,
+        bool isCorrection = false, bool requiresReview = false)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(confirmedActiveDuration, TimeSpan.Zero);
+        ArgumentNullException.ThrowIfNull(totals);
+        lock (_gate)
+        {
+            if (confirmedActiveDuration < _observedDuration)
+                confirmedActiveDuration = _observedDuration;
+            var snapshot = CopyTotals(totals);
+            var corrected = _observedTotals.Keys.Concat(snapshot.Keys).Distinct(StringComparer.OrdinalIgnoreCase)
+                .Any(name => snapshot.GetValueOrDefault(name) != _observedTotals.GetValueOrDefault(name) &&
+                    (isCorrection || snapshot.GetValueOrDefault(name) < _observedTotals.GetValueOrDefault(name)));
+            _preparedCorrected |= _inFlight && (corrected || requiresReview);
+
+            // An unsent session no longer needs corrections allocated among
+            // hours. Keep guards for requests that may already have committed.
+            _hours.Clear();
+            if (_correctionReviewRequired && !_blocked && !_inFlight &&
+                _prepared is null && _transmitted.Count == 0)
+            {
+                _correctionReviewRequired = false;
+                _automaticSuspended = false;
+            }
+            _windowStartedAt ??= observedAt - confirmedActiveDuration;
+            _observedDuration = confirmedActiveDuration;
+            _observedTotals = snapshot;
+            // Retain the persisted schema so older session checkpoints remain
+            // readable without manufacturing any new hourly upload windows.
+            _nextHour = TimeSpan.FromTicks(checked((confirmedActiveDuration.Ticks / Hour.Ticks + 1) * Hour.Ticks));
+        }
+    }
 
     public void Observe(TimeSpan confirmedActiveDuration,
         IReadOnlyDictionary<string, long> totals, DateTimeOffset observedAt,

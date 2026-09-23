@@ -38,3 +38,67 @@
 .oe-canvas-resize-nw{left:-5px;top:-5px;right:auto;bottom:auto}.oe-canvas-resize-ne{right:-5px;top:-5px;bottom:auto;cursor:nesw-resize}.oe-canvas-resize-sw{left:-5px;bottom:-5px;right:auto;cursor:nesw-resize}.oe-canvas-resize-nw::after{transform:rotate(180deg)}.oe-canvas-resize-ne::after{transform:rotate(270deg)}.oe-canvas-resize-sw::after{transform:rotate(90deg)}.oe-resizing-reverse,.oe-resizing-reverse *{cursor:nesw-resize!important}
 
 .oe-workbench{position:relative}.oe-module-preview{position:absolute;left:210px;top:8px;z-index:30;width:max-content;max-width:none;padding:8px;border:1px solid #b1976199;border-radius:8px;background:#151d24f2;box-shadow:0 10px 30px #0008;pointer-events:none;display:flex;flex-direction:column;gap:6px}.oe-module-preview-stage{position:relative;overflow:hidden;border-radius:5px;background:rgba(var(--overlay-surface-rgb,17,23,30),.82)}.oe-module-preview .oe-widget-content{position:absolute;left:0;top:0;transform-origin:top left;overflow:hidden}.oe-module-preview>small{font-size:11px;color:#8e9dad}
+
+/* The same category navigation and quiet setting rows as the settings page. */
+.overlay-editor.menu-page{max-width:1760px}
+.oe-menu-content{container-type:inline-size;container-name:overlay-menu}
+.oe-active-window{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:12px}
+.oe-active-window>.oe-field{display:grid;grid-template-columns:auto minmax(160px,280px);align-items:center;gap:14px}
+.oe-active-window .oe-enable{border:0;background:none;padding:0;font-size:13px;font-weight:500;color:var(--text)}
+.oe-menu-content .oe-status-row{margin-bottom:20px;font-size:12px;color:var(--muted)}
+.oe-menu-content .menu-panel{margin:0;padding:22px 24px;border-color:var(--line);background:var(--panel);box-shadow:none}
+.oe-menu-heading{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding-bottom:16px;border-bottom:1px solid var(--line)}
+.oe-menu-heading h2{font-size:16px;font-weight:600}
+.oe-menu-heading>span{font-size:12px;color:var(--muted)}
+.oe-setting-row,.oe-custom-templates>.oe-setting-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,320px);align-items:center;gap:12px 24px;padding:14px 0;border-bottom:1px solid var(--line);font-size:13px;color:var(--text)}
+.oe-setting-row>span{line-height:1.5}
+.oe-setting-row input:not([type=range]),.oe-setting-row select,.oe-active-window select{background:var(--panel-raised);border-color:var(--line);color:var(--text)}
+.oe-setting-toggle{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:15px 0;border-bottom:1px solid var(--line);font-size:13px;color:var(--text);line-height:1.5}
+.oe-display-settings .oe-reset-position{margin-top:18px;font-size:13px}
+.oe-window-manager .oe-window-actions{margin-top:18px}
+.oe-delete-window{margin-left:auto;font-size:12px;color:var(--muted)}
+.oe-menu-content .oe-shortcuts{display:block}
+.oe-shortcuts>.oe-help{margin:14px 0 2px;color:var(--muted)}
+.oe-menu-content .oe-shortcut{display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:20px;width:100%;padding:14px 0;border:0;border-bottom:1px solid var(--line);font-size:13px;color:var(--text)}
+.oe-shortcuts>.button{margin-top:18px}
+.oe-shortcuts>.oe-shortcut-error{margin-top:16px}
+.oe-menu-content .oe-presets{margin-top:20px;gap:10px}
+.oe-menu-content .oe-custom-templates{display:block;margin:24px 0 0;padding:0;border:0;background:none;border-radius:0}
+.oe-custom-templates>.oe-setting-row{width:100%;margin:0}
+.oe-custom-templates select{width:100%;min-width:0}
+.oe-template-actions{display:flex;align-items:center;gap:14px;margin-top:14px}
+.oe-template-actions>.icon-button{margin-left:auto;color:var(--muted)}
+.oe-editor-help{font-size:12px;color:var(--muted);padding:0 16px 14px}
+.oe-editor-help>summary{cursor:pointer;width:fit-content;padding:5px 0;line-height:1.5}
+.oe-editor-help .oe-canvas-help{padding:8px 0 0;color:var(--muted)}
+@container overlay-menu (max-width:1000px){
+    .oe-workbench{grid-template-columns:minmax(0,1fr) 216px}
+    .oe-library{grid-column:1/-1}
+    .oe-module-list{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));max-height:none;gap:5px;padding:0 12px 12px}
+    .oe-module{padding:10px 8px;border-color:var(--line);background:transparent}
+    .oe-module strong{font-size:12px}
+    .oe-module small{display:none}
+    .oe-module-group-label{grid-column:1/-1}
+    .oe-library .oe-section-title{padding-bottom:6px}
+    .oe-library>p{padding-bottom:10px}
+    .oe-module-preview{left:12px;top:90px}
+}
+@container overlay-menu (max-width:650px){
+    .oe-active-window{align-items:flex-end;gap:12px}
+    .oe-active-window>.oe-field{display:flex;flex:1;max-width:320px;align-items:stretch}
+    .oe-active-window .oe-enable{margin-bottom:8px;gap:8px}
+    .oe-menu-content .menu-panel{padding:18px}
+    .oe-setting-row,.oe-custom-templates>.oe-setting-row{grid-template-columns:minmax(0,1fr);gap:8px}
+    .oe-module-list{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .oe-workbench{grid-template-columns:minmax(0,1fr)}
+    .oe-inspector-body{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+    .oe-inspector-body>.oe-help,.oe-inspector-body>.oe-remove,.oe-loot-settings,.oe-clock-settings,.oe-consumables-settings{grid-column:1/-1}
+    .oe-inspector-empty{flex-direction:row;text-align:left;padding:18px}
+    .oe-delete-window{margin-left:0}
+}
+@container overlay-menu (max-width:400px){
+    .oe-active-window{align-items:stretch;flex-direction:column}
+    .oe-active-window>.oe-field{max-width:none}
+    .oe-active-window .oe-enable{justify-content:space-between;margin:0}
+    .oe-module-list{grid-template-columns:repeat(2,minmax(0,1fr))}
+}

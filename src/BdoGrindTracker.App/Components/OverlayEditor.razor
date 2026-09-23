@@ -4,8 +4,9 @@
 @implements IAsyncDisposable
 @inject IOverlayService Overlay
 @inject IJSRuntime JS
+@inject NavigationManager Navigation
 
-<div class="page overlay-editor" id="overlay-editor">
+<div class="page menu-page overlay-editor" id="overlay-editor">
     @if (Overlay.LoadError is { } loadError)
     {
         <div class="notice error-notice" role="alert"><AppIcon Name="info" /><div><strong>@T("Gespeicherte Overlays nicht verfügbar")</strong><span>@T(loadError)</span></div><button type="button" class="button secondary" @onclick="ReloadOverlays" disabled="@_windowBusy">@T("Erneut laden")</button></div>
@@ -15,72 +16,80 @@
         <div><h1>@T("Ingame-Overlays")</h1></div>
         <div class="page-actions">
             <button class="button secondary" aria-pressed="@Overlay.State.Previewing" @onclick="TogglePreview"><AppIcon Name="monitor" />@(Overlay.State.Previewing ? T("Vorschau beenden") : IsBrowserPreview ? T("Im Browser ansehen") : T("Auf Bildschirm testen"))</button>
-            <label class="oe-enable"><span>@T("Overlay aktiv")</span><input type="checkbox" class="switch" checked="@_settings.Enabled" @onchange="e => Change(s => s with { Enabled = Checked(e) })" /></label>
         </div>
     </div>
-
-    <section class="panel oe-window-manager" aria-label="@T("Overlay-Fenster verwalten")">
-        <div class="oe-window-heading"><AppIcon Name="monitor" /><strong>@T("Deine Overlay-Fenster")</strong><span>@F("{0} erstellt · {1} aktiv", Overlay.Overlays.Count, Overlay.Overlays.Count(window => window.Settings.Enabled))</span></div>
-        <div class="oe-window-fields">
-            <label class="oe-field"><span>@T("Fenster bearbeiten")</span><select aria-label="@T("Overlay-Fenster auswählen")" value="@_editingOverlayId" @onchange="SelectOverlay" disabled="@WindowActionsBusy">@foreach (var window in Overlay.Overlays) { <option value="@window.Id">@window.Name · @(window.Settings.Enabled ? T("Aktiv") : T("Aus"))</option> }</select></label>
-            <label class="oe-field"><span>Name</span><input aria-label="@T("Overlay-Name")" maxlength="60" value="@SelectedOverlayName" @onchange="RenameOverlay" disabled="@WindowActionsBusy" /></label>
-            <div class="oe-window-actions">
-                <button type="button" class="button primary" @onclick="CreateOverlay" disabled="@WindowActionsBusy"><AppIcon Name="plus" />@T("Neues Overlay")</button>
-                <button type="button" class="button secondary" @onclick="DuplicateOverlay" disabled="@WindowActionsBusy">@T("Duplizieren")</button>
-                <button type="button" class="icon-button" aria-label="@T("Ausgewähltes Overlay löschen")" title="@T("Overlay löschen")" @onclick="RequestOverlayDelete" disabled="@(WindowActionsBusy || Overlay.Overlays.Count <= 1)"><AppIcon Name="delete" /></button>
+    <div class="settings-workspace menu-workspace">
+        <MenuNavigation Label="Overlay-Bereiche" Sections="Sections" Selected="@SelectedSection" OnSelect="SelectSection" Disabled="@WindowActionsBusy" />
+        <div class="menu-content oe-menu-content">
+            <div class="oe-active-window">
+                <label class="oe-field"><span>@T("Fenster bearbeiten")</span><select aria-label="@T("Overlay-Fenster auswählen")" value="@_editingOverlayId" @onchange="SelectOverlay" disabled="@WindowActionsBusy">@foreach (var window in Overlay.Overlays) { <option value="@window.Id">@window.Name · @(window.Settings.Enabled ? T("Aktiv") : T("Aus"))</option> }</select></label>
+                <label class="oe-enable"><span>@T("Overlay aktiv")</span><input type="checkbox" class="switch" checked="@_settings.Enabled" @onchange="e => Change(s => s with { Enabled = Checked(e) })" /></label>
             </div>
-        </div>
-        <p class="oe-help">@(IsBrowserPreview ? T("Hier kannst du jedes Layout bearbeiten und einzeln im Browser ansehen. Eigene Desktop-Fenster und Bildschirmfunktionen sind nur unter Windows verfügbar.") : T("Jedes aktive Overlay erscheint als eigenes Fenster mit eigenem Layout, Position und Verhalten.")) @F("Hier bearbeitest du „{0}“.", SelectedOverlayName)</p>
-    </section>
+            @if (_error is not null) { <div class="notice error-notice" role="alert"><AppIcon Name="info" /><span>@T(_error)</span></div> }
+            @if (Overlay.State.IsError && Overlay.State.Status != _error) { <div class="notice error-notice" role="alert"><AppIcon Name="info" /><span>@T(Overlay.State.Status)</span></div> }
+            <div class="oe-status-row">
+                <span><span class="status-dot @(Overlay.State.IsVisible ? "running" : "")"></span>@T(Overlay.State.Status)</span>
+                @if (!string.IsNullOrEmpty(Overlay.State.TargetMonitorLabel)) { <span><AppIcon Name="monitor" />@Overlay.State.TargetMonitorLabel</span> }
+                @if (_saving) { <span class="oe-save-state" role="status"><AppIcon Name="refresh" />@T("Speichert …")</span> }
+            </div>
 
-    @if (_error is not null) { <div class="notice error-notice" role="alert"><AppIcon Name="info" /><span>@T(_error)</span></div> }
-    @if (Overlay.State.IsError && Overlay.State.Status != _error) { <div class="notice error-notice" role="alert"><AppIcon Name="info" /><span>@T(Overlay.State.Status)</span></div> }
-    <div class="oe-status-row">
-        <span><span class="status-dot @(Overlay.State.IsVisible ? "running" : "")"></span>@T(Overlay.State.Status)</span>
-        @if (!string.IsNullOrEmpty(Overlay.State.TargetMonitorLabel)) { <span><AppIcon Name="monitor" />@Overlay.State.TargetMonitorLabel</span> }
-        @if (_saving) { <span class="oe-save-state" role="status"><AppIcon Name="refresh" />@T("Speichert …")</span> }
-    </div>
+            <div data-overlay-section="windows" hidden="@(SelectedSection != "windows")">
+                <section class="menu-panel oe-window-manager" aria-label="@T("Overlay-Fenster verwalten")">
+                    <div class="oe-menu-heading"><h2>@T("Deine Overlay-Fenster")</h2><span>@F("{0} erstellt · {1} aktiv", Overlay.Overlays.Count, Overlay.Overlays.Count(window => window.Settings.Enabled))</span></div>
+                    <label class="oe-field oe-setting-row"><span>@T("Name")</span><input aria-label="@T("Overlay-Name")" maxlength="60" value="@SelectedOverlayName" @onchange="RenameOverlay" disabled="@WindowActionsBusy" /></label>
+                    <div class="oe-window-actions">
+                        <button type="button" class="button secondary" @onclick="CreateOverlay" disabled="@WindowActionsBusy"><AppIcon Name="plus" />@T("Neues Overlay")</button>
+                        <button type="button" class="button secondary" @onclick="DuplicateOverlay" disabled="@WindowActionsBusy">@T("Duplizieren")</button>
+                        <button type="button" class="text-button oe-delete-window" aria-label="@T("Ausgewähltes Overlay löschen")" @onclick="RequestOverlayDelete" disabled="@(WindowActionsBusy || Overlay.Overlays.Count <= 1)"><AppIcon Name="delete" />@T("Overlay löschen")</button>
+                    </div>
+                </section>
+            </div>
 
-    <section class="panel oe-shortcuts" aria-label="@T("Globale Overlay-Tastenkürzel")">
-        <div class="oe-shortcuts-title"><strong>@T("Tastenkürzel")</strong><small>@T("Für alle Overlays")</small><span class="oe-shortcuts-state @(Overlay.Hotkeys.Enabled && !IsBrowserPreview ? "enabled" : "")">@(IsBrowserPreview ? T("Nur Vorschau") : Overlay.Hotkeys.Enabled ? T("Global aktiv") : T("Deaktiviert"))</span></div>
-        <button type="button" class="oe-shortcut" @onclick="OpenHotkeyEditor" aria-label="@T("Tastenkürzel für alle Overlays ein/aus ändern")"><span>@T("Alle Overlays ein / aus")</span><kbd>@Overlay.Hotkeys.ToggleOverlay.GetDisplayText(UiLanguage)</kbd></button>
-        <button type="button" class="oe-shortcut" @onclick="OpenHotkeyEditor" aria-label="@T("Tastenkürzel für Mausbedienung aller Overlays ändern")"><span>@T("Verschieben / Klicks ans Spiel")</span><kbd>@Overlay.Hotkeys.ToggleInteraction.GetDisplayText(UiLanguage)</kbd></button>
-        <button type="button" class="button secondary" @onclick="OpenHotkeyEditor">@T("Anpassen")</button>
-        @if (!string.IsNullOrEmpty(Overlay.HotkeyStatus)) { <div class="oe-shortcut-error" role="alert"><AppIcon Name="info" />@T(Overlay.HotkeyStatus)</div> }
-    </section>
+            <div data-overlay-section="shortcuts" hidden="@(SelectedSection != "shortcuts")">
+                <section class="menu-panel oe-shortcuts" aria-label="@T("Globale Overlay-Tastenkürzel")">
+                    <div class="oe-menu-heading"><h2>@T("Tastenkürzel")</h2><span class="oe-shortcuts-state @(Overlay.Hotkeys.Enabled && !IsBrowserPreview ? "enabled" : "")">@(IsBrowserPreview ? T("Nur Vorschau") : Overlay.Hotkeys.Enabled ? T("Global aktiv") : T("Deaktiviert"))</span></div>
+                    <p class="oe-help">@T("Für alle Overlays")</p>
+                    <button type="button" class="oe-shortcut" @onclick="OpenHotkeyEditor" aria-label="@T("Tastenkürzel für alle Overlays ein/aus ändern")"><span>@T("Alle Overlays ein / aus")</span><kbd>@Overlay.Hotkeys.ToggleOverlay.GetDisplayText(UiLanguage)</kbd></button>
+                    <button type="button" class="oe-shortcut" @onclick="OpenHotkeyEditor" aria-label="@T("Tastenkürzel für Mausbedienung aller Overlays ändern")"><span>@T("Verschieben / Klicks ans Spiel")</span><kbd>@Overlay.Hotkeys.ToggleInteraction.GetDisplayText(UiLanguage)</kbd></button>
+                    <button type="button" class="button secondary" @onclick="OpenHotkeyEditor">@T("Anpassen")</button>
+                    @if (!string.IsNullOrEmpty(Overlay.HotkeyStatus)) { <div class="oe-shortcut-error" role="alert"><AppIcon Name="info" />@T(Overlay.HotkeyStatus)</div> }
+                </section>
+            </div>
 
-    <details class="panel oe-behavior">
-        <summary><span><AppIcon Name="settings" /><strong>@T("Anzeige & Verhalten")</strong><small>@InteractionLabel · @VisibilityLabel</small></span><AppIcon Name="down" /></summary>
-        <div class="oe-behavior-body">
-            <label class="oe-field"><span>@T("Mit der Maus")</span><select value="@_settings.Interaction" @onchange="e => Change(s => s with { Interaction = Text(e) })"><option value="move">@T("Verschieben & bedienen")</option><option value="locked">@T("Position gesperrt, Buttons bedienbar")</option><option value="passthrough">@T("Alle Mausklicks ans Spiel weitergeben")</option></select><small>@InteractionHint</small></label>
-            <label class="oe-field"><span>@T("Wann anzeigen")</span><select value="@_settings.Visibility" @onchange="e => Change(s => s with { Visibility = Text(e) })"><option value="game">@T("Wenn Black Desert im Vordergrund ist")</option><option value="session">@T("Solange eine Session besteht, auch pausiert")</option><option value="always">@T("Immer, auch auf dem Desktop")</option></select><small>@T("Die Bildschirmvorschau zeigt das Overlay unabhängig davon.")</small></label>
-            <label class="oe-field"><span>@T("Größe im Spiel") <output>@Percent(_settings.Scale)</output></span><input type="range" min="0.5" max="2" step="0.05" value="@Css(_settings.Scale)" @onchange="e => ChangeNumber(e, 0.5, 2, (s, v) => s with { Scale = v })" /><small>@T("Skaliert das gesamte Layout. Windows-Skalierung wird berücksichtigt.")</small></label>
-            <label class="oe-field"><span>@T("Hintergrund") <output>@Percent(_settings.BackgroundOpacity)</output></span><input type="range" min="0" max="1" step="0.05" value="@Css(_settings.BackgroundOpacity)" @onchange="e => ChangeNumber(e, 0, 1, (s, v) => s with { BackgroundOpacity = v })" /><small>@T("Texte und Icons bleiben vollständig lesbar.")</small></label>
-            <label class="oe-check"><input type="checkbox" checked="@_settings.ShowBorder" @onchange="e => Change(s => s with { ShowBorder = Checked(e) })" /><span>@T("Rahmen anzeigen")</span></label>
-            <label class="oe-check"><input type="checkbox" checked="@_settings.CaptureExcluded" @onchange="e => Change(s => s with { CaptureExcluded = Checked(e) })" /><span>@T("Aus Bildschirmaufnahmen ausblenden")</span></label>
-            <button class="text-button oe-reset-position" @onclick="ResetPosition"><AppIcon Name="pin" />@T("Bildschirmposition zurücksetzen")</button>
-            <p class="oe-wide oe-help">@T("Fenstermodus oder randloses Vollbild verwenden. Der Monitor wird über Black Desert erkannt. Ohne erkanntes Spiel wird der eingestellte Ersatzbildschirm verwendet.")</p>
-            <p class="oe-wide oe-help">@( _settings.CaptureExcluded ? T("Das Overlay wird aus unterstützten Bildschirmaufnahmen ausgeblendet.") : T("Das Overlay ist in Bildschirmaufnahmen sichtbar.") )</p>
-        </div>
-    </details>
+            <div data-overlay-section="display" hidden="@(SelectedSection != "display")">
+                <section class="menu-panel oe-display-settings" aria-labelledby="oe-display-title">
+                    <div class="oe-menu-heading"><h2 id="oe-display-title">@T("Anzeige & Verhalten")</h2></div>
+                    <label class="oe-field oe-setting-row"><span>@T("Mit der Maus")</span><select value="@_settings.Interaction" @onchange="e => Change(s => s with { Interaction = Text(e) })"><option value="move">@T("Verschieben & bedienen")</option><option value="locked">@T("Position gesperrt, Buttons bedienbar")</option><option value="passthrough">@T("Alle Mausklicks ans Spiel weitergeben")</option></select></label>
+                    <label class="oe-field oe-setting-row"><span>@T("Wann anzeigen")</span><select value="@_settings.Visibility" @onchange="e => Change(s => s with { Visibility = Text(e) })"><option value="game">@T("Wenn Black Desert im Vordergrund ist")</option><option value="session">@T("Solange eine Session besteht, auch pausiert")</option><option value="always">@T("Immer, auch auf dem Desktop")</option></select></label>
+                    <label class="oe-field oe-setting-row"><span>@T("Größe im Spiel") <output>@Percent(_settings.Scale)</output></span><input type="range" min="0.5" max="2" step="0.05" value="@Css(_settings.Scale)" @onchange="e => ChangeNumber(e, 0.5, 2, (s, v) => s with { Scale = v })" /></label>
+                    <label class="oe-field oe-setting-row"><span>@T("Hintergrund") <output>@Percent(_settings.BackgroundOpacity)</output></span><input type="range" min="0" max="1" step="0.05" value="@Css(_settings.BackgroundOpacity)" @onchange="e => ChangeNumber(e, 0, 1, (s, v) => s with { BackgroundOpacity = v })" /></label>
+                    <label class="oe-setting-toggle"><span>@T("Rahmen anzeigen")</span><input class="switch" type="checkbox" checked="@_settings.ShowBorder" @onchange="e => Change(s => s with { ShowBorder = Checked(e) })" /></label>
+                    <label class="oe-setting-toggle"><span>@T("Aus Bildschirmaufnahmen ausblenden")</span><input class="switch" type="checkbox" checked="@_settings.CaptureExcluded" @onchange="e => Change(s => s with { CaptureExcluded = Checked(e) })" /></label>
+                    <button class="text-button oe-reset-position" @onclick="ResetPosition"><AppIcon Name="pin" />@T("Bildschirmposition zurücksetzen")</button>
+                </section>
+            </div>
 
-    <div class="oe-layout-toolbar">
-        <div class="oe-presets"><span>@T("Vorlage")</span><button class="button secondary" @onclick='() => ApplyPreset("loot")'>@T("Loot-Inventar")</button><button class="button secondary" @onclick='() => ApplyPreset("loot-strip")'>@T("Loot-Leiste")</button><button class="button secondary" @onclick='() => ApplyPreset("compact")'>@T("Kompakt")</button><button class="button secondary" @onclick='() => ApplyPreset("dashboard")'>Dashboard</button><button class="button secondary" @onclick='() => ApplyPreset("rotation-monitor")'>Rotation Monitor</button><button class="text-button" @onclick="ClearLayout">@T("Leer starten")</button></div>
-        <button type="button" class="button secondary oe-save-template" @onclick="() => OpenTemplateSave(null)" disabled="@(_saving || _templateBusy)"><AppIcon Name="plus" />@T("Als Vorlage speichern")</button>
-        <label class="oe-check"><input type="checkbox" checked="@_demo" @onchange="e => _demo = Checked(e)" /><span>@T("Beispieldaten")</span></label>
-    </div>
+            <div data-overlay-section="templates" hidden="@(SelectedSection != "templates")">
+                <section class="menu-panel oe-templates" aria-labelledby="oe-templates-title">
+                    <div class="oe-menu-heading"><h2 id="oe-templates-title">@T("Vorlagen")</h2><button type="button" class="button secondary oe-save-template" @onclick="() => OpenTemplateSave(null)" disabled="@(_saving || _templateBusy)"><AppIcon Name="plus" />@T("Als Vorlage speichern")</button></div>
+                    <div class="oe-presets"><button class="button secondary" @onclick='() => ApplyPreset("loot")'>@T("Loot-Inventar")</button><button class="button secondary" @onclick='() => ApplyPreset("loot-strip")'>@T("Loot-Leiste")</button><button class="button secondary" @onclick='() => ApplyPreset("compact")'>@T("Kompakt")</button><button class="button secondary" @onclick='() => ApplyPreset("dashboard")'>Dashboard</button><button class="button secondary" @onclick='() => ApplyPreset("rotation-monitor")'>Rotation Monitor</button><button class="text-button" @onclick="ClearLayout">@T("Leer starten")</button></div>
+                    @if (Overlay.TemplateError is { } templateError) { <div class="notice error-notice" role="alert"><AppIcon Name="info" /><span>@T(templateError)</span></div> }
+                    @if (Overlay.Templates.Count > 0)
+                    {
+                        <div class="oe-custom-templates">
+                            <label class="oe-field oe-setting-row"><span>@T("Eigene Vorlagen")</span><select aria-label="@T("Eigene Overlay-Vorlage")" @bind="_selectedTemplateId"><option value="">@T("Vorlage wählen")</option>@foreach (var template in Overlay.Templates) { <option value="@template.Id">@template.Name</option> }</select></label>
+                            <div class="oe-template-actions">
+                                <button type="button" class="button secondary" @onclick="ApplySelectedTemplate" disabled="@(SelectedTemplate is null || _saving || _templateBusy)">@T("Laden")</button>
+                                <button type="button" class="text-button" @onclick="() => OpenTemplateSave(SelectedTemplate)" disabled="@(SelectedTemplate is null || _saving || _templateBusy)">@T("Überschreiben")</button>
+                                <button type="button" class="icon-button" aria-label="@T("Ausgewählte Vorlage löschen")" title="@T("Vorlage löschen")" @onclick="RequestTemplateDelete" disabled="@(SelectedTemplate is null || _templateBusy)"><AppIcon Name="delete" /></button>
+                            </div>
+                        </div>
+                    }
+                </section>
+            </div>
 
-    @if (Overlay.TemplateError is { } templateError) { <div class="notice error-notice" role="alert"><AppIcon Name="info" /><span>@T(templateError)</span></div> }
-    @if (Overlay.Templates.Count > 0)
-    {
-        <div class="oe-custom-templates">
-            <label><span>@T("Eigene Vorlagen")</span><select aria-label="@T("Eigene Overlay-Vorlage")" @bind="_selectedTemplateId"><option value="">@T("Vorlage wählen")</option>@foreach (var template in Overlay.Templates) { <option value="@template.Id">@template.Name</option> }</select></label>
-            <button type="button" class="button secondary" @onclick="ApplySelectedTemplate" disabled="@(SelectedTemplate is null || _saving || _templateBusy)">@T("Laden")</button>
-            <button type="button" class="text-button" @onclick="() => OpenTemplateSave(SelectedTemplate)" disabled="@(SelectedTemplate is null || _saving || _templateBusy)">@T("Überschreiben")</button>
-            <button type="button" class="icon-button" aria-label="@T("Ausgewählte Vorlage löschen")" title="@T("Vorlage löschen")" @onclick="RequestTemplateDelete" disabled="@(SelectedTemplate is null || _templateBusy)"><AppIcon Name="delete" /></button>
-        </div>
-    }
-
+            @* Keep the canvas mounted so its JavaScript bindings and current selection survive category changes. *@
+            <div data-overlay-section="layout" hidden="@(SelectedSection != "layout")">
     <div class="oe-workbench">
         @if (Modules.FirstOrDefault(module => module.Kind == _previewModule) is { } preview)
         {
@@ -110,7 +119,7 @@
         </section>
 
         <section class="panel oe-workspace" aria-labelledby="oe-canvas-title">
-            <div class="oe-canvas-toolbar"><h2 id="oe-canvas-title">Layout</h2><label class="oe-check"><input type="checkbox" checked="@_settings.SnapToGrid" @onchange="e => Change(s => s with { SnapToGrid = Checked(e) })" /><span>@T("8-px-Raster")</span></label><span class="oe-data-kind">@(_demo ? T("Beispieldaten") : T("Live-Daten"))</span></div>
+            <div class="oe-canvas-toolbar"><h2 id="oe-canvas-title">Layout</h2><label class="oe-check"><input type="checkbox" checked="@_demo" @onchange="e => _demo = Checked(e)" /><span>@T("Beispieldaten")</span></label><label class="oe-check"><input type="checkbox" checked="@_settings.SnapToGrid" @onchange="e => Change(s => s with { SnapToGrid = Checked(e) })" /><span>@T("8-px-Raster")</span></label><span class="oe-data-kind">@(_demo ? T("Beispieldaten") : T("Live-Daten"))</span></div>
             <div class="oe-stage-viewport" data-theme="@PreviewSnapshot.ThemeId" @ref="_viewport">
                 <div class="oe-stage-wrap">
                     <div class="oe-stage @(_settings.ShowBorder ? "has-border" : "") @(Chrome.HasTitleBar ? "has-window-chrome" : "")" data-overlay-id="@_editingOverlayId" data-width="@Css(_settings.Width)" data-height="@Css(_settings.Height)" data-chrome-x="@Css(Chrome.Horizontal)" data-chrome-y="@Css(Chrome.Vertical)" data-snap="@_settings.SnapToGrid.ToString().ToLowerInvariant()" style="@StageStyle" @onclick="ClearSelection">
@@ -135,9 +144,11 @@
                 </div>
             </div>
             <div class="oe-canvas-dimensions"><label>@T("Breite") <input aria-label="@T("Overlay-Breite")" type="number" min="160" max="1600" step="8" value="@Css(_settings.Width)" @onchange="e => CanvasDimension(e, true)" /></label><span>×</span><label>@T("Höhe") <input aria-label="@T("Overlay-Höhe")" type="number" min="64" max="1200" step="8" value="@Css(_settings.Height)" @onchange="e => CanvasDimension(e, false)" /></label><span>px</span><span class="oe-fit-label">@T("Vorschau passt sich der Fläche an")</span></div>
+            <details class="oe-editor-help"><summary>@T("Bedienung")</summary>
             <p class="oe-canvas-help">@T("Modul auswählen, am Griff verschieben und an der Ecke vergrößern. Pfeiltasten verschieben das ausgewählte Modul; Umschalt bewegt es um 8 px.")</p>
             <p class="oe-canvas-help">@T("Breite, Höhe und die Ecke unten rechts ändern nur die Fensterfläche. Inhalte außerhalb der Fläche werden ausgeblendet und beim Vergrößern wieder sichtbar. Links und oben lässt sich die Fläche bis zum ersten Modul verkleinern; Größe und Abstände der Module bleiben erhalten.")</p>
             @if (Chrome.HasTitleBar) { <p class="oe-canvas-help">@T("Titelleiste und Rahmen kommen außen hinzu. Die Maße oben beziehen sich auf die Inhaltsfläche.")</p> }
+            </details>
         </section>
 
         <section class="panel oe-inspector" aria-labelledby="oe-inspector-title">
@@ -294,6 +305,9 @@
             else { <div class="oe-inspector-empty"><AppIcon Name="settings" /><p>@T("Wähle ein Modul auf der Fläche aus, um Position, Größe und Inhalt anzupassen.")</p></div> }
         </section>
     </div>
+            </div>
+        </div>
+    </div>
     </fieldset>
 </div>
 
@@ -319,8 +333,7 @@
 
 <dialog id="overlay-hotkeys-edit" class="modal oe-hotkey-modal" aria-labelledby="overlay-hotkeys-title" @oncancel="CloseHotkeyEditor" @oncancel:preventDefault>
     <div class="modal-heading"><h2 id="overlay-hotkeys-title">@T("Tastenkürzel anpassen")</h2><button type="button" class="icon-button" aria-label="@T("Tastenkürzel-Dialog schließen")" @onclick="CloseHotkeyEditor" disabled="@_hotkeyBusy"><AppIcon Name="close" /></button></div>
-    <p>@T("Für jedes Tastenkürzel ist Strg, Alt oder Strg+Alt erforderlich, auch bei Funktionstasten. Die beiden Kürzel steuern immer alle Overlay-Fenster gemeinsam.")</p>
-    <p>@T("Ein / aus blendet alle Overlays aus, sobald eines aktiv oder in der Bildschirmvorschau ist. Sind alle aus, werden alle eingeschaltet. Der zweite Hotkey schaltet alle auf „Klicks ans Spiel“ und beim nächsten Drücken zurück auf „Verschieben“.")</p>
+    <p>@T("Wähle eine Taste zusammen mit Strg, Alt oder Strg+Alt.")</p>
     <label class="oe-check oe-hotkeys-toggle"><input type="checkbox" @bind="_hotkeysEnabledDraft" disabled="@_hotkeyBusy" /><span>@T("Globale Tastenkürzel aktiv")</span></label>
     <OverlayHotkeyField Label="@T("Alle Overlays ein / aus")" @bind-Value="_toggleOverlayDraft" Disabled="@_hotkeyBusy" />
     <OverlayHotkeyField Label="@T("Verschieben / Klicks ans Spiel")" @bind-Value="_toggleInteractionDraft" Disabled="@_hotkeyBusy" />

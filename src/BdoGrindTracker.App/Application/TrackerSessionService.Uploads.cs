@@ -122,59 +122,17 @@ internal sealed partial class TrackerSessionService
         finally { _garmothUploadInProgress = false; PublishState(); }
     }
 
-    internal Task UploadHourlyToGarmothAsync()
+    private async Task UploadCompletedSessionAutomaticallyAsync(Guid sessionId)
     {
-        if (!_automaticUploadTask.IsCompleted) return Task.CompletedTask;
-        return _automaticUploadTask = UploadHourlyCoreAsync();
-    }
+        if (!Preferences.AutoUpload || _garmothApiKey.Length == 0) return;
+        var entry = _historyEntries.FirstOrDefault(candidate => candidate.SessionId == sessionId);
+        if (entry is null || entry.GarmothUploadBlocked || entry.GarmothUploadedAt is not null ||
+            _garmothRestartBlocks.Contains(sessionId)) return;
 
-    private async Task UploadHourlyCoreAsync()
-    {
-        if (!Preferences.AutoUpload || !_hasSession || _provisionalAutomaticGrind || _restoredSessionNeedsCaptureSetup || IsBusy || _sessionSubmitted || _shutdownStarted ||
-            _garmothIntervals.IsBlocked || _garmothIntervals.AutomaticSuspended || _garmothPersistenceError is not null ||
-            _garmothRestartBlocks.Contains(_sessionId)) return;
-        // Shared trash needs an explicit area/tier before a safe upload. Keep
-        // complete hours queued so choosing the variant can resume next tick.
-        if (_sessionSpotId is { } spotId)
-        {
-            var variants = BdoGrindTracker.Core.LootSpotCatalog.VariantsFor(spotId);
-            if (variants.Count > 0 && !variants.Any(variant => variant.Id == spotId)) return;
-        }
-        // Detection can recover on a later tick. Keep complete hours queued
-        // instead of turning a temporarily missing class into a rejected upload
-        // that permanently suspends the automatic path.
-        if ((_sessionClass ?? SelectedCharacterClass) is null) return;
-        var interval = _garmothIntervals.PrepareAutomatic();
-        if (interval is null) return;
-        _garmothUploadInProgress = true;
-        PublishState();
-        try
-        {
-            EnsureGarmothUploadAvailable();
-            await RefreshPricesAsync();
-            var preview = ConfirmedOrCurrent(CreateIntervalPreview(interval), null);
-            SetStatus("Garmoth automatisch: abgeschlossene Grindstunde wird übertragen …");
-            var result = await SendJournaledGarmothAsync(preview);
-            _garmothIntervals.Complete(interval, result);
-            var historySaved = !result.BlocksAnotherUpload || MarkHistoryUploadBlocked(_sessionId,
-                result.Status == GarmothUploadStatus.Succeeded, interval.Id);
-            var guidance = result.Status == GarmothUploadStatus.Succeeded
-                ? " Nur dieser Stundenabschnitt wurde übertragen."
-                : _garmothIntervals.IsBlocked
-                    ? " Weitere Uploads dieser Sitzung sind gesperrt. Tracking läuft weiter; bitte in Garmoth prüfen."
-                    : _garmothIntervals.CorrectionReviewRequired
-                        ? " " + GarmothUploadIntervals.CorrectionReviewMessage
-                    : " Auto-Upload angehalten. Korrigiere den Schlüssel oder wähle auf der Garmoth-Seite Automatik fortsetzen.";
-            if (result.Status == GarmothUploadStatus.Succeeded && _garmothIntervals.CorrectionReviewRequired)
-                guidance += " " + GarmothUploadIntervals.CorrectionReviewMessage;
-            SetUploadResult(result, historySaved, guidance);
-        }
-        catch (Exception exception)
-        {
-            _garmothIntervals.Complete(interval, new(GarmothUploadStatus.Rejected, "Lokale Upload-Vorbereitung fehlgeschlagen."));
-            SetStatus("Garmoth nicht gesendet: " + exception.Message + " Auto-Upload angehalten.", true);
-        }
-        finally { _garmothUploadInProgress = false; PublishState(); }
+        // Only the session just completed by NewSessionAsync is eligible. The
+        // saved entry uses the same full-session payload and journal as a manual
+        // history upload; earlier history is never silently retried or backfilled.
+        await UploadHistoryCoreAsync(sessionId, automatic: true);
     }
 
     public Task<TrackerCommandResult> UploadHistoryAsync(Guid sessionId)
@@ -183,7 +141,7 @@ internal sealed partial class TrackerSessionService
         return RunOperationAsync(() => UploadHistoryCoreAsync(sessionId));
     }
 
-    private async Task UploadHistoryCoreAsync(Guid sessionId, GarmothUploadPreview? confirmed = null)
+    private async Task UploadHistoryCoreAsync(Guid sessionId, GarmothUploadPreview? confirmed = null, bool automatic = false)
     {
         var entry = _historyEntries.FirstOrDefault(e => e.SessionId == sessionId);
         if (entry is null || entry.GarmothUploadBlocked || _garmothRestartBlocks.Contains(sessionId))
@@ -195,7 +153,8 @@ internal sealed partial class TrackerSessionService
         {
             if (confirmed is null) await RefreshPricesAsync();
             var preview = ConfirmedOrCurrent(GarmothUploadPreview.ForHistory(entry, Prices, Preferences.Tax), confirmed);
-            SetStatus("Grind aus dem Verlauf wird übertragen …");
+            SetStatus(automatic ? "Garmoth automatisch: abgeschlossene Session wird übertragen …"
+                : "Grind aus dem Verlauf wird übertragen …");
             var result = await SendJournaledGarmothAsync(preview);
             var historySaved = !result.BlocksAnotherUpload || MarkHistoryUploadBlocked(sessionId,
                 result.Status == GarmothUploadStatus.Succeeded, preview.Draft!.LocalSessionId, completesSession: true);

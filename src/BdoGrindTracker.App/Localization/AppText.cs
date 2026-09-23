@@ -42,6 +42,7 @@ internal static partial class AppText
         AddRotationMetrics(text);
         AddLootDrops(text);
         AddBuffs(text);
+        AddNavigation(text);
         return text.ToFrozenDictionary(StringComparer.Ordinal);
     }
 

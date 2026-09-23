@@ -7,7 +7,31 @@ namespace BdoGrindTracker.App.Components;
 
 public partial class OverlayEditor
 {
+    [Parameter, SupplyParameterFromQuery(Name = "section")] public string? Section { get; set; }
     [CascadingParameter(Name = "IsBrowserPreview")] public bool IsBrowserPreview { get; set; }
+    private static readonly MenuSection[] Sections =
+    [
+        new("layout", "Layout", "edit", "/overlay?section=layout"),
+        new("display", "Anzeige & Verhalten", "settings", "/overlay?section=display"),
+        new("windows", "Fenster", "monitor", "/overlay?section=windows"),
+        new("shortcuts", "Tastenkürzel", "key", "/overlay?section=shortcuts"),
+        new("templates", "Vorlagen", "spark", "/overlay?section=templates"),
+    ];
+    private string SelectedSection => Sections.Any(section => section.Id == Section) ? Section! : "layout";
+
+    private void SelectSection(string section)
+    {
+        if (WindowActionsBusy || section == SelectedSection || !Sections.Any(candidate => candidate.Id == section)) return;
+        NavigateToSection(section);
+    }
+
+    private void NavigateToSection(string section)
+    {
+        Section = section;
+        _previewModule = null;
+        Navigation.NavigateTo($"/overlay?section={section}");
+    }
+
     private OverlaySettings _settings = new();
     private string? _selectedId, _error;
     private string _itemSearch = "";
@@ -370,6 +394,7 @@ public partial class OverlayEditor
         var preset = OverlayCatalog.Preset(name);
         _selectedId = null;
         await Change(s => name == "rotation-monitor" ? new OverlayTemplate { Layout = preset }.ApplyTo(s) : s with { Width = preset.Width, Height = preset.Height, Widgets = preset.Widgets });
+        if (_error is null && SelectedSection != "layout") NavigateToSection("layout");
     }
 
     private async Task ClearLayout()
@@ -417,6 +442,7 @@ public partial class OverlayEditor
             {
                 _pendingLayoutChange = null;
                 await JS.InvokeVoidAsync("grindcrest.closeDialog", "overlay-layout-confirm");
+                if (SelectedSection != "layout") NavigateToSection("layout");
             }
         }
         finally { _confirmingLayout = false; }

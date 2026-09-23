@@ -155,20 +155,26 @@ public sealed partial class TrackerSessionServiceTests
         await using var fixture = new Fixture();
         fixture.Begin();
         await fixture.ProcessAfter(TimeSpan.FromHours(1), ("Black Crystal Fragment", 10));
-        await fixture.Service.UploadHourlyToGarmothAsync();
         await fixture.ProcessAfter(TimeSpan.FromMinutes(2), ("Black Crystal Fragment", 2));
         await fixture.Service.PauseAsync();
         var journal = new GarmothUploadJournalStore(Path.Combine(fixture.DirectoryPath, GarmothUploadJournalStore.FileName));
-        var attemptId = journal.Begin(fixture.Service.State.CurrentGarmothUpload.Draft!);
+        var draft = fixture.Service.State.CurrentGarmothUpload.Draft!;
+        // Simulate an older version's successful hourly upload followed by an
+        // unresolved remainder. No real upload is needed to seed legacy state.
+        var successId = journal.Begin(draft with { LocalSessionId = Guid.NewGuid(), ActiveDuration = TimeSpan.FromHours(1) });
+        journal.Complete(successId, GarmothUploadStatus.Succeeded);
+        var attemptId = journal.Begin(draft with { LocalSessionId = Guid.NewGuid() });
         if (hasResponse) journal.Complete(attemptId, GarmothUploadStatus.OutcomeUnknown);
-        Assert.NotNull(Assert.Single(fixture.HistoryStore.Load()).GarmothUploadedAt);
+        var saved = Assert.Single(fixture.HistoryStore.Load());
+        fixture.HistoryStore.Save([saved with { GarmothUploadBlocked = true, GarmothUploadedAt = DateTimeOffset.UtcNow }]);
 
         await using var restarted = RestartForGarmothTest(fixture);
         var restored = Assert.Single(restarted.History);
         Assert.True(restored.GarmothUploadBlocked);
         Assert.Null(restored.GarmothUploadedAt);
         Assert.False((await restarted.UploadHistoryAsync(restored.SessionId)).Succeeded);
-        Assert.Single(fixture.Requests);
+        await restarted.NewSessionAsync();
+        Assert.Empty(fixture.Requests);
     }
 
     [Theory]
@@ -193,12 +199,19 @@ public sealed partial class TrackerSessionServiceTests
     }
 
     [Fact]
-    public async Task GarmothRemainderReadinessUsesUnsentMinuteAndUnsentQuantities()
+    public async Task GarmothLegacyRemainderReadinessUsesUnsentMinuteAndUnsentQuantities()
     {
         await using var fixture = new Fixture();
         fixture.Begin();
         await fixture.ProcessAfter(TimeSpan.FromHours(1), ("Black Crystal Fragment", 100));
-        await fixture.Service.UploadHourlyToGarmothAsync();
+        var ledger = Assert.IsType<GarmothUploadIntervals>(ReadClassRefreshField(fixture.Service, "_garmothIntervals"));
+        ledger.RestoreState(new GarmothUploadState
+        {
+            ObservedDuration = TimeSpan.FromHours(1), ConsumedDuration = TimeSpan.FromHours(1),
+            NextHour = TimeSpan.FromHours(2), WindowStartedAt = fixture.Time.GetUtcNow(),
+            ObservedTotals = new() { ["Black Crystal Fragment"] = 100 },
+            TransmittedTotals = new() { ["Black Crystal Fragment"] = 100 },
+        });
         await fixture.ProcessAfter(TimeSpan.FromSeconds(30), ("Black Crystal Fragment", 1));
         Assert.False(fixture.Service.State.CurrentGarmothUpload.IsReady);
         Assert.Contains("volle aktive Minute", fixture.Service.State.CurrentGarmothUpload.Error);
@@ -256,85 +269,65 @@ public sealed partial class TrackerSessionServiceTests
     }
 
     [Fact]
-    public async Task GarmothCorrectionDuringAnOpenFirstAttemptSurvivesRestartAsALocalDivergence()
+    public async Task CompletedSessionCannotBeEditedWhileItsAutomaticUploadIsPending()
     {
         await using var fixture = new Fixture();
         var response = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
         fixture.Respond = () => response.Task;
         fixture.Begin();
-        await fixture.ProcessAfter(TimeSpan.FromHours(1), ("Black Crystal Fragment", 10));
-        var pending = fixture.Service.UploadHourlyToGarmothAsync();
+        await fixture.ProcessAfter(TimeSpan.FromMinutes(2), ("Black Crystal Fragment", 10));
+        await fixture.Service.PauseAsync();
+        var sessionId = fixture.Service.State.SessionId;
+        var pending = fixture.Service.NewSessionAsync();
         await WaitUntilAsync(() => fixture.Requests.Count == 1);
         try
         {
-            Assert.True((await fixture.Service.UpdateLootQuantityAsync(fixture.Service.State.SessionId,
-                "Black Crystal Fragment", 3, 10)).Succeeded);
+            await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Service.UpdateLootQuantityAsync(
+                sessionId, "Black Crystal Fragment", 3, 10));
             var diskEntry = Assert.Single(fixture.HistoryStore.Load());
-            Assert.False(diskEntry.GarmothUploadBlocked);
-            Assert.False(diskEntry.GarmothLocallyModified);
-            Assert.Single(diskEntry.GarmothPendingCorrectionIntervals);
+            Assert.Equal(10, diskEntry.Totals["Black Crystal Fragment"]);
+            Assert.Empty(diskEntry.GarmothPendingCorrectionIntervals);
 
             await using var restarted = RestartForGarmothTest(fixture);
             var recovered = Assert.Single(restarted.History);
             Assert.True(recovered.GarmothUploadBlocked);
-            Assert.True(recovered.GarmothLocallyModified);
-            Assert.Equal(3, recovered.Totals["Black Crystal Fragment"]);
-            Assert.False((await restarted.UploadHistoryAsync(recovered.SessionId)).Succeeded);
+            Assert.False((await restarted.UploadHistoryAsync(sessionId)).Succeeded);
             Assert.Single(fixture.Requests);
         }
         finally
         {
-            response.TrySetResult(new HttpResponseMessage(HttpStatusCode.InternalServerError));
+            response.TrySetResult(new HttpResponseMessage(HttpStatusCode.OK));
             await pending;
         }
-        Assert.True(Assert.Single(fixture.Service.History).GarmothLocallyModified);
+        Assert.True((await fixture.Service.UpdateLootQuantityAsync(sessionId, "Black Crystal Fragment", 3, 10)).Succeeded);
+        var corrected = Assert.Single(fixture.HistoryStore.Load());
+        Assert.True(corrected.GarmothLocallyModified);
+        Assert.Equal(3, corrected.Totals["Black Crystal Fragment"]);
+        AssertPayload(Assert.Single(fixture.Requests), 2, 10);
     }
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task GarmothRejectedCorrectedAttemptRequiresFreshManualPreview(bool freshManual)
+    [Fact]
+    public async Task RejectedCompletedSessionCanBeCorrectedAndUploadedManuallyWithoutAutomaticRetries()
     {
         await using var fixture = new Fixture();
-        var response = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
-        fixture.Respond = () => response.Task;
+        fixture.Respond = () => Task.FromResult(new HttpResponseMessage(HttpStatusCode.BadRequest));
         fixture.Begin();
-        await fixture.ProcessAfter(TimeSpan.FromHours(1), ("Black Crystal Fragment", 10));
-        var pending = fixture.Service.UploadHourlyToGarmothAsync();
-        await WaitUntilAsync(() => fixture.Requests.Count == 1);
-        try
-        {
-            Assert.True((await fixture.Service.UpdateLootQuantityAsync(fixture.Service.State.SessionId,
-                "Black Crystal Fragment", 3, 10)).Succeeded);
-        }
-        finally
-        {
-            response.TrySetResult(new HttpResponseMessage(HttpStatusCode.BadRequest));
-            await pending;
-        }
-        Assert.False(Assert.Single(fixture.Service.History).GarmothLocallyModified);
-        Assert.Single(Assert.Single(fixture.HistoryStore.Load()).GarmothPendingCorrectionIntervals);
+        await fixture.ProcessAfter(TimeSpan.FromMinutes(2), ("Black Crystal Fragment", 10));
+        await fixture.Service.PauseAsync();
+        var sessionId = fixture.Service.State.SessionId;
+        Assert.False((await fixture.Service.NewSessionAsync()).Succeeded);
+        Assert.True((await fixture.Service.UpdateLootQuantityAsync(sessionId, "Black Crystal Fragment", 3, 10)).Succeeded);
         fixture.Respond = () => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
-        if (freshManual)
-        {
-            Assert.True((await fixture.Service.PauseAsync()).Succeeded);
-            var correctedPreview = fixture.Service.State.CurrentGarmothUpload;
-            Assert.True(correctedPreview.IsReady, correctedPreview.Error);
-            Assert.Equal(3, correctedPreview.Draft!.Totals["Black Crystal Fragment"]);
-            Assert.True((await fixture.Service.UploadConfirmedAsync(correctedPreview)).Succeeded);
-        }
-        else
-        {
-            await fixture.Service.SavePreferencesAsync(fixture.Service.Preferences, resumeAutomaticUpload: true);
-            await fixture.Service.UploadHourlyToGarmothAsync();
-            Assert.Single(fixture.Requests);
-            Assert.True(fixture.Service.State.AutomaticUploadNeedsReview);
-            Assert.True(fixture.Service.State.AutomaticSuspended);
-            Assert.Contains("manuell senden", fixture.Service.State.Status);
-            return;
-        }
+        await fixture.Service.TickAsync();
+        await fixture.Service.NewSessionAsync();
+        Assert.Single(fixture.Requests);
+
+        var corrected = Assert.Single(fixture.Service.History);
+        var preview = GarmothUploadPreview.ForHistory(corrected, fixture.Service.Prices, fixture.Service.Preferences.Tax);
+        Assert.True(preview.IsReady, preview.Error);
+        Assert.True((await fixture.Service.UploadConfirmedAsync(preview)).Succeeded);
         Assert.Equal(2, fixture.Requests.Count);
-        AssertPayload(fixture.Requests.Last(), 60, 3);
+        AssertPayload(fixture.Requests.Last(), 2, 3);
         var saved = Assert.Single(fixture.HistoryStore.Load());
         Assert.True(saved.GarmothUploadBlocked);
         Assert.False(saved.GarmothLocallyModified);
@@ -342,25 +335,31 @@ public sealed partial class TrackerSessionServiceTests
     }
 
     [Fact]
-    public async Task GarmothNewTrackedDropsDuringAnUploadAreNotManualDivergences()
+    public async Task StartingTrackingDuringCompletedSessionUploadCannotChangeItsFrozenPayload()
     {
         await using var fixture = new Fixture();
         var response = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
         fixture.Respond = () => response.Task;
         fixture.Begin();
-        await fixture.ProcessAfter(TimeSpan.FromHours(1), ("Black Crystal Fragment", 10));
-        var pending = fixture.Service.UploadHourlyToGarmothAsync();
+        await fixture.ProcessAfter(TimeSpan.FromMinutes(2), ("Black Crystal Fragment", 10));
+        await fixture.Service.PauseAsync();
+        var pending = fixture.Service.NewSessionAsync();
         await WaitUntilAsync(() => fixture.Requests.Count == 1);
-        try { await fixture.ProcessAfter(TimeSpan.FromMinutes(1), ("Black Crystal Fragment", 5)); }
+        try
+        {
+            Assert.False((await fixture.Service.ToggleTrackingAsync()).Succeeded);
+            Assert.False(fixture.Service.State.IsRunning);
+        }
         finally
         {
             response.TrySetResult(new HttpResponseMessage(HttpStatusCode.OK));
             await pending;
         }
         var saved = Assert.Single(fixture.HistoryStore.Load());
-        Assert.Equal(15, saved.Totals["Black Crystal Fragment"]);
+        Assert.Equal(10, saved.Totals["Black Crystal Fragment"]);
         Assert.False(saved.GarmothLocallyModified);
         Assert.Empty(saved.GarmothPendingCorrectionIntervals);
+        AssertPayload(Assert.Single(fixture.Requests), 2, 10);
     }
 
     private static TrackerSessionService RestartForGarmothTest(Fixture fixture) => new(

@@ -28,7 +28,7 @@ public sealed class OverlayLocalizationTests
         Assert.Equal(source, overlay.TemplateError);
         await using var services = new ServiceCollection().AddLogging()
             .AddSingleton<ITrackerSession>(tracker).AddSingleton<IOverlayService>(overlay)
-            .AddSingleton<IJSRuntime>(new NoopJs()).BuildServiceProvider();
+            .AddSingleton<NavigationManager, OverlayTestNavigation>().AddSingleton<IJSRuntime>(new NoopJs()).BuildServiceProvider();
         await using var renderer = new HtmlRenderer(services, services.GetRequiredService<ILoggerFactory>());
         await renderer.Dispatcher.InvokeAsync(async () =>
         {

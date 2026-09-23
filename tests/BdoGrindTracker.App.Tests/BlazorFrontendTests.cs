@@ -841,7 +841,7 @@ public sealed class BlazorFrontendTests
             var control = match.Groups["attributes"].Value + " " + Regex.Replace(match.Groups["content"].Value, "<[^>]+>", "");
             Assert.DoesNotMatch("(?i)hochladen|API-Schlüssel|API-Key", control);
         }
-        Assert.DoesNotContain("Stündlich automatisch hochladen", WebUtility.HtmlDecode(markup));
+        Assert.DoesNotContain("Abgeschlossene Sessions automatisch hochladen", WebUtility.HtmlDecode(markup));
     }
 
     private static string FieldSelectAttributes(string markup, string label)

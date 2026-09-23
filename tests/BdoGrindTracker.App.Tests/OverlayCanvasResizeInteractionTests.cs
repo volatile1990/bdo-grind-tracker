@@ -249,7 +249,7 @@ public sealed class OverlayCanvasResizeInteractionTests
         Assert.True((await overlay.SaveAsync(initial ?? InitialLayout())).Succeeded);
         var activator = new CapturingActivator();
         using var provider = new ServiceCollection().AddLogging().AddSingleton<IOverlayService>(overlay).AddSingleton<ITrackerSession>(tracker)
-            .AddSingleton<IJSRuntime, NoJavaScript>().AddSingleton<IComponentActivator>(activator).BuildServiceProvider();
+            .AddSingleton<NavigationManager, OverlayTestNavigation>().AddSingleton<IJSRuntime, NoJavaScript>().AddSingleton<IComponentActivator>(activator).BuildServiceProvider();
         await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
         await renderer.Dispatcher.InvokeAsync(async () =>
         {

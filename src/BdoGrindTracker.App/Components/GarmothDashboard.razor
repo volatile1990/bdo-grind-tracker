@@ -9,7 +9,7 @@
     var pageCount = Math.Max(1, (visible.Length + PageSize - 1) / PageSize);
     var currentPage = Math.Clamp(_page, 1, pageCount);
 }
-<div class="page garmoth-page">
+<div class="page garmoth-page menu-page">
     <div class="page-heading"><h1>Garmoth</h1><a class="text-button" href="@GarmothUploadClient.TrackerPage" target="_blank" rel="noopener noreferrer">@T("Garmoth öffnen") <AppIcon Name="arrow" /></a></div>
     @if (State.IsDemo)
     {
@@ -20,17 +20,20 @@
         <div class="notice @(_uploadFailed ? "error-notice" : "success-notice")" role="status"><AppIcon Name="@(_uploadFailed ? "info" : "check")" />@UploadFeedbackText</div>
     }
 
-    <section class="panel garmoth-connection" aria-label="@T("Garmoth-Verbindung und Automatik")">
+    <div class="settings-workspace menu-workspace">
+    <MenuNavigation Label="Garmoth-Bereiche" Sections="Sections" Selected="@SelectedSection" Disabled="InteractionBlocked" />
+    <div class="menu-content">
+    <section class="menu-panel garmoth-connection" aria-label="@T("Garmoth-Verbindung und Automatik")" hidden="@(SelectedSection != "connection")">
+        <div class="menu-section-heading"><h2>@T("Verbindung & Upload")</h2><a class="text-button" href="@GarmothUploadClient.SettingsPage" target="_blank" rel="noopener noreferrer">@T("API-Schlüssel erhalten")</a></div>
         <form @onsubmit="SaveKey" @onsubmit:preventDefault>
             <div class="garmoth-connection-fields">
                 <label class="field"><span>@T("API-Schlüssel") <span class="badge @(State.HasApiKey ? "teal-badge" : "muted-badge")">@(State.HasApiKey ? T("Gespeichert") : T("Nicht hinterlegt"))</span></span><div class="key-input"><AppIcon Name="key" /><input type="password" aria-label="@T("Garmoth-API-Schlüssel")" autocomplete="new-password" spellcheck="false" maxlength="4096" placeholder="@T(State.HasApiKey ? "Schlüssel ersetzen …" : "API-Schlüssel einfügen")" @bind="_apiKey" @bind:event="oninput" @bind:after="FormChanged" @onblur="SaveKey" disabled="@InteractionBlocked" /></div></label>
-                <label class="toggle-row garmoth-auto-toggle"><span><strong>@T("Stündlich automatisch hochladen")</strong></span><input type="checkbox" class="switch" aria-label="@T("Stündlich automatisch hochladen")" checked="@Tracker.Preferences.AutoUpload" @onchange="AutoUploadChanged" disabled="@InteractionBlocked" /></label>
+                <label class="toggle-row garmoth-auto-toggle"><span><strong>@T("Abgeschlossene Sessions automatisch hochladen")</strong></span><input type="checkbox" class="switch" aria-label="@T("Abgeschlossene Sessions automatisch hochladen")" checked="@Tracker.Preferences.AutoUpload" @onchange="AutoUploadChanged" disabled="@InteractionBlocked" /></label>
                 @if (State.HasApiKey)
                 {
                     <button type="button" class="text-button garmoth-remove-key" aria-label="@T("Gespeicherten Garmoth-Schlüssel entfernen")" @onclick="RemoveKey" disabled="@InteractionBlocked"><AppIcon Name="delete" />@T("Schlüssel entfernen")</button>
                 }
             </div>
-            <a class="text-button" href="@GarmothUploadClient.SettingsPage" target="_blank" rel="noopener noreferrer">@T("API-Schlüssel erhalten")</a>
             @if (_saveFeedback is not null)
             {
                 <div class="garmoth-form-feedback is-error" role="alert"><AppIcon Name="info" />@T(_saveFeedback)</div>
@@ -46,8 +49,12 @@
         </form>
     </section>
 
-    <section class="panel garmoth-history" aria-label="@T("Sessions für Garmoth")">
+    <section class="panel garmoth-history" aria-label="@T("Sessions für Garmoth")" hidden="@(SelectedSection != "sessions")">
         <div class="panel-heading"><h2>Sessions <span class="count-pill">@rows.Count</span></h2><button class="button primary" @onclick="AskAllUploads" disabled="@(!CanUploadAll)"><AppIcon Name="upload" />@(_batchUploading ? F("Hochladen · {0} / {1}", _batchCompleted, _batchTotal) : T("Alles hochladen"))</button></div>
+        @if (!State.HasApiKey)
+        {
+            <div class="garmoth-connect-prompt"><a class="text-button" href="garmoth?section=connection"><AppIcon Name="key" />@T("API-Schlüssel hinterlegen")</a></div>
+        }
         <div class="garmoth-history-toolbar"><label class="search-field"><AppIcon Name="search" /><input aria-label="@T("Gespeicherte Garmoth-Sessions nach Spot suchen")" placeholder="@T("Grindspot suchen …")" @bind="_search" @bind:event="oninput" @bind:after="ResetPage" /></label><label class="filter-field"><span>Status</span><select aria-label="@T("Garmoth-Upload-Status filtern")" @bind="_statusFilter" @bind:after="ResetPage"><option value="all">@T("Alle Sessions")</option><option value="pending">@T("Noch offen")</option><option value="transferred">@T("Hochgeladen")</option><option value="blocked">@T("Upload gesperrt")</option></select></label><span class="filter-count">@F("{0} Treffer", visible.Length)</span></div>
         @if (visible.Length > 0)
         {
@@ -85,6 +92,8 @@
             <div class="empty-state garmoth-history-empty"><AppIcon Name="history" /><h3>@(rows.Count > 0 ? T("Keine passenden Sessions") : T("Noch keine Sessions"))</h3></div>
         }
     </section>
+    </div>
+    </div>
 </div>
 
 <dialog id="garmoth-upload-confirm" class="modal confirm-modal" aria-labelledby="garmoth-upload-title" @oncancel="CloseUploadDialog">

@@ -2,6 +2,7 @@ using System.Drawing;
 using System.Reflection;
 using System.Net;
 using System.Net.Http;
+using System.Text.Json;
 using BdoGrindTracker.App.Analysis;
 using BdoGrindTracker.App.Capture;
 using BdoGrindTracker.App.Character;
@@ -374,7 +375,7 @@ public sealed partial class TrackerSessionRestoreTests
     }
 
     [Fact]
-    public async Task RestoredPausedSessionDoesNotAutomaticallyUploadPendingHours()
+    public async Task RestoredPausedSessionUploadsOnlyWhenNewSessionCompletesIt()
     {
         using var directory = new TestDirectory();
         var uploads = new GarmothUploadIntervals();
@@ -386,10 +387,14 @@ public sealed partial class TrackerSessionRestoreTests
         });
         await using var fixture = new Fixture(directory.Path, autoUpload: true);
         await fixture.Service.TickAsync();
-        await fixture.Service.UploadHourlyToGarmothAsync();
         Assert.Equal(0, fixture.Requests);
         Assert.False(fixture.Service.State.IsRunning);
         Assert.False(fixture.Service.State.AutomaticSuspended);
+        Assert.True((await fixture.Service.NewSessionAsync()).Succeeded);
+        Assert.Equal(1, fixture.Requests);
+        Assert.Equal(60, fixture.LastPayload!.Value.GetProperty("minutes").GetInt64());
+        Assert.Equal(27, fixture.LastPayload.Value.GetProperty("drops").GetProperty("980128_0").GetInt64());
+        Assert.True(Assert.Single(fixture.History.Load()).GarmothUploadBlocked);
     }
 
     [Fact]
@@ -423,7 +428,8 @@ public sealed partial class TrackerSessionRestoreTests
         Assert.Equal(snapshot.Duration, fixture.Service.State.Elapsed);
         var saved = new CurrentSessionStore(directory.CurrentPath).Load()!;
         Assert.Equal(snapshot.Duration, saved.Duration);
-        Assert.Equal(TimeSpan.FromHours(1), Assert.Single(saved.Uploads!.Hours).EndDuration);
+        Assert.Empty(saved.Uploads!.Hours);
+        Assert.Equal(TimeSpan.FromHours(1), saved.Uploads.ObservedDuration);
     }
 
     [Fact]
@@ -538,7 +544,11 @@ public sealed partial class TrackerSessionRestoreTests
                 [new("synthetic-monitor", "Synthetic", new(0, 0, 1920, 1080), true)],
                 Clock, Activity,
                 () => new(CompanionCharacterClassCatalog.FindById("warrior-awakening"), CharacterClassDetectionStatus.Detected, 3),
-                new FixedPrices(), new GarmothUploadClient(new CountingHandler(() => Requests++)),
+                new FixedPrices(), new GarmothUploadClient(new CountingHandler(payload =>
+                {
+                    Requests++;
+                    LastPayload = payload;
+                })),
                 keyStore, History,
                 () => new("en", "Synthetic language"), isLootScrollCaptureVisible: _ => false);
         }
@@ -550,6 +560,7 @@ public sealed partial class TrackerSessionRestoreTests
         public Analyzer Analyzer { get; } = new();
         public int Captures { get; private set; }
         public int Requests { get; private set; }
+        public JsonElement? LastPayload { get; private set; }
 
         public void Begin(bool hasSpot = true)
         {
@@ -612,12 +623,13 @@ public sealed partial class TrackerSessionRestoreTests
         public void Dispose() { }
     }
 
-    private sealed class CountingHandler(Action onRequest) : HttpMessageHandler
+    private sealed class CountingHandler(Action<JsonElement> onRequest) : HttpMessageHandler
     {
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken token)
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken token)
         {
-            onRequest();
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+            using var json = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(token));
+            onRequest(json.RootElement.Clone());
+            return new HttpResponseMessage(HttpStatusCode.OK);
         }
     }
 

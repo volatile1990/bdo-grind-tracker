@@ -36,7 +36,7 @@ public sealed class BrowserHostTests : IClassFixture<WebApplicationFactory<Progr
         Assert.Contains("Grindcrest · Browser preview", html);
         Assert.Contains("<html lang=\"en\">", html);
         Assert.Contains("_framework/blazor.web.js", html);
-        Assert.Contains("href=\"grind-goals.css\"", html);
+        Assert.Matches("href=\"grind-goals\\.css\\?v=[0-9]+\"", html);
         Assert.DoesNotContain("blazor.webview.js", html);
     }
 

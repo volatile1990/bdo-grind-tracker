@@ -10,6 +10,14 @@ namespace BdoGrindTracker.App.Components;
 
 public partial class GarmothDashboard
 {
+    [SupplyParameterFromQuery(Name = "section")] public string? Section { get; set; }
+    private static readonly MenuSection[] Sections =
+    [
+        new("sessions", "Sessions", "history", "garmoth"),
+        new("connection", "Verbindung & Upload", "settings", "garmoth?section=connection")
+    ];
+    private string SelectedSection => Section == "connection" ? "connection" : "sessions";
+
     private const int PageSize = 8;
     private string _apiKey = "", _search = "", _statusFilter = "all";
     private bool _uploadFailed, _confirmCurrent, _preparing, _batchUploading, _disposed;

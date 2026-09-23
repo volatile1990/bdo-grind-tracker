@@ -18,6 +18,9 @@
     <Compile Include="../BdoGrindTracker.App.Tests/OverlayScaledPreviewTests.cs;../BdoGrindTracker.App.Tests/OverlayContentLayoutTests.cs" Link="Shared/%(Filename)%(Extension)" />
     <Compile Include="../BdoGrindTracker.App.Tests/BdoClockTests.cs" Link="Shared/BdoClockTests.cs" />
     <Compile Include="../../src/BdoGrindTracker.App/Persistence/LootHistoryStore.cs;../../src/BdoGrindTracker.App/Persistence/CurrentSessionStore.cs;../../src/BdoGrindTracker.App/Integrations/Garmoth/GarmothUploadIntervals*.cs" Link="Shared/%(Filename)%(Extension)" />
+    <Compile Include="../BdoGrindTracker.App.Tests/GarmothSessionUploadLedgerTests.cs" Link="Shared/GarmothSessionUploadLedgerTests.cs" />
+    <Compile Include="../BdoGrindTracker.App.Tests/LiveLootInteractionTests.cs" Link="Shared/LiveLootInteractionTests.cs" />
+    <Compile Include="../BdoGrindTracker.App.Tests/HistoryDashboardRegressionTests.cs" Link="Shared/HistoryDashboardRegressionTests.cs" />
     <Compile Include="../BdoGrindTracker.App.Tests/CombatStatsPersistenceTests.cs;../BdoGrindTracker.App.Tests/CombatStatsColorClassifierTests.cs" Link="Shared/%(Filename)%(Extension)" />
     <Compile Include="../BdoGrindTracker.App.Tests/BuffPersistenceTests.cs" Link="Shared/%(Filename)%(Extension)" />
     <Compile Include="../BdoGrindTracker.App.Tests/AutomaticBuffCatalogTests.cs;../BdoGrindTracker.App.Tests/AutomaticBuffDurationPricingTests.cs" Link="Shared/%(Filename)%(Extension)" />

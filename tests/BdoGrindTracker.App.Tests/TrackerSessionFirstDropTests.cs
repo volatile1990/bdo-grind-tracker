@@ -150,7 +150,7 @@ public sealed partial class TrackerSessionServiceTests
     }
 
     [Fact]
-    public async Task InitialWaitingTimeCannotTriggerAnEarlyHourlyUpload()
+    public async Task CompletedSessionUploadExcludesInitialWaitingTime()
     {
         await using var fixture = new Fixture();
         Assert.True((await fixture.Service.SavePreferencesAsync(fixture.Service.Preferences with
@@ -163,8 +163,12 @@ public sealed partial class TrackerSessionServiceTests
         Assert.Empty(fixture.Requests);
         await fixture.ProcessAfter(TimeSpan.FromMinutes(1), ("Black Crystal Fragment", 1));
         await fixture.Service.TickAsync();
-        await WaitUntilAsync(() => fixture.Requests.Count == 1);
+        Assert.Empty(fixture.Requests);
         Assert.Equal(TimeSpan.FromHours(1), fixture.Service.State.Elapsed);
+        await fixture.Service.PauseAsync();
+        Assert.Empty(fixture.Requests);
+        Assert.True((await fixture.Service.NewSessionAsync()).Succeeded);
+        AssertPayload(Assert.Single(fixture.Requests), 60, 6);
     }
 
     private static async Task StartWaitingForDrop(Fixture fixture)

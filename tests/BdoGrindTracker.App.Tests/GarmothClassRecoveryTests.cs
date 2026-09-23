@@ -9,7 +9,7 @@ public sealed partial class TrackerSessionServiceTests
     [InlineData("Unknown")]
     [InlineData("Ambiguous")]
     [InlineData("Unavailable")]
-    public Task MissingClassKeepsCompletedHoursQueuedUntilDetectionRecovers(string detectionStatus) =>
+    public Task RecoveredClassIsUsedWhenTheSessionIsCompleted(string detectionStatus) =>
         RunOnHostContextAsync(async () =>
         {
             await using var fixture = new Fixture();
@@ -37,21 +37,15 @@ public sealed partial class TrackerSessionServiceTests
             SetField(fixture.Service, "_nextClassDetectionAt", DateTimeOffset.MinValue);
             await fixture.Service.TickAsync();
             await AwaitClassRefresh(fixture.Service);
-            await Assert.IsAssignableFrom<Task>(ReadClassRefreshField(fixture.Service, "_automaticUploadTask"))
-                .WaitAsync(TimeSpan.FromSeconds(5));
             Assert.Equal("hashashin-awakening", fixture.Service.State.CharacterClassId);
-            // Detection may finish before or after the recovery tick reaches
-            // uploads. Two further ticks drain both hours in either ordering.
-            for (var tick = 0; tick < 2; tick++)
-            {
-                await fixture.Service.TickAsync();
-                await Assert.IsAssignableFrom<Task>(ReadClassRefreshField(fixture.Service, "_automaticUploadTask"))
-                    .WaitAsync(TimeSpan.FromSeconds(5));
-            }
+            await fixture.Service.TickAsync();
+            Assert.Empty(fixture.Requests);
+            fixture.AssertTracking(TimeSpan.FromHours(2), 7);
+            await fixture.Service.PauseAsync();
+            Assert.Empty(fixture.Requests);
+            Assert.True((await fixture.Service.NewSessionAsync()).Succeeded);
             var requests = fixture.Requests.ToArray();
-            Assert.Equal(2, requests.Length);
-            AssertPayload(requests[0], 60, 2);
-            AssertPayload(requests[1], 60, 5);
+            AssertPayload(Assert.Single(requests), 120, 7);
             Assert.True(GarmothCatalog.TryGetClass("Hashashin", GarmothSpecialization.Awakening,
                 out var classId, out var specialization));
             Assert.All(requests, request =>
@@ -61,8 +55,8 @@ public sealed partial class TrackerSessionServiceTests
             });
 
             await fixture.Service.TickAsync();
-            Assert.Equal(2, fixture.Requests.Count);
+            Assert.Single(fixture.Requests);
             Assert.False(fixture.Service.State.AutomaticSuspended);
-            fixture.AssertTracking(TimeSpan.FromHours(2), 7);
+            Assert.False(fixture.Service.State.HasSession);
         });
 }

@@ -11,67 +11,90 @@
     Tracker.Preferences.FavoriteItems.Contains(name, StringComparer.Ordinal) ||
     Tracker.Prices.TryGetQuote(name, out var quote) && quote.UnitPrice > 200_000_000m); }
 
-<div class="page grind-goals">
-    <div class="page-heading"><div><span class="eyebrow">@T("DEINE ZIELE")</span><h1>Grind Goals</h1><p>@T("Plane deinen Grind und verfolge deinen täglichen Netto-Silbergewinn.")</p></div></div>
+<div class="page menu-page grind-goals">
+    <div class="page-heading settings-page-heading"><h1>Grind Goals</h1></div>
     @if (_error is not null || Goals.Error is not null) { <div class="notice error-notice" role="alert">@T(_error ?? Goals.Error ?? "")</div> }
-    <div class="gg-toolbar">
-        <button class="button secondary" aria-label="@T("Vorheriger Monat")" @onclick="() => MoveMonth(-1)">‹</button>
-        <h2>@_month.ToString("MMMM yyyy", UiCulture)</h2>
-        <button class="button secondary" aria-label="@T("Nächster Monat")" @onclick="() => MoveMonth(1)">›</button>
-        <span>@F("{0} / {1} Tagesziele erreicht", monthReached, monthGoals.Length)</span>
-    </div>
-    <div class="gg-layout">
-        <section class="panel gg-calendar" aria-label="@T("Monatsübersicht")">
-            <div class="gg-week gg-labels"><span>@T("Woche")</span>@foreach (var day in Enumerable.Range(0, 7).Select(index => UiCulture.DateTimeFormat.GetAbbreviatedDayName((DayOfWeek)((index + 1) % 7)))) { <span>@day.TrimEnd('.')</span> }</div>
-            @for (var row = 0; row < WeekCount; row++)
-            {
-                var start = GridStart.AddDays(row*7);
-                <div class="gg-week @(start == _week ? "selected" : "")">
-                    <button class="gg-week-select" aria-label="@F("Woche ab {0}", start.ToString("m", UiCulture))" aria-pressed="@(start == _week)" @onclick="() => SelectWeek(start)">@T("KW") @ISOWeek.GetWeekOfYear(start.ToDateTime(TimeOnly.MinValue))</button>
-                    @for (var column = 0; column < 7; column++)
-                    {
-                        var date = start.AddDays(column); var goal = Goals.Goals.GetValueOrDefault(date); var net = daily.GetValueOrDefault(date);
-                        <button class="gg-day @(date.Month != _month.Month ? "outside" : "") @(date == _day ? "chosen" : "") @(goal > 0 && net >= goal ? "reached" : "")" aria-pressed="@(date == _day)" @onclick="() => SelectDay(date)">
-                            <span>@date.Day</span><strong>@Silver(net)</strong><small>@(goal > 0 ? F("von {0}", Silver(goal)) : T("Kein Ziel"))</small>
-                            @if (goal > 0) { <progress value="@Math.Clamp(net,0,goal)" max="@goal" aria-label="@T("Zielfortschritt")"></progress> }
-                            @if (dailyDrops.TryGetValue(date, out var drops) && drops.Length > 0)
-                            {
-                                <span class="gg-drops">
-                                    @foreach (var drop in drops)
-                                    {
-                                        var favorite = Tracker.Preferences.FavoriteItems.Contains(drop.Key, StringComparer.Ordinal);
-                                        var label = ItemLabel(drop.Key) + " · " + Number(drop.Value) + (favorite ? " · " + T("Favorit") : "");
-                                        <span class="gg-drop" title="@label" aria-label="@label">
-                                            <AssetImage Src="@ItemIcon(drop.Key)" Alt="" Class="gg-drop-icon" Fallback="loot" />
-                                            <span class="gg-drop-count">@Number(drop.Value)</span>
-                                            @if (favorite) { <span class="gg-drop-star" aria-hidden="true">★</span> }
-                                        </span>
-                                    }
-                                </span>
-                            }
-                        </button>
-                    }
+    <div class="settings-workspace menu-workspace">
+        <MenuNavigation Label="Zielbereiche" Sections="Sections" Selected="@SelectedSection" />
+        <div class="menu-content">
+            <section class="menu-panel gg-planner" hidden="@(SelectedSection != "calendar")" aria-label="@T("Kalender & Ziele")">
+                <div class="gg-toolbar">
+                    <button class="button secondary" aria-label="@T("Vorheriger Monat")" @onclick="() => MoveMonth(-1)">‹</button>
+                    <h2>@_month.ToString("MMMM yyyy", UiCulture)</h2>
+                    <button class="button secondary" aria-label="@T("Nächster Monat")" @onclick="() => MoveMonth(1)">›</button>
+                    <span>@F("{0} / {1} Tagesziele erreicht", monthReached, monthGoals.Length)</span>
                 </div>
-            }
-        </section>
-        <section class="panel gg-editor">
-            <h2>@_day.ToString("dddd", UiCulture), @_day.ToString("m", UiCulture)</h2>
-            <p>@T("Netto:") <strong>@Silver(daily.GetValueOrDefault(_day))</strong></p>
-            <label class="oe-field"><span>@T("Tagesziel in Mio. Silber")</span><input type="number" min="0.001" step="1" @bind="_millions" /></label>
-            <label class="oe-field"><span>@T("Anwenden auf")</span><select @bind="_scope"><option value="day">@T("Ausgewählter Tag")</option><option value="work">@T("Arbeitstage · Mo–Fr")</option><option value="weekend">@T("Wochenendtage · Sa–So")</option><option value="all">@T("Alle Tage")</option></select></label>
-            @if (_scope != "day") { <label class="oe-field"><span>@T("Zeitraum")</span><select @bind="_period"><option value="week">@T("Ausgewählte Woche")</option><option value="month">@T("Angezeigter Monat")</option></select></label> }
-            <button class="button primary" @onclick="Save">@T("Ziel speichern")</button>
-            <button class="button secondary" @onclick="Remove">@T("Ziel entfernen")</button>
-            @if (_saved is { } saved) { <p role="status">@(saved.Count == 1 ? T(saved.Removed ? "Tagesziel entfernt." : "Tagesziel gespeichert.") : F(saved.Removed ? "{0} Tagesziele entfernt." : "{0} Tagesziele gespeichert.", saved.Count))</p> }
-            <small>@T("Sessions zählen zum lokalen Tag ihres Starts. Grundlage ist Silber netto aus dem gespeicherten Verlauf. Wochenaktionen gelten innerhalb des angezeigten Monats.")</small>
-        </section>
+                <div class="gg-layout">
+                    <section class="gg-calendar" aria-label="@T("Monatsübersicht")">
+                        <div class="gg-week gg-labels"><span>@T("Woche")</span>@foreach (var day in Enumerable.Range(0, 7).Select(index => UiCulture.DateTimeFormat.GetAbbreviatedDayName((DayOfWeek)((index + 1) % 7)))) { <span>@day.TrimEnd('.')</span> }</div>
+                        @for (var row = 0; row < WeekCount; row++)
+                        {
+                            var start = GridStart.AddDays(row*7);
+                            <div class="gg-week @(start == _week ? "selected" : "")">
+                                <button class="gg-week-select" aria-label="@F("Woche ab {0}", start.ToString("m", UiCulture))" aria-pressed="@(start == _week)" @onclick="() => SelectWeek(start)">@T("KW") @ISOWeek.GetWeekOfYear(start.ToDateTime(TimeOnly.MinValue))</button>
+                                @for (var column = 0; column < 7; column++)
+                                {
+                                    var date = start.AddDays(column); var goal = Goals.Goals.GetValueOrDefault(date); var net = daily.GetValueOrDefault(date);
+                                    <button class="gg-day @(date.Month != _month.Month ? "outside" : "") @(date == _day ? "chosen" : "") @(goal > 0 && net >= goal ? "reached" : "")" aria-pressed="@(date == _day)" @onclick="() => SelectDay(date)">
+                                        <span>@date.Day</span><strong>@Silver(net)</strong><small>@(goal > 0 ? F("von {0}", Silver(goal)) : T("Kein Ziel"))</small>
+                                        @if (goal > 0) { <progress value="@Math.Clamp(net,0,goal)" max="@goal" aria-label="@T("Zielfortschritt")"></progress> }
+                                        @if (dailyDrops.TryGetValue(date, out var drops) && drops.Length > 0)
+                                        {
+                                            <span class="gg-drops">
+                                                @foreach (var drop in drops)
+                                                {
+                                                    var favorite = Tracker.Preferences.FavoriteItems.Contains(drop.Key, StringComparer.Ordinal);
+                                                    var label = ItemLabel(drop.Key) + " · " + Number(drop.Value) + (favorite ? " · " + T("Favorit") : "");
+                                                    <span class="gg-drop" title="@label" aria-label="@label">
+                                                        <AssetImage Src="@ItemIcon(drop.Key)" Alt="" Class="gg-drop-icon" Fallback="loot" />
+                                                        <span class="gg-drop-count">@Number(drop.Value)</span>
+                                                        @if (favorite) { <span class="gg-drop-star" aria-hidden="true">★</span> }
+                                                    </span>
+                                                }
+                                            </span>
+                                        }
+                                    </button>
+                                }
+                            </div>
+                        }
+                    </section>
+                    <section class="gg-editor">
+                        <div class="gg-editor-heading"><h2>@_day.ToString("dddd", UiCulture), @_day.ToString("m", UiCulture)</h2><p>@T("Netto:") <strong>@Silver(daily.GetValueOrDefault(_day))</strong></p></div>
+                        <div class="gg-editor-fields">
+                            <label class="oe-field"><span>@T("Tagesziel in Mio. Silber")</span><input type="number" min="0.001" step="1" @bind="_millions" /></label>
+                            <label class="oe-field"><span>@T("Anwenden auf")</span><select @bind="_scope"><option value="day">@T("Ausgewählter Tag")</option><option value="work">@T("Arbeitstage · Mo–Fr")</option><option value="weekend">@T("Wochenendtage · Sa–So")</option><option value="all">@T("Alle Tage")</option></select></label>
+                            @if (_scope != "day") { <label class="oe-field"><span>@T("Zeitraum")</span><select @bind="_period"><option value="week">@T("Ausgewählte Woche")</option><option value="month">@T("Angezeigter Monat")</option></select></label> }
+                        </div>
+                        <div class="gg-editor-actions">
+                            <button class="button primary" @onclick="Save">@T("Ziel speichern")</button>
+                            <button class="button secondary" @onclick="Remove">@T("Ziel entfernen")</button>
+                        </div>
+                        @if (_saved is { } saved) { <p role="status">@(saved.Count == 1 ? T(saved.Removed ? "Tagesziel entfernt." : "Tagesziel gespeichert.") : F(saved.Removed ? "{0} Tagesziele entfernt." : "{0} Tagesziele gespeichert.", saved.Count))</p> }
+                    </section>
+                </div>
+                @if (Tracker.History.Any(s => !s.SilverIsComplete && DateOnly.FromDateTime(s.StartedAt.LocalDateTime).Month == _month.Month && s.StartedAt.LocalDateTime.Year == _month.Year))
+                { <p class="notice">@T("Einige Sessions enthalten unvollständige Silberwerte. Ihr bisher bekannter Nettowert zählt zum Fortschritt.")</p> }
+            </section>
+            <div class="gg-summary-view" hidden="@(SelectedSection != "summary")">
+                <div class="menu-panel gg-day-navigation">
+                    <button class="button secondary" aria-label="@T("Vorheriger Tag")" @onclick="() => MoveDay(-1)">‹</button>
+                    <label class="gg-date-field"><span>@T("Tag")</span><input type="date" value="@_day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)" @onchange="SelectDate" /></label>
+                    <button class="button secondary" aria-label="@T("Nächster Tag")" @onclick="() => MoveDay(1)">›</button>
+                </div>
+                <div class="history-menu-content"><GrindGoalDaySummary Day="_day" /></div>
+            </div>
+        </div>
     </div>
-    <GrindGoalDaySummary Day="_day" />
-    @if (Tracker.History.Any(s => !s.SilverIsComplete && DateOnly.FromDateTime(s.StartedAt.LocalDateTime).Month == _month.Month && s.StartedAt.LocalDateTime.Year == _month.Year))
-    { <p class="notice">@T("Einige Sessions enthalten unvollständige Silberwerte. Ihr bisher bekannter Nettowert zählt zum Fortschritt.")</p> }
 </div>
 
 @code {
+    [SupplyParameterFromQuery(Name = "section")] public string? Section { get; set; }
+    private static readonly MenuSection[] Sections =
+    [
+        new("calendar", "Kalender & Ziele", "trend", "grind-goals"),
+        new("summary", "Tagesübersicht", "history", "grind-goals?section=summary"),
+    ];
+    private string SelectedSection => Section == "summary" ? "summary" : "calendar";
     private readonly DailyNetProjection _dailyNet = new();
     private DateOnly _month = new(DateTime.Today.Year, DateTime.Today.Month, 1);
     private DateOnly _day = DateOnly.FromDateTime(DateTime.Today), _week;
@@ -84,6 +107,13 @@
     private static DateOnly Monday(DateOnly date) => date.AddDays(-((int)date.DayOfWeek+6)%7);
     protected override void OnInitialized() { base.OnInitialized(); Goals.Load(); SelectDay(_day); }
     private void MoveMonth(int delta) { _month = _month.AddMonths(delta); SelectDay(_month); }
+    private void MoveDay(int delta) => ChangeDay(_day.AddDays(delta));
+    private void SelectDate(ChangeEventArgs args)
+    {
+        if (DateOnly.TryParseExact(args.Value?.ToString(), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
+            ChangeDay(date);
+    }
+    private void ChangeDay(DateOnly date) { _month = new(date.Year, date.Month, 1); SelectDay(date); }
     private void SelectDay(DateOnly date) { _day = date; _week = Monday(date); _millions = Goals.Goals.GetValueOrDefault(date,1_000_000_000)/1_000_000; _saved = null; }
     private void SelectWeek(DateOnly date) { SelectDay(date < _month ? _month : date); }
     private IEnumerable<DateOnly> SelectedDates()

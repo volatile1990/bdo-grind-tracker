@@ -10,10 +10,10 @@
     <title>Grindcrest · Browser preview</title>
     <link rel="icon" href="assets/branding/grindcrest.ico" />
     <link rel="stylesheet" href="@AppStylesheet" />
-    <link rel="stylesheet" href="garmoth.css" />
-    <link rel="stylesheet" href="grind-goals.css" />
+    <link rel="stylesheet" href="@GarmothStylesheet" />
+    <link rel="stylesheet" href="@Stylesheet("grind-goals.css")" />
     <link rel="stylesheet" href="updates.css" />
-    <link rel="stylesheet" href="overlay-editor.css" />
+    <link rel="stylesheet" href="@Stylesheet("overlay-editor.css")" />
     <link rel="stylesheet" href="overlay-widgets.css" />
     <link rel="stylesheet" href="overlay-consumables.css" />
     <link rel="stylesheet" href="consumables.css" />
@@ -34,5 +34,7 @@
 @code {
     // Republished styles must replace the browser's cached stylesheet on reload.
     private string AppStylesheet => $"app.css?v={System.IO.File.GetLastWriteTimeUtc(System.IO.Path.Combine(HostEnvironment.WebRootPath, "app.css")).Ticks}";
+    private string GarmothStylesheet => $"garmoth.css?v={System.IO.File.GetLastWriteTimeUtc(System.IO.Path.Combine(HostEnvironment.WebRootPath, "garmoth.css")).Ticks}";
     private string ThemeStylesheet => $"themes.css?v={System.IO.File.GetLastWriteTimeUtc(System.IO.Path.Combine(HostEnvironment.WebRootPath, "themes.css")).Ticks}";
+    private string Stylesheet(string file) => $"{file}?v={System.IO.File.GetLastWriteTimeUtc(System.IO.Path.Combine(HostEnvironment.WebRootPath, file)).Ticks}";
 }

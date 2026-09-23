@@ -127,6 +127,7 @@ public partial class OverlayEditor
         _selectedId = null;
         _itemSearch = "";
         await Change(template.ApplyTo);
+        if (_error is null && SelectedSection != "layout") NavigateToSection("layout");
     }
 
     private async Task RequestTemplateDelete()

@@ -21,7 +21,7 @@ public sealed class ModulePreviewTests
         using var overlay = new OverlayService(tracker);
         var activator = new CapturingActivator();
         await using var provider = new ServiceCollection().AddLogging().AddSingleton<ITrackerSession>(tracker)
-            .AddSingleton<IOverlayService>(overlay).AddSingleton<IJSRuntime, NoJavaScript>()
+            .AddSingleton<IOverlayService>(overlay).AddSingleton<NavigationManager, OverlayTestNavigation>().AddSingleton<IJSRuntime, NoJavaScript>()
             .AddSingleton<IComponentActivator>(activator).BuildServiceProvider();
         await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
         await renderer.Dispatcher.InvokeAsync(async () =>

@@ -4,6 +4,10 @@ internal static partial class AppText
 {
     private static void AddOverlay(Dictionary<string, string> text)
     {
+        text["Overlay-Bereiche"] = "Overlay sections";
+        text["Fenster"] = "Windows";
+        text["Vorlagen"] = "Templates";
+        text["Bedienung"] = "Controls";
         text["Standard"] = "Default";
         text["Bitte eine ganze Anzahl an Items eingeben."] = "Enter a whole number of items.";
         text["Bitte ganze Minuten für die BDO-Zeitkorrektur eingeben."] = "Enter whole minutes for the BDO time adjustment.";

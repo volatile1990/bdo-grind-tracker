@@ -238,6 +238,10 @@
     private async Task ConfirmAction()
     {
         if (State.IsRunning && !await Act(Tracker.PauseAsync)) return;
-        if (await Act(Tracker.NewSessionAsync)) await CloseConfirmation();
+        var previousSessionId = State.SessionId;
+        var succeeded = await Act(Tracker.NewSessionAsync);
+        // The session can be saved and replaced before its automatic upload
+        // fails. Keep that error visible without asking to complete it again.
+        if (succeeded || State.SessionId != previousSessionId) await CloseConfirmation();
     }
 }

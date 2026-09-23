@@ -14,10 +14,13 @@
     var pageCount = Math.Max(1, (visibleSessions.Length + PageSize - 1) / PageSize);
     _page = Math.Clamp(_page, 1, pageCount);
 }
-<div class="page history-page">
-    <div class="page-heading"><div><span class="eyebrow">@T("JEDER GRIND ZÄHLT")</span><h1>@(_spotId is null ? T("Dein Verlauf") : SpotName(_spotId))</h1><p>@(_spotId is null ? T("Deine Sessions, deine Fortschritte, deine nächsten Ziele.") : T("Deine Ergebnisse an diesem Grindspot im Detail."))</p></div>@if (_spotId is not null) { <button class="button secondary" @onclick="BackToSpots"><AppIcon Name="back" />@T("Alle Grindspots")</button> }</div>
+<div class="page menu-page history-page">
+    <div class="page-heading menu-page-heading"><h1>@(_spotId is null ? T("Verlauf") : SpotName(_spotId))</h1>@if (_spotId is not null) { <button class="button secondary" @onclick="BackToSpots"><AppIcon Name="back" />@T(_allSessions ? "Alle Sessions" : "Alle Grindspots")</button> }</div>
     @if (ActionError is not null) { <div class="notice error-notice" role="alert"><AppIcon Name="info" />@T(ActionError)</div> }
     @if (_routeWarning is not null) { <div class="notice warning-notice" role="status"><AppIcon Name="info" />@T(_routeWarning)</div> }
+    <div class="settings-workspace menu-workspace history-workspace">
+        <MenuNavigation Label="Verlaufsbereiche" Sections="OverviewSections" Selected="@(_allSessions ? "all" : "spots")" OnSelect="SelectOverview" Disabled="@(Acting || State.IsBusy)" />
+        <div class="menu-content history-menu-content">
     <div class="history-filters">
         @if (_spotId is null) { <label class="search-field"><AppIcon Name="search" /><input placeholder="@T("Grindspot suchen …")" aria-label="@T("Grindspot suchen")" @bind="_query" @bind:event="oninput" @bind:after="FiltersChanged" /></label> }
         <label class="filter-field"><span>@T("Zeitraum")</span><select @bind="_days" @bind:after="FiltersChanged"><option value="0">@T("Gesamter Verlauf")</option><option value="7">@T("Letzte 7 Tage")</option><option value="30">@T("Letzte 30 Tage")</option><option value="90">@T("Letzte 90 Tage")</option></select></label>
@@ -32,7 +35,7 @@
         <div class="history-overview-stats"><div><span>SESSIONS</span><strong>@all.Length</strong></div><div><span>@T("GRINDZEIT")</span><strong>@ShortDuration(time)</strong></div><div><span>@T("SILBER NETTO")</span><strong class="gold">@(all.Length > 0 ? Silver(silver) : "—")@PartialMark(all)</strong></div><div><span>@T("Ø SILBER / STUNDE")</span><strong>@(time > TimeSpan.Zero ? Silver(Hourly(silver, time)) : "—")@PartialMark(all)</strong></div></div>
         @if (all.Any(entry => !entry.SilverIsComplete)) { <p class="valuation-note">@T("* Enthält Sessions mit unvollständigen Silberwerten.")</p> }
         @if (Tracker.History.Count == 0) { <div class="notice"><AppIcon Name="history" /><div><strong>@T("Deine Geschichte beginnt mit der ersten Session.")</strong><span>@T("Erfasste Sessions werden automatisch lokal gesichert. Wähle einen Spot, um seine Details zu entdecken.")</span></div><button class="text-button" @onclick="OnLive">@T("Zur Live-Session") <AppIcon Name="arrow" /></button></div> }
-        <div class="section-title"><h2>@(_allSessions ? T("Alle Sessions") : T("Deine Grindspots"))</h2><div class="segmented" aria-label="@T("Verlaufsansicht")"><button class="@(!_allSessions ? "selected" : "")" aria-pressed="@(!_allSessions ? "true" : "false")" @onclick="() => SetOverview(false)">@T("Grindspots")</button><button class="@(_allSessions ? "selected" : "")" aria-pressed="@(_allSessions ? "true" : "false")" @onclick="() => SetOverview(true)">@T("Alle Sessions")</button></div></div>
+        <div class="section-title"><h2>@(_allSessions ? T("Alle Sessions") : T("Grindspots"))</h2></div>
         @if (_allSessions)
         {
             var chronological = visibleSessions;
@@ -175,6 +178,8 @@
         </section>
         @if (sessions.Length > 0) { <LootTable Totals="AggregateTotals(sessions)" DurationTicks="sessions.Sum(session => session.Duration.Ticks)" TrashName="@profile.TrashItemName" Title="@T("Gesamter Loot am Spot")" Subtitle="@T("Alle gefilterten Sessions · Einzelwerte mit den aktuellen Preiseinstellungen")" /> }
     }
+        </div>
+    </div>
 </div>
 
 <dialog id="history-edit" class="modal edit-modal" aria-labelledby="history-edit-title" @oncancel="CloseDialogs"><div class="modal-heading"><div><span class="eyebrow">@T("SESSION BEARBEITEN")</span><h2 id="history-edit-title">@T("Lootmengen korrigieren")</h2></div><button class="icon-button" @onclick="CloseDialogs" aria-label="@T("Dialog schließen")"><AppIcon Name="close" /></button></div><p>@T("Trage die tatsächlichen Gesamtmengen ein. Mit 0 setzt du die Menge eines Gegenstands zurück.")</p>
@@ -201,6 +206,11 @@
     [SupplyParameterFromQuery(Name = "hourly")] public string? QueryHourly { get; set; }
     [SupplyParameterFromQuery(Name = "edit")] public string? QueryEdit { get; set; }
     private const int PageSize = 8;
+    private IReadOnlyList<MenuSection> OverviewSections =>
+    [
+        new("spots", "Grindspots", "pin", HistoryPath(null, allSessions: false, page: 1)),
+        new("all", "Alle Sessions", "history", HistoryPath(null, allSessions: true, page: 1))
+    ];
     private string? _spotId;
     private string _query = "", _class = "";
     private int _days, _page = 1;
@@ -311,9 +321,14 @@
     private void OnLive() => Navigation.NavigateTo("/");
     private void FiltersChanged() { _page = 1; NavigateHistory(_spotId, null, replace: true); }
     private void ClearSearch() { _query = ""; FiltersChanged(); }
+    private void SelectOverview(string section)
+    {
+        if (Acting || State.IsBusy) return;
+        SetOverview(section == "all");
+    }
     private void SetOverview(bool allSessions)
     {
-        if (_allSessions == allSessions) return;
+        if (_allSessions == allSessions && _spotId is null) return;
         _allSessions = allSessions; _page = 1; NavigateHistory(null);
     }
     private void OpenSession(LootHistoryEntry session) { _page = 1; NavigateHistory(session.SpotId, session.SessionId); }
@@ -328,18 +343,23 @@
     private void SetHourly(bool hourly) { _hourly = hourly; NavigateHistory(_spotId, _expanded, replace: true); }
     private void NavigateHistory(string? spotId, Guid? sessionId = null, bool replace = false)
     {
+        var path = HistoryPath(spotId, sessionId);
+        if (!string.Equals(Navigation.Uri, Navigation.ToAbsoluteUri(path).AbsoluteUri, StringComparison.Ordinal))
+            Navigation.NavigateTo(path, new NavigationOptions { ReplaceHistoryEntry = replace });
+    }
+    private string HistoryPath(string? spotId, Guid? sessionId = null, bool? allSessions = null, int? page = null)
+    {
         var path = spotId is null ? "/history" : "/history/spots/" + Uri.EscapeDataString(spotId);
         if (spotId is not null && sessionId is { } id) path += "/" + id.ToString("D");
         var query = new List<KeyValuePair<string, string>>();
-        if (_allSessions) query.Add(new("view", "all"));
+        if (allSessions ?? _allSessions) query.Add(new("view", "all"));
         if (_query.Length > 0) query.Add(new("q", _query));
         if (_days > 0) query.Add(new("days", _days.ToString(CultureInfo.InvariantCulture)));
         if (_class.Length > 0) query.Add(new("class", _class));
-        if (_page > 1) query.Add(new("page", _page.ToString(CultureInfo.InvariantCulture)));
+        if ((page ?? _page) > 1) query.Add(new("page", (page ?? _page).ToString(CultureInfo.InvariantCulture)));
         if (_hourly) query.Add(new("hourly", "1"));
         if (query.Count > 0) path += "?" + string.Join("&", query.Select(pair => pair.Key + "=" + Uri.EscapeDataString(pair.Value)));
-        if (!string.Equals(Navigation.Uri, Navigation.ToAbsoluteUri(path).AbsoluteUri, StringComparison.Ordinal))
-            Navigation.NavigateTo(path, new NavigationOptions { ReplaceHistoryEntry = replace });
+        return path;
     }
     private static IReadOnlyDictionary<string, long> AggregateTotals(IEnumerable<LootHistoryEntry> sessions) => sessions.SelectMany(session => session.Totals).GroupBy(pair => pair.Key, StringComparer.Ordinal).ToDictionary(group => group.Key, group => group.Sum(pair => pair.Value), StringComparer.Ordinal);
     private bool IsCurrent(LootHistoryEntry session) => State.HasSession && session.SessionId == State.SessionId;

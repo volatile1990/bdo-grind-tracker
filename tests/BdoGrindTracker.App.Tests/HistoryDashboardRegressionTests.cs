@@ -1,4 +1,5 @@
 using System.Net;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using BdoGrindTracker.App.Components;
 using BdoGrindTracker.App.Persistence;
@@ -32,6 +33,59 @@ public sealed class HistoryDashboardRegressionTests
             Assert.Contains("<h3>" + Presentation.SpotName(spot.Id) + "</h3>", decoded);
             Assert.Contains(profile.RegionName.ToUpperInvariant(), decoded);
         }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CategoryLinksKeepFiltersAndStartAtTheOverview(bool allSessions)
+    {
+        var markup = await RenderAsync(new(), "/history/spots/" + LootSpotCatalog.HermesiaId
+            + "?q=Temple%20%26%20Ruins&days=30&class=Warrior%20%C2%B7%20Awakening&page=99&edit=1"
+            + (allSessions ? "&view=all" : ""));
+        var navigation = Regex.Match(markup, "<nav[^>]*aria-label=\"Verlaufsbereiche\"[^>]*>(.*?)</nav>", RegexOptions.Singleline);
+        Assert.True(navigation.Success);
+        var links = Regex.Matches(navigation.Value, "<a\\b[^>]*href=\"([^\"]+)\"[^>]*>");
+        Assert.Equal(2, links.Count);
+        for (var index = 0; index < links.Count; index++)
+        {
+            var uri = new Uri("https://0.0.0.1" + links[index].Groups[1].Value);
+            var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+            Assert.Equal("/history", uri.AbsolutePath);
+            Assert.Equal("Temple & Ruins", query["q"]);
+            Assert.Equal("30", query["days"]);
+            Assert.Equal("Warrior · Awakening", query["class"]);
+            Assert.False(query.ContainsKey("page"));
+            Assert.False(query.ContainsKey("edit"));
+            Assert.Equal(index == 1, query.ContainsKey("view"));
+            Assert.Equal((index == 1) == allSessions, links[index].Value.Contains("aria-current=\"page\"", StringComparison.Ordinal));
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void SelectingTheCurrentCategoryFromASpotReturnsToTheOverview(bool allSessions)
+    {
+        var navigation = new RecordingNavigation();
+        var component = new HistoryDashboard();
+        const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+        typeof(HistoryDashboard).GetProperty("Navigation", flags)!.SetValue(component, navigation);
+        typeof(HistoryDashboard).GetField("_spotId", flags)!.SetValue(component, LootSpotCatalog.HermesiaId);
+        typeof(HistoryDashboard).GetField("_allSessions", flags)!.SetValue(component, allSessions);
+        typeof(HistoryDashboard).GetField("_query", flags)!.SetValue(component, "Temple");
+        typeof(HistoryDashboard).GetField("_days", flags)!.SetValue(component, 30);
+        typeof(HistoryDashboard).GetField("_page", flags)!.SetValue(component, 2);
+
+        typeof(HistoryDashboard).GetMethod("SetOverview", flags)!.Invoke(component, [allSessions]);
+
+        var uri = new Uri(navigation.Uri);
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+        Assert.Equal("/history", uri.AbsolutePath);
+        Assert.Equal("Temple", query["q"]);
+        Assert.Equal("30", query["days"]);
+        Assert.Equal(allSessions, query.ContainsKey("view"));
+        Assert.False(query.ContainsKey("page"));
     }
 
     [Fact]
@@ -211,6 +265,12 @@ public sealed class HistoryDashboardRegressionTests
             }
             return component;
         }
+    }
+
+    private sealed class RecordingNavigation : NavigationManager
+    {
+        public RecordingNavigation() => Initialize("https://0.0.0.1/", "https://0.0.0.1/history/spots/" + LootSpotCatalog.HermesiaId);
+        protected override void NavigateToCore(string uri, NavigationOptions options) => Uri = ToAbsoluteUri(uri).AbsoluteUri;
     }
 
     private sealed class StaticNavigation : NavigationManager

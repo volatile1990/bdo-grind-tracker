@@ -281,18 +281,18 @@ public sealed class MultiOverlayEditorInteractionTests
         Assert.Equal(secondId, overlay.SelectedOverlayId);
         Assert.All(overlay.Overlays, window => Assert.Equal("passthrough", window.Settings.Interaction));
         Assert.Equal("passthrough", Get<OverlaySettings>(editor, "_settings").Interaction);
-        Assert.Contains("Klicks gehen ans Spiel", markup());
+        Assert.Matches("<select[^>]*value=\"passthrough\"", markup());
         await Invoke(editor, "Change", new Func<OverlaySettings, OverlaySettings>(settings => settings with { BackgroundOpacity = .4 }));
         Assert.All(overlay.Overlays, window => Assert.Equal("passthrough", window.Settings.Interaction));
         await Invoke(editor, "SelectOverlay", new ChangeEventArgs { Value = firstId });
-        Assert.Contains("Klicks gehen ans Spiel", markup());
+        Assert.Matches("<select[^>]*value=\"passthrough\"", markup());
 
         Assert.True((await overlay.ToggleAllInteractionAsync()).Succeeded);
 
         Assert.Equal(firstId, overlay.SelectedOverlayId);
         Assert.All(overlay.Overlays, window => Assert.Equal("move", window.Settings.Interaction));
         Assert.Equal("move", Get<OverlaySettings>(editor, "_settings").Interaction);
-        Assert.Contains("Verschiebbar", markup());
+        Assert.Matches("<select[^>]*value=\"move\"", markup());
     });
 
     [Fact]
@@ -328,7 +328,7 @@ public sealed class MultiOverlayEditorInteractionTests
         Assert.True(Get<OverlaySettings>(editor, "_settings").Enabled);
         Assert.Equal("passthrough", Get<OverlaySettings>(editor, "_settings").Interaction);
         Assert.Contains("2 erstellt · 2 aktiv", markup());
-        Assert.Contains("Klicks gehen ans Spiel", markup());
+        Assert.Matches("<select[^>]*value=\"passthrough\"", markup());
     });
 
     [Fact]
@@ -356,7 +356,7 @@ public sealed class MultiOverlayEditorInteractionTests
         Assert.Equal(error, Get<string>(editor, "_error"));
         Assert.Contains(error, markup());
         Assert.Contains("2 erstellt · 0 aktiv", markup());
-        Assert.Contains("Klicks gehen ans Spiel", markup());
+        Assert.Matches("<select[^>]*value=\"passthrough\"", markup());
     });
 
     [Theory]
@@ -602,7 +602,7 @@ public sealed class MultiOverlayEditorInteractionTests
         var activator = new CapturingActivator();
         var js = new RecordingJs();
         using var provider = new ServiceCollection().AddLogging().AddSingleton<IOverlayService>(overlay).AddSingleton<ITrackerSession>(tracker)
-            .AddSingleton<IJSRuntime>(js).AddSingleton<IComponentActivator>(activator).BuildServiceProvider();
+            .AddSingleton<NavigationManager, OverlayTestNavigation>().AddSingleton<IJSRuntime>(js).AddSingleton<IComponentActivator>(activator).BuildServiceProvider();
         await using (var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>()))
         {
             await renderer.Dispatcher.InvokeAsync(async () =>

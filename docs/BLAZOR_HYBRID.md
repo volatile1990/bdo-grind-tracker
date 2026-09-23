@@ -88,8 +88,9 @@ betroffene Feld ausgehend von den aktuellen Einstellungen. Ungültige Zahlen wer
 nicht übernommen; fehlgeschlagene Speicherungen werden angezeigt. Die API-Schlüssel-
 Eingabe wird nach erfolgreichem Speichern geleert, ein leeres Feld behält den
 bisherigen Schlüssel. **Schlüssel entfernen** löscht ihn direkt und schaltet die
-Stundenautomatik aus. Das separate **Automatik fortsetzen** ist eine bewusste
-Freigabe nach einer eindeutig fehlgeschlagenen Übertragung.
+Uploadautomatik aus. Ein eindeutig abgelehnter automatischer Upload kann über
+den Verlauf manuell wiederholt werden; spätere Sessions bleiben für automatische
+Uploads beim Sessionwechsel berechtigt.
 
 Der Stift neben einer Lootmenge öffnet die Inline-Korrektur: ganze Gesamtmenge ab 0,
 Enter oder Haken zum Speichern, Escape oder Kreuz zum Abbrechen. Auch in der
@@ -115,14 +116,18 @@ bislang fehlende Items ergänzen. Die aktuelle Session verwendet dabei ihre
 Live-Mengen. Nur das Löschen und der vollständige Bearbeitungsdialog bleiben für
 die aktuelle Session gesperrt. Summen über mehrere Sessions sind reine Anzeigen.
 
-**Garmoth** bündelt API-Schlüssel, Stundenautomatik, den manuellen Upload der aktuellen
+**Garmoth** bündelt API-Schlüssel, automatische Uploads abgeschlossener Sessions, den manuellen Upload der aktuellen
 Session und nachträgliche Uploads gespeicherter Sessions. Die Uploadliste lässt sich
 nach Grindspot und Status filtern. Die aktuelle Session erscheint separat mit ihren
-Gesamtwerten; gesendet wird nur ihr noch nicht übertragener Anteil. Bereits gesendete
-automatische Stunden sperren einen späteren Gesamt-Upload des historischen Eintrags.
-Der Schlüssel wird nie zurück in das Eingabefeld geladen. Entfernen und Speichern
-schaltet auch die Automatik aus. Nur das Speichern im Garmoth-Bereich gibt eindeutig
-fehlgeschlagene automatische Versuche wieder frei; unklare Ergebnisse bleiben gesperrt.
+Gesamtwerten; gesendet wird nur ihr noch nicht übertragener Anteil. Bei eingeschalteter
+Automatik lädt **Neue Session** den gespeicherten vorherigen Stand hoch; Pausieren
+und Auto-Pause lösen keinen Upload aus. Bereits gesendete Sessions oder frühere
+Stundenabschnitte sperren einen späteren Gesamt-Upload des historischen Eintrags.
+Der Schlüssel wird nie zurück in das Eingabefeld geladen. Entfernen schaltet auch
+die Automatik aus. Fehlgeschlagene Uploads bleiben im Verlauf sichtbar; bei
+unklarem Ergebnis ist der erneute Upload dieser Session gesperrt. Scheitert der
+automatische Upload nach dem Sessionwechsel, schließt die Bestätigung dennoch;
+die neue Session steht bereit und der Uploadfehler bleibt auf der Seite sichtbar.
 
 **Einstellungen** bündelt Klasse, Auto-Pause, Diagnoseaufzeichnung,
 Marktregion und Steuern. Lootfilter und Aufzeichnung werden vor einer
@@ -207,7 +212,7 @@ Bei abweichender Spielauflösung erscheinen ein Fehler und keine Vorschau.
 Die Bilder bleiben im Arbeitsspeicher und werden beim Schließen verworfen.
 
 Die Tests prüfen unveränderte Erkennungs-/Zählregeln, echte Service-Übergänge,
-Stunden-Deltas, Fehler- und Shutdown-Fälle sowie Razor-Ausgabe und pure
+vollständige Session-Uploads, Fehler- und Shutdown-Fälle sowie Razor-Ausgabe und pure
 Verlaufsberechnungen. Die früheren Tests für entfernte WinForms-Controls entfallen.
 Die neue Darstellung wird zusätzlich in der echten WebView auf Navigation,
 Formulare, Dialoge, Bilder und kompakte Fenstergrößen geprüft.

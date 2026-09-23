@@ -108,11 +108,14 @@ public sealed class SecondaryLocalizationTests
             Assert.Contains("aria-label=\"Close upload dialog\"", english);
             Assert.Contains("aria-label=\"Close batch upload dialog\"", english);
             Assert.Contains("Add an API key first.", english);
+            Assert.Contains("aria-label=\"Upload completed sessions automatically\"", english);
+            Assert.DoesNotContain("Upload automatically every hour", english);
             Assert.DoesNotContain("Jetzt hochladen", english);
 
             await tracker.SavePreferencesAsync(tracker.Preferences with { UiLanguage = "de" });
             Assert.Contains("Jetzt hochladen", dashboard.ToHtmlString());
             Assert.Contains("Hinterlege zuerst einen API-Schl", WebUtility.HtmlDecode(dashboard.ToHtmlString()));
+            Assert.Contains("Abgeschlossene Sessions automatisch hochladen", WebUtility.HtmlDecode(dashboard.ToHtmlString()));
         });
     }
 

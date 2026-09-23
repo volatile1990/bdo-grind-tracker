@@ -78,6 +78,7 @@ internal sealed partial class TrackerSessionService
 
         if (saved.Uploads is { } uploads) _garmothIntervals.RestoreState(uploads);
         else _garmothIntervals.SuspendAutomatic();
+        _garmothIntervals.ObserveSessionTotals(saved.Duration, saved.Totals, saved.UpdatedAt);
         var summary = new LootSessionSnapshot(saved.Totals, saved.Totals.Values.Sum(), saved.ConfirmedEventCount);
         _uiMailbox.Restore(summary, saved.ManualLootItems);
         _dropHistory.Restore(saved.SessionId, summary, saved.Duration, saved.DropHistory);

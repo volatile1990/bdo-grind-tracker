@@ -40,7 +40,7 @@ public sealed class OverlayWindowAppearanceTests
         await overlay.RenameOverlayAsync(overlay.SelectedOverlayId, "Meine Drops");
         var settings = overlay.Settings;
         var services = new ServiceCollection().AddLogging().AddSingleton<IOverlayService>(overlay)
-            .AddSingleton<IJSRuntime, NoJavaScript>();
+            .AddSingleton<NavigationManager, OverlayTestNavigation>().AddSingleton<IJSRuntime, NoJavaScript>();
         await using var provider = services.BuildServiceProvider();
         await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
         await renderer.Dispatcher.InvokeAsync(async () =>

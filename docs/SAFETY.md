@@ -96,7 +96,7 @@ beeinflussen weder den Tracking-Stopp noch die Sicherung der Sitzung. Die Datei
 wird nicht hochgeladen.
 
 Die Einstellungsdatei speichert Monitor, Auto-Pause, das Opt-in für automatische Grinderkennung, Preisregion, Steueroptionen,
-das Opt-in für stündliche Garmoth-Uploads und technische Versionsangaben, keine
+das Opt-in für automatische Garmoth-Uploads abgeschlossener Sessions und technische Versionsangaben, keine
 Bilder oder Klartext-Zugangsdaten.
 Eine aus 0.6.0/0.6.1 vorhandene manuelle Spot-Einstellung wird für die Erkennung
 ignoriert. Der aktive Spot wird ausschließlich aus dem erkannten Trashloot bestimmt,
@@ -122,12 +122,12 @@ Vergleichswerte werden lokal gespeichert. Details: [Grind-Bewertung](GRIND_RATIN
 
 ## Optionaler Garmoth-Upload
 
-Ein Klick auf **Garmoth-Upload** oder die unter **Optionen → Garmoth-Key** ausdrücklich
-aktivierte Stundenautomatik sendet per HTTPS an
+Ein bestätigter manueller Upload oder die unter **Garmoth** ausdrücklich
+aktivierte Option **Abgeschlossene Sessions automatisch hochladen** sendet per HTTPS an
 `api.garmoth.com/api/external/grind-tracker/sessions/create`. Die Automatik ist
-standardmäßig aus und sendet jede volle aktive Stunde als eigenen, noch nicht
-übertragenen Abschnitt; das Tracking läuft weiter. Der manuell eingegebene
-API-Key wird einmal unter Optionen hinterlegt und mit Windows-DPAPI (CurrentUser)
+standardmäßig aus und sendet beim Anlegen einer neuen Session die vorherige,
+abgeschlossene Session als einen Eintrag. Der manuell eingegebene
+API-Key wird einmal unter Garmoth hinterlegt und mit Windows-DPAPI (CurrentUser)
 in einer separaten lokalen Datei verschlüsselt. Beim Upload steht er ausschließlich
 im Header `apiKey`, nicht in Payload/URL/Logs. Die App kann ihn unter demselben
 Windows-Benutzer wieder entschlüsseln; andere Prozesse desselben Benutzers sind
@@ -142,8 +142,8 @@ Nicht unterstützte Garmoth-Items werden nur
 aus der Übertragung ausgelassen, lokale Mengen bleiben unverändert. Keine Datei, kein Screenshot, kein Roh-OCR,
 kein Konten- oder Charakterverzeichnispfad. Nach unklarem automatischem Ausgang
 verhindert eine Sitzungssperre im laufenden Programm weitere automatische und
-manuelle Uploads; lokales Tracking bleibt nutzbar. Die Auto-Pause erzeugt keinen
-zusätzlichen Reststunden-Upload. Details zu Intervallen, manuellen Uploads und
+manuelle Uploads; lokales Tracking bleibt nutzbar. Manuelle Pause, Auto-Pause und
+Programmende lösen keinen Upload aus. Details zu Sessionabschluss, manuellen Uploads und
 Fehlerfällen: [Garmoth-Integration](GARMOTH_INTEGRATION.md).
 
 ## Programmupdates

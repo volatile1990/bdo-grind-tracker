@@ -177,6 +177,52 @@ public sealed partial class LiveLootInteractionTests
     }
 
     [Fact]
+    public async Task CompletedSessionClosesConfirmationDespiteAutomaticUploadFailureAndKeepsItsErrorVisible()
+    {
+        var session = new Session { AutomaticUploadError = "Garmoth hat die Session abgelehnt." };
+        session.State = session.State with { AnalyzerAvailable = true, TrackingBlockedReason = null };
+        var previousSessionId = session.State.SessionId;
+        await Render<LiveDashboard>(session, null, async (dashboard, markup, js) =>
+        {
+            await Invoke(dashboard, "RequestNew");
+            await Invoke(dashboard, "ConfirmAction");
+
+            Assert.NotEqual(previousSessionId, session.State.SessionId);
+            Assert.False(session.State.HasSession);
+            Assert.Equal(1, session.NewSessionCalls);
+            Assert.Equal(1, js.Calls.Count(call => call == "grindcrest.closeDialog"));
+            Assert.True(session.State.IsError);
+            Assert.Equal(session.AutomaticUploadError, session.State.Status);
+            // The error remains on the page after its confirmation dialog closes.
+            Assert.Contains(session.AutomaticUploadError, markup().Split("<dialog", StringSplitOptions.None)[0]);
+        });
+    }
+
+    [Fact]
+    public async Task PersistenceFailureBeforeSessionResetKeepsConfirmationOpenForSafeRetry()
+    {
+        var session = new Session { NewSessionError = "Die Session konnte nicht gespeichert werden." };
+        var previousSessionId = session.State.SessionId;
+        await Render<LiveDashboard>(session, null, async (dashboard, markup, js) =>
+        {
+            await Invoke(dashboard, "RequestNew");
+            await Invoke(dashboard, "ConfirmAction");
+
+            Assert.Equal(previousSessionId, session.State.SessionId);
+            Assert.True(session.State.HasSession);
+            Assert.Equal(1, session.NewSessionCalls);
+            Assert.DoesNotContain("grindcrest.closeDialog", js.Calls);
+            Assert.Contains(session.NewSessionError, markup());
+
+            session.NewSessionError = null;
+            await Invoke(dashboard, "ConfirmAction");
+            Assert.NotEqual(previousSessionId, session.State.SessionId);
+            Assert.Equal(2, session.NewSessionCalls);
+            Assert.Contains("grindcrest.closeDialog", js.Calls);
+        });
+    }
+
+    [Fact]
     public async Task AddMissingItemUsesTheSpotCatalogAndPreservesDropsReceivedWhileOpen()
     {
         var session = new Session();
@@ -317,6 +363,8 @@ public sealed partial class LiveLootInteractionTests
         public LootPriceSnapshot Prices { get; } = LootPriceCatalog.FixedSnapshot("eu");
         public string? CorrectionError { get; set; }
         public string? PauseError { get; set; }
+        public string? NewSessionError { get; set; }
+        public string? AutomaticUploadError { get; set; }
         public int CorrectionCalls { get; private set; }
         public int PauseCalls { get; private set; }
         public int NewSessionCalls { get; private set; }
@@ -331,7 +379,15 @@ public sealed partial class LiveLootInteractionTests
             State = State with { IsRunning = false };
             return Success();
         }
-        public Task<TrackerCommandResult> NewSessionAsync() { NewSessionCalls++; return Success(); }
+        public Task<TrackerCommandResult> NewSessionAsync()
+        {
+            NewSessionCalls++;
+            if (NewSessionError is not null) return Task.FromResult(new TrackerCommandResult(NewSessionError));
+            State = State with { SessionId = Guid.NewGuid(), HasSession = false, IsRunning = false };
+            if (AutomaticUploadError is null) return Success();
+            State = State with { IsError = true, Status = AutomaticUploadError };
+            return Task.FromResult(new TrackerCommandResult(AutomaticUploadError));
+        }
         public Task<TrackerCommandResult> SelectSpotVariantAsync(Guid sessionId, string spotId)
         {
             SelectedSpotSessionId = sessionId;

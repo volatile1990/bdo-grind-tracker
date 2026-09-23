@@ -1,3 +1,48 @@
-.gg-toolbar{display:flex;align-items:center;gap:16px;margin-bottom:20px;flex-wrap:wrap}.gg-toolbar h2{min-width:180px}.gg-toolbar>span{margin-left:auto;color:#a4b0bb}.gg-layout{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:20px}.gg-calendar{padding:12px;overflow:hidden}.gg-week{display:grid;grid-template-columns:48px repeat(7,minmax(0,1fr));gap:4px;padding:4px 0}.gg-week.selected{background:#d8bd7510}.gg-labels{text-align:center;color:#a4b0bb;font-size:12px}.gg-week-select{background:transparent;border:0;color:#c6b17f;cursor:pointer;font-size:11px}.gg-day{display:flex;flex-direction:column;gap:7px;min-width:0;text-align:left;padding:10px 6px;background:#202932;border:1px solid #36424d;border-radius:5px;color:#dae2e8;cursor:pointer;min-height:112px}.gg-day strong{font-size:13px;overflow-wrap:anywhere}.gg-day small{font-size:11px;color:#a8b4be}.gg-day.chosen{border-color:#d8bd75;background:#353329}.gg-day.reached{border-bottom:3px solid #68b99e}.gg-day.outside{opacity:.4}.gg-day progress{width:100%;height:5px;accent-color:#d8bd75;margin-top:auto}.gg-editor{display:flex;flex-direction:column;gap:16px;padding:20px}.gg-editor h2{font-size:17px}.gg-editor small{color:#a4b0bb;line-height:1.6}@media(max-width:1150px){.gg-layout{grid-template-columns:1fr}.gg-editor{max-width:500px}}@media(max-width:650px){.gg-calendar{padding:4px}.gg-week{grid-template-columns:30px repeat(7,minmax(0,1fr));gap:2px}.gg-day{padding:7px 3px}.gg-day strong{font-size:11px}.gg-day small{font-size:10px}}
-.gg-drops{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px}.gg-drop{position:relative;display:inline-flex;align-items:center;justify-content:center;width:34px;height:36px;background:#131b23;border:1px solid #48505a;border-radius:4px}.gg-drop-icon{width:28px;height:28px;object-fit:contain}.gg-drop-count{position:absolute;right:1px;bottom:0;color:#fff;font-size:10px;font-weight:600;line-height:12px;background:#131b23d9;padding:0 2px;border-radius:2px}.gg-drop-star{position:absolute;left:0;top:-3px;color:#f1cc7a;font-size:11px;text-shadow:0 1px 2px #000}
-.gg-day-summary{margin-top:28px;min-width:0}.gg-day-summary>.chronological-history{margin-bottom:20px}
+.gg-toolbar{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+.gg-toolbar h2{min-width:160px;font-size:18px;text-align:center}
+.gg-toolbar>span{margin-left:auto;color:var(--muted);font-size:12px}
+.gg-layout{display:grid;gap:24px}
+.gg-calendar{min-width:0;overflow:hidden}
+.gg-week{display:grid;grid-template-columns:38px repeat(7,minmax(0,1fr));gap:4px;padding:4px 0}
+.gg-week.selected{background:color-mix(in srgb,var(--gold) 5%,transparent)}
+.gg-labels{text-align:center;color:var(--muted);font-size:12px}
+.gg-week-select{background:transparent;border:0;color:var(--gold);cursor:pointer;font-size:11px}
+.gg-day{display:flex;flex-direction:column;gap:7px;min-width:0;text-align:left;padding:10px 6px;background:var(--panel-raised);border:1px solid var(--line);border-radius:5px;color:var(--text);cursor:pointer;min-height:96px}
+.gg-day strong{font-size:13px;overflow-wrap:anywhere}
+.gg-day small{font-size:11px;color:var(--muted)}
+.gg-day.chosen{border-color:var(--gold);background:color-mix(in srgb,var(--gold) 12%,var(--panel-raised))}
+.gg-day.reached{border-bottom:3px solid #68b99e}
+.gg-day.outside{opacity:.4}
+.gg-day progress{width:100%;height:5px;accent-color:var(--gold);margin-top:auto}
+.gg-day:focus-visible,.gg-week-select:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.gg-editor{display:flex;flex-direction:column;gap:18px;border-top:1px solid var(--line);padding-top:22px}
+.gg-editor-heading{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+.gg-editor-heading h2{font-size:16px}
+.gg-editor-heading p{font-size:13px;color:var(--muted);margin:0}
+.gg-editor-heading strong{color:var(--text);font-weight:500}
+.gg-editor-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.gg-editor-fields .oe-field{margin:0;min-width:0}
+.gg-editor-actions{display:flex;flex-wrap:wrap;gap:10px}
+.gg-editor [role=status]{font-size:13px;color:var(--muted);margin:0}
+.gg-day-navigation{display:flex;align-items:center;justify-content:center;gap:14px}
+.gg-date-field{display:flex;align-items:center;gap:12px;font-size:13px;color:var(--muted)}
+.gg-date-field input{width:auto;min-width:0;padding:9px 12px;border:1px solid var(--line);border-radius:6px;background:var(--panel-raised);color:var(--text);font:inherit;color-scheme:dark}
+.gg-drops{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px}
+.gg-drop{position:relative;display:inline-flex;align-items:center;justify-content:center;width:34px;height:36px;background:var(--panel);border:1px solid var(--line);border-radius:4px}
+.gg-drop-icon{width:28px;height:28px;object-fit:contain}
+.gg-drop-count{position:absolute;right:1px;bottom:0;color:var(--text);font-size:10px;font-weight:600;line-height:12px;background:var(--panel);padding:0 2px;border-radius:2px}
+.gg-drop-star{position:absolute;left:0;top:-3px;color:var(--gold-bright);font-size:11px;text-shadow:0 1px 2px #000}
+.gg-day-summary{margin-top:24px;min-width:0}
+.gg-day-summary>.chronological-history{margin-bottom:20px}
+@media(max-width:650px){
+    .gg-toolbar{gap:8px}
+    .gg-toolbar h2{min-width:0;flex:1;font-size:16px}
+    .gg-toolbar>span{width:100%;text-align:center;margin:2px 0 0}
+    .gg-week{grid-template-columns:26px repeat(7,minmax(0,1fr));gap:2px}
+    .gg-day{padding:7px 3px;min-height:90px}
+    .gg-day strong{font-size:11px}
+    .gg-day small{font-size:10px}
+    .gg-editor-fields{grid-template-columns:1fr}
+    .gg-date-field{gap:8px}
+    .gg-day-navigation{gap:8px}
+}

@@ -106,9 +106,9 @@ War die Klasse bisher unbekannt und wird sie später erkannt, werden Klasse,
 Verlauf und Wiederherstellungsstand gemeinsam gespeichert, auch während einer
 Pause. Abgeschlossene ältere Sessions werden dadurch nicht rückwirkend geändert;
 deren Klasse lässt sich über **Verlauf → Session bearbeiten** ergänzen.
-Fehlt die Klasse beim automatischen Stunden-Upload, bleiben die vollständigen
-Stunden vorgemerkt. Die Automatik wird dadurch nicht angehalten; nach erfolgreicher
-Erkennung überträgt sie die wartenden Stunden mit ihren ursprünglichen Lootmengen.
+Fehlt die Klasse beim automatischen Upload während **Neue Session**, wird die
+vorherige Session ausgelassen. Sie bleibt im Verlauf erhalten und kann nach einer
+Korrektur der Klasse manuell hochgeladen werden.
 „Agent“ ist im Garmoth-Metadatensatz enthalten, jedoch nicht in der Skilltabelle
 des untersuchten Companion: deshalb nur manuell auswählbar.
 

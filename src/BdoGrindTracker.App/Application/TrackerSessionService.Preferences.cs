@@ -128,7 +128,7 @@ internal sealed partial class TrackerSessionService
                 : Preferences.AutoUpload && _garmothIntervals.AutomaticSuspended
                     ? "Einstellungen gespeichert. Der automatische Upload bleibt angehalten. Korrigiere den Schlüssel oder setze die Automatik auf der Garmoth-Seite fort."
                     : Preferences.AutoUpload
-                        ? "Einstellungen gespeichert. Jede volle Grindstunde wird einmal automatisch übertragen."
+                        ? "Einstellungen gespeichert. Abgeschlossene Sessions werden beim Anlegen einer neuen Session automatisch übertragen."
                         : "Einstellungen gespeichert.");
             // Valuation refresh must not keep the command gate occupied while
             // waiting for HTTP and delay the normal inactivity pause.

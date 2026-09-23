@@ -14,11 +14,12 @@ namespace BdoGrindTracker.App.Tests;
 public sealed class OverlayPersonalizationInteractionTests
 {
     [Fact]
-    public Task GlobalShortcutsAreVisibleBeforeCollapsedSettings() => Render(async (editor, overlay, markup, js) =>
+    public Task GlobalShortcutsRemainAvailableInTheirOwnCategory() => Render(async (editor, overlay, markup, js) =>
     {
+        await Invoke(editor, "SelectSection", "shortcuts");
         var html = markup();
         Assert.True(overlay.Hotkeys.Enabled);
-        Assert.True(html.IndexOf("oe-shortcuts", StringComparison.Ordinal) < html.IndexOf("oe-behavior", StringComparison.Ordinal));
+        Assert.Contains("data-overlay-section=\"shortcuts\">", html);
         Assert.Contains("Global aktiv", html);
         Assert.Contains("Für alle Overlays", html);
         Assert.Contains("Alle Overlays ein / aus", html);
@@ -79,7 +80,7 @@ public sealed class OverlayPersonalizationInteractionTests
         Assert.Contains("<span>Alt</span>", html);
         Assert.DoesNotContain("<span>Umschalt</span>", html);
         Assert.DoesNotContain("<span>Win</span>", html);
-        Assert.Contains("Für jedes Tastenkürzel ist Strg, Alt oder Strg+Alt erforderlich", html);
+        Assert.Contains("Wähle eine Taste zusammen mit Strg, Alt oder Strg+Alt.", html);
     });
 
     [Theory]
@@ -232,7 +233,7 @@ public sealed class OverlayPersonalizationInteractionTests
         var activator = new CapturingActivator();
         var js = new RecordingJs();
         using var provider = new ServiceCollection().AddLogging().AddSingleton<IOverlayService>(overlay).AddSingleton<ITrackerSession>(tracker)
-            .AddSingleton<IJSRuntime>(js).AddSingleton<IComponentActivator>(activator).BuildServiceProvider();
+            .AddSingleton<NavigationManager, OverlayTestNavigation>().AddSingleton<IJSRuntime>(js).AddSingleton<IComponentActivator>(activator).BuildServiceProvider();
         await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
         await renderer.Dispatcher.InvokeAsync(async () =>
         {

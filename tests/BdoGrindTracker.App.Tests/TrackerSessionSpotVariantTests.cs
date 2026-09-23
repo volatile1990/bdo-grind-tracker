@@ -121,24 +121,28 @@ public sealed partial class TrackerSessionServiceTests
     [InlineData("dark-energy-floodlands")]
     [InlineData("dehkia-ash-forest-unspecified")]
     [InlineData("winter-tree-fossil-unspecified")]
-    public async Task UnresolvedSpotVariantKeepsAutomaticHourQueuedWithoutSuspendingUploads(string familyId)
+    public async Task ResolvedSpotVariantIsUsedWhenTheSessionIsCompleted(string familyId)
     {
         await using var fixture = new Fixture();
         fixture.Begin();
         fixture.Time.Advance(TimeSpan.FromMinutes(59));
         await ProcessVariantFrame(fixture, familyId);
-        await fixture.Service.UploadHourlyToGarmothAsync();
+        await fixture.Service.TickAsync();
         Assert.Empty(fixture.Requests);
         Assert.False(fixture.Service.State.AutomaticSuspended);
         Assert.False(fixture.Service.State.UploadBlocked);
         Assert.True(fixture.Service.State.CanSelectSpotVariant);
         var variantId = LootSpotCatalog.VariantsFor(familyId)[0].Id;
         Assert.True((await fixture.Service.SelectSpotVariantAsync(fixture.Service.State.SessionId, variantId)).Succeeded);
-        await fixture.Service.UploadHourlyToGarmothAsync();
-        Assert.Single(fixture.Requests);
+        await fixture.Service.TickAsync();
+        Assert.Empty(fixture.Requests);
         Assert.False(fixture.Service.State.AutomaticSuspended);
-        Assert.False(fixture.Service.State.CanSelectSpotVariant);
         Assert.Equal(variantId, fixture.Service.State.SpotId);
+        await fixture.Service.PauseAsync();
+        Assert.True((await fixture.Service.NewSessionAsync()).Succeeded);
+        Assert.Single(fixture.Requests);
+        Assert.Equal(variantId, Assert.Single(fixture.Service.History).SpotId);
+
     }
 
     private static async Task ProcessVariantFrame(Fixture fixture, string detectedSpotId)

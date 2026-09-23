@@ -16,8 +16,22 @@
 .garmoth-page>.garmoth-connection{margin-bottom:22px;padding:20px}
 .garmoth-connection-fields{display:grid;grid-template-columns:minmax(220px,1fr) minmax(220px,1fr) auto;gap:20px;align-items:center}
 .garmoth-connection-fields .field,.garmoth-connection-fields .garmoth-auto-toggle,.garmoth-connection-fields .garmoth-remove-key{margin:0;padding:0}
+.garmoth-connection-fields .garmoth-auto-toggle{border-top:0;align-items:center}
 .garmoth-resume{display:flex;gap:16px;align-items:center;margin-top:14px;color:var(--gold)}
 .garmoth-history-identity .garmoth-live-marker{display:flex;align-items:center;gap:6px;color:#94c7b7}
 .garmoth-history .panel-heading{flex-wrap:wrap}
 .garmoth-confirm-loot td small{display:block;color:var(--muted);margin-top:4px}
 @media(max-width:880px){.garmoth-connection-fields{grid-template-columns:minmax(0,1fr)}.garmoth-resume{flex-wrap:wrap}}
+.garmoth-connection.menu-panel{padding:22px 24px}
+.garmoth-connection.menu-panel .garmoth-connection-fields{display:flex;flex-direction:column;align-items:stretch;gap:22px}
+.garmoth-connection.menu-panel .field{display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,280px);gap:16px;align-items:center}
+.garmoth-connection.menu-panel .field>span{display:block;color:var(--text);line-height:1.6}
+.garmoth-connection.menu-panel .field .badge{display:block;width:fit-content;margin-top:6px}
+.garmoth-connection.menu-panel .garmoth-auto-toggle{gap:24px}
+.garmoth-connection.menu-panel .garmoth-auto-toggle strong{color:var(--text);font-size:13px;line-height:1.6}
+.garmoth-connection.menu-panel .garmoth-remove-key{align-self:flex-start}
+.garmoth-connection.menu-panel .menu-section-heading{flex-wrap:wrap}
+.garmoth-connection.menu-panel .menu-section-heading .text-button{font-size:13px}
+.garmoth-connect-prompt{padding:0 20px 16px}
+.garmoth-connect-prompt .text-button{display:inline-flex;align-items:center;gap:7px;font-size:13px}
+@media(max-width:600px){.garmoth-connection.menu-panel{padding:18px 16px}.garmoth-connection.menu-panel .field{grid-template-columns:minmax(0,1fr);gap:10px}}

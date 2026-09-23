@@ -9,7 +9,7 @@ public sealed partial class TrackerSessionServiceTests
     [InlineData(132)]
     [InlineData(129)]
     [InlineData(101)]
-    public async Task MixedProjectedCorrectionAndNewDropCannotSendTheOldQueuedHour(int correctedTotal)
+    public async Task CompletedSessionUploadsTheFinalProjectedCorrectionAndNewDrop(int correctedTotal)
     {
         await using var fixture = new Fixture();
         fixture.Begin();
@@ -24,18 +24,19 @@ public sealed partial class TrackerSessionServiceTests
         var mixedArrival = started.AddMinutes(61);
         await ProcessProjectionAfter(fixture, TimeSpan.FromSeconds(58), 3, correctedTotal, 3, mixedArrival, 1);
 
-        // The correction is known before the two-second buffer releases its new
-        // quantities. The old completed hour must already be held at this point.
-        Assert.True(fixture.Service.State.AutomaticUploadNeedsReview);
-        await fixture.Service.UploadHourlyToGarmothAsync();
+        // Pausing before completion must flush the last projection, including
+        // quantities still waiting in the two-second publication buffer.
+        Assert.False(fixture.Service.State.AutomaticUploadNeedsReview);
+        Assert.False(fixture.Service.State.AutomaticSuspended);
+        Assert.True((await fixture.Service.PauseAsync()).Succeeded);
         Assert.Empty(fixture.Requests);
-        await ProcessProjectionAfter(fixture, TimeSpan.FromSeconds(2), 3, correctedTotal, 3, mixedArrival, 1);
-        Assert.Equal(correctedTotal, fixture.Service.State.Loot.Totals[ProjectionPublicationItem]);
-        Assert.Equal(correctedTotal, fixture.Service.State.CurrentGarmothUpload.Draft!.Totals[ProjectionPublicationItem]);
+        Assert.True((await fixture.Service.NewSessionAsync()).Succeeded);
+        AssertPayload(Assert.Single(fixture.Requests), 61, correctedTotal);
+        Assert.Equal(correctedTotal, Assert.Single(fixture.HistoryStore.Load()).Totals[ProjectionPublicationItem]);
     }
 
     [Fact]
-    public async Task ProvenNewProjectedDropsAfterHourBoundaryDoNotSuspendAutomaticUpload()
+    public async Task ProjectedDropsAtHourBoundaryWaitForSessionCompletion()
     {
         await using var fixture = new Fixture();
         fixture.Begin();
@@ -48,14 +49,17 @@ public sealed partial class TrackerSessionServiceTests
         await ProcessProjectionAfter(fixture, TimeSpan.FromSeconds(2), 2, 101, 2, boundaryArrival, 0);
 
         Assert.False(fixture.Service.State.AutomaticUploadNeedsReview);
-        await fixture.Service.UploadHourlyToGarmothAsync();
-        AssertPayload(Assert.Single(fixture.Requests), 60, 100);
+        await fixture.Service.TickAsync();
+        Assert.True((await fixture.Service.PauseAsync()).Succeeded);
+        Assert.Empty(fixture.Requests);
+        Assert.True((await fixture.Service.NewSessionAsync()).Succeeded);
+        AssertPayload(Assert.Single(fixture.Requests), 60, 101);
     }
 
     [Theory]
     [InlineData(3)]
     [InlineData(130)]
-    public async Task CorrectionBeforeEnablingAutomaticUploadUpdatesTheQueuedHourAndCheckpoint(int quantity)
+    public async Task CorrectionBeforeEnablingAutomaticUploadUpdatesTheCompletedSessionAndCheckpoint(int quantity)
     {
         await using var fixture = new Fixture(autoUpload: false);
         fixture.Begin();
@@ -64,14 +68,17 @@ public sealed partial class TrackerSessionServiceTests
             "Black Crystal Fragment", quantity, 100)).Succeeded);
         var checkpoint = new CurrentSessionStore(Path.Combine(fixture.DirectoryPath, CurrentSessionStore.FileName)).Load();
         Assert.NotNull(checkpoint?.Uploads);
-        Assert.Equal(quantity, Assert.Single(checkpoint.Uploads.Hours).Totals["Black Crystal Fragment"]);
+        Assert.Empty(checkpoint.Uploads.Hours);
+        Assert.Equal(quantity, checkpoint.Uploads.ObservedTotals["Black Crystal Fragment"]);
         Assert.True((await fixture.Service.SavePreferencesAsync(fixture.Service.Preferences with { AutoUpload = true })).Succeeded);
-        await fixture.Service.UploadHourlyToGarmothAsync();
+        Assert.True((await fixture.Service.PauseAsync()).Succeeded);
+        Assert.Empty(fixture.Requests);
+        Assert.True((await fixture.Service.NewSessionAsync()).Succeeded);
         AssertPayload(Assert.Single(fixture.Requests), 60, quantity);
     }
 
     [Fact]
-    public async Task CorrectionAcrossQueuedHoursStopsAutomaticUploadAndKeepsCorrectManualPreview()
+    public async Task CorrectionAcrossSeveralHoursKeepsAutomaticCompletionEnabled()
     {
         await using var fixture = new Fixture(autoUpload: false);
         fixture.Begin();
@@ -79,16 +86,17 @@ public sealed partial class TrackerSessionServiceTests
         await fixture.ProcessAfter(TimeSpan.FromHours(1), ("Black Crystal Fragment", 100));
         Assert.True((await fixture.Service.UpdateLootQuantityAsync(fixture.Service.State.SessionId,
             "Black Crystal Fragment", 3, 200)).Succeeded);
-        Assert.True(fixture.Service.State.AutomaticUploadNeedsReview);
-        Assert.Contains("manuell senden", fixture.Service.State.Status);
+        Assert.False(fixture.Service.State.AutomaticUploadNeedsReview);
         await fixture.Service.SavePreferencesAsync(fixture.Service.Preferences with { AutoUpload = true }, resumeAutomaticUpload: true);
-        await fixture.Service.UploadHourlyToGarmothAsync();
+        await fixture.Service.TickAsync();
         Assert.Empty(fixture.Requests);
-        Assert.True(fixture.Service.State.AutomaticSuspended);
+        Assert.False(fixture.Service.State.AutomaticSuspended);
         var preview = fixture.Service.State.CurrentGarmothUpload;
         Assert.True(preview.IsReady, preview.Error);
         Assert.Equal(3, preview.Draft!.Totals["Black Crystal Fragment"]);
-        Assert.True((await fixture.Service.UploadConfirmedAsync(preview)).Succeeded);
+        Assert.True((await fixture.Service.PauseAsync()).Succeeded);
+        Assert.Empty(fixture.Requests);
+        Assert.True((await fixture.Service.NewSessionAsync()).Succeeded);
         AssertPayload(Assert.Single(fixture.Requests), 120, 3);
     }
 

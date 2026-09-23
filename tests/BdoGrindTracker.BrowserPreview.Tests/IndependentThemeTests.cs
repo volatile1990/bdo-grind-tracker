@@ -147,7 +147,7 @@ public sealed class IndependentThemeTests
 
     private static ServiceProvider Services(ITrackerSession tracker, IOverlayService overlay, CapturingActivator activator) =>
         new ServiceCollection().AddLogging().AddSingleton(tracker).AddSingleton(overlay)
-            .AddSingleton<IJSRuntime, NoJavaScript>().AddSingleton<IComponentActivator>(activator).BuildServiceProvider();
+            .AddSingleton<NavigationManager, OverlayTestNavigation>().AddSingleton<IJSRuntime, NoJavaScript>().AddSingleton<IComponentActivator>(activator).BuildServiceProvider();
 
     private sealed class CapturingActivator : IComponentActivator
     {

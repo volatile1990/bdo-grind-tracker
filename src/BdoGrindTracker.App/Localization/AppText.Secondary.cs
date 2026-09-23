@@ -179,7 +179,7 @@ internal static partial class AppText
         text["Garmoth-API-Schlüssel"] = "Garmoth API key";
         text["Schlüssel ersetzen …"] = "Replace key …";
         text["API-Schlüssel einfügen"] = "Paste API key";
-        text["Stündlich automatisch hochladen"] = "Upload automatically every hour";
+        text["Abgeschlossene Sessions automatisch hochladen"] = "Upload completed sessions automatically";
         text["Gespeicherten Garmoth-Schlüssel entfernen"] = "Remove saved Garmoth key";
         text["Schlüssel entfernen"] = "Remove key";
         text["API-Schlüssel erhalten"] = "Get API key";
