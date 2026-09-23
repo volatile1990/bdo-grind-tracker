@@ -858,7 +858,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         State = State with { ObservedAt = _captureSession.ObservationTime,
             SilverHistory = _silverHistory.Update(State), DropHistory = CaptureDropHistory(State.Loot, State.Elapsed),
             Rotation = _rotationTimeline.Update(_sessionId, State.Elapsed, _captureSession.ObservationTime,
-                _rotationMonitor.Snapshot(_captureSession.ObservationTime, _sessionSpotId,
+                _sessionStartedAt, _rotationMonitor.Snapshot(_captureSession.ObservationTime, _sessionSpotId,
                     Preferences.IncludeSpecialEventRotations)) };
         RecordDebugState();
         if (_historyChanged)

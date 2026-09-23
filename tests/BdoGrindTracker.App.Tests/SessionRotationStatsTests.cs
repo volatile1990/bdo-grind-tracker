@@ -99,7 +99,7 @@ public sealed class SessionRotationStatsTests
         Assert.Equal(3, SessionRotationStats.Count(session));
 
         var timeline = new SessionRotationTimeline();
-        var mapped = timeline.Update(Guid.NewGuid(), TimeSpan.FromMinutes(40), Observed, session);
+        var mapped = timeline.Update(Guid.NewGuid(), TimeSpan.FromMinutes(40), Observed, null, session);
         Assert.Equal([TimeSpan.FromHours(-2) - TimeSpan.FromMinutes(20), TimeSpan.FromMinutes(-1), TimeSpan.FromMinutes(20)],
             mapped.SessionRotations.Select(timing => timing.StartedAfter));
     }
@@ -111,16 +111,40 @@ public sealed class SessionRotationStatsTests
         var session = Guid.NewGuid();
         var snapshot = Session(new SessionRotationTiming(600, 20, StartedAt: Observed.AddMinutes(-20), RunId: Guid.NewGuid()));
 
-        Assert.Equal(TimeSpan.FromMinutes(10), timeline.Update(session, TimeSpan.FromMinutes(30), Observed, snapshot)
+        Assert.Equal(TimeSpan.FromMinutes(10), timeline.Update(session, TimeSpan.FromMinutes(30), Observed, null, snapshot)
             .SessionRotations[0].StartedAfter);
 
         // Ten more minutes of wall clock, all of them paused: the rotation keeps the place it was recorded at.
-        Assert.Equal(TimeSpan.FromMinutes(10), timeline.Update(session, TimeSpan.FromMinutes(30), Observed.AddMinutes(10), snapshot)
+        Assert.Equal(TimeSpan.FromMinutes(10), timeline.Update(session, TimeSpan.FromMinutes(30), Observed.AddMinutes(10), null, snapshot)
             .SessionRotations[0].StartedAfter);
 
         // Another session starts over with its own axis.
-        Assert.Equal(TimeSpan.FromMinutes(5), timeline.Update(Guid.NewGuid(), TimeSpan.FromMinutes(25), Observed, snapshot)
+        Assert.Equal(TimeSpan.FromMinutes(5), timeline.Update(Guid.NewGuid(), TimeSpan.FromMinutes(25), Observed, null, snapshot)
             .SessionRotations[0].StartedAfter);
+    }
+
+    [Fact]
+    public void TheSessionsOwnStartAnchorsEveryRotationAndSurvivesARestart()
+    {
+        // The recorded session of 22.09.2026: the automatic start opened the first rotation seventeen seconds
+        // before the session, the second one aborted half an hour in. Both are placed from the session's start,
+        // so reopening the tracker fourteen hours later does not move them.
+        var started = Observed;
+        var snapshot = Session(new SessionRotationTiming(1866.6, StartedAt: started.AddSeconds(-17), RunId: Guid.NewGuid()),
+            new SessionRotationTiming(13.8, StartedAt: started.AddSeconds(1849), RunId: Guid.NewGuid(), Outcome: "aborted"));
+        var elapsed = TimeSpan.FromSeconds(1850);
+
+        var live = new SessionRotationTimeline()
+            .Update(Guid.NewGuid(), elapsed, started + elapsed, started, snapshot);
+        var restored = new SessionRotationTimeline()
+            .Update(Guid.NewGuid(), elapsed, started.AddHours(14), started, snapshot);
+
+        Assert.Equal([TimeSpan.FromSeconds(-17), TimeSpan.FromSeconds(1849)],
+            live.SessionRotations.Select(timing => timing.StartedAfter));
+        Assert.Equal(live.SessionRotations.Select(timing => timing.StartedAfter),
+            restored.SessionRotations.Select(timing => timing.StartedAfter));
+        // Both are on the timeline; the first one reaches into the session although it began before it.
+        Assert.Equal([1, 2], SessionRotationStats.Spans(restored, elapsed, started.AddHours(14)).Select(span => span.Number));
     }
 
     [Fact]
