@@ -271,6 +271,12 @@ public sealed class OverlaySectionsAndRotationModulesTests
         var count = metrics["rotation-count"];
         Assert.Equal(("Rotation Counter", "4", "Zuletzt 10:40"), (count.Label, count.Value, count.Detail));
 
+        // Only complete rotations are rotations: an aborted attempt and the running one are neither counted nor shown.
+        var mixed = new OverlayMetrics().Update(WithRotations(new SessionRotationTiming(600, 20),
+            new SessionRotationTiming(120, Outcome: "aborted"), new SessionRotationTiming(45, Outcome: "active")),
+            new() { UiLanguage = "de" }).Metrics["rotation-count"];
+        Assert.Equal(("1", "Zuletzt 10:00"), (mixed.Value, mixed.Detail));
+
         var single = new OverlayMetrics().Update(WithRotations(new SessionRotationTiming(1180, 20)), new() { UiLanguage = "de" }).Metrics["rotations-hour"];
         Assert.Equal(("3,0", "Ø 20:00 · 1 Rotation"), (single.Value, single.Detail));
         var unknownWalk = new OverlayMetrics().Update(WithRotations(new SessionRotationTiming(1200)), new() { UiLanguage = "de" }).Metrics["rotations-hour"];

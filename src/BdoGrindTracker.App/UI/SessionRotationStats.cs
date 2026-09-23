@@ -2,7 +2,7 @@ using BdoGrindTracker.App.Overlay;
 
 namespace BdoGrindTracker.App.UI;
 
-/// <param name="Start">Session time at which the rotation started; negative before a restored session's start.</param>
+/// <param name="Start">Session time at which the rotation started, on the axis of the drop history.</param>
 /// <param name="SpecialEvents">Session time of each special event of this rotation.</param>
 /// <param name="Outcome">complete, incomplete, aborted or active, as the rotation monitor decided it.</param>
 /// <param name="Events">The rotation's mechanics, for drawing its phases like the rotation monitor does.</param>
@@ -66,21 +66,29 @@ public static class SessionRotationStats
     public static IReadOnlyList<SessionRotationSpan> Spans(RotationMonitorSnapshot rotation, TimeSpan elapsed, DateTimeOffset observedAt)
     {
         var timings = Attempts(rotation)
-            .Where(timing => timing.StartedAfter is not null || timing.StartedAt != default && observedAt != default).ToArray();
+            .Where(timing => timing.StartedAfter is not null || timing.StartedAt != default && observedAt != default)
+            .Select(timing => (Timing: timing, Start: timing.StartedAfter ?? elapsed - (observedAt - timing.StartedAt)))
+            // A rotation that maps before the session's first active second ran before a restart and has no place here.
+            .Where(entry => entry.Start >= TimeSpan.Zero).ToArray();
         if (timings.Length == 0) return [];
-        var fastest = timings.Where(timing => timing.IsComplete).Select(timing => timing.Duration)
+        var fastest = timings.Where(entry => entry.Timing.IsComplete).Select(entry => entry.Timing.Duration)
             .DefaultIfEmpty(double.NaN).Min();
         var number = 0;
-        return timings.Select(timing =>
+        return timings.Select(entry =>
         {
-            var start = timing.StartedAfter ?? elapsed - (observedAt - timing.StartedAt);
+            var (timing, start) = entry;
             return new SessionRotationSpan(++number, start, start + TimeSpan.FromSeconds(timing.Duration),
                 timing.Duration, [.. (timing.SpecialEventSeconds ?? []).Select(seconds => start + TimeSpan.FromSeconds(seconds))],
                 timing.Outcome, timing.Events) { IsFastest = timing.IsComplete && timing.Duration <= fastest };
         }).ToArray();
     }
 
-    // Only complete rotations are comparable: an aborted attempt says nothing about the tempo.
+    /// <summary>
+    /// The rotations that count as rotations: complete ones with a usable duration. An aborted attempt and the
+    /// rotation that is still running say nothing about the tempo and are no achievement either.
+    /// </summary>
+    public static IReadOnlyList<SessionRotationTiming> Completed(RotationMonitorSnapshot rotation) => Timings(rotation);
+
     private static SessionRotationTiming[] Timings(RotationMonitorSnapshot rotation) =>
         rotation.SessionRotations.Where(timing => timing.IsComplete && double.IsFinite(timing.Duration) && timing.Duration > 0).ToArray();
 

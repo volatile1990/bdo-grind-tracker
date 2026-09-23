@@ -29,7 +29,9 @@ internal sealed class SessionRotationTimeline
         if (timing.RunId != Guid.Empty && _starts.TryGetValue(timing.RunId, out var known)) return known;
         if (timing.StartedAt == default || observedAt == default) return timing.StartedAfter;
         var start = elapsed - (observedAt - timing.StartedAt);
-        if (start < TimeSpan.Zero) start = TimeSpan.Zero;
+        // Restored rotations ran before the offline gap, which the session clock never counted. Clamping them to
+        // zero would stack them all on the session's first second and claim a place they never had.
+        if (start < TimeSpan.Zero) return null;
         if (timing.RunId != Guid.Empty) _starts[timing.RunId] = start;
         return start;
     }

@@ -121,6 +121,8 @@ public sealed class RotationMonitorSpotTests
         var start = DateTimeOffset.UnixEpoch;
 
         monitor.ObserveRotationStart(new RotationStartSighting(LootSpotCatalog.MagaiaId, "start", "Sünder beschworen", start));
+        // The first captured frames may carry no HUD. That says nothing about a banner seen before any capture.
+        monitor.Interrupt("Bildsignal fehlt · warte auf erstes Ereignis");
         var state = monitor.Snapshot(start.AddSeconds(40), LootSpotCatalog.MagaiaId);
 
         Assert.True(state.Synchronized);

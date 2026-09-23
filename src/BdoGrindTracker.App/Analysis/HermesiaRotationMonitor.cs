@@ -242,8 +242,9 @@ internal class BufferedRotationProfileMonitor : IRotationProfileMonitor
         // Every frame without HUD interrupts again; only the first one ends an observation.
         if (_lastFrame is { } observed) _diagnostics?.Note(_diagnosticSpot, observed, "interrupt", status);
         _epoch++;
+        // An interrupt says the picture this monitor had is gone. Without a single observed frame there is nothing
+        // to invalidate, and a message handed over before capture started would be thrown away with it.
         if (_lastFrame is { } lastFrame) _tracker.InterruptAt(status, lastFrame);
-        else _tracker.Interrupt(status);
         _search = NewSearch();
         _lastFrame = _lastSample = _lastProbe = null;
         foreach (var sample in _buffer) sample.Release();

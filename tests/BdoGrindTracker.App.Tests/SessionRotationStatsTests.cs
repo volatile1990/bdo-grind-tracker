@@ -83,6 +83,26 @@ public sealed class SessionRotationStatsTests
     }
 
     [Fact]
+    public void ARotationFromBeforeTheSessionsActiveTimeIsLeftOffTheAxis()
+    {
+        // A session restored after a restart: this rotation ran during the offline gap the session clock never
+        // counted, so its wall clock maps before the first active second. It has no place on that axis.
+        var session = Session(new SessionRotationTiming(600, 20, StartedAt: Observed.AddHours(-3)),
+            new SessionRotationTiming(540, StartedAt: Observed.AddMinutes(-20)));
+
+        var span = Assert.Single(SessionRotationStats.Spans(session, TimeSpan.FromMinutes(40), Observed));
+
+        Assert.Equal(TimeSpan.FromMinutes(20), span.Start);
+        Assert.Equal(540, span.Duration);
+        // The statistics keep both: they do not depend on a place on the timeline.
+        Assert.Equal(2, SessionRotationStats.Count(session));
+
+        var timeline = new SessionRotationTimeline();
+        var mapped = timeline.Update(Guid.NewGuid(), TimeSpan.FromMinutes(40), Observed, session);
+        Assert.Equal([null, TimeSpan.FromMinutes(20)], mapped.SessionRotations.Select(timing => timing.StartedAfter));
+    }
+
+    [Fact]
     public void TheTimelineRecordsEachRotationsSessionTimeOnceAndKeepsIt()
     {
         var timeline = new SessionRotationTimeline();

@@ -17,7 +17,10 @@ public static class SessionTimelineLayers
 
     public static readonly IReadOnlyList<string> Default = ["rotations", "rare", "silver"];
 
-    public static string ColorOf(string id) => All.FirstOrDefault(layer => layer.Id == id)?.Color ?? "#9AA7B4";
+    /// <summary>For anything that has no colour of its own, such as an item not shown on the timeline.</summary>
+    public const string Neutral = "#9AA7B4";
+
+    public static string ColorOf(string id) => All.FirstOrDefault(layer => layer.Id == id)?.Color ?? Neutral;
 
     /// <summary>Colors for the items chosen in the loot selector, apart from the layers' own ones.</summary>
     public static readonly IReadOnlyList<string> ItemColors =

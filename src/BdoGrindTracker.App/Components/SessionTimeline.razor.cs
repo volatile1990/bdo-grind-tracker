@@ -164,7 +164,8 @@ public partial class SessionTimeline
     /// <summary>Every item the session has dropped, the ones already shown first.</summary>
     private IReadOnlyList<string> LootItems =>
         [.. State.Loot.Totals.Keys.OrderByDescending(_items.Contains).ThenBy(ItemLabel, StringComparer.CurrentCulture)];
-    private string ItemColor(string item) => SessionTimelineLayers.ItemColorOf(Math.Max(0, Array.IndexOf(_chosen, item)));
+    private string ItemColor(string item) => Array.IndexOf(_chosen, item) is var index && index >= 0
+        ? SessionTimelineLayers.ItemColorOf(index) : SessionTimelineLayers.Neutral;
 
     private bool IsOn(string id) => _layers.Contains(id);
     private void Toggle(string id, bool on)

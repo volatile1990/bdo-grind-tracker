@@ -419,6 +419,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             _buffMonitor.Reset();
             _experienceSessionTracker.Pause(_sessionClock.Elapsed);
             _uiRunning = true;
+            // A start without a detection was not confirmed by a banner, whatever an earlier one was confirmed by.
+            if (autoStart is null) _startedByRotationBanner = false;
             _rotationMonitor.Interrupt("Grind gestartet · warte auf erstes Ereignis");
             // The banner that started this session appeared before any capture: without it the first rotation would
             // be measured from the drop that confirmed the start instead of from its own beginning.

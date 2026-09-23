@@ -159,7 +159,7 @@ internal sealed partial class OverlayMetrics
         const string tooltip = "Vollständig abgeschlossene Rotationen am aktuellen Spot in dieser Session. " +
             "Abgebrochene oder unvollständig erkannte Rotationen zählen nicht.";
         if (!rotation.HasProfile) return new(label, "—", T("Kein Rotationsprofil für diesen Spot"), Tooltip: T(tooltip));
-        var rotations = rotation.SessionRotations;
+        var rotations = BdoGrindTracker.App.UI.SessionRotationStats.Completed(rotation);
         return new(label, rotations.Count.ToString("N0", AppText.Culture(language)),
             rotations.Count == 0 ? T("In dieser Session") :
                 AppText.Format("Zuletzt {0}", language, RotationPhases.Duration(rotations[^1].Duration)), Tooltip: T(tooltip));
