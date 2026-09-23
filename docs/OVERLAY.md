@@ -115,8 +115,9 @@ Beschriftung oder Icons sichtbar. Fehlende Preise erscheinen als **Preis fehlt**
 bei teilweise bekannten Preisen steht der bekannte Betrag mit **\***. Ohne
 Buffbeobachtungen steht **—**.
 
-Die Mengen stammen ausschließlich aus bestätigten Erstanrechnungen und
-Timer-Erneuerungen. Ein aktiver Buff ohne Buchung zählt nicht als verbrauchtes
+Die Mengen stammen ausschließlich aus gespeicherten Verbrauchsbuchungen.
+Anfangs aktive Buffs bleiben ungezählt; neue Anwendungen und Timer-Erneuerungen
+während des Grinds zählen mit ihrer eigenen Laufzeitvariante. Ein aktiver Buff ohne Buchung zählt nicht als verbrauchtes
 Item. Bereits gespeicherte Preise bleiben erhalten; das Overlay bewertet sie
 nicht neu und addiert keine zeitanteiligen Laufzeitkosten. Die Iconleiste im
 Live-Header und im Verlauf zeigt dieselben Mengen und Kosten.

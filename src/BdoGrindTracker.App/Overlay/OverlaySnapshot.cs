@@ -42,7 +42,10 @@ public sealed record OverlayDropMarker(TimeSpan Elapsed, OverlayLootItem Item);
 public sealed record OverlaySilverDrop(TimeSpan Elapsed, decimal Silver, bool Valuable = false);
 
 public sealed record OverlayMetric(string Label, string Value, string? Detail = null, bool IsWarning = false,
-    OverlayMetricTone Tone = OverlayMetricTone.Default, string? Tooltip = null);
+    OverlayMetricTone Tone = OverlayMetricTone.Default, string? Tooltip = null)
+{
+    public GrindRatingSpectrum? Spectrum { get; init; }
+}
 
 /// <param name="CanonicalName">The original ledger key, independent of the display language.</param>
 /// <param name="Name">Localized display name.</param>

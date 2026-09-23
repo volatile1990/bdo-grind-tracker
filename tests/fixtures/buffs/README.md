@@ -25,13 +25,19 @@ original captured icon crops to exercise the optional profile path.
   Tenacity alone was unreadable for one intervening scan.
 - `bar-cron67m-boon2h.png`: user-supplied comparison from the local EXE test.
   Simple Cron Meal shows 67 minutes and Adventure's Boon shows 2 hours. This
-  covers native OCR of short hour labels and delayed initial accounting through
-  to the consumables tiles and their costs, when the first scan misses a buff.
+  covers native OCR of short hour labels and confirms that initially unreadable
+  buffs do not create consumption tiles or costs when first recognized later.
 - `bar-body20m-cron119m.png`: independent later capture, cropped to 160 × 135;
   automatically found Body Enhancement at 20 minutes and Cron at 119 minutes.
   This also tests the publisher-supplied Body Enhancement symbol on a real
   current game frame without a personal profile. The purchased Body Enhancement
   duration remains unknown because its variants share one symbol.
+- `bar-tent-refresh-4h.png`: passive capture on 2026-09-22 after the user reported
+  reapplying Body Enhancement and Adventure's Boon. Both show `4h`; Harmony–Edania
+  and Tenacity show `4m`, Mystic Beasts All AP `47m`, and Simple Cron `32m`.
+  Both existing OCR scales returned empty text for all four short `4h`/`4m` labels.
+  A tightly cropped, repeated timer strip recovers them with three identical labels
+  in each of two agreeing preparations. No full game frame is retained.
 
 The original 48-pixel timer preparation read `13m` as `113m` and split `114m`
 into `i 14m` on the installed Windows OCR engine. A second interpolation after
@@ -47,6 +53,14 @@ On the later Boon fixture, both 56-pixel preparations return no text for `2h`.
 Unreadable timers now try a smaller 32-pixel preparation; both grayscale and
 thresholded results must agree. This fallback does not override contradictory
 primary results or change timers already read successfully.
+
+Completely empty results at both scales now allow one final repeated-label pass.
+Only pixels from the original timer crop are used. The three copies must produce
+three equal parsed timers, and grayscale and thresholded preparations must agree
+on both duration and precision. Nonempty or contradictory original results cannot
+be overridden. Native regressions cover `4h` and `4m` separately and verify that
+each renewed tent buff counts once without charging its initial timer or
+rebooking an unchanged hours label.
 
 `bar-official-harmony-20240725.png` is an independent publisher HUD reference:
 frame 85, crop `(0, 0, 280, 140)` from Pearl Abyss's

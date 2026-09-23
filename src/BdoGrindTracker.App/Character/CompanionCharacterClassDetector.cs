@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Xml;
+using BdoGrindTracker.App.Analysis;
 using BdoGrindTracker.Ocr;
 
 namespace BdoGrindTracker.App.Character;
@@ -28,8 +29,8 @@ internal sealed record CharacterClassDetection(
 /// Passive class/spec inference from the locally saved skill slots, following
 /// Companion 0.7.4 calibration. It never accesses a game process or screenshot,
 /// never changes a game file, and does not expose account/character paths.
-/// This identifies the most recently saved character configuration;
-/// unsaved character or specialization changes cannot be detected from it.
+/// Journal-cache file metadata identifies a character loaded after the last
+/// XML save. Skill evidence still comes only from that character's saved slots.
 /// </summary>
 internal sealed class CompanionCharacterClassDetector
 {
@@ -38,14 +39,21 @@ internal sealed class CompanionCharacterClassDetector
 
     public CharacterClassDetection DetectDefault() => Detect(Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-        "Black Desert"));
+        "Black Desert"), BlackDesertInstallationLocator.FindDirectories());
 
-    public CharacterClassDetection Detect(string blackDesertDirectoryPath)
+    public CharacterClassDetection Detect(string blackDesertDirectoryPath) =>
+        Detect(blackDesertDirectoryPath, []);
+
+    public CharacterClassDetection Detect(string blackDesertDirectoryPath,
+        IEnumerable<string> installationDirectories)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(blackDesertDirectoryPath);
+        ArgumentNullException.ThrowIfNull(installationDirectories);
         try
         {
-            var selectedPaths = SelectCharacterConfigurations(blackDesertDirectoryPath);
+            var installations = installationDirectories.Where(Path.IsPathFullyQualified)
+                .Select(Path.GetFullPath).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            var selectedPaths = SelectCharacterConfigurations(blackDesertDirectoryPath, installations);
             if (selectedPaths.Count == 0)
             {
                 return CharacterClassDetection.Unavailable;
@@ -159,7 +167,8 @@ internal sealed class CompanionCharacterClassDetector
             : new(bestClass, CharacterClassDetectionStatus.Detected, bestScore);
     }
 
-    private static IReadOnlyList<string> SelectCharacterConfigurations(string blackDesertDirectoryPath)
+    private static IReadOnlyList<string> SelectCharacterConfigurations(string blackDesertDirectoryPath,
+        IReadOnlyList<string> installationDirectories)
     {
         // Profile directories are not touched when BDO saves existing files.
         // Use the profile XML's save time, as the capture calibration does.
@@ -197,7 +206,7 @@ internal sealed class CompanionCharacterClassDetector
         var selectedPaths = new List<string>();
         foreach (var profile in profiles)
         {
-            var paths = SelectCharacterConfigurationsInProfile(profile);
+            var paths = SelectCharacterConfigurationsInProfile(profile, installationDirectories);
             // Equally recent accounts all need evidence; never borrow another
             // account's class when one of the tied profiles has no character.
             if (paths.Count == 0) return [];
@@ -208,7 +217,8 @@ internal sealed class CompanionCharacterClassDetector
         return selectedPaths;
     }
 
-    private static IReadOnlyList<string> SelectCharacterConfigurationsInProfile(string profile)
+    private static IReadOnlyList<string> SelectCharacterConfigurationsInProfile(string profile,
+        IReadOnlyList<string> installationDirectories)
     {
         var presets = new List<(string Path, DateTime Saved)>();
         var characters = new List<(string Path, DateTime Saved)>();
@@ -224,6 +234,8 @@ internal sealed class CompanionCharacterClassDetector
                 if (File.Exists(candidate))
                     characters.Add((candidate, File.GetLastWriteTimeUtc(candidate)));
             }
+
+            AddJournalActivity(presetDirectory, installationDirectories, characters);
         }
 
         // Consider every preset, but shared/default files cannot hide genuine
@@ -231,12 +243,59 @@ internal sealed class CompanionCharacterClassDetector
         return SelectLatest(characters.Count > 0 ? characters : presets);
     }
 
+    private static void AddJournalActivity(string presetDirectory,
+        IReadOnlyList<string> installationDirectories, List<(string Path, DateTime Saved)> characters)
+    {
+        var world = Path.GetFileName(presetDirectory);
+        if (!uint.TryParse(world, NumberStyles.None, CultureInfo.InvariantCulture, out var worldId) || worldId == 0)
+            return;
+
+        foreach (var installation in installationDirectories)
+        {
+            var journalDirectory = Path.Combine(installation, "Cache", world, "MyJournal");
+            if (!Directory.Exists(journalDirectory)) continue;
+            try
+            {
+                var activity = new List<(string Path, DateTime Saved)>();
+                foreach (var journal in Directory.EnumerateFiles(journalDirectory, "*.bcf"))
+                {
+                    var name = Path.GetFileNameWithoutExtension(journal);
+                    var separator = name.IndexOf('_');
+                    if (separator <= 0 || !ulong.TryParse(name.AsSpan(0, separator), NumberStyles.None,
+                            CultureInfo.InvariantCulture, out var characterId) || characterId == 0)
+                        continue;
+                    var period = name.AsSpan(separator + 1);
+                    if (period.Length is not (5 or 6) ||
+                        !int.TryParse(period[..4], NumberStyles.None, CultureInfo.InvariantCulture, out var year) || year < 2000 ||
+                        !int.TryParse(period[4..], NumberStyles.None, CultureInfo.InvariantCulture, out var month) || month is < 1 or > 12)
+                        continue;
+
+                    // BDO saves the outgoing character's XML on logout, then writes
+                    // MyJournal/<character>_<year><month>.bcf for the incoming one.
+                    // Only use the filename and write time: never open journal data.
+                    // Retain missing XML paths too, so a new/unknown active character
+                    // cannot silently borrow an older character's recognized class.
+                    var candidate = Path.Combine(presetDirectory, name[..separator], "gameVariable.xml");
+                    activity.Add((candidate, File.GetLastWriteTimeUtc(journal)));
+                }
+                characters.AddRange(activity);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or
+                System.Security.SecurityException)
+            {
+                // This optional source may be missing or inaccessible in an old
+                // installation. Do not accept a partially enumerated candidate set.
+            }
+        }
+    }
+
     private static IReadOnlyList<string> SelectLatest(List<(string Path, DateTime Saved)> candidates)
     {
         if (candidates.Count == 0) return [];
         var latestSave = candidates.Max(candidate => candidate.Saved);
         var latest = candidates.Where(candidate => candidate.Saved == latestSave)
-            .Select(candidate => candidate.Path).Take(MaxTiedConfigurations + 1).ToArray();
+            .Select(candidate => candidate.Path).Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(MaxTiedConfigurations + 1).ToArray();
         return latest.Length > MaxTiedConfigurations ? [] : latest;
     }
 }

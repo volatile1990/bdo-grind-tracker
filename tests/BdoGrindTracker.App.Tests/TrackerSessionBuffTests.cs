@@ -10,10 +10,45 @@ public sealed partial class TrackerSessionServiceTests
 {
     private static readonly BuffDefinition SessionBuff = BuffPriceCatalog.Definitions.Single(item => item.Id == "harmony-draught");
 
+    [Fact]
+    public async Task BothTentBuffsCountHourTimerRefreshAfterUnreadableScanAndPersist()
+    {
+        var families = new[] { "automatic-tent-body-enhancement", "automatic-tent-adventures-boon" };
+        BuffFrameReading Reading(TimeSpan remaining, TimeSpan precision) =>
+            new(families.Select(id => new BuffObservation(id, remaining, precision)).ToArray());
+        BuffFrameReading? reading = Reading(TimeSpan.FromMinutes(60), TimeSpan.FromMinutes(1));
+        var monitor = new BuffMonitor(new SessionBuffReader(() => reading), TimeSpan.FromSeconds(1));
+        await using var fixture = new Fixture(autoUpload: false, buffMonitor: monitor, lootScrollVisible: _ => true);
+        BeginBuffSession(fixture);
+        var now = DateTimeOffset.UtcNow;
+        await ProcessBuffFrame(fixture, monitor, now.AddSeconds(-7));
+        await ProcessBuffFrame(fixture, monitor, now.AddSeconds(-6));
+        reading = null;
+        await ProcessBuffFrame(fixture, monitor, now.AddSeconds(-5));
+        reading = Reading(TimeSpan.FromHours(4), TimeSpan.FromHours(1));
+        await ProcessBuffFrame(fixture, monitor, now.AddSeconds(-4));
+        await ProcessBuffFrame(fixture, monitor, now.AddSeconds(-3));
+
+        var live = Assert.IsType<BuffLedgerSnapshot>(fixture.Service.State.Buffs);
+        Assert.Equal(2, live.Consumptions.Count);
+        Assert.Equal(22_000_000m, live.ConsumedCost);
+        foreach (var id in new[] { "tent-body-enhancement-300", "tent-adventures-boon-300" })
+        {
+            Assert.Single(live.Consumptions, item => item.BuffId == id && !item.IsSessionStart);
+        }
+        Assert.True((await fixture.Service.PauseAsync()).Succeeded);
+        Assert.Equal(live.Consumptions, Assert.Single(fixture.HistoryStore.Load()).Buffs!.Consumptions);
+        Assert.Equal(live.Consumptions,
+            new CurrentSessionStore(Path.Combine(fixture.DirectoryPath, CurrentSessionStore.FileName)).Load()!.Buffs!.Consumptions);
+    }
+
     [Theory]
+    [InlineData(59, "tent-body-enhancement-60", 1_000_000)]
+    [InlineData(89, "tent-body-enhancement-90", 1_500_000)]
+    [InlineData(119, "tent-body-enhancement-120", 2_250_000)]
     [InlineData(280, "tent-body-enhancement-300", 10_000_000)]
-    [InlineData(160, "tent-body-enhancement-300", 10_000_000)]
-    public async Task AutomaticTentRefreshPublishesAndPersistsTheMaximumDurationPrice(
+    [InlineData(160, "tent-body-enhancement-180", 4_500_000)]
+    public async Task AutomaticTentRefreshPublishesAndPersistsTheRecognizedDurationPrice(
         int remainingMinutes, string expectedId, int price)
     {
         BuffFrameReading Reading(int minutes) => new([new("automatic-tent-body-enhancement",
@@ -31,11 +66,8 @@ public sealed partial class TrackerSessionServiceTests
 
         var live = Assert.IsType<BuffLedgerSnapshot>(fixture.Service.State.Buffs);
         Assert.Equal(expectedId, Assert.Single(live.Active).BuffId);
-        Assert.Equal(2, live.Consumptions.Count);
-        var initial = Assert.Single(live.Consumptions, item => item.IsSessionStart);
-        Assert.Equal("tent-body-enhancement-300", initial.BuffId);
-        Assert.Equal(10_000_000m, initial.Cost);
-        var purchase = Assert.Single(live.Consumptions, item => !item.IsSessionStart);
+        var purchase = Assert.Single(live.Consumptions);
+        Assert.False(purchase.IsSessionStart);
         Assert.Equal(expectedId, purchase.BuffId);
         Assert.Equal(price, purchase.Cost);
         Assert.Equal(BuffPriceSource.FixedNpc, purchase.Price!.Source);
@@ -43,11 +75,11 @@ public sealed partial class TrackerSessionServiceTests
         Assert.True((await fixture.Service.PauseAsync()).Succeeded);
         var history = Assert.IsType<BuffLedgerSnapshot>(Assert.Single(fixture.HistoryStore.Load()).Buffs);
         Assert.Equal(live.Consumptions, history.Consumptions);
-        Assert.Equal(price + 10_000_000m, history.ConsumedCost);
+        Assert.Equal(price, history.ConsumedCost);
     }
 
     [Fact]
-    public async Task TwoBuffScansCountAnAlreadyActiveBuffOnceAndPreserveObservedCost()
+    public async Task TwoBuffScansKeepAnAlreadyActiveBuffAsBaselineAndPreserveObservedCost()
     {
         BuffFrameReading? reading = BuffReading(300);
         var monitor = new BuffMonitor(new SessionBuffReader(() => reading), TimeSpan.FromSeconds(1));
@@ -60,16 +92,16 @@ public sealed partial class TrackerSessionServiceTests
         await ProcessBuffFrame(fixture, monitor, now.AddSeconds(-2));
         var confirmed = Assert.IsType<BuffLedgerSnapshot>(fixture.Service.State.Buffs);
         Assert.True(Assert.Single(confirmed.Active).IsBaseline);
-        Assert.True(Assert.Single(confirmed.Consumptions).IsSessionStart);
-        Assert.Equal(1_200_000m, confirmed.ConsumedCost);
+        Assert.Empty(confirmed.Consumptions);
+        Assert.Equal(0m, confirmed.ConsumedCost);
         Assert.Equal(1000m, confirmed.ProratedCost);
         Assert.Equal(TimeSpan.FromSeconds(1), Assert.Single(confirmed.Usage).ObservedDuration);
         // Rebuilding the frontend without a new capture must not bill the same sample again.
         fixture.Service.RefreshPendingState();
         fixture.Service.RefreshPendingState();
         Assert.Equal(1000m, fixture.Service.State.Buffs!.ProratedCost);
-        Assert.True(Assert.Single(fixture.Service.State.Buffs.Consumptions).IsSessionStart);
-        Assert.Equal(1_200_000m, fixture.Service.State.Buffs.ConsumedCost);
+        Assert.Empty(fixture.Service.State.Buffs.Consumptions);
+        Assert.Equal(0m, fixture.Service.State.Buffs.ConsumedCost);
     }
 
     [Fact]
@@ -169,8 +201,8 @@ public sealed partial class TrackerSessionServiceTests
         reading = BuffReading(595);
         await ProcessBuffFrame(fixture, monitor, now.AddSeconds(-2));
         Assert.Equal(2000m, fixture.Service.State.Buffs!.ProratedCost);
-        Assert.True(Assert.Single(fixture.Service.State.Buffs.Consumptions).IsSessionStart);
-        Assert.Equal(1_200_000m, fixture.Service.State.Buffs.ConsumedCost);
+        Assert.Empty(fixture.Service.State.Buffs.Consumptions);
+        Assert.Equal(0m, fixture.Service.State.Buffs.ConsumedCost);
         Assert.True(fixture.Service.State.IsRunning);
         Assert.False(fixture.Service.State.IsError);
         Assert.True(fixture.Service.State.Loot.TotalQuantity > 0);
@@ -209,11 +241,10 @@ public sealed partial class TrackerSessionServiceTests
         reading = BuffReading(1199) with { UnknownBuffIds = [meal] };
         await ProcessBuffFrame(fixture, monitor, now.AddSeconds(-7));
         var renewed = fixture.Service.State.Buffs!;
-        Assert.Equal(3, renewed.Consumptions.Count);
-        Assert.Equal(SessionBuff.Id, Assert.Single(renewed.Consumptions, item => !item.IsSessionStart).BuffId);
-        Assert.True(Assert.Single(renewed.Consumptions, item => item.BuffId == meal).IsSessionStart);
-        Assert.Equal(2_400_000m, renewed.KnownConsumedCost);
-        Assert.Null(renewed.ConsumedCost);
+        Assert.Equal(SessionBuff.Id, Assert.Single(renewed.Consumptions).BuffId);
+        Assert.False(renewed.Consumptions[0].IsSessionStart);
+        Assert.Equal(1_200_000m, renewed.KnownConsumedCost);
+        Assert.Equal(1_200_000m, renewed.ConsumedCost);
         Assert.Equal(TimeSpan.FromSeconds(1), renewed.Usage.Single(item => item.BuffId == meal).ObservedDuration);
 
         reading = new([.. BuffReading(1198).Observations,
@@ -227,7 +258,7 @@ public sealed partial class TrackerSessionServiceTests
             new(meal, TimeSpan.FromSeconds(7199), TimeSpan.FromSeconds(1))]);
         await ProcessBuffFrame(fixture, monitor, now.AddSeconds(-5));
         var recovered = fixture.Service.State.Buffs!;
-        Assert.Equal(4, recovered.Consumptions.Count);
+        Assert.Equal(2, recovered.Consumptions.Count);
         Assert.Equal(mealRenewal, Assert.Single(recovered.Consumptions,
             item => item.BuffId == meal && !item.IsSessionStart));
         Assert.False(recovered.Active.Single(item => item.BuffId == meal).IsBaseline);

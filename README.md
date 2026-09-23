@@ -4,7 +4,7 @@ Grindcrest ist ein lokaler, passiver Loot-Tracker für Black Desert auf Windows.
 Er erkennt Drops aus dem Spielfenster und zeigt Lootmengen, aktive Grindzeit,
 Silber und Stundenwerte im Dashboard und in anpassbaren Ingame-Overlays.
 
-**Version 1.8.2:** [Stabilere Klassenerkennung und Zeit-Tags für Drops](docs/release-notes/1.8.2.md).
+**Version 1.9.2:** [Übersichtlichere Einstellungen und zuverlässigere Rare-Drop-Erkennung](docs/release-notes/1.9.2.md).
 
 ## Funktionen
 
@@ -54,6 +54,8 @@ Die drei Cron-Mahlzeiten, zehn Harmony-Varianten und sechs Mystic-Beasts-Effekte
 haben jeweils eigene Symbole. Bei Zeltbuffs wird die kleinste angebotene Kaufdauer
 angenommen, die mindestens der zuerst gelesenen Restzeit entspricht: 280 Minuten
 werden etwa der 300-Minuten-Variante zugeordnet, 160 Minuten der 180-Minuten-Variante.
+Grobe Stundenanzeigen berücksichtigen ihr Zeitintervall; passen mehrere
+Laufzeitvarianten hinein, bleibt die Zuordnung unbekannt.
 Beim durchgängigen Countdown bleibt diese Annahme bis zur bestätigten Erneuerung
 bestehen. Identische Symbole mit gleicher Laufzeit, etwa bei einigen normalen und
 unsterblichen Parfümen oder Glücksstufen, bleiben ohne eindeutige Zuordnung unbekannt.
@@ -75,17 +77,17 @@ Die Kostenliste enthält 58 aktive Varianten (39 Markt-IDs) aus Cron-Mahlzeiten,
 normalen und unsterblichen Harmony Draughts, Parfümen, kostenpflichtigen Zeltbuffs und
 Mystic-Beasts-Schriftrollen. Das ist keine Zusage, jedes Symbol in jedem Layout
 automatisch zu erkennen. Einzelne unlesbare Buff-Timer unterbrechen die Auswertung
-anderer eindeutig erkannter Buffs nicht. Jeder bisher ungebuchte Buff wird nach
-zwei eigenen passenden Erstbeobachtungen einmal mit seinem Preis angerechnet,
-auch wenn er erst später lesbar wird. Höhere erneut gelesene Restzeiten zählen
-zusätzlich. Pause, Erkennungslücke oder Timerpräzisierung lösen für bereits
-gebuchte Buffs keine weitere Erstanrechnung aus. Nicht über Symbol oder
-Dauerannahme zugeordnete Varianten erscheinen als unbekannte Gruppe; ihre Preise
-bleiben unbekannt. Nach einer Pause oder Erkennungslücke beginnt eine neue
-Ausgangsmessung mit neuer Dauerannahme. Gespeicherte Buchungen bleiben unverändert
-und verhindern doppelte Erstanrechnungen einschließlich ihrer Dauerfamilie.
-Bislang ungebuchte Buffs können auch nach dem Laden einer Session erstmals
-bestätigt und angerechnet werden.
+anderer eindeutig erkannter Buffs nicht. **Anfangs aktive Buffs zählen nicht als
+Verbrauch.** Ihre ersten passenden Beobachtungen bilden nur den Ausgangszustand.
+Später neu auftauchende Buffs zählen nach zwei passenden Befunden, wenn die
+vorherige lesbare Prüfung ihre Abwesenheit zeigte und der erste Timer nahe der
+vollen erkannten Laufzeit liegt. Spät lesbare Teil-Timer sowie erstmals nach
+Pause oder Erkennungslücke erkannte Buffs bleiben ungezählte Ausgangszustände.
+Ein höherer erneut gelesener Timer zählt sofort als neue Anwendung. Die zugehörige
+Laufzeitvariante wird dabei erneut bestimmt und in Live-Session, Verlauf und
+Overlay getrennt gezählt. Nicht über Symbol oder Dauer zuordenbare Varianten
+bleiben als unbekannte Gruppe ohne Preis sichtbar. Gespeicherte Buchungen und
+Preise, einschließlich historischer Erstanrechnungen, bleiben unverändert.
 Die Erkennung läuft immer automatisch; eine separate Buff-Einstellung oder
 Profilauswahl ist nicht erforderlich. Frühere manuelle Profile werden nicht mehr
 ausgewertet, vorhandene Dateien bleiben erhalten. Für gespeicherte Sessions bleiben 61 historische Einträge
@@ -160,7 +162,10 @@ auch bei **Installed** und weiterhin wartender Anzeige, hilft die
 ## Erkennung und Genauigkeit
 
 Windows OCR liest die sichtbaren Lootzeilen. Auffällige Mengen werden zusätzlich
-lokal mit einem mitgelieferten Paddle-ONNX-Modell geprüft; Python und ein
+lokal mit einem mitgelieferten Paddle-ONNX-Modell geprüft. Rare-/Special-Lesungen
+benötigen immer zwei übereinstimmende Paddle-Lesungen aus Farb- und Graustufenbild,
+auch bei einem vermeintlich sicheren Windows-OCR-Treffer. Widersprüchliche oder
+nicht bestätigte Rare-Lesungen werden nicht gezählt. Python und ein
 Modell-Download beim Start sind nicht erforderlich. Wiederholte Bild- und
 Textbeobachtungen bestätigen Drops. Noch offene Lesungen können später korrigiert
 werden; manuelle Korrekturen bleiben getrennt erhalten.
@@ -237,6 +242,23 @@ Ordner `rotation-…` die Meldungsausschnitte der Rotationserkennung
 ([Details](docs/HERMESIA_ROTATION.md#diagnose)).
 [Aufzeichnung, Replay und historische Formatdetails](docs/IMPLEMENTATION_HISTORY.md#lokale-diagnose-und-replay).
 
+Unter **Einstellungen → Diagnose** lässt sich außerdem das **automatische Debug-Logging**
+aktivieren. Die Einstellung bleibt über neue Sessions und App-Neustarts erhalten und
+kann während einer Session geändert werden. Die Textlogs enthalten Loot-Erkennungsdaten,
+Session- und HUD-Zustände (einschließlich Buffs und Rotation) sowie Statusmeldungen und
+Erfassungsfehler, aber keine Bilder oder API-Schlüssel. Sie liegen unter
+`diagnostics/debug-logs/session-<Session-ID>` im angezeigten Datenordner: Jede Session
+bekommt einen eigenen Ordner, auch wenn mehrere Sessions in dieselbe Stunde fallen.
+Pausieren, Fortsetzen und Wiederherstellen derselben Session verwenden denselben Ordner.
+Allgemeine App-Meldungen außerhalb einer Session liegen direkt unter `diagnostics/debug-logs`.
+Die Aufbewahrung beträgt standardmäßig **3 Stunden** und ist von **1 bis 168 Stunden**
+einstellbar. Einträge außerhalb dieses
+rollierenden Zeitfensters werden in allen Sessionordnern beim Start, beim Ändern der Einstellung
+und während die App läuft minütlich gelöscht. Leere Sessionordner werden ebenfalls entfernt,
+auch während Pausen und nach dem Ausschalten der Aufzeichnung. Bei geschlossener App
+erfolgt die nächste Bereinigung beim nächsten Start.
+Manuelle Bilddiagnosen und gespeicherte Grind-Sessions bleiben davon unberührt.
+
 Der Tracker verarbeitet sichtbare Pixel und liest die BDO-UI-Konfiguration.
 Bilddaten bleiben ohne aktivierte Diagnose im Arbeitsspeicher. Die lokale
 Oberfläche läuft in Blazor Hybrid/WebView2 ohne Webserver. Netzwerkzugriffe dienen
@@ -300,7 +322,7 @@ Paketinhalte. Mit **`-RequireWindowsOcr`** schlägt es bei fehlenden nativen
 OCR-Voraussetzungen fehl:
 
 ```powershell
-./scripts/Build-StoreRelease.ps1 -Version 1.8.2 -RequireWindowsOcr
+./scripts/Build-StoreRelease.ps1 -Version 1.9.2 -RequireWindowsOcr
 ```
 
 Das erzeugte MSIX wird anschließend im Partner Center eingereicht. Ein lokaler

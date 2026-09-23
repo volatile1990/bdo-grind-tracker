@@ -12,13 +12,11 @@ public sealed record BuffDefinition(string Id, string Name, int? MarketItemId, T
     public string RecognitionGroup { get; init; } = string.Empty;
 
     /// <summary>
-    /// Visually identical duration variants. By default a new observed cycle uses the shortest
-    /// unique duration covering its remaining time; PreferMaximumDurationVariant selects the longest.
+    /// Visually identical duration variants. Minute/second timers use the shortest duration
+    /// covering their remaining time. Floored hour timers use a unique duration within their
+    /// displayed interval, or the shortest duration covering that interval; ambiguous variants stay unresolved.
     /// </summary>
     public IReadOnlyList<string> DurationVariantIds { get; init; } = [];
-
-    /// <summary>Account for each use with the longest duration variant, independent of its remaining time.</summary>
-    public bool PreferMaximumDurationVariant { get; init; }
 
     /// <summary>Fixed purchase cost for a tent buff, independent of Central Market quotes.</summary>
     public decimal? FixedUnitPrice { get; init; }
@@ -55,7 +53,7 @@ public sealed record BuffConsumption(
 {
     public decimal? Cost => Price?.UnitPrice;
 
-    /// <summary>Counts an already active buff on its first confirmed observation, rather than a timer refresh.</summary>
+    /// <summary>Historical startup charge, retained for compatibility; new sessions never create these.</summary>
     public bool IsSessionStart { get; init; }
 }
 

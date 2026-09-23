@@ -15,7 +15,7 @@ public sealed class ConsumablesPresentationTests
     [InlineData("tent-adventures-boon")]
     [InlineData("tent-body-enhancement")]
     [InlineData("tent-turning-gates")]
-    public void TentDurationStacksKeepEveryRecordedPriceAndLegacyMetadata(string family)
+    public void TentDurationsKeepSeparateTilesWithTheirRecordedPricesAndLegacyMetadata(string family)
     {
         var consumptions = new[]
         {
@@ -29,40 +29,46 @@ public sealed class ConsumablesPresentationTests
 
         var result = ConsumablesPresentation.Create(snapshot, "en");
 
-        var item = Assert.Single(result.Items);
-        Assert.Equal(family + "-300", item.Id);
-        Assert.Contains("300 min", item.Name);
-        Assert.NotNull(item.IconPath);
-        Assert.Equal(4, item.Count);
-        Assert.Equal(600m, item.KnownCost);
-        Assert.Equal(1, item.UnpricedCount);
+        Assert.Equal(4, result.Items.Count);
+        Assert.All(result.Items, item => { Assert.Equal(1, item.Count); Assert.NotNull(item.IconPath); });
+        foreach (var minutes in new[] { 60, 120, 300 })
+            Assert.Contains($"{minutes} min", Assert.Single(result.Items, item => item.Id == family + "-" + minutes).Name);
+        var shortUse = Assert.Single(result.Items, item => item.Id == family + "-60");
+        var mediumUse = Assert.Single(result.Items, item => item.Id == family + "-120");
+        var longUse = Assert.Single(result.Items, item => item.Id == family + "-300");
+        var unresolved = Assert.Single(result.Items, item => item.Id == "automatic-" + family);
+        Assert.Equal(100m, shortUse.KnownCost);
+        Assert.Equal(200m, mediumUse.KnownCost);
+        Assert.Equal(300m, longUse.KnownCost);
+        Assert.Equal(0m, unresolved.KnownCost);
+        Assert.Equal(1, unresolved.UnpricedCount);
         Assert.Equal("600 silver *", result.Cost);
-        Assert.Contains("100–300 silver", item.Tooltip);
-        Assert.Contains("Active when first detected: 1", item.Tooltip);
-        Assert.Contains("1 without a price", item.Tooltip);
-        Assert.Contains("Some costs use cached market prices.", item.Tooltip);
+        Assert.Contains("Unit price: 100 silver", shortUse.Tooltip);
+        Assert.Contains("Active when first detected: 1", shortUse.Tooltip);
+        Assert.Contains("1 without a price", unresolved.Tooltip);
+        Assert.Contains("Some costs use cached market prices.", mediumUse.Tooltip);
         Assert.True(result.HasMissingPrices);
         Assert.Equal(before, JsonSerializer.Serialize(snapshot));
     }
 
     [Theory]
-    [InlineData("tent-body-enhancement-90", "tent-body-enhancement-300")]
-    [InlineData("tent-body-enhancement-180", "tent-body-enhancement-300")]
-    [InlineData("tent-turning-gates-90", "tent-turning-gates-300")]
-    [InlineData("tent-turning-gates-180", "tent-turning-gates-300")]
-    public void LegacyOnlyTentBookingUsesTheSharedTileWithoutRepricing(string savedId, string tileId)
+    [InlineData("tent-body-enhancement-90")]
+    [InlineData("tent-body-enhancement-180")]
+    [InlineData("tent-turning-gates-90")]
+    [InlineData("tent-turning-gates-180")]
+    public void LegacyOnlyTentBookingKeepsItsOwnDurationWithoutRepricing(string savedId)
     {
         var saved = Use(savedId, 1234);
         var item = Assert.Single(ConsumablesPresentation.Create(new([saved], [], []), "en").Items);
 
-        Assert.Equal(tileId, item.Id);
+        Assert.Equal(savedId, item.Id);
         Assert.Equal(1, item.Count);
         Assert.Equal(1234m, item.KnownCost);
         Assert.Equal(savedId, saved.BuffId);
     }
 
     [Fact]
-    public void SharedTentTilesDoNotMergeOtherFamiliesOrUnrecognizedIds()
+    public void DistinctDurationsFamiliesAndUnrecognizedIdsNeverMerge()
     {
         var value = new BuffLedgerSnapshot(
             [Use("tent-body-enhancement-60", 100), Use("tent-body-enhancement-300", 200),
@@ -75,11 +81,9 @@ public sealed class ConsumablesPresentationTests
 
         var items = ConsumablesPresentation.Create(value, "en").Items;
 
-        Assert.Equal(9, items.Count);
-        Assert.Equal(3, items.Count(item => item.Count == 2));
-        foreach (var id in new[] { "tent-adventurers-luck-i", "tent-adventurers-luck-ii", "harmony-draught",
-                     "immortal-harmony-draught", "tent-body-enhancement-999", "automatic-tent-body-enhancement-999" })
-            Assert.Equal(1, Assert.Single(items, item => item.Id == id).Count);
+        Assert.Equal(12, items.Count);
+        Assert.All(items, item => Assert.Equal(1, item.Count));
+        Assert.Equal(value.Consumptions.Select(item => item.BuffId).Order(), items.Select(item => item.Id).Order());
         Assert.Equal(1500m, items.Sum(item => item.KnownCost));
     }
 
@@ -201,7 +205,7 @@ public sealed class ConsumablesPresentationTests
         var snapshot = new BuffLedgerSnapshot(definitions.Select(definition =>
             new BuffConsumption(definition.Id, definition.Name, definition.MarketItemId, At, null)).ToArray(), [], []);
         var items = ConsumablesPresentation.Create(snapshot, "en").Items;
-        Assert.Equal(definitions.Select(definition => BuffConsumptionPresentation.DisplayId(definition.Id))
+        Assert.Equal(definitions.Select(definition => definition.Id)
             .Distinct(StringComparer.Ordinal).Count(), items.Count);
         Assert.All(items, item => Assert.StartsWith("assets/buffs/client-", item.IconPath));
 

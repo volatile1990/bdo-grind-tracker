@@ -39,6 +39,8 @@ internal sealed record TrackerPreferences
     public bool AutoStartGrinding { get; init; }
     public bool RecordLoot { get; init; }
     public bool RecordRotation { get; init; }
+    public bool AutomaticDebugLogging { get; init; }
+    public int DebugLogRetentionHours { get; init; } = AppSettings.DefaultDebugLogRetentionHours;
     public bool AutoUpload { get; init; }
     public string MarketRegion { get; init; } = "eu";
     public bool ValuePack { get; init; }
@@ -106,6 +108,7 @@ internal sealed record TrackerState
     public bool IsRecording { get; init; }
     public string? RotationRecordingPath { get; init; }
     public bool IsRecordingRotation { get; init; }
+    public string? DebugLogError { get; init; }
     public bool HasApiKey { get; init; }
     public bool UploadBlocked { get; init; }
     public bool AutomaticSuspended { get; init; }
@@ -121,6 +124,7 @@ internal interface ITrackerSession : IAsyncDisposable
     TrackerPreferences Preferences { get; }
     IReadOnlyList<TrackerMonitor> Monitors { get; }
     string DiagnosticsDirectory => Path.Combine(AppDataPaths.Current.BaseDirectory, "diagnostics");
+    string DebugLogsDirectory => Path.Combine(DiagnosticsDirectory, "debug-logs");
     bool CapturesGameWindow => false;
     Task<CaptureConfigurationScan> ScanCaptureConfigurationsAsync() =>
         Task.FromResult(new CaptureConfigurationScan([], null, "Die Konfigurationssuche ist hier nicht verfügbar."));

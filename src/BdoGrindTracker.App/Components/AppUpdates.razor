@@ -68,7 +68,7 @@ else
     private Task ViewUpdate()
     {
         if (Update.UsesStore && ShowStoreUpdateDialog.HasDelegate) return ShowStoreUpdateDialog.InvokeAsync();
-        Navigation.NavigateTo("/settings");
+        Navigation.NavigateTo("/settings/updates");
         return Task.CompletedTask;
     }
     private async Task InstallStoreUpdate()

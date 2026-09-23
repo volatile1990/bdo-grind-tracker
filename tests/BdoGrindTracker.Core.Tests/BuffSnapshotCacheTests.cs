@@ -13,19 +13,19 @@ public sealed class BuffSnapshotCacheTests
         var at = DateTimeOffset.UnixEpoch;
         ledger.Apply([new("test", TimeSpan.FromMinutes(20), TimeSpan.FromMinutes(1))], at, _ => null);
         var confirmed = ledger.Apply([new("test", TimeSpan.FromMinutes(19), TimeSpan.FromMinutes(1))], at.AddSeconds(10), _ => null);
-        Assert.Single(confirmed.Consumptions);
+        Assert.Empty(confirmed.Consumptions);
         Assert.Single(confirmed.Active);
         Assert.Same(confirmed, ledger.Snapshot);
         Assert.Same(confirmed, ledger.Apply([], at, _ => null));
 
         var renewed = ledger.Apply([new("test", TimeSpan.FromMinutes(30), TimeSpan.FromMinutes(1))], at.AddSeconds(20), _ => null);
         Assert.NotSame(confirmed, renewed);
-        Assert.Equal(2, renewed.Consumptions.Count);
-        Assert.Single(confirmed.Consumptions);
+        Assert.Single(renewed.Consumptions);
+        Assert.Empty(confirmed.Consumptions);
         ledger.BreakContinuity("test");
         Assert.Empty(ledger.Snapshot.Active);
         Assert.Single(renewed.Active);
-        Assert.Equal(2, ledger.Snapshot.Consumptions.Count);
+        Assert.Single(ledger.Snapshot.Consumptions);
     }
 
     [Fact]

@@ -42,8 +42,8 @@ public sealed class BuffDurationVariantTests
         Assert.Equal(expected.MarketItemId, active.MarketItemId);
         Assert.Equal(expected.FixedUnitPrice, active.Price!.UnitPrice);
         Assert.True(active.IsBaseline);
-        AssertStartCharge(state, expected.Id);
-        Assert.Equal(expected.FixedUnitPrice, state.ConsumedCost);
+        Assert.Empty(state.Consumptions);
+        Assert.Equal(0m, state.ConsumedCost);
         var usage = Assert.Single(state.Usage);
         Assert.Equal(expected.Id, usage.BuffId);
         Assert.Equal(expected.FixedUnitPrice!.Value * TimeSpan.FromSeconds(10).Ticks / expected.Duration.Ticks,
@@ -64,55 +64,7 @@ public sealed class BuffDurationVariantTests
         Assert.Equal(1_200_000m, Assert.Single(state.Active).Price!.UnitPrice);
         Assert.Equal("tent-300", Assert.Single(state.Usage).BuffId);
         Assert.Equal(2_000m, state.ProratedCost);
-        AssertStartCharge(state, "tent-300");
-    }
-
-    [Theory]
-    [InlineData(1)]
-    [InlineData(60)]
-    [InlineData(110)]
-    [InlineData(160)]
-    [InlineData(280)]
-    [InlineData(300)]
-    public void MaximumDurationPolicyUsesOneIdentityAndPriceForEveryInitialCountdown(int remainingMinutes)
-    {
-        var ledger = new BuffLedger(Variants.Append(Family with { PreferMaximumDurationVariant = true }));
-        Apply(ledger, 0, remainingMinutes * 60);
-        var initial = Apply(ledger, 10, remainingMinutes * 60 - 10);
-
-        AssertStartCharge(initial, "tent-300");
-        Assert.Equal(1_200_000m, initial.ConsumedCost);
-
-        // A lower countdown does not book again; a later increase counts one
-        // more use even if the observed cycle would fit a much shorter variant.
-        Apply(ledger, 20, 20);
-        Apply(ledger, 30, 10);
-        var renewed = Apply(ledger, 40, 60);
-        Assert.Equal(2, renewed.Consumptions.Count);
-        Assert.All(renewed.Consumptions, item => Assert.Equal("tent-300", item.BuffId));
-        Assert.Equal(2_400_000m, renewed.ConsumedCost);
-        Assert.Equal("tent-300", Assert.Single(renewed.Active).BuffId);
-    }
-
-    [Fact]
-    public void MaximumDurationPolicyPreservesOldBookingsAndCountsOnlyANewTimerIncreaseAfterRestore()
-    {
-        var previous = CreateLedger();
-        Apply(previous, 0, 20 * 60);
-        var saved = Apply(previous, 10, 20 * 60 - 10);
-        AssertStartCharge(saved, "tent-60");
-        var ledger = new BuffLedger(Variants.Append(Family with { PreferMaximumDurationVariant = true }));
-        ledger.Restore(saved);
-
-        Apply(ledger, 20, 20 * 60 - 20);
-        var continued = Apply(ledger, 30, 20 * 60 - 30);
-        Assert.Equal(saved.Consumptions, continued.Consumptions);
-
-        var renewed = Apply(ledger, 40, 60 * 60);
-        Assert.Equal(2, renewed.Consumptions.Count);
-        Assert.Equal(saved.Consumptions[0], renewed.Consumptions[0]);
-        Assert.Equal("tent-300", renewed.Consumptions[1].BuffId);
-        Assert.Equal(1_260_000m, renewed.ConsumedCost);
+        Assert.Empty(state.Consumptions);
     }
 
     [Fact]
@@ -124,7 +76,7 @@ public sealed class BuffDurationVariantTests
         var state = Apply(ledger, 10, 180 * 60 - 5);
 
         Assert.Equal("tent-300", Assert.Single(state.Active).BuffId);
-        AssertStartCharge(state, "tent-300");
+        Assert.Empty(state.Consumptions);
     }
 
     [Fact]
@@ -138,7 +90,7 @@ public sealed class BuffDurationVariantTests
 
         Assert.Equal("tent-60", Assert.Single(state.Active).BuffId);
         Assert.Equal(60_000m, Assert.Single(state.Active).Price!.UnitPrice);
-        AssertStartCharge(state, "tent-60");
+        Assert.Empty(state.Consumptions);
         Assert.Equal("tent-60", Assert.Single(state.Usage).BuffId);
     }
 
@@ -151,25 +103,114 @@ public sealed class BuffDurationVariantTests
         var coarse = new BuffObservation(Family.Id, TimeSpan.FromHours(2), TimeSpan.FromHours(1));
         ledger.Apply([coarse], Start, Price);
         if (previouslyConfirmed)
-            Assert.Equal("tent-120", Assert.Single(ledger.Apply([coarse], Start.AddSeconds(10), Price).Active).BuffId);
+            Assert.Equal("tent-180", Assert.Single(ledger.Apply([coarse], Start.AddSeconds(10), Price).Active).BuffId);
         var elapsed = previouslyConfirmed ? 20 : 10;
-        var precise = new BuffObservation(Family.Id, TimeSpan.FromMinutes(150), TimeSpan.FromMinutes(1));
+        var precise = new BuffObservation(Family.Id, TimeSpan.FromMinutes(250), TimeSpan.FromMinutes(1));
 
         var renewed = ledger.Apply([precise], Start.AddSeconds(elapsed), Price);
         var state = ledger.Apply([precise with { Remaining = precise.Remaining - TimeSpan.FromSeconds(10) }],
             Start.AddSeconds(elapsed + 10), Price);
 
-        Assert.Equal("tent-180", Assert.Single(renewed.Active).BuffId);
-        Assert.Equal(previouslyConfirmed ? 2 : 1, renewed.Consumptions.Count);
-        Assert.Equal("tent-180", Assert.Single(state.Consumptions, item => !item.IsSessionStart).BuffId);
+        Assert.Equal("tent-300", Assert.Single(renewed.Active).BuffId);
+        Assert.Single(renewed.Consumptions);
+        Assert.Equal("tent-300", Assert.Single(state.Consumptions, item => !item.IsSessionStart).BuffId);
         var active = Assert.Single(state.Active);
-        Assert.Equal("tent-180", active.BuffId);
-        Assert.Equal(540_000m, active.Price!.UnitPrice);
+        Assert.Equal("tent-300", active.BuffId);
+        Assert.Equal(1_200_000m, active.Price!.UnitPrice);
         Assert.False(active.IsBaseline);
-        Assert.Equal(TimeSpan.FromSeconds(10), state.Usage.Single(item => item.BuffId == "tent-180").ObservedDuration);
+        Assert.Equal(TimeSpan.FromSeconds(10), state.Usage.Single(item => item.BuffId == "tent-300").ObservedDuration);
         if (previouslyConfirmed)
-            Assert.Equal(TimeSpan.FromSeconds(20), state.Usage.Single(item => item.BuffId == "tent-120").ObservedDuration);
+            Assert.Equal(TimeSpan.FromSeconds(20), state.Usage.Single(item => item.BuffId == "tent-180").ObservedDuration);
         else Assert.Single(state.Usage);
+    }
+
+    [Theory]
+    [InlineData(2, 180)]
+    [InlineData(3, 300)]
+    [InlineData(4, 300)]
+    public void HourBaselineUsesTheFlooredIntervalWithoutInventingConsumption(int hours, int durationMinutes)
+    {
+        var ledger = CreateLedger();
+        var observation = new BuffObservation(Family.Id, TimeSpan.FromHours(hours), TimeSpan.FromHours(1));
+        ledger.Apply([observation], Start, Price);
+
+        var state = ledger.Apply([observation], Start.AddSeconds(10), Price);
+
+        var expected = Variants.Single(item => item.Duration == TimeSpan.FromMinutes(durationMinutes));
+        Assert.Equal(expected.Id, Assert.Single(state.Active).BuffId);
+        Assert.Equal(expected.FixedUnitPrice, Assert.Single(state.Active).Price!.UnitPrice);
+        Assert.Empty(state.Consumptions);
+    }
+
+    [Theory]
+    [InlineData(2, 180)]
+    [InlineData(4, 300)]
+    public void NewHourDurationApplicationCountsItsUniqueVariant(int hours, int durationMinutes)
+    {
+        var ledger = CreateLedger();
+        ledger.Apply([], Start, Price);
+        var observation = new BuffObservation(Family.Id, TimeSpan.FromHours(hours), TimeSpan.FromHours(1));
+        ledger.Apply([observation], Start.AddSeconds(10), Price);
+
+        var state = ledger.Apply([observation], Start.AddSeconds(20), Price);
+
+        var consumption = Assert.Single(state.Consumptions);
+        Assert.Equal($"tent-{durationMinutes}", consumption.BuffId);
+        Assert.False(consumption.IsSessionStart);
+        Assert.Equal(Start.AddSeconds(10), consumption.ConsumedAt);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AmbiguousOneHourApplicationCountsOnceWithoutChoosingBetweenNinetyAndOneHundredTwentyMinutes(bool renewal)
+    {
+        var ledger = CreateLedger();
+        if (renewal) Apply(ledger, 0, 20 * 60);
+        else ledger.Apply([], Start, Price);
+        var observation = new BuffObservation(Family.Id, TimeSpan.FromHours(1), TimeSpan.FromHours(1));
+        ledger.Apply([observation], Start.AddSeconds(10), Price);
+        var confirmed = ledger.Apply([observation], Start.AddSeconds(20), Price);
+        var state = ledger.Apply([observation], Start.AddSeconds(30), Price);
+
+        var consumption = Assert.Single(state.Consumptions);
+        Assert.Equal(Family.Id, consumption.BuffId);
+        Assert.False(consumption.IsSessionStart);
+        Assert.Null(consumption.Cost);
+        Assert.Null(state.ConsumedCost);
+        Assert.Equal(confirmed.Consumptions, state.Consumptions);
+        Assert.Null(Assert.Single(state.Active).Price);
+        Assert.False(Assert.Single(state.Active).IsBaseline);
+    }
+
+    [Fact]
+    public void ThreeHourFirstAppearanceCannotProveAFreshFiveHourPurchase()
+    {
+        var ledger = CreateLedger();
+        ledger.Apply([], Start, Price);
+        var observation = new BuffObservation(Family.Id, TimeSpan.FromHours(3), TimeSpan.FromHours(1));
+        ledger.Apply([observation], Start.AddSeconds(10), Price);
+
+        var state = ledger.Apply([observation], Start.AddSeconds(20), Price);
+
+        Assert.Equal("tent-300", Assert.Single(state.Active).BuffId);
+        Assert.True(Assert.Single(state.Active).IsBaseline);
+        Assert.Empty(state.Consumptions);
+    }
+
+    [Fact]
+    public void UnconfirmedNewApplicationThatBecomesAPartialReadingReturnsToBaseline()
+    {
+        var ledger = CreateLedger();
+        ledger.Apply([], Start, Price);
+        Apply(ledger, 10, 300 * 60 - 10);
+        Apply(ledger, 20, 20 * 60);
+
+        var state = Apply(ledger, 30, 20 * 60 - 10);
+
+        Assert.Equal("tent-60", Assert.Single(state.Active).BuffId);
+        Assert.True(Assert.Single(state.Active).IsBaseline);
+        Assert.Empty(state.Consumptions);
     }
 
     [Fact]
@@ -178,14 +219,13 @@ public sealed class BuffDurationVariantTests
         var ledger = CreateLedger();
         Apply(ledger, 0, 160 * 60);
         Apply(ledger, 10, 160 * 60 - 10);
-        Assert.Equal(2, Apply(ledger, 20, 280 * 60).Consumptions.Count);
+        Assert.Single(Apply(ledger, 20, 280 * 60).Consumptions);
         Apply(ledger, 30, 280 * 60 - 10);
 
         var state = Apply(ledger, 40, 280 * 60 - 20);
 
-        Assert.Equal(2, state.Consumptions.Count);
-        Assert.Equal("tent-180", Assert.Single(state.Consumptions, item => item.IsSessionStart).BuffId);
-        var consumed = Assert.Single(state.Consumptions, item => !item.IsSessionStart);
+        var consumed = Assert.Single(state.Consumptions);
+        Assert.False(consumed.IsSessionStart);
         Assert.Equal("tent-300", consumed.BuffId);
         Assert.Equal(Start.AddSeconds(20), consumed.ConsumedAt);
         Assert.Equal(1_200_000m, consumed.Cost);
@@ -210,10 +250,67 @@ public sealed class BuffDurationVariantTests
         var state = Apply(ledger, 60, 160 * 60 - 20);
 
         Assert.Equal("tent-180", Assert.Single(state.Active).BuffId);
-        Assert.Equal(2, state.Consumptions.Count);
-        Assert.Equal("tent-300", Assert.Single(state.Consumptions, item => item.IsSessionStart).BuffId);
-        Assert.Equal("tent-180", Assert.Single(state.Consumptions, item => !item.IsSessionStart).BuffId);
-        Assert.Equal(1_740_000m, state.ConsumedCost);
+        var consumed = Assert.Single(state.Consumptions);
+        Assert.Equal("tent-180", consumed.BuffId);
+        Assert.False(consumed.IsSessionStart);
+        Assert.Equal(540_000m, state.ConsumedCost);
+    }
+
+    [Fact]
+    public void RenewalsOfLongAndShortVariantsAreCountedSeparatelyWithoutTheInitialBuff()
+    {
+        var ledger = CreateLedger();
+        Apply(ledger, 0, 20 * 60);
+        Assert.Empty(Apply(ledger, 10, 20 * 60 - 10).Consumptions);
+        Apply(ledger, 20, 300 * 60);
+        Apply(ledger, 30, 300 * 60 - 10);
+        // Reconfirm a much lower reading before a shorter variant is reapplied.
+        Apply(ledger, 40, 20 * 60);
+        Apply(ledger, 50, 20 * 60 - 10);
+        Apply(ledger, 60, 60 * 60);
+
+        var state = Apply(ledger, 70, 60 * 60 - 10);
+
+        Assert.Collection(state.Consumptions,
+            longer =>
+            {
+                Assert.Equal("tent-300", longer.BuffId);
+                Assert.Equal(1_200_000m, longer.Cost);
+                Assert.Equal(Start.AddSeconds(20), longer.ConsumedAt);
+                Assert.False(longer.IsSessionStart);
+            },
+            shorter =>
+            {
+                Assert.Equal("tent-60", shorter.BuffId);
+                Assert.Equal(60_000m, shorter.Cost);
+                Assert.Equal(Start.AddSeconds(60), shorter.ConsumedAt);
+                Assert.False(shorter.IsSessionStart);
+            });
+        Assert.Equal(1_260_000m, state.ConsumedCost);
+        Assert.Equal("tent-60", Assert.Single(state.Active).BuffId);
+    }
+
+    [Theory]
+    [InlineData(60)]
+    [InlineData(90)]
+    [InlineData(120)]
+    [InlineData(180)]
+    [InlineData(300)]
+    public void NewDurationVariantAfterReadableAbsenceCountsItsOwnDuration(int durationMinutes)
+    {
+        var ledger = CreateLedger();
+        ledger.Apply([], Start, Price);
+        Assert.Empty(Apply(ledger, 10, durationMinutes * 60 - 10).Consumptions);
+
+        var state = Apply(ledger, 20, durationMinutes * 60 - 20);
+
+        var expected = Variants.Single(item => item.Duration == TimeSpan.FromMinutes(durationMinutes));
+        var consumption = Assert.Single(state.Consumptions);
+        Assert.Equal(expected.Id, consumption.BuffId);
+        Assert.Equal(expected.FixedUnitPrice, consumption.Cost);
+        Assert.Equal(Start.AddSeconds(10), consumption.ConsumedAt);
+        Assert.False(consumption.IsSessionStart);
+        Assert.False(Assert.Single(state.Active).IsBaseline);
     }
 
     [Fact]
@@ -227,9 +324,8 @@ public sealed class BuffDurationVariantTests
 
         var state = Apply(ledger, 40, 160 * 60 - 10);
 
-        Assert.Equal(2, state.Consumptions.Count);
-        Assert.Equal("tent-60", Assert.Single(state.Consumptions, item => item.IsSessionStart).BuffId);
-        var consumed = Assert.Single(state.Consumptions, item => !item.IsSessionStart);
+        var consumed = Assert.Single(state.Consumptions);
+        Assert.False(consumed.IsSessionStart);
         Assert.Equal("tent-300", consumed.BuffId);
         Assert.Equal(1_200_000m, consumed.Cost);
         Assert.Equal(Start.AddSeconds(20), consumed.ConsumedAt);
@@ -249,7 +345,7 @@ public sealed class BuffDurationVariantTests
 
         Assert.True(Assert.Single(state.Active).IsBaseline);
         Assert.Equal("tent-180", Assert.Single(state.Active).BuffId);
-        AssertStartCharge(state, "tent-300");
+        Assert.Empty(state.Consumptions);
         Assert.Equal(TimeSpan.FromSeconds(10), state.Usage.Single(item => item.BuffId == "tent-300").ObservedDuration);
         Assert.Equal(TimeSpan.FromSeconds(10), state.Usage.Single(item => item.BuffId == "tent-180").ObservedDuration);
     }
@@ -291,9 +387,9 @@ public sealed class BuffDurationVariantTests
         var state = Apply(ledger, 30, renewed - 10, IncorrectGroupPrice);
 
         Assert.Equal(family.Id, Assert.Single(state.Active).BuffId);
-        Assert.Equal(2, state.Consumptions.Count);
-        Assert.Equal(family.Id, Assert.Single(state.Consumptions, item => item.IsSessionStart).BuffId);
-        Assert.Equal(family.Id, Assert.Single(state.Consumptions, item => !item.IsSessionStart).BuffId);
+        var consumption = Assert.Single(state.Consumptions);
+        Assert.Equal(family.Id, consumption.BuffId);
+        Assert.False(consumption.IsSessionStart);
         Assert.Equal(family.Id, Assert.Single(state.Usage).BuffId);
         Assert.Null(state.ConsumedCost);
         Assert.Null(state.ProratedCost);
@@ -301,7 +397,7 @@ public sealed class BuffDurationVariantTests
     }
 
     [Fact]
-    public void InitialDurationFamilyAccountingWaitsForItsOwnLateConfirmation()
+    public void LatePartialDurationFamilyRemainsABaselineWithoutConsumption()
     {
         var other = new BuffDefinition("other", "Other", 123, TimeSpan.FromHours(1));
         var ledger = new BuffLedger(Variants.Append(Family).Append(other));
@@ -309,8 +405,9 @@ public sealed class BuffDurationVariantTests
         Assert.Empty(Apply(ledger, 10, 160 * 60).Consumptions);
 
         var initial = Apply(ledger, 20, 160 * 60 - 10);
-        AssertStartCharge(initial, "tent-180");
-        Assert.Equal(540_000m, initial.ConsumedCost);
+        Assert.Empty(initial.Consumptions);
+        Assert.Equal(0m, initial.ConsumedCost);
+        Assert.True(Assert.Single(initial.Active).IsBaseline);
         ledger.BreakContinuity();
         Apply(ledger, 30, 120 * 60);
         var changedSelection = Apply(ledger, 40, 120 * 60 - 10);
@@ -321,10 +418,11 @@ public sealed class BuffDurationVariantTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void RestoredFamilyOrConcreteBookingPreventsAnotherInitialChargeForTheSameFamily(bool familyBooking)
+    public void RestoredLegacyStartupBookingIsPreservedWithoutAddingAnotherConsumption(bool familyBooking)
     {
         var booked = familyBooking ? Family : Variants.Single(item => item.Id == "tent-300");
-        var historical = new BuffConsumption(booked.Id, booked.Name, booked.MarketItemId, Start.AddHours(-1), Price(booked));
+        var historical = new BuffConsumption(booked.Id, booked.Name, booked.MarketItemId, Start.AddHours(-1), Price(booked))
+        { IsSessionStart = true };
         var ledger = CreateLedger();
         ledger.Restore(new([historical], [], []));
         Apply(ledger, 0, 120 * 60);
@@ -347,8 +445,8 @@ public sealed class BuffDurationVariantTests
 
         var renewed = Apply(restored, 300, 280 * 60);
 
-        Assert.Equal(2, renewed.Consumptions.Count);
-        var consumption = Assert.Single(renewed.Consumptions, item => !item.IsSessionStart);
+        var consumption = Assert.Single(renewed.Consumptions);
+        Assert.False(consumption.IsSessionStart);
         Assert.Equal("tent-300", consumption.BuffId);
         Assert.Equal(Start.AddSeconds(300), consumption.ConsumedAt);
         Assert.Equal(1_200_000m, consumption.Cost);
@@ -381,12 +479,6 @@ public sealed class BuffDurationVariantTests
         Assert.Empty(restored.Snapshot.Active);
     }
 
-    private static void AssertStartCharge(BuffLedgerSnapshot snapshot, string id)
-    {
-        var charge = Assert.Single(snapshot.Consumptions);
-        Assert.True(charge.IsSessionStart);
-        Assert.Equal(id, charge.BuffId);
-    }
     private static BuffDefinition Variant(int minutes, decimal price) => new(
         $"tent-{minutes}", $"Tent ({minutes} min)", null, TimeSpan.FromMinutes(minutes))
     { RecognitionGroup = "tent", FixedUnitPrice = price };

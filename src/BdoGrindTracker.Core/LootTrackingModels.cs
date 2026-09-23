@@ -22,6 +22,11 @@ public sealed record LootObservation(
     ulong? VisualFingerprint,
     string? RejectionReason)
 {
+    /// <summary>A possibly visible rare row without a usable OCR result. The persisted value is kept for replay compatibility.</summary>
+    public const string RarePaddleUnconfirmedReason = "rare-paddle-unconfirmed";
+    /// <summary>No OCR view relates the current rare band to a catalog item; allows the absence timer to advance.</summary>
+    public const string RareOcrNoMatchReason = "rare-ocr-no-match";
+
     /// <summary>Original calibrated row Y, preserved for native Companion replay.</summary>
     public int? NativeY { get; init; }
 

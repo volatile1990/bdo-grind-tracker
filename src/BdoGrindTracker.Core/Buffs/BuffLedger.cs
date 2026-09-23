@@ -2,8 +2,8 @@ namespace BdoGrindTracker.Core.Buffs;
 
 /// <summary>
 /// Accounts for confirmed visual buff observations. Full consumable costs and the cost of observed
-/// running time are separate. Each buff counts once when its first observed countdown
-/// is confirmed; every later readable timer increase counts an additional use.
+/// running time are separate. Initially active buffs establish a baseline without a purchase;
+/// new applications and later readable timer increases count as consumption.
 /// </summary>
 public sealed class BuffLedger
 {
@@ -14,13 +14,16 @@ public sealed class BuffLedger
     private readonly Dictionary<string, BuffDefinition> definitions;
     private readonly Dictionary<string, TrackedBuff> tracked = new(StringComparer.Ordinal);
     private readonly Dictionary<string, TimeSpan> lastReadRemaining = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, TimeSpan> lastReadPrecision = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, DateTimeOffset> lastReadAt = new(StringComparer.Ordinal);
     private readonly Dictionary<string, BuffUsage> usage = new(StringComparer.Ordinal);
     private readonly List<BuffConsumption> consumptions = [];
-    private readonly HashSet<string> bookedIdentities = new(StringComparer.Ordinal);
+    private readonly HashSet<string> observedIdentities = new(StringComparer.Ordinal);
     private readonly TimeSpan maxObservationGap;
     private DateTimeOffset? lastCapturedAt;
     private BuffLedgerSnapshot? snapshot;
     private bool applying;
+    private bool hasReadableBaseline;
 
     public BuffLedger(IEnumerable<BuffDefinition> definitions, TimeSpan? maxObservationGap = null)
     {
@@ -87,15 +90,30 @@ public sealed class BuffLedger
     {
         if (lastCapturedAt is { } last && capturedAt - last > maxObservationGap) BreakContinuity();
         var unknown = new HashSet<string>(unknownBuffIds ?? [], StringComparer.Ordinal);
-        foreach (var id in unknown) BreakContinuity(id);
+        foreach (var id in unknown)
+        {
+            // A newly visible icon can precede its first readable timer. Keep
+            // this evidence briefly, without treating an initially unknown buff
+            // as an application made during the session.
+            if (hasReadableBaseline && !observedIdentities.Contains(id) && definitions.ContainsKey(id))
+            {
+                if (!tracked.TryGetValue(id, out var newlyVisible)) tracked.Add(id, newlyVisible = new());
+                newlyVisible.NewApplication = new(capturedAt);
+            }
+            RememberIdentity(id);
+            BreakContinuity(id);
+        }
 
         // A duplicate identity is ambiguous (for example two similar-looking icons), not two items consumed.
-        var validObservations = observations.Where(IsValidObservation)
-            .GroupBy(item => item.BuffId, StringComparer.Ordinal)
-            .Where(group => group.Count() == 1).Select(group => group.Single()).ToArray();
-        // A completely empty scan has no other readable buff to establish a
-        // local gap. Preserve the hard break used for an unavailable HUD.
-        if (validObservations.Length == 0 && unknown.Count == 0) BreakContinuity();
+        var reported = observations.ToArray();
+        var groups = reported.Where(IsValidObservation).GroupBy(item => item.BuffId, StringComparer.Ordinal).ToArray();
+        var validObservations = groups.Where(group => group.Count() == 1).Select(group => group.Single()).ToArray();
+        foreach (var observation in reported.Where(item => item is not null && !IsValidObservation(item)))
+            RememberIdentity(observation.BuffId);
+        foreach (var group in groups.Where(group => group.Count() > 1)) RememberIdentity(group.Key);
+        // Missing identities lose runtime continuity below, including an empty
+        // readable scan. A brief local gap must not erase evidence that a new
+        // application appeared before its countdown could be confirmed.
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var observation in validObservations)
         {
@@ -103,20 +121,28 @@ public sealed class BuffLedger
             var definition = definitions[observation.BuffId];
             if (!tracked.TryGetValue(observation.BuffId, out var state))
                 tracked.Add(observation.BuffId, state = new());
+            if (state.NewApplication is { } application &&
+                (capturedAt - application.FirstSeenAt > maxObservationGap ||
+                 application.FirstReadable is { } firstApplicationSample && !IsContinuation(firstApplicationSample, observation, capturedAt)))
+                state.NewApplication = null;
 
+            var isNewAppearance = hasReadableBaseline && !observedIdentities.Contains(observation.BuffId);
+            RememberIdentity(observation.BuffId);
             var isRenewal = lastReadRemaining.TryGetValue(observation.BuffId, out var previousRemaining) &&
-                observation.Remaining > previousRemaining;
+                observation.Remaining > previousRemaining &&
+                !IsHourTimerRefinement(observation, previousRemaining, capturedAt);
             lastReadRemaining[observation.BuffId] = observation.Remaining;
+            lastReadPrecision[observation.BuffId] = observation.TimerPrecision;
+            lastReadAt[observation.BuffId] = capturedAt;
             if (isRenewal)
             {
-                // The reader has already established the timer. A strict increase
-                // is a new use immediately, including reapplication after death
-                // or a capture gap; equal rounded labels never count again.
+                // A strict increase at the same precision is a new use immediately,
+                // including reapplication after death or a capture gap. A refined
+                // reading within a previous floored hour interval is not a renewal.
                 var selected = ResolveDurationVariant(definition, observation);
                 var price = ReadPrice(selected, priceResolver);
-                MarkBookedIdentity(observation.BuffId);
-                MarkBookedIdentity(selected.Id);
                 consumptions.Add(new(selected.Id, selected.Name, selected.MarketItemId, capturedAt, price));
+                state.NewApplication = null;
                 if (state.SeenPreviousFrame && state.Pending is null && state.Current is { } running)
                     AddUsage(running, capturedAt);
                 state.Current = CreateSample(selected, observation, capturedAt, price, isBaseline: false);
@@ -137,19 +163,20 @@ public sealed class BuffLedger
                 IsContinuation(pending, observation, capturedAt))
             {
                 var selected = pending.Definition;
-                // First confirmation belongs to this buff, not the first global
-                // scan: one initially missed icon must not lose its initial use.
-                var isSessionStart = !bookedIdentities.Contains(observation.BuffId);
-                if (isSessionStart)
+                // Only a fresh application appearing after a readable absence
+                // may book its first countdown. Initial/late partial buffs are baselines.
+                var confirmedApplication = pending.IsNewApplication && state.NewApplication is not null;
+                if (confirmedApplication)
                 {
+                    var firstReadable = state.NewApplication!.FirstReadable ?? pending;
                     consumptions.Add(new(selected.Id, selected.Name, selected.MarketItemId,
-                        pending.Active.ObservedAt, pending.Active.Price) { IsSessionStart = true });
-                    MarkBookedIdentity(observation.BuffId);
-                    MarkBookedIdentity(selected.Id);
+                        firstReadable.Active.ObservedAt, firstReadable.Active.Price));
                 }
+                state.NewApplication = null;
                 AddUsage(pending, capturedAt);
                 state.Current = CreateSample(selected, observation, capturedAt,
-                    pending.Active.Price ?? ReadPrice(selected, priceResolver), pending.Active.IsBaseline);
+                    pending.Active.Price ?? ReadPrice(selected, priceResolver),
+                    pending.Active.IsBaseline || pending.IsNewApplication && !confirmedApplication);
                 state.Pending = null;
             }
             else if (state.SeenPreviousFrame && state.Pending is null && state.Current is { } current &&
@@ -161,18 +188,33 @@ public sealed class BuffLedger
             }
             else
             {
-                // Confirm the initial/baseline countdown twice before recording
-                // startup or observed usage. Timer increases are handled above.
+                // Confirm the countdown twice before recording a new appearance
+                // or observed usage. Timer increases are handled above.
                 var previousSample = state.Current ?? state.Pending;
                 // The observation keeps the family identity for continuity, while
                 // accounting uses the variant chosen for this particular cycle.
                 // Only confirmed cycles retain a variant across a noisy countdown.
-                var selected = state.Current is { } established
-                    ? established.Definition : ResolveDurationVariant(definition, observation);
+                var selected = state.Current is { } established ? established.Definition
+                    : state.NewApplication?.FirstReadable is { } firstApplication && FitsSelectedDuration(firstApplication, observation)
+                        ? firstApplication.Definition : ResolveDurationVariant(definition, observation);
                 var price = previousSample is not null && previousSample.Definition.Id == selected.Id
                     ? previousSample.Active.Price
                     : ReadPrice(selected, priceResolver);
-                state.Pending = CreateSample(selected, observation, capturedAt, price, previousSample?.Active.IsBaseline ?? true);
+                var isNewApplication = (isNewAppearance || state.NewApplication is not null) &&
+                    IsNearFullDuration(selected, observation);
+                var isBaseline = previousSample is { IsNewApplication: false }
+                    ? previousSample.Active.IsBaseline : !isNewApplication;
+                state.Pending = CreateSample(selected, observation, capturedAt, price,
+                    isBaseline) with { IsNewApplication = isNewApplication };
+                if (isNewApplication)
+                {
+                    state.NewApplication ??= new(capturedAt);
+                    state.NewApplication = state.NewApplication with
+                    {
+                        FirstReadable = state.NewApplication.FirstReadable ?? state.Pending,
+                    };
+                }
+                else state.NewApplication = null;
             }
             state.SeenPreviousFrame = true;
         }
@@ -184,6 +226,7 @@ public sealed class BuffLedger
         }
 
         lastCapturedAt = capturedAt;
+        hasReadableBaseline = true;
         return Snapshot;
     }
 
@@ -192,6 +235,7 @@ public sealed class BuffLedger
     {
         if (tracked.Count > 0) snapshot = null;
         tracked.Clear();
+        hasReadableBaseline = false;
     }
 
     /// <summary>
@@ -213,9 +257,11 @@ public sealed class BuffLedger
         BreakContinuity();
         lastCapturedAt = null;
         lastReadRemaining.Clear();
+        lastReadPrecision.Clear();
+        lastReadAt.Clear();
         usage.Clear();
         consumptions.Clear();
-        bookedIdentities.Clear();
+        observedIdentities.Clear();
     }
 
     /// <summary>Restores history and timer comparisons without resuming active timers or usage across offline time.</summary>
@@ -253,10 +299,17 @@ public sealed class BuffLedger
         // Validate completely before replacing the current ledger, including when restoring untrusted JSON.
         Reset();
         consumptions.AddRange(restoredConsumptions);
-        foreach (var item in restoredConsumptions) MarkBookedIdentity(item.BuffId);
-        foreach (var (id, item) in restoredUsage) usage[id] = item;
+        foreach (var item in restoredConsumptions) RememberIdentity(item.BuffId);
+        foreach (var (id, item) in restoredUsage)
+        {
+            usage[id] = item;
+            RememberIdentity(id);
+        }
         foreach (var item in snapshot.Active)
+        {
             lastReadRemaining[item.BuffId] = item.Remaining;
+            RememberIdentity(item.BuffId);
+        }
         // Active snapshots store concrete duration variants; map a shared
         // identity only when exactly one restored active cycle belongs to it.
         foreach (var family in definitions.Values.Where(definition => definition.DurationVariantIds is { Count: > 0 }))
@@ -275,14 +328,17 @@ public sealed class BuffLedger
         observation.TimerPrecision <= definition.Duration &&
         observation.Remaining.Ticks - observation.TimerPrecision.Ticks <= definition.Duration.Ticks;
 
-    private void MarkBookedIdentity(string id)
+    private void RememberIdentity(string id)
     {
-        if (!bookedIdentities.Add(id)) return;
-        // Accounting stores the purchased duration variant. A later scan or
-        // restored session may identify the same effect by its shared family.
+        if (string.IsNullOrWhiteSpace(id) || !observedIdentities.Add(id)) return;
+        // Accounting stores concrete variants while visual observations may
+        // identify the same effect by its shared family.
         foreach (var family in definitions.Values.Where(definition =>
-            definition.DurationVariantIds is { Count: > 0 } ids && ids.Contains(id)))
-            bookedIdentities.Add(family.Id);
+            definition.DurationVariantIds is { Count: > 0 } ids && (definition.Id == id || ids.Contains(id))))
+        {
+            observedIdentities.Add(family.Id);
+            observedIdentities.UnionWith(family.DurationVariantIds);
+        }
     }
 
     private static Sample CreateSample(BuffDefinition definition, BuffObservation observation,
@@ -296,8 +352,8 @@ public sealed class BuffLedger
         if (family.DurationVariantIds is not { Count: > 0 } ids) return family;
         var seenIds = new HashSet<string>(StringComparer.Ordinal);
         var seenDurations = new HashSet<TimeSpan>();
+        var candidates = new List<BuffDefinition>();
         string? recognitionGroup = null;
-        BuffDefinition? selected = null;
         foreach (var id in ids)
         {
             if (string.IsNullOrWhiteSpace(id) || id == family.Id || !seenIds.Add(id) ||
@@ -308,13 +364,45 @@ public sealed class BuffLedger
                 recognitionGroup is not null && candidate.RecognitionGroup != recognitionGroup)
                 return family;
             recognitionGroup = candidate.RecognitionGroup;
-            if (candidate.Duration >= observation.Remaining &&
-                (selected is null || (family.PreferMaximumDurationVariant
-                    ? candidate.Duration > selected.Duration : candidate.Duration < selected.Duration))) selected = candidate;
+            candidates.Add(candidate);
         }
+
+        var minimumDuration = observation.Remaining;
+        BuffDefinition? selected = null;
+        if (observation.TimerPrecision >= TimeSpan.FromHours(1))
+        {
+            // Whole-hour labels are floored: a newly applied three-hour buff
+            // already reads "2h". Only a unique duration in that interval is identifiable.
+            minimumDuration += observation.TimerPrecision;
+            var matching = candidates.Where(candidate => candidate.Duration > observation.Remaining &&
+                candidate.Duration <= minimumDuration).Take(2).ToArray();
+            if (matching.Length > 1) return family;
+            if (matching.Length == 1) selected = matching[0];
+        }
+        selected ??= candidates.Where(candidate => candidate.Duration >= minimumDuration)
+            .MinBy(candidate => candidate.Duration);
         return selected is not null && (!selected.RequiresConsumptionConfirmation || observation.ConsumptionAttributionConfirmed)
             ? selected : family;
     }
+
+    private bool IsNearFullDuration(BuffDefinition definition, BuffObservation observation)
+    {
+        var maximumDuration = observation.Remaining + maxObservationGap + observation.TimerPrecision;
+        if (definition.DurationVariantIds is not { Count: > 0 } ids)
+            return definition.Duration <= maximumDuration;
+
+        // A new effect can prove consumption while its rounded hour label
+        // leaves the purchased duration ambiguous. Keep that booking unpriced.
+        return ids.Any(id => definitions.TryGetValue(id, out var candidate) &&
+            candidate.Duration >= observation.Remaining && candidate.Duration <= maximumDuration &&
+            (!candidate.RequiresConsumptionConfirmation || observation.ConsumptionAttributionConfirmed));
+    }
+
+    private bool IsHourTimerRefinement(BuffObservation observation, TimeSpan previousRemaining, DateTimeOffset capturedAt) =>
+        lastReadPrecision.TryGetValue(observation.BuffId, out var previousPrecision) &&
+        lastReadAt.TryGetValue(observation.BuffId, out var previousAt) &&
+        previousPrecision >= TimeSpan.FromHours(1) && observation.TimerPrecision < previousPrecision &&
+        observation.Remaining < previousRemaining + previousPrecision - (capturedAt - previousAt);
 
     private static BuffPrice? ReadPrice(BuffDefinition definition, Func<BuffDefinition, BuffPrice?> priceResolver) =>
         // Invalid or unresolved duration families never borrow a candidate's price.
@@ -374,8 +462,14 @@ public sealed class BuffLedger
     {
         public Sample? Current { get; set; }
         public Sample? Pending { get; set; }
+        public NewApplicationEvidence? NewApplication { get; set; }
         public bool SeenPreviousFrame { get; set; }
     }
 
-    private sealed record Sample(BuffDefinition Definition, BuffActive Active, TimeSpan Precision);
+    private sealed record NewApplicationEvidence(DateTimeOffset FirstSeenAt, Sample? FirstReadable = null);
+
+    private sealed record Sample(BuffDefinition Definition, BuffActive Active, TimeSpan Precision)
+    {
+        public bool IsNewApplication { get; init; }
+    }
 }

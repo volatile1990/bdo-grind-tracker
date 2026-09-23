@@ -116,6 +116,8 @@ public sealed class LifetimeLootReconciler
         foreach (var source in rows)
         {
             if (source.Source != this.source || source.IsAlignmentAnchor || source.Slot >= trackedSlotCount) continue;
+            if (this.source == LootSource.Rare && source.RejectionReason == LootObservation.RarePaddleUnconfirmedReason)
+                continue;
             var parsed = Interpret(source);
             if (parsed?.IsExcluded == true) continue;
             var name = parsed?.Name;
@@ -174,18 +176,25 @@ public sealed class LifetimeLootReconciler
         // A special notification can remain visible indefinitely. Only an
         // observed absence can close it; elapsed capture time alone is not a
         // second physical drop. Brief unreadable frames retain the same row.
+        var unconfirmedSingleRow = persistentSingleRow && source == LootSource.Rare &&
+            rawRows?.Any(row => row.Source == LootSource.Rare && row.Slot == 0 && !row.IsAlignmentAnchor &&
+                row.RejectionReason == LootObservation.RarePaddleUnconfirmedReason) == true;
         if (persistentSingleRow && elapsed > 1550) singleRowMissingSince = null;
-        var closeSingleRow = persistentSingleRow && observations[0] is null &&
+        var closeSingleRow = persistentSingleRow && !unconfirmedSingleRow && observations[0] is null &&
             singleRowMissingSince is { } missing && now - missing >= 1550;
         if (persistentSingleRow)
         {
-            if (observations[0] is null) singleRowMissingSince ??= now;
+            if (observations[0] is null && !unconfirmedSingleRow) singleRowMissingSince ??= now;
             else singleRowMissingSince = null;
         }
         previousMilliseconds = now;
         frameIndex = checked(frameIndex + 1);
         foreach (var model in models)
         {
+            // Failed verification proves neither a new drop nor an empty panel.
+            // Preserve every existing hypothesis without adding item/amount votes
+            // or accumulating absence likelihood against the visible notification.
+            if (unconfirmedSingleRow) continue;
             if (persistentSingleRow) AdvanceSingleRow(model, observations[0], now, closeSingleRow);
             else Advance(model, observations, now, elapsed, maximumBirths, minimumCoveredSlots, unreadableCoverage);
             // A persistent banner supplies arbitrarily many correlated reads of
@@ -323,8 +332,17 @@ public sealed class LifetimeLootReconciler
         // unreadable amount. It must not undo a validated template/review amount.
         // Explicit policy exclusion above is different from a failed text parse.
         if (source.ItemName is { } acceptedName && source.RejectionReason is null)
+        {
+            // Accepted rare identities have passed the primary/secondary review.
+            // Raw-text matching may not substitute an unverified item afterwards,
+            // or borrow its amount when the verified item's quantity is missing.
+            if (this.source == LootSource.Rare)
+                return interpretations[source] = new(acceptedName,
+                    source.Quantity ?? (parsed?.Name == acceptedName ? parsed.Quantity : null),
+                    source.NameConfidence);
             return interpretations[source] = new(parsed?.Name ?? acceptedName, source.Quantity ?? parsed?.Quantity,
                 parsed?.Confidence ?? source.NameConfidence);
+        }
         return interpretations[source] = parsed;
     }
 

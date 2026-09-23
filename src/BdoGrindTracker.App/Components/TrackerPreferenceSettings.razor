@@ -29,9 +29,13 @@
                     @if (State.HasSession) { <p class="field-note"><AppIcon Name="info" />@T("Spielsprache und Aufzeichnung lassen sich vor dem Start einer neuen Session ändern.")</p> }
                 </section>
                 }
-                @if (Section is null)
+                @if (Section is null or "diagnostics")
                 {
                 <section class="panel settings-panel"><div class="settings-heading"><div class="settings-icon"><AppIcon Name="shield" /></div><h2>@T("Diagnose")</h2></div>
+                    <label class="toggle-row"><span><strong>@T("Debuglogs automatisch aufzeichnen")</strong><small>@T("Erkennungs- und Sessiondaten als lokale Textlogs ohne Bilder in einem eigenen Ordner pro Session speichern.")</small></span><input id="automatic-debug-logging" type="checkbox" class="switch" @bind="_automaticDebugLogging" @bind:after="AutomaticDebugLoggingChanged" /></label>
+                    <label class="field"><span>@T("Debuglogs aufbewahren für")</span><div class="input-with-unit"><input id="debug-log-retention-hours" type="number" min="@AppSettings.MinimumDebugLogRetentionHours" max="@AppSettings.MaximumDebugLogRetentionHours" step="1" required @bind="_debugLogRetentionHours" @bind:event="oninput" @bind:after="DebugLogRetentionInputChanged" @onblur="SaveDebugLogRetention" /><span>@T("Stunden")</span></div><small>@T("Standard: 3 Stunden. Ältere Debuglog-Einträge werden automatisch gelöscht.")</small>@if (_debugLogRetentionError is not null) { <small class="field-error" role="alert">@T(_debugLogRetentionError)</small> }</label>
+                    <p class="field-note">@T("Debuglog-Speicherort:") <code>@Tracker.DebugLogsDirectory</code></p>
+                    @if (State.DebugLogError is { } debugLogError) { <div class="notice error-notice" role="alert"><AppIcon Name="info" /><span>@T("Debuglog-Fehler:") @T(debugLogError)</span></div> }
                     <label class="toggle-row"><span><strong>@T("Loot-Diagnose aufzeichnen")</strong><small>@T("Loot-Ausschnitte und Erkennungsdaten dieser Session lokal speichern.")</small></span><input type="checkbox" class="switch" @bind="_recordLoot" @bind:after="RecordingChanged" disabled="@State.HasSession" /></label>
                     @if (State.IsRecording && State.RecordingPath is { } path) { <div class="recording-path"><span class="record-dot"></span><span>@path</span></div> }
                     <label class="toggle-row"><span><strong>@T("Rotation-Monitor-Diagnose aufzeichnen")</strong><small>@T("Alle 3 Sekunden den Meldungsausschnitt sowie erkannte Texte, Ereignisse und Rotationen speichern (etwa 55 MB pro Stunde bei 2560 × 1440).")</small></span><input type="checkbox" class="switch" @bind="_recordRotation" @bind:after="RotationRecordingChanged" disabled="@State.HasSession" /></label>
@@ -52,7 +56,7 @@
                     <div class="tax-preview"><span>@T("Dein effektiver Markterlös")</span><strong>@TaxPreview</strong><small>@T("NPC-Verkäufe bleiben steuerfrei.")</small></div>
                 </section>
                 }
-                @if (Section is null) { <AppUpdates /> }
+                @if (Section is null or "updates") { <AppUpdates /> }
             </div>
         </div>
         </fieldset>
@@ -65,13 +69,16 @@
     {
         if (Acting || State.IsBusy) return false;
         if (Section is null or "capture") await SaveAutoPause();
+        if (Section is null or "diagnostics") await SaveDebugLogRetention();
         if (Section is null or "silver") await SaveFamilyFame();
         StateHasChanged();
-        return ActionError is null && _autoPauseError is null && _familyFameError is null;
+        return ActionError is null && _autoPauseError is null && _debugLogRetentionError is null && _familyFameError is null;
     }
     private string? _characterClass;
     private string _autoPause = "3", _familyFame = "0";
+    private string _debugLogRetentionHours = AppSettings.DefaultDebugLogRetentionHours.ToString(CultureInfo.InvariantCulture);
     private bool _recordLoot, _recordRotation, _valuePack, _merchantRing;
+    private bool _automaticDebugLogging;
     private string _region = "eu";
     private string _gameLanguage = "auto";
     private string SelectedThemeId => AppThemes.Normalize(Tracker.Preferences.ThemeId);
@@ -87,7 +94,7 @@
         AppThemes.Valencia => T("Warme Sandflächen, Terrakotta und gut lesbare dunkle Schrift."),
         _ => T("Das ursprüngliche Grindcrest-Design mit dunklen Flächen und goldenen Akzenten."),
     };
-    private string? _autoPauseError, _familyFameError;
+    private string? _autoPauseError, _familyFameError, _debugLogRetentionError;
     private string TaxPreview => new SilverTaxOptions(_valuePack, _merchantRing, int.TryParse(_familyFame, out var fame) ? Math.Max(0, fame) : 0).MarketReturnRate.ToString("P2", UiCulture);
     protected override void OnInitialized()
     {
@@ -98,6 +105,8 @@
         _autoPause = preferences.AutoPauseMinutes.ToString(System.Globalization.CultureInfo.InvariantCulture);
         _recordLoot = preferences.RecordLoot;
         _recordRotation = preferences.RecordRotation;
+        _automaticDebugLogging = preferences.AutomaticDebugLogging;
+        _debugLogRetentionHours = preferences.DebugLogRetentionHours.ToString(CultureInfo.InvariantCulture);
         _region = preferences.MarketRegion;
         _valuePack = preferences.ValuePack;
         _merchantRing = preferences.MerchantRing;
@@ -110,11 +119,17 @@
     private Task CharacterChanged() => Save(p => p with { CharacterClassId = string.IsNullOrEmpty(_characterClass) ? null : _characterClass });
     private Task RecordingChanged() => Save(p => p with { RecordLoot = _recordLoot });
     private Task RotationRecordingChanged() => Save(p => p with { RecordRotation = _recordRotation });
+    private async Task AutomaticDebugLoggingChanged()
+    {
+        await Save(p => p with { AutomaticDebugLogging = _automaticDebugLogging });
+        _automaticDebugLogging = Tracker.Preferences.AutomaticDebugLogging;
+    }
     private Task RegionChanged() => Save(p => p with { MarketRegion = _region });
     private Task ValuePackChanged() => Save(p => p with { ValuePack = _valuePack });
     private Task MerchantRingChanged() => Save(p => p with { MerchantRing = _merchantRing });
     private void PauseInputChanged() => _autoPauseError = null;
     private void FameInputChanged() => _familyFameError = null;
+    private void DebugLogRetentionInputChanged() => _debugLogRetentionError = null;
     private async Task SaveAutoPause()
     {
         _autoPauseError = !int.TryParse(_autoPause, out var minutes) || minutes is < 1 or > 60 ? "Bitte eine ganze Zahl zwischen 1 und 60 eingeben." : null;
@@ -129,6 +144,15 @@
         if (fame != Tracker.Preferences.FamilyFame || ActionError is not null)
             await Save(p => p with { FamilyFame = fame });
     }
-    private async Task CommitNumbers() { await SaveAutoPause(); await SaveFamilyFame(); }
+    private async Task SaveDebugLogRetention()
+    {
+        _debugLogRetentionError = !int.TryParse(_debugLogRetentionHours, out var hours) ||
+            hours is < AppSettings.MinimumDebugLogRetentionHours or > AppSettings.MaximumDebugLogRetentionHours
+            ? "Bitte eine ganze Zahl zwischen 1 und 168 eingeben." : null;
+        if (_debugLogRetentionError is not null) return;
+        if (hours != Tracker.Preferences.DebugLogRetentionHours || ActionError is not null)
+            await Save(p => p with { DebugLogRetentionHours = hours });
+    }
+    private async Task CommitNumbers() => await CommitAsync();
     private Task Save(Func<TrackerPreferences, TrackerPreferences> change) => SavePreferenceChange(change);
 }

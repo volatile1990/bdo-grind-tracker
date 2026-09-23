@@ -10,6 +10,9 @@ internal static partial class AppText
         text["Live-Session"] = "Live session";
         text["Verlauf"] = "History";
         text["Einstellungen"] = "Settings";
+        text["Passe Grindcrest an deinen Alltag an."] = "Make Grindcrest work for you.";
+        text["Einstellungsbereiche"] = "Settings categories";
+        text["Silber & Markt"] = "Silver & Market";
         text["Dein Loot. Deine Daten."] = "Your loot. Your data.";
         text["Verlauf lokal auf deinem PC"] = "History stored locally on your PC";
         text["Demo-Modus"] = "Demo mode";
@@ -42,6 +45,14 @@ internal static partial class AppText
         text["Minuten ohne neuen Loot"] = "minutes without new loot";
         text["Spielsprache und Aufzeichnung lassen sich vor dem Start einer neuen Session ändern."] = "You can change the game language and recording before starting a new session.";
         text["Diagnose"] = "Diagnostics";
+        text["Debuglogs automatisch aufzeichnen"] = "Record debug logs automatically";
+        text["Erkennungs- und Sessiondaten als lokale Textlogs ohne Bilder in einem eigenen Ordner pro Session speichern."] = "Save detection and session data as local text logs without images in a separate folder for each session.";
+        text["Debuglogs aufbewahren für"] = "Keep debug logs for";
+        text["Stunden"] = "hours";
+        text["Standard: 3 Stunden. Ältere Debuglog-Einträge werden automatisch gelöscht."] = "Default: 3 hours. Older debug log entries are deleted automatically.";
+        text["Debuglog-Speicherort:"] = "Debug log location:";
+        text["Debuglog-Fehler:"] = "Debug log error:";
+        text["Bitte eine ganze Zahl zwischen 1 und 168 eingeben."] = "Enter a whole number between 1 and 168.";
         text["Loot-Diagnose aufzeichnen"] = "Record loot diagnostics";
         text["Loot-Ausschnitte und Erkennungsdaten dieser Session lokal speichern."] = "Save loot image crops and detection data from this session locally.";
         text["Rotation-Monitor-Diagnose aufzeichnen"] = "Record rotation monitor diagnostics";

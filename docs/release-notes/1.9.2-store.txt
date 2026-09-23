@@ -1,0 +1,7 @@
+Neu in Grindcrest 1.9.2:
+
+• Übersichtlichere Einstellungen mit fünf Kategorien und kompakten Einstellungszeilen. Weniger Kacheln und Scrollen; Änderungen werden weiterhin automatisch gespeichert.
+• Rare-Drops verwenden das beste brauchbare Ergebnis der Texterkennung. Eine sichere Lesung bleibt verwendbar, wenn ein anderer OCR-Versuch scheitert. Zwei übereinstimmende Zusatzlesungen sind nicht mehr erforderlich.
+• Verbesserter Textausschnitt für Rare-Banner: Dekorative Ränder stören die Zusatzlesung weniger; Verstärkungsstufen und Mengenangaben bleiben im Ausschnitt.
+• Nach dem Verschwinden einer Rare-Meldung können spätere identische Drops wieder getrennt gezählt werden. Kurze Leselücken behalten den bisherigen Zusammenhang.
+• Der Schutz vor Mehrfachzählung langer Rare-Meldungen und die Erkennung sehr kurzer, direkt folgender Meldungen unterschiedlicher Gegenstände bleiben erhalten.

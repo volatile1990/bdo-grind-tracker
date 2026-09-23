@@ -47,14 +47,26 @@ internal sealed partial class LifetimeLootTextParser
     {
         if (row.Source != _source || row.IsAlignmentAnchor ||
             _source == LootSource.Rare && row.RejectionReason == "ocr-geometry" ||
+            row.RejectionReason == BackgroundLootRowReview.UnconfirmedRareReason ||
+            row.RejectionReason == LootObservation.RareOcrNoMatchReason ||
             row.RejectionReason == AutomaticLootSpotLock.OutsideSpotPoolReason ||
             row.RejectionReason == LootSourceCatalog.WrongSourceReason ||
             row.ItemName is { } originalName && (!_names.Contains(originalName) || !AllowsSource(originalName)))
             return LifetimeParsedReading.Excluded;
         if (string.IsNullOrWhiteSpace(row.RawText) || row.RawText.Length > 4096) return null;
-        if (_source == LootSource.Rare && row.ItemName is { } acceptedName &&
-            HasEnhancementPrefix(NormalizeName(row.RawText), acceptedName))
-            return LifetimeParsedReading.Excluded;
+        if (_source == LootSource.Rare && row.ItemName is { } acceptedName)
+        {
+            var rawName = row.RawText.Normalize(NormalizationForm.FormKC).Trim();
+            var leadingQuantity = LeadingQuantity().Match(rawName);
+            // An explicit leading amount remains a quantity, even when its
+            // digits could resemble a Roman enhancement after glyph repair.
+            // Match ParseText's precedence: with a trailing multiplier, a
+            // leading glyph still belongs to the name/enhancement prefix.
+            if (leadingQuantity.Success && !Multiplier().IsMatch(rawName))
+                rawName = leadingQuantity.Groups["name"].Value;
+            if (HasEnhancementPrefix(NormalizeName(rawName), acceptedName))
+                return LifetimeParsedReading.Excluded;
+        }
         if (_cache.TryGetValue(row.RawText, out var cached)) return cached;
         var parsed = ParseText(row.RawText);
         // Bound text-only memoization to the current context; frames and images
@@ -113,11 +125,29 @@ internal sealed partial class LifetimeLootTextParser
 
     private bool HasEnhancementPrefix(string observed, string candidate)
     {
-        string[] tiers = ["pri", "duo", "tri", "tet", "pen", "hex", "sep", "oct", "nov", "dec",
-            "i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x"];
-        return _aliases.Where(alias => alias.Name == candidate).Any(alias => tiers.Any(tier =>
-            observed.StartsWith(tier, StringComparison.Ordinal) && !alias.Text.StartsWith(tier, StringComparison.Ordinal) &&
-            LifetimeTextSimilarity.JaroWinkler(observed[tier.Length..], alias.Text) >= .86));
+        string[] tiers = ["pri", "duo", "tri", "tet", "pen", "hex", "sep", "oct", "nov", "dec"];
+        string[] romanTiers = ["i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x"];
+        return _aliases.Where(alias => alias.Name == candidate).Any(alias =>
+            tiers.Any(tier => HasTier(alias.Text, tier, false)) ||
+            romanTiers.Any(tier => HasTier(alias.Text, tier, true)));
+
+        bool HasTier(string alias, string tier, bool roman) =>
+            StartsWithTier(observed, tier, roman) && !StartsWithTier(alias, tier, roman) &&
+            LifetimeTextSimilarity.JaroWinkler(observed[tier.Length..], alias) >= .86;
+
+        static bool StartsWithTier(string text, string tier, bool roman)
+        {
+            if (text.Length < tier.Length) return false;
+            for (var index = 0; index < tier.Length; index++)
+            {
+                // OCR commonly reads Roman I as l or 1. Repair only the tier,
+                // never the item identity, and apply the same comparison to
+                // aliases so legitimate leading I/L characters remain valid.
+                var glyph = roman && text[index] is 'l' or '1' ? 'i' : text[index];
+                if (glyph != tier[index]) return false;
+            }
+            return true;
+        }
     }
 
     private bool TryCorrectAccessoryGlyphs(string observed, out string corrected)

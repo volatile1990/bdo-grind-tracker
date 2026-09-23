@@ -26,6 +26,7 @@ internal sealed class BuffMonitor : IDisposable
     private string _lastDiagnostic = "Buff-Erkennung wartet auf ein Spielbild.";
     private long _epoch, _generation;
     private bool _running, _disposed, _readerDisposed;
+    private bool _resetReader = true;
 
     internal BuffMonitor(IBuffFrameReader reader, TimeSpan? samplingInterval = null)
     {
@@ -55,7 +56,9 @@ internal sealed class BuffMonitor : IDisposable
                 var epoch = _epoch;
                 var ownedCopy = copy;
                 var ownedCancellation = cancellation;
-                _analysis = Task.Run(() => Read(ownedCopy, capturedAt, epoch, ownedCancellation));
+                var resetReader = _resetReader;
+                _resetReader = false;
+                _analysis = Task.Run(() => Read(ownedCopy, capturedAt, epoch, ownedCancellation, resetReader));
             }
             catch (Exception)
             {
@@ -95,10 +98,13 @@ internal sealed class BuffMonitor : IDisposable
         Cancel(cancellation);
     }
 
-    private void Read(Bitmap frame, DateTimeOffset capturedAt, long epoch, CancellationTokenSource cancellation)
+    private void Read(Bitmap frame, DateTimeOffset capturedAt, long epoch, CancellationTokenSource cancellation, bool resetReader)
     {
         try
         {
+            // Reset on the same worker as Read, after any previous scan ended.
+            // A pause/reset must never mutate a reader's timer state concurrently.
+            if (resetReader) _reader.Reset();
             var reading = _reader.Read(frame, capturedAt, cancellation.Token);
             lock (_sync)
             {
@@ -108,7 +114,7 @@ internal sealed class BuffMonitor : IDisposable
                     Clear("Zeitlimit der Buff-Erkennung erreicht. Vorlagen und Buffleistenbereich verkleinern.");
                     return;
                 }
-                if (reading is null || reading.Observations.Count == 0 && reading.UnknownBuffIds.Count == 0)
+                if (reading is null)
                 {
                     Clear(_reader.LastDiagnostic ?? "Buff-Erkennung unbekannt. Buffleiste, Vorlagen und Restzeiten prüfen.");
                     return;
@@ -150,6 +156,7 @@ internal sealed class BuffMonitor : IDisposable
 
     private void Clear(string reason)
     {
+        _resetReader = true;
         _state = BuffDetectionSnapshot.Unknown;
         _pendingUnknownBuffIds.Clear();
         _lastDiagnostic = reason;

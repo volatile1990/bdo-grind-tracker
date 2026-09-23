@@ -48,11 +48,11 @@ public sealed partial class TrackerSessionServiceTests
             Assert.False(fixture.Service.State.IsRunning);
             var buffs = Assert.IsType<BuffLedgerSnapshot>(fixture.Service.State.Buffs);
             Assert.Empty(buffs.Active);
-            Assert.Equal(2, buffs.Consumptions.Count);
-            Assert.Single(buffs.Consumptions, item => item.IsSessionStart);
+            Assert.Single(buffs.Consumptions);
+            Assert.DoesNotContain(buffs.Consumptions, item => item.IsSessionStart);
             Assert.Equal(now.AddSeconds(-1), Assert.Single(buffs.Consumptions,
                 item => !item.IsSessionStart).ConsumedAt);
-            Assert.Equal(2_400_000m, buffs.ConsumedCost);
+            Assert.Equal(1_200_000m, buffs.ConsumedCost);
             Assert.Equal(2000m, buffs.ProratedCost);
             var saved = Assert.IsType<BuffLedgerSnapshot>(Assert.Single(fixture.HistoryStore.Load()).Buffs);
             Assert.Equal(buffs.ConsumedCost, saved.ConsumedCost);
@@ -96,7 +96,7 @@ public sealed partial class TrackerSessionServiceTests
             await monitor.CurrentAnalysis.WaitAsync(TimeSpan.FromSeconds(3));
             fixture.Service.RefreshPendingState();
 
-            Assert.True(Assert.Single(fixture.Service.State.Buffs!.Consumptions).IsSessionStart);
+            Assert.Empty(fixture.Service.State.Buffs!.Consumptions);
             Assert.Empty(fixture.Service.State.Buffs.Active);
             Assert.Equal(1000m, fixture.Service.State.Buffs.ProratedCost);
         }
@@ -137,9 +137,9 @@ public sealed partial class TrackerSessionServiceTests
             await monitor.CurrentAnalysis.WaitAsync(TimeSpan.FromSeconds(3));
             fixture.Service.RefreshPendingState();
 
-            Assert.True(Assert.Single(fixture.Service.State.Buffs!.Consumptions).IsSessionStart);
+            Assert.Empty(fixture.Service.State.Buffs!.Consumptions);
             Assert.Empty(fixture.Service.State.Buffs.Active);
-            Assert.True(Assert.Single(Assert.Single(fixture.HistoryStore.Load()).Buffs!.Consumptions).IsSessionStart);
+            Assert.Empty(Assert.Single(fixture.HistoryStore.Load()).Buffs!.Consumptions);
         }
         finally { release.Set(); }
     }

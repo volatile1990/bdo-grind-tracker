@@ -20,7 +20,7 @@ public sealed class BuffRefreshGapTests
         Assert.DoesNotContain(Apply(ledger, 20, null, explicitUnknown).Active, item => item.BuffId == Buff.Id);
 
         var renewed = Apply(ledger, 30, 1200);
-        Assert.Equal(2, renewed.Consumptions.Count(item => item.BuffId == Buff.Id));
+        Assert.Single(renewed.Consumptions, item => item.BuffId == Buff.Id);
         var confirmed = Apply(ledger, 40, 1190);
         var renewal = Assert.Single(confirmed.Consumptions, item => item.BuffId == Buff.Id && !item.IsSessionStart);
         Assert.Equal(Start.AddSeconds(30), renewal.ConsumedAt);
@@ -29,7 +29,7 @@ public sealed class BuffRefreshGapTests
         Assert.Equal(2_000, Usage(confirmed).KnownProratedCost);
 
         var continued = Apply(ledger, 50, 1180);
-        Assert.Equal(2, continued.Consumptions.Count(item => item.BuffId == Buff.Id));
+        Assert.Single(continued.Consumptions, item => item.BuffId == Buff.Id);
     }
 
     [Theory]
@@ -44,7 +44,7 @@ public sealed class BuffRefreshGapTests
         Apply(ledger, 30, 270);
         var confirmed = Apply(ledger, 40, 260);
 
-        Assert.True(Assert.Single(confirmed.Consumptions, item => item.BuffId == Buff.Id).IsSessionStart);
+        Assert.Empty(confirmed.Consumptions);
         Assert.Equal(TimeSpan.FromSeconds(20), Usage(confirmed).ObservedDuration);
     }
 
@@ -59,7 +59,7 @@ public sealed class BuffRefreshGapTests
         Apply(ledger, 40, 20);
         var recovered = Apply(ledger, 50, 10);
 
-        Assert.Equal(2, recovered.Consumptions.Count(item => item.BuffId == Buff.Id));
+        Assert.Single(recovered.Consumptions, item => item.BuffId == Buff.Id);
         Assert.Equal(Start.AddSeconds(30), Assert.Single(recovered.Consumptions, item => item.BuffId == Buff.Id && !item.IsSessionStart).ConsumedAt);
         Assert.Equal(TimeSpan.FromSeconds(20), Usage(recovered).ObservedDuration);
     }
@@ -110,7 +110,7 @@ public sealed class BuffRefreshGapTests
         Apply(ledger, 60, 1180);
         var confirmed = Apply(ledger, 70, 1170);
 
-        Assert.Equal(2, confirmed.Consumptions.Count(item => item.BuffId == Buff.Id));
+        Assert.Single(confirmed.Consumptions, item => item.BuffId == Buff.Id);
         Assert.Equal(TimeSpan.FromSeconds(20), Usage(confirmed).ObservedDuration);
     }
 
@@ -126,7 +126,7 @@ public sealed class BuffRefreshGapTests
         Apply(ledger, returnAt, 1200);
         var confirmed = Apply(ledger, returnAt + 10, 1190);
 
-        Assert.Equal(2, confirmed.Consumptions.Count(item => item.BuffId == Buff.Id));
+        Assert.Single(confirmed.Consumptions, item => item.BuffId == Buff.Id);
         Assert.Equal(TimeSpan.FromSeconds(20), Usage(confirmed).ObservedDuration);
     }
 
@@ -148,10 +148,10 @@ public sealed class BuffRefreshGapTests
         }
         var returnAt = interruption == "long-gap" ? 70 : 30;
         var renewed = Apply(ledger, returnAt, 1200);
-        Assert.Equal(2, renewed.Consumptions.Count(item => item.BuffId == Buff.Id));
+        Assert.Single(renewed.Consumptions, item => item.BuffId == Buff.Id);
         var confirmed = Apply(ledger, returnAt + 10, 1190);
 
-        Assert.Equal(2, confirmed.Consumptions.Count(item => item.BuffId == Buff.Id));
+        Assert.Single(confirmed.Consumptions, item => item.BuffId == Buff.Id);
         Assert.Equal(TimeSpan.FromSeconds(20), Usage(confirmed).ObservedDuration);
     }
 
@@ -167,7 +167,7 @@ public sealed class BuffRefreshGapTests
         Apply(ledger, 600, remaining);
         var recovered = Apply(ledger, 610, remaining - 10);
 
-        Assert.True(Assert.Single(recovered.Consumptions, item => item.BuffId == Buff.Id).IsSessionStart);
+        Assert.Empty(recovered.Consumptions);
         Assert.Equal(TimeSpan.FromSeconds(20), Usage(recovered).ObservedDuration);
     }
 
@@ -182,8 +182,8 @@ public sealed class BuffRefreshGapTests
         var renewed = Apply(ledger, 30, 480);
         var unchanged = Apply(ledger, 40, 480);
 
-        Assert.Equal(2, renewed.Consumptions.Count(item => item.BuffId == Buff.Id));
-        Assert.Equal(2, unchanged.Consumptions.Count(item => item.BuffId == Buff.Id));
+        Assert.Single(renewed.Consumptions, item => item.BuffId == Buff.Id);
+        Assert.Single(unchanged.Consumptions, item => item.BuffId == Buff.Id);
     }
 
     [Fact]
@@ -228,7 +228,7 @@ public sealed class BuffRefreshGapTests
 
         Assert.Empty(Apply(ledger, 20, 1200).Consumptions);
         var initial = Apply(ledger, 30, 1190);
-        Assert.True(Assert.Single(initial.Consumptions, item => item.BuffId == Buff.Id).IsSessionStart);
+        Assert.Empty(initial.Consumptions);
     }
 
     private static BuffLedger CreateLedger() => new([Buff, Other]);

@@ -139,6 +139,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         ArgumentNullException.ThrowIfNull(monitors);
         Monitors = Array.AsReadOnly(monitors.ToArray());
         _settings = settingsStore.Load();
+        _debugLog = new RollingDebugLog(DebugLogsDirectory, timeProvider);
         // Old manual profiles no longer override the automatic catalog and BDO layout.
         _settings.BuffRecognitionProfilePath = null;
         _settingsSaveError = settingsStore.LoadError;
@@ -177,6 +178,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
                 ?? Monitors.FirstOrDefault(m => m.IsPrimary)?.DeviceName ?? Monitors.FirstOrDefault()?.DeviceName,
             AutoPauseMinutes = _settings.AutoPauseMinutes,
             AutoStartGrinding = _settings.AutoStartGrinding,
+            AutomaticDebugLogging = _settings.AutomaticDebugLogging,
+            DebugLogRetentionHours = _settings.DebugLogRetentionHours,
             GameLanguage = _settings.GameLanguage,
             CaptureConfigurationPath = _settings.CaptureConfigurationPath,
             FavoriteItems = _settings.FavoriteItems ?? [],
@@ -195,6 +198,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         RestoreCurrentSession();
         RefreshMissingOcrLanguageOffer();
         _captureSession.Stopped += CaptureSessionStopped;
+        ConfigureDebugLogging();
         PublishState();
     }
 
@@ -204,6 +208,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
     public IReadOnlyList<TrackerMonitor> Monitors { get; }
     public bool CapturesGameWindow => _captureSession.UsesWindowCapture;
     public string DiagnosticsDirectory => Path.Combine(_settingsStore.BaseDirectory, "diagnostics");
+    public string DebugLogsDirectory => Path.Combine(DiagnosticsDirectory, "debug-logs");
     public IReadOnlyList<LootHistoryEntry> History { get; private set; } = [];
     public LootPriceSnapshot Prices { get; private set; } = LootPriceCatalog.FixedSnapshot("eu");
     private bool IsBusy => _operationInProgress || _garmothUploadInProgress;
@@ -240,7 +245,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         ClearCurrentSessionCheckpoint();
         ResetCurrentGrind(clearSessionPreferences: true);
         if (Preferences.AutoStartGrinding) TrySaveSettings();
-        SetStatus("Neue Session angelegt. Die Diagnose-Aufzeichnung ist ausgeschaltet.");
+        SetStatus("Neue Session angelegt. Die manuelle Diagnose-Aufzeichnung ist ausgeschaltet.");
         return Task.CompletedTask;
     });
 
@@ -503,6 +508,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             metadata.UseHdrOcr, metadata.IsToneMapped, cancellationToken).ConfigureAwait(false);
         var analysisDuration = Stopwatch.GetElapsedTime(analysisStarted);
         cancellationToken.ThrowIfCancellationRequested();
+        RecordDebugFrame(analysis, metadata, analysisDuration);
         if (_analyzer.RequiresLootPanel && (analysis.PanelRegion is not { Width: > 0, Height: > 0 } panel ||
             !new Rectangle(Point.Empty, frame.Size).Contains(panel)))
             throw new LootPanelUnavailableException(LootPanelCaptureGuard.MissingPanelMessage);
@@ -648,6 +654,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         var completed = _analyzer.CompleteSession(completedAt);
         _captureSegmentCompleted = true;
         _recording?.RecordCompletion(completedAt, completed.TrackingResult);
+        _debugLog.Write(DebugLogSessionId, "capture-complete", new { SessionId = _sessionId, CompletedAt = completedAt, Analysis = completed });
         _uiMailbox.Publish(completed, onObserved: ObserveGarmothObservation,
             capturedAt: completedAt, flushProjection: true);
         RefreshPendingState();
@@ -661,6 +668,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         {
             Interlocked.Exchange(ref _lastCaptureStopError, error);
             CaptureFailureDiagnostics.TryWrite(_settingsStore.BaseDirectory, error, DateTimeOffset.UtcNow);
+            _debugLog.Write(DebugLogSessionId, "capture-error", new { SessionId = _sessionId, ErrorType = error.GetType().FullName, error.HResult });
         }
     }
 
@@ -675,10 +683,11 @@ internal sealed partial class TrackerSessionService : ITrackerSession
     {
         try
         {
+            await CleanupDebugLogsIfDueAsync();
             RefreshPendingState(publish: false);
             if (_classDetectionTask is null ||
                 (Preferences.CharacterClassId is null && !_demoMode && !_sessionSubmitted &&
-                 (_hasSession ? _sessionClass is null : _classDetection.Class is null) &&
+                 (!_hasSession || _sessionClass is null) &&
                  DateTimeOffset.UtcNow >= _nextClassDetectionAt))
                 _ = RefreshClassDetectionAsync();
             var failed = Interlocked.CompareExchange(ref _lastCaptureStopError, null, null) is not null;
@@ -830,6 +839,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             IsError = _isError || trackingBlockedReason is not null || _currentSessionPersistenceError is not null || _historyPersistenceError is not null || _historyStore.LoadError is not null || _garmothPersistenceError is not null || _settingsSaveError is not null,
             RecordingPath = _recording?.RecordingPath, IsRecording = _recording?.IsRecording ?? false,
             RotationRecordingPath = _rotationRecording?.RecordingPath, IsRecordingRotation = _rotationRecording?.IsRecording ?? false,
+            DebugLogError = _debugLog.LastError,
             HasApiKey = _garmothApiKey.Length > 0, UploadBlocked = _sessionSubmitted || _garmothIntervals.IsBlocked ||
                 _garmothPersistenceError is not null || _garmothRestartBlocks.Contains(_sessionId),
             AutomaticSuspended = _garmothIntervals.AutomaticSuspended,
@@ -838,6 +848,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         };
         State = State with { SilverHistory = _silverHistory.Update(State), DropHistory = CaptureDropHistory(State.Loot, State.Elapsed),
             Rotation = _rotationMonitor.Snapshot(_captureSession.ObservationTime, _sessionSpotId) };
+        RecordDebugState();
         if (_historyChanged)
         {
             History = Array.AsReadOnly(_historyEntries.Select(entry => entry with
@@ -944,6 +955,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             _recording?.Dispose();
             _recording = null;
             StopRotationRecording();
+            _debugLog.Write(DebugLogSessionId, "app-stop", new { SessionId = _sessionId });
+            _debugLog.Dispose();
             _garmothApiKey = string.Empty;
             PublishState();
             _disposed = true;

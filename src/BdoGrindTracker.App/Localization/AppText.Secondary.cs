@@ -262,6 +262,14 @@ internal static partial class AppText
         text["vor {0:N0} Mon."] = "{0:N0} mo ago";
         text["vor {0:N0} J."] = "{0:N0} yr ago";
         text["Unter Average"] = "Below average";
+        text["{0} % von {1}"] = "{0}% of {1}";
+        text["{0} → {1} · {2} %"] = "{0} → {1} · {2}%";
+        text["Noch {0} Trash / h bis {1}"] = "{0} trash / h to reach {1}";
+        text["{0} erreicht"] = "{0} reached";
+        text["{0} % über {1}"] = "{0}% above {1}";
+        text["Referenz: {0} Trash / h"] = "Reference: {0} trash / h";
+        text["+{0} Trash / h über {1}"] = "+{0} trash / h above {1}";
+        text["Die Position zeigt den Fortschritt zwischen den Referenzwerten, keinen Spieler-Perzentilrang."] = "The position shows progress between reference values, not a player percentile rank.";
         text["Vorläufig"] = "Provisional";
         text["Abweichende Loot-Buffs"] = "Different loot buffs";
         text["Keine Bewertung verfügbar."] = "No rating available.";

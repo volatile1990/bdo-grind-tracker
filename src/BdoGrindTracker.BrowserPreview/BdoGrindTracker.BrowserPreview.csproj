@@ -2,7 +2,7 @@
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
     <RootNamespace>BdoGrindTracker.BrowserPreview</RootNamespace>
-    <Version>1.8.2</Version>
+    <Version>1.9.2</Version>
     <!-- Static files are copied from the same sources for both run and publish. -->
     <StaticWebAssetsEnabled>false</StaticWebAssetsEnabled>
   </PropertyGroup>
@@ -15,6 +15,7 @@
     <InternalsVisibleTo Include="BdoGrindTracker.BrowserPreview.Tests" />
     <Content Update="wwwroot/**/*" CopyToOutputDirectory="PreserveNewest" />
     <Compile Include="../BdoGrindTracker.App/AppBranding.cs" Link="Shared/AppBranding.cs" />
+    <Compile Include="../BdoGrindTracker.App/Persistence/AppSettings.cs" Link="Shared/Persistence/AppSettings.cs" />
     <Compile Include="../BdoGrindTracker.App/Theming/*.cs" Link="Shared/Theming/%(Filename)%(Extension)" />
     <Compile Include="../BdoGrindTracker.App/Localization/*.cs" Link="Shared/Localization/%(Filename)%(Extension)" />
     <Compile Include="../BdoGrindTracker.App/Components/**/*.cs" Link="Components/%(RecursiveDir)%(Filename)%(Extension)" />

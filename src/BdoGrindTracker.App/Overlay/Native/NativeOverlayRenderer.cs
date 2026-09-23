@@ -241,6 +241,8 @@ internal sealed class NativeOverlayRenderer : IDisposable
                 DrawLoot(graphics, widget, inner, snapshot);
             else if (widget.Kind == "chart") DrawChart(graphics, widget, inner, snapshot);
             else if (widget.Kind == "clock") DrawClock(graphics, widget, inner, snapshot);
+            else if (widget.Kind == "grind-rating" && snapshot.Metrics.GetValueOrDefault(widget.Kind)?.Spectrum is not null)
+                DrawGrindRating(graphics, widget, inner, snapshot.Metrics[widget.Kind]);
             else if (widget.Kind == "rotation-monitor") DrawRotation(graphics, widget, inner, snapshot.Rotation);
             else if (widget.Kind == "daily-goal")
             {
@@ -305,6 +307,72 @@ internal sealed class NativeOverlayRenderer : IDisposable
                     Math.Max(0, bounds.Width - labelWidth - 6 * fontScale), bounds.Height), 18 * fontScale,
                 row.Kind == "countdown" ? Gold : Text, true, StringAlignment.Far, StringAlignment.Center);
         }
+    }
+
+    private void DrawGrindRating(Graphics graphics, OverlayWidget widget, RectangleF inner, OverlayMetric metric)
+    {
+        var spectrum = metric.Spectrum!;
+        var fontScale = (float)widget.FontScale;
+        Color Tone(OverlayMetricTone tone) => tone switch
+        {
+            OverlayMetricTone.Positive => Positive,
+            OverlayMetricTone.Accent => Gold,
+            OverlayMetricTone.Muted => Muted,
+            _ => Text,
+        };
+        if (widget.ShowLabel)
+        {
+            var inset = widget.ShowIcon ? 17 * fontScale : 0;
+            if (widget.ShowIcon) DrawGlyph(graphics, "grind-rating", new RectangleF(inner.X, inner.Y + fontScale, 12 * fontScale, 12 * fontScale));
+            Draw(graphics, T(metric.Label), new RectangleF(inner.X + inset, inner.Y, inner.Width - inset, 15 * fontScale),
+                10 * fontScale, Heading);
+            inner.Y += 18 * fontScale; inner.Height -= 18 * fontScale;
+        }
+        var headline = new RectangleF(inner.X, inner.Y, inner.Width, 20 * fontScale);
+        if (!widget.ShowLabel && widget.ShowIcon)
+        {
+            DrawGlyph(graphics, "grind-rating", new RectangleF(headline.X, headline.Y + 3 * fontScale, 14 * fontScale, 14 * fontScale));
+            headline.X += 20 * fontScale; headline.Width -= 20 * fontScale;
+        }
+        Draw(graphics, spectrum.ProgressLabel, headline, 16 * fontScale, Tone(metric.Tone), true, vertical: StringAlignment.Center);
+        inner.Y += 20 * fontScale;
+
+        var track = new RectangleF(inner.X, inner.Y + 6 * fontScale, inner.Width, 6 * fontScale);
+        using (var gradient = new LinearGradientBrush(track, Muted, Tone(spectrum.Stops.LastOrDefault()?.Tone ?? metric.Tone), 0f))
+        {
+            var stops = spectrum.Stops.Where(stop => stop.Position > 0 && stop.Position < 100).ToArray();
+            gradient.InterpolationColors = new ColorBlend
+            {
+                Colors = new[] { Muted }.Concat(stops.Select(stop => Tone(stop.Tone))).Append(Tone(spectrum.Stops.LastOrDefault()?.Tone ?? metric.Tone)).ToArray(),
+                Positions = new[] { 0f }.Concat(stops.Select(stop => (float)(stop.Position / 100))).Append(1f).ToArray(),
+            };
+            using var path = Round(track, 3 * fontScale);
+            graphics.FillPath(gradient, path);
+        }
+        for (var index = 0; index < spectrum.Stops.Count; index++)
+        {
+            var stop = spectrum.Stops[index];
+            var x = track.X + track.Width * (float)(stop.Position / 100);
+            using var tick = new Pen(Color.FromArgb(180, Text), fontScale);
+            graphics.DrawLine(tick, x, track.Top - 2 * fontScale, x, track.Bottom + 2 * fontScale);
+            var halfLabel = track.Width / (spectrum.Stops.Count + 1) * .48f;
+            Draw(graphics, stop.Label, new RectangleF(x - halfLabel, inner.Y + 16 * fontScale, halfLabel * 2, 11 * fontScale),
+                8 * fontScale, Muted, horizontal: StringAlignment.Center);
+        }
+        var radius = 4.5f * fontScale;
+        var markerX = track.X + Math.Clamp(track.Width * (float)(spectrum.Position / 100), radius, Math.Max(radius, track.Width - radius));
+        using (var marker = new SolidBrush(Text))
+        using (var edge = new Pen(SlotSurface, 1.5f * fontScale))
+        {
+            var dot = new RectangleF(markerX - radius, track.Top + track.Height / 2 - radius, radius * 2, radius * 2);
+            graphics.FillEllipse(marker, dot);
+            graphics.DrawEllipse(edge, dot);
+        }
+        inner.Y += 28 * fontScale;
+        Draw(graphics, spectrum.GapLabel, new RectangleF(inner.X, inner.Y, inner.Width, 12 * fontScale), 9 * fontScale, Muted);
+        inner.Y += 12 * fontScale;
+        if (metric.Detail is { Length: > 0 })
+            Draw(graphics, T(metric.Detail), new RectangleF(inner.X, inner.Y, inner.Width, 12 * fontScale), 9 * fontScale, Muted);
     }
 
     private void DrawMetric(Graphics graphics, OverlayWidget widget, RectangleF inner, OverlaySnapshot snapshot)

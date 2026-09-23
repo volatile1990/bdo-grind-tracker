@@ -102,7 +102,7 @@ die gemeinsame Projektion wird erst nach vollständiger Prüfung ersetzt.
 
 Die Special-Zeile verwendet dieselbe OCR-, Recovery- und Nachprüfungslogik wie
 normale Zeilen: HDR-/Tone-Mapping-Aufbereitung, zusätzliche begrenzte Lesungen
-aus den Originalpixeln, gezielte zweite OCR sowie Prüfungen von Geometrie,
+aus den Originalpixeln, zweite OCR sowie Prüfungen von Geometrie,
 Itemidentität, Mengen und Spotpool. Die Recovery hat ein eigenes Budget, damit
 ein beschäftigtes normales Log die Special-Zeile nicht verdrängt. Auch eine
 fälschlich leere Farbmaske kann einen Recovery-Versuch erhalten. Alle Lesungen
@@ -110,12 +110,29 @@ werden zu höchstens einer Beobachtung je Zeile verdichtet. Eine bloße
 Namenslesung erzeugt keine frei angenommene Menge; katalogisierte Einzelstücke
 behalten ihre ausdrückliche Mengenregel.
 
+Für die Special-Zeile ist die Paddle-Nachprüfung verpflichtend, auch bei hoher
+Windows-OCR-Konfidenz und katalogisierter Menge eins. Farb- und Graustufenlesung
+müssen denselben Itemnamen ausreichend sicher bestätigen. Ein Widerspruch zu
+einem akzeptierten Windows-Item, fehlende Übereinstimmung oder ein Modellfehler
+verwirft die aktuelle Lesung mit `rare-paddle-unconfirmed`; der Rohtextparser
+darf sie später nicht wieder aktivieren. Erfolgreiche Prüfungen übernehmen den
+Paddle-Rohtext; ein späterer Rohtextabgleich darf die bestätigte Itemidentität
+nicht durch einen anderen Kandidaten ersetzen. Das kann bei schlecht lesbaren Meldungen Drops auslassen und
+erhöht den Rechenaufwand während sichtbarer Special-Meldungen. Normale Lootzeilen
+behalten die gezielte, optionale Nachprüfung.
+Eine sichtbare, noch unbestätigte Zeile zählt dabei nicht als leeres Panel:
+Sie hält eine bereits bestätigte Meldung ohne neue Namens- oder Mengenstimmen
+offen. Eine spätere erfolgreiche Lesung derselben Meldung erzeugt dadurch
+keinen weiteren Drop. Erst tatsächlich leere Aufnahmen liefern den unten
+beschriebenen Abwesenheitsnachweis.
+
 Der gemeinsame `LifetimeLootReconciler` verarbeitet Normal mit fünf Positionen
 und Special in einer separaten Instanz mit genau einer Position. Wiederholte
 Lesungen, partielle Namen, fehlende Mengen und spätere Korrekturen verwenden
 dieselben Evidenzregeln. Beide Parser erhalten denselben versionierten Kontext;
 ungeklärte Rohtexte können damit später erneut zugeordnet werden. Wegen
-`ocr-geometry` oder des Spotfilters verworfene Special-Texte bleiben ausgeschlossen.
+`ocr-geometry`, fehlender Paddle-Bestätigung oder des Spotfilters verworfene
+Special-Texte bleiben ausgeschlossen.
 Die Fünf-Slot-Belegungs- und Nachrückregeln des normalen Logs sind auf die einzelne
 Special-Meldung nicht anwendbar.
 

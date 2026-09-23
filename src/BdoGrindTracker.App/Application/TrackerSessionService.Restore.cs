@@ -136,7 +136,8 @@ internal sealed partial class TrackerSessionService
 
     // UI delivery can lag behind the drop. Use the activity clock so removing
     // idle time on automatic pause does not also remove the newest marker.
-    private IReadOnlyList<SessionDropSample> CaptureDropHistory(LootSessionSnapshot summary, TimeSpan duration) =>
+    private IReadOnlyList<SessionDropSample> CaptureDropHistory(LootSessionSnapshot summary, TimeSpan duration,
+        bool manualCorrection = false) =>
         _dropHistory.Update(State with
         {
             SessionId = _sessionId,
@@ -144,7 +145,7 @@ internal sealed partial class TrackerSessionService
             IsDemo = _demoMode,
             Elapsed = duration,
             Loot = summary,
-        }, _demoMode ? null : _sessionClock.GetElapsedExcludingTrailingIdle(_inactivityTimer.IdleDuration));
+        }, _demoMode ? null : _sessionClock.GetElapsedExcludingTrailingIdle(_inactivityTimer.IdleDuration), manualCorrection);
 
     private void PersistCurrentSessionCheckpoint(DateTimeOffset updatedAt, bool throwOnError = false,
         LootSessionSnapshot? proposedSnapshot = null)

@@ -88,14 +88,13 @@ Diese 19 Varianten verwenden **NPC-Kaufpreise**, auch wenn ein zugehöriger
 Effekt eine Item-ID besitzt. Sie werden nicht beim Zentralmarkt angefragt.
 Direktbuff und Schriftrolle werden bei gleichem Effekt und gleicher Laufzeit
 nicht als zwei Käufe gezählt. Adventure's Boon, Body Enhancement und Turning Gates
-werden automatisch immer als 300-Minuten-Variante gebucht, auch wenn nur eine
-kurze Restzeit sichtbar ist. So werden ihre Anwendungen unter jeweils einer
-Identität aufsummiert. Die hinterlegten NPC-Preise betragen 12.000.000, 10.000.000
-bzw. 2.000.000 Silber und gelten auch für die Laufzeitbewertung. Die automatische
-Zuordnung ist eine feste Bewertungsannahme, kein Kaufnachweis. Historische
-Buchungen werden nicht nachträglich neu bewertet. Kürzere Katalogvarianten
-bleiben zum Lesen vorhandener Sessiondaten erhalten; manuelle Profile sind in
-der automatischen Erkennung nicht aktiv.
+werden anhand der bei einer neuen Anwendung gelesenen Restzeit einer Laufzeitvariante
+zugeordnet und mit deren NPC-Preis gebucht. Unterschiedliche Dauern bleiben getrennte
+Verbrauchsidentitäten. Grobe Stundenanzeigen werden als Zeitintervall berücksichtigt;
+passen mehrere Kaufdauern hinein, bleibt die Variante ohne Preis unbekannt.
+Anfangs aktive Buffs erzeugen keine Verbrauchsbuchung. Historische Buchungen
+werden nicht nachträglich neu bewertet. Manuelle Profile sind in der automatischen
+Erkennung nicht aktiv.
 
 | Profil-ID | Zeltbuff | Laufzeit | Kaufpreis in Silber |
 | --- | --- | ---: | ---: |
@@ -146,8 +145,8 @@ Standard- und Immortal-Versionen bleiben separate Preisidentitäten. Harmony
 besitzt unterscheidbare normale und unsterbliche Symbole. Einige Parfümvarianten
 verwenden dagegen denselben Client-Symbolpfad und bleiben automatisch als
 unbekannte Gruppe ohne Preis erfasst, weil auch die Dauer gleich ist. Dasselbe
-gilt für die Glücksstufen. Adventure's Boon und die Villa-Buffs werden dagegen
-automatisch immer mit der 300-Minuten-Variante bewertet. In einem alten Profil wurde pro
+gilt für die Glücksstufen. Bei Adventure's Boon und den Villa-Buffs wird die
+Laufzeit zur Unterscheidung herangezogen. In einem alten Profil wurde pro
 Erkennungsfamilie eine konkrete Variante ausgewählt; ein Profil darf
 nicht gleichzeitig mehrere mutmaßlich gleiche Effekte auf unterschiedliche
 Preise abbilden. Dasselbe gilt für die Laufzeitvarianten eines Zeltbuffs.
@@ -155,15 +154,12 @@ Preise abbilden. Dasselbe gilt für die Laufzeitvarianten eines Zeltbuffs.
 keine Behauptung, dass sämtliche Icons einer Familie bereits verifiziert sind.
 
 Ein empfangener Harmony-Gruppenbuff belegt keinen eigenen Verbrauch. Die acht
-Gruppenvarianten zählen bestätigte Erstbeobachtungen und Timer-Erneuerungen sowohl automatisch als
-auch in eigenen Profilen ohne zusätzliche Verbrauchsbestätigung. Bewertet wird
+Gruppenvarianten zählen bestätigte neue Anwendungen und Timer-Erneuerungen ohne
+zusätzliche Verbrauchsbestätigung. Bewertet wird
 die eindeutig erkannte Variante. Die Grafik beweist nicht, welches
-Gruppenmitglied den Gegenstand eingesetzt hat. Jeder bisher ungebuchte Buff wird
-nach zwei eigenen passenden Erstbeobachtungen einmal mit seinem Preis angerechnet,
-auch wenn er erst später lesbar wird. Die Markierung **Bei erster Erkennung aktiv**
-belegt keinen neuen Kauf. Höhere erneut gelesene Restzeiten erhöhen die Anzahl.
-Pausen, Erkennungslücken und Timerpräzisierungen erzeugen für bereits gebuchte
-Buffs keine zusätzliche Erstanrechnung. Gespeicherte Buchungen verhindern auch
-nach dem Laden doppelte Erstanrechnungen einschließlich ihrer Dauerfamilie.
-Bislang ungebuchte Buffs können nach zwei neuen passenden Beobachtungen erstmals
-angerechnet werden; zwischen ungelesenen Aufnahmen werden keine Käufe erfunden.
+Gruppenmitglied den Gegenstand eingesetzt hat. Bereits beim Start aktive Buffs
+werden nicht als Verbrauch angerechnet. Ein neuer Buff nach einer lesbaren Prüfung
+ohne dieses Symbol benötigt einen frischen Timer und zwei passende Befunde;
+höhere erneut gelesene Timer zählen sofort als neue Anwendung. Späte Teil-Timer,
+Pausen und Erkennungslücken erzeugen keine neue Erstanrechnung. Gespeicherte
+Buchungen einschließlich historischer Startbuchungen bleiben beim Laden erhalten.

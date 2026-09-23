@@ -9,7 +9,7 @@ namespace BdoGrindTracker.App.Tests;
 public sealed partial class TrackerSessionServiceTests
 {
     [Fact]
-    public Task UnknownAutomaticClassRetriesAfterThirtySecondsAndStopsOnceDetected() => RunOnHostContextAsync(async () =>
+    public Task AutomaticClassRefreshesEveryThirtySecondsBeforeStartingASession() => RunOnHostContextAsync(async () =>
     {
         // The desktop serializes the timer tick and the detector's continuation
         // on its UI context. xUnit may run both PublishState calls concurrently.
@@ -41,10 +41,15 @@ public sealed partial class TrackerSessionServiceTests
         Assert.Equal("hashashin-awakening", fixture.Service.State.CharacterClassId);
 
         fixture.ClassDetection = DetectedClass("maegu-awakening");
-        SetField(fixture.Service, "_nextClassDetectionAt", DateTimeOffset.MinValue);
         await fixture.Service.TickAsync();
         Assert.Equal(2, calls);
         Assert.Equal("hashashin-awakening", fixture.Service.State.CharacterClassId);
+
+        SetField(fixture.Service, "_nextClassDetectionAt", DateTimeOffset.MinValue);
+        await fixture.Service.TickAsync();
+        await AwaitClassRefresh(fixture.Service);
+        Assert.Equal(3, calls);
+        Assert.Equal("maegu-awakening", fixture.Service.State.CharacterClassId);
     });
 
     [Theory]
@@ -155,6 +160,11 @@ public sealed partial class TrackerSessionServiceTests
         await fixture.Service.TickAsync();
         await AwaitClassRefresh(fixture.Service);
 
+        Assert.Equal("warrior-awakening", fixture.Service.State.CharacterClassId);
+        var completed = ReadClassRefreshField(fixture.Service, "_classDetectionTask");
+        SetField(fixture.Service, "_nextClassDetectionAt", DateTimeOffset.MinValue);
+        await fixture.Service.TickAsync();
+        Assert.Same(completed, ReadClassRefreshField(fixture.Service, "_classDetectionTask"));
         Assert.Equal("warrior-awakening", fixture.Service.State.CharacterClassId);
     });
 

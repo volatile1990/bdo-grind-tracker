@@ -296,8 +296,8 @@ public sealed class RareLootRecoveryTests
 
     [Theory]
     [InlineData(7, 7, 7)]
-    [InlineData(7, 8, null)]
-    public async Task SpecialMissingQuantityRequiresTwoAgreeingSecondaryOcrViews(int first, int second, int? expected)
+    [InlineData(7, 8, 7)]
+    public async Task SpecialMissingQuantitySelectsOneUsableSecondaryReading(int first, int second, int expected)
     {
         var geometry = new CompanionOcrWordGeometry(CompanionOcrGeometryStatus.Success, 0, 30, 100, 20);
         var engine = new SecondaryReads(new([new(Material + " x" + first, .99f, geometry),
@@ -313,8 +313,7 @@ public sealed class RareLootRecoveryTests
         var diagnostic = Assert.Single(result.RowReviews);
         Assert.Equal(LootSource.Rare, diagnostic.Source);
         Assert.Equal(2, diagnostic.Readings.Count);
-        if (expected is null) Assert.Empty(result.LootProjection!.Totals);
-        else Assert.Equal(expected.Value, result.LootProjection!.Totals[Material]);
+        Assert.Equal(expected, result.LootProjection!.Totals[Material]);
     }
 
     private static CompanionLootFrameAnalyzer Analyzer(Reads reads,

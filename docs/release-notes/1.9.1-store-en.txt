@@ -1,0 +1,4 @@
+What's new in Grindcrest 1.9.1:
+
+• More compact live session header: The extra title and status row is hidden, leaving more room for the session. The title and status remain accessible to screen readers.
+• Fixed a visual issue at the bottom of the header: Removed the thin strip of background artwork extending beyond the shaded area.

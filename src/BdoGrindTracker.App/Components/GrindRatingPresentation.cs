@@ -10,6 +10,7 @@ internal sealed class GrindRatingPresentation(GrindRatingResult result, bool dif
     private string T(string text) => AppText.Translate(text, language);
     private string F(string text, params object[] args) => AppText.Format(text, language, args);
     internal GrindRatingResult Result => result;
+    internal GrindRatingSpectrum? Spectrum => GrindRatingSpectrum.Create(result, language);
     internal string Label => result.Tier switch
     {
         GrindRatingTier.BelowAverage => T("Unter Average"),

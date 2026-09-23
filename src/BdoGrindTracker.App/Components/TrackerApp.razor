@@ -84,7 +84,7 @@
         get
         {
             var path = Navigation.ToBaseRelativePath(Navigation.Uri).Split('?', '#')[0].TrimEnd('/');
-            return path == "setup" ? Page.Setup : path == "grind-goals" ? Page.Goals : path == "settings" ? Page.Settings : path == "overlay" ? Page.Overlay : path == "garmoth" ? Page.Garmoth : path == "history" || path.StartsWith("history/", StringComparison.Ordinal) ? Page.History : Page.Live;
+            return path == "setup" ? Page.Setup : path == "grind-goals" ? Page.Goals : path == "settings" || path.StartsWith("settings/", StringComparison.Ordinal) ? Page.Settings : path == "overlay" ? Page.Overlay : path == "garmoth" ? Page.Garmoth : path == "history" || path.StartsWith("history/", StringComparison.Ordinal) ? Page.History : Page.Live;
         }
     }
     protected override void OnInitialized()

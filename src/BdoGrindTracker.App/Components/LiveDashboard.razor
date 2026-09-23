@@ -12,7 +12,7 @@
     <section class="live-session-header" style="@HeroStyle" aria-labelledby="live-session-title">
         <div class="live-header-main">
             <div class="live-session-context">
-                <div class="live-session-title-row">
+                <div class="sr-only">
                     <h1 id="live-session-title">@T("Live-Session")</h1>
                     <span class="live-session-status"><span class="status-dot @(State.IsError ? "error" : State.IsRunning ? "running" : "")"></span>@SessionStatus</span>
                 </div>
@@ -116,12 +116,30 @@
     <div class="live-content-grid">
         <LootTable Title="Drops" Subtitle="" Totals="State.Loot.Totals" DurationTicks="State.Elapsed.Ticks" TrashName="@CurrentProfile?.TrashItemName" EditableSessionId="State.SessionId" AllowAddingItems="true" ShowLastDrop="true" SpotId="@State.SpotId" />
         <div class="session-aside">
+            @{ var rating = SessionMetrics.GrindRating; }
+            <section class="panel grind-rating-panel" aria-labelledby="grind-rating-title" title="@rating.Description">
+                <div class="panel-heading"><h2 id="grind-rating-title">@T("Grind-Bewertung")</h2><AppIcon Name="trend" /></div>
+                <div class="grind-rating-heading">
+                    <strong class="grind-rating-value @rating.ToneClass"><span class="grind-rating-label">@rating.Label</span></strong>
+                    @if (rating.Detail is { } detail) { <span class="grind-rating-status">@detail</span> }
+                </div>
+                @if (rating.Spectrum is { } spectrum)
+                {
+                    <div class="grind-rating-hourly">@spectrum.TrashHourly</div>
+                    <GrindRatingScale Value="spectrum" />
+                    <div class="grind-rating-progress">@spectrum.ProgressLabel</div>
+                    <div class="grind-rating-gap">@spectrum.GapLabel</div>
+                }
+                else
+                {
+                    <p class="grind-rating-empty">@T("Keine Bewertung verfügbar.")</p>
+                }
+            </section>
             <section class="panel session-summary">
                 <div class="panel-heading"><h2>@T("Session-Details")</h2><AppIcon Name="live" /></div>
                 <dl class="detail-list">
                     <div><dt>@T("Bestätigte Drops")</dt><dd>@Number(State.Loot.ConfirmedEventCount)</dd></div>
                     <div><dt>@T("Verschiedene Items")</dt><dd>@State.Loot.ItemTypeCount</dd></div>
-                    <div><dt>@T("Grind-Bewertung")</dt><dd class="grind-rating-value @SessionMetrics.GrindRating.ToneClass" title="@SessionMetrics.GrindRating.Description"><span class="grind-rating-label">@SessionMetrics.GrindRating.Label</span>@if (SessionMetrics.GrindRating.Detail is { } detail) { <small>@detail</small> }</dd></div>
                     <div><dt>@T("Bruttowert")</dt><dd>@(CanShowSilver ? Silver(State.Silver.BeforeTax) : "—")@(!State.Silver.IsComplete ? " *" : "")</dd></div>
                     <div><dt>@T("Markterlös")</dt><dd>@Tracker.Preferences.Tax.MarketReturnRate.ToString("P2", UiCulture)</dd></div>
                     <div><dt>Loot-Scroll</dt><dd class="@(SessionMetrics.LootScrollWarning ? "gold" : null)">@SessionMetrics.LootScroll</dd></div>
@@ -154,7 +172,7 @@
     private CombatStatsState? FreshCombatStats => CombatStatsSpotRules.ForSpot(State.CombatStats, State.SpotId);
     private CombatStatsState? DisplayCombatStats => FreshCombatStats ?? CombatStatsSpotRules.ForSpot(State.SessionCombatStats, State.SpotId);
     private Task AutoStartChanged(bool enabled) => SavePreferenceChange(p => p with { AutoStartGrinding = enabled });
-    private void OpenSettings() => Navigation.NavigateTo("/settings");
+    private void OpenSettings() => Navigation.NavigateTo("/settings/capture");
     private bool _recheckingOcrLanguage;
     private bool OcrActionDisabled => Acting || State.IsBusy || State.IsRunning || State.IsInstallingOcrLanguage || State.IsOcrInstallerRunning;
     private bool OcrRecheckDisabled => _recheckingOcrLanguage || State.IsRunning || (!State.IsInstallingOcrLanguage && (Acting || State.IsBusy));

@@ -214,7 +214,7 @@ public sealed class StoreUpdateDialogTests
             if (hasGlobalPrompt) banner.ShowStoreUpdateDialog = EventCallback.Factory.Create(this, () => openings++);
             await Invoke(banner, "ViewUpdate");
             Assert.Equal(hasGlobalPrompt ? 1 : 0, openings);
-            Assert.Equal(hasGlobalPrompt ? "https://0.0.0.1/" : "https://0.0.0.1/settings", navigation.Uri);
+            Assert.Equal(hasGlobalPrompt ? "https://0.0.0.1/" : "https://0.0.0.1/settings/updates", navigation.Uri);
         }, new Dictionary<string, object?> { [nameof(AppUpdates.Compact)] = true });
     }
 

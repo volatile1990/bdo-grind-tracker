@@ -30,10 +30,8 @@ public sealed class BuffMonitorLedgerRecoveryTests
         Deliver(0);
         await Scan(10, Both(8));
         var initial = Deliver(10);
-        Assert.Equal(2, initial.Consumptions.Count);
-        Assert.All(initial.Consumptions, item => Assert.True(item.IsSessionStart));
+        Assert.Empty(initial.Consumptions);
         Assert.Equal(TimeSpan.FromSeconds(10), Usage(initial, TenacityId).ObservedDuration);
-        var initialHarmony = Assert.Single(initial.Consumptions, item => item.BuffId == HarmonyId);
         monitor.Snapshot(Start.AddSeconds(10), out var initialGeneration);
 
         await Scan(20, new([Observation(HarmonyId, 19)])
@@ -42,16 +40,16 @@ public sealed class BuffMonitorLedgerRecoveryTests
         {
             var gap = Deliver(20, expectTenacityGap: true);
             Assert.Equal(HarmonyId, Assert.Single(gap.Active).BuffId);
-            Assert.Equal(2, gap.Consumptions.Count);
+            Assert.Empty(gap.Consumptions);
             Assert.Equal(TimeSpan.FromSeconds(10), Usage(gap, TenacityId).ObservedDuration);
         }
 
-        // A new price belongs to the newly observed cycle; the old startup
-        // purchase and usage remain unchanged across the unreadable frame.
+        // A new price belongs to the newly observed cycle; baseline usage
+        // remains unchanged across the unreadable frame.
         perfumePrice = 2_400_000m;
         await Scan(30, Both(19));
         var renewed = Deliver(30, expectTenacityGap: recoveredBeforeDelivery);
-        Assert.Equal(3, renewed.Consumptions.Count);
+        Assert.Single(renewed.Consumptions);
         Assert.Equal(2, renewed.Active.Count);
         Assert.Equal(TimeSpan.FromSeconds(10), Usage(renewed, TenacityId).ObservedDuration);
         var renewal = Assert.Single(renewed.Consumptions, item => !item.IsSessionStart);
@@ -68,11 +66,11 @@ public sealed class BuffMonitorLedgerRecoveryTests
         await Scan(50, Both(19));
         var result = Deliver(50);
         Assert.Equal(confirmed.Consumptions, result.Consumptions);
-        Assert.Equal(initialHarmony, Assert.Single(result.Consumptions, item => item.BuffId == HarmonyId));
+        Assert.DoesNotContain(result.Consumptions, item => item.BuffId == HarmonyId);
         Assert.Equal(TimeSpan.FromSeconds(50), Usage(result, HarmonyId).ObservedDuration);
         Assert.Equal(TimeSpan.FromSeconds(30), Usage(result, TenacityId).ObservedDuration);
         Assert.Equal(45_000m, Usage(result, TenacityId).KnownProratedCost);
-        Assert.Equal(4_200_000m, result.ConsumedCost);
+        Assert.Equal(2_400_000m, result.ConsumedCost);
         monitor.Snapshot(Start.AddSeconds(50), out var finalGeneration);
         Assert.Equal(initialGeneration, finalGeneration);
 
@@ -112,13 +110,13 @@ public sealed class BuffMonitorLedgerRecoveryTests
         Deliver(0);
         await Scan(10, Timers(8));
         var initial = Deliver(10);
-        Assert.Equal(2, initial.Consumptions.Count);
-        Assert.All(initial.Consumptions, item => Assert.True(item.IsSessionStart));
+        Assert.Empty(initial.Consumptions);
         var initialGeneration = observedGeneration;
 
         await Scan(20, emptyReading ? new BuffFrameReading([]) : null);
         var missing = Deliver(20);
-        Assert.True(observedGeneration > initialGeneration);
+        if (emptyReading) Assert.Equal(initialGeneration, observedGeneration);
+        else Assert.True(observedGeneration > initialGeneration);
         Assert.Empty(missing.Active);
         Assert.Equal(initial.Consumptions, missing.Consumptions);
         Assert.All(missing.Usage, item => Assert.Equal(TimeSpan.FromSeconds(10), item.ObservedDuration));
@@ -127,14 +125,14 @@ public sealed class BuffMonitorLedgerRecoveryTests
         // A monitor generation change interrupts usage, not the last timer value.
         await Scan(140, Timers(19));
         var renewed = Deliver(140);
-        Assert.Equal(4, renewed.Consumptions.Count);
+        Assert.Equal(2, renewed.Consumptions.Count);
         Assert.Equal(2, renewed.Active.Count);
         var renewals = renewed.Consumptions.Where(item => !item.IsSessionStart).ToArray();
         Assert.Equal(2, renewals.Length);
         Assert.Equal(new[] { HarmonyId, TenacityId }, renewals.Select(item => item.BuffId));
         Assert.All(renewals, item => Assert.Equal(Start.AddSeconds(140), item.ConsumedAt));
         Assert.All(renewed.Usage, item => Assert.Equal(TimeSpan.FromSeconds(10), item.ObservedDuration));
-        Assert.Equal(3_600_000m, renewed.ConsumedCost);
+        Assert.Equal(1_800_000m, renewed.ConsumedCost);
         Assert.Equal(renewed.Consumptions, Deliver(140).Consumptions);
 
         await Scan(150, Timers(19));

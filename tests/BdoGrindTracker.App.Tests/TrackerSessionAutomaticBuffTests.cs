@@ -42,13 +42,13 @@ public sealed partial class TrackerSessionServiceTests
     [InlineData(true)]
     public async Task IgnoredLegacyProfileSavePreservesExistingBuffBookingsAndCountdown(bool invalidPath)
     {
-        BuffFrameReading? reading = BuffReading(600);
+        BuffFrameReading? reading = BuffReading(60);
         var monitor = new BuffMonitor(new SessionBuffReader(() => reading), TimeSpan.FromSeconds(1));
         await using var fixture = new Fixture(autoUpload: false, buffMonitor: monitor, lootScrollVisible: _ => true);
         BeginBuffSession(fixture);
         var now = DateTimeOffset.UtcNow;
         await ProcessBuffFrame(fixture, monitor, now.AddSeconds(-4));
-        reading = BuffReading(599);
+        reading = BuffReading(1200);
         await ProcessBuffFrame(fixture, monitor, now.AddSeconds(-3));
         var before = Assert.IsType<BuffLedgerSnapshot>(fixture.Service.State.Buffs);
         Assert.Single(before.Consumptions);
@@ -69,12 +69,12 @@ public sealed partial class TrackerSessionServiceTests
         Assert.Equal(before.Usage, fixture.Service.State.Buffs.Usage);
         Assert.Equal(before.Active, fixture.Service.State.Buffs.Active);
 
-        reading = BuffReading(598);
+        reading = BuffReading(1199);
         await ProcessBuffFrame(fixture, monitor, now.AddSeconds(-2));
         var continued = fixture.Service.State.Buffs!;
         Assert.Equal(before.Consumptions, continued.Consumptions);
         Assert.Equal(1_200_000m, continued.ConsumedCost);
-        Assert.Equal(TimeSpan.FromSeconds(2), Assert.Single(continued.Usage).ObservedDuration);
+        Assert.Equal(TimeSpan.FromSeconds(1), Assert.Single(continued.Usage).ObservedDuration);
         Assert.True((await fixture.Service.PauseAsync()).Succeeded);
         Assert.Equal(before.Consumptions, Assert.Single(fixture.HistoryStore.Load()).Buffs!.Consumptions);
     }

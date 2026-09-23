@@ -27,7 +27,7 @@ internal static partial class AppText
         text["Bildschirm 1 · 3840 × 2160 · Hauptbildschirm"] = "Display 1 · 3840 × 2160 · Primary display";
         text["Bildschirm 2 · 2560 × 1440"] = "Display 2 · 2560 × 1440";
         text["Bitte die laufende Session zuerst pausieren."] = "Please pause the current session first.";
-        text["Neue Session angelegt. Die Diagnose-Aufzeichnung ist ausgeschaltet."] = "New session created. Diagnostic recording is off.";
+        text["Neue Session angelegt. Die manuelle Diagnose-Aufzeichnung ist ausgeschaltet."] = "New session created. Manual diagnostic recording is off.";
         text["Demostunde: nicht gespeicherte Beispieldaten. Tracking starten beendet die Demo."] = "Demo hour: unsaved sample data. Starting tracking ends the demo.";
         text["Kein Spielmonitor verfügbar."] = "No game display available.";
         text["Tracking-Start abgebrochen. Deine Session bleibt unverändert."] = "Tracking start cancelled. Your session is unchanged.";
@@ -58,6 +58,7 @@ internal static partial class AppText
         text["Die Klasse einer bereits übertragenen Session kann nicht mehr geändert werden."] = "The class of an uploaded session can no longer be changed.";
         text["Bitte die Session pausieren, bevor du die Klasse änderst."] = "Please pause the session before changing the class.";
         text["Auto-Pause muss zwischen 1 und 60 Minuten liegen."] = "Auto-pause must be between 1 and 60 minutes.";
+        text["Die Aufbewahrungsdauer für Debuglogs muss zwischen 1 und 168 Stunden liegen."] = "Debug log retention must be between 1 and 168 hours.";
         text["Die ausgewählte Charakterklasse ist nicht bekannt."] = "The selected character class is unknown.";
         text["Der ausgewählte Monitor ist nicht mehr verfügbar."] = "The selected display is no longer available.";
         text["Der Garmoth-Key darf keine Leerzeichen enthalten und muss ein gültiger API-Key sein."] = "The Garmoth key must be a valid API key without spaces.";

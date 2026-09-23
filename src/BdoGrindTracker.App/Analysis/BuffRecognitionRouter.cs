@@ -21,5 +21,7 @@ internal sealed class BuffRecognitionRouter(Func<bool> useProfile, IBuffFrameRea
         return result;
     }
 
+    public void Reset() { automatic.Reset(); calibrated.Reset(); }
+
     public void Dispose() { automatic.Dispose(); calibrated.Dispose(); }
 }

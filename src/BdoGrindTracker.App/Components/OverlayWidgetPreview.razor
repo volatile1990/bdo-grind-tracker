@@ -71,6 +71,19 @@
         </div>
         <span class="overlay-widget-detail" data-overlay-fit>@Snapshot.DailyGoal.Detail</span>
     }
+    else if (Widget.Kind == "grind-rating" && Metric.Spectrum is { } spectrum)
+    {
+        <strong class="overlay-widget-value overlay-grind-progress" data-overlay-fit title="@Metric.Value">
+            @if (!Widget.ShowLabel && Widget.ShowIcon) { <AppIcon Name="trend" /> }
+            <span class="overlay-value-text">@spectrum.ProgressLabel</span>
+        </strong>
+        <GrindRatingScale Value="spectrum" Compact="true" />
+        <span class="overlay-widget-detail overlay-grind-gap" data-overlay-fit>@spectrum.GapLabel</span>
+        @if (Metric.Detail is { } ratingDetail)
+        {
+            <span class="overlay-widget-detail overlay-grind-status" data-overlay-fit>@T(ratingDetail)</span>
+        }
+    }
     else if (Widget.Kind == "controls")
     {
         <button type="button" class="overlay-tracking-button" data-overlay-fit disabled="@(!Interactive || !Snapshot.CanToggleTracking)"

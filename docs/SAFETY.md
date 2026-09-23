@@ -10,6 +10,9 @@ Die Produkt-App liest nur:
   `Resource.ini` zur automatischen Erkennung der Textsprache;
 - die für die Companion-Kalibrierung nötigen `gamevariable.xml`-Dateien unter
   `Documents/Black Desert/UserCache`;
+- Dateinamen und Schreibzeiten der Dateien unter
+  `<BDO-Installation>/Cache/<Welt>/MyJournal`, um nach einem Charakterwechsel
+  die richtige gespeicherte Skillbelegung zuzuordnen; keine Journalinhalte;
 - den lokalen Itemkatalog und optionale Darstellungsicons aus dem App-Verzeichnis.
 
 Aufnahme und optionales Ingame-Overlay ordnen Windows-Fenster anhand ihrer
@@ -21,6 +24,10 @@ liest dabei keine Spielprozess-Speicherbereiche oder geladenen Spielmodule.
 Für die passive Klassenerkennung werden aus derselben gespeicherten
 `gameVariable.xml` ausschließlich die Skill-IDs der Quickslots/Cooldown-Slots
 ausgewertet. Es gibt keine Spielbedienung oder Klassenerkennung über Prozessdaten.
+Der Journal-Dateiname verbindet die jüngste Einloggaktivität mit dem passenden
+Charakterordner desselben UserCache-Profils und derselben Welt. Pfade und
+Charakterkennungen bleiben lokal und werden nicht in der Oberfläche oder in
+Uploads ausgegeben.
 
 Der aus der untersuchten Companion-0.7.4-EXE rekonstruierte Ziffernkatalog ist als
 unveränderliche PNG-Nutzlast in der OCR-Assembly eingebettet und wird nicht aus einem

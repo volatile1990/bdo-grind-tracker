@@ -81,7 +81,7 @@ internal sealed class PreviewTrackerSession : ITrackerSession
             Status = "Vorschau · Beispieldaten werden weder aufgezeichnet noch hochgeladen.", PriceStatus = "EU · NPC- und Festwerte"
         });
     }
-    private void Change(TrackerState state)
+    private void Change(TrackerState state, bool manualCorrection = false)
     {
         // Keep a filtered-out selection through unrelated preview updates, but
         // never carry it across pause, reset or a new incomplete observation.
@@ -96,7 +96,7 @@ internal sealed class PreviewTrackerSession : ITrackerSession
                 : "Vorschau · Automatische Grinderkennung wird nur simuliert.",
             GrindBenchmark = GarmothGrindBenchmarks.Find(state.SpotId),
             GameLanguageStatus = "Vorschau: Englisch · keine BDO-Konfiguration gelesen" };
-        State = State with { SilverHistory = _silverHistory.Update(State), DropHistory = _dropHistory.Update(State) };
+        State = State with { SilverHistory = _silverHistory.Update(State), DropHistory = _dropHistory.Update(State, manualCorrection: manualCorrection) };
         Changed?.Invoke();
     }
     public Task<TrackerCommandResult> ToggleTrackingAsync()
@@ -120,6 +120,8 @@ internal sealed class PreviewTrackerSession : ITrackerSession
             return Task.FromResult(new PreferenceSaveResult("Bitte wähle ein bekanntes Theme aus der Liste."));
         if (preferences.OverlayThemeId is not null && !AppThemes.IsKnown(preferences.OverlayThemeId))
             return Task.FromResult(new PreferenceSaveResult("Bitte wähle ein bekanntes Overlay-Theme oder „Wie Hauptfenster“."));
+        if (preferences.DebugLogRetentionHours is < AppSettings.MinimumDebugLogRetentionHours or > AppSettings.MaximumDebugLogRetentionHours)
+            return Task.FromResult(new PreferenceSaveResult("Die Aufbewahrungsdauer für Debuglogs muss zwischen 1 und 168 Stunden liegen."));
         var hasApiKey = apiKey is null ? State.HasApiKey : !string.IsNullOrWhiteSpace(apiKey);
         Preferences = preferences with { AutoUpload = preferences.AutoUpload && hasApiKey, BuffRecognitionProfilePath = null };
         Prices = LootPriceCatalog.FixedSnapshot(preferences.MarketRegion);
@@ -162,7 +164,7 @@ internal sealed class PreviewTrackerSession : ITrackerSession
             ManualLootItems = Array.AsReadOnly(State.ManualLootItems.Append(itemName).Distinct(StringComparer.OrdinalIgnoreCase).ToArray()),
             Silver = SilverValuation.Calculate(totals, Prices, Preferences.Tax),
             Status = "Vorschau · Lootmenge nur im Arbeitsspeicher korrigiert.",
-        });
+        }, manualCorrection: true);
         return Task.FromResult(TrackerCommandResult.Success);
     }
     public Task<TrackerCommandResult> DeleteHistoryAsync(Guid sessionId) { _history.RemoveAll(entry => entry.SessionId == sessionId); Changed?.Invoke(); return Task.FromResult(TrackerCommandResult.Success); }

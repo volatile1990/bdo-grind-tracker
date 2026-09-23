@@ -22,6 +22,8 @@ internal sealed record LootRowReviewReading(string Variant, string Text, double 
     string? ItemName, int? Quantity)
 {
     public double? QuantityConfidence { get; init; }
+    public double? NameConfidence { get; init; }
+    public string? Error { get; init; }
 }
 
 internal sealed record LootRowReviewDiagnostics(LootSource Source, int NativeY, string Reason,
@@ -52,6 +54,7 @@ internal sealed class BackgroundLootRowReview : ILootRowReview
     internal const float TrustedTemplateScore = .90f;
     internal const double MinimumReadingConfidence = .95;
     internal const float MinimumQuantityReplacementConfidence = .90f;
+    internal const string UnconfirmedRareReason = LootObservation.RarePaddleUnconfirmedReason;
     internal static readonly TimeSpan RowBudget = TimeSpan.FromSeconds(2);
     private readonly CompanionItemMatcher _matcher;
     private readonly Func<string, ISecondaryLootOcrRecognizer> _createRecognizer;
@@ -87,6 +90,7 @@ internal sealed class BackgroundLootRowReview : ILootRowReview
 
     internal static string? ReviewReason(LootRowReviewInput input)
     {
+        if (input.Source == LootSource.Rare) return "rare-ocr-review";
         var row = input.Baseline;
         if (input.ReviewMissingAlignmentAnchor)
             return input.Source == LootSource.Normal && row is null ? "missing-alignment-anchor" : null;
@@ -130,7 +134,7 @@ internal sealed class BackgroundLootRowReview : ILootRowReview
         if (reason is null) return new(input.Baseline, null);
         // Empty/background OCR is not evidence of an uncertain drop. Retry only
         // text which the first pass already relates to an item in the catalog.
-        if (input.Baseline is { ItemName: null } unidentified)
+        if (input.Source != LootSource.Rare && input.Baseline is { ItemName: null } unidentified)
         {
             var text = CompanionTextPipeline.Process(unidentified.RawText, -1, input.Source == LootSource.Rare, 0);
             if (!_matcher.TryMatch(text.Name, -1, input.Source == LootSource.Rare, out var hint) ||
@@ -166,10 +170,20 @@ internal sealed class BackgroundLootRowReview : ILootRowReview
         var readings = new List<LootRowReviewReading>(2);
         var candidates = new List<Candidate>(2);
         var errors = 0;
+        var isRare = input.Source == LootSource.Rare;
+        var reviewMissingAnchor = input.Source == LootSource.Normal && input.ReviewMissingAlignmentAnchor;
+        // The rare banner includes decorative borders. Locate its text vertically
+        // using this frame's primary OCR boxes before Paddle normalizes to 48px.
+        // Keep the full width so enhancement prefixes and quantities stay visible.
+        var rareReading = isRare ? input.PrimaryQuantityReads
+            .Where(read => read.NameScale == 1 && read.NormalizedNameTop == 0 && read.Reading.Words.Count > 0)
+            .OrderByDescending(read => read.Reading.Text == input.Baseline?.RawText)
+            .Select(read => read.Reading).FirstOrDefault() : null;
         ISecondaryLootOcrRecognizer? engine = null;
         var backend = "paddle-pp-ocrv6-small-onnx";
         try
         {
+            if (source.Empty()) return Finish(input.Baseline, "no-image-information");
             Cv2.MeanStdDev(source, out _, out Scalar deviation);
             if (deviation.Val0 == 0 && deviation.Val1 == 0 && deviation.Val2 == 0)
                 return Finish(input.Baseline, "no-image-information");
@@ -181,37 +195,56 @@ internal sealed class BackgroundLootRowReview : ILootRowReview
             {
                 token.ThrowIfCancellationRequested();
                 if (timer.Elapsed >= RowBudget) break;
-                using var image = PaddleLootRowPreprocessor.Prepare(source, input.UiScale,
-                    input.Source == LootSource.Rare, grayscale);
-                var read = engine.Recognize(image, token);
-                var suffix = System.Text.RegularExpressions.Regex.Match(read.Text, @"[xX×]\s*([0-9]{1,9})\s*\.?$");
-                int? quantity = suffix.Success ? int.Parse(suffix.Groups[1].Value,
-                    System.Globalization.CultureInfo.InvariantCulture) : null;
-                var quantityConfidence = suffix.Success
-                    ? ReadQuantityConfidence(read, suffix.Groups[1].Index, suffix.Groups[1].Length) : null;
-                var name = suffix.Success ? read.Text[..suffix.Index].TrimEnd(' ', '-', '\'', '’') : read.Text;
-                var candidate = Match(name, quantity, read.Confidence);
-                if (candidate is not null)
+                try
                 {
-                    // A long, confidently read item name can hide a weak extra digit
-                    // in the whole-row mean. Overwriting an existing amount needs
-                    // reliable digits; filling a missing amount keeps its usual rules.
-                    if (input.Baseline is { ItemName: not null, RejectionReason: null, Quantity: > 0 } existing &&
-                        candidate.Name == existing.ItemName && candidate.Quantity != existing.Quantity &&
-                        candidate.Bounds?.IsFixedUnit != true &&
-                        quantityConfidence < MinimumQuantityReplacementConfidence)
-                        candidate = candidate with { Quantity = null };
-                    candidate = candidate with
+                    using var image = PaddleLootRowPreprocessor.Prepare(source, input.UiScale,
+                        input.Source == LootSource.Rare, grayscale, rareReading?.Words);
+                    var read = engine.Recognize(image, token);
+                    var suffix = System.Text.RegularExpressions.Regex.Match(read.Text, @"[xX×]\s*([0-9]{1,9})\s*\.?$");
+                    int? quantity = suffix.Success ? int.Parse(suffix.Groups[1].Value,
+                        System.Globalization.CultureInfo.InvariantCulture) : null;
+                    var quantityConfidence = suffix.Success
+                        ? ReadQuantityConfidence(read, suffix.Groups[1].Index, suffix.Groups[1].Length) : null;
+                    var name = suffix.Success ? read.Text[..suffix.Index].TrimEnd(' ', '-', '\'', '’') : read.Text;
+                    var candidate = Match(name, quantity, read.Confidence);
+                    if (candidate is not null)
                     {
-                        QuantityConfidence = candidate.Bounds?.IsFixedUnit == true ? candidate.Confidence
-                            : Math.Min(candidate.Confidence, quantityConfidence ?? candidate.Confidence),
-                    };
+                        // A standalone rare candidate must have reliable digits,
+                        // even when there is no existing amount to compare with.
+                        if (isRare && candidate.Bounds?.IsFixedUnit != true &&
+                            quantityConfidence is not null && quantityConfidence < MinimumQuantityReplacementConfidence)
+                            candidate = candidate with { Quantity = null };
+                        // A long, confidently read item name can hide a weak extra digit
+                        // in the whole-row mean. Overwriting an existing amount needs
+                        // reliable digits; filling a missing amount keeps its usual rules.
+                        if (input.Baseline is { ItemName: not null, RejectionReason: null, Quantity: > 0 } existing &&
+                            candidate.Name == existing.ItemName && candidate.Quantity != existing.Quantity &&
+                            candidate.Bounds?.IsFixedUnit != true &&
+                            quantityConfidence < MinimumQuantityReplacementConfidence)
+                            candidate = candidate with { Quantity = null };
+                        candidate = candidate with
+                        {
+                            QuantityConfidence = candidate.Bounds?.IsFixedUnit == true ? candidate.Confidence
+                                : Math.Min(candidate.Confidence, quantityConfidence ?? candidate.Confidence),
+                        };
+                    }
+                    readings.Add(new(grayscale ? "grayscale" : "original", read.Text,
+                        float.IsFinite(read.Confidence) ? Math.Clamp(read.Confidence, 0, 1) : 0,
+                        candidate?.Name, candidate?.Quantity)
+                    { QuantityConfidence = quantityConfidence, NameConfidence = candidate?.NameConfidence });
+                    if (candidate is not null) candidates.Add(candidate);
                 }
-                readings.Add(new(grayscale ? "grayscale" : "original", read.Text,
-                    float.IsFinite(read.Confidence) ? Math.Clamp(read.Confidence, 0, 1) : 0,
-                    candidate?.Name, candidate?.Quantity) { QuantityConfidence = quantityConfidence });
-                if (candidate is not null) candidates.Add(candidate);
+                catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
+                catch (Exception exception) when (exception is not OutOfMemoryException)
+                {
+                    errors++;
+                    readings.Add(new(grayscale ? "grayscale" : "original", "", 0, null, null)
+                    { Error = exception.GetType().Name });
+                }
             }
+            // Rare readings compete independently. A failed view cannot veto a
+            // good primary read or the other Paddle view.
+            if (isRare) return Finish(input.Baseline, "rare-ocr-review");
             // Both views must establish the same catalog item. An OCR engine score alone
             // is insufficient to turn scenery or another item into a new observation.
             if (candidates.Count != 2 || candidates[0].Name != candidates[1].Name)
@@ -228,7 +261,8 @@ internal sealed class BackgroundLootRowReview : ILootRowReview
                     readings[0].Quantity != readings[1].Quantity)
                     return Finish(baseline, "anomaly-no-quantity-consensus");
                 var correction = readings[0].Quantity!.Value;
-                if (correction == baseline.Quantity) return Finish(baseline, "baseline-confirmed");
+                if (correction == baseline.Quantity)
+                    return Finish(baseline, "baseline-confirmed");
                 if (!_matcher.TryMatch(baseline.ItemName!, correction, false, out var correctedMatch) ||
                     correctedMatch?.CanonicalName != baseline.ItemName)
                     return Finish(baseline, "anomaly-quantity-filtered");
@@ -244,7 +278,7 @@ internal sealed class BackgroundLootRowReview : ILootRowReview
                     UsesFixedUnitQuantity = false,
                 }, "anomaly-quantity-corrected");
             }
-            if (input.ReviewMissingAlignmentAnchor &&
+            if (reviewMissingAnchor &&
                 (readings.Any(r => r.Quantity is not > 0) || readings[0].Quantity != readings[1].Quantity ||
                  winner.Bounds is { } anchorBounds && (readings[0].Quantity < anchorBounds.Minimum ||
                      readings[0].Quantity > anchorBounds.Maximum)))
@@ -273,14 +307,19 @@ internal sealed class BackgroundLootRowReview : ILootRowReview
             {
                 RawText = readings.FirstOrDefault(r => r.Quantity == amount || winner.Bounds?.IsFixedUnit == true)?.Text
                     ?? baseline?.RawText ?? readings[0].Text,
-                ItemName = winner.Name, Quantity = amount, RejectionReason = null,
+                ItemName = winner.Name,
+                Quantity = amount,
+                RejectionReason = null,
                 NameConfidence = Math.Min(candidates[0].NameConfidence, candidates[1].NameConfidence),
                 QuantityConfidence = candidates.Where(candidate => candidate.Quantity == amount)
                     .Select(candidate => candidate.QuantityConfidence).DefaultIfEmpty(baseline?.QuantityConfidence ?? 0).Min(),
-                QuantityBounds = winner.Bounds, UsesImplicitUnitQuantity = false,
+                QuantityBounds = winner.Bounds,
+                UsesImplicitUnitQuantity = false,
                 UsesFixedUnitQuantity = winner.Bounds?.IsFixedUnit == true,
-                Source = input.Source, Slot = input.Slot, NativeY = input.NativeY,
-                IsAlignmentAnchor = input.ReviewMissingAlignmentAnchor,
+                Source = input.Source,
+                Slot = input.Slot,
+                NativeY = input.NativeY,
+                IsAlignmentAnchor = reviewMissingAnchor,
             };
             if (baseline is not null && baseline.ItemName == revised.ItemName && baseline.Quantity == revised.Quantity &&
                 baseline.RejectionReason == revised.RejectionReason)
@@ -291,7 +330,7 @@ internal sealed class BackgroundLootRowReview : ILootRowReview
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
             errors++;
-            // A broken optional model must never delete otherwise usable primary loot.
+            // Preserve usable results even if another engine cannot run.
             return Finish(input.Baseline, "review-error:" + exception.GetType().Name);
         }
         finally
@@ -305,14 +344,101 @@ internal sealed class BackgroundLootRowReview : ILootRowReview
                 !_matcher.TryMatch(name.Trim(), -1, input.Source == LootSource.Rare, out var match) ||
                 match is null || match.NormalizedDistance > .05 || !input.Allows(match.CanonicalName)) return null;
             var bounds = input.Bounds(match.CanonicalName);
-            return new(match.CanonicalName, bounds?.IsFixedUnit == true && !input.ReviewMissingAlignmentAnchor ? 1 : quantity,
+            return new(match.CanonicalName, bounds?.IsFixedUnit == true && !reviewMissingAnchor ? 1 : quantity,
                 1 - match.NormalizedDistance, confidence, bounds);
         }
 
-        LootRowReviewResult Finish(LootObservation? observation, string outcome) => new(observation,
-            new(input.Source, input.NativeY, reason, backend, _language, outcome,
-                timer.Elapsed.TotalMilliseconds, input.Baseline, observation, readings.ToArray(), errors)
+        LootRowReviewResult Finish(LootObservation? observation, string outcome)
+        {
+            if (isRare)
+            {
+                var choices = new List<RareCandidate>();
+                if (input.Baseline is { ItemName: not null, RejectionReason: null, Quantity: > 0 } primary &&
+                    double.IsFinite(primary.NameConfidence) && primary.NameConfidence is >= NameReviewThreshold and <= 1 &&
+                    input.Allows(primary.ItemName) && IsValidAmount(primary.ItemName, primary.Quantity.Value) &&
+                    QuantityReviewReason(input, primary, input.Bounds(primary.ItemName)) is null)
+                    choices.Add(new(primary, true, primary.NameConfidence));
+                foreach (var reading in readings)
+                {
+                    if (reading is not { ItemName: not null, Quantity: > 0, NameConfidence: not null } ||
+                        !IsValidAmount(reading.ItemName, reading.Quantity.Value)) continue;
+                    var bounds = input.Bounds(reading.ItemName);
+                    if (input.Baseline is { } original && HasQuantityAnomaly(input, original) &&
+                        (reading.ItemName != original.ItemName || reading.Quantity != original.Quantity &&
+                         !input.QuantityAnomaly!.IsPlausibleCorrection(reading.Quantity.Value, bounds))) continue;
+                    var row = (input.Baseline ?? new LootObservation(input.Source, input.Slot, "", null, null, 0, 0, null, null)) with
+                    {
+                        RawText = reading.Text,
+                        ItemName = reading.ItemName,
+                        Quantity = reading.Quantity,
+                        NameConfidence = reading.NameConfidence.Value,
+                        QuantityConfidence = bounds?.IsFixedUnit == true ? reading.Confidence
+                            : Math.Min(reading.Confidence, reading.QuantityConfidence ?? reading.Confidence),
+                        RejectionReason = null,
+                        QuantityBounds = bounds,
+                        UsesImplicitUnitQuantity = false,
+                        UsesFixedUnitQuantity = bounds?.IsFixedUnit == true,
+                        Source = input.Source,
+                        Slot = input.Slot,
+                        NativeY = input.NativeY,
+                        IsAlignmentAnchor = false,
+                    };
+                    choices.Add(new(row, false, reading.Confidence));
+                }
+                // Catalog similarity is comparable across engines; their native
+                // confidence scales are not. Agreement only breaks ties, never
+                // acts as a prerequisite. Preserve primary on an otherwise equal tie.
+                var best = choices.OrderByDescending(choice => choice.Observation.NameConfidence)
+                    .ThenByDescending(choice => choices.Count(other =>
+                        other.Observation.ItemName == choice.Observation.ItemName && other.Observation.Quantity == choice.Observation.Quantity))
+                    .ThenByDescending(choice => choice.Primary)
+                    .ThenByDescending(choice => choice.RecognitionConfidence).FirstOrDefault();
+                if (best is not null)
+                {
+                    observation = best.Observation;
+                    outcome = best.Primary ? "rare-primary-selected" : "rare-secondary-selected";
+                }
+                else
+                {
+                    // A catalog-related but unreadable banner holds its existing
+                    // arrival. Unrelated scenery must allow a real absence interval.
+                    // One failed view cannot veto successful background evidence.
+                    var possiblyVisible = HasRareHint(input.Baseline?.RawText) || readings.Any(read => HasRareHint(read.Text)) ||
+                        errors > 0 && readings.All(read => read.Error is not null);
+                    observation = (input.Baseline ?? new LootObservation(input.Source, input.Slot,
+                        readings.FirstOrDefault()?.Text ?? "", null, null, 0, 0, null, null)) with
+                    {
+                        ItemName = null,
+                        Quantity = null,
+                        NameConfidence = 0,
+                        QuantityConfidence = 0,
+                        RejectionReason = possiblyVisible ? UnconfirmedRareReason : LootObservation.RareOcrNoMatchReason,
+                        QuantityBounds = null,
+                        UsesImplicitUnitQuantity = false,
+                        UsesFixedUnitQuantity = false,
+                        Source = input.Source,
+                        Slot = input.Slot,
+                        NativeY = input.NativeY,
+                        IsAlignmentAnchor = false,
+                    };
+                    outcome = "rare-no-valid-reading";
+                }
+            }
+            return new(observation,
+                new(input.Source, input.NativeY, reason, backend, _language, outcome,
+                    timer.Elapsed.TotalMilliseconds, input.Baseline, observation, readings.ToArray(), errors)
                 { QuantityAnomaly = input.QuantityAnomaly });
+        }
+
+        bool IsValidAmount(string name, int quantity) => input.Bounds(name) is not { } bounds ||
+            quantity >= bounds.Minimum && (!bounds.Maximum.HasValue || quantity <= bounds.Maximum.Value);
+
+        bool HasRareHint(string? rawText)
+        {
+            if (string.IsNullOrWhiteSpace(rawText)) return false;
+            var text = CompanionTextPipeline.Process(rawText, -1, true, 0);
+            return _matcher.TryMatch(text.Name, -1, true, out var match) && match is not null && input.Allows(match.CanonicalName);
+        }
     }
 
     private sealed record Candidate(string Name, int? Quantity, double NameConfidence,
@@ -320,6 +446,8 @@ internal sealed class BackgroundLootRowReview : ILootRowReview
     {
         public double QuantityConfidence { get; init; }
     }
+
+    private sealed record RareCandidate(LootObservation Observation, bool Primary, double RecognitionConfidence);
 
     private static double? ReadQuantityConfidence(SecondaryLootOcrResult reading, int start, int length)
     {

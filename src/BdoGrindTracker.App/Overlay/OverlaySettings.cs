@@ -92,7 +92,7 @@ public static class OverlayCatalog
         new OverlayWidgetDefinition("controls", "Tracking-Steuerung", "Grind starten, pausieren und fortsetzen", "play", 168, 56),
         new OverlayWidgetDefinition("status", "Tracking-Status", "Aktiv, pausiert oder Fehler", "live", 168, 56),
         new OverlayWidgetDefinition("loot-scroll", "Loot-Scroll", "Aktivstatus und erkannte Stufe", "loot", 168, 72),
-        new OverlayWidgetDefinition("grind-rating", "Grind-Bewertung", "Trash / Stunde im Spotvergleich", "trend", 168, 72),
+        new OverlayWidgetDefinition("grind-rating", "Grind-Bewertung", "Trash / Stunde im Spotvergleich", "trend", 220, 108),
     });
 
     public static OverlayWidgetDefinition? Find(string kind) => Widgets.FirstOrDefault(value => value.Kind ==
@@ -131,7 +131,7 @@ public static class OverlayCatalog
             Widgets = [
                 CreateWidget("rotation-monitor", 0, 0) with { Width = 696, Height = 152, ContentWidth = 600, ContentHeight = 240, ShowLabel = false, ShowIcon = false },
                 CreateWidget("duration", 696, 0) with { Width = 168, Height = 72 },
-                CreateWidget("grind-rating", 696, 72) with { Width = 168, Height = 80, ContentWidth = 168, ContentHeight = 72 },
+                CreateWidget("grind-rating", 696, 72) with { Width = 168, Height = 80, ContentWidth = 220, ContentHeight = 108 },
                 CreateWidget("experience", 864, 72) with { Width = 216, Height = 80, ContentWidth = 200, ContentHeight = 88 },
                 CreateWidget("clock", 864, 0) with { Width = 216, Height = 72, ContentWidth = 248, ContentHeight = 128, ShowLabel = false, FontScale = 1.65, ShowGameTime = false },
             ]

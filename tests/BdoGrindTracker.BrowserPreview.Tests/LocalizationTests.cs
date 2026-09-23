@@ -93,24 +93,29 @@ public sealed class LocalizationTests
         await renderer.Dispatcher.InvokeAsync(async () =>
         {
             var rendered = await renderer.RenderComponentAsync<TrackerSettings>(ParameterView.Empty);
+            var diagnostics = await renderer.RenderComponentAsync<TrackerSettings>(ParameterView.FromDictionary(
+                new Dictionary<string, object?> { [nameof(TrackerSettings.Section)] = "diagnostics" }));
             Assert.Contains("Einstellungen", rendered.ToHtmlString());
             Assert.Contains("id=\"interface-language\"", rendered.ToHtmlString());
-            Assert.Contains("Rotation-Monitor-Diagnose aufzeichnen", rendered.ToHtmlString());
+            Assert.DoesNotContain("Rotation-Monitor-Diagnose aufzeichnen", rendered.ToHtmlString());
+            Assert.Contains("Rotation-Monitor-Diagnose aufzeichnen", diagnostics.ToHtmlString());
 
             await tracker.SavePreferencesAsync(tracker.Preferences with { UiLanguage = "en" });
             var english = WebUtility.HtmlDecode(rendered.ToHtmlString());
             Assert.Contains("<h1>Settings</h1>", english);
             Assert.DoesNotContain("<h1>Einstellungen</h1>", english);
             Assert.Contains("English", english);
-            Assert.Contains("Record rotation monitor diagnostics", english);
-            Assert.Contains("Record loot diagnostics", english);
-            Assert.Contains("every 3 seconds", english);
+            var englishDiagnostics = WebUtility.HtmlDecode(diagnostics.ToHtmlString());
+            Assert.Contains("Record rotation monitor diagnostics", englishDiagnostics);
+            Assert.Contains("Record loot diagnostics", englishDiagnostics);
+            Assert.Contains("every 3 seconds", englishDiagnostics);
             Assert.DoesNotContain("Rotation-Monitor-Diagnose aufzeichnen", english);
+            Assert.DoesNotContain("Rotation-Monitor-Diagnose aufzeichnen", englishDiagnostics);
             Assert.Equal("en", services.GetRequiredService<IOverlayService>().Snapshot.UiLanguage);
 
             await tracker.SavePreferencesAsync(tracker.Preferences with { UiLanguage = "de" });
             Assert.Contains("<h1>Einstellungen</h1>", rendered.ToHtmlString());
-            Assert.Contains("Rotation-Monitor-Diagnose aufzeichnen", rendered.ToHtmlString());
+            Assert.Contains("Rotation-Monitor-Diagnose aufzeichnen", diagnostics.ToHtmlString());
         });
         Assert.Equal("en", untouched.Preferences.UiLanguage);
         Assert.Equal("auto", tracker.Preferences.GameLanguage);

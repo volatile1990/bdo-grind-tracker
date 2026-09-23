@@ -19,14 +19,13 @@ public sealed class AutomaticBuffCatalogTests
         Assert.Null(definition.MarketItemId);
         Assert.Null(definition.FixedUnitPrice);
         Assert.Empty(definition.DurationVariantIds);
-        Assert.False(definition.PreferMaximumDurationVariant);
     }
 
     [Theory]
     [InlineData("tent-body-enhancement", 5)]
     [InlineData("tent-turning-gates", 5)]
     [InlineData("tent-adventures-boon", 3)]
-    public void MaximumDurationFamiliesRetainEveryPurchaseDurationForHistory(string family, int count)
+    public void DurationFamiliesExposeEveryPurchaseDurationForRecognition(string family, int count)
     {
         var catalog = AutomaticBuffCatalog.Default;
         var template = Assert.Single(catalog.Templates, item => item.GroupId == family);
@@ -35,7 +34,6 @@ public sealed class AutomaticBuffCatalogTests
         Assert.Equal(count, definition.DurationVariantIds.Count);
         Assert.Equal(template.CandidateBuffIds.Order(), definition.DurationVariantIds.Order());
         Assert.Null(definition.FixedUnitPrice);
-        Assert.True(definition.PreferMaximumDurationVariant);
     }
 
     [Fact]
@@ -43,8 +41,6 @@ public sealed class AutomaticBuffCatalogTests
     {
         var groups = AutomaticBuffCatalog.Default.GroupDefinitions;
         Assert.All(groups.Where(item => item.Category == "Parfüms"), item => Assert.Empty(item.DurationVariantIds));
-        Assert.All(groups.Where(item => item.DurationVariantIds.Count == 0), item => Assert.False(item.PreferMaximumDurationVariant));
         Assert.Equal(3, groups.Count(item => item.DurationVariantIds.Count > 0));
-        Assert.Equal(3, groups.Count(item => item.PreferMaximumDurationVariant));
     }
 }

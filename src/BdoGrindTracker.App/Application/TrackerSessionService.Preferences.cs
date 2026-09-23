@@ -55,6 +55,8 @@ internal sealed partial class TrackerSessionService
                     : "Bitte die Session pausieren, bevor du die Klasse änderst.");
             if (preferences.AutoPauseMinutes is < AppSettings.MinimumAutoPauseMinutes or > AppSettings.MaximumAutoPauseMinutes)
                 throw new ArgumentException("Auto-Pause muss zwischen 1 und 60 Minuten liegen.");
+            if (preferences.DebugLogRetentionHours is < AppSettings.MinimumDebugLogRetentionHours or > AppSettings.MaximumDebugLogRetentionHours)
+                throw new ArgumentException("Die Aufbewahrungsdauer für Debuglogs muss zwischen 1 und 168 Stunden liegen.");
             if (preferences.CharacterClassId is { } classId && CompanionCharacterClassCatalog.FindById(classId) is null)
                 throw new ArgumentException("Die ausgewählte Charakterklasse ist nicht bekannt.");
             if (preferences.MonitorDeviceName is { } monitor && !Monitors.Any(m => m.DeviceName == monitor))
@@ -83,6 +85,8 @@ internal sealed partial class TrackerSessionService
             _garmothApiKey = nextKey;
             var regionChanged = region != Preferences.MarketRegion;
             var previousCaptureConfiguration = Preferences.CaptureConfigurationPath;
+            var previousDebugLogging = Preferences.AutomaticDebugLogging;
+            var previousDebugHours = Preferences.DebugLogRetentionHours;
             var wasAutoStartEnabled = Preferences.AutoStartGrinding;
             _settingsChangesPending = true;
             // Setup completion is published only after its setting is durable.
@@ -103,8 +107,15 @@ internal sealed partial class TrackerSessionService
             if (!TrySaveSettings(preferences.SetupCompleted))
             {
                 // A failed save must not silently switch the capture source for this run.
-                Preferences = Preferences with { CaptureConfigurationPath = previousCaptureConfiguration };
+                Preferences = Preferences with
+                {
+                    CaptureConfigurationPath = previousCaptureConfiguration,
+                    AutomaticDebugLogging = previousDebugLogging,
+                    DebugLogRetentionHours = previousDebugHours,
+                };
                 _settings.CaptureConfigurationPath = previousCaptureConfiguration;
+                _settings.AutomaticDebugLogging = previousDebugLogging;
+                _settings.DebugLogRetentionHours = previousDebugHours;
                 return;
             }
             if (captureConfigurationChanged) RebuildCaptureAnalyzer();
@@ -146,6 +157,8 @@ internal sealed partial class TrackerSessionService
         _settings.BuffRecognitionProfilePath = null;
         _settings.AutoPauseMinutes = Preferences.AutoPauseMinutes;
         _settings.AutoStartGrinding = Preferences.AutoStartGrinding;
+        _settings.AutomaticDebugLogging = Preferences.AutomaticDebugLogging;
+        _settings.DebugLogRetentionHours = Preferences.DebugLogRetentionHours;
         _settings.GameLanguage = Preferences.GameLanguage;
         _settings.FavoriteItems = Preferences.FavoriteItems.ToArray();
         _settings.LootColumnOrders = Preferences.LootColumnOrders.ToDictionary(pair => pair.Key, pair => pair.Value.ToArray());
@@ -155,6 +168,7 @@ internal sealed partial class TrackerSessionService
         try
         {
             _settingsStore.Save(_settings);
+            ConfigureDebugLogging();
             Preferences = Preferences with { SetupCompleted = _settings.SetupCompleted };
             _settingsChangesPending = false;
             _settingsSaveError = null;
@@ -194,6 +208,8 @@ internal sealed partial class TrackerSessionService
             BuffRecognitionProfilePath = null,
             AutoPauseMinutes = recovered.AutoPauseMinutes,
             AutoStartGrinding = recovered.AutoStartGrinding,
+            AutomaticDebugLogging = recovered.AutomaticDebugLogging,
+            DebugLogRetentionHours = recovered.DebugLogRetentionHours,
             FavoriteItems = recovered.FavoriteItems ?? [],
             LootColumnOrders = recovered.LootColumnOrders ?? new(),
             CharacterClassId = _hasSession ? Preferences.CharacterClassId
@@ -205,6 +221,7 @@ internal sealed partial class TrackerSessionService
             FamilyFame = recovered.SilverFamilyFame,
         };
         if (!_hasSession) _sessionClass = SelectedCharacterClass;
+        ConfigureDebugLogging();
         if (Preferences.AutoUpload) _garmothIntervals.SuspendAutomatic();
         Prices = _priceProvider.GetCachedSnapshot(Preferences.MarketRegion);
         _priceStatus = FormatPriceStatus(Prices);

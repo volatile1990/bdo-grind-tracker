@@ -13,7 +13,7 @@
     <Description>Passive Black Desert loot and grind-session tracker</Description>
     <ApplicationIcon>..\..\data\branding\grindcrest.ico</ApplicationIcon>
     <RootNamespace>BdoGrindTracker.App</RootNamespace>
-    <Version>1.8.2</Version>
+    <Version>1.9.2</Version>
     <InformationalVersion>$(Version)</InformationalVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <!-- The Store release validator enforces this baseline for every packaged .NET framework.

@@ -1,0 +1,7 @@
+What's new in Grindcrest 1.9.2:
+
+• Clearer settings with five categories and compact settings rows. Fewer tiles and less scrolling; changes still save automatically.
+• Rare drops use the best usable text recognition result. A reliable reading remains usable when another OCR attempt fails. Two matching additional readings are no longer required.
+• Improved text cropping for rare drop banners: Decorative borders interfere less with the additional reading, while enhancement levels and quantities remain in the crop.
+• Once a rare notification disappears, later identical drops can be counted separately again. Brief reading gaps preserve the existing notification's continuity.
+• Existing protection against counting a long-lasting rare notification more than once is preserved, along with recognition of very brief, consecutive notifications for different items.

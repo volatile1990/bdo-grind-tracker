@@ -1,8 +1,52 @@
 @page "/settings"
+@page "/settings/{Section}"
 @inherits TrackerComponentBase
+@inject NavigationManager Navigation
 
 <div class="page settings-page">
-    <div class="page-heading"><h1>@T("Einstellungen")</h1><a class="button secondary" href="setup"><AppIcon Name="info" />@T("Einführung & Einrichtung")</a></div>
-    <TrackerPreferenceSettings />
-    <CaptureConfigurationSettings />
+    <div class="page-heading settings-page-heading">
+        <div><h1>@T("Einstellungen")</h1><p>@T("Passe Grindcrest an deinen Alltag an.")</p></div>
+        <a class="text-button settings-setup-link" href="setup"><AppIcon Name="info" />@T("Einführung & Einrichtung")</a>
+    </div>
+    <div class="settings-workspace">
+        <nav class="settings-navigation" aria-label="@T("Einstellungsbereiche")">
+            @foreach (var category in Categories)
+            {
+                <a class="settings-category @(SelectedSection == category.Id ? "is-active" : "")"
+                   href="@($"settings/{category.Id}")" aria-current="@(SelectedSection == category.Id ? "page" : null)"
+                   @onclick="() => SelectSection(category.Id)" @onclick:preventDefault>
+                    <AppIcon Name="@category.Icon" /><span>@T(category.Label)</span><AppIcon Name="chevron" />
+                </a>
+            }
+        </nav>
+        <div class="settings-content">
+            <TrackerPreferenceSettings @ref="_fields" Section="@SelectedSection" />
+            <div hidden="@(SelectedSection != "capture")"><CaptureConfigurationSettings /></div>
+            @if (SelectedSection != "updates")
+            {
+                <p class="settings-save-hint"><AppIcon Name="check" />@T("Einstellungen werden bei Änderungen gespeichert.")</p>
+            }
+        </div>
+    </div>
 </div>
+
+@code {
+    [Parameter] public string? Section { get; set; }
+    private TrackerPreferenceSettings? _fields;
+    private static readonly (string Id, string Label, string Icon)[] Categories =
+    [
+        ("appearance", "Erscheinungsbild", "spark"),
+        ("capture", "Erfassung", "monitor"),
+        ("silver", "Silber & Markt", "silver"),
+        ("diagnostics", "Diagnose", "shield"),
+        ("updates", "App-Updates", "refresh"),
+    ];
+    private string SelectedSection => Categories.Any(category => category.Id == Section) ? Section! : "appearance";
+
+    private async Task SelectSection(string section)
+    {
+        if (section == SelectedSection || State.IsBusy) return;
+        if (_fields is not null && !await _fields.CommitAsync()) return;
+        Navigation.NavigateTo($"/settings/{section}");
+    }
+}

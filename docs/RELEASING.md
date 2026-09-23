@@ -9,7 +9,7 @@ Prüfungen; ein Build veröffentlicht noch keine neue Store-Version.
 2. Das Store-Paket unter Windows erstellen:
 
    ```powershell
-   ./scripts/Build-StoreRelease.ps1 -Version 1.8.2 -RequireWindowsOcr
+   ./scripts/Build-StoreRelease.ps1 -Version 1.9.2 -RequireWindowsOcr
    ```
 
    Die Beispielversion durch die neue Release-Version ersetzen. Das Skript führt

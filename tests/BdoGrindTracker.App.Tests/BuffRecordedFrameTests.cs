@@ -10,7 +10,7 @@ public sealed class BuffRecordedFrameTests(ITestOutputHelper output)
 {
     [WindowsOcrFact]
     [Trait("Category", "WindowsOcr")]
-    public void RealCronAndBoonAppearWithCostsEvenWhenTheFirstScanMissesThem()
+    public void RealInitiallyUnreadableCronAndBoonStayBaselineWhenTheirTimersBecomeReadable()
     {
         using var reader = new AutomaticBuffFrameReader();
         using var frame = new Bitmap(Path.Combine(AppContext.BaseDirectory, "fixtures", "buffs", "bar-cron67m-boon2h.png"));
@@ -32,11 +32,12 @@ public sealed class BuffRecordedFrameTests(ITestOutputHelper output)
         var result = ledger.Apply(reading.Observations, at.AddSeconds(20), Price);
         var tiles = BdoGrindTracker.App.Components.ConsumablesPresentation.Create(result, "en").Items;
 
-        Assert.Equal(7, tiles.Count);
-        Assert.Equal(120_000m, Assert.Single(tiles, item => item.Id == cron).KnownCost);
-        Assert.Equal(12_000_000m, Assert.Single(tiles, item => item.Id == boon).KnownCost);
-        Assert.All(tiles, item => { Assert.Equal(1, item.Count); Assert.NotNull(item.IconPath); });
-        Assert.All(result.Consumptions, item => Assert.True(item.IsSessionStart));
+        Assert.Empty(tiles);
+        Assert.Equal(7, result.Active.Count);
+        Assert.Single(result.Active, item => item.BuffId == cron);
+        Assert.Single(result.Active, item => item.BuffId == boon);
+        Assert.Empty(result.Consumptions);
+        Assert.All(result.Active, item => Assert.True(item.IsBaseline));
         Assert.Equal(result.Consumptions, ledger.Apply(reading.Observations, at.AddSeconds(30), Price).Consumptions);
     }
 
@@ -70,7 +71,7 @@ public sealed class BuffRecordedFrameTests(ITestOutputHelper output)
 
         foreach (var id in new[] { tenacity, harmony })
         {
-            Assert.Equal(2, result.Consumptions.Count(item => item.BuffId == id));
+            Assert.Single(result.Consumptions, item => item.BuffId == id);
             var renewal = Assert.Single(result.Consumptions, item => item.BuffId == id && !item.IsSessionStart);
             Assert.Equal(at.AddSeconds(30), renewal.ConsumedAt);
             Assert.Equal(id == tenacity ? 200 : 100, renewal.Cost);
@@ -120,18 +121,14 @@ public sealed class BuffRecordedFrameTests(ITestOutputHelper output)
             var reading = Assert.IsType<BuffFrameReading>(reader.Read(frame, CancellationToken.None));
             Assert.Empty(reading.UnknownBuffIds);
             ledger.Apply(reading.Observations, at.AddSeconds(index * 10), definition => BuffPriceCatalog.GetPrice(definition, prices));
-            Assert.Equal(index == 0 ? 0 : index == 1 ? 2 : 4, ledger.Snapshot.Consumptions.Count);
+            Assert.Equal(index < 2 ? 0 : 2, ledger.Snapshot.Consumptions.Count);
         }
         Assert.Equal(2, ledger.Snapshot.Active.Count);
-        Assert.Equal(4, ledger.Snapshot.Consumptions.Count);
-        foreach (var isSessionStart in new[] { true, false })
-        {
-            Assert.Equal(1_200_000m, Assert.Single(ledger.Snapshot.Consumptions,
-                item => item.BuffId == harmony.Id && item.IsSessionStart == isSessionStart).Cost);
-            Assert.Equal(120_000m, Assert.Single(ledger.Snapshot.Consumptions,
-                item => item.BuffId == meal.Id && item.IsSessionStart == isSessionStart).Cost);
-        }
-        Assert.Equal(2_640_000m, ledger.Snapshot.ConsumedCost);
+        Assert.Equal(2, ledger.Snapshot.Consumptions.Count);
+        Assert.DoesNotContain(ledger.Snapshot.Consumptions, item => item.IsSessionStart);
+        Assert.Equal(1_200_000m, Assert.Single(ledger.Snapshot.Consumptions, item => item.BuffId == harmony.Id).Cost);
+        Assert.Equal(120_000m, Assert.Single(ledger.Snapshot.Consumptions, item => item.BuffId == meal.Id).Cost);
+        Assert.Equal(1_320_000m, ledger.Snapshot.ConsumedCost);
     }
 
     [WindowsOcrTheory]

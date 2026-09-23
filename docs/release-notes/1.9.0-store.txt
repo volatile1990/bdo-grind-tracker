@@ -1,0 +1,9 @@
+Neu in Grindcrest 1.9.0:
+
+• Automatische Debuglogs unter Einstellungen → Diagnose: lokale Textlogs ohne Bilder oder API-Schlüssel, mit eigenem Ordner pro Session. Aufbewahrung von 1 bis 168 Stunden, standardmäßig 3 Stunden; ältere Einträge werden automatisch gelöscht.
+• Buffverbrauch genauer zählen: Beim Start bereits aktive Buffs bleiben ungezählt. Bestätigte neue Anwendungen und höhere Timer zählen als Verbrauch; Pausen und spät lesbare Teil-Timer erzeugen keine Erstanrechnung.
+• Zeltbuffs werden nach ihrer erkannten Laufzeit bewertet. Unterschiedliche Laufzeiten erhalten eigene Mengen und Kosten in Live-Session, Verlauf und Overlay. Gespeicherte Buchungen und Preise bleiben erhalten.
+• Stabilere kurze Buff-Timer und Schutz vor falschen Anwendungen durch einzelne Fehllesungen oder den Wechsel von Stunden- zu Minutenanzeigen.
+• Klassenerkennung nach Charakterwechseln über zusätzliche lokale Journal-Dateidaten. Die Startansicht aktualisiert die automatische Klasse alle 30 Sekunden.
+• Rare-Drops benötigen zwei übereinstimmende zusätzliche OCR-Lesungen. Widersprüchliche Meldungen und fehlgelesene Verstärkungsstufen werden zuverlässiger ausgeschlossen.
+• Dropmarker und gespeicherte Dropmengen folgen automatischen Mengenkorrekturen, ohne zusätzliche Dropzeitpunkte zu erzeugen.

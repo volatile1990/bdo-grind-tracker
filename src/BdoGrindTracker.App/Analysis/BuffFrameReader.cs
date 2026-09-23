@@ -15,6 +15,7 @@ internal sealed record BuffFrameReading(IReadOnlyList<BuffObservation> Observati
 internal interface IBuffFrameReader : IDisposable
 {
     string? LastDiagnostic => null;
+    void Reset() { }
     BuffFrameReading? Read(Bitmap frame, CancellationToken cancellationToken);
     BuffFrameReading? Read(Bitmap frame, DateTimeOffset capturedAt, CancellationToken cancellationToken) =>
         Read(frame, cancellationToken);
@@ -241,6 +242,7 @@ internal sealed partial class BuffFrameReader(
         using var crop = new Mat(bar, new Rect(region.X, region.Y, region.Width, region.Height));
         using var gray = new Mat();
         Cv2.CvtColor(crop, gray, ColorConversionCodes.BGR2GRAY);
+        var onlyEmptyResults = true;
         // Keep the narrow strokes of closed digits through the two resize stages.
         // At 48 pixels the Strong Sword font's 8 can alias to 3 in grayscale.
         for (var attempt = 0; attempt < 2; attempt++)
@@ -264,6 +266,7 @@ internal sealed partial class BuffFrameReader(
                 using var readable = new Mat();
                 Cv2.Resize(padded, readable, new OpenCvSharp.Size(), 1.5, 1.5, InterpolationFlags.Cubic);
                 var result = recognize?.Invoke(readable, token) ?? _engine!.Recognize(readable, token);
+                onlyEmptyResults &= string.IsNullOrWhiteSpace(result.Text);
                 var timer = ParseTimer(result.Text);
                 if (accepted is not null && timer is not null && accepted != timer) return null;
                 if (timer is not null) readableVariants++;
@@ -274,7 +277,54 @@ internal sealed partial class BuffFrameReader(
             // size. Retry unreadable labels at a smaller scale, requiring two
             // agreeing preparations; never override a contradictory primary read.
         }
-        return null;
+        // Windows OCR may treat a short isolated label such as "4h" as no text
+        // at every scale. A wider strip of the same pixels gives it line context.
+        // Never use this to override a nonempty or contradictory original read.
+        return onlyEmptyResults ? ReadRepeatedTimer(gray, token) : null;
+    }
+
+    private (TimeSpan Remaining, TimeSpan Precision)? ReadRepeatedTimer(Mat gray, CancellationToken token)
+    {
+        using var glyphMask = new Mat();
+        Cv2.Threshold(gray, glyphMask, 160, 255, ThresholdTypes.Binary);
+        var glyphBounds = Cv2.BoundingRect(glyphMask);
+        if (glyphBounds.Width < 3 || glyphBounds.Height < 3) return null;
+        using var glyphs = new Mat(gray, glyphBounds);
+        using var large = new Mat();
+        Cv2.Resize(glyphs, large, new OpenCvSharp.Size(
+            (int)Math.Round(glyphs.Width * 40d / glyphs.Height), 40), interpolation: InterpolationFlags.Cubic);
+        (TimeSpan Remaining, TimeSpan Precision)? accepted = null;
+        for (var variant = 0; variant < 2; variant++)
+        {
+            token.ThrowIfCancellationRequested();
+            using var prepared = new Mat();
+            if (variant == 0) Cv2.BitwiseNot(large, prepared);
+            else Cv2.Threshold(large, prepared, 0, 255, ThresholdTypes.BinaryInv | ThresholdTypes.Otsu);
+            using var padded = new Mat();
+            Cv2.CopyMakeBorder(prepared, padded, 12, 12, 12, 12, BorderTypes.Constant, Scalar.All(255));
+            using var readable = new Mat();
+            Cv2.Resize(padded, readable, new OpenCvSharp.Size(), 1.5, 1.5, InterpolationFlags.Cubic);
+            using var repeated = new Mat();
+            Cv2.HConcat(new[] { readable, readable, readable }, repeated);
+            var result = recognize?.Invoke(repeated, token) ?? _engine!.Recognize(repeated, token);
+            var timer = ParseRepeatedTimer(result.Text);
+            if (timer is null || accepted is not null && accepted != timer) return null;
+            accepted = timer;
+        }
+        return accepted;
+    }
+
+    internal static (TimeSpan Remaining, TimeSpan Precision)? ParseRepeatedTimer(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text) || text.Length > 100) return null;
+        var words = text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        if (words.Length == 0 || words.Length % 3 != 0) return null;
+        var length = words.Length / 3;
+        var first = ParseTimer(string.Join(' ', words.Take(length)));
+        if (first is null) return null;
+        for (var copy = 1; copy < 3; copy++)
+            if (ParseTimer(string.Join(' ', words.Skip(copy * length).Take(length))) != first) return null;
+        return first;
     }
 
     internal static (TimeSpan Remaining, TimeSpan Precision)? ParseTimer(string? text)

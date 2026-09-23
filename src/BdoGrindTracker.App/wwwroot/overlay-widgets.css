@@ -20,6 +20,16 @@
 .overlay-widget-status .overlay-widget-value { font-size: calc(15px * var(--widget-font-scale, 1) * var(--line-fit, 1)); }
 .overlay-widget-loot-scroll .overlay-widget-value { font-size: calc(16px * var(--widget-font-scale, 1) * var(--line-fit, 1)); }
 .overlay-widget-grind-rating .overlay-widget-value { font-size: calc(16px * var(--widget-font-scale, 1) * var(--line-fit, 1)); }
+.overlay-widget-grind-rating { gap: 0; }
+.overlay-widget-grind-rating > .overlay-widget-label { flex: 0 0 calc(18px * var(--widget-font-scale, 1)); }
+.overlay-widget-grind-rating .overlay-grind-progress { flex: 0 0 calc(20px * var(--widget-font-scale, 1)); line-height: calc(20px * var(--widget-font-scale, 1)); }
+.overlay-widget-grind-rating .grind-spectrum { box-sizing: border-box; flex: 0 0 calc(28px * var(--widget-font-scale, 1)); height: calc(28px * var(--widget-font-scale, 1)); margin: 0; padding: calc(6px * var(--widget-font-scale, 1)) 0 0; }
+.overlay-widget-grind-rating .grind-spectrum-track { height: calc(6px * var(--widget-font-scale, 1)); }
+.overlay-widget-grind-rating .grind-spectrum-tick { top: calc(-2px * var(--widget-font-scale, 1)); height: calc(10px * var(--widget-font-scale, 1)); }
+.overlay-widget-grind-rating .grind-spectrum-marker { width: calc(9px * var(--widget-font-scale, 1)); height: calc(9px * var(--widget-font-scale, 1)); border-width: calc(2px * var(--widget-font-scale, 1)); box-shadow: 0 0 0 calc(1px * var(--widget-font-scale, 1)) var(--panel, #181d24); }
+.overlay-widget-grind-rating .grind-spectrum-labels { margin-top: calc(6px * var(--widget-font-scale, 1)); height: calc(10px * var(--widget-font-scale, 1)); }
+.overlay-widget-grind-rating .grind-spectrum-stop { font-size: calc(8px * var(--widget-font-scale, 1)); line-height: calc(10px * var(--widget-font-scale, 1)); color: inherit; }
+.overlay-widget-grind-rating .overlay-grind-gap, .overlay-widget-grind-rating .overlay-grind-status { flex: 0 0 calc(12px * var(--widget-font-scale, 1)); line-height: calc(12px * var(--widget-font-scale, 1)); font-size: calc(9px * var(--widget-font-scale, 1) * var(--line-fit, 1)); }
 .overlay-widget-clock { padding: 8px 10px; gap: 0; border: 0; }
 .overlay-widget-clock > .overlay-widget-label { flex: 0 0 calc(18px * var(--widget-font-scale, 1)); }
 .overlay-clock-rows { display: flex; flex-direction: column; justify-content: center; min-width: 0; flex: 1; }

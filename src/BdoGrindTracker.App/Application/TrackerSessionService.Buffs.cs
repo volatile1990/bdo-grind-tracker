@@ -84,9 +84,30 @@ internal sealed partial class TrackerSessionService
             completionCutoff is { } cutoff && at > cutoff) return;
         _lastBuffObservation = at;
         _buffHasUnknownObservations = snapshot.UnknownBuffIds.Count > 0;
-        _buffLedger.Apply(snapshot.Observations, at, definition =>
+        var consumptionCountBefore = _debugLogConfiguration is { Enabled: true }
+            ? _buffLedger.Snapshot.Consumptions.Count : (int?)null;
+        var applied = _buffLedger.Apply(snapshot.Observations, at, definition =>
             BuffPriceCatalog.GetPrice(definition, Prices), snapshot.UnknownBuffIds);
         _hasBuffObservation = true;
+        if (consumptionCountBefore is { } before)
+        {
+            // Log only evidence actually delivered to the ledger, once per scan.
+            // Keep growing session history out of these diagnostic entries.
+            _debugLog.Write(DebugLogSessionId, "buff-observation", new
+            {
+                SessionId = _sessionId,
+                ObservedAt = at,
+                Generation = generation,
+                Observations = snapshot.Observations.Select(observation => new
+                {
+                    observation.BuffId, observation.Remaining, observation.TimerPrecision,
+                }).ToArray(),
+                snapshot.UnknownBuffIds,
+                ConsumptionCountBefore = before,
+                ConsumptionCountAfter = applied.Consumptions.Count,
+                NewConsumptions = applied.Consumptions.Skip(before).ToArray(),
+            });
+        }
     }
 
 }

@@ -67,7 +67,7 @@ public sealed class BuffMonitorTests
     }
 
     [Fact]
-    public async Task ReaderDiagnosticsArePreservedAndEmptyReadingsCannotEstablishContinuity()
+    public async Task ReaderDiagnosticsArePreservedAndKnownEmptyReadingsEstablishContinuity()
     {
         var reader = new Reader { Next = null, LastDiagnostic = "Restzeit für Harmony nicht lesbar." };
         using var monitor = new BuffMonitor(reader);
@@ -81,8 +81,11 @@ public sealed class BuffMonitorTests
         reader.LastDiagnostic = null;
         monitor.Observe(frame, Epoch.AddSeconds(10));
         await monitor.CurrentAnalysis;
-        Assert.False(monitor.Snapshot(Epoch.AddSeconds(10), out var empty).IsKnown);
-        Assert.True(empty > unknown);
+        var snapshot = monitor.Snapshot(Epoch.AddSeconds(10), out var empty);
+        Assert.True(snapshot.IsKnown);
+        Assert.Empty(snapshot.Observations);
+        Assert.Empty(snapshot.UnknownBuffIds);
+        Assert.Equal(unknown, empty);
     }
 
     [Fact]
@@ -179,6 +182,7 @@ public sealed class BuffMonitorTests
         monitor.Observe(frame, Epoch.AddSeconds(10));
         Assert.Equal(1, reader.Calls);
         monitor.Reset();
+        Assert.Equal(1, reader.Resets); // Reset is deferred while Read still owns its state.
         release.SetResult();
         await monitor.CurrentAnalysis.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.False(monitor.Snapshot(Epoch.AddSeconds(10)).IsKnown);
@@ -186,6 +190,7 @@ public sealed class BuffMonitorTests
         monitor.Observe(frame, Epoch.AddSeconds(10));
         await monitor.CurrentAnalysis;
         Assert.True(monitor.Snapshot(Epoch.AddSeconds(10)).IsKnown);
+        Assert.Equal(2, reader.Resets);
     }
 
     [Fact]
@@ -221,10 +226,12 @@ public sealed class BuffMonitorTests
         internal BuffFrameReading? Next { get; set; } = Reading();
         internal Action? Block { get; set; }
         internal int Calls { get; private set; }
+        internal int Resets { get; private set; }
         internal bool Disposed { get; private set; }
         public string? LastDiagnostic { get; set; }
         public BuffFrameReading? Read(Bitmap frame, CancellationToken cancellationToken)
         { Calls++; Block?.Invoke(); return Next; }
+        public void Reset() => Resets++;
         public void Dispose() => Disposed = true;
     }
 }

@@ -12,6 +12,10 @@ internal sealed class AppSettings
     public const int MinimumAutoPauseMinutes = 1;
     public const int MaximumAutoPauseMinutes = 60;
 
+    public const int DefaultDebugLogRetentionHours = 3;
+    public const int MinimumDebugLogRetentionHours = 1;
+    public const int MaximumDebugLogRetentionHours = 168;
+
     public int SettingsVersion { get; set; }
 
     public bool SetupCompleted { get; set; }
@@ -35,6 +39,10 @@ internal sealed class AppSettings
 
     public bool AutoStartGrinding { get; set; }
 
+    public bool AutomaticDebugLogging { get; set; }
+
+    public int DebugLogRetentionHours { get; set; } = DefaultDebugLogRetentionHours;
+
     public bool GarmothAutoUploadEnabled { get; set; }
 
     public string MarketRegion { get; set; } = LootPriceCatalog.DefaultRegion;
@@ -54,6 +62,10 @@ internal sealed class AppSettings
         if (AutoPauseMinutes is < MinimumAutoPauseMinutes or > MaximumAutoPauseMinutes)
         {
             AutoPauseMinutes = DefaultAutoPauseMinutes;
+        }
+        if (DebugLogRetentionHours is < MinimumDebugLogRetentionHours or > MaximumDebugLogRetentionHours)
+        {
+            DebugLogRetentionHours = DefaultDebugLogRetentionHours;
         }
 
         try

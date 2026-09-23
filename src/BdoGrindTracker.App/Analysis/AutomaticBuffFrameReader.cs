@@ -9,6 +9,7 @@ internal sealed class AutomaticBuffFrameReader : IBuffFrameReader
 {
     private readonly AutomaticBuffCatalog _catalog;
     private readonly BuffFrameReader _timerReader;
+    private readonly BuffTimerContinuityFilter _timerContinuity = new();
     private readonly Func<CompanionCalibration?>? _readCalibration;
     private readonly List<Icon> _icons = [];
     private const long MaximumMatchedFrameBytes = 4 * 1024 * 1024;
@@ -43,6 +44,18 @@ internal sealed class AutomaticBuffFrameReader : IBuffFrameReader
 
     private BuffFrameReading? ReadFrame(Bitmap frame, DateTimeOffset? capturedAt, CancellationToken cancellationToken)
     {
+        try { return _timerContinuity.Filter(ReadFrameCore(frame, capturedAt, cancellationToken), capturedAt); }
+        catch
+        {
+            _timerContinuity.Reset();
+            throw;
+        }
+    }
+
+    public void Reset() => _timerContinuity.Reset();
+
+    private BuffFrameReading? ReadFrameCore(Bitmap frame, DateTimeOffset? capturedAt, CancellationToken cancellationToken)
+    {
         ObjectDisposedException.ThrowIf(_disposed, this);
         LastDiagnostic = null;
         try
@@ -66,7 +79,10 @@ internal sealed class AutomaticBuffFrameReader : IBuffFrameReader
             if (matches.Count == 0)
             {
                 LastDiagnostic = "Automatische Buff-Erkennung: Noch kein unterstütztes Symbol mit Restzeit gefunden.";
-                return null;
+                // A validated, visible saved panel also establishes that no supported
+                // buff is currently present. Standalone screenshot searches cannot
+                // distinguish an empty panel from an unavailable HUD.
+                return _readCalibration is not null ? new([]) : null;
             }
             var (candidates, unknown) = ClassifyMatches(matches);
             var observations = new List<BuffObservation>();
@@ -307,6 +323,7 @@ internal sealed class AutomaticBuffFrameReader : IBuffFrameReader
     {
         if (_disposed) return;
         _disposed = true;
+        _timerContinuity.Reset();
         _matchedFrame?.Dispose();
         _matchedFrame = null;
         _matchedDetections = null;

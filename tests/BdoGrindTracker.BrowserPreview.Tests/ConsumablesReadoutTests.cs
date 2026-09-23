@@ -19,7 +19,7 @@ public sealed class ConsumablesReadoutTests
     [Theory]
     [InlineData("de", "1.100 Silber *")]
     [InlineData("en", "1,100 silver *")]
-    public async Task RestoredTentDurationsShareOneTileInReadoutAndOverlay(string language, string cost)
+    public async Task RestoredTentDurationsRemainSeparateInReadoutAndOverlay(string language, string cost)
     {
         var value = new BuffLedgerSnapshot(
             [Use("tent-body-enhancement-60", "Body Enhancement (60 min)", 100),
@@ -30,18 +30,23 @@ public sealed class ConsumablesReadoutTests
 
         var html = Compact(await Render(value, language));
 
-        Assert.Equal(2, Tiles(html).Count);
-        AssertCount(Tile(html, "tent-body-enhancement-300"), 4);
-        AssertCount(Tile(html, "tent-adventures-boon-300"), 1);
-        Assert.DoesNotContain("data-buff-id=\"tent-body-enhancement-60\"", html);
-        Assert.DoesNotContain("data-buff-id=\"tent-body-enhancement-180\"", html);
+        Assert.Equal(5, Tiles(html).Count);
+        foreach (var use in value.Consumptions)
+            AssertCount(Tile(html, use.BuffId), 1);
+        Assert.Contains("60 min", Tile(html, "tent-body-enhancement-60"), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("180 min", Tile(html, "tent-body-enhancement-180"), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("300 min", Tile(html, "tent-body-enhancement-300"), StringComparison.OrdinalIgnoreCase);
         Assert.Contains(cost, html);
 
         var overlay = new OverlayMetrics().Update(new TrackerState { Buffs = value }, new() { UiLanguage = language });
-        var body = Assert.Single(overlay.Consumables.Items, item => item.Id == "tent-body-enhancement-300");
-        Assert.Equal(4, body.Count);
-        Assert.Equal(600m, body.KnownCost);
-        Assert.Equal(1, body.UnpricedCount);
+        Assert.Equal(5, overlay.Consumables.Items.Count);
+        foreach (var use in value.Consumptions)
+        {
+            var item = Assert.Single(overlay.Consumables.Items, item => item.Id == use.BuffId);
+            Assert.Equal(1, item.Count);
+            Assert.Equal(use.Cost ?? 0, item.KnownCost);
+            Assert.Equal(use.Cost is null ? 1 : 0, item.UnpricedCount);
+        }
         Assert.Equal(cost, overlay.Consumables.Cost);
         Assert.Equal("tent-body-enhancement-60", value.Consumptions[0].BuffId);
         Assert.Equal(100m, value.Consumptions[0].Cost);

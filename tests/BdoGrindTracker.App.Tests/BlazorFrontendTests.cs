@@ -72,7 +72,8 @@ public sealed class BlazorFrontendTests
     public async Task SettingsShowTheResolvedRecordingFolderFromTheSession()
     {
         var session = new SnapshotSession { DiagnosticsDirectory = @"C:\Users\Example\AppData\Local\Packages\Grindcrest_family\LocalState\diagnostics" };
-        var markup = WebUtility.HtmlDecode(await RenderAsync<TrackerSettings>(session));
+        var markup = WebUtility.HtmlDecode(await RenderAsync<TrackerSettings>(session,
+            new Dictionary<string, object?> { [nameof(TrackerSettings.Section)] = "diagnostics" }));
         Assert.Contains(session.DiagnosticsDirectory, markup);
         Assert.DoesNotContain("%LOCALAPPDATA%", markup);
         Assert.Equal(0, session.CommandCalls);
@@ -100,7 +101,8 @@ public sealed class BlazorFrontendTests
             "<button[^>]*class=\"quantity-edit-trigger\"[^>]*>(.*?)</button>", RegexOptions.Singleline).Groups[1].Value);
         Assert.Contains("assets/icons/black-crystal-fragment.png", markup);
         Assert.DoesNotContain("Preis fehlt", markup);
-        var settings = WebUtility.HtmlDecode(await RenderAsync<TrackerSettings>(session));
+        var settings = WebUtility.HtmlDecode(await RenderAsync<TrackerSettings>(session,
+            new Dictionary<string, object?> { [nameof(TrackerSettings.Section)] = "capture" }));
         Assert.Contains("Automatisch aus BDO-Einstellungen", settings);
         Assert.Contains("Deutsch", settings);
         Assert.Equal(0, session.CommandCalls);
@@ -471,7 +473,9 @@ public sealed class BlazorFrontendTests
         var live = await RenderAsync<LiveDashboard>(session);
         Assert.False(IsDisabled(ButtonAttributes(live, "Pausieren")));
         AssertNoGarmothControls(live);
-        AssertNoGarmothControls(await RenderAsync<TrackerSettings>(session));
+        foreach (var section in new[] { "appearance", "capture", "silver", "diagnostics", "updates" })
+            AssertNoGarmothControls(await RenderAsync<TrackerSettings>(session,
+                new Dictionary<string, object?> { [nameof(TrackerSettings.Section)] = section }));
         AssertNoGarmothControls(await RenderAsync<HistoryDashboard>(session, new Dictionary<string, object?>
         {
             [nameof(HistoryDashboard.SpotId)] = LootSpotCatalog.HermesiaId
@@ -534,12 +538,15 @@ public sealed class BlazorFrontendTests
     public async Task CaptureSettingsStayLockedForBothRunningAndPausedSessions(bool running)
     {
         var session = new SnapshotSession { State = ActiveState() with { IsRunning = running } };
-        var markup = await RenderAsync<TrackerSettings>(session);
+        var markup = await RenderAsync<TrackerSettings>(session,
+            new Dictionary<string, object?> { [nameof(TrackerSettings.Section)] = "capture" });
         Assert.True(IsDisabled(FieldSelectAttributes(markup, "Spielsprache in Black Desert")));
         Assert.Equal(running, IsDisabled(FieldSelectAttributes(markup, "Charakterklasse")));
         Assert.DoesNotContain("Event-Loot mitzählen", markup);
-        Assert.True(IsDisabled(ToggleAttributes(markup, "Loot-Diagnose aufzeichnen")));
-        Assert.True(IsDisabled(ToggleAttributes(markup, "Rotation-Monitor-Diagnose aufzeichnen")));
+        var diagnostics = await RenderAsync<TrackerSettings>(session,
+            new Dictionary<string, object?> { [nameof(TrackerSettings.Section)] = "diagnostics" });
+        Assert.True(IsDisabled(ToggleAttributes(diagnostics, "Loot-Diagnose aufzeichnen")));
+        Assert.True(IsDisabled(ToggleAttributes(diagnostics, "Rotation-Monitor-Diagnose aufzeichnen")));
     }
 
     [Theory]

@@ -94,16 +94,16 @@ public sealed class BuffPriceCatalogTests
         var state = ledger.Apply([Observe(immortal.Id, 1198)], at.AddSeconds(4), Price);
 
         Assert.Equal(old, state.Consumptions[0]);
-        Assert.Equal(3, state.Consumptions.Count);
+        Assert.Equal(2, state.Consumptions.Count);
         var current = state.Consumptions.Where(item => item.BuffId == immortal.Id).ToArray();
-        Assert.Equal(at, Assert.Single(current, item => item.IsSessionStart).ConsumedAt);
-        Assert.Equal(at.AddSeconds(2), Assert.Single(current, item => !item.IsSessionStart).ConsumedAt);
+        Assert.Equal(at.AddSeconds(2), Assert.Single(current).ConsumedAt);
+        Assert.DoesNotContain(current, item => item.IsSessionStart);
         Assert.All(current, item =>
         {
             Assert.Equal(1400, item.MarketItemId);
             Assert.Equal(9_000_000m, item.Cost);
         });
-        Assert.Equal(19_200_000m, state.ConsumedCost);
+        Assert.Equal(10_200_000m, state.ConsumedCost);
     }
 
     [Theory]
@@ -127,19 +127,19 @@ public sealed class BuffPriceCatalogTests
         BuffPrice? Price(BuffDefinition _) => new(2_000_000m, "eu", at, false);
 
         ledger.Apply([Observe(60)], at, Price);
-        Assert.True(Assert.Single(ledger.Apply([Observe(59)], at.AddSeconds(1), Price).Consumptions).IsSessionStart);
+        Assert.Empty(ledger.Apply([Observe(59)], at.AddSeconds(1), Price).Consumptions);
         var renewed = ledger.Apply([Observe(1200)], at.AddSeconds(2), Price);
-        Assert.Equal(2, renewed.Consumptions.Count);
+        Assert.Single(renewed.Consumptions);
         Assert.Equal(at.AddSeconds(2), Assert.Single(renewed.Consumptions,
             item => !item.IsSessionStart).ConsumedAt);
         ledger.Apply([Observe(1199)], at.AddSeconds(3), Price);
         var state = ledger.Apply([Observe(1198)], at.AddSeconds(4), Price);
 
-        Assert.Equal(2, state.Consumptions.Count);
+        Assert.Single(state.Consumptions);
         var consumed = Assert.Single(state.Consumptions, item => !item.IsSessionStart);
         Assert.Equal(id, consumed.BuffId);
         Assert.Equal(buff.MarketItemId, consumed.MarketItemId);
-        Assert.Equal(4_000_000m, state.ConsumedCost);
+        Assert.Equal(2_000_000m, state.ConsumedCost);
     }
 
     [Fact]

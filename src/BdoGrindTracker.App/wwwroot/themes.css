@@ -151,7 +151,7 @@ html:scope[data-theme="black-desert"],
 }
 :scope[data-theme="black-desert"] .hero-shade { background: linear-gradient(90deg, #131414ef, #151615cc 35%, #15151366 72%, #10111399); }
 :scope[data-theme="black-desert"] :is(.hero-identity h2, .live-spot-copy h2, .chronological-spot strong) { color: var(--gold-bright); }
-:scope[data-theme="black-desert"] :is(.hero-identity p, .hero-bottom, .live-session-meta, .live-page .live-session-title-row h1) { color: #c8c4b7; }
+:scope[data-theme="black-desert"] :is(.hero-identity p, .hero-bottom, .live-session-meta) { color: #c8c4b7; }
 
 /* Text stays at the accessible sizes chosen by the application. */
 :scope[data-theme="black-desert"] :is(.table-footnote, .field-note, .price-status, .recording-path, .subtle-label, .history-secondary-metrics span, .spot-card-stats span, .spot-card-footer, .field small, .field-note code, .oe-field small, .oe-help, .oe-canvas-help, .oe-status-row, .oe-fit-label, .oe-canvas-dimensions, .oe-shortcuts-title > small, .browser-overlay-footer, .browser-overlay-toolbar p) { color: var(--muted); }
@@ -620,7 +620,7 @@ html:is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme
 :is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) .live-session-header { background-color: var(--panel); background-image: var(--theme-art-shade), var(--live-session-artwork); }
 :is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) :is(.hero-shade, .spot-detail-hero .hero-shade, .garmoth-banner-shade) { background: var(--theme-art-shade); }
 :is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) :is(.hero-identity h2, .live-spot-copy h2) { color: var(--text); }
-:is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) :is(.hero-identity p, .hero-bottom, .live-session-meta, .live-session-meta .icon, .live-page .live-session-title-row h1, .valuation-note) { color: var(--muted); }
+:is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) :is(.hero-identity p, .hero-bottom, .live-session-meta, .live-session-meta .icon, .valuation-note) { color: var(--muted); }
 :is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) .live-page .live-session-metrics { background: var(--panel); border-color: var(--line); }
 :is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) .live-session-metrics .metric-card { background: transparent; border-color: var(--line); border-radius: 0; box-shadow: none; }
 :is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) .spot-card-art::before { background: linear-gradient(0deg, #171523ee, transparent 100%); }

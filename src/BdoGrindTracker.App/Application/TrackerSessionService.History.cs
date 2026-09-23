@@ -280,6 +280,7 @@ internal sealed partial class TrackerSessionService
                     var totals = CorrectedTotals(_sessionSummary.Totals, canonicalName, quantity, originalQuantity);
                     _sessionSummary = new(totals, totals.Values.Sum(), _sessionSummary.ConfirmedEventCount);
                     _sessionManualLootItems.Add(canonicalName);
+                    CaptureDropHistory(_sessionSummary, _sessionClock.Elapsed, manualCorrection: true);
                 }
                 else
                 {
@@ -298,6 +299,7 @@ internal sealed partial class TrackerSessionService
                         _sessionGarmothLocallyModified |= quantity != originalQuantity && (_sessionSubmitted ||
                             _historyEntries.Any(entry => entry.SessionId == _sessionId && entry.GarmothUploadBlocked));
                         _sessionSummary = snapshot;
+                        CaptureDropHistory(snapshot, _sessionClock.Elapsed, manualCorrection: true);
                         var pendingCorrection = snapshot.Totals.GetValueOrDefault(canonicalName) != previousSummary.Totals.GetValueOrDefault(canonicalName)
                             ? _garmothIntervals.PreparedIntervalId : null;
                         try { PersistCurrentSession(DateTimeOffset.UtcNow, throwOnError: true,
@@ -305,6 +307,7 @@ internal sealed partial class TrackerSessionService
                         catch
                         {
                             _sessionSummary = previousSummary;
+                            CaptureDropHistory(previousSummary, _sessionClock.Elapsed, manualCorrection: true);
                             _historyEntries.Clear();
                             _historyEntries.AddRange(previousHistory);
                             _sessionManualLootItems.Clear();

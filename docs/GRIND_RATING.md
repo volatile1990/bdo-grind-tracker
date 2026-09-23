@@ -11,6 +11,16 @@ fünf Minuten steht ein vorläufiger Hinweis; der Stundenwert bleibt unveränder
 Ohne bekannten Spot, positive Dauer oder gültige Referenz erscheint keine Bewertung.
 Bei Average-only-Spots werden keine fehlenden High-/Top-Schwellen erfunden.
 
+Die Live-Session und das Overlay ergänzen die Stufe durch eine kontinuierliche
+Skala mit einem Marker für die eigene Leistung. Vorhandene Referenzwerte sind
+gleichmäßig angeordnet; dazwischen wird anhand der tatsächlichen Trashrate
+linear interpoliert. Die Prozentangabe beschreibt den Weg von der erreichten
+zur nächsten Referenz, keinen Spieler-Perzentilrang. Zusätzlich wird der noch
+fehlende Trash pro Stunde angezeigt. Unter Average beginnt die Skala bei null;
+oberhalb der höchsten Referenz läuft sie um ein weiteres Referenzintervall aus.
+Der Marker bleibt am Skalenende, während Text und Stundenwert auch darüber hinaus
+die tatsächliche Leistung zeigen. Gleiche Schwellen teilen eine Markierung.
+
 ## Mitgelieferte Referenzen
 
 Einheit: Trash pro Stunde, **Loot-Scroll Lv.2, ohne Agris und ohne Agris-Münze**.

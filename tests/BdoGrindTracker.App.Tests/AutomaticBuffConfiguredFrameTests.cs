@@ -47,6 +47,41 @@ public sealed class AutomaticBuffConfiguredFrameTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public void VisibleConfiguredEmptyPanelEstablishesKnownAbsence()
+    {
+        using var fixture = new Fixture();
+        using var reader = new AutomaticBuffFrameReader(readCalibration: () => fixture.Calibration,
+            recognize: (_, _) => throw new InvalidOperationException("An empty panel needs no OCR."));
+        using var frame = new Bitmap(3840, 2160);
+
+        var reading = Assert.IsType<BuffFrameReading>(reader.Read(frame, DateTimeOffset.UtcNow, CancellationToken.None));
+
+        Assert.Empty(reading.Observations);
+        Assert.Empty(reading.UnknownBuffIds);
+    }
+
+    [Fact]
+    public void UnconfiguredEmptyScreenshotDoesNotEstablishKnownAbsence()
+    {
+        using var reader = new AutomaticBuffFrameReader();
+        using var frame = new Bitmap(400, 240);
+
+        Assert.Null(reader.Read(frame, CancellationToken.None));
+    }
+
+    [Fact]
+    public void HiddenConfiguredPanelDoesNotEstablishKnownAbsence()
+    {
+        using var fixture = new Fixture();
+        File.WriteAllText(fixture.Calibration.GameVariablePath,
+            "<UIData Version=\"2\"><UIData Index=\"119\" IsShow=\"false\" RelativePosX=\"0.5\" RelativePosY=\"0.5\"/></UIData>");
+        using var reader = new AutomaticBuffFrameReader(readCalibration: () => fixture.Calibration);
+        using var frame = new Bitmap(3840, 2160);
+
+        Assert.Null(reader.Read(frame, DateTimeOffset.UtcNow, CancellationToken.None));
+    }
+
+    [Fact]
     public void MissingBoundCalibrationDoesNotSearchTheRestOfTheScreen()
     {
         using var reader = new AutomaticBuffFrameReader(

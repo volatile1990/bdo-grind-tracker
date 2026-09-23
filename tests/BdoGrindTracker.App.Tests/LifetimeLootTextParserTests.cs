@@ -45,6 +45,91 @@ public sealed class LifetimeLootTextParserTests
         Assert.Empty(adapter.Projection!.Totals);
     }
 
+    [Theory]
+    [InlineData("l Apeiron Earring x 1")]
+    [InlineData("ll Apeiron Earring x 1")]
+    [InlineData("lll Apeiron Earring x 1")]
+    [InlineData("lV Apeiron Earring x 1")]
+    [InlineData("lVApeironEarring x 1")]
+    [InlineData("l Apeiron-Ohrring x 1")]
+    [InlineData("lV Apeiron-Ohrring x 1")]
+    [InlineData("lVApeiron-Ohrring x 1")]
+    [InlineData("1V Apeiron-Ohrring x 1")]
+    [InlineData("lV Twilight of the End - Earring x 1")]
+    [InlineData("lV Dämmerung des Endes – Ohrring x 1")]
+    public void RomanEnhancementGlyphErrorsDoNotBecomeBaseAccessories(string text)
+    {
+        var parser = new LifetimeLootTextParser(AccessoryCatalog(), LootSource.Rare);
+        Assert.Null(parser.Parse(Raw(text) with { Source = LootSource.Rare }));
+    }
+
+    [Theory]
+    [InlineData("l Apeiron-Ohrring")]
+    [InlineData("ll Apeiron-Ohrring")]
+    [InlineData("lV Apeiron-Ohrring")]
+    [InlineData("1V Apeiron-Ohrring")]
+    [InlineData("1 Apeiron-Ohrring x 1")]
+    [InlineData("11 Apeiron Earring x 1")]
+    public void RomanEnhancementGlyphErrorsExcludeAcceptedFixedUnitFallback(string text)
+    {
+        var parser = new LifetimeLootTextParser(AccessoryCatalog(), LootSource.Rare);
+        var row = Raw(text) with
+        {
+            Source = LootSource.Rare, ItemName = "Apeiron Earring", Quantity = 1,
+            NameConfidence = 1, RejectionReason = null, UsesFixedUnitQuantity = true,
+        };
+        Assert.True(parser.Parse(row)!.IsExcluded);
+    }
+
+    [Theory]
+    [InlineData("1 Apeiron Earring")]
+    [InlineData("11 Apeiron Earring")]
+    [InlineData("1 Apeiron-Ohrring")]
+    [InlineData("11 Apeiron-Ohrring")]
+    public void LeadingNumericQuantitiesDoNotBecomeRomanEnhancements(string text)
+    {
+        var parser = new LifetimeLootTextParser(AccessoryCatalog(), LootSource.Rare);
+        var row = Raw(text) with { Source = LootSource.Rare };
+        foreach (var reading in new[] { row, row with
+            { ItemName = "Apeiron Earring", Quantity = 1, RejectionReason = null } })
+        {
+            var parsed = parser.Parse(reading);
+            Assert.False(parsed!.IsExcluded);
+            Assert.Equal("Apeiron Earring", parsed.Name);
+            Assert.Equal(1, parsed.Quantity);
+        }
+    }
+
+    [Theory]
+    [InlineData("Apeiron Earring x 1", "Apeiron Earring")]
+    [InlineData("Apeiron Earrlng x 1", "Apeiron Earring")]
+    [InlineData("Apeiron-Ohrrlng x 1", "Apeiron Earring")]
+    [InlineData("Apeiron Rlng x 1", "Apeiron Ring")]
+    [InlineData("Apeiron R1ng x 1", "Apeiron Ring")]
+    [InlineData("Laila's Petal x 1", "Laila's Petal")]
+    [InlineData("Lailas Blütenblatt x 1", "Laila's Petal")]
+    public void RomanEnhancementGlyphGuardPreservesBaseNamesAndItemGlyphRepairs(string text, string expected)
+    {
+        var parser = new LifetimeLootTextParser(AccessoryCatalog(), LootSource.Rare);
+        var row = Raw(text) with { Source = LootSource.Rare };
+        Assert.Equal(expected, parser.Parse(row)!.Name);
+        Assert.False(parser.Parse(row with
+            { ItemName = expected, Quantity = 1, RejectionReason = null })!.IsExcluded);
+    }
+
+    [Fact]
+    public void RomanEnhancementGlyphGuardDoesNotChangeNormalRawParsing()
+    {
+        var parser = new LifetimeLootTextParser(AccessoryCatalog());
+        Assert.Equal("Apeiron Earring", parser.Parse(Raw("lV Apeiron Earring x 1"))!.Name);
+    }
+
+    private static LifetimeParsingContext AccessoryCatalog() => new(0,
+        new[] { "Apeiron Earring", "Apeiron Ring", "Apeiron Belt", "Apeiron Necklace",
+            "Twilight of the End - Earring", "Twilight of the End - Ring", "Laila's Petal" }
+            .Select(name => new LifetimeParsingCatalogEntry(name,
+                [ItemLocalizationCatalog.GermanNames[name]], true)).ToArray());
+
     [Fact]
     public void AccessoryGlyphRepairDoesNotChangeTheHistoricalNormalParser()
     {

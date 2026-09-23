@@ -12,7 +12,6 @@
     <ProjectReference Include="../../src/BdoGrindTracker.BrowserPreview/BdoGrindTracker.BrowserPreview.csproj" />
     <Using Include="Xunit" />
     <Using Include="System.Drawing" />
-    <Compile Include="../../src/BdoGrindTracker.App/Persistence/AppSettings.cs" Link="Shared/AppSettings.cs" />
     <Compile Include="../../src/BdoGrindTracker.App/Overlay/Native/NativeOverlayRenderState.cs" Link="Shared/NativeOverlayRenderState.cs" />
     <Compile Include="../../src/BdoGrindTracker.App/Overlay/Native/NativeOverlayGeometry.cs;../../src/BdoGrindTracker.App/Overlay/Native/NativeOverlayResize.cs" Link="Shared/%(Filename)%(Extension)" />
     <!-- Exercise the existing widget rendering/layout assertions on macOS/Linux too. -->

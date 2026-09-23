@@ -31,19 +31,36 @@ Die drei Cron-Mahlzeiten, zehn Harmony-Varianten (fünf normale und fünf
 unsterbliche) und sechs Mystic-Beasts-Effekte besitzen jeweils eigene
 Client-Symbole. Einige normale
 und unsterbliche Parfüme, mehrere Zeltlaufzeiten und die Glücksstufen verwenden
-dagegen nachweislich denselben Client-Symbolpfad. Adventure's Boon, Body Enhancement
-und Turning Gates werden bei jeder neuen Buchung **immer als 300-Minuten-Variante**
-bewertet, unabhängig von der gelesenen Restzeit. Damit zählen anfänglich aktive
-Buffs und spätere Erneuerungen unter derselben Verbrauchsidentität. Verwendet
-werden die hinterlegten NPC-Preise: 12.000.000, 10.000.000 bzw. 2.000.000 Silber.
-Dies ist eine feste Bewertungsannahme; der Timer beweist die gekaufte Dauer nicht.
+dagegen nachweislich denselben Client-Symbolpfad. Bei unterschiedlichen Laufzeiten
+wird jede neue Anwendung der **kleinsten angebotenen Dauer zugeordnet, die ihre
+gelesene Restzeit abdeckt**: etwa 280 Minuten zu 300 Minuten und 160 Minuten zu
+180 Minuten. Es gilt der hinterlegte NPC-Preis dieser Variante. Die Variante
+bleibt während eines durchgängigen Countdowns erhalten und wird bei einer neuen
+Anwendung erneut bestimmt. Eine pauschale Bewertung mit 300 Minuten entfällt.
+Grobe Stundenanzeigen werden als Intervall ausgewertet: `2h` kann beispielsweise
+einen gerade angewendeten 180-Minuten-Villabuff zeigen, `4h` die 300-Minuten-Variante.
+Passen mehrere Kaufdauern in dasselbe Intervall, bleibt die Variante unbekannt.
+Die Restzeit erlaubt nur eine Dauerannahme.
 
 Gleichbleibende oder sinkende Restzeiten erzeugen weiterhin keine weitere Buchung.
 Eine höhere gelesene Restzeit zählt auch nach einer Pause oder Erkennungslücke
-als neue Anwendung und erhält wieder die 300-Minuten-Variante.
-Frühere Buchungen behalten ihre Werte. In Live-Session, Verlauf und Overlay werden
-auch alte kürzere Varianten je Zeltbuff in derselben Kachel zusammengefasst;
-ihre gespeicherten Kosten bleiben unverändert. Haben mehrere Varianten dasselbe Symbol
+als neue Anwendung und erhält die zu ihrer Restzeit passende Laufzeitvariante.
+Sekunden-, Minuten- und Stundenangaben behalten ihre jeweilige Anzeigeauflösung.
+Ein Wechsel von einer groben Stundenanzeige zu einer genaueren Minutenanzeige
+innerhalb desselben verbleibenden Zeitintervalls zählt nicht als Erneuerung.
+Auch das bloße Unterschreiten einer angebotenen Kaufdauer erzeugt keinen Verbrauch.
+Ein einzelner unplausibel schneller Timerabfall wird zunächst als unbekannt behandelt.
+Erst eine dazu passende Folgelesung bestätigt den niedrigeren Wert; kehrt der Timer
+zum erwarteten Countdown zurück, erzeugt das keine falsche Erneuerung.
+Kurze Anzeigen wie `4h` und `4m`, die Windows OCR zunächst vollständig übersieht,
+werden zusätzlich mit einem breiteren Streifen derselben Timerpixel geprüft.
+Nur drei gleiche Timer in jeder von zwei übereinstimmenden Bildaufbereitungen
+werden akzeptiert. Widersprüchliche oder nichtleere ursprüngliche OCR-Ergebnisse
+werden dadurch nicht überschrieben. Ein wiederholt gleichbleibendes `4h` erzeugt
+keine weitere Anwendung.
+Frühere Buchungen behalten ihre Werte. In Live-Session, Verlauf und Overlay bleiben
+unterschiedliche Laufzeitvarianten in getrennten Kacheln mit eigenen Mengen und
+gespeicherten Kosten sichtbar. Haben mehrere Varianten dasselbe Symbol
 **und dieselbe Dauer**, etwa Glücksstufen oder bestimmte normale/unsterbliche
 Parfümpaare, bleiben sie als **(Variante unbekannt)** ohne Preis sichtbar.
 
@@ -56,30 +73,40 @@ werden nicht auf normale IDs umgeschrieben. Bereits gespeicherte Verbrauchsbuchu
 behalten ihre ursprünglichen Namen, Preise und Zeitpunkte, einschließlich
 früherer Buchungen zum normalen Preis.
 
-Die Erstanrechnung benötigt für **jeden Buff zwei eigene, zeitlich zusammenpassende
-Beobachtungen**. Ein dabei bereits aktiver, bisher ungebuchter Buff wird **einmal
-mit seinem Preis angerechnet**. Das gilt auch, wenn er erst später in der Session
-lesbar wird: Ein früh erkanntes Harmony-Symbol schließt eine erst später lesbare
-Cron-Mahlzeit nicht aus. Diese Buchung ist als Erstbeobachtung gespeichert und im
-Mouseover als **Bei erster Erkennung aktiv** gekennzeichnet; sie behauptet weder,
-dass der Buff schon beim Grindstart sichtbar war, noch einen während der Session
-beobachteten Kauf.
+**Beim Start bereits aktive Buffs zählen nicht als Verbrauch und erzeugen keine
+Verbrauchskosten.** Ihre ersten zwei passenden Beobachtungen bestätigen nur den
+Ausgangszustand und die beobachtete Laufzeit. Das gilt auch für zunächst
+mehrdeutige oder unlesbare Buffs, sobald ihr Timer lesbar wird.
+
+Ein später neu auftauchender Buff kann nach **zwei eigenen, zeitlich
+zusammenpassenden Beobachtungen** als neue Anwendung zählen. Dafür muss die vorige
+lesbare Prüfung seine Abwesenheit gezeigt haben und seine erste Restzeit nahe
+der vollen erkannten Laufzeit liegen (höchstens 45 Sekunden plus Timerauflösung
+darunter). Eine gültige, sichtbare Buffleiste ohne erkannte unterstützte Symbole
+bildet einen leeren Ausgangszustand. Ein erst spät mit deutlich verkürzter
+Restzeit lesbarer Buff bildet dagegen ebenfalls nur einen Ausgangszustand.
+Wurde eine neue Anwendung nach lesbarer Abwesenheit bereits gesehen, bleibt dieser
+Nachweis bei einer kurzen einzelnen Leselücke bis zu 45 Sekunden erhalten. Zwei
+passende lesbare Befunde nach der Lücke können die Anwendung noch bestätigen;
+die unlesbare Zeit erzeugt keine Laufzeitkosten. Das gilt auch, wenn zunächst nur
+das neu erschienene Symbol und kurz darauf sein fast voller Timer erkannt wurde.
 Sobald eine eindeutig gelesene Restzeit höher ist als der zuletzt
 für diesen Buff gelesene Wert, zählt sofort eine weitere Anwendung zum aktuellen
 Preis. Gleichbleibende oder sinkende Restzeiten erhöhen den Zähler nicht. Eine
 zweite Bestätigungsaufnahme ist für die Erneuerung nicht erforderlich.
 
-Vor der zweiten passenden Erstbeobachtung bleibt der Buff ungezählt. Vorheriges
-Nichterkennen belegt keine Abwesenheit. Bereits vorhandene Buchungen verhindern
-eine weitere Erstanrechnung desselben Buffs, auch bei Varianten derselben
-Dauerfamilie. Pause, Erkennungslücke und eine Präzisierung der Timeranzeige zählen
-bereits gebuchte Buffs deshalb nicht erneut. Beim Wiederherstellen einer Session
-bleiben diese Buchungen und ihre Preise erhalten; bislang ungebuchte Buffs können
-nach zwei neuen passenden Beobachtungen erstmals angerechnet werden. Ein neuer
-Grind beginnt eine neue Inventur.
+Vor der zweiten passenden Beobachtung bleibt eine neue Erscheinung ungezählt.
+Pause und Erkennungslücken belegen keine neue Anwendung: erstmals danach
+gelesene Buffs bilden einen neuen Ausgangszustand. Bekannte Timer bleiben für
+den Vergleich auf Erneuerungen erhalten. Beim Wiederherstellen einer Session
+bleiben historische Buchungen einschließlich früherer Erstanrechnungen und ihrer
+Preise erhalten; neue Erstanrechnungen werden nicht mehr erzeugt. Ein neuer Grind
+beginnt mit einem neuen, ungezählten Ausgangszustand.
 
-Die Timerauflösung beeinflusst die Laufzeitschätzung, nicht den Vergleich für
-eine neue Anwendung. Der Bildleser verwirft widersprüchliche OCR-Ergebnisse.
+Bei unveränderter Timerauflösung zählt ein eindeutig höherer Wert weiterhin sofort
+als neue Anwendung. Eine bloße Verfeinerung einer Stundenanzeige wird dabei unter
+Berücksichtigung der inzwischen verstrichenen Zeit ausgeschlossen.
+Der Bildleser verwirft widersprüchliche OCR-Ergebnisse.
 Ein kompletter Verbrauch zwischen zwei Messungen kann unerkannt bleiben, wenn
 die neue gelesene Restzeit bereits gleich oder kleiner als der alte Wert ist.
 
@@ -99,22 +126,27 @@ nur als Vergleichswerte, ohne offline Laufzeit oder aktuell aktive Buffs zu beha
 1. Eine Session starten und **Live-Session → Verbrauchte Items** im Kopfbereich
    beobachten. Die Standarderkennung benötigt weder die Auswahl eines Profils
    noch eine manuelle Markierung der Leiste.
-2. Buffsymbole und Restzeiten sichtbar lassen. Jeder bisher ungebuchte Buff zählt
-   nach zwei eigenen passenden Befunden einmal mit Preis, auch bei späterer
-   Ersterkennung. Im Mouseover steht die Kennzeichnung **Bei erster Erkennung aktiv**.
+2. Buffsymbole und Restzeiten sichtbar lassen. Bereits aktive Buffs bleiben
+   ungezählt; nach zwei passenden Befunden wird ihre Laufzeit beobachtet.
 3. Für einen Verbrauchstest einen bereits beobachteten Buff mit deutlich
    verkürzter Restzeit erneuern und die nächste lesbare Prüfung abwarten. Der Mengenbadge
    am Icon steigt; der Mouseover nennt die gespeicherten Preise, die Kostenzeile
    die Gesamtkosten.
    Stundenanzeigen können eine Erneuerung wegen ihrer groben Auflösung verbergen.
-4. Bei erst später lesbaren Buffs ebenfalls zwei passende Prüfungen abwarten.
-   Eine Pause, ein fehlendes Symbol oder ein verdecktes Bild darf bei bereits
-   gebuchten Buffs keine weitere Erstanrechnung erzeugen.
+4. Einen bisher nicht aktiven Buff während des Grinds anwenden. Nach einer zuvor
+   lesbaren Prüfung und zwei passenden Befunden mit frischem Timer zählt er einmal.
+   Ein erst nach einer Pause oder mit bereits verkürztem Timer erkannter Buff
+   darf keine nachträgliche Erstanrechnung erzeugen.
 
 Die unterstützte Erkennung ist keine Garantie, jedes vorhandene Buffsymbol unter
 allen Grafikeinstellungen zu lesen. Fehlende oder mehrdeutige Symbole und
 unlesbare Timer bleiben unbekannt. Ein nicht unterstützter Buff wird nicht anhand
 ähnlicher Effekte einem kostenpflichtigen Gegenstand zugeordnet.
+
+Bei eingeschalteten automatischen Debuglogs enthält `buff-observation` jeden
+tatsächlich ausgewerteten Buff-Befund mit Aufnahmezeit, Buff-ID, Restzeit,
+Timerauflösung, unbekannten IDs und den daraus entstandenen Verbrauchsbuchungen.
+Damit lassen sich fehlende oder zusätzliche Anwendungen gezielt nachverfolgen.
 
 ## Frühere manuelle Profile
 
@@ -162,31 +194,33 @@ und Kosten bleiben unbekannt. Das betrifft nachgewiesene gemeinsame Symbole
 normaler und unsterblicher Parfümvarianten mit gleicher Dauer sowie
 unterschiedlich teurer Glücksstufen. Fehlende Preise erscheinen nie als null
 Silber. Bei unterschiedlichen Zeltlaufzeiten erlaubt dagegen die oben erläuterte
-Dauerannahme eine Bewertung; sie ist kein Beleg des ursprünglichen Kaufs.
+Dauerannahme eine getrennte Bewertung neuer Anwendungen; sie ist kein Beleg des
+ursprünglichen Kaufs.
 
 Die Kosten verwenden den vollen Zentralmarktpreis der ausgewählten Marktregion,
 ohne Verkaufssteuerabzug. Zeltbuffs verwenden den festen NPC-Kaufpreis der
 gewählten Variante beziehungsweise der angenommenen Kaufdauer und werden nicht
-am Zentralmarkt abgefragt. Die gespeicherten Buchungen unterscheiden Erstanrechnung,
-bestätigte Erneuerung, Zentralmarkt und NPC-Festpreis. Fehlende Preise bleiben unbekannt. Bereits bekannte
+am Zentralmarkt abgefragt. Historische Erstanrechnungen bleiben lesbar; neue Buchungen
+erfassen nur während des Grinds erkannte Anwendungen mit Zentralmarkt- oder
+NPC-Festpreis. Fehlende Preise bleiben unbekannt. Bereits bekannte
 Preise behalten ihren Preiszeitpunkt und Cache-Status. Die Liste erfasst nur
-bestätigte Erstbeobachtungen und Erneuerungen; sie ist keine vollständige Inventarhistorie.
+bestätigte neue Anwendungen und Erneuerungen; sie ist keine vollständige Inventarhistorie.
 
 Die Erfassung speichert zwei getrennte Werte, die nicht addiert werden:
 
 - **Beobachtete Laufzeit:** Gegenstandspreis × bestätigte Beobachtungszeit / volle
   Wirkungsdauer. Das berücksichtigt auch einen bei seiner ersten Erkennung bereits aktiven
   Buff. Pausen, fehlendes Bildsignal und unlesbare Abschnitte werden ausgelassen.
-- **Buffkosten:** Ein voller Gegenstands- bzw. NPC-Preis je bestätigter Erstanrechnung
-  und je späterer bestätigter Erneuerung. Art der Buchung, Zeitpunkt, Marktregion,
+- **Buffkosten:** Ein voller Gegenstands- bzw. NPC-Preis je bestätigter neuer Anwendung
+  während des Grinds. Anfangs aktive Buffs kosten hier nichts. Art der Buchung, Zeitpunkt, Marktregion,
   Preis und Cache-Status bleiben mit der Buchung gespeichert. Die kompakte Anzeige
   verwendet diese Buffkosten.
 
 Im Kopf der **Live-Session** fasst **Verbrauchte Items** die Buchungen als kompakte
 Iconleiste zusammen. Jedes Bufficon trägt die gezählte Menge in der Ecke; daneben
 stehen die Gesamtkosten aller Buchungen. Beim Überfahren eines Icons erscheinen
-Name, Anzahl und gespeicherte Preise. Nur gebuchte Erstanrechnungen und bestätigte
-Erneuerungen erzeugen eine Kachel; ein aktiver Timer allein erhöht keine Menge.
+Name, Anzahl und gespeicherte Preise. Nur gespeicherte Verbrauchsbuchungen
+erzeugen eine Kachel; ein aktiver Timer allein erhöht keine Menge.
 Ohne Beobachtungen steht **—**, bei einem beobachteten Zustand ohne Buchungen
 **0 Silber**. Sind alle Buchungen ungepreist, steht **Preis fehlt**; bei teilweise
 bekannten Preisen bleibt der bekannte Betrag mit **\*** gekennzeichnet.
@@ -220,7 +254,7 @@ als Buff-Laufzeit. Bei Zeitüberschreitung wird der unbestätigte Befund verworf
 Die Buff-Werte stehen separat neben der Loot-Bewertung und ändern weder deren
 Steuerberechnung noch den Garmoth-Upload. Empfangene Gruppenbuffs erlauben keinen
 Nachweis darüber, welches Gruppenmitglied den Gegenstand konsumiert hat. Die
-Gruppen-Harmony-Erkennung zählt bestätigte Erstbeobachtungen und Timer-Erneuerungen und bewertet die
+Gruppen-Harmony-Erkennung zählt bestätigte neue Anwendungen und Timer-Erneuerungen und bewertet die
 eindeutig erkannte normale oder unsterbliche Variante ohne zusätzliche Zuordnung
 zu eigenem Verbrauch. Ein bestätigter
 Timerwechsel belegt die erneute Wirkung, nicht die Herkunft des Gegenstands.
@@ -236,6 +270,6 @@ prüfen zusätzlich die Windows-OCR mit Harmony/Halbmenschen und einer Cron-Mahl
 Eine zweite Bildskalierung nach dem Auffüllen des Zeitbereichs verhindert in
 diesen Aufnahmen zusätzliche oder aufgeteilte Ziffern. Drei aufeinanderfolgende
 passive Live-Aufnahmen bestätigten beide Buffs als bereits aktiv. Diese Erkennung
-belegt den laufenden Effekt; die Erstanrechnung ist eine separate Bewertungsregel,
-kein Nachweis eines neu beobachteten Kaufs. Das belegt dieses Layout, noch keine allgemeine
+belegt den laufenden Effekt und erzeugt im Ausgangszustand keine Verbrauchsbuchung.
+Das belegt dieses Layout, noch keine allgemeine
 Erkennungsquote für andere Auflösungen, Buffsymbole oder UI-Skalierungen.

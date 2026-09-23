@@ -96,7 +96,7 @@ internal sealed partial class OverlayMetrics
             ["status"] = new("Session", session.Status, state.Status),
             ["loot-scroll"] = new(T("Loot-Scroll"), session.LootScroll, IsWarning: session.LootScrollWarning),
             ["grind-rating"] = new(T("Grind-Bewertung"), grindRating.Label, grindRating.Detail,
-                Tone: grindRating.Tone, Tooltip: grindRating.Description),
+                Tone: grindRating.Tone, Tooltip: grindRating.Description) { Spectrum = grindRating.Spectrum },
             ["rotations-hour"] = RotationsPerHour(rotation, preferences.UiLanguage),
             ["rotation-count"] = RotationCount(rotation, preferences.UiLanguage),
         };

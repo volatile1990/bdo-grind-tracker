@@ -1,0 +1,9 @@
+What's new in Grindcrest 1.9.0:
+
+• Automatic debug logging in Settings → Diagnostics: local text logs without images or API keys, with a separate folder for each session. Retention is adjustable from 1 to 168 hours, with a 3-hour default; older entries are deleted automatically.
+• More accurate buff consumption: Buffs already active at the start remain uncounted. Confirmed new applications and timer increases count as consumption; pauses and late readings of partially elapsed timers do not trigger initial charges.
+• Tent buffs are priced by their detected duration. Different durations have separate quantities and costs in the live session, history and overlay. Existing bookings and prices are preserved.
+• More reliable short buff timers and protection against false applications caused by isolated misreadings or transitions from hour to minute displays.
+• Class detection after character switches uses additional local journal file metadata. The start screen refreshes the automatic class every 30 seconds.
+• Rare drops require two matching additional OCR readings. Conflicting notifications and misread enhancement levels are excluded more reliably.
+• Drop markers and recorded drop quantities follow automatic quantity corrections without creating extra drop times.

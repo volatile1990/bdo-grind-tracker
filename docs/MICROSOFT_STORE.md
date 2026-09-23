@@ -21,10 +21,10 @@ Für die Paketierung werden keine Konto-Passwörter, MSA-App-Secrets oder Signie
 Windows, PowerShell 7.2+, .NET SDK 9.0.318 oder neuer aus der 9er-Reihe, Node.js 24 und das Windows SDK ab 10.0.19041.0 mit `MakeAppx.exe` und `MakePri.exe` sind erforderlich.
 
 ```powershell
-./scripts/Build-StoreRelease.ps1 -Version 1.8.2 -RequireWindowsOcr
+./scripts/Build-StoreRelease.ps1 -Version 1.9.2 -RequireWindowsOcr
 ```
 
-Das Skript führt .NET- und JavaScript-Tests aus, veröffentlicht .NET samt Desktop-/Blazor-Laufzeit, erzeugt Logos aus der bestehenden Marke, erstellt den Shell-Ressourcenindex mit MakePri und das MSIX mit der Manifestprüfung des Windows SDK. Anschließend prüft es Identität, Inhalt, Runtime-Mindestversion, Icontransparenz und Ressourcen-Zuordnungen. Das Ergebnis liegt unter `artifacts/store/1.8.2/Grindcrest-1.8.2.0-x64.msix`, zusammen mit SHA-256-Prüfsumme sowie MakePri- und MakeAppx-Protokollen. Das Ausgabeverzeichnis muss leer sein; zum Wiederholen einen neuen `-OutputDirectory` angeben. `-SkipTests` ist nur für lokale Paketierungsdiagnosen gedacht.
+Das Skript führt .NET- und JavaScript-Tests aus, veröffentlicht .NET samt Desktop-/Blazor-Laufzeit, erzeugt Logos aus der bestehenden Marke, erstellt den Shell-Ressourcenindex mit MakePri und das MSIX mit der Manifestprüfung des Windows SDK. Anschließend prüft es Identität, Inhalt, Runtime-Mindestversion, Icontransparenz und Ressourcen-Zuordnungen. Das Ergebnis liegt unter `artifacts/store/1.9.2/Grindcrest-1.9.2.0-x64.msix`, zusammen mit SHA-256-Prüfsumme sowie MakePri- und MakeAppx-Protokollen. Das Ausgabeverzeichnis muss leer sein; zum Wiederholen einen neuen `-OutputDirectory` angeben. `-SkipTests` ist nur für lokale Paketierungsdiagnosen gedacht.
 
 `-RequireWindowsOcr` verlangt, dass die nativen OCR-Tests tatsächlich laufen;
 die Windows-OCR-Sprachpakete für `en-US` und `de-DE` müssen auf dem Testrechner
@@ -32,8 +32,8 @@ vorhanden sein. Ohne den Schalter erscheinen fehlende Voraussetzungen sichtbar
 als übersprungene Tests in Konsole und TRX. Das gilt auch für gehostete CI-Runner:
 deren grüner Lauf mit Skips ersetzt keine native Prüfung auf einem passenden Windows-PC.
 
-Die [Versionshinweise für 1.8.2](release-notes/1.8.2.md) und die Texte für den
-[deutschen](release-notes/1.8.2-store.txt) und [englischen Store-Eintrag](release-notes/1.8.2-store-en.txt)
+Die [Versionshinweise für 1.9.2](release-notes/1.9.2.md) und die Texte für den
+[deutschen](release-notes/1.9.2-store.txt) und [englischen Store-Eintrag](release-notes/1.9.2-store-en.txt)
 beschreiben dieses Release.
 
 Das Paket deklariert `en-US` und `de-DE`. Englisch ist die Voreinstellung für die

@@ -75,7 +75,6 @@ internal sealed class AutomaticBuffCatalog
         {
             LocalizedName = german + " (Variante unbekannt)", Category = first.Category,
             RecognitionGroup = group, Variant = "Unbekannt",
-            PreferMaximumDurationVariant = group is "tent-adventures-boon" or "tent-body-enhancement" or "tent-turning-gates",
             // Only duration distinguishes these purchases. Equal-duration price
             // tiers or ordinary/Immortal variants cannot use a countdown estimate.
             DurationVariantIds = definitions.Select(item => item.RecognitionGroup).Distinct().Count() == 1 &&

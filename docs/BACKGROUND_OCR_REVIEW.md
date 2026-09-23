@@ -1,6 +1,6 @@
-# Paddle-Zusatzprüfung und Mengenabgleich
+# Paddle-Zusatzprüfung, Rare-Auswahl und Mengenabgleich
 
-Stand: 10. September 2026.
+Normale Zusatzprüfung: Stand 10. September 2026. Rare-Auswahl: 22. September 2026.
 
 Windows OCR bleibt der erste Erkennungsweg. PP-OCRv6 Small ersetzt Tesseract als
 lokale Zusatzprüfung. Die Anwendung führt das mitgelieferte Modell über ONNX
@@ -8,7 +8,7 @@ Runtime 1.29.0 auf der CPU aus. Python, GPU und Downloads beim Start sind nicht
 erforderlich. Modell und Zeichensatz sind auf eine überprüfte Revision festgelegt;
 Quellen stehen in `data/ocr/paddle-v6-small/SOURCES.md`.
 
-## Auswahl und Annahme
+## Auswahl und Annahme bei normalen Lootzeilen
 
 Die [gezielte Trash-Anomalieprüfung](TRASH_QUANTITY_ANOMALIES.md) hat bei
 auffälligen, bereits von Windows akzeptierten Mengen Vorrang vor den folgenden
@@ -29,8 +29,8 @@ eigenen, durch die vorherige Bildfolge begrenzten Anlass.
 Zwei Arbeiter mit eigenen Modellinstanzen verarbeiten Zeilen parallel. Jeder
 liest ausschließlich die ursprüngliche Zeile dieses Frames als Originalbild und
 Graustufenbild. Die starke Schriftmaske des früheren Tesseract-Pfads entfällt.
-Normale Ausschnitte richten sich nach der kalibrierten UI-Skalierung; die anders
-aufgebaute Rare-Anzeige behält ihren vollständigen kalibrierten Textbereich.
+Normale Ausschnitte richten sich nach der kalibrierten UI-Skalierung. Für die
+anders aufgebaute Rare-Anzeige gelten die unten beschriebenen Ausschnittsregeln.
 
 Beide Lesungen müssen denselben globalen Katalogeintrag liefern, innerhalb des
 erlaubten Spotpools, mit Modellscore mindestens 0,95 und Namensdistanz höchstens
@@ -51,6 +51,79 @@ erhalten das Minimum. Die Beobachtung behält ihre rohe OCR-Menge für die Diagn
 Die zwei Varianten sind keine statistisch unabhängigen Beweise. Modellfehler oder
 ein überschrittenes Zeilenbudget von zwei Sekunden erhalten die primäre Beobachtung.
 Abbruch wird auch während der nativen ONNX-Ausführung unterstützt.
+
+## Rare-Drops: bestes OCR-Ergebnis (22. September 2026)
+
+Für den separaten Rare-Banner konkurrieren die akzeptierte primäre Windows-Lesung
+und die Paddle-Lesungen in Originalfarbe und Graustufen als einzelne Kandidaten.
+Eine Lesung benötigt keine Bestätigung durch die übrigen Varianten. Eine sichere,
+vollständige primäre Lesung bleibt daher verwendbar, wenn Paddle keinen passenden
+Text liefert oder eine Zusatzlesung fehlschlägt. Umgekehrt kann eine einzige gute
+Paddle-Lesung eine unvollständige primäre Lesung ersetzen. Es entsteht weiterhin
+genau eine abschließende Beobachtung pro Rare-Slot und Frame.
+
+Jeder Kandidat muss die jeweiligen Annahmeregeln, den erlaubten Itempool und die
+Mengengrenzen erfüllen. Für Paddle bleiben Modellscore mindestens 0,95 und
+Namensdistanz höchstens 0,05 erforderlich. Bei variablen Mengen müssen vorhandene
+Einzelziffer-Scores mindestens 0,90 erreichen; ein guter Namensscore gleicht
+eine unsichere Ziffer nicht aus. Die Rangfolge verwendet zuerst die
+Ähnlichkeit zum Katalognamen, weil rohe Modellwerte verschiedener OCR-Engines
+nicht direkt vergleichbar sind. Bei gleicher Namensqualität entscheidet zunächst
+die Übereinstimmung mehrerer Kandidaten bei Item und Menge, danach hat die primäre
+Lesung Vorrang; der OCR-Score entscheidet zuletzt zwischen gleichwertigen
+Zusatzlesungen. Übereinstimmung ist damit ein Stichentscheid, keine Voraussetzung.
+Die oben beschriebenen Regeln zur Mengenbestätigung normaler Lootzeilen und die
+gezielte Trash-Anomalieprüfung werden dadurch nicht gelockert.
+
+Paddle behält die vollständige Breite des kalibrierten Rare-Bereichs, einschließlich
+Verstärkungspräfix und Mengenendung. Gültige Wortboxen der primären OCR desselben
+Frames begrenzen nur den vertikalen Textstreifen mit etwas Rand. Die Boxen müssen
+eine gemeinsame Zeile beschreiben; fehlen sie oder sind sie unbrauchbar, bleibt
+der vollständige Bereich erhalten. Diese Geometrie lokalisiert den Text, liefert
+aber weder Itemname noch Menge für Paddle. Die Zusatzlesung liest weiterhin die
+Bildpixel selbst. Der engere Streifen verhindert, dass dekorative Bannerränder
+die Schrift bei der Normalisierung zu stark verkleinern.
+
+Ohne gültigen Kandidaten werden zwei Fälle unterschieden: Katalognaher,
+unleserlicher Text oder der Ausfall aller Zusatzlesungen erhält `rare-paddle-unconfirmed` und damit
+die Kontinuität eines vorhandenen Drops, ohne neue Item- oder Mengenstimmen.
+Ein erfolgreicher Durchlauf ohne passenden Itemhinweis erhält
+`rare-ocr-no-match`, auch wenn eine andere Zusatzlesung fehlschlägt;
+Hintergrund verhindert dadurch nicht dauerhaft eine
+beobachtete Abwesenheit. Der alte Ablehnungsgrund bleibt für vorhandene
+Aufzeichnungen und deren Kontinuitätssemantik erhalten. Die ausgewählte Lesung
+wird als `rare-primary-selected` beziehungsweise `rare-secondary-selected`
+protokolliert, fehlende gültige Kandidaten als `rare-no-valid-reading`.
+
+Die Aufnahme vom 22.09.2026, Session
+`b8a58dcb-4b82-44ed-b4d6-4afe44ce6d98`, zeigt den Necklace-Banner von
+16:54:40,206 bis mindestens 16:54:44,661 Uhr MESZ (Frames 4335–4357), also
+mindestens 4,45 Sekunden; im nächsten Bild ist er verschwunden. Vergleichbare
+benannte Zeilen des normalen Lootbereichs waren etwa 0,81–1,22 Sekunden lesbar.
+Die primäre OCR ordnete die Necklace in 15 Frames korrekt zu, die damalige
+Zusatzprüfung verwarf jedoch alle als `rare-paddle-unconfirmed`. Insgesamt tragen
+alle 4.795 Rare-Beobachtungen dieses Logs den alten Ablehnungsgrund, auch bei
+leerem Bannerbereich. Der fehlende Necklace-Drop wurde somit nicht durch eine
+zu kurze Anzeige erklärt.
+
+Eine Doppelzählung durch die längere Rare-Anzeige ist in dieser Aufnahme nicht
+belegt: Nev's Fragment, Sunset Primordial Luster - Edana, Fusion Shard und HAN
+Origin Shard wurden über den normalen Lootbereich jeweils genau einmal mit Menge
+1 gebucht. Der aktuelle Lifetime-Zähler hält einen unveränderten Rare-Banner
+ohne zeitbedingte Neubuchung. Ein anderer Itemname kann unmittelbar einen neuen
+Drop bilden; eine beobachtete Abwesenheit von mindestens 1.550 ms ermöglicht
+einen weiteren identischen Drop. Aufnahmeunterbrechungen allein beweisen keine
+Abwesenheit. Eine vollständig identische direkte Ersetzung ohne erkennbaren
+Wechsel bleibt anhand dieser Textbeobachtungen nicht sicher unterscheidbar.
+
+Regressionstests in `RareDurationAndConsecutiveDropTests` prüfen lange Banner,
+teilweise und fehlgeschlagene Lesungen sowie sehr kurze direkt folgende Drops.
+`LifetimeSpecialLootTests` und `ShortSpecialNotificationReplayTests` sichern den
+bereits behobenen Verlust kurzer Folgemeldungen nach langer Anzeige ab. Dessen
+Fix bleibt erhalten: Der Rare-Einzelzeilenzähler lernt seine Beobachtungsprioren
+nicht aus den vielen wiederholten Lesungen desselben Banners. Die genannten
+Prüfdaten liegen unter `artifacts/rare-necklace-20260922-1456/`; sie belegen diesen
+konkreten Fall und keine allgemeine Erkennungsrate.
 
 ## Reihenfolge und Zählung
 

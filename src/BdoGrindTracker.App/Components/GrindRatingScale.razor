@@ -1,0 +1,36 @@
+@using BdoGrindTracker.App.Overlay
+
+@if (Value is { } spectrum)
+{
+    <div class="grind-spectrum @(Compact ? "is-compact" : "")" role="img" aria-label="@spectrum.Description" title="@spectrum.Description">
+        <div class="grind-spectrum-track" style="background:@Gradient(spectrum)" aria-hidden="true">
+            @foreach (var stop in spectrum.Stops)
+            {
+                <span class="grind-spectrum-tick" style="left:@Percent(stop.Position)"></span>
+            }
+            <span class="grind-spectrum-marker" style="left:@Percent(spectrum.Position)"></span>
+        </div>
+        <div class="grind-spectrum-labels" aria-hidden="true">
+            @foreach (var stop in spectrum.Stops)
+            {
+                <span class="grind-spectrum-stop" style="left:@Percent(stop.Position)"><span>@stop.Label</span>@if (!Compact) { <small>@stop.Value</small> }</span>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public GrindRatingSpectrum? Value { get; set; }
+    [Parameter] public bool Compact { get; set; }
+
+    private static string Percent(double value) => value.ToString("0.###", CultureInfo.InvariantCulture) + "%";
+    private static string Color(OverlayMetricTone tone) => tone switch
+    {
+        OverlayMetricTone.Positive => "var(--teal, #72cbb7)",
+        OverlayMetricTone.Accent => "var(--gold, #ddb76b)",
+        _ => "#8da6ba",
+    };
+    private static string Gradient(GrindRatingSpectrum spectrum) => "linear-gradient(90deg, #566474 0%, " +
+        string.Join(", ", spectrum.Stops.Select(stop => Color(stop.Tone) + " " + Percent(stop.Position))) + ", " +
+        Color(spectrum.Stops[^1].Tone) + " 100%)";
+}

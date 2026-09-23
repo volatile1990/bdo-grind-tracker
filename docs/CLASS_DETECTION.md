@@ -2,16 +2,22 @@
 
 Seit Version 0.8.0 erkennt der Tracker Klassen anhand der lokal gespeicherten
 Skill-Slots in `Documents/Black Desert/UserCache/.../gameVariable.xml`.
+Zum Zuordnen des aktiven Charakters berücksichtigt er außerdem die Dateinamen
+und Schreibzeiten unter `Cache/<Welt>/MyJournal` der installierten BDO-Version.
+Journalinhalte werden nicht gelesen.
 Die Anwendung liest diese Datei beim Öffnen und vor dem Start/Fortsetzen.
-Eine noch unbekannte automatisch gewählte Klasse wird alle 30 Sekunden erneut
-geprüft. Auch beim Wechsel von einer manuellen Klasse zurück auf Automatik wird
+Vor einer Sitzung wird die automatische Klasse alle 30 Sekunden erneut geprüft,
+damit ein Charakterwechsel auch die Startansicht aktualisiert. In einer begonnenen
+Sitzung wird nur eine noch unbekannte Klasse erneut geprüft.
+Auch beim Wechsel von einer manuellen Klasse zurück auf Automatik wird
 frisch gelesen. Die Anwendung bedient das Spiel nicht und untersucht keinen
 Spielprozess.
 
 Loot-Drops liefern keine zusätzlichen Klasseninformationen. Die automatische
-Wiederholung liest dieselben gespeicherten Skillbelegungen; sie erkennt die
-Klasse nicht aus dem Livebild. Ist die jüngste Charakterdatei unbekannt, reicht
-eine laufende Grind-Session allein deshalb nicht zur Erkennung aus.
+Wiederholung ordnet die gespeicherten Skillbelegungen anhand der aktuellen
+Dateiaktivität erneut zu; sie erkennt die Klasse nicht aus dem Livebild.
+Fehlen dem aktiven Charakter zuordenbare Skillbelege, reicht eine laufende
+Grind-Session allein deshalb nicht zur Erkennung aus.
 
 Die sichtbaren Spezialisierungsnamen sind überall **Awakening** und **Succession**,
 auch bei deutscher Oberfläche: zum Beispiel `Maegu · Awakening` oder
@@ -53,11 +59,28 @@ Nur wenn überhaupt keine profilweite XML vorhanden ist, bleibt für ältere
 Verzeichnisstrukturen die Auswahl nach Profil-Ordnerdatum erhalten.
 
 Innerhalb des gewählten Profils werden alle direkten Preset-Verzeichnisse
-berücksichtigt. Die jüngste echte Charakterdatei gewinnt anhand ihrer Schreibzeit;
-gemeinsame Preset-Dateien werden nur verwendet, wenn keine Charakterdateien
-existieren. Zugriffszeiten sind dafür ungeeignet: Schon das Lesen durch Grindcrest,
+berücksichtigt. Neben der Schreibzeit echter Charakterdateien wird die Schreibzeit
+des lokalen Journals berücksichtigt: Beim normalen Charakterwechsel speichert BDO
+zuerst die XML des verlassenen Charakters und aktualisiert nach dem Einloggen
+`Cache/<Welt>/MyJournal/<Charakter-ID>_<Jahr><Monat>.bcf` für den neu geladenen.
+Die spätere Journalaktivität wählt deshalb dessen vorhandene Skilldatei, auch wenn
+sie älter ist. Zusätzliches Speichern der UI im Spiel ist für diesen Wechsel nicht
+nötig. Das wurde an zwei aufeinanderfolgenden Einloggvorgängen im lokalen
+NAEU-Client am 22.09.2026 mit den ClientPlay-Zeitpunkten abgeglichen.
+
+Es werden ausschließlich Dateinamen und Schreibzeiten gelesen, keine binären
+Journalinhalte. Welt und Charakter müssen zum ausgewählten UserCache-Profil
+passen. Verweist die jüngste Aktivität auf einen Charakter ohne lesbare XML,
+bleibt die Erkennung unverfügbar. Mehrere Monate desselben Charakters werden
+zusammengefasst. Ältere Journale verdrängen keine neueren XML-Speicherungen.
+Fehlen Installation oder Journal, bleibt die Auswahl nach XML-Schreibzeit erhalten.
+Die Installation wird über dieselben Windows-Deinstallationseinträge gefunden
+wie für die Textsprachenerkennung.
+
+Gemeinsame Preset-Dateien werden nur verwendet, wenn keine Charakterdateien
+oder Journalaktivität existieren. Zugriffszeiten sind dafür ungeeignet: Schon das Lesen durch Grindcrest,
 BDO oder ein Diagnoseprogramm kann sie ändern. Bei gleichen jüngsten Schreibzeiten
-von Profilen oder Charakterdateien müssen alle Kandidaten dieselbe
+von Profilen oder Charakteraktivitäten müssen alle Kandidaten dieselbe
 Klasse/Spezialisierung belegen. Fehlende, unbekannte oder widersprüchliche Belege
 liefern keine automatische Klasse. Mehr als 16 gleich aktuelle Kandidaten werden
 nicht auf einen zufälligen Teil reduziert. Eine ältere bekannte Klasse wird nicht
@@ -67,8 +90,8 @@ Die oben dokumentierte Companion-Auswahl nach Zugriffszeit ist damit eine
 historische Vergleichsbeschreibung, nicht mehr die aktuelle Grindcrest-Auswahl.
 Die 56 Skillprofile und deren Stimmenzählung bleiben unverändert.
 
-Die gespeicherten Slots können einem noch nicht gespeicherten Charakter- oder
-Spezialisierungswechsel hinterherhinken. In diesem Fall die UI-Einstellungen
+Die gespeicherten Slots können einem noch nicht gespeicherten
+Spezialisierungswechsel desselben Charakters hinterherhinken. In diesem Fall die UI-Einstellungen
 im Spiel mit dem aktiven Charakter speichern, damit BDO seine aktuelle
 Charakterkonfiguration schreibt. Eine beliebige Änderung anderer Spieleinstellungen
 oder das Öffnen einer Datei ist kein Beleg für einen Charakterwechsel.
