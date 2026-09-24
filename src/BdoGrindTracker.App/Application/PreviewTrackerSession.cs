@@ -12,7 +12,6 @@ namespace BdoGrindTracker.App.Services;
 internal sealed class PreviewTrackerSession : ITrackerSession
 {
     private readonly List<LootHistoryEntry> _history = [];
-    private readonly SessionSilverHistory _silverHistory = new();
     private readonly SessionDropHistory _dropHistory = new();
     public event Action? Changed;
     public TrackerState State { get; private set; } = new() { AnalyzerAvailable = true, IsDemo = true,
@@ -81,29 +80,12 @@ internal sealed class PreviewTrackerSession : ITrackerSession
             SessionCombatStats = new(Overlay.MagaiaDemoSession.Ap, Overlay.MagaiaDemoSession.Dp, CombatStatsCategory.Edania, observed),
             Loot = new(totals, totals.Values.Sum(), Overlay.MagaiaDemoSession.ConfirmedEventCount),
             Silver = SilverValuation.Calculate(totals, Prices, Preferences.Tax),
-            DropHistory = Overlay.MagaiaDemoSession.DropHistory, SilverHistory = SampleSilverHistory(),
+            DropHistory = Overlay.MagaiaDemoSession.DropHistory,
             Rotation = new() { SpotId = LootSpotCatalog.MagaiaId, HasProfile = true, SupportsSpecialEvents = true,
                 SessionRotations = Overlay.MagaiaDemoSession.Completed(observed),
                 SessionSpecialEvents = Overlay.MagaiaDemoSession.Rotations.Sum(rotation => Overlay.MagaiaDemoSession.Fragments(rotation.Messages).Count) },
             Status = "Vorschau · Beispieldaten werden weder aufgezeichnet noch hochgeladen.", PriceStatus = "EU · NPC- und Festwerte"
         });
-    }
-    /// <summary>The recorded session's rate curve: everything dropped up to a moment, valued per hour of grind.</summary>
-    private IReadOnlyList<SessionSilverSample> SampleSilverHistory()
-    {
-        var drops = Overlay.MagaiaDemoSession.DropHistory;
-        List<SessionSilverSample> samples = [];
-        var value = 0m;
-        var index = 0;
-        for (var second = 30d; second <= Overlay.MagaiaDemoSession.Elapsed.TotalSeconds; second += 30)
-        {
-            var at = TimeSpan.FromSeconds(second);
-            for (; index < drops.Count && drops[index].Elapsed <= at; index++)
-                if (Prices is { } prices && prices.TryGetQuote(drops[index].ItemName, out var quote))
-                    value += SilverValuation.UnitAfterTax(quote, Preferences.Tax) * drops[index].Quantity;
-            samples.Add(new(at, value / (decimal)at.TotalHours));
-        }
-        return samples;
     }
 
     private void Change(TrackerState state, bool manualCorrection = false)
@@ -121,14 +103,9 @@ internal sealed class PreviewTrackerSession : ITrackerSession
                 : "Vorschau · Automatische Grinderkennung wird nur simuliert.",
             GrindBenchmark = GarmothGrindBenchmarks.Find(state.SpotId),
             GameLanguageStatus = "Vorschau: Englisch · keine BDO-Konfiguration gelesen" };
-        // The sample session brings its own recorded history; the live samples continue it.
-        var silver = _silverHistory.Update(State);
+        // The sample session brings its own recorded drops; the live samples take over once they have more.
         var drops = _dropHistory.Update(State, manualCorrection: manualCorrection);
-        State = State with
-        {
-            SilverHistory = [.. State.SilverHistory.Where(sample => silver.Count == 0 || sample.Elapsed < silver[0].Elapsed), .. silver],
-            DropHistory = drops.Count > State.DropHistory.Count ? drops : State.DropHistory,
-        };
+        State = State with { DropHistory = drops.Count > State.DropHistory.Count ? drops : State.DropHistory };
         Changed?.Invoke();
     }
     public Task<TrackerCommandResult> ToggleTrackingAsync()

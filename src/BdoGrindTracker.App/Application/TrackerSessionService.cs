@@ -42,7 +42,6 @@ internal sealed partial class TrackerSessionService : ITrackerSession
     private readonly List<LootHistoryEntry> _historyEntries;
     private readonly FrameUiMailbox _uiMailbox = new();
     private readonly object _framePublicationSync = new();
-    private readonly SessionSilverHistory _silverHistory = new();
     private readonly SessionDropHistory _dropHistory = new();
     private readonly RotationMonitor _rotationMonitor = new();
     private readonly SessionRotationTimeline _rotationTimeline = new();
@@ -856,7 +855,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             ShutdownFailed = _shutdownFailed,
         };
         State = State with { ObservedAt = _captureSession.ObservationTime,
-            SilverHistory = _silverHistory.Update(State), DropHistory = CaptureDropHistory(State.Loot, State.Elapsed),
+            DropHistory = CaptureDropHistory(State.Loot, State.Elapsed),
             Rotation = _rotationTimeline.Update(_sessionId, State.Elapsed, _captureSession.ObservationTime,
                 _sessionStartedAt, _rotationMonitor.Snapshot(_captureSession.ObservationTime, _sessionSpotId,
                     Preferences.IncludeSpecialEventRotations)) };

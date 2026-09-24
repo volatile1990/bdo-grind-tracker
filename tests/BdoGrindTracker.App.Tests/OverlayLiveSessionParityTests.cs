@@ -169,17 +169,9 @@ public sealed class OverlayLiveSessionParityTests
     }
 
     [Fact]
-    public async Task ManualCorrectionUpdatesDashboardOverlayAndCurrentSampleWithoutStartingANewTimeframe()
+    public async Task ManualCorrectionUpdatesDashboardAndOverlayWithoutStartingANewTimeframe()
     {
-        var state = ActiveState() with
-        {
-            SilverHistory = Array.AsReadOnly(new[]
-            {
-                new SessionSilverSample(TimeSpan.FromMinutes(10), 600_000_000m),
-                new SessionSilverSample(TimeSpan.FromMinutes(20), 700_000_000m),
-                new SessionSilverSample(TimeSpan.FromMinutes(30), 800_000_000m),
-            }),
-        };
+        var state = ActiveState();
         await using var tracker = new SnapshotSession(state);
         using var overlay = new OverlayService(tracker);
         var before = overlay.Snapshot;
@@ -192,11 +184,6 @@ public sealed class OverlayLiveSessionParityTests
             Loot = new(correctedTotals, 960, state.Loot.ConfirmedEventCount),
             Silver = correctedSilver,
             ManualLootItems = ["Black Crystal Fragment"],
-            SilverHistory = Array.AsReadOnly(new[]
-            {
-                state.SilverHistory[0], state.SilverHistory[1],
-                new SessionSilverSample(state.Elapsed, correctedSilver.AfterTax * 2),
-            }),
         };
         tracker.SetState(corrected);
 
@@ -204,7 +191,6 @@ public sealed class OverlayLiveSessionParityTests
         Assert.Equal(before.Metrics["duration"], overlay.Snapshot.Metrics["duration"]);
         Assert.NotEqual(before.Metrics["silver-hour"].Value, overlay.Snapshot.Metrics["silver-hour"].Value);
         Assert.Equal(960, Assert.Single(overlay.Snapshot.Drops).Quantity);
-        Assert.Equal(800_000_000m, state.SilverHistory[^1].SilverPerHour);
         Assert.Equal(0, tracker.CommandCalls);
     }
 
