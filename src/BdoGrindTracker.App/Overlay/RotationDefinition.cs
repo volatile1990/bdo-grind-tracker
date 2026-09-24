@@ -32,8 +32,16 @@ internal sealed record RotationDefinition(string SpotId, RotationStep[] Steps, s
     string[]? AmbientMessages = null, string? AmbientAfter = null, int FailureSetupDelta = 0,
     string? StartupCounterMessage = null, int StartupCounterTarget = 0, string StartupCounterLabel = "",
     int SetupTarget = 3, string[]? SpecialMessages = null, string[]? SpecialStartMessages = null,
-    SpecialEventComparison SpecialComparison = SpecialEventComparison.Separate, bool AfkEndStartsRun = false)
+    SpecialEventComparison SpecialComparison = SpecialEventComparison.Separate, bool AfkEndStartsRun = false,
+    IReadOnlyDictionary<string, string[]>? Evidence = null)
 {
+    /// <summary>
+    /// Messages that say where a rotation stands without being part of its order (monster names), with the steps
+    /// they can be seen in. They neither start, move nor abort a run; a rotation picked up mid-way uses them to find
+    /// its place (<see cref="RotationAlignment"/>).
+    /// </summary>
+    internal bool IsEvidence(string kind) => Evidence?.ContainsKey(kind) == true;
+
     /// <summary>Rotations with a special event count as special and can be left out of the comparison.</summary>
     internal bool MarksSpecialRotations => HasSpecialEvents && SpecialComparison == SpecialEventComparison.Separate;
 
@@ -116,7 +124,14 @@ internal sealed record RotationDefinition(string SpotId, RotationStep[] Steps, s
         // would measure from that kill instead of the brazier and could never be a fair best time.
         ["start"], ["end"], ["failure"], LootStart: false, AmbientMessages: ["fragment", "away", "back"],
         SpecialMessages: ["fragment"], SpecialStartMessages: ["fragment"], SpecialComparison: SpecialEventComparison.Ignored,
-        AfkEndStartsRun: true);
+        AfkEndStartsRun: true,
+        // The name bar shows Elion's Tear and Priest of the End while they are fought, and a while into the AFK phase.
+        // Priest of the End may already be the target when the final phase's banner was not read.
+        Evidence: new Dictionary<string, string[]>
+        {
+            ["tear"] = ["cycle-1-doubt", "cycle-1-tears", "cycle-1-afk"],
+            ["priest"] = ["cycle-3-knight-3", "cycle-3-doubt", "cycle-3-afk"],
+        });
 
     internal static RotationDefinition? Find(string? spotId) => spotId switch {
         LootSpotCatalog.HermesiaId => Hermesia, LootSpotCatalog.AphrodonId => Aphrodon,

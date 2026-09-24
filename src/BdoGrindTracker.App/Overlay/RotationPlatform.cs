@@ -243,6 +243,10 @@ internal class RotationPlatform : IRotationEventTracker
             }
             return;
         }
+        // A monster name only says where the rotation stands; a rotation picked up mid-way weighs it when it looks for
+        // its place (ResolvePickedUpStarts). It neither starts, moves nor aborts a run.
+        if (_definition.IsEvidence(input.Kind))
+        { Decision(input, "evidence", "Monstername gelesen · " + input.Label); return; }
         if (_definition.FailureMessages.Contains(input.Kind))
         {
             _setupCount = Math.Clamp(_setupCount + _definition.FailureSetupDelta, 0, _definition.SetupTarget);

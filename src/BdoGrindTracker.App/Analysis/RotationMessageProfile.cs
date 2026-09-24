@@ -7,10 +7,11 @@ namespace BdoGrindTracker.App.Analysis;
 /// <param name="GapSamples">Unreadable samples a backward search may bridge inside one banner sighting.</param>
 /// <param name="CountLines">For <paramref name="CountedKinds"/>: how many lines of that message one sample shows.</param>
 /// <param name="CountedKinds">Messages that repeat within seconds and stack; every new line counts once.</param>
+/// <param name="Names">A second place to read: the name bar of the monster being fought.</param>
 internal sealed record RotationMessageProfile(
     Func<string, IReadOnlyList<(string Kind, string Label)>> Parse,
     Func<int, int, Rectangle> Crop, bool SingleLine = false, int GapSamples = 2, double DuplicateSeconds = 8,
-    Func<string, string, int>? CountLines = null, string[]? CountedKinds = null)
+    Func<string, string, int>? CountLines = null, string[]? CountedKinds = null, RotationNameProfile? Names = null)
 {
     internal string Recognize(Mat pixels, CompanionWindowsOcrRecognizer engine)
     {
@@ -39,7 +40,8 @@ internal sealed record RotationMessageProfile(
     // DaVinci crop of the supplied Magaia recording: 38.6–61.7 % of the width, 54.3–64 % of the height, inside the
     // shared banner stack. Aetos can drop several fragments within seconds; their stacked banners count one by one.
     internal static readonly RotationMessageProfile Magaia = new(MagaiaMessages.Parse, BannerStack,
-        CountLines: MagaiaMessages.Lines, CountedKinds: ["fragment"]);
+        CountLines: MagaiaMessages.Lines, CountedKinds: ["fragment"],
+        Names: new(RotationNameProfile.TopCenter, MagaiaNames.Parse));
 
     // Resolve crop: left 0.40625, right 0.4072916667,
     // top 0.6166666667, bottom 0.3611111111. Verified on the source video.
@@ -131,5 +133,47 @@ internal static class AphrodonMessages
         var normalized = Regex.Replace(text.ToLowerInvariant(), "[^a-z0-9]+", " ").Trim();
         return Definitions.Where(d => normalized.Contains(d.Phrase, StringComparison.Ordinal))
             .Select(d => (d.Kind, d.Label)).ToArray();
+    }
+}
+
+/// <summary>
+/// The name bar of the monster being fought, at the top center of the screen. A name says where a rotation stands
+/// (which knight, which final mechanic) without being part of its order, and it stays while the fight goes on.
+/// </summary>
+internal sealed record RotationNameProfile(Func<int, int, Rectangle> Crop, Func<string, IReadOnlyList<(string Kind, string Label)>> Parse)
+{
+    // 35–65 % of the width, the top 4.5 % of the height: the name with its icon on the supplied Magaia recording
+    // (2560 × 1440) and on 16:9 screenshots at a larger UI scale.
+    internal static Rectangle TopCenter(int w, int h) => Rectangle.FromLTRB((int)Math.Floor(w * .35), 0,
+        (int)Math.Ceiling(w * .65), (int)Math.Ceiling(h * .045));
+
+    /// <summary>The name is small; a grey, doubled copy reads far more reliably.</summary>
+    internal static string Recognize(Mat pixels, CompanionWindowsOcrRecognizer engine)
+    {
+        using var gray = new Mat();
+        using var enlarged = new Mat();
+        Cv2.CvtColor(pixels, gray, ColorConversionCodes.BGR2GRAY);
+        Cv2.Resize(gray, enlarged, new OpenCvSharp.Size(), 2, 2, InterpolationFlags.Cubic);
+        return engine.Recognize(enlarged).Text;
+    }
+}
+
+/// <summary>
+/// Magaia's final mechanics named in the monster name bar: Elion's Tear in the first cycle, Priest of the End in the
+/// third. The second cycle's Unbroken Oath is a buff without a monster of its own. The knights carry the same names
+/// in every cycle and tell nothing about it.
+/// </summary>
+internal static class MagaiaNames
+{
+    internal static readonly (string Kind, string Label, string Phrase)[] Definitions = [
+        ("tear", "Elion's Tear", "elion s tear"),
+        ("priest", "Priest of the End", "priest of the"),
+    ];
+
+    internal static IReadOnlyList<(string Kind, string Label)> Parse(string text)
+    {
+        var normalized = Regex.Replace(text.ToLowerInvariant(), "[^a-z0-9]+", " ").Trim();
+        return Definitions.Where(d => normalized.Contains(d.Phrase, StringComparison.Ordinal))
+            .Select(d => (d.Kind, d.Label)).Distinct().ToArray();
     }
 }

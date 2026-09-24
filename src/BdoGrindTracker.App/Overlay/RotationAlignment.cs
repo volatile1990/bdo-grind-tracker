@@ -33,6 +33,12 @@ internal static class RotationAlignment
         var visited = start == RotationEnd ? new HashSet<string>() : [steps[start].Id];
         foreach (var kind in kinds.Skip(1))
         {
+            // A monster name moves nothing; it only has to fit the step the candidate stands in.
+            if (definition.Evidence?.TryGetValue(kind, out var seenIn) == true)
+            {
+                if (position % slots == steps.Length || !seenIn.Contains(steps[position % slots].Id)) skips++;
+                continue;
+            }
             if (Ambient(kind)) continue;
             // A banner repeating inside its own phase (Elion's Tears' orbs) says nothing new.
             if (position % slots < steps.Length && steps[position % slots].Matches(kind) &&
