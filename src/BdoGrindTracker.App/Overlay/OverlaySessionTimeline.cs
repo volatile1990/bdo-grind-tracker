@@ -17,8 +17,15 @@ public sealed record OverlayTimelineRotation(SessionRotationSpan Span, double Le
         Span.IsFastest ? "fastest" : Span.IsComplete ? "complete" : "partial";
 }
 
-/// <param name="Height">The tallest layer at this moment as a share of the plot height; the icons sit above it.</param>
-public sealed record OverlayTimelineMarker(double X, double Height, IReadOnlyList<OverlayDropMarker> Drops);
+/// <param name="Drops">Every drop of this item the icon stands for, in order.</param>
+public sealed record OverlayTimelineMarkerItem(OverlayLootItem Item, IReadOnlyList<OverlayDropMarker> Drops);
+
+/// <param name="X">The group's first drop as a share of the plot width; its stem stands there and its row of icons
+/// starts there.</param>
+/// <param name="Height">The tallest layer of every moment the row covers, as a share of the plot height; the icons sit
+/// above it.</param>
+/// <param name="Items">Different items side by side, each item once with all of its drops.</param>
+public sealed record OverlayTimelineMarker(double X, double Height, IReadOnlyList<OverlayTimelineMarkerItem> Items);
 
 public sealed record OverlayTimelineTick(double X, string Label);
 
@@ -33,12 +40,15 @@ public sealed record OverlaySessionTimeline(TimeSpan From, TimeSpan To, string C
 {
     // Heights in layout pixels at font scale 1, the same for both renderers.
     public const double HeaderHeight = 20, TickHeight = 12, BandGap = 4, SimpleBandHeight = 14, PhaseBandHeight = 18;
-    public const double IconSize = 20, DetailHeight = 16;
+    public const double IconSize = 20, IconGap = 5, DetailHeight = 16;
     // The highest bar stops below the top, so an icon above it still fits into the plot.
     private const double PlotRange = .82;
 
     public bool HasData => Silver is not null || Trash is not null || Rotations.Count > 0 ||
         SpecialEvents.Count > 0 || Markers.Count > 0;
+
+    /// <summary>Width of a row of drop icons; the badge of a numbered icon reaches into the gap.</summary>
+    public static double RowWidth(int items, double iconSize, double gap) => items * iconSize + Math.Max(0, items - 1) * gap;
 
     /// <summary>Height of the rotation band; the band keeps its place while the layer is on, so the plot never jumps.</summary>
     public double BandHeight => !ShowsRotations ? 0 : (IsSimplified ? SimpleBandHeight : PhaseBandHeight) + BandGap;
@@ -90,7 +100,7 @@ public sealed record OverlaySessionTimeline(TimeSpan From, TimeSpan To, string C
         {
             Ticks = TicksFor(from, to, plotWidth), Silver = silver, Trash = trash, Rotations = rotations,
             SpecialEvents = special, Markers = !IsOn("rare") ? [] : MarkersFor(snapshot.DropMarkers, series, from, to, plotWidth,
-                IconSize * Math.Clamp(widget.FontScale, .7, 2)),
+                Math.Clamp(widget.FontScale, .7, 2)),
         };
     }
 
@@ -116,22 +126,31 @@ public sealed record OverlaySessionTimeline(TimeSpan From, TimeSpan To, string C
 
     /// <summary>
     /// Rare drops and favorites, each above the tallest layer of its moment. Drops whose icons would cover each other
-    /// share one mark, which then names how many it holds.
+    /// share a row: different items stand side by side, the same item appears once and names how many drops it holds.
     /// </summary>
     private static IReadOnlyList<OverlayTimelineMarker> MarkersFor(IReadOnlyList<OverlayDropMarker> drops,
-        IReadOnlyList<SessionTimelineSeries> series, TimeSpan from, TimeSpan to, double plotWidth, double iconSize)
+        IReadOnlyList<SessionTimelineSeries> series, TimeSpan from, TimeSpan to, double plotWidth, double fontScale)
     {
         var window = (to - from).TotalSeconds;
         var visible = drops.Where(drop => drop.Elapsed >= from && drop.Elapsed <= to).OrderBy(drop => drop.Elapsed).ToArray();
         var width = Math.Max(1, plotWidth);
+        var (size, gap) = (IconSize * fontScale, IconGap * fontScale);
+        double Pixel(OverlayDropMarker drop) => (drop.Elapsed - from).TotalSeconds / window * width;
         List<OverlayTimelineMarker> markers = [];
         for (var index = 0; index < visible.Length;)
         {
             List<OverlayDropMarker> group = [visible[index]];
-            var left = (visible[index].Elapsed - from).TotalSeconds / window * width;
-            while (++index < visible.Length && (visible[index].Elapsed - from).TotalSeconds / window * width - left < iconSize)
+            // The row starts at its first drop; a drop joins while its icon would touch the row.
+            var left = Pixel(visible[index]) - size / 2;
+            var items = 1;
+            while (++index < visible.Length && Pixel(visible[index]) - size / 2 < left + RowWidth(items, size, gap) + gap)
+            {
+                if (group.All(drop => drop.Item.CanonicalName != visible[index].Item.CanonicalName)) items++;
                 group.Add(visible[index]);
-            markers.Add(new(left / width, SessionTimelineChart.Top(group[0].Elapsed, series, from, to), group));
+            }
+            markers.Add(new((left + size / 2) / width, group.Max(drop => SessionTimelineChart.Top(drop.Elapsed, series, from, to)),
+                [.. group.GroupBy(drop => drop.Item.CanonicalName, StringComparer.Ordinal)
+                    .Select(item => new OverlayTimelineMarkerItem(item.First().Item, [.. item]))]));
         }
         return markers;
     }

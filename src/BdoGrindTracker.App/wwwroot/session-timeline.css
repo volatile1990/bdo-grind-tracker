@@ -65,7 +65,8 @@
 .session-timeline-marker-stem{stroke:var(--timeline-rare);stroke-width:1.5;vector-effect:non-scaling-stroke;opacity:.6}
 .session-timeline-bar-label{position:absolute;transform:translate(-50%,-100%);font-size:10px;line-height:1;font-variant-numeric:tabular-nums;text-shadow:0 0 3px var(--timeline-surface),0 0 2px var(--timeline-surface);pointer-events:none;white-space:nowrap}
 .session-timeline-bar-label.is-inside{transform:translate(-50%,0);text-shadow:none;font-weight:600;color:var(--timeline-surface)}
-.session-timeline-drop{position:absolute;transform:translate(-50%,-50%);width:26px;height:26px;padding:3px;border-radius:5px;background:var(--timeline-raised);box-shadow:inset 0 0 0 1px var(--layer-color,var(--timeline-line));pointer-events:auto}
+.session-timeline-drops{position:absolute;display:flex;transform:translateY(-50%);pointer-events:none}
+.session-timeline-drop{position:relative;flex:0 0 26px;width:26px;height:26px;padding:3px;border-radius:5px;background:var(--timeline-raised);box-shadow:inset 0 0 0 1px var(--layer-color,var(--timeline-line));pointer-events:auto}
 .session-timeline-drop.is-stacked{box-shadow:inset 0 0 0 1px var(--layer-color,var(--timeline-line)),3px -3px 0 -1px var(--timeline-raised),3px -3px 0 0 var(--layer-color,var(--timeline-line))}
 .session-timeline-drop-count{position:absolute;right:-5px;bottom:-5px;min-width:14px;height:14px;padding:0 3px;border-radius:7px;background:var(--timeline-surface);box-shadow:inset 0 0 0 1px var(--layer-color,var(--timeline-line));color:var(--timeline-ink);font-size:9px;line-height:14px;text-align:center;font-variant-numeric:tabular-nums}
 .session-timeline-drop-icon{display:block;width:100%;height:100%;object-fit:contain}

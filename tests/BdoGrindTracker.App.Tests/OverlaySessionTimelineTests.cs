@@ -51,7 +51,7 @@ public sealed class OverlaySessionTimelineTests
 
         Assert.Equal((TimeSpan.FromMinutes(20), TimeSpan.FromMinutes(30), "letzte 10 min"), (timeline.From, timeline.To, timeline.Caption));
         Assert.Equal(Valuable, timeline.Silver!.Peak);
-        Assert.Equal("Ring", Assert.Single(timeline.Markers).Drops[0].Item.Name);
+        Assert.Equal("Ring", Assert.Single(Assert.Single(timeline.Markers).Items).Item.Name);
         Assert.Equal(.5, timeline.Markers[0].X, 6);
         Assert.Equal(new[] { "0:20", "0:25", "0:30" }, timeline.Ticks.Select(tick => tick.Label));
         // A range longer than the session shows the complete session.
@@ -129,21 +129,36 @@ public sealed class OverlaySessionTimelineTests
     }
 
     [Fact]
-    public void DropsWhoseIconsWouldOverlapShareOneMarkAboveTheTallestLayer()
+    public void NearbyDropsShareARowWhereOnlyTheSameItemIsCounted()
     {
-        // 600 seconds on 340 pixels: 20 pixels are about 35 seconds.
+        // 600 seconds on 340 pixels: a 20 pixel icon covers about 35 seconds.
         var snapshot = Snapshot(TimeSpan.FromSeconds(600), (100, Valuable), (400, 1_000_000)) with
         {
-            DropMarkers = [Marker(100, "Ring"), Marker(120, "Belt"), Marker(400, "Earring")],
+            DropMarkers = [Marker(100, "Ring"), Marker(110, "Ring"), Marker(120, "Belt"), Marker(150, "Ring"), Marker(400, "Earring")],
         };
 
         var timeline = Create(Widget(), snapshot);
 
         Assert.Equal(2, timeline.Markers.Count);
-        Assert.Equal(new[] { "Ring", "Belt" }, timeline.Markers[0].Drops.Select(drop => drop.Item.Name));
-        Assert.Equal(1, timeline.Markers[0].Height, 6);
+        var row = timeline.Markers[0];
+        // Different items stand side by side; the ring at 150 seconds touches the row only because the belt widened it.
+        Assert.Equal(new[] { ("Ring", 3), ("Belt", 1) }, row.Items.Select(item => (item.Item.Name, item.Drops.Count)));
+        Assert.Equal(100d / 600, row.X, 6);
+        Assert.Equal(1, row.Height, 6);
+        Assert.Equal(("Earring", 1), (Assert.Single(timeline.Markers[1].Items).Item.Name, timeline.Markers[1].Items[0].Drops.Count));
         Assert.Equal(SessionTimelineChart.Top(TimeSpan.FromSeconds(400), [timeline.Silver!], timeline.From, timeline.To),
             timeline.Markers[1].Height, 6);
+    }
+
+    [Fact]
+    public void ARowSitsAboveTheTallestLayerOfEveryDropItHolds()
+    {
+        var snapshot = Snapshot(TimeSpan.FromSeconds(600), (100, 1_000_000), (115, Valuable)) with
+        {
+            DropMarkers = [Marker(100, "Ring"), Marker(115, "Belt")],
+        };
+
+        Assert.Equal(1, Assert.Single(Create(Widget(), snapshot).Markers).Height, 6);
     }
 
     [Fact]
@@ -311,6 +326,34 @@ public sealed class OverlaySessionTimelineTests
         using var obsidian = renderer.Render(new Size(360, 144), settings, snapshot with { ThemeId = "obsidian" }, out _);
         Assert.True(Count(obsidian, Color.FromArgb(0x9f, 0xc5, 0xff)) > 40);
         Assert.True(Count(obsidian, Color.FromArgb(0xd8, 0xbd, 0x75)) < 5);
+    }
+
+    [Theory]
+    [InlineData("Belt", 2, 45)]
+    [InlineData("Ring", 1, 20)]
+    public async Task BothRenderersSetDifferentItemsSideBySideAndCountTheSameItemOnce(string second, int icons, int width)
+    {
+        var widget = Widget() with { X = 0, Y = 0, ShowLabel = false, TimelineLayers = ["rare"] };
+        var snapshot = Snapshot(TimeSpan.FromSeconds(600)) with
+        {
+            DropMarkers = [Marker(100, "Ring"), Marker(110, second)],
+        };
+
+        var html = await RenderAsync(widget, snapshot);
+        Assert.Equal(1, Regex.Count(html, "class=\"overlay-timeline-drops\""));
+        Assert.Equal(icons, Regex.Count(html, "class=\"overlay-timeline-drop\""));
+        Assert.Equal(icons == 1 ? 1 : 0, Regex.Count(html, "overlay-timeline-count\">2<"));
+
+        using var renderer = new NativeOverlayRenderer();
+        using var image = renderer.Render(new Size(360, 144), new OverlaySettings
+        {
+            Width = 360, Height = 144, Widgets = [widget], BackgroundOpacity = 0, ShowBorder = false, Interaction = "passthrough",
+        }, snapshot, out _);
+        // Grindcrest paints each icon's slot in --timeline-raised.
+        var slot = Color.FromArgb(255, 37, 45, 51).ToArgb();
+        var columns = Enumerable.Range(0, image.Width)
+            .Where(x => Enumerable.Range(0, image.Height).Any(y => image.GetPixel(x, y).ToArgb() == slot)).ToArray();
+        Assert.InRange(columns[^1] - columns[0] + 1, width - 3, width + 1);
     }
 
     [Fact]

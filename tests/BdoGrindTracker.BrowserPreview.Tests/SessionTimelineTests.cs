@@ -91,6 +91,38 @@ public sealed class SessionTimelineTests
     }
 
     [Fact]
+    public async Task NearbyDropsOfDifferentItemsStandSideBySideAndTheSameItemIsCounted()
+    {
+        await using var tracker = new PreviewTrackerSession();
+        Change(tracker, tracker.State with
+        {
+            Elapsed = TimeSpan.FromMinutes(60),
+            DropHistory = [new(TimeSpan.FromSeconds(600), "Item A", 1), new(TimeSpan.FromSeconds(603), "Item A", 1),
+                new(TimeSpan.FromSeconds(606), "Item B", 1), new(TimeSpan.FromSeconds(3000), "Item C", 1)],
+        });
+        var activator = new CapturingActivator();
+        await using var provider = new ServiceCollection().AddLogging().AddSingleton<ITrackerSession>(tracker)
+            .AddSingleton<IJSRuntime, NoJavaScript>().AddSingleton<IComponentActivator>(activator).BuildServiceProvider();
+        await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
+
+        var markup = await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            var rendered = await renderer.RenderComponentAsync<SessionTimeline>(ParameterView.Empty);
+            var component = activator.Components.OfType<SessionTimeline>().Single();
+            // Items chosen in the loot selector are marked like rare drops.
+            foreach (var item in new[] { "Item A", "Item B", "Item C" }) Invoke(component, "ToggleItem", item, true);
+            Invoke(component, "ToggleOpen");
+            return WebUtility.HtmlDecode(rendered.ToHtmlString());
+        });
+
+        // Two rows: A twice and B next to it at ten minutes, C alone at fifty.
+        Assert.Equal(2, Regex.Count(markup, "class=\"session-timeline-drops\""));
+        Assert.Equal(3, Regex.Count(markup, "class=\"session-timeline-drop( is-stacked)? ?\""));
+        Assert.Equal(1, Regex.Count(markup, "session-timeline-drop is-stacked"));
+        Assert.Contains("session-timeline-drop-count\">2<", markup);
+    }
+
+    [Fact]
     public async Task EveryCoordinateIsWrittenInvariantlyUnderAGermanCulture()
     {
         var previous = (CultureInfo.CurrentCulture, CultureInfo.DefaultThreadCurrentCulture);

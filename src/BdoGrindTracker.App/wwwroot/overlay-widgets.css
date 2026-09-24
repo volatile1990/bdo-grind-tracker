@@ -87,7 +87,7 @@
 .overlay-widget-preview.session-timeline { overflow: hidden; justify-content: flex-start; }
 .overlay-widget-chart > .overlay-widget-label { flex: 0 0 calc(17px * var(--widget-font-scale, 1)); }
 .overlay-timeline-caption { margin-left: auto; padding-left: 8px; color: var(--timeline-tick); font-size: calc(9px * var(--widget-font-scale, 1)); white-space: nowrap; }
-.overlay-timeline { --timeline-icon: calc(20px * var(--widget-font-scale, 1)); display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+.overlay-timeline { --timeline-icon: calc(20px * var(--widget-font-scale, 1)); --timeline-gap: calc(5px * var(--widget-font-scale, 1)); display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
 .overlay-timeline-ticks { position: relative; flex: 0 0 calc(12px * var(--widget-font-scale, 1)); }
 .overlay-timeline-ticks span { position: absolute; top: 0; margin-left: calc(3px * var(--widget-font-scale, 1)); color: var(--timeline-tick); font-size: calc(9px * var(--widget-font-scale, 1)); line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .overlay-timeline-ticks span.is-end { margin-left: calc(-3px * var(--widget-font-scale, 1)); transform: translateX(-100%); }
@@ -100,7 +100,8 @@
 .overlay-timeline-trash rect { fill: var(--layer-color); opacity: .62; }
 .overlay-timeline-special { position: absolute; bottom: 0; width: calc(7px * var(--widget-font-scale, 1)); height: calc(12px * var(--widget-font-scale, 1)); transform: translate(-50%, 50%); background: var(--timeline-special); clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
 .overlay-timeline-stem { position: absolute; bottom: 0; width: 1.5px; transform: translateX(-50%); background: var(--timeline-rare); opacity: .6; }
-.overlay-timeline-drop { position: absolute; box-sizing: border-box; width: var(--timeline-icon); height: var(--timeline-icon); padding: 2px; transform: translateX(-50%); border-radius: 3px; background: var(--timeline-raised); box-shadow: inset 0 0 0 1px var(--timeline-rare); }
+.overlay-timeline-drops { position: absolute; display: flex; gap: var(--timeline-gap); }
+.overlay-timeline-drop { position: relative; flex: 0 0 var(--timeline-icon); box-sizing: border-box; width: var(--timeline-icon); height: var(--timeline-icon); padding: 2px; border-radius: 3px; background: var(--timeline-raised); box-shadow: inset 0 0 0 1px var(--timeline-rare); }
 .overlay-timeline-count { position: absolute; right: calc(-5px * var(--widget-font-scale, 1)); bottom: calc(-5px * var(--widget-font-scale, 1)); min-width: calc(12px * var(--widget-font-scale, 1)); height: calc(11px * var(--widget-font-scale, 1)); padding: 0 2px; box-sizing: border-box; border-radius: 6px; background: var(--timeline-surface); color: var(--timeline-ink); font-size: calc(8px * var(--widget-font-scale, 1)); font-weight: 700; line-height: calc(11px * var(--widget-font-scale, 1)); text-align: center; }
 .overlay-timeline-band { position: relative; flex: 0 0 calc(14px * var(--widget-font-scale, 1)); margin-top: calc(4px * var(--widget-font-scale, 1)); }
 .overlay-timeline-band.is-phases { flex-basis: calc(18px * var(--widget-font-scale, 1)); }

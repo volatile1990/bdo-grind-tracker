@@ -169,7 +169,7 @@
                     @foreach (var marker in _markers)
                     {
                         <line class="session-timeline-marker-stem" x1="@Num(Math.Clamp(X(marker.At), 8, 992))" x2="@Num(Math.Clamp(X(marker.At), 8, 992))"
-                              y1="@Num(marker.Icon + 10)" y2="@Num(Baseline)" stroke="@marker.Color" />
+                              y1="@Num(marker.Icon + 10)" y2="@Num(Baseline)" stroke="@marker.Items[0].Color" />
                     }
                     <g class="session-timeline-now">
                         <line x1="@Num(Math.Min(X(State.Elapsed), 998))" x2="@Num(Math.Min(X(State.Elapsed), 998))" y1="16" y2="@Num(BandBottom)" />
@@ -187,12 +187,17 @@
                 }
                 @foreach (var marker in _markers)
                 {
-                    <div class="session-timeline-drop @(marker.Count > 1 ? "is-stacked" : null)" title="@marker.Title"
-                         style="left:clamp(13px, @Num(Math.Clamp(X(marker.At), 0, 1000) / 10)%, calc(100% - 13px));top:@Percent(marker.Icon)%;--layer-color:@marker.Color">
-                        <AssetImage Src="@Presentation.ItemIcon(marker.Item)" Alt="@ItemLabel(marker.Item)" Class="session-timeline-drop-icon" />
-                        @if (marker.Count > 1)
+                    @* The row starts centred on its first drop and stays inside the track. *@
+                    <div class="session-timeline-drops" style="left:clamp(0px, calc(@Num(Math.Clamp(X(marker.At), 0, 1000) / 10)% - @Num(DropSize / 2)px), calc(100% - @Num(RowWidth(marker.Items.Count))px));top:@Percent(marker.Icon)%;gap:@Num(DropGap)px">
+                        @foreach (var item in marker.Items)
                         {
-                            <span class="session-timeline-drop-count">@Number(marker.Count)</span>
+                            <div class="session-timeline-drop @(item.Count > 1 ? "is-stacked" : null)" title="@item.Title" style="--layer-color:@item.Color">
+                                <AssetImage Src="@Presentation.ItemIcon(item.Item)" Alt="@ItemLabel(item.Item)" Class="session-timeline-drop-icon" />
+                                @if (item.Count > 1)
+                                {
+                                    <span class="session-timeline-drop-count">@Number(item.Count)</span>
+                                }
+                            </div>
                         }
                     </div>
                 }

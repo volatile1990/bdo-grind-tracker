@@ -644,31 +644,42 @@ internal sealed class NativeOverlayRenderer : IDisposable
                 plot.Bottom + (float)OverlaySessionTimeline.BandGap * fontScale, plot.Right, inner.Bottom), colors, fontScale);
     }
 
-    /// <summary>Each mark is its first drop's icon above the tallest layer, with a stem down to the baseline.</summary>
+    /// <summary>
+    /// Each mark is a row of item icons above the tallest layer it covers, starting at its first drop, with a stem from
+    /// there down to the baseline. An item dropped more than once carries the number of its drops.
+    /// </summary>
     private void DrawTimelineMarkers(Graphics graphics, OverlaySessionTimeline timeline, RectangleF plot,
         NativeTimelinePalette colors, float fontScale)
     {
         var size = Math.Min((float)OverlaySessionTimeline.IconSize * fontScale, plot.Height);
         if (size <= 2) return;
+        var gap = (float)OverlaySessionTimeline.IconGap * fontScale;
         using var stem = new Pen(Color.FromArgb(150, colors.Rare), 1.5f);
         using var edge = new Pen(colors.Rare, 1);
         foreach (var marker in timeline.Markers)
         {
-            var x = Math.Clamp(plot.X + (float)marker.X * plot.Width, plot.Left + size / 2, plot.Right - size / 2);
+            var x = plot.X + (float)marker.X * plot.Width;
+            var row = (float)OverlaySessionTimeline.RowWidth(marker.Items.Count, size, gap);
+            var left = Math.Clamp(x - size / 2, plot.Left, Math.Max(plot.Left, plot.Right - row));
             var peak = plot.Y + (float)OverlaySessionTimeline.Y(marker.Height) * plot.Height;
             var top = Math.Clamp(peak - size - 2 * fontScale, plot.Top, plot.Bottom - size);
-            graphics.DrawLine(stem, x, top + size, x, plot.Bottom);
-            var bounds = new RectangleF(x - size / 2, top, size, size);
-            // Grindcrest paints the icon's slot itself (--timeline-raised); the themes bring their own inventory slot.
-            if (!_blackDesert && !_light && !_cats && _palette is null)
-                FillRound(graphics, Color.FromArgb(255, 37, 45, 51), bounds, 3);
-            DrawIcon(graphics, marker.Drops[0].Item, bounds);
-            graphics.DrawRectangle(edge, bounds.X + .5f, bounds.Y + .5f, bounds.Width - 1, bounds.Height - 1);
-            if (marker.Drops.Count < 2) continue;
-            var badge = new RectangleF(bounds.Right - 7 * fontScale, bounds.Bottom - 7 * fontScale, 12 * fontScale, 11 * fontScale);
-            FillRound(graphics, Color.FromArgb(235, SlotSurface), badge, 5 * fontScale);
-            Draw(graphics, marker.Drops.Count.ToString(CultureInfo.InvariantCulture), badge, 8 * fontScale, Text, true,
-                StringAlignment.Center, StringAlignment.Center);
+            var stemX = Math.Clamp(x, plot.Left + size / 2, plot.Right - size / 2);
+            graphics.DrawLine(stem, stemX, top + size, stemX, plot.Bottom);
+            for (var index = 0; index < marker.Items.Count; index++)
+            {
+                var item = marker.Items[index];
+                var bounds = new RectangleF(left + index * (size + gap), top, size, size);
+                // Grindcrest paints the icon's slot itself (--timeline-raised); the themes bring their own inventory slot.
+                if (!_blackDesert && !_light && !_cats && _palette is null)
+                    FillRound(graphics, Color.FromArgb(255, 37, 45, 51), bounds, 3);
+                DrawIcon(graphics, item.Item, bounds);
+                graphics.DrawRectangle(edge, bounds.X + .5f, bounds.Y + .5f, bounds.Width - 1, bounds.Height - 1);
+                if (item.Drops.Count < 2) continue;
+                var badge = new RectangleF(bounds.Right - 7 * fontScale, bounds.Bottom - 7 * fontScale, 12 * fontScale, 11 * fontScale);
+                FillRound(graphics, Color.FromArgb(235, SlotSurface), badge, 5 * fontScale);
+                Draw(graphics, item.Drops.Count.ToString(CultureInfo.InvariantCulture), badge, 8 * fontScale, Text, true,
+                    StringAlignment.Center, StringAlignment.Center);
+            }
         }
     }
 

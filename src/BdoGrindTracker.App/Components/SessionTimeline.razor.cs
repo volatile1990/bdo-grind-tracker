@@ -9,10 +9,13 @@ namespace BdoGrindTracker.App.Components;
 
 public partial class SessionTimeline
 {
-    /// <param name="At">Session time of the marker.</param>
-    /// <param name="Icon">Height of the icon, just above the layers of that moment.</param>
-    /// <param name="Count">Drops this mark stands for: marks that would cover each other become one numbered mark.</param>
-    private sealed record TimelineMarker(TimeSpan At, double Icon, string Item, int Count, string Color, string Title);
+    /// <param name="Count">Drops of this item the icon stands for.</param>
+    private sealed record TimelineMarkerItem(string Item, int Count, string Color, string Title);
+
+    /// <param name="At">Session time of the group's first drop; its stem stands there.</param>
+    /// <param name="Icon">Height of the icons, just above the layers of every moment they cover.</param>
+    /// <param name="Items">Different items side by side, each item once with the number of its drops.</param>
+    private sealed record TimelineMarker(TimeSpan At, double Icon, IReadOnlyList<TimelineMarkerItem> Items);
 
     /// <param name="Left">Place across the track in percent; the label is centred above its bar.</param>
     private sealed record TimelineBarLabel(double Left, double Top, string Text, string Color, string Title, bool Inside);
@@ -26,6 +29,8 @@ public partial class SessionTimeline
     private const double PlotTop = 20, Baseline = 150, PlotHeight = Baseline - PlotTop;
     private const double BandTop = 172, GroupBar = 4, PhaseTop = 178, PhaseHeight = 26;
     private const double RailTop = 206, BandBottom = 212;
+    // Drop icons in pixels: the stacked frame of a numbered icon reaches 3 pixels into the gap.
+    private const double DropSize = 26, DropGap = 5;
 
     private static readonly IReadOnlyDictionary<string, object> OpenAttribute =
         new Dictionary<string, object> { ["open"] = "open" };
@@ -101,7 +106,8 @@ public partial class SessionTimeline
 
     /// <summary>
     /// Rare drops, favorites and the items chosen in the loot selector, each above the tallest layer of its moment.
-    /// Marks that would cover each other become one mark carrying their number.
+    /// Drops whose icons would cover each other share a row: different items stand side by side, the same item
+    /// appears once with the number of its drops.
     /// </summary>
     private IReadOnlyList<TimelineMarker> BuildMarkers()
     {
@@ -112,20 +118,30 @@ public partial class SessionTimeline
         for (var index = 0; index < marked.Length;)
         {
             List<SessionDropSample> group = [marked[index]];
-            var left = X(marked[index].Elapsed) / 1000 * _trackWidth;
-            while (++index < marked.Length && X(marked[index].Elapsed) / 1000 * _trackWidth - left < 26)
+            // The row starts at its first drop; a drop joins while its icon would touch the row.
+            var left = X(marked[index].Elapsed) / 1000 * _trackWidth - DropSize / 2;
+            var items = 1;
+            while (++index < marked.Length &&
+                   X(marked[index].Elapsed) / 1000 * _trackWidth - DropSize / 2 < left + RowWidth(items) + DropGap)
+            {
+                if (group.All(drop => drop.ItemName != marked[index].ItemName)) items++;
                 group.Add(marked[index]);
-            var first = group[0];
-            var top = Y(SessionTimelineChart.Top(first.Elapsed, Layers, _from, _to));
-            var items = group.GroupBy(drop => drop.ItemName)
-                .Select(entry => ItemLabel(entry.Key) + " × " + Number(entry.Sum(drop => drop.Quantity))).ToArray();
-            markers.Add(new(first.Elapsed, Math.Max(PlotTop - 4, top - 20), first.ItemName, group.Count,
-                _items.Contains(first.ItemName) ? ItemColor(first.ItemName) : SessionTimelineLayers.ColorOf("rare"),
-                string.Join(" · ", items.Take(6)) + (items.Length > 6 ? " · …" : "") +
-                " · " + Presentation.Duration(first.Elapsed)));
+            }
+            var top = Y(group.Max(drop => SessionTimelineChart.Top(drop.Elapsed, Layers, _from, _to)));
+            markers.Add(new(group[0].Elapsed, Math.Max(PlotTop - 4, top - 20), [.. group.GroupBy(drop => drop.ItemName)
+                .Select(item =>
+                {
+                    var times = item.Select(drop => Presentation.Duration(drop.Elapsed)).ToArray();
+                    return new TimelineMarkerItem(item.Key, item.Count(),
+                        _items.Contains(item.Key) ? ItemColor(item.Key) : SessionTimelineLayers.ColorOf("rare"),
+                        ItemLabel(item.Key) + " × " + Number(item.Sum(drop => drop.Quantity)) + " · " +
+                        string.Join(", ", times.Take(6)) + (times.Length > 6 ? ", …" : ""));
+                })]));
         }
         return markers;
     }
+
+    private static double RowWidth(int items) => items * DropSize + Math.Max(0, items - 1) * DropGap;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

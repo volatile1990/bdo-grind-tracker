@@ -146,16 +146,20 @@
                     }
                     @foreach (var marker in Timeline.Markers)
                     {
-                        var drop = marker.Drops[0];
                         var top = $"clamp(0px, calc({Css(OverlaySessionTimeline.Y(marker.Height) * 100)}% - var(--timeline-icon) - 2px), calc(100% - var(--timeline-icon)))";
-                        var left = $"clamp(calc(var(--timeline-icon) / 2), {Css(marker.X * 100)}%, calc(100% - var(--timeline-icon) / 2))";
-                        <span class="overlay-timeline-stem" style="left:@left;top:calc(@top + var(--timeline-icon))"></span>
-                        <div class="overlay-timeline-drop" style="left:@left;top:@top"
-                             title="@(string.Join(" · ", marker.Drops.Select(entry => entry.Item.Name + " × " + entry.Item.QuantityText)) + " · " + drop.Elapsed.ToString(@"hh\:mm\:ss"))">
-                            <AssetImage Src="@drop.Item.IconPath" Alt="@drop.Item.Name" Class="overlay-chart-drop-icon" />
-                            @if (marker.Drops.Count > 1)
+                        var row = $"calc({marker.Items.Count} * var(--timeline-icon) + {Math.Max(0, marker.Items.Count - 1)} * var(--timeline-gap))";
+                        <span class="overlay-timeline-stem" style="left:clamp(calc(var(--timeline-icon) / 2), @Css(marker.X * 100)%, calc(100% - var(--timeline-icon) / 2));top:calc(@top + var(--timeline-icon))"></span>
+                        @* The row starts centred on its first drop and stays inside the plot. *@
+                        <div class="overlay-timeline-drops" style="left:clamp(0px, calc(@Css(marker.X * 100)% - var(--timeline-icon) / 2), calc(100% - @row));top:@top">
+                            @foreach (var item in marker.Items)
                             {
-                                <span class="overlay-timeline-count">@marker.Drops.Count.ToString(CultureInfo.InvariantCulture)</span>
+                                <div class="overlay-timeline-drop" title="@(item.Item.Name + " · " + string.Join(", ", item.Drops.Select(drop => drop.Elapsed.ToString(@"hh\:mm\:ss"))))">
+                                    <AssetImage Src="@item.Item.IconPath" Alt="@item.Item.Name" Class="overlay-chart-drop-icon" />
+                                    @if (item.Drops.Count > 1)
+                                    {
+                                        <span class="overlay-timeline-count">@item.Drops.Count.ToString(CultureInfo.InvariantCulture)</span>
+                                    }
+                                </div>
                             }
                         </div>
                     }
