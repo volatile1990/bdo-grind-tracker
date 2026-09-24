@@ -128,7 +128,8 @@ Die Mouseoverdaten nennen Name, Anzahl und gespeicherte Preise.
 **Session-Timeline** zeigt die Session-Timeline der Live-Ansicht als Overlay-Modul,
 fortlaufend bis jetzt: oben die Sessionzeit, darunter Silber je Abschnitt als Kurve,
 seltene Drops und Favoriten als Item-Icon mit Stiel über dem höchsten Wert ihres Moments
-(Drops, deren Icons sich überdecken würden, teilen sich ein Icon mit Anzahl), Special Events
+(Drops, deren Icons sich überdecken würden, stehen in einer Reihe: verschiedene Items
+nebeneinander, dasselbe Item nur einmal mit der Anzahl seiner Drops), Special Events
 als Raute auf der Zeitachse und darunter das Rotationsband. Der Zeitraum umfasst die ganze
 Session oder die letzten 10, 20, 30, 40, 50 oder 60 Minuten. Die Ebenen sind je Modul
 wählbar: Rotationen, Seltene Drops & Favoriten, Silber je Abschnitt und Special Events sind

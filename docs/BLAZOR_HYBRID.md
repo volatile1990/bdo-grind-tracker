@@ -50,7 +50,9 @@ die Fläche teilen, nicht aber ihre Einheiten.
   sind eigens gekennzeichnet, die schnellste zusätzlich.
 - **Seltene Drops & Favoriten** erscheinen wie im Overlay-Modul Session-Timeline als Item-Icon im
   Kästchen mit Stiel bis zur Zeitachse. Sie setzen sich über den höchsten Punkt aller
-  eingeblendeten Werte, etwa über den Trashloot-Balken dieses Moments.
+  eingeblendeten Werte, etwa über den Trashloot-Balken dieses Moments. Drops, deren Icons sich
+  überdecken würden, stehen in einer Reihe: verschiedene Items nebeneinander, dasselbe Item nur
+  einmal mit der Anzahl seiner Drops.
 - **Silber je Abschnitt** zeigt als Kurve, wie viel Silber die Drops jedes Zeitabschnitts wert
   sind, bewertet wie der Sessionwert. Die Abschnitte sind dieselben wie bei den Balken. Die
   Höhen sind abgeflacht (Anteil am Höchstwert hoch 0,4), sonst drückt ein einzelner wertvoller
