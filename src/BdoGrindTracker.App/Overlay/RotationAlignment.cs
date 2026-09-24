@@ -83,8 +83,11 @@ internal static class RotationAlignment
         }
         return skips;
 
+        // Side messages once the rotation stands past their step, seen or not (Hermesia's offerings after Drakania).
         bool Ambient(string kind) => definition.AmbientMessages?.Contains(kind) == true &&
-            (definition.AmbientAfter is not { } after || visited.Contains(after));
+            (definition.AmbientAfter is not { } after || visited.Contains(after) ||
+             position % slots < steps.Length && Array.FindIndex(steps, step => step.Id == after) is var index && index >= 0 &&
+             index < position % slots);
         bool Fits(int slot, string kind) => slot % slots == steps.Length
             ? definition.AfkEndMessages.Contains(kind) || definition.StartMessages.Contains(kind) && !steps.Any(step => step.Matches(kind))
             : steps[slot % slots].Matches(kind) && Reachable(steps[slot % slots]);

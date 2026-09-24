@@ -260,7 +260,8 @@ internal class RotationPlatform : IRotationEventTracker
         if (_definition.SetupCountMessages?.Contains(input.Kind) == true)
         { _setupCount = Math.Min(_definition.SetupTarget, _setupCount + 1); _status = $"Aufbau · {_setupCount} / {_definition.SetupTarget} · Warte auf Erkennung"; return; }
         if (_start is not null && _definition.AmbientMessages?.Contains(input.Kind) == true &&
-            (_definition.AmbientAfter is not { } after || _visited.Contains(after)) && _position != _definition.Steps.Length - 1)
+            (_definition.AmbientAfter is not { } after || _visited.Contains(after) || PastStep(after)) &&
+            _position != _definition.Steps.Length - 1)
         {
             AddEvent(input.Kind, input.Label, input.At);
             return;
@@ -339,10 +340,16 @@ internal class RotationPlatform : IRotationEventTracker
         if (_alignedAt is null && (indices.Length == 1 || resumes || placed is not null) && _start is { } runStart)
         { _alignedAt = Math.Max(0, (input.At - runStart).TotalSeconds); _alignedSection = _sectionId; }
         _status = input.Label + (_completeStart && !_missing ? " · erkannt" : " · unvollständig erfasst");
-        if (_definition.StartupCounterMessage is { } counter && !_visited.Contains(_definition.AmbientAfter ?? ""))
+        if (_definition.StartupCounterMessage is { } counter && !_visited.Contains(_definition.AmbientAfter ?? "") &&
+            !PastStep(_definition.AmbientAfter ?? ""))
             _status = $"Startup · {_events.Count(e => e.Kind == counter)} / {_definition.StartupCounterTarget} {_definition.StartupCounterLabel}";
         Decision(input, "phase", _status);
     }
+
+    // A rotation picked up after a step never saw it, yet stands past it: Hermesia's offerings after Drakania are side
+    // messages for a run picked up in its mines too. One that began at its start must have seen the step itself.
+    private bool PastStep(string id) => !_completeStart && _position >= 0 && Array.FindIndex(_definition.Steps, step => step.Id == id) is var index &&
+        index >= 0 && index < _position;
 
     private bool Required(RotationStep step) => !step.Optional ||
         step.RequiredWhenBranchObserved && step.Requires is { } required && _visited.Contains(required);
