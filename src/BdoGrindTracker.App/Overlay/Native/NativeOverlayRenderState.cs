@@ -31,7 +31,7 @@ internal sealed class NativeOverlayRenderState
                 !SameItems(_snapshot.SilverDrops, snapshot.SilverDrops) || !SameItems(_snapshot.TrashDrops, snapshot.TrashDrops) ||
                 !SameItems(_snapshot.DropMarkers, snapshot.DropMarkers) ||
                 _snapshot.Rotation.SpotId != snapshot.Rotation.SpotId ||
-                !SameItems(_snapshot.Rotation.SessionRotations, snapshot.Rotation.SessionRotations))) return false;
+                !SameTimeline(_snapshot.Rotation.SessionRotations, snapshot.Rotation.SessionRotations))) return false;
             if (widget.Kind == "rotation-monitor" && !SameRotation(_snapshot.Rotation, snapshot.Rotation,
                 widget.RotationComparison)) return false;
             if (widget.Kind == "daily-goal" && _snapshot.DailyGoal != snapshot.DailyGoal) return false;
@@ -55,6 +55,17 @@ internal sealed class NativeOverlayRenderState
 
     private static bool SameItems<T>(IReadOnlyList<T> before, IReadOnlyList<T> after) =>
         ReferenceEquals(before, after) || before.SequenceEqual(after);
+
+    /// <summary>
+    /// Only what the session timeline draws of each rotation. The monitor builds every timing afresh with each snapshot,
+    /// including its list of special events, so equal records never compare equal.
+    /// </summary>
+    private static bool SameTimeline(IReadOnlyList<SessionRotationTiming> before, IReadOnlyList<SessionRotationTiming> after) =>
+        ReferenceEquals(before, after) || before.Count == after.Count && before.Zip(after).All(pair =>
+            pair.First.Duration == pair.Second.Duration && pair.First.StartedAfter == pair.Second.StartedAfter &&
+            pair.First.StartedAt == pair.Second.StartedAt && pair.First.Outcome == pair.Second.Outcome &&
+            pair.First.SpecialEvents == pair.Second.SpecialEvents &&
+            (pair.First.Events?.Count ?? 0) == (pair.Second.Events?.Count ?? 0));
 
     private static bool SameRotation(RotationMonitorSnapshot before, RotationMonitorSnapshot after, string mode) =>
         before.SpotId == after.SpotId && before.Elapsed == after.Elapsed &&

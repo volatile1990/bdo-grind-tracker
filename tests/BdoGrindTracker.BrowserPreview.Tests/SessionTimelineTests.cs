@@ -123,6 +123,38 @@ public sealed class SessionTimelineTests
     }
 
     [Fact]
+    public async Task EventsThatChangeNothingDoNotRebuildTheTimeline()
+    {
+        await using var tracker = new PreviewTrackerSession();
+        var activator = new CapturingActivator();
+        await using var provider = new ServiceCollection().AddLogging().AddSingleton<ITrackerSession>(tracker)
+            .AddSingleton<IJSRuntime, NoJavaScript>().AddSingleton<IComponentActivator>(activator).BuildServiceProvider();
+        await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
+
+        await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            await renderer.RenderComponentAsync<SessionTimeline>(ParameterView.Empty);
+            var component = activator.Components.OfType<SessionTimeline>().Single();
+            Invoke(component, "ToggleOpen");
+            var worth = Field<decimal[]>(component, "_worth");
+            Assert.NotEmpty(worth);
+
+            // A pointer moving without a drag and a wheel without Shift skip the render they would cause.
+            Invoke(component, "PointerMove", new PointerEventArgs { ClientX = 300 });
+            Assert.False(ShouldRender(component));
+            Assert.True(ShouldRender(component));
+            Invoke(component, "Wheel", new WheelEventArgs { DeltaY = 100 });
+            Assert.False(ShouldRender(component));
+            Invoke(component, "Wheel", new WheelEventArgs { DeltaY = 100, ShiftKey = true });
+            Assert.True(ShouldRender(component));
+
+            // Zooming changes the window, not the worth of the drops: they are not valued again.
+            Invoke(component, "Refresh");
+            Assert.Same(worth, Field<decimal[]>(component, "_worth"));
+        });
+    }
+
+    [Fact]
     public async Task EveryCoordinateIsWrittenInvariantlyUnderAGermanCulture()
     {
         var previous = (CultureInfo.CurrentCulture, CultureInfo.DefaultThreadCurrentCulture);
@@ -203,6 +235,9 @@ public sealed class SessionTimelineTests
 
     private static void Invoke(SessionTimeline component, string method, params object[] arguments) =>
         typeof(SessionTimeline).GetMethod(method, BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(component, arguments);
+
+    private static bool ShouldRender(SessionTimeline component) =>
+        (bool)typeof(SessionTimeline).GetMethod("ShouldRender", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(component, [])!;
 
     private static T Field<T>(SessionTimeline component, string name) =>
         (T)typeof(SessionTimeline).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(component)!;

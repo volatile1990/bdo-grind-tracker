@@ -52,12 +52,23 @@ public partial class SessionTimeline
     private string[] _chosen = [];
     private ElementReference _track;
     private bool _attached;
+    // Set by an event that changed nothing on the picture: a pointer moving without a drag, a wheel without Shift.
+    private bool _unchanged;
+    // Worth and mark of every drop of the history, kept while history, prices and preferences stay the same objects.
+    private IReadOnlyList<SessionDropSample>? _valuedDrops;
+    private object? _valuedPrices, _valuedPreferences;
+    private decimal[] _worth = [];
+    private bool[] _valuable = [];
 
     /// <summary>Keeps the section open across state updates once the user opened it.</summary>
     private IReadOnlyDictionary<string, object> Expanded => _open ? OpenAttribute : NoAttributes;
     private bool _open;
 
-    /// <summary>Everything the timeline draws is recomputed once per render, and only while it is open.</summary>
+    /// <summary>
+    /// What the timeline draws for the visible window, recomputed once per render and only while it is open. The worth
+    /// of the drops does not depend on the window and is only valued again when the history, prices or preferences
+    /// change.
+    /// </summary>
     private void Refresh()
     {
         UpdateWindow();
@@ -66,6 +77,7 @@ public partial class SessionTimeline
             _spans = []; _rotations = []; _series = []; _silver = null; _markers = [];
             return;
         }
+        Revalue();
         _spans = SessionRotationStats.Spans(State.Rotation, State.Elapsed, State.ObservedAt);
         _rotations = !IsOn("rotations") ? [] : [.. _spans
             .Where(span => span.End >= _from && span.Start <= _to)
@@ -73,12 +85,13 @@ public partial class SessionTimeline
             {
                 var (left, width) = Clip(span.Start, span.End);
                 return new TimelineRotation(span,
-                    RotationPhases.Create(State.SpotId, span.Events ?? [], span.Duration), left, width);
+                    RotationPhases.Cached(State.SpotId, span.Events, span.Duration), left, width);
             })];
         _chosen = [.. _items.Order(StringComparer.Ordinal)];
         _series = BuildSeries();
         _silver = !IsOn("silver") ? null : SessionTimelineChart.Series("silver", T("Silber je Abschnitt"),
-            SessionTimelineLayers.ColorOf("silver"), Drops, _from, _to, SilverOf, isSilver: true, flatten: true);
+            SessionTimelineLayers.ColorOf("silver"), Enumerable.Range(0, Drops.Count), index => Drops[index].Elapsed,
+            index => _worth[index], _from, _to, isSilver: true, flatten: true);
         if (_silver is { Peak: <= 0 }) _silver = null;
         _markers = BuildMarkers();
     }
@@ -91,6 +104,18 @@ public partial class SessionTimeline
             series.Add(SessionTimelineChart.Series("trash", ItemLabel(trash), SessionTimelineLayers.ColorOf("trash"),
                 Drops.Where(drop => drop.ItemName == trash), _from, _to));
         return [.. series.Where(entry => entry.Peak > 0)];
+    }
+
+    private void Revalue()
+    {
+        if (ReferenceEquals(_valuedDrops, Drops) && ReferenceEquals(_valuedPrices, Tracker.Prices) &&
+            ReferenceEquals(_valuedPreferences, Tracker.Preferences)) return;
+        (_valuedDrops, _valuedPrices, _valuedPreferences) = (Drops, Tracker.Prices, Tracker.Preferences);
+        // An item is a favorite or valuable once for all of its drops.
+        var marked = new Dictionary<string, bool>(StringComparer.Ordinal);
+        _worth = [.. Drops.Select(SilverOf)];
+        _valuable = [.. Drops.Select(drop => marked.TryGetValue(drop.ItemName, out var known) ? known
+            : marked[drop.ItemName] = SessionLootMarkers.IsMarked(drop.ItemName, Tracker.Preferences, Tracker.Prices))];
     }
 
     /// <summary>What a drop is worth after tax, the same valuation the session's silver uses.</summary>
@@ -111,27 +136,29 @@ public partial class SessionTimeline
     /// </summary>
     private IReadOnlyList<TimelineMarker> BuildMarkers()
     {
-        var marked = Drops.Where(drop => drop.Elapsed >= _from && drop.Elapsed <= _to && (_items.Contains(drop.ItemName) ||
-            IsOn("rare") && SessionLootMarkers.IsMarked(drop.ItemName, Tracker.Preferences, Tracker.Prices)))
-            .OrderBy(drop => drop.Elapsed).ToArray();
+        var rare = IsOn("rare");
+        var marked = Enumerable.Range(0, Drops.Count).Where(index => Drops[index].Elapsed >= _from && Drops[index].Elapsed <= _to &&
+            (_items.Contains(Drops[index].ItemName) || rare && _valuable[index]))
+            .Select(index => Drops[index]).OrderBy(drop => drop.Elapsed).ToArray();
+        var layers = Layers.ToArray();
         List<TimelineMarker> markers = [];
         for (var index = 0; index < marked.Length;)
         {
             List<SessionDropSample> group = [marked[index]];
+            HashSet<string> names = new(StringComparer.Ordinal) { marked[index].ItemName };
             // The row starts at its first drop; a drop joins while its icon would touch the row.
             var left = X(marked[index].Elapsed) / 1000 * _trackWidth - DropSize / 2;
-            var items = 1;
             while (++index < marked.Length &&
-                   X(marked[index].Elapsed) / 1000 * _trackWidth - DropSize / 2 < left + RowWidth(items) + DropGap)
+                   X(marked[index].Elapsed) / 1000 * _trackWidth - DropSize / 2 < left + RowWidth(names.Count) + DropGap)
             {
-                if (group.All(drop => drop.ItemName != marked[index].ItemName)) items++;
+                names.Add(marked[index].ItemName);
                 group.Add(marked[index]);
             }
-            var top = Y(group.Max(drop => SessionTimelineChart.Top(drop.Elapsed, Layers, _from, _to)));
+            var top = Y(group.Max(drop => SessionTimelineChart.Top(drop.Elapsed, layers, _from, _to)));
             markers.Add(new(group[0].Elapsed, Math.Max(PlotTop - 4, top - 20), [.. group.GroupBy(drop => drop.ItemName)
                 .Select(item =>
                 {
-                    var times = item.Select(drop => Presentation.Duration(drop.Elapsed)).ToArray();
+                    var times = item.Take(7).Select(drop => Presentation.Duration(drop.Elapsed)).ToArray();
                     return new TimelineMarkerItem(item.Key, item.Count(),
                         _items.Contains(item.Key) ? ItemColor(item.Key) : SessionTimelineLayers.ColorOf("rare"),
                         ItemLabel(item.Key) + " × " + Number(item.Sum(drop => drop.Quantity)) + " · " +
@@ -309,9 +336,21 @@ public partial class SessionTimeline
         StateHasChanged();
     }
 
+    /// <summary>An event that changed nothing leaves the picture as it is instead of rebuilding it.</summary>
+    protected override bool ShouldRender()
+    {
+        if (!_unchanged) return true;
+        _unchanged = false;
+        return false;
+    }
+
     private void Wheel(WheelEventArgs e)
     {
-        if (!e.ShiftKey) return;
+        if (!e.ShiftKey)
+        {
+            _unchanged = true;
+            return;
+        }
         _zoom = Math.Clamp(_zoom * (e.DeltaY < 0 ? 1.25 : .8), 1, 120);
         _selected = null;
         UpdateWindow();
@@ -334,7 +373,11 @@ public partial class SessionTimeline
     }
     private void PointerMove(PointerEventArgs e)
     {
-        if (_dragFrom is not { } start) return;
+        if (_dragFrom is not { } start)
+        {
+            _unchanged = true;
+            return;
+        }
         _dragFrom = e.ClientX;
         // Crossing the whole track moves the view by exactly one visible window, which is 1/zoom of the session.
         _center = Math.Clamp(_center + (start - e.ClientX) / _trackWidth / Math.Clamp(_zoom, 1, 120), 0, 1);

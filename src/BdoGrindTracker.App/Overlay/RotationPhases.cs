@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using BdoGrindTracker.Core;
 
 namespace BdoGrindTracker.App.Overlay;
@@ -236,6 +237,23 @@ public static class RotationPhases
     public static string MarkerStroke(string? spotId, RotationEvent e, string? colors, bool current) =>
         e.Kind is "failure" or "away" ? "#E87C79"
         : RotationDefinition.Find(spotId)?.IsSpecial(e.Kind) == true ? SpecialColor : MarkerColor(colors, current);
+
+    private sealed record CachedPhases(string? SpotId, double Elapsed, IReadOnlyList<RotationPhase> Phases);
+    // A completed rotation keeps its recorded event list, so its phases are derived once, not on every render.
+    private static readonly ConditionalWeakTable<IReadOnlyList<RotationEvent>, CachedPhases> Cache = new();
+
+    /// <summary>
+    /// The phases in their own colours, remembered per recorded event list. The running rotation brings a new list
+    /// with every event and a new length every second, so it is derived again whenever it changed.
+    /// </summary>
+    public static IReadOnlyList<RotationPhase> Cached(string? spotId, IReadOnlyList<RotationEvent>? events, double elapsed)
+    {
+        if (events is not { Count: > 0 }) return Create(spotId, [], elapsed);
+        if (Cache.TryGetValue(events, out var cached) && cached.SpotId == spotId && cached.Elapsed == elapsed) return cached.Phases;
+        var phases = Create(spotId, events, elapsed);
+        Cache.AddOrUpdate(events, new(spotId, elapsed, phases));
+        return phases;
+    }
 
     /// <summary>
     /// The waiting time after a rotation's mechanics, for every spot. Magaia names one per cycle; Event Horizon's

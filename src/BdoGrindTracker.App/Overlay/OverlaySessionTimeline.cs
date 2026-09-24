@@ -41,11 +41,29 @@ public sealed record OverlaySessionTimeline(TimeSpan From, TimeSpan To, string C
     // Heights in layout pixels at font scale 1, the same for both renderers.
     public const double HeaderHeight = 20, TickHeight = 12, BandGap = 4, SimpleBandHeight = 14, PhaseBandHeight = 18;
     public const double IconSize = 20, IconGap = 5, DetailHeight = 16;
+    // The size the timeline is laid out for at font scale 1; below it the content is scaled down as a whole.
+    public const double ReferenceWidth = 360, ReferenceHeight = 144;
+    // Room for an icon above the tallest layer.
+    private const double MinimumPlotHeight = 44;
     // The highest bar stops below the top, so an icon above it still fits into the plot.
     private const double PlotRange = .82;
 
     public bool HasData => Silver is not null || Trash is not null || Rotations.Count > 0 ||
         SpecialEvents.Count > 0 || Markers.Count > 0;
+
+    /// <summary>
+    /// The height the timeline needs at a font scale: header, times, rotation band and price note grow with the font,
+    /// and the plot keeps room for an icon. Never less than the reference height.
+    /// </summary>
+    public static double MinimumHeight(OverlayWidget widget, double fontScale, bool hasDetail)
+    {
+        ArgumentNullException.ThrowIfNull(widget);
+        var band = !OverlayTimelineLayers.Normalize(widget.TimelineLayers).Contains("rotations") ? 0
+            : (widget.TimelineRotationView == OverlayTimelineLayers.PhasesView ? PhaseBandHeight : SimpleBandHeight) + BandGap;
+        var lines = (widget.ShowLabel ? HeaderHeight : 0) + TickHeight + band + (hasDetail ? DetailHeight : 0) + MinimumPlotHeight;
+        // 16 is the widget's vertical inset, the same in both renderers.
+        return Math.Max(ReferenceHeight, 16 + lines * fontScale);
+    }
 
     /// <summary>Width of a row of drop icons; the badge of a numbered icon reaches into the gap.</summary>
     public static double RowWidth(int items, double iconSize, double gap) => items * iconSize + Math.Max(0, items - 1) * gap;
@@ -86,7 +104,7 @@ public sealed record OverlaySessionTimeline(TimeSpan From, TimeSpan To, string C
             ? SessionRotationStats.Spans(snapshot.Rotation, to, snapshot.ObservedAt) : [];
         var rotations = !IsOn("rotations") ? [] : spans.Where(span => span.End > from && span.Start < to).Select(span =>
         {
-            var phases = RotationPhases.Create(snapshot.Rotation.SpotId, span.Events ?? [], span.Duration);
+            var phases = RotationPhases.Cached(snapshot.Rotation.SpotId, span.Events, span.Duration);
             IEnumerable<OverlayTimelinePhase> parts = simplified ? Simplify(span, phases, X) : phases.Select(phase =>
                 new OverlayTimelinePhase(X(span.Start + TimeSpan.FromSeconds(phase.Start)),
                     X(span.Start + TimeSpan.FromSeconds(phase.End)), phase.Name, phase.Color,
@@ -140,12 +158,12 @@ public sealed record OverlaySessionTimeline(TimeSpan From, TimeSpan To, string C
         for (var index = 0; index < visible.Length;)
         {
             List<OverlayDropMarker> group = [visible[index]];
+            HashSet<string> names = new(StringComparer.Ordinal) { visible[index].Item.CanonicalName };
             // The row starts at its first drop; a drop joins while its icon would touch the row.
             var left = Pixel(visible[index]) - size / 2;
-            var items = 1;
-            while (++index < visible.Length && Pixel(visible[index]) - size / 2 < left + RowWidth(items, size, gap) + gap)
+            while (++index < visible.Length && Pixel(visible[index]) - size / 2 < left + RowWidth(names.Count, size, gap) + gap)
             {
-                if (group.All(drop => drop.Item.CanonicalName != visible[index].Item.CanonicalName)) items++;
+                names.Add(visible[index].Item.CanonicalName);
                 group.Add(visible[index]);
             }
             markers.Add(new((left + size / 2) / width, group.Max(drop => SessionTimelineChart.Top(drop.Elapsed, series, from, to)),

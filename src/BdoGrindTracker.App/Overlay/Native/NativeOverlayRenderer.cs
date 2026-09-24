@@ -32,6 +32,10 @@ internal sealed class NativeOverlayRenderer : IDisposable
     private Color Heading => _blackDesert ? Gold : Muted;
     private static readonly Color Brass = Color.FromArgb(96, 90, 73);
     private readonly Dictionary<string, Image?> _icons = new(StringComparer.OrdinalIgnoreCase);
+    // Phase colours are a handful of fixed hex values; they are parsed once, not in every frame.
+    private readonly Dictionary<string, Color> _htmlColors = new(StringComparer.OrdinalIgnoreCase);
+    private Color Html(string value) => _htmlColors.TryGetValue(value, out var color) ? color
+        : _htmlColors[value] = ColorTranslator.FromHtml(value);
 
     internal Bitmap Render(Size size, OverlaySettings settings, OverlaySnapshot snapshot,
         out IReadOnlyDictionary<string, RectangleF> actions, string title = "Grindcrest")
@@ -617,7 +621,7 @@ internal sealed class NativeOverlayRenderer : IDisposable
         }
         if (timeline.Trash is { } trash)
         {
-            using var bars = new SolidBrush(Color.FromArgb(158, ColorTranslator.FromHtml(trash.Color)));
+            using var bars = new SolidBrush(Color.FromArgb(158, Html(trash.Color)));
             foreach (var bar in trash.Bars.Where(bar => bar.Value > 0))
             {
                 var top = At(bar.Start, bar.Filled);
@@ -692,49 +696,66 @@ internal sealed class NativeOverlayRenderer : IDisposable
     {
         if (band.Height <= 1) return;
         float X(double share) => band.X + (float)share * band.Width;
-        foreach (var rotation in timeline.Rotations)
+        // One set of brushes per rotation state and a single reused fill, however many rotations are visible.
+        var styles = new Dictionary<string, (Color State, SolidBrush Body, HatchBrush Afk)>(StringComparer.Ordinal);
+        using var fill = new SolidBrush(Color.Empty);
+        using var outline = new Pen(colors.Rare, 1.5f) { DashPattern = [3, 2] };
+        try
         {
-            var state = rotation.Status switch
+            foreach (var rotation in timeline.Rotations)
             {
-                "active" => colors.Active, "failed" => colors.Failed, "fastest" => colors.Fastest,
-                "complete" => colors.Complete, _ => Muted,
-            };
-            var bounds = RectangleF.FromLTRB(X(rotation.Left) + 1, band.Top, Math.Max(X(rotation.Left) + 2, X(rotation.Right) - 1), band.Bottom);
-            var clip = graphics.Save();
-            graphics.SetClip(bounds, CombineMode.Intersect);
-            if (timeline.IsSimplified)
-            {
-                using var body = new SolidBrush(Color.FromArgb(120, state));
-                using var afk = new HatchBrush(HatchStyle.WideUpwardDiagonal, Color.FromArgb(120, state), Color.FromArgb(28, state));
-                foreach (var part in rotation.Phases)
+                if (!styles.TryGetValue(rotation.Status, out var style))
                 {
-                    var segment = RectangleF.FromLTRB(X(part.Left), band.Top, X(part.Right), band.Bottom);
-                    graphics.FillRectangle(part.IsAfk ? afk : body, segment);
-                    if (part.IsAfk && segment.Width >= 26 * fontScale)
-                        Draw(graphics, "AFK", segment, 8 * fontScale, Text, true, StringAlignment.Center, StringAlignment.Center);
+                    var color = rotation.Status switch
+                    {
+                        "active" => colors.Active, "failed" => colors.Failed, "fastest" => colors.Fastest,
+                        "complete" => colors.Complete, _ => Muted,
+                    };
+                    styles[rotation.Status] = style = (color, new SolidBrush(Color.FromArgb(120, color)),
+                        new HatchBrush(HatchStyle.WideUpwardDiagonal, Color.FromArgb(120, color), Color.FromArgb(28, color)));
                 }
-                var mechanics = rotation.Phases.FirstOrDefault(part => !part.IsAfk);
-                var label = mechanics is null ? bounds : RectangleF.FromLTRB(X(mechanics.Left), band.Top, X(mechanics.Right), band.Bottom);
-                if (label.Width >= 32 * fontScale)
-                    Draw(graphics, RotationPhases.Duration(rotation.Span.Duration), RectangleF.Inflate(label, -3 * fontScale, 0),
-                        9 * fontScale, Text, true, vertical: StringAlignment.Center);
-            }
-            else
-            {
-                var rail = Math.Min(3 * fontScale, band.Height / 3);
-                foreach (var part in rotation.Phases)
+                var bounds = RectangleF.FromLTRB(X(rotation.Left) + 1, band.Top, Math.Max(X(rotation.Left) + 2, X(rotation.Right) - 1), band.Bottom);
+                var clip = graphics.Save();
+                graphics.SetClip(bounds, CombineMode.Intersect);
+                if (timeline.IsSimplified)
                 {
-                    var segment = RectangleF.FromLTRB(X(part.Left), band.Top, Math.Max(X(part.Left) + .6f, X(part.Right) - .5f), band.Bottom - rail - 1);
-                    using var fill = new SolidBrush(Color.FromArgb(230, ColorTranslator.FromHtml(part.Color)));
-                    graphics.FillRectangle(fill, segment);
-                    if (!part.IsSpecial) continue;
-                    using var outline = new Pen(colors.Rare, 1.5f) { DashPattern = [3, 2] };
-                    graphics.DrawRectangle(outline, segment.X + .75f, segment.Y + .75f, segment.Width - 1.5f, segment.Height - 1.5f);
+                    foreach (var part in rotation.Phases)
+                    {
+                        var segment = RectangleF.FromLTRB(X(part.Left), band.Top, X(part.Right), band.Bottom);
+                        graphics.FillRectangle(part.IsAfk ? style.Afk : style.Body, segment);
+                        if (part.IsAfk && segment.Width >= 26 * fontScale)
+                            Draw(graphics, "AFK", segment, 8 * fontScale, Text, true, StringAlignment.Center, StringAlignment.Center);
+                    }
+                    var mechanics = rotation.Phases.FirstOrDefault(part => !part.IsAfk);
+                    var label = mechanics is null ? bounds : RectangleF.FromLTRB(X(mechanics.Left), band.Top, X(mechanics.Right), band.Bottom);
+                    if (label.Width >= 32 * fontScale)
+                        Draw(graphics, RotationPhases.Duration(rotation.Span.Duration), RectangleF.Inflate(label, -3 * fontScale, 0),
+                            9 * fontScale, Text, true, vertical: StringAlignment.Center);
                 }
-                using var railBrush = new SolidBrush(state);
-                graphics.FillRectangle(railBrush, bounds.X, band.Bottom - rail, bounds.Width, rail);
+                else
+                {
+                    var rail = Math.Min(3 * fontScale, band.Height / 3);
+                    foreach (var part in rotation.Phases)
+                    {
+                        var segment = RectangleF.FromLTRB(X(part.Left), band.Top, Math.Max(X(part.Left) + .6f, X(part.Right) - .5f), band.Bottom - rail - 1);
+                        fill.Color = Color.FromArgb(230, Html(part.Color));
+                        graphics.FillRectangle(fill, segment);
+                        if (part.IsSpecial)
+                            graphics.DrawRectangle(outline, segment.X + .75f, segment.Y + .75f, segment.Width - 1.5f, segment.Height - 1.5f);
+                    }
+                    fill.Color = style.State;
+                    graphics.FillRectangle(fill, bounds.X, band.Bottom - rail, bounds.Width, rail);
+                }
+                graphics.Restore(clip);
             }
-            graphics.Restore(clip);
+        }
+        finally
+        {
+            foreach (var style in styles.Values)
+            {
+                style.Body.Dispose();
+                style.Afk.Dispose();
+            }
         }
     }
 

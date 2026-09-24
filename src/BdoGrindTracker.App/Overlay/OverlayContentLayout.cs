@@ -21,7 +21,7 @@ public sealed record OverlayContentLayout(OverlayWidget LayoutWidget, double Sca
             "daily-goal" => 88 + (widget.ShowLabel ? 18 * fontScale : 0),
             "controls" => 16 + (widget.ShowLabel ? 18 * fontScale : 0) + (widget.ShowNewSession ? 60 : 28) * fontScale,
             // Below the session timeline's reference size its content is scaled down as a whole.
-            "chart" => TimelineHeight,
+            "chart" => OverlaySessionTimeline.MinimumHeight(widget, fontScale, !string.IsNullOrEmpty(metric?.Detail)),
             "clock" => 16 + (widget.ShowLabel ? 18 * fontScale : 0) + OverlayClockPresentation.RowCount(widget) * 26 * fontScale,
             "consumables" => 48 + (widget.ShowLabel ? 18 * fontScale : 0) + 24 * fontScale,
             "grind-rating" when metric?.Spectrum is not null => 16 +
@@ -32,7 +32,7 @@ public sealed record OverlayContentLayout(OverlayWidget LayoutWidget, double Sca
                 (widget.Kind is "spot" or "status" or "loot-scroll" or "grind-rating" ? 20 : 26) * fontScale +
                 ((widget.ShowLabel || widget.Kind == "experience") && widget.Kind != "status" && !string.IsNullOrEmpty(metric?.Detail) ? 12 * fontScale : 0),
         };
-        var minimumWidth = widget.Kind == "chart" ? TimelineWidth : 80;
+        var minimumWidth = widget.Kind == "chart" ? OverlaySessionTimeline.ReferenceWidth : 80;
         var scale = Math.Min(Math.Min(width / referenceWidth, height / referenceHeight),
             Math.Min(width / minimumWidth, height / minimumHeight));
         return new(widget with
@@ -40,8 +40,6 @@ public sealed record OverlayContentLayout(OverlayWidget LayoutWidget, double Sca
             X = 0, Y = 0, Width = width / scale, Height = height / scale, FontScale = fontScale,
         }, scale, referenceWidth, referenceHeight, minimumWidth, minimumHeight);
     }
-
-    private const double TimelineWidth = 360, TimelineHeight = 144;
 
     private static double Valid(double value, double fallback) => double.IsFinite(value) && value > 0
         ? Math.Clamp(value, 1, 1600) : fallback;

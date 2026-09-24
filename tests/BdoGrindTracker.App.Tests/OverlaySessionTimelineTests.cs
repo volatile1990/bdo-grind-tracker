@@ -357,6 +357,85 @@ public sealed class OverlaySessionTimelineTests
     }
 
     [Fact]
+    public void TheTallestLayerOfAMomentIsFoundWithoutSearchingEveryBar()
+    {
+        var random = new Random(7);
+        var drops = Enumerable.Range(0, 400).Select(index => new SessionDropSample(
+            TimeSpan.FromSeconds(random.Next(0, 3600)), "Item", random.Next(1, 50))).ToArray();
+        foreach (var (from, to) in new[] { (0, 3600), (600, 1800), (1234, 1300) })
+        {
+            var (start, end) = (TimeSpan.FromSeconds(from), TimeSpan.FromSeconds(to));
+            SessionTimelineSeries[] series = [SessionTimelineChart.Series("a", "", "", drops, start, end),
+                SessionTimelineChart.Series("b", "", "", drops.Where((_, index) => index % 3 == 0), start, end, flatten: true)];
+            for (var second = from; second <= to; second += 7)
+            {
+                var at = TimeSpan.FromSeconds(second);
+                // The former search: every bar whose interval contains the moment, boundaries included.
+                var x = (at - start).TotalSeconds / (end - start).TotalSeconds;
+                var expected = series.SelectMany(entry => entry.Bars).Where(bar => x >= bar.Start && x <= bar.End)
+                    .Select(bar => bar.Filled).DefaultIfEmpty(0).Max();
+                Assert.Equal(expected, SessionTimelineChart.Top(at, series, start, end), 9);
+            }
+        }
+    }
+
+    [Fact]
+    public void ARotationsPhasesAreDerivedOnceForItsRecordedEvents()
+    {
+        IReadOnlyList<RotationEvent> events = [new("start", "Start", 0), new("drakania", "d", 100), new("afk", "a", 500), new("end", "e", 600)];
+
+        var first = RotationPhases.Cached(LootSpotCatalog.HermesiaId, events, 600);
+
+        Assert.Same(first, RotationPhases.Cached(LootSpotCatalog.HermesiaId, events, 600));
+        Assert.Equal(RotationPhases.Create(LootSpotCatalog.HermesiaId, events, 600), first);
+        // The running rotation grows every second and is derived again.
+        Assert.NotSame(first, RotationPhases.Cached(LootSpotCatalog.HermesiaId, events, 601));
+        Assert.Empty(RotationPhases.Cached(LootSpotCatalog.HermesiaId, null, 600));
+    }
+
+    [Fact]
+    public void ALargerFontGivesTheTimelineMoreHeightInsteadOfHidingIt()
+    {
+        var widget = Widget() with { FontScale = 2 };
+        var warning = new OverlaySnapshot
+        {
+            Metrics = new Dictionary<string, OverlayMetric> { ["chart"] = new("Session-Timeline", "1:00:00", "Teilbetrag · Preise fehlen") },
+        };
+
+        // Header, times, simplified band and price note at twice the size plus room for an icon, and the 16 pixel inset.
+        Assert.Equal(16 + (20 + 12 + 18 + 16 + 44) * 2, OverlayContentLayout.Create(widget, warning).MinimumHeight);
+        Assert.Equal(144, OverlayContentLayout.Create(Widget(), warning).MinimumHeight);
+        Assert.Equal(144, OverlayContentLayout.Create(Widget() with { FontScale = 1.2 }, new OverlaySnapshot()).MinimumHeight);
+    }
+
+    [Fact]
+    public void RebuiltButUnchangedRotationsDoNotRedrawAPausedOverlay()
+    {
+        var snapshot = WithRotations(Snapshot(TimeSpan.FromSeconds(1000), (20, 5)),
+            Rotation(100, 600, "complete", ("afk", 500)) with { SpecialEventSeconds = [50] });
+        // The rotation monitor builds every timing afresh with each snapshot, special event list included.
+        var rebuilt = snapshot with
+        {
+            Rotation = snapshot.Rotation with
+            {
+                SessionRotations = [.. snapshot.Rotation.SessionRotations.Select(timing => timing with { SpecialEventSeconds = [50] })],
+            },
+        };
+        var settings = new OverlaySettings { Widgets = [Widget()] };
+        var state = new NativeOverlayRenderState();
+        state.Remember(settings, snapshot, new Size(360, 144));
+
+        Assert.True(state.Matches(settings, rebuilt, new Size(360, 144)));
+        Assert.False(state.Matches(settings, rebuilt with
+        {
+            Rotation = rebuilt.Rotation with
+            {
+                SessionRotations = [.. rebuilt.Rotation.SessionRotations.Select(timing => timing with { SpecialEventSeconds = [50, 90] })],
+            },
+        }, new Size(360, 144)));
+    }
+
+    [Fact]
     public void TheNativeOverlayRedrawsTheTimelineWhenItsDataChanges()
     {
         var snapshot = OverlaySnapshot.Demo;

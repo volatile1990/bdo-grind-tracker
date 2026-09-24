@@ -19,7 +19,7 @@
                 }
                 <span class="session-timeline-divider"></span>
                 <button type="button" class="text-button" @onclick="() => _lootList = !_lootList"
-                        disabled="@(LootItems.Count == 0)" aria-expanded="@_lootList">
+                        disabled="@(State.Loot.Totals.Count == 0)" aria-expanded="@_lootList">
                     <AppIcon Name="loot" />@T("Loot Selector")@(_chosen.Length > 0 ? $" · {_chosen.Length}" : "")
                 </button>
                 <button type="button" class="text-button" @onclick="() => _rotationList = !_rotationList"

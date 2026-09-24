@@ -83,18 +83,26 @@ public static class SessionTimelineChart
 
     /// <summary>
     /// The highest point the visible layers reach at a moment. A drop's mark sits above it, so it never hides
-    /// behind the tallest bar or curve of that moment.
+    /// behind the tallest bar or curve of that moment. Every series of one window shares its intervals, so the bar of a
+    /// moment follows from its time instead of a search.
     /// </summary>
     public static double Top(TimeSpan at, IEnumerable<SessionTimelineSeries> series, TimeSpan from, TimeSpan to)
     {
         ArgumentNullException.ThrowIfNull(series);
-        var window = (to - from).TotalSeconds;
-        if (window <= 0) return 0;
-        var x = (at - from).TotalSeconds / window;
+        if (to <= from) return 0;
+        var step = IntervalFor(to - from);
+        var position = at.TotalSeconds / step - Math.Floor(from.TotalSeconds / step);
+        var index = (int)Math.Floor(position);
         var top = 0d;
         foreach (var entry in series)
-            foreach (var bar in entry.Bars)
-                if (x >= bar.Start && x <= bar.End) top = Math.Max(top, bar.Filled);
+        {
+            top = Math.Max(top, Filled(entry.Bars, index));
+            // A moment on the boundary touches the interval before it as well.
+            if (position == index) top = Math.Max(top, Filled(entry.Bars, index - 1));
+        }
         return Math.Clamp(top, 0, 1);
+
+        static double Filled(IReadOnlyList<SessionTimelineBar> bars, int index) =>
+            index >= 0 && index < bars.Count ? bars[index].Filled : 0;
     }
 }
