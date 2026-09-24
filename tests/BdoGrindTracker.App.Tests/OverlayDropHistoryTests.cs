@@ -154,34 +154,10 @@ public sealed class OverlayDropHistoryTests
     }
 
     [Fact]
-    public void MarkerCoordinatesInterpolateAndExcludeUnknownTimeRanges()
-    {
-        var item = new OverlayLootItem("Item", "Item", "1");
-        var snapshot = new OverlaySnapshot {
-            SilverHistory = [new(TimeSpan.FromSeconds(10), 100), new(TimeSpan.FromSeconds(30), 200)],
-            DropMarkers = [new(TimeSpan.FromSeconds(20), item), new(TimeSpan.FromSeconds(40), item)]
-        };
-        var marker = Assert.Single(OverlayChartMarkers.Create(snapshot));
-        Assert.Equal(.5, marker.X);
-        Assert.Equal(22d / 72, marker.Y, 8);
-    }
-
-    [Fact]
-    public void FirstDropBeforeTheFirstRateSampleRemainsVisible()
-    {
-        var snapshot = new OverlaySnapshot {
-            SilverHistory = [new(TimeSpan.FromSeconds(1), 100), new(TimeSpan.FromSeconds(10), 200)],
-            DropMarkers = [new(TimeSpan.Zero, new("Item", "Item", "1"))]
-        };
-        Assert.Equal(0, OverlayChartMarkers.FirstTick(snapshot));
-        Assert.Equal(0, Assert.Single(OverlayChartMarkers.Create(snapshot)).X);
-    }
-
-    [Fact]
     public void DemoMarksEveryValuableDropOfTheExampleSessionSeparately()
     {
         // Four Twilight of the End rings and one Refined Essence of Devouring.
-        Assert.Equal(5, OverlayChartMarkers.Create(OverlaySnapshot.Demo).Count);
+        Assert.Equal(5, OverlaySnapshot.Demo.DropMarkers.Count);
         Assert.Equal(4, OverlaySnapshot.Demo.DropMarkers.Count(marker => marker.Item.CanonicalName == "Twilight of the End - Ring"));
         Assert.All(OverlaySnapshot.Demo.DropMarkers, marker => Assert.NotNull(marker.Item.IconPath));
     }

@@ -27,10 +27,11 @@ internal sealed class NativeOverlayRenderState
                 _snapshot.CanToggleTracking != snapshot.CanToggleTracking ||
                 _snapshot.CanNewSession != snapshot.CanNewSession ||
                 _snapshot.TrackingButtonLabel != snapshot.TrackingButtonLabel)) return false;
-            if (widget.Kind == "chart" && (!SameItems(_snapshot.SilverHistory, snapshot.SilverHistory) ||
-                widget.ChartMode == OverlayChartSections.SectionsMode && (_snapshot.SessionElapsed != snapshot.SessionElapsed ||
-                    !SameItems(_snapshot.SilverDrops, snapshot.SilverDrops)) ||
-                !SameItems(_snapshot.DropMarkers, snapshot.DropMarkers))) return false;
+            if (widget.Kind == "chart" && (_snapshot.SessionElapsed != snapshot.SessionElapsed ||
+                !SameItems(_snapshot.SilverDrops, snapshot.SilverDrops) || !SameItems(_snapshot.TrashDrops, snapshot.TrashDrops) ||
+                !SameItems(_snapshot.DropMarkers, snapshot.DropMarkers) ||
+                _snapshot.Rotation.SpotId != snapshot.Rotation.SpotId ||
+                !SameItems(_snapshot.Rotation.SessionRotations, snapshot.Rotation.SessionRotations))) return false;
             if (widget.Kind == "rotation-monitor" && !SameRotation(_snapshot.Rotation, snapshot.Rotation,
                 widget.RotationComparison)) return false;
             if (widget.Kind == "daily-goal" && _snapshot.DailyGoal != snapshot.DailyGoal) return false;

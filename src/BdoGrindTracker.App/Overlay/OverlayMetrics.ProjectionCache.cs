@@ -26,7 +26,9 @@ internal sealed partial class OverlayMetrics
     private SilverTaxOptions? _dropTax;
     private IReadOnlyList<string> _dropFavorites = [];
     private (string GameLanguage, string UiLanguage) _dropLanguage;
+    private string? _dropTrash;
     private IReadOnlyList<OverlaySilverDrop> _silverDrops = [];
+    private IReadOnlyList<SessionDropSample> _trashDrops = [];
     private IReadOnlyList<OverlayDropMarker> _dropMarkers = [];
 
     private void ProjectLoot(IReadOnlyDictionary<string, long> totals, string? trash,
@@ -64,12 +66,12 @@ internal sealed partial class OverlayMetrics
     }
 
     private void ProjectDropHistory(TrackerState state, TrackerPreferences preferences,
-        LootPriceSnapshot? prices, string gameLanguage)
+        LootPriceSnapshot? prices, string gameLanguage, string? trash)
     {
         var tax = preferences.Tax;
         var language = (gameLanguage, preferences.UiLanguage);
         if (_dropHistory is not null && ReferenceEquals(_dropPrices, prices) && _dropTax == tax &&
-            _dropLanguage == language && _dropFavorites.SequenceEqual(preferences.FavoriteItems) &&
+            _dropLanguage == language && _dropTrash == trash && _dropFavorites.SequenceEqual(preferences.FavoriteItems) &&
             (ReferenceEquals(_dropHistorySource, state.DropHistory) || _dropHistory.SequenceEqual(state.DropHistory)))
         {
             _dropHistorySource = state.DropHistory;
@@ -83,11 +85,14 @@ internal sealed partial class OverlayMetrics
                 ItemLocalizationCatalog.DisplayName(drop.ItemName, gameLanguage),
                 drop.Quantity.ToString("N0", AppText.Culture(preferences.UiLanguage)),
                 Presentation.ItemIcon(drop.ItemName), true, drop.Quantity))).ToArray());
+        _trashDrops = trash is null ? [] : Array.AsReadOnly(state.DropHistory
+            .Where(drop => string.Equals(drop.ItemName, trash, StringComparison.Ordinal)).ToArray());
         _dropHistory = state.DropHistory.ToArray();
         _dropHistorySource = state.DropHistory;
         _dropPrices = prices;
         _dropTax = tax;
         _dropFavorites = preferences.FavoriteItems.ToArray();
         _dropLanguage = language;
+        _dropTrash = trash;
     }
 }

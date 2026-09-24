@@ -182,25 +182,29 @@ public sealed class NativeOverlayContentScalingTests
     [InlineData(128, 1)]
     [InlineData(480, 1)]
     [InlineData(480, 1.5)]
-    public void ChartCurveAndDropMarkersShareTheSameVerticalProjection(int height, double dpi)
+    public void TimelineSilverPeakFollowsTheSharedVerticalProjection(int height, double dpi)
     {
         var widget = OverlayCatalog.CreateWidget("chart", 0, 0) with
         {
-            Width = 400, Height = height, ShowLabel = false, ShowIcon = false, ChartMode = OverlayChartSections.AverageMode
+            Width = 400, Height = height, ShowLabel = false, ShowIcon = false, TimelineLayers = ["silver"]
         };
         var snapshot = new OverlaySnapshot
         {
-            SilverHistory = [new(TimeSpan.Zero, 100), new(TimeSpan.FromSeconds(30), 200), new(TimeSpan.FromSeconds(60), 100)],
-            DropMarkers = [new(TimeSpan.FromSeconds(30), new("Item", "Item", "1"))]
+            SessionElapsed = TimeSpan.FromSeconds(60),
+            SilverDrops = [new(TimeSpan.FromSeconds(10), 100), new(TimeSpan.FromSeconds(30), 1000), new(TimeSpan.FromSeconds(50), 100)]
         };
-        var marker = Assert.Single(OverlayChartMarkers.Create(snapshot));
+        // Below the timeline's reference size the renderer draws the reference layout scaled down.
+        var content = OverlayContentLayout.Create(widget, snapshot);
+        var layout = content.LayoutWidget;
+        var timeline = OverlaySessionTimeline.Create(layout, snapshot, layout.Width - 20);
+        var bar = timeline.Silver!.Bars.MaxBy(bar => bar.Filled)!;
         using var renderer = new NativeOverlayRenderer();
-        // Render the curve alone so a misplaced marker cannot mask its peak.
-        using var image = renderer.Render(new Size((int)(400 * dpi), (int)(height * dpi)),
-            Settings(400, height, widget), snapshot with { DropMarkers = [] }, out _);
-        var x = (int)((10 + marker.X * 380) * dpi);
+        using var image = renderer.Render(new Size((int)(400 * dpi), (int)(height * dpi)), Settings(400, height, widget), snapshot, out _);
+        var scale = content.Scale * dpi;
+        var x = (int)((10 + (bar.Start + bar.End) / 2 * (layout.Width - 20)) * scale);
         var peak = Enumerable.Range(0, image.Height).First(y => image.GetPixel(x, y).A > 128);
-        var expectedY = (8 + marker.Y * (height - 16)) * dpi;
+        var plotTop = 8 + OverlaySessionTimeline.TickHeight;
+        var expectedY = (plotTop + OverlaySessionTimeline.Y(bar.Filled) * (layout.Height - 8 - plotTop)) * scale;
 
         Assert.InRange(peak, expectedY - 2, expectedY + 2);
     }

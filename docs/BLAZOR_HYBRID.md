@@ -48,7 +48,7 @@ die Fläche teilen, nicht aber ihre Einheiten.
   Dauern, gestrichelte Umrandung für Phasen eines Special Events und kurze Marker-Striche
   darüber. Vollständige, fehlgeschlagene, unvollständige und die gerade laufende Rotation
   sind eigens gekennzeichnet, die schnellste zusätzlich.
-- **Seltene Drops & Favoriten** erscheinen wie im Silberverlauf-Widget als Item-Icon im
+- **Seltene Drops & Favoriten** erscheinen wie im Overlay-Modul Session-Timeline als Item-Icon im
   Kästchen mit Stiel bis zur Zeitachse. Sie setzen sich über den höchsten Punkt aller
   eingeblendeten Werte, etwa über den Trashloot-Balken dieses Moments.
 - **Silber je Abschnitt** zeigt als Kurve, wie viel Silber die Drops jedes Zeitabschnitts wert

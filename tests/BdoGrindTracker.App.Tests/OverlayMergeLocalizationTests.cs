@@ -11,45 +11,31 @@ namespace BdoGrindTracker.App.Tests;
 
 public sealed class OverlayMergeLocalizationTests
 {
-    [Theory]
-    [InlineData("Session average")]
-    [InlineData("Session-Durchschnitt")]
-    public void SectionChartRecognizesTheAverageExplanationInEitherLanguage(string average)
-    {
-        var snapshot = OverlayMetrics.DemoFor("en") with
-        {
-            Metrics = new Dictionary<string, OverlayMetric> { ["chart"] = new("Silver / h", "1 B", average) },
-        };
-        var chart = OverlayChartSections.Create(Sections(), snapshot);
-
-        Assert.Equal("Silver per 10 s · History", chart.Title);
-        Assert.Equal("Value: session avg./h · whole session", chart.Detail);
-        Assert.Contains("net silver earned per 10 seconds", chart.Description);
-        Assert.True(chart.HasData);
-    }
-
     [Fact]
-    public async Task EnglishSectionCurveKeepsMissingPriceWarningsAndValuableDropMarkers()
+    public async Task EnglishTimelineTranslatesItsTextsAndKeepsMissingPriceWarnings()
     {
-        var snapshot = OverlayMetrics.DemoFor("en") with
+        var demo = OverlayMetrics.DemoFor("en");
+        var snapshot = demo with
         {
             Metrics = new Dictionary<string, OverlayMetric>
             {
-                ["chart"] = new("Silver / h", "1 B *", "Teilbetrag · Preise fehlen"),
+                ["chart"] = demo.Metrics["chart"] with { Detail = "Teilbetrag · Preise fehlen" },
             },
         };
         var html = await RenderAsync<OverlayWidgetPreview>(new()
         {
-            [nameof(OverlayWidgetPreview.Widget)] = Sections() with { ChartPeakMode = OverlayChartSections.ClipPeaks },
+            [nameof(OverlayWidgetPreview.Widget)] = OverlayCatalog.CreateWidget("chart"),
             [nameof(OverlayWidgetPreview.Snapshot)] = snapshot,
         });
 
-        Assert.Contains("Silver per 10 s · History", html);
+        Assert.Contains("Session timeline", html);
+        Assert.Contains("whole session", html);
+        Assert.Contains("title=\"Mechanics\"", html);
         Assert.Contains(AppText.Translate("Teilbetrag · Preise fehlen", "en"), html);
-        Assert.Contains("overlay-chart-drop-marker", html);
-        Assert.Contains("Clipped at the top: valuable drop", html);
-        Assert.DoesNotContain("Zahl Ø Session", html);
-        Assert.DoesNotContain("Silber je", html);
+        Assert.Contains("overlay-timeline-drop", html);
+        Assert.DoesNotContain("ganze Session", html);
+        Assert.DoesNotContain("Mechaniken", html);
+        Assert.DoesNotContain("Teilbetrag", html);
     }
 
     [Fact]
@@ -99,11 +85,6 @@ public sealed class OverlayMergeLocalizationTests
         var now = ((418.133 + 10) / RotationTimelinePresentation.Extent(state, "best") * 540).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
         Assert.Contains($"class=\"rotation-playhead\" x1=\"{now}\"", html);
     }
-
-    private static OverlayWidget Sections() => OverlayCatalog.CreateWidget("chart") with
-    {
-        ChartMode = OverlayChartSections.SectionsMode,
-    };
 
     private static async Task<string> RenderAsync<T>(Dictionary<string, object?> parameters) where T : IComponent
     {

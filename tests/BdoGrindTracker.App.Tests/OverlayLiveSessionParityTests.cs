@@ -204,7 +204,6 @@ public sealed class OverlayLiveSessionParityTests
         Assert.Equal(before.Metrics["duration"], overlay.Snapshot.Metrics["duration"]);
         Assert.NotEqual(before.Metrics["silver-hour"].Value, overlay.Snapshot.Metrics["silver-hour"].Value);
         Assert.Equal(960, Assert.Single(overlay.Snapshot.Drops).Quantity);
-        Assert.Same(corrected.SilverHistory, overlay.Snapshot.SilverHistory);
         Assert.Equal(800_000_000m, state.SilverHistory[^1].SilverPerHour);
         Assert.Equal(0, tracker.CommandCalls);
     }
@@ -212,30 +211,30 @@ public sealed class OverlayLiveSessionParityTests
     [Fact]
     public async Task LaterOverlayHasTheEntireSessionHistoryAndOverlayActionsCannotChangeSessionMetrics()
     {
-        var firstSamples = Array.AsReadOnly(new[]
+        var firstDrops = Array.AsReadOnly(new[]
         {
-            new SessionSilverSample(TimeSpan.FromMinutes(5), 610_000_000m),
-            new SessionSilverSample(TimeSpan.FromMinutes(10), 650_000_000m),
-            new SessionSilverSample(TimeSpan.FromMinutes(15), 630_000_000m),
+            new SessionDropSample(TimeSpan.FromMinutes(5), "Black Crystal Fragment", 610),
+            new SessionDropSample(TimeSpan.FromMinutes(10), "Black Crystal Fragment", 650),
+            new SessionDropSample(TimeSpan.FromMinutes(15), "Black Crystal Fragment", 630),
         });
-        var state = ActiveState() with { Elapsed = TimeSpan.FromMinutes(15), SilverHistory = firstSamples };
+        var state = ActiveState() with { Elapsed = TimeSpan.FromMinutes(15), DropHistory = firstDrops };
         await using var tracker = new SnapshotSession(state);
         using var earlyOverlay = new OverlayService(tracker);
-        Assert.Same(firstSamples, earlyOverlay.Snapshot.SilverHistory);
+        Assert.Equal(firstDrops, earlyOverlay.Snapshot.TrashDrops);
 
-        var completeSamples = Array.AsReadOnly(firstSamples.Concat(new[]
+        var completeDrops = Array.AsReadOnly(firstDrops.Concat(new[]
         {
-            new SessionSilverSample(TimeSpan.FromMinutes(20), 700_000_000m),
-            new SessionSilverSample(TimeSpan.FromMinutes(25), 730_000_000m),
-            new SessionSilverSample(TimeSpan.FromMinutes(30), 740_000_000m),
+            new SessionDropSample(TimeSpan.FromMinutes(20), "Black Crystal Fragment", 700),
+            new SessionDropSample(TimeSpan.FromMinutes(25), "Black Crystal Fragment", 730),
+            new SessionDropSample(TimeSpan.FromMinutes(30), "Black Crystal Fragment", 740),
         }).ToArray());
-        state = state with { Elapsed = TimeSpan.FromMinutes(30), SilverHistory = completeSamples };
+        state = state with { Elapsed = TimeSpan.FromMinutes(30), DropHistory = completeDrops };
         tracker.SetState(state);
         using var lateOverlay = new OverlayService(tracker);
         var before = earlyOverlay.Snapshot;
 
         AssertSamePresentation(before, lateOverlay.Snapshot);
-        Assert.Same(completeSamples, lateOverlay.Snapshot.SilverHistory);
+        Assert.Equal(completeDrops, lateOverlay.Snapshot.TrashDrops);
         await AssertDashboardParityAsync(tracker, lateOverlay.Snapshot);
 
         foreach (var overlay in new[] { earlyOverlay, lateOverlay })
@@ -250,12 +249,12 @@ public sealed class OverlayLiveSessionParityTests
         }
 
         Assert.Same(state, tracker.State);
-        Assert.Same(completeSamples, tracker.State.SilverHistory);
+        Assert.Same(completeDrops, tracker.State.DropHistory);
         Assert.Equal(0, tracker.CommandCalls);
 
         tracker.SetState(state with { IsRunning = false, CanPause = false });
         AssertSamePresentation(earlyOverlay.Snapshot, lateOverlay.Snapshot);
-        Assert.Same(completeSamples, lateOverlay.Snapshot.SilverHistory);
+        Assert.Equal(completeDrops, lateOverlay.Snapshot.TrashDrops);
         await AssertDashboardParityAsync(tracker, lateOverlay.Snapshot);
     }
 
@@ -275,7 +274,6 @@ public sealed class OverlayLiveSessionParityTests
         var trashHourly = Regex.Match(cards[1], "<span class=\"teal\">(?<value>.*?)</span>", RegexOptions.Singleline);
         Assert.True(trashHourly.Success);
         Assert.Equal(PlainText(trashHourly.Groups["value"].Value), overlay.Metrics["trash-hour"].Value);
-        Assert.Equal(overlay.Metrics["silver-hour"].Value, overlay.Metrics["chart"].Value);
         var status = Regex.Match(markup, "<span class=\"live-session-status\"><span[^>]*></span>(?<value>.*?)</span>", RegexOptions.Singleline);
         Assert.True(status.Success);
         Assert.Equal(PlainText(status.Groups["value"].Value), overlay.Metrics["status"].Value);
@@ -287,7 +285,8 @@ public sealed class OverlayLiveSessionParityTests
         Assert.Equal(expected.Metrics.OrderBy(pair => pair.Key), actual.Metrics.OrderBy(pair => pair.Key));
         Assert.Equal(expected.Drops, actual.Drops);
         Assert.Equal(expected.RareDrops, actual.RareDrops);
-        Assert.Equal(expected.SilverHistory, actual.SilverHistory);
+        Assert.Equal(expected.SilverDrops, actual.SilverDrops);
+        Assert.Equal(expected.TrashDrops, actual.TrashDrops);
         Assert.Equal(expected.Status, actual.Status);
         Assert.Equal(expected.IsRunning, actual.IsRunning);
         Assert.Equal(expected.TrackingButtonLabel, actual.TrackingButtonLabel);

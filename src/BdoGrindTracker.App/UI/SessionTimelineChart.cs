@@ -44,28 +44,36 @@ public static class SessionTimelineChart
     /// </summary>
     public static SessionTimelineSeries Series(string id, string label, string color,
         IEnumerable<SessionDropSample> drops, TimeSpan from, TimeSpan to,
-        Func<SessionDropSample, decimal>? value = null, bool isSilver = false, bool flatten = false)
+        Func<SessionDropSample, decimal>? value = null, bool isSilver = false, bool flatten = false) =>
+        Series(id, label, color, drops, drop => drop.Elapsed, value ?? (drop => drop.Quantity), from, to, isSilver, flatten);
+
+    /// <summary>The same intervals for any timed values, such as the overlay's already valued silver of each drop.</summary>
+    public static SessionTimelineSeries Series<T>(string id, string label, string color,
+        IEnumerable<T> samples, Func<T, TimeSpan> elapsed, Func<T, decimal> value, TimeSpan from, TimeSpan to,
+        bool isSilver = false, bool flatten = false)
     {
-        ArgumentNullException.ThrowIfNull(drops);
+        ArgumentNullException.ThrowIfNull(samples);
         var window = (to - from).TotalSeconds;
         if (window <= 0) return new(id, label, color, [], 0, isSilver, flatten);
         var step = IntervalFor(to - from);
         var first = Math.Floor(from.TotalSeconds / step);
         var count = (int)Math.Ceiling(to.TotalSeconds / step) - (int)first + 1;
         var totals = new decimal[Math.Clamp(count, 1, MaximumIntervals * 2)];
-        foreach (var drop in drops)
+        foreach (var sample in samples)
         {
-            if (drop.Elapsed < from || drop.Elapsed > to) continue;
-            var index = (int)(Math.Floor(drop.Elapsed.TotalSeconds / step) - first);
+            var at = elapsed(sample);
+            if (at < from || at > to) continue;
+            var index = (int)(Math.Floor(at.TotalSeconds / step) - first);
             if (index < 0 || index >= totals.Length) continue;
-            try { totals[index] += value is null ? drop.Quantity : value(drop); }
+            try { totals[index] += value(sample); }
             catch (OverflowException) { /* One unpriceable drop must not take the whole series down. */ }
         }
         var peak = totals.Max();
         return new(id, label, color, [.. totals.Select((total, index) =>
         {
             var at = (first + index) * step;
-            var share = peak <= 0 ? 0 : (double)(total / peak);
+            // A correction can leave an interval below zero; it stays on the baseline.
+            var share = peak <= 0 ? 0 : Math.Max(0, (double)(total / peak));
             return new SessionTimelineBar(TimeSpan.FromSeconds(at),
                 Math.Clamp((at - from.TotalSeconds) / window, 0, 1),
                 Math.Clamp((at + step - from.TotalSeconds) / window, 0, 1),

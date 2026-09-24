@@ -21,7 +21,7 @@ public sealed class OverlayMergeIntegrationTests
         Assert.Equal("en", english.UiLanguage);
         Assert.Equal(DemoSession.Elapsed, english.SessionElapsed);
         Assert.Equal(german.SessionElapsed, english.SessionElapsed);
-        Assert.Equal(german.SilverHistory, english.SilverHistory);
+        Assert.Equal(german.TrashDrops, english.TrashDrops);
         Assert.Equal(german.SilverDrops, english.SilverDrops);
         Assert.NotEmpty(english.SilverDrops);
         Assert.Equal(german.Drops.Select(item => (item.CanonicalName, item.Name, item.Quantity)),
@@ -70,7 +70,7 @@ public sealed class OverlayMergeIntegrationTests
     [InlineData(AppThemes.Obsidian)]
     [InlineData(AppThemes.Kamasylvia)]
     [InlineData(AppThemes.Valencia)]
-    public void SectionChartsKeepTheirThemeWhenOnlyTheMainWindowThemeChanges(string overlayTheme)
+    public void TimelinesKeepTheirThemeWhenOnlyTheMainWindowThemeChanges(string overlayTheme)
     {
         var widget = OverlayCatalog.CreateWidget("chart") with { X = 0, Y = 0 };
         var settings = new OverlaySettings

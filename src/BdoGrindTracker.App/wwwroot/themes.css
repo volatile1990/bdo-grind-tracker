@@ -353,7 +353,7 @@ html:scope[data-theme="black-desert"],
 :scope[data-theme="black-desert"] :is(.overlay-widget-detail, .overlay-widget-empty, .overlay-widget-more) { color: #aca695; }
 :scope[data-theme="black-desert"] .overlay-widget-value { color: #e6dfcd; }
 :scope[data-theme="black-desert"] .overlay-widget-value > .icon { color: #c3bba7; }
-:scope[data-theme="black-desert"] :is(.overlay-widget-silver, .overlay-widget-silver-hour, .overlay-widget-chart, .overlay-widget-preview.metric-tone-accent) .overlay-widget-value,
+:scope[data-theme="black-desert"] :is(.overlay-widget-silver, .overlay-widget-silver-hour, .overlay-widget-preview.metric-tone-accent) .overlay-widget-value,
 :scope[data-theme="black-desert"] :is(.overlay-clock-row.is-countdown strong, .overlay-clock-row > .icon) { color: #d3b675; }
 :scope[data-theme="black-desert"] .overlay-widget-preview.metric-tone-muted .overlay-widget-value { color: #aca695; }
 :scope[data-theme="black-desert"] .overlay-widget-preview.metric-tone-positive .overlay-widget-value { color: #a4bf83; }
@@ -410,9 +410,6 @@ html:scope[data-theme="black-desert"],
 :scope[data-theme="black-desert"] :is(.overlay-widget-items.is-list, .overlay-widget-items.is-card) .is-rare .overlay-item-icon { box-shadow: inset 0 0 0 1px #c2a66bb3, inset 0 0 0 2px #07080ac7; }
 :scope[data-theme="black-desert"] .overlay-widget-items.is-card .overlay-item-name { color: #c3bba7; }
 :scope[data-theme="black-desert"] :is(.overlay-widget-items.is-card, .overlay-widget-items.is-list) .overlay-item-quantity { color: #d3b675; }
-:scope[data-theme="black-desert"] .overlay-chart-baseline { stroke: #9b906e40; }
-:scope[data-theme="black-desert"] .overlay-chart-area { fill: #d3b6751c; }
-:scope[data-theme="black-desert"] .overlay-chart-line { stroke: #d3b675; }
 
 /* Light and Katzen share the same UI components and dimensions. Their tokens
  * also cover the original hard-coded dark surfaces, including native dialogs.
@@ -725,7 +722,7 @@ html:is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme
 :is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) .overlay-widget-label .icon { color: var(--gold); }
 :is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) .overlay-widget-value { color: var(--overlay-ink); }
 :is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) .overlay-widget-value > .icon { color: var(--overlay-muted); }
-:is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) :is(.overlay-widget-silver, .overlay-widget-silver-hour, .overlay-widget-chart, .overlay-widget-preview.metric-tone-accent) .overlay-widget-value,
+:is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) :is(.overlay-widget-silver, .overlay-widget-silver-hour, .overlay-widget-preview.metric-tone-accent) .overlay-widget-value,
 :is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) :is(.overlay-clock-row.is-countdown strong, .overlay-clock-row > .icon) { color: var(--gold); }
 :is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) .overlay-widget-preview.metric-tone-muted .overlay-widget-value { color: var(--overlay-muted); }
 :is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) .overlay-widget-preview.metric-tone-positive .overlay-widget-value { color: var(--teal); }
@@ -757,9 +754,6 @@ html:is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme
 :is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) :is(.overlay-widget-items.is-list, .overlay-widget-items.is-card) .is-rare .overlay-item-icon { box-shadow: inset 0 0 0 1px var(--overlay-rare); }
 :is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) .overlay-widget-items.is-card .overlay-item-name { color: var(--overlay-muted); }
 :is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) :is(.overlay-widget-items.is-card, .overlay-widget-items.is-list) .overlay-item-quantity { color: var(--gold); }
-:is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) .overlay-chart-baseline { stroke: rgba(var(--overlay-line-rgb), .55); }
-:is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) .overlay-chart-area { fill: var(--gold); fill-opacity: .13; }
-:is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) .overlay-chart-line { stroke: var(--gold); }
 
 /* Distinct kitten companions, linen seams and paw trails give Katzen its identity.
  * Decorative layers never receive input or change overlay canvas geometry. */
@@ -997,8 +991,6 @@ html:is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme
 :is(:scope[data-theme="black-desert"], :scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) .overlay-daily-fill { background: var(--daily-fill); }
 :is(:scope[data-theme="black-desert"], :scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) .overlay-daily-bar > span { color: var(--daily-ink); text-shadow: none; }
 :is(:scope[data-theme="black-desert"], :scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) .overlay-daily-progress { accent-color: var(--gold); }
-:is(:scope[data-theme="black-desert"], :scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) .overlay-chart-drop-stem { stroke: var(--gold); }
-:is(:scope[data-theme="black-desert"], :scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) .overlay-chart-drop-marker { background: var(--goal-inset) !important; border-radius: min(var(--radius), 4px) !important; box-shadow: inset 0 0 0 1px var(--line); }
 
 /* Retain legibility on the deliberately dark images in session history. */
 :is(:scope[data-theme="light"], :scope[data-theme="valencia"]) .chronological-session-header,

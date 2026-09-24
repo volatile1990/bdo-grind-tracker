@@ -170,6 +170,13 @@ internal static class DemoSession
         return new SessionRotationTiming(rotation.Run.Duration, gap <= 120 ? Math.Max(0, gap) : null);
     }).ToArray();
 
+    /// <summary>The same rotations on the session's own time axis, with their mechanics for the session timeline.</summary>
+    internal static IReadOnlyList<SessionRotationTiming> OnSessionAxis(int count) =>
+        CompletedBefore(count).Select((timing, index) => timing with
+        {
+            StartedAfter = TimeSpan.FromSeconds(Rotations[index].StartedAt), Events = Rotations[index].Run.Events,
+        }).ToArray();
+
     /// <summary>The same rotations on a session timeline that ends at <paramref name="observedAt"/>.</summary>
     internal static IReadOnlyList<SessionRotationTiming> CompletedAt(DateTimeOffset observedAt, int count) =>
         CompletedBefore(count).Select((timing, index) => timing with

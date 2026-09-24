@@ -10,7 +10,7 @@ Silber und Stundenwerte im Dashboard und in anpassbaren Ingame-Overlays.
 
 - Automatische Spoterkennung für die [40 unterstützten Referenz-Spots](docs/SCREENSHOT_SPOTS.md), deutsche und englische Itemnamen sowie manuelle Lootkorrekturen.
 - Lokaler Verlauf mit Sessiondetails, Spotansicht und Silberbewertung für EU/NA einschließlich Steuern und Boni.
-- Mehrere unabhängige Overlays mit frei angeordneten Kennzahlen, Lootlisten, Silberverlauf, Uhr und Tracking-Steuerung.
+- Mehrere unabhängige Overlays mit frei angeordneten Kennzahlen, Lootlisten, Session-Timeline, Uhr und Tracking-Steuerung.
 - Automatische Pause, Klassenerkennung und pausierte Wiederherstellung der aktuellen Session samt gespeicherter Dropzeiten nach einem Neustart.
 - AP/DP aus der Spielanzeige mit farblich erkannter Kategorie (Allgemein, Edania, Halbmenschen oder Kamasilvia), live und zur jeweiligen Session gespeichert.
 - Automatische Buff-Erkennung ohne manuelle Einrichtung, mit Verbrauchsicons, Mengen und Gesamtkosten im Live-Header, Verlauf und Overlay.

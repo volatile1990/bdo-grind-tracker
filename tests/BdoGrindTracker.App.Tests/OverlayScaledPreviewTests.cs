@@ -56,7 +56,6 @@ public sealed class OverlayScaledPreviewTests
     [InlineData("spot")]
     [InlineData("grind-rating")]
     [InlineData("controls")]
-    [InlineData("chart")]
     public async Task ResizedPreviewTransformsTheEntireContentAndRetainsTextAndIconPreferences(string kind)
     {
         var original = OverlayCatalog.CreateWidget(kind) with { Width = 300, Height = 200, FontScale = 1.35 };

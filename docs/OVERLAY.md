@@ -38,7 +38,7 @@ jedes Fenster laden.
 ## Einrichten
 
 Die Vorlagen **Kompakt**, **Dashboard**, **Loot-Inventar** und **Loot-Leiste** bieten einen Ausgangspunkt.
-**Loot-Inventar** ordnet Spot, Dauer und Silber, Silberverlauf sowie Pause und
+**Loot-Inventar** ordnet Spot, Dauer und Silber, Session-Timeline sowie Pause und
 Trash pro Stunde über einem großen Inventarraster an (336 × 640).
 Module lassen sich aus der Bibliothek auf die Arbeitsfläche ziehen oder per Klick
 hinzufügen. Auf der Fläche können sie verschoben, vergrößert und verkleinert werden.
@@ -101,7 +101,7 @@ einzelnen Itemkarte maximal ein Item); die maximale Itemanzahl ist einstellbar.
 Alle Einstellungen werden automatisch gespeichert. Bestehende Layouts bleiben erhalten.
 
 Verfügbare Module: aktive Zeit, Uhrzeit, Grindspot, Silber netto, Silber pro Stunde,
-Trashloot, Trash pro Stunde, Drop-Inventar, seltene Drops, Verbrauchte Items, Silberverlauf,
+Trashloot, Trash pro Stunde, Drop-Inventar, seltene Drops, Verbrauchte Items, Session-Timeline,
 Rotations / h, Rotation Counter, Special Events, Special Events / h, Tracking-Status, Loot-Scroll, Grind-Bewertung und
 Start-/Pause-Steuerung. Der Filter für seltene Drops ist eine
 explizite Auswahl bekannter seltener Gegenstände, keine neue Klassifizierung durch
@@ -125,30 +125,28 @@ Live-Header und im Verlauf zeigt dieselben Mengen und Kosten.
 Die Mouseoverdaten nennen Name, Anzahl und gespeicherte Preise.
 [Erkennung und Kostenregeln](BUFF_TRACKING.md).
 
-**Silberverlauf** zeigt entweder den Session-Durchschnitt Silber / Stunde oder, als Standard
-für neu hinzugefügte Module, **Silber je Zeitabschnitt als Kurve** (ganze Session,
-10 Sekunden, logarithmische Höhe). Bestehende Module ohne gespeicherte Darstellung behalten
-den Session-Durchschnitt. Die Zeitabschnitt-Kurve zeigt das netto verdiente
-Silber je Abschnitt von 5, 10 (Standard) oder 30 Sekunden aktiver Grindzeit. Der
-Zeitraum umfasst die letzten 10, 20, 30, 40, 50 oder 60 Minuten oder die ganze Session.
-Jeder gezählte Lootzuwachs wird mit den aktuellen Marktpreisen und Steuereinstellungen
-bewertet; ändern sich Preise, wird die ganze Kurve neu bewertet. Ein wertvoller Drop
-erscheint dadurch unabhängig vom Zeitpunkt als eigene Spitze. Das Icon eines Rare Drops
-steht zentriert über der Spitze seines Abschnitts; mehrere Rare Drops im selben Abschnitt
-stehen dort nebeneinander. Als wertvoll gelten Favoriten und Items über 200 Mio. Silber.
-Wie sie die Kurve formen, legt die Einstellung **Wertvolle Drops** fest:
-**Spitzen kappen** richtet die Höhe nach den Abschnitten ohne wertvolle Drops;
-höhere Abschnitte enden am oberen Rand und tragen zwei schräge Striche. Ohne solche
-Abschnitte bestimmt der höchste Abschnitt die Höhe. **Aus der Kurve herausrechnen** lässt
-das Silber wertvoller Drops weg, ihre Icons bleiben. **Logarithmische Höhe** (Standard) staucht große
-Werte, ohne zu kappen; ein Hundertstel des höchsten Abschnitts erreicht noch die halbe Höhe.
-Die Skala bezieht sich immer auf den sichtbaren Zeitraum. Lange Verläufe werden auf höchstens
-800 Punkte verdichtet, ohne einzelne Spitzen zu verlieren. Die große Zahl bleibt der
-Session-Durchschnitt. Die Zeitabschnitt-Kurve verwendet nach einem App-Neustart die
-gespeicherten Drop-Zeitpunkte der Session. Die Wiederherstellung erfolgt pausiert;
-Offlinezeit zählt nicht mit. Bei älteren Sessions ohne gespeicherte Dropzeiten
-bleiben frühere Zeitpunkte unbekannt, bis neue Drops erfasst werden. Nachträgliche
-Mengenkorrekturen nach unten verändern bereits gezählte Abschnitte nicht.
+**Session-Timeline** zeigt die Session-Timeline der Live-Ansicht als Overlay-Modul,
+fortlaufend bis jetzt: oben die Sessionzeit, darunter Silber je Abschnitt als Kurve,
+seltene Drops und Favoriten als Item-Icon mit Stiel über dem höchsten Wert ihres Moments
+(Drops, deren Icons sich überdecken würden, teilen sich ein Icon mit Anzahl), Special Events
+als Raute auf der Zeitachse und darunter das Rotationsband. Der Zeitraum umfasst die ganze
+Session oder die letzten 10, 20, 30, 40, 50 oder 60 Minuten. Die Ebenen sind je Modul
+wählbar: Rotationen, Seltene Drops & Favoriten, Silber je Abschnitt und Special Events sind
+voreingestellt, Trashloot (Balken je Abschnitt) lässt sich zuschalten.
+Rotationen erscheinen standardmäßig **vereinfacht**: jede Rotation ist ein Balken in der
+Farbe ihres Zustands (vollständig, schnellste, laufend, fehlgeschlagen, unvollständig) mit
+ihrer Dauer; nur die AFK-Phase ist schraffiert abgesetzt. **Alle Phasen** zeigt stattdessen
+jede Mechanik in ihrer Farbe wie in der Live-Ansicht, über einer Leiste in der Zustandsfarbe.
+Silber je Abschnitt wird wie in der Live-Ansicht mit den aktuellen Marktpreisen und
+Steuereinstellungen bewertet und in der Höhe abgeflacht, damit ein wertvoller Drop die
+übrigen Abschnitte nicht verdrängt. Abschnitte und Skala beziehen sich auf den sichtbaren
+Zeitraum. Fehlende Preise nennt eine Zeile unter dem Zeitstrahl. Die Referenzgröße ist
+360 × 144; kleinere Module verkleinern den ganzen Inhalt. Die Farben folgen dem Overlay-Theme.
+Module des früheren Silberverlaufs werden beim Laden zur Session-Timeline; ihr Zeitraum bleibt
+erhalten. Nach einem App-Neustart verwendet die Timeline die gespeicherten Drop-Zeitpunkte
+der Session. Die Wiederherstellung erfolgt pausiert; Offlinezeit zählt nicht mit. Bei
+älteren Sessions ohne gespeicherte Dropzeiten bleiben frühere Zeitpunkte unbekannt, bis neue
+Drops erfasst werden.
 
 **Rotations / h** zeigt mit einer Nachkommastelle, wie viele volle Rotationen beim
 aktuellen Tempo in einer Stunde möglich sind: 60 Minuten geteilt durch die durchschnittliche Zeit der letzten bis zu drei
@@ -287,10 +285,8 @@ bewusst gespeicherte Deaktivierung bleibt bei weiteren Starts erhalten.
 ## Daten und technische Grenzen
 
 Alle Kennzahlen verwenden dieselbe Berechnung und Darstellung wie die Live-Session.
-Der Silberverlauf gehört zur Session und zeigt deren beobachteten durchschnittlichen
-Stundenertrag über die aktive Grindzeit. Die gesamte laufende Session wird im
-Arbeitsspeicher gehalten, mit Zeitstempeln im Abstand von zehn Sekunden plus dem
-aktuellen Stand. Öffnen, Schließen oder Umgestalten des Overlays beginnt weder eine
+Die Session-Timeline gehört zur Session und zeigt deren beobachtete Drops und Rotationen
+über die aktive Grindzeit. Die gesamte laufende Session wird im Arbeitsspeicher gehalten. Öffnen, Schließen oder Umgestalten des Overlays beginnt weder eine
 neue Messung noch einen neuen Zeitraum. Pausen halten die Werte an; Korrekturen
 aktualisieren den aktuellen Stand. Es werden keine erfundenen Zwischenwerte oder aus
 pausierter Zeit abgeleiteten Drops erzeugt. Fehlende Preise werden wie in der

@@ -29,12 +29,11 @@ public sealed record OverlayWidget
     public int ClockOffsetMinutes { get; init; }
     public string RotationComparison { get; init; } = "best";
     public string RotationColors { get; init; } = "colored";
-    // Silver history: "average" (session average per hour) or "sections" (silver per section as a curve).
-    public string ChartMode { get; init; } = OverlayChartSections.AverageMode;
-    // Zero shows the complete session.
+    // Session timeline: the visible window in minutes up to now; zero shows the complete session.
     public int ChartRangeMinutes { get; init; }
-    public int ChartSectionSeconds { get; init; } = OverlayChartSections.DefaultSectionSeconds;
-    public string ChartPeakMode { get; init; } = OverlayChartSections.DefaultPeakMode;
+    public IReadOnlyList<string> TimelineLayers { get; init; } = OverlayTimelineLayers.Default;
+    // "simple" draws each rotation as one bar with its AFK phase set apart, "phases" every mechanic.
+    public string TimelineRotationView { get; init; } = OverlayTimelineLayers.SimplifiedView;
 }
 
 public sealed record OverlaySettings
@@ -85,7 +84,7 @@ public static class OverlayCatalog
         new OverlayWidgetDefinition("trash-hour", "Trash / Stunde", "Trashmenge pro aktiver Stunde", "trend", 168, 72),
         new OverlayWidgetDefinition("drops", "Drop-Inventar", "Alle Drops als Liste oder Icons", "loot", 344, 128),
         new OverlayWidgetDefinition("rare-drops", "Seltene Drops", "Seltene Gegenstände im Blick", "spark", 344, 112),
-        new OverlayWidgetDefinition("chart", "Silberverlauf", "Silber je Zeitabschnitt im Sessionverlauf", "trend", 344, 144),
+        new OverlayWidgetDefinition("chart", "Session-Timeline", "Rotationen, Silber und seltene Drops im Sessionverlauf", "trend", 360, 144),
         new OverlayWidgetDefinition("rotation-monitor", "Rotation Monitor", "Mechanik-Timeline mit Playhead, Bestrotation und Sektorvergleich", "trend", 600, 96),
         new OverlayWidgetDefinition("rotations-hour", "Rotations / h", "Volle Rotationen pro Stunde beim aktuellen Tempo", "trend", 168, 72),
         new OverlayWidgetDefinition("rotation-count", "Rotation Counter", "Vollendete Rotationen in dieser Session", "history", 168, 72),
@@ -113,8 +112,6 @@ public static class OverlayCatalog
             ItemView = kind switch { "drop-strip" => "strip", "drop-list" => "list", "drop-item" => "card", _ => "grid" },
             ItemFilter = kind == "drop-item" ? "selected" : kind == "rare-drops" ? "rare" : "all",
             ItemLimit = kind == "drop-item" ? 1 : 8,
-            // New curves show silver per section; saved layouts without a mode keep the hourly average.
-            ChartMode = kind == "chart" ? OverlayChartSections.SectionsMode : OverlayChartSections.AverageMode,
         };
     }
 
@@ -146,7 +143,7 @@ public static class OverlayCatalog
             {
                 CreateWidget("spot", 8, 8) with { Width = 520, Height = 56 },
                 CreateWidget("duration", 8, 72), CreateWidget("trash", 184, 72), CreateWidget("silver-hour", 360, 72),
-                CreateWidget("chart", 8, 152), CreateWidget("silver", 360, 152),
+                CreateWidget("chart", 8, 152) with { Width = 344 }, CreateWidget("silver", 360, 152),
                 CreateWidget("trash-hour", 360, 232),
                 CreateWidget("controls", 8, 320), CreateWidget("status", 184, 320) with { Width = 344 },
             })
@@ -248,13 +245,10 @@ public static class OverlayLayout
                 ClockOffsetMinutes = Math.Clamp(widget.ClockOffsetMinutes, -240, 240),
                 RotationComparison = widget.RotationComparison is "sectors" or "ideal" ? widget.RotationComparison : "best",
                 RotationColors = RotationPhases.NormalizeColors(widget.RotationColors),
-                ChartMode = widget.ChartMode == OverlayChartSections.SectionsMode
-                    ? OverlayChartSections.SectionsMode : OverlayChartSections.AverageMode,
-                ChartRangeMinutes = OverlayChartSections.RangeMinutes.Contains(widget.ChartRangeMinutes) ? widget.ChartRangeMinutes : 0,
-                ChartSectionSeconds = OverlayChartSections.SectionSeconds.Contains(widget.ChartSectionSeconds)
-                    ? widget.ChartSectionSeconds : OverlayChartSections.DefaultSectionSeconds,
-                ChartPeakMode = OverlayChartSections.PeakModes.Contains(widget.ChartPeakMode)
-                    ? widget.ChartPeakMode : OverlayChartSections.DefaultPeakMode,
+                ChartRangeMinutes = OverlayTimelineLayers.RangeMinutes.Contains(widget.ChartRangeMinutes) ? widget.ChartRangeMinutes : 0,
+                TimelineLayers = OverlayTimelineLayers.Normalize(widget.TimelineLayers),
+                TimelineRotationView = widget.TimelineRotationView == OverlayTimelineLayers.PhasesView
+                    ? OverlayTimelineLayers.PhasesView : OverlayTimelineLayers.SimplifiedView,
             });
         }
         return settings with

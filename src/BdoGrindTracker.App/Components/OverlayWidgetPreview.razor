@@ -3,12 +3,13 @@
 
 <div class="overlay-widget-viewport" data-content-width="@Css(Content.ReferenceWidth)" data-content-height="@Css(Content.ReferenceHeight)"
      data-min-content-width="@Css(Content.MinimumWidth)" data-min-content-height="@Css(Content.MinimumHeight)" data-content-layout="@PreviewStyle">
-<div class="overlay-widget-preview overlay-widget-@Widget.Kind @(IsLoot ? "is-loot-widget" : "") @(Metric.IsWarning ? "is-warning" : "") metric-tone-@Metric.Tone.ToString().ToLowerInvariant()" style="@PreviewStyle" title="@T(IsClock ? Clock.Tooltip : IsLoot ? Loot.Detail : Metric.Tooltip ?? (Metric.IsWarning ? "Loot-Scroll ist nicht aktiv." : Metric.Detail ?? ""))">
+<div class="overlay-widget-preview overlay-widget-@Widget.Kind @(Widget.Kind == "chart" ? "session-timeline" : "") @(IsLoot ? "is-loot-widget" : "") @(Metric.IsWarning ? "is-warning" : "") metric-tone-@Metric.Tone.ToString().ToLowerInvariant()" style="@PreviewStyle" title="@T(IsClock ? Clock.Tooltip : IsLoot ? Loot.Detail : Metric.Tooltip ?? (Metric.IsWarning ? "Loot-Scroll ist nicht aktiv." : Metric.Detail ?? ""))">
     @if (Widget.ShowLabel && Widget.Kind != "rotation-monitor")
     {
         <div class="overlay-widget-label" data-overlay-fit>
             @if (Widget.ShowIcon) { <AppIcon Name="@(OverlayCatalog.Find(Widget.Kind)?.Icon ?? "live")" /> }
-            <span>@T(IsClock ? Clock.Label : IsLoot ? Loot.Label : Widget.Kind == "chart" && Widget.ChartMode == OverlayChartSections.SectionsMode ? Sections.Title : Metric.Label)</span>
+            <span>@T(IsClock ? Clock.Label : IsLoot ? Loot.Label : Metric.Label)</span>
+            @if (Widget.Kind == "chart") { <small class="overlay-timeline-caption">@Timeline.Caption</small> }
         </div>
     }
     @if (IsLoot)
@@ -102,74 +103,91 @@
     }
     else if (Widget.Kind == "chart")
     {
-        <strong class="overlay-widget-value" data-overlay-fit>
-            @if (!Widget.ShowLabel && Widget.ShowIcon) { <AppIcon Name="trend" /> }
-            <span class="overlay-value-text">@T(Metric.Value)</span>
-        </strong>
-        @if (Widget.ChartMode == OverlayChartSections.SectionsMode)
+        @if (!Timeline.HasData)
         {
-            @if (Sections.HasData)
-            {
-                <div style="position:relative;flex:1;min-height:0;overflow:hidden">
-                <svg class="overlay-widget-chart" style="width:100%;height:100%;display:block" viewBox="0 0 300 72" preserveAspectRatio="none" role="img" aria-label="@(Sections.Description + T(" mit wertvollen Drops und Favoriten"))">
-                    <path d="M 0 71 H 300" class="overlay-chart-baseline" />
-                    <polygon points="@($"{Css(Sections.X(Sections.Points[0].Elapsed) * 300)},72 {SectionPoints} {Css(Sections.X(Sections.Points[^1].Elapsed) * 300)},72")" class="overlay-chart-area" />
-                    <polyline points="@SectionPoints" class="overlay-chart-line" />
-                    @foreach (var marker in Sections.Markers)
+            <div class="overlay-widget-empty" data-overlay-fit>@T("Verlauf entsteht während des Grindens")</div>
+        }
+        else
+        {
+            <div class="overlay-timeline" role="img" aria-label="@T("Zeitstrahl der Session")">
+                <div class="overlay-timeline-ticks">
+                    @foreach (var tick in Timeline.Ticks)
                     {
-                        <line class="overlay-chart-drop-stem" x1="@Css(marker.X * 300)" x2="@Css(marker.X * 300)" y1="@Css(marker.Y * 72)" y2="72" stroke="#f5ce73" stroke-width="2" vector-effect="non-scaling-stroke" />
+                        <span class="@(tick.X > .85 ? "is-end" : null)" style="left:@Css(tick.X * 100)%">@tick.Label</span>
                     }
-                </svg>
-                @foreach (var point in Sections.Points.Where(Sections.IsClipped))
-                {
-                    <div class="overlay-chart-clip" title="@T("Oben gekappt: wertvoller Drop")" style="position:absolute;left:@Css(Sections.X(point.Elapsed) * 100)%;top:@Css(Sections.Y(point.Silver) * 100)%;width:14px;height:10px;margin-top:5px;transform:translateX(-50%) skewY(-16deg);border-top:2px solid #f5ce73;border-bottom:2px solid #f5ce73;box-sizing:border-box"></div>
-                }
-                @foreach (var marker in Sections.Markers)
-                {
-                    var halfWidth = Css((marker.Drops.Count * 24 + (marker.Drops.Count - 1) * 2) / 2d);
-                    <div class="overlay-chart-drop-group" style="position:absolute;left:clamp(@(halfWidth)px,@Css(marker.X * 100)%,calc(100% - @(halfWidth)px));top:clamp(12px,@Css((marker.Y + 1) * 50)%,calc(100% - 12px));transform:translate(-50%,-50%);display:flex;gap:2px">
-                        @foreach (var drop in marker.Drops)
+                </div>
+                <div class="overlay-timeline-plot">
+                    <svg viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true">
+                        @foreach (var tick in Timeline.Ticks)
                         {
-                            <div class="overlay-chart-drop-marker" style="width:24px;height:24px;flex:0 0 24px;background:#252d33;border-radius:4px"
-                                 title="@(drop.Item.Name + " × " + drop.Item.QuantityText + " · " + drop.Elapsed.ToString(@"hh\:mm\:ss"))">
-                                <AssetImage Src="@drop.Item.IconPath" Alt="@drop.Item.Name" Class="overlay-chart-drop-icon" />
+                            <line x1="@Css(tick.X * 1000)" x2="@Css(tick.X * 1000)" y1="0" y2="1000" class="overlay-timeline-grid" />
+                        }
+                        @if (Timeline.Trash is { } trash)
+                        {
+                            <g class="overlay-timeline-trash" style="--layer-color:@trash.Color">
+                                @foreach (var bar in trash.Bars.Where(bar => bar.Value > 0))
+                                {
+                                    var top = OverlaySessionTimeline.Y(bar.Filled) * 1000;
+                                    <rect x="@Css(bar.Start * 1000)" y="@Css(top)" width="@Css(Math.Max(.8, (bar.End - bar.Start) * 1000))" height="@Css(Math.Max(1, 1000 - top))" />
+                                }
+                            </g>
+                        }
+                        @if (Timeline.Silver is { Bars.Count: > 0 } silver)
+                        {
+                            var curve = string.Join(" ", silver.Bars.Select(bar => Css((bar.Start + bar.End) / 2 * 1000) + "," + Css(OverlaySessionTimeline.Y(bar.Filled) * 1000)));
+                            <polygon class="overlay-timeline-silver-area" points="@($"{Css((silver.Bars[0].Start + silver.Bars[0].End) / 2 * 1000)},1000 {curve} {Css((silver.Bars[^1].Start + silver.Bars[^1].End) / 2 * 1000)},1000")" />
+                            <polyline class="overlay-timeline-silver" points="@curve" />
+                        }
+                        <line x1="0" x2="1000" y1="1000" y2="1000" class="overlay-timeline-axis" />
+                    </svg>
+                    @foreach (var x in Timeline.SpecialEvents)
+                    {
+                        <span class="overlay-timeline-special" style="left:@Css(x * 100)%"></span>
+                    }
+                    @foreach (var marker in Timeline.Markers)
+                    {
+                        var drop = marker.Drops[0];
+                        var top = $"clamp(0px, calc({Css(OverlaySessionTimeline.Y(marker.Height) * 100)}% - var(--timeline-icon) - 2px), calc(100% - var(--timeline-icon)))";
+                        var left = $"clamp(calc(var(--timeline-icon) / 2), {Css(marker.X * 100)}%, calc(100% - var(--timeline-icon) / 2))";
+                        <span class="overlay-timeline-stem" style="left:@left;top:calc(@top + var(--timeline-icon))"></span>
+                        <div class="overlay-timeline-drop" style="left:@left;top:@top"
+                             title="@(string.Join(" · ", marker.Drops.Select(entry => entry.Item.Name + " × " + entry.Item.QuantityText)) + " · " + drop.Elapsed.ToString(@"hh\:mm\:ss"))">
+                            <AssetImage Src="@drop.Item.IconPath" Alt="@drop.Item.Name" Class="overlay-chart-drop-icon" />
+                            @if (marker.Drops.Count > 1)
+                            {
+                                <span class="overlay-timeline-count">@marker.Drops.Count.ToString(CultureInfo.InvariantCulture)</span>
+                            }
+                        </div>
+                    }
+                </div>
+                @if (Timeline.ShowsRotations)
+                {
+                    <div class="overlay-timeline-band @(Timeline.IsSimplified ? "is-simplified" : "is-phases")">
+                        @foreach (var rotation in Timeline.Rotations)
+                        {
+                            var width = rotation.Right - rotation.Left;
+                            var mechanics = rotation.Phases.FirstOrDefault(part => !part.IsAfk);
+                            <div class="overlay-timeline-rotation is-@rotation.Status" style="left:calc(@Css(rotation.Left * 100)% + 1px);width:max(1px, calc(@Css(width * 100)% - 2px))"
+                                 title="@(F("Rotation {0}", rotation.Span.Number) + " · " + RotationPhases.Duration(rotation.Span.Duration))">
+                                @foreach (var part in rotation.Phases)
+                                {
+                                    var left = width <= 0 ? 0 : (part.Left - rotation.Left) / width * 100;
+                                    var share = width <= 0 ? 0 : (part.Right - part.Left) / width * 100;
+                                    <span class="overlay-timeline-phase @(part.IsAfk ? "is-afk" : null) @(part.IsSpecial ? "is-special" : null)"
+                                          style="left:@Css(left)%;width:@Css(share)%@(Timeline.IsSimplified ? "" : $";background:{part.Color}")" title="@T(part.Name)">
+                                        @if (Timeline.IsSimplified && part.IsAfk && (part.Right - part.Left) * PlotWidth >= 26 * LayoutWidget.FontScale) { <small>AFK</small> }
+                                        @if (Timeline.IsSimplified && ReferenceEquals(part, mechanics) && (part.Right - part.Left) * PlotWidth >= 32 * LayoutWidget.FontScale) { <strong>@RotationPhases.Duration(rotation.Span.Duration)</strong> }
+                                    </span>
+                                }
                             </div>
                         }
                     </div>
                 }
-                </div>
-                <span class="overlay-widget-detail" data-overlay-fit>@T(Sections.Detail)</span>
-            }
-            else
-            {
-                <div class="overlay-widget-empty" data-overlay-fit>@T("Verlauf entsteht während des Grindens")</div>
-            }
-        }
-        else if (Snapshot.SilverHistory.Count >= 2)
-        {
-            <div style="position:relative;flex:1;min-height:0;overflow:hidden">
-            <svg class="overlay-widget-chart" style="width:100%;height:100%;display:block" viewBox="0 0 300 72" preserveAspectRatio="none" role="img" aria-label="@T("Verlauf des durchschnittlichen Silberwerts pro Stunde mit wertvollen Drops und Favoriten")">
-                <path d="M 0 71 H 300" class="overlay-chart-baseline" />
-                <polygon points="@("0,72 " + ChartPoints + " 300,72")" class="overlay-chart-area" />
-                <polyline points="@ChartPoints" class="overlay-chart-line" />
-                @foreach (var marker in OverlayChartMarkers.Create(Snapshot))
-                {
-                    <line class="overlay-chart-drop-stem" x1="@Css(marker.X * 300)" x2="@Css(marker.X * 300)" y1="@Css(marker.Y * 72)" y2="72" stroke="#f5ce73" stroke-width="2" vector-effect="non-scaling-stroke" />
-                }
-            </svg>
-            @foreach (var marker in OverlayChartMarkers.Create(Snapshot))
-            {
-                <div class="overlay-chart-drop-marker" style="position:absolute;left:clamp(12px,@Css(marker.X * 100)%,calc(100% - 12px));top:clamp(12px,@Css((marker.Y + 1) * 50)%,calc(100% - 12px));transform:translate(-50%,-50%);width:24px;height:24px;background:#252d33;border-radius:4px"
-                     title="@(marker.Drop.Item.Name + " × " + marker.Drop.Item.QuantityText + " · " + marker.Drop.Elapsed.ToString(@"hh\:mm\:ss"))">
-                    <AssetImage Src="@marker.Drop.Item.IconPath" Alt="@marker.Drop.Item.Name" Class="overlay-chart-drop-icon" />
-                </div>
-            }
             </div>
-            <span class="overlay-widget-detail" data-overlay-fit>@T(Metric.Detail)</span>
         }
-        else
+        @if (Metric.Detail is { Length: > 0 } detail)
         {
-            <div class="overlay-widget-empty" data-overlay-fit>@T("Verlauf entsteht während des Grindens")</div>
+            <span class="overlay-widget-detail" data-overlay-fit>@T(detail)</span>
         }
     }
     else
@@ -206,12 +224,11 @@
     private OverlayWidget LayoutWidget => Content.LayoutWidget;
     private OverlayLootView? _loot;
     private OverlayLootView Loot => _loot ??= OverlayLootPresentation.Create(LayoutWidget, Snapshot);
-    protected override void OnParametersSet() { _loot = null; _content = null; _clock = null; _sections = null; }
-    private OverlaySectionChart? _sections;
-    private OverlaySectionChart Sections => _sections ??= OverlayChartSections.Create(Widget, Snapshot);
-    private string SectionPoints => string.Join(" ", Sections.Points.Select(point =>
-        ((decimal)Sections.X(point.Elapsed) * 300m).ToString("0.##", CultureInfo.InvariantCulture) + "," +
-        ((decimal)Sections.Y(point.Silver) * 72m).ToString("0.##", CultureInfo.InvariantCulture)));
+    protected override void OnParametersSet() { _loot = null; _content = null; _clock = null; _timeline = null; }
+    private OverlaySessionTimeline? _timeline;
+    // The preview's horizontal padding matches the native module's inset, so both group the same drop icons.
+    private double PlotWidth => Math.Max(1, LayoutWidget.Width - 20);
+    private OverlaySessionTimeline Timeline => _timeline ??= OverlaySessionTimeline.Create(LayoutWidget, Snapshot, PlotWidth);
     private string PreviewStyle => $"width:{Css(LayoutWidget.Width)}px;height:{Css(LayoutWidget.Height)}px;transform:scale({Css(Content.Scale)});--widget-font-scale:{FontScale}" +
         (IsLoot ? $";--loot-item-size:{Css(Loot.ItemSize)}px;--loot-gap:{Css(Loot.Gap)}px;--loot-columns:{Math.Max(1, Loot.Columns)};--loot-cell-width:{Css(Loot.CellWidth)}px;--loot-cell-height:{Css(Loot.CellHeight)}px;--loot-header-height:{Css(Loot.HeaderHeight)}px;--loot-footer-height:{Css(Loot.FooterHeight)}px;--loot-layout-width:{Css(LootWidth)}px;--loot-layout-height:{Css(LootHeight)}px" : "");
     private int LootRows => (int)Math.Ceiling((double)Loot.VisibleItems.Count / Math.Max(1, Loot.Columns));
@@ -232,18 +249,4 @@
     }
     private static string Css(double value) => value.ToString("0.######", CultureInfo.InvariantCulture);
     private string FontScale => Css(IsLoot ? Loot.FontScale : LayoutWidget.FontScale);
-    private string ChartPoints
-    {
-        get
-        {
-            var values = Snapshot.SilverHistory;
-            if (values.Count == 0) return "";
-            var maximum = Math.Max(1m, values.Max(point => point.SilverPerHour));
-            var first = OverlayChartMarkers.FirstTick(Snapshot);
-            var span = Math.Max(1, values[^1].Elapsed.Ticks - first);
-            return string.Join(" ", values.Select(point =>
-                (300m * (point.Elapsed.Ticks - first) / span).ToString("0.##", CultureInfo.InvariantCulture) + "," +
-                (70m - Math.Clamp(point.SilverPerHour / maximum, 0, 1) * 64m).ToString("0.##", CultureInfo.InvariantCulture)));
-        }
-    }
 }

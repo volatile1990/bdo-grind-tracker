@@ -281,7 +281,6 @@ internal static partial class AppText
         text["Noch keine Drops"] = "No drops yet";
         text["Maximale Items in den Moduleinstellungen erhöhen"] = "Increase maximum items in widget settings";
         text["Fortschritt Tagesziel"] = "Daily goal progress";
-        text["Verlauf des durchschnittlichen Silberwerts pro Stunde mit wertvollen Drops und Favoriten"] = "Average silver per hour history with valuable drops and favorites";
         text["Verlauf entsteht während des Grindens"] = "History builds as you grind";
         text["Rotation Monitor: Referenz oben, aktuelle Rotation unten"] = "Rotation Monitor: reference above, current rotation below";
         text["Gesamtzeit der Referenzrotation"] = "Total reference rotation time";
@@ -315,8 +314,6 @@ internal static partial class AppText
         text["Alle Drops als Liste oder Icons"] = "All drops as a list or icons";
         text["Seltene Drops"] = "Rare drops";
         text["Seltene Gegenstände im Blick"] = "Keep track of rare items";
-        text["Silberverlauf"] = "Silver history";
-        text["Silber pro Stunde im Sessionverlauf"] = "Silver per hour throughout the session";
         text["Mechanik-Timeline mit Playhead, Bestrotation und Sektorvergleich"] = "Mechanic timeline with playhead, best rotation and sector comparison";
         text["Tracking-Steuerung"] = "Tracking controls";
         text["Grind starten, pausieren und fortsetzen"] = "Start, pause and resume grinding";
@@ -331,8 +328,6 @@ internal static partial class AppText
         text["Verschiedene Items"] = "Different items";
         text["Auswahl seltener Items"] = "Selection of rare items";
         text["Bestätigte Drops"] = "Confirmed drops";
-        text["Silber / h · Verlauf"] = "Silver / h · history";
-        text["Session-Durchschnitt"] = "Session average";
         text["Pausieren"] = "Pause";
         text["Fortsetzen"] = "Resume";
         text["Tracking starten"] = "Start tracking";
@@ -349,8 +344,6 @@ internal static partial class AppText
         text["Drops · Live-Session"] = "Drops · live session";
         text["Live-Session"] = "Live session";
         text["Gesammelte Mengen der Live-Session, einschließlich manueller Korrekturen."] = "Collected quantities from the live session, including manual corrections.";
-        text["Silber / Stunde · Verlauf"] = "Silver / hour · history";
-        text["Verlauf entsteht während der Session"] = "History builds during the session";
         text["Rotation tracking startet, sobald alle 3 Scarecrows aufgestellt sind."] = "Rotation tracking starts once all 3 scarecrows have been placed.";
         text["Bestabschnitt: noch keine Mechanik abgeschlossen"] = "Best sector: no mechanics completed yet";
         text["Bestabschnitt: noch keine passende Referenz"] = "Best sector: no matching reference yet";

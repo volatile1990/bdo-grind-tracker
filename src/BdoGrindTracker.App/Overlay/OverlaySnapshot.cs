@@ -16,11 +16,14 @@ public sealed record OverlaySnapshot
         BdoGrindTracker.App.Localization.AppText.DefaultLanguage);
     public IReadOnlyList<OverlayLootItem> RareDrops { get; init; } = [];
     public IReadOnlyList<OverlayLootItem> ItemCatalog { get; init; } = [];
-    public IReadOnlyList<SessionSilverSample> SilverHistory { get; init; } = [];
     /// <summary>Active session time of this snapshot.</summary>
     public TimeSpan SessionElapsed { get; init; }
+    /// <summary>When the tracker captured this state; places rotations recorded before the session's time axis.</summary>
+    public DateTimeOffset ObservedAt { get; init; }
     /// <summary>Net silver of each recorded loot increase, valued with the current prices.</summary>
     public IReadOnlyList<OverlaySilverDrop> SilverDrops { get; init; } = [];
+    /// <summary>Each recorded increase of the spot's trash item.</summary>
+    public IReadOnlyList<SessionDropSample> TrashDrops { get; init; } = [];
     public IReadOnlyList<OverlayDropMarker> DropMarkers { get; init; } = [];
     public RotationMonitorSnapshot Rotation { get; init; } = new();
     public DailyGoalProgress DailyGoal { get; init; } = new();
@@ -38,8 +41,7 @@ public enum OverlayMetricTone { Default, Muted, Positive, Accent }
 
 public sealed record OverlayDropMarker(TimeSpan Elapsed, OverlayLootItem Item);
 
-/// <param name="Valuable">The drop is shown as a marker: a favorite or an item worth more than 200 million.</param>
-public sealed record OverlaySilverDrop(TimeSpan Elapsed, decimal Silver, bool Valuable = false);
+public sealed record OverlaySilverDrop(TimeSpan Elapsed, decimal Silver);
 
 public sealed record OverlayMetric(string Label, string Value, string? Detail = null, bool IsWarning = false,
     OverlayMetricTone Tone = OverlayMetricTone.Default, string? Tooltip = null)

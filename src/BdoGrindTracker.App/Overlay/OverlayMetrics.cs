@@ -69,7 +69,7 @@ internal sealed partial class OverlayMetrics
         var incomplete = !state.Silver.IsComplete;
         var valuationDetail = session.SilverDetail;
         ProjectLoot(state.Loot.Totals, profile?.TrashItemName, language, preferences.UiLanguage);
-        ProjectDropHistory(state, preferences, prices, language);
+        ProjectDropHistory(state, preferences, prices, language, profile?.TrashItemName);
         var drops = _drops;
 
         var rateText = session.SilverPerHour + (session.PartialSilverHourly ? " *" : "");
@@ -91,7 +91,8 @@ internal sealed partial class OverlayMetrics
                 IsWarning: consumables.HasMissingPrices),
             ["rare-drops"] = new(T("Seltene Drops"), Number(_rareDrops.Count), T("Auswahl seltener Items")),
             ["total-drops"] = new(T("Bestätigte Drops"), Number(state.Loot.ConfirmedEventCount)),
-            ["chart"] = new(T("Silber / h · Verlauf"), rateText, incomplete ? valuationDetail : T("Session-Durchschnitt")),
+            // Missing prices flatten the silver layer; the timeline says so below its plot.
+            ["chart"] = new(T("Session-Timeline"), session.Duration, incomplete ? valuationDetail : null),
             ["controls"] = new("Tracking", session.Status),
             ["status"] = new("Session", session.Status, state.Status),
             ["loot-scroll"] = new(T("Loot-Scroll"), session.LootScroll, IsWarning: session.LootScrollWarning),
@@ -112,9 +113,10 @@ internal sealed partial class OverlayMetrics
             Consumables = consumables,
             RareDrops = _rareDrops,
             ItemCatalog = _itemCatalog,
-            SilverHistory = state.SilverHistory,
             SessionElapsed = session.Elapsed,
+            ObservedAt = state.ObservedAt,
             SilverDrops = _silverDrops,
+            TrashDrops = _trashDrops,
             Rotation = rotation,
             DropMarkers = _dropMarkers,
             LootScroll = state.LootScroll,
@@ -198,14 +200,13 @@ internal sealed partial class OverlayMetrics
         var tax = preferences.Tax;
         return Array.AsReadOnly(state.DropHistory.Select(drop =>
         {
-            var marked = IsMarked(drop.ItemName, preferences, prices);
-            if (!prices.TryGetQuote(drop.ItemName, out var quote)) return new OverlaySilverDrop(drop.Elapsed, 0, marked);
-            try { return new OverlaySilverDrop(drop.Elapsed, checked(SilverValuation.UnitAfterTax(quote, tax) * drop.Quantity), marked); }
-            catch (OverflowException) { return new OverlaySilverDrop(drop.Elapsed, 0, marked); }
+            if (!prices.TryGetQuote(drop.ItemName, out var quote)) return new OverlaySilverDrop(drop.Elapsed, 0);
+            try { return new OverlaySilverDrop(drop.Elapsed, checked(SilverValuation.UnitAfterTax(quote, tax) * drop.Quantity)); }
+            catch (OverflowException) { return new OverlaySilverDrop(drop.Elapsed, 0); }
         }).ToArray());
     }
 
-    /// <summary>Favorites and items worth more than 200 million appear as chart markers.</summary>
+    /// <summary>Favorites and items worth more than 200 million appear as timeline markers.</summary>
     private static bool IsMarked(string itemName, TrackerPreferences preferences, LootPriceSnapshot? prices) =>
         UI.SessionLootMarkers.IsMarked(itemName, preferences, prices);
 
@@ -218,7 +219,6 @@ internal sealed partial class OverlayMetrics
     private static OverlaySnapshot CreateDemo(string language = "de")
     {
         var metrics = new OverlayMetrics();
-        var history = new SessionSilverHistory();
         var prices = DemoSession.Prices;
         var preferences = new TrackerPreferences
         {
@@ -238,21 +238,14 @@ internal sealed partial class OverlayMetrics
             Buffs = DemoConsumptions(),
             GrindBenchmark = GarmothGrindBenchmarks.Find(LootSpotCatalog.HermesiaId),
         };
-        // Replay the drop timeline in the tracker's ten-second history steps.
+        // The silver of everything the drop timeline recorded up to the end of the session.
         var totals = new Dictionary<string, long>(StringComparer.Ordinal);
         var drops = DemoSession.DropHistory;
-        var next = 0;
-        for (var elapsed = TimeSpan.FromSeconds(10); ; elapsed += TimeSpan.FromSeconds(10))
-        {
-            if (elapsed > DemoSession.Elapsed) elapsed = DemoSession.Elapsed;
-            for (; next < drops.Count && drops[next].Elapsed <= elapsed; next++)
-                totals[drops[next].ItemName] = totals.GetValueOrDefault(drops[next].ItemName) + drops[next].Quantity;
-            state = state with { Elapsed = elapsed, Silver = SilverValuation.Calculate(totals, prices, DemoSession.Tax) };
-            state = state with { SilverHistory = history.Update(state) };
-            if (elapsed == DemoSession.Elapsed) break;
-        }
+        foreach (var drop in drops.Where(drop => drop.Elapsed <= DemoSession.Elapsed))
+            totals[drop.ItemName] = totals.GetValueOrDefault(drop.ItemName) + drop.Quantity;
         state = state with
         {
+            Elapsed = DemoSession.Elapsed, Silver = SilverValuation.Calculate(totals, prices, DemoSession.Tax),
             Loot = new LootSessionSnapshot(DemoSession.Totals, DemoSession.Totals.Values.Sum(), DemoSession.ConfirmedEventCount),
             DropHistory = drops, Rotation = HermesiaRotationDemo.At(350),
         };

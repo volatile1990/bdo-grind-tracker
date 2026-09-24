@@ -185,34 +185,28 @@
                     }
                     @if (selected.Kind == "chart")
                     {
-                        <label class="oe-field"><span>@T("Darstellung")</span>
-                            <select aria-label="@T("Silberverlauf-Darstellung")" value="@selected.ChartMode" @onchange='e => ChangeWidget(w => w with { ChartMode = Text(e) })'>
-                                <option value="average">@T("Session-Durchschnitt Silber / Stunde")</option>
-                                <option value="sections">@T("Silber je Zeitabschnitt als Kurve")</option>
-                            </select>
-                        </label>
-                        @if (selected.ChartMode == OverlayChartSections.SectionsMode)
-                        {
+                        <div class="oe-timeline-settings">
                             <label class="oe-field"><span>@T("Zeitraum")</span>
-                                <select aria-label="@T("Silberverlauf-Zeitraum")" value="@selected.ChartRangeMinutes" @onchange='e => ChangeWidget(w => w with { ChartRangeMinutes = WholeNumber(e, w.ChartRangeMinutes) })'>
-                                    @foreach (var minutes in OverlayChartSections.RangeMinutes.Where(minutes => minutes > 0)) { <option value="@minutes">@F("Letzte {0} Minuten", minutes)</option> }
+                                <select aria-label="@T("Session-Timeline-Zeitraum")" value="@selected.ChartRangeMinutes" @onchange='e => ChangeWidget(w => w with { ChartRangeMinutes = WholeNumber(e, w.ChartRangeMinutes) })'>
+                                    @foreach (var minutes in OverlayTimelineLayers.RangeMinutes.Where(minutes => minutes > 0)) { <option value="@minutes">@F("Letzte {0} Minuten", minutes)</option> }
                                     <option value="0">@T("Ganze Session")</option>
                                 </select>
                             </label>
-                            <label class="oe-field"><span>@T("Abschnittslänge")</span>
-                                <select aria-label="@T("Silberverlauf-Abschnittslänge")" value="@selected.ChartSectionSeconds" @onchange='e => ChangeWidget(w => w with { ChartSectionSeconds = WholeNumber(e, w.ChartSectionSeconds) })'>
-                                    @foreach (var seconds in OverlayChartSections.SectionSeconds) { <option value="@seconds">@F("{0} Sekunden", seconds)</option> }
+                            <label class="oe-field"><span>@T("Rotationen")</span>
+                                <select aria-label="@T("Session-Timeline-Rotationen")" value="@selected.TimelineRotationView" @onchange='e => ChangeWidget(w => w with { TimelineRotationView = Text(e) })'>
+                                    <option value="@OverlayTimelineLayers.SimplifiedView">@T("Vereinfacht, AFK-Phase abgesetzt")</option>
+                                    <option value="@OverlayTimelineLayers.PhasesView">@T("Alle Phasen")</option>
                                 </select>
                             </label>
-                            <label class="oe-field"><span>@T("Wertvolle Drops")</span>
-                                <select aria-label="@T("Silberverlauf-Spitzen")" value="@selected.ChartPeakMode" @onchange='e => ChangeWidget(w => w with { ChartPeakMode = Text(e) })'>
-                                    <option value="clip">@T("Spitzen kappen")</option>
-                                    <option value="exclude">@T("Aus der Kurve herausrechnen")</option>
-                                    <option value="log">@T("Logarithmische Höhe")</option>
-                                </select>
-                            </label>
-                            <p class="oe-help">@T("Die Kurve zeigt das netto verdiente Silber je Abschnitt aktiver Grindzeit, bewertet mit den aktuellen Marktpreisen. Wertvolle Drops (Favoriten und Items über 200 Mio.) erscheinen als Icon.") @PeakHelp(selected.ChartPeakMode) @T("Die große Zahl bleibt der Session-Durchschnitt.")</p>
-                        }
+                            <fieldset class="oe-timeline-layers">
+                                <legend>@T("Ebenen")</legend>
+                                @foreach (var layer in SessionTimelineLayers.All)
+                                {
+                                    <label class="oe-check"><input type="checkbox" checked="@selected.TimelineLayers.Contains(layer.Id)" @onchange="e => ToggleTimelineLayer(layer.Id, Checked(e))" /><span>@T(layer.Label)</span></label>
+                                }
+                            </fieldset>
+                            <p class="oe-help">@T("Wie die Session-Timeline der App, fortlaufend bis jetzt. Silber je Abschnitt ist mit den aktuellen Marktpreisen bewertet und in der Höhe abgeflacht, damit ein wertvoller Drop die übrigen Abschnitte nicht verdrängt. Seltene Drops und Favoriten erscheinen als Icon.")</p>
+                        </div>
                     }
                     @if (selected.Kind == "controls")
                     {

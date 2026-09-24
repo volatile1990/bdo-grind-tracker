@@ -19,7 +19,7 @@ internal static class HermesiaRotationDemo
             Elapsed = seconds, Synchronized = true, IsAfk = seconds >= Current.Events.First(e => e.Kind == "afk").Seconds,
             Events = Current.Events.Where(e => e.Seconds <= seconds).ToArray(), Best = Reference, Ideal = Comparison.Ideal,
             SectorBests = Comparison.Sectors, Completed = Earlier.Length,
-            SessionRotations = DemoSession.CompletedBefore(Earlier.Length),
+            SessionRotations = DemoSession.OnSessionAxis(Earlier.Length),
             Status = $"Beispieldaten · Hermesia-Session vom {DemoSession.Date}" };
     }
 }

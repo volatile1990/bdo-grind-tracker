@@ -31,6 +31,7 @@
 .oe-window-manager{padding:17px 18px;margin-bottom:16px;border-color:#7c6b454d;background:linear-gradient(110deg,#b3943510,#1c253000)}
 .oe-window-heading{display:flex;align-items:center;gap:9px;margin-bottom:15px;flex-wrap:wrap}.oe-window-heading>.icon{width:17px;height:17px;color:#c5ad77}.oe-window-heading>strong{font-size:14px}.oe-window-heading>span{margin-left:auto;font-size:12px;color:var(--muted)}
 .oe-window-fields{display:grid;grid-template-columns:minmax(160px,1fr) minmax(140px,1fr) auto;align-items:end;gap:14px}.oe-window-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.oe-window-actions .button{font-size:12px;min-height:35px;padding:8px 12px}.oe-window-actions .button>.icon{height:14px;width:14px}.oe-window-actions>.icon-button{color:#bca3a3}.oe-window-manager>.oe-help{margin:12px 0 0;overflow-wrap:anywhere}
+.oe-timeline-settings{display:flex;flex-direction:column;gap:15px;border-top:1px solid var(--line);padding-top:16px;grid-column:1/-1}.oe-timeline-layers{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;border:0;min-width:0}.oe-timeline-layers legend{padding:0;margin-bottom:8px;font-size:13px;color:#b8c4d0}
 .oe-clock-settings{display:flex;flex-direction:column;gap:15px;border-top:1px solid var(--line);padding-top:16px;grid-column:1/-1}.oe-clock-settings .oe-check:has(input:disabled){opacity:.7}
 @media(max-width:1050px){.oe-window-fields{grid-template-columns:1fr 1fr}.oe-window-actions{grid-column:1/-1}.oe-window-heading>span{margin-left:0}}
 @media(max-width:700px){.oe-window-manager{padding:14px}.oe-window-fields{grid-template-columns:1fr}.oe-window-heading>span{flex-basis:100%}.oe-window-actions{gap:7px}}
@@ -92,7 +93,7 @@
     .oe-module-list{grid-template-columns:repeat(3,minmax(0,1fr))}
     .oe-workbench{grid-template-columns:minmax(0,1fr)}
     .oe-inspector-body{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
-    .oe-inspector-body>.oe-help,.oe-inspector-body>.oe-remove,.oe-loot-settings,.oe-clock-settings,.oe-consumables-settings{grid-column:1/-1}
+    .oe-inspector-body>.oe-help,.oe-inspector-body>.oe-remove,.oe-loot-settings,.oe-clock-settings,.oe-consumables-settings,.oe-timeline-settings{grid-column:1/-1}
     .oe-inspector-empty{flex-direction:row;text-align:left;padding:18px}
     .oe-delete-window{margin-left:0}
 }

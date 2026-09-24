@@ -57,7 +57,7 @@ public sealed class NativeOverlayRenderStateTests
         var snapshot = new OverlaySnapshot();
         Changed("controls", snapshot, snapshot with { CanToggleTracking = true });
         Changed("drop-grid", snapshot, snapshot with { Drops = [new("Caphras Stone", "Caphras-Stein", "1")] });
-        Changed("chart", snapshot, snapshot with { SilverHistory = [new SessionSilverSample(TimeSpan.FromSeconds(10), 100m)] });
+        Changed("chart", snapshot, snapshot with { SilverDrops = [new(TimeSpan.FromSeconds(10), 100m)] });
         Changed("chart", snapshot, snapshot with { DropMarkers = [new(TimeSpan.FromSeconds(10), new("Rare drop", "Rare drop", "1"))] });
     }
 

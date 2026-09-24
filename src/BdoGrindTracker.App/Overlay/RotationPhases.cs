@@ -237,6 +237,13 @@ public static class RotationPhases
         e.Kind is "failure" or "away" ? "#E87C79"
         : RotationDefinition.Find(spotId)?.IsSpecial(e.Kind) == true ? SpecialColor : MarkerColor(colors, current);
 
+    /// <summary>
+    /// The waiting time after a rotation's mechanics, for every spot. Magaia names one per cycle; Event Horizon's
+    /// debris breaks are mechanics of their wormhole, not the rotation's AFK phase.
+    /// </summary>
+    public static bool IsAfk(RotationPhase phase) =>
+        phase.Group == "afk" || phase.Id.EndsWith("-afk", StringComparison.Ordinal);
+
     /// <summary>Outline of special-event phases, identical for every spot and color scheme.</summary>
     public const string SpecialColor = "#F2C14E";
 

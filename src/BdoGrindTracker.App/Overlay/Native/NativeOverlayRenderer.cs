@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Drawing.Drawing2D;
 using BdoGrindTracker.App.Localization;
 using System.Drawing.Imaging;
@@ -239,7 +240,7 @@ internal sealed class NativeOverlayRenderer : IDisposable
             }
             else if (OverlayCatalog.IsLootWidget(widget.Kind) || widget.Kind == "consumables")
                 DrawLoot(graphics, widget, inner, snapshot);
-            else if (widget.Kind == "chart") DrawChart(graphics, widget, inner, snapshot);
+            else if (widget.Kind == "chart") DrawTimeline(graphics, widget, inner, snapshot);
             else if (widget.Kind == "clock") DrawClock(graphics, widget, inner, snapshot);
             else if (widget.Kind == "grind-rating" && snapshot.Metrics.GetValueOrDefault(widget.Kind)?.Spectrum is not null)
                 DrawGrindRating(graphics, widget, inner, snapshot.Metrics[widget.Kind]);
@@ -572,119 +573,157 @@ internal sealed class NativeOverlayRenderer : IDisposable
         Draw(graphics, text, bounds, requestedSize, color, !_blackDesert, horizontal, vertical, lightOutline: _light);
     }
 
-    private void DrawChart(Graphics graphics, OverlayWidget widget, RectangleF inner, OverlaySnapshot snapshot)
+    private void DrawTimeline(Graphics graphics, OverlayWidget widget, RectangleF inner, OverlaySnapshot snapshot)
     {
         var fontScale = (float)widget.FontScale;
-        var sections = widget.ChartMode == OverlayChartSections.SectionsMode ? OverlayChartSections.Create(widget, snapshot) : null;
+        var colors = NativeTimelinePalette.For(snapshot.ThemeId);
+        var timeline = OverlaySessionTimeline.Create(widget, snapshot, inner.Width);
         if (widget.ShowLabel)
         {
             var inset = widget.ShowIcon ? 17 * fontScale : 0;
             if (widget.ShowIcon) DrawGlyph(graphics, "chart", new RectangleF(inner.X, inner.Y + fontScale, 12 * fontScale, 12 * fontScale));
-            Draw(graphics, sections?.Title ?? T("Silber / Stunde · Verlauf"), new RectangleF(inner.X + inset, inner.Y, inner.Width - inset, 16 * fontScale), 10 * fontScale, Heading);
-            inner.Y += 20 * fontScale; inner.Height -= 20 * fontScale;
+            var header = new RectangleF(inner.X + inset, inner.Y, inner.Width - inset, 16 * fontScale);
+            Draw(graphics, T("Session-Timeline"), header with { Width = header.Width * .6f }, 10 * fontScale, Heading);
+            Draw(graphics, timeline.Caption, header with { X = header.X + header.Width * .6f, Width = header.Width * .4f },
+                9 * fontScale, Muted, horizontal: StringAlignment.Far);
+            inner.Y += (float)OverlaySessionTimeline.HeaderHeight * fontScale;
+            inner.Height -= (float)OverlaySessionTimeline.HeaderHeight * fontScale;
         }
-        if (sections is not null)
+        if (snapshot.Metrics.GetValueOrDefault("chart")?.Detail is { Length: > 0 } detail)
         {
-            DrawSectionChart(graphics, widget, inner, snapshot, sections);
+            Draw(graphics, T(detail), new RectangleF(inner.X, inner.Bottom - 13 * fontScale, inner.Width, 13 * fontScale), 9 * fontScale, Muted);
+            inner.Height -= (float)OverlaySessionTimeline.DetailHeight * fontScale;
+        }
+        var tickHeight = (float)OverlaySessionTimeline.TickHeight * fontScale;
+        var band = (float)timeline.BandHeight * fontScale;
+        if (!timeline.HasData || inner.Height < tickHeight + band + 8)
+        {
+            Draw(graphics, T("Verlauf entsteht während des Grindens"), inner, 10, Muted, vertical: StringAlignment.Center);
             return;
         }
-        if (snapshot.Metrics.TryGetValue("chart", out var metric))
+        var plot = RectangleF.FromLTRB(inner.Left, inner.Top + tickHeight, inner.Right, inner.Bottom - band);
+        PointF At(double x, double height) => new(plot.X + (float)x * plot.Width,
+            plot.Y + (float)OverlaySessionTimeline.Y(height) * plot.Height);
+
+        using var grid = new Pen(Color.FromArgb(70, SlotEdge), 1);
+        foreach (var tick in timeline.Ticks)
         {
-            var inset = !widget.ShowLabel && widget.ShowIcon ? 21 * fontScale : 0;
-            if (inset > 0) DrawGlyph(graphics, "chart", new RectangleF(inner.X, inner.Y + 5 * fontScale, 15 * fontScale, 15 * fontScale));
-            Draw(graphics, T(metric.Value), new RectangleF(inner.X + inset, inner.Y, inner.Width - inset, 27 * fontScale), 21 * fontScale, Gold, true);
-            inner.Y += 33 * fontScale; inner.Height -= 33 * fontScale;
+            var x = plot.X + (float)tick.X * plot.Width;
+            graphics.DrawLine(grid, x, inner.Top + 2 * fontScale, x, plot.Bottom);
+            // Labels near the right edge sit left of their line, as on the session timeline.
+            var right = tick.X > .85;
+            Draw(graphics, tick.Label, new RectangleF(right ? x - 63 * fontScale : x + 3 * fontScale, inner.Top,
+                60 * fontScale, tickHeight), 9 * fontScale, Muted, horizontal: right ? StringAlignment.Far : StringAlignment.Near);
         }
-        if (snapshot.Metrics.TryGetValue("chart", out var chart) && chart.Detail is { Length: > 0 })
+        if (timeline.Trash is { } trash)
         {
-            Draw(graphics, T(chart.Detail), new RectangleF(inner.X, inner.Bottom - 13 * fontScale, inner.Width, 13 * fontScale), 9 * fontScale, Muted);
-            inner.Height -= 16 * fontScale;
+            using var bars = new SolidBrush(Color.FromArgb(158, ColorTranslator.FromHtml(trash.Color)));
+            foreach (var bar in trash.Bars.Where(bar => bar.Value > 0))
+            {
+                var top = At(bar.Start, bar.Filled);
+                graphics.FillRectangle(bars, top.X, top.Y, Math.Max(.8f, (float)(bar.End - bar.Start) * plot.Width),
+                    Math.Max(1, plot.Bottom - top.Y));
+            }
         }
-        if (snapshot.SilverHistory.Count < 2 || inner.Height < 8)
+        if (timeline.Silver is { Bars.Count: > 0 } silver)
         {
-            Draw(graphics, T("Verlauf entsteht während der Session"), inner, 10, Muted, vertical: StringAlignment.Center);
-            return;
+            var points = silver.Bars.Select(bar => At((bar.Start + bar.End) / 2, bar.Filled)).ToArray();
+            using var area = new SolidBrush(Color.FromArgb(51, colors.Silver));
+            graphics.FillPolygon(area, [new PointF(points[0].X, plot.Bottom), .. points, new PointF(points[^1].X, plot.Bottom)]);
+            using var curve = new Pen(colors.Silver, 1.75f) { LineJoin = LineJoin.Round };
+            if (points.Length > 1) graphics.DrawLines(curve, points);
         }
-        var highest = Math.Max(1m, snapshot.SilverHistory.Max(point => point.SilverPerHour));
-        var first = OverlayChartMarkers.FirstTick(snapshot);
-        var span = Math.Max(1, snapshot.SilverHistory[^1].Elapsed.Ticks - first);
-        var points = snapshot.SilverHistory.Select(point => new PointF(
-            inner.X + (float)((decimal)(point.Elapsed.Ticks - first) / span) * inner.Width,
-            inner.Top + (float)((70m - Math.Clamp(point.SilverPerHour / highest, 0, 1) * 64m) / 72m) * inner.Height)).ToArray();
-        using var fill = new SolidBrush(Color.FromArgb(40, Gold));
-        graphics.FillPolygon(fill, [new PointF(inner.Left, inner.Bottom), .. points, new PointF(inner.Right, inner.Bottom)]);
-        using var line = new Pen(Gold, 1.6f);
-        graphics.DrawLines(line, points);
-        foreach (var marker in OverlayChartMarkers.Create(snapshot))
+        using (var axis = new Pen(Color.FromArgb(150, SlotEdge), 1)) graphics.DrawLine(axis, plot.Left, plot.Bottom, plot.Right, plot.Bottom);
+        using (var special = new SolidBrush(colors.Special))
+            foreach (var x in timeline.SpecialEvents.Select(value => plot.X + (float)value * plot.Width))
+                graphics.FillPolygon(special, [new PointF(x, plot.Bottom - 6 * fontScale), new(x + 3.5f * fontScale, plot.Bottom),
+                    new(x, plot.Bottom + 6 * fontScale), new(x - 3.5f * fontScale, plot.Bottom)]);
+        DrawTimelineMarkers(graphics, timeline, plot, colors, fontScale);
+        if (timeline.ShowsRotations)
+            DrawTimelineRotations(graphics, timeline, RectangleF.FromLTRB(plot.Left,
+                plot.Bottom + (float)OverlaySessionTimeline.BandGap * fontScale, plot.Right, inner.Bottom), colors, fontScale);
+    }
+
+    /// <summary>Each mark is its first drop's icon above the tallest layer, with a stem down to the baseline.</summary>
+    private void DrawTimelineMarkers(Graphics graphics, OverlaySessionTimeline timeline, RectangleF plot,
+        NativeTimelinePalette colors, float fontScale)
+    {
+        var size = Math.Min((float)OverlaySessionTimeline.IconSize * fontScale, plot.Height);
+        if (size <= 2) return;
+        using var stem = new Pen(Color.FromArgb(150, colors.Rare), 1.5f);
+        using var edge = new Pen(colors.Rare, 1);
+        foreach (var marker in timeline.Markers)
         {
-            var x = inner.Left + (float)marker.X * inner.Width;
-            var y = inner.Top + (float)marker.Y * inner.Height;
-            graphics.DrawLine(line, x, y, x, inner.Bottom);
-            var size = Math.Min(24 * fontScale, Math.Min(inner.Width, inner.Height));
-            var iconX = Math.Clamp(x - size / 2, inner.Left, inner.Right - size);
-            var iconY = Math.Clamp((y + inner.Bottom - size) / 2, inner.Top, inner.Bottom - size);
-            var iconBounds = new RectangleF(iconX, iconY, size, size);
-            using var background = new SolidBrush(Color.FromArgb(255, 37, 45, 51));
-            graphics.FillRectangle(background, iconBounds);
-            DrawIcon(graphics, marker.Drop.Item, iconBounds);
+            var x = Math.Clamp(plot.X + (float)marker.X * plot.Width, plot.Left + size / 2, plot.Right - size / 2);
+            var peak = plot.Y + (float)OverlaySessionTimeline.Y(marker.Height) * plot.Height;
+            var top = Math.Clamp(peak - size - 2 * fontScale, plot.Top, plot.Bottom - size);
+            graphics.DrawLine(stem, x, top + size, x, plot.Bottom);
+            var bounds = new RectangleF(x - size / 2, top, size, size);
+            // Grindcrest paints the icon's slot itself (--timeline-raised); the themes bring their own inventory slot.
+            if (!_blackDesert && !_light && !_cats && _palette is null)
+                FillRound(graphics, Color.FromArgb(255, 37, 45, 51), bounds, 3);
+            DrawIcon(graphics, marker.Drops[0].Item, bounds);
+            graphics.DrawRectangle(edge, bounds.X + .5f, bounds.Y + .5f, bounds.Width - 1, bounds.Height - 1);
+            if (marker.Drops.Count < 2) continue;
+            var badge = new RectangleF(bounds.Right - 7 * fontScale, bounds.Bottom - 7 * fontScale, 12 * fontScale, 11 * fontScale);
+            FillRound(graphics, Color.FromArgb(235, SlotSurface), badge, 5 * fontScale);
+            Draw(graphics, marker.Drops.Count.ToString(CultureInfo.InvariantCulture), badge, 8 * fontScale, Text, true,
+                StringAlignment.Center, StringAlignment.Center);
         }
     }
 
-    private void DrawSectionChart(Graphics graphics, OverlayWidget widget, RectangleF inner, OverlaySnapshot snapshot,
-        OverlaySectionChart chart)
+    /// <summary>
+    /// Simplified, a rotation is one bar in its state's colour with its AFK phases hatched; otherwise every phase in
+    /// its own colour above a rail in the state's colour, as on the session timeline.
+    /// </summary>
+    private void DrawTimelineRotations(Graphics graphics, OverlaySessionTimeline timeline, RectangleF band,
+        NativeTimelinePalette colors, float fontScale)
     {
-        var fontScale = (float)widget.FontScale;
-        if (snapshot.Metrics.TryGetValue("chart", out var metric))
+        if (band.Height <= 1) return;
+        float X(double share) => band.X + (float)share * band.Width;
+        foreach (var rotation in timeline.Rotations)
         {
-            var inset = !widget.ShowLabel && widget.ShowIcon ? 21 * fontScale : 0;
-            if (inset > 0) DrawGlyph(graphics, "chart", new RectangleF(inner.X, inner.Y + 5 * fontScale, 15 * fontScale, 15 * fontScale));
-            Draw(graphics, T(metric.Value), new RectangleF(inner.X + inset, inner.Y, inner.Width - inset, 27 * fontScale), 21 * fontScale, Gold, true);
-            inner.Y += 33 * fontScale; inner.Height -= 33 * fontScale;
-        }
-        if (chart.Detail is { Length: > 0 })
-        {
-            Draw(graphics, T(chart.Detail), new RectangleF(inner.X, inner.Bottom - 13 * fontScale, inner.Width, 13 * fontScale), 9 * fontScale, Muted);
-            inner.Height -= 16 * fontScale;
-        }
-        if (!chart.HasData || inner.Height < 8)
-        {
-            Draw(graphics, T("Verlauf entsteht während der Session"), inner, 10, Muted, vertical: StringAlignment.Center);
-            return;
-        }
-        var points = chart.Points.Select(point => new PointF(inner.X + (float)chart.X(point.Elapsed) * inner.Width,
-            inner.Top + (float)chart.Y(point.Silver) * inner.Height)).ToArray();
-        using var fill = new SolidBrush(Color.FromArgb(40, Gold));
-        graphics.FillPolygon(fill, [new PointF(points[0].X, inner.Bottom), .. points, new PointF(points[^1].X, inner.Bottom)]);
-        using var line = new Pen(Gold, 1.6f);
-        graphics.DrawLines(line, points);
-        foreach (var point in chart.Points.Where(chart.IsClipped))
-        {
-            // Two slanted strokes: this section rises beyond the scale of the regular loot.
-            var x = inner.Left + (float)chart.X(point.Elapsed) * inner.Width;
-            var top = inner.Top + (float)chart.Y(point.Silver) * inner.Height;
-            for (var offset = 5; offset <= 11; offset += 6)
-                graphics.DrawLine(line, x - 7 * fontScale, top + (offset + 4) * fontScale, x + 7 * fontScale, top + offset * fontScale);
-        }
-        foreach (var marker in chart.Markers)
-        {
-            var x = inner.Left + (float)marker.X * inner.Width;
-            var y = inner.Top + (float)marker.Y * inner.Height;
-            graphics.DrawLine(line, x, y, x, inner.Bottom);
-            // Several rare drops of one section sit next to each other, centered on its peak.
-            var gap = 2 * fontScale;
-            var count = marker.Drops.Count;
-            var size = Math.Min(Math.Min(24 * fontScale, Math.Min(inner.Width, inner.Height)),
-                (inner.Width - (count - 1) * gap) / count);
-            var width = count * size + (count - 1) * gap;
-            var left = Math.Clamp(x - width / 2, inner.Left, Math.Max(inner.Left, inner.Right - width));
-            var top = Math.Clamp((y + inner.Bottom - size) / 2, inner.Top, inner.Bottom - size);
-            using var background = new SolidBrush(Color.FromArgb(255, 37, 45, 51));
-            for (var index = 0; index < count; index++)
+            var state = rotation.Status switch
             {
-                var iconBounds = new RectangleF(left + index * (size + gap), top, size, size);
-                graphics.FillRectangle(background, iconBounds);
-                DrawIcon(graphics, marker.Drops[index].Item, iconBounds);
+                "active" => colors.Active, "failed" => colors.Failed, "fastest" => colors.Fastest,
+                "complete" => colors.Complete, _ => Muted,
+            };
+            var bounds = RectangleF.FromLTRB(X(rotation.Left) + 1, band.Top, Math.Max(X(rotation.Left) + 2, X(rotation.Right) - 1), band.Bottom);
+            var clip = graphics.Save();
+            graphics.SetClip(bounds, CombineMode.Intersect);
+            if (timeline.IsSimplified)
+            {
+                using var body = new SolidBrush(Color.FromArgb(120, state));
+                using var afk = new HatchBrush(HatchStyle.WideUpwardDiagonal, Color.FromArgb(120, state), Color.FromArgb(28, state));
+                foreach (var part in rotation.Phases)
+                {
+                    var segment = RectangleF.FromLTRB(X(part.Left), band.Top, X(part.Right), band.Bottom);
+                    graphics.FillRectangle(part.IsAfk ? afk : body, segment);
+                    if (part.IsAfk && segment.Width >= 26 * fontScale)
+                        Draw(graphics, "AFK", segment, 8 * fontScale, Text, true, StringAlignment.Center, StringAlignment.Center);
+                }
+                var mechanics = rotation.Phases.FirstOrDefault(part => !part.IsAfk);
+                var label = mechanics is null ? bounds : RectangleF.FromLTRB(X(mechanics.Left), band.Top, X(mechanics.Right), band.Bottom);
+                if (label.Width >= 32 * fontScale)
+                    Draw(graphics, RotationPhases.Duration(rotation.Span.Duration), RectangleF.Inflate(label, -3 * fontScale, 0),
+                        9 * fontScale, Text, true, vertical: StringAlignment.Center);
             }
+            else
+            {
+                var rail = Math.Min(3 * fontScale, band.Height / 3);
+                foreach (var part in rotation.Phases)
+                {
+                    var segment = RectangleF.FromLTRB(X(part.Left), band.Top, Math.Max(X(part.Left) + .6f, X(part.Right) - .5f), band.Bottom - rail - 1);
+                    using var fill = new SolidBrush(Color.FromArgb(230, ColorTranslator.FromHtml(part.Color)));
+                    graphics.FillRectangle(fill, segment);
+                    if (!part.IsSpecial) continue;
+                    using var outline = new Pen(colors.Rare, 1.5f) { DashPattern = [3, 2] };
+                    graphics.DrawRectangle(outline, segment.X + .75f, segment.Y + .75f, segment.Width - 1.5f, segment.Height - 1.5f);
+                }
+                using var railBrush = new SolidBrush(state);
+                graphics.FillRectangle(railBrush, bounds.X, band.Bottom - rail, bounds.Width, rail);
+            }
+            graphics.Restore(clip);
         }
     }
 

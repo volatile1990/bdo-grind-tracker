@@ -78,11 +78,9 @@ public partial class OverlayEditor
     private static bool Checked(ChangeEventArgs e) => e.Value is true;
     private static int WholeNumber(ChangeEventArgs e, int current) =>
         int.TryParse(Text(e), NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) ? value : current;
-    private string PeakHelp(string mode) => T(mode switch
+    private void ToggleTimelineLayer(string id, bool on) => ChangeWidget(w => w with
     {
-        OverlayChartSections.ExcludePeaks => "Ihr Silber fließt nicht in die Kurve ein; so bleibt nur der übrige Loot sichtbar.",
-        OverlayChartSections.LogarithmicPeaks => "Große Werte werden gestaucht: ein Hundertstel des höchsten Abschnitts erreicht noch die halbe Höhe.",
-        _ => "Die Höhe richtet sich nach den Abschnitten ohne wertvolle Drops; höhere Abschnitte werden oben gekappt und mit zwei Strichen markiert.",
+        TimelineLayers = OverlayTimelineLayers.Normalize(on ? [.. w.TimelineLayers, id] : [.. w.TimelineLayers.Where(layer => layer != id)]),
     });
     private string Label(string kind) => T(OverlayCatalog.Find(kind)?.Label ?? "Modul");
     private string InteractionLabel => _settings.Interaction switch { "passthrough" => T("Klicks gehen ans Spiel"), "locked" => T("Position gesperrt"), _ => T("Verschiebbar") };
