@@ -40,6 +40,9 @@ internal class RotationPlatform : IRotationEventTracker
     private int _position = -1, _setupCount;
     private int? _resumeAfter;
     private double? _alignedAt;
+    private readonly List<(Guid Input, int[] Candidates)> _ambiguousStarts = [];
+    private readonly Dictionary<Guid, int> _startOverrides = [];
+    private readonly List<RotationSection> _missingSections = [];
     private string? _alignedSection;
     private bool _completeStart, _missing, _boundaryAvailable;
     private string _status = "Warte auf Erkennung";
@@ -173,19 +176,11 @@ internal class RotationPlatform : IRotationEventTracker
     {
         if (!_dirty) return;
         _dirty = false;
-        _finished.Clear(); _events.Clear(); _sections.Clear(); _visited.Clear();
-        _sectionSamples.Clear();
-        foreach (var run in _history) RecordSectionSamples(run);
-        _start = _lootAllowedAt = _sectionStart = null; _runId = Guid.Empty; _position = -1;
-        _setupCount = 0; _completeStart = _missing = _boundaryAvailable = false; _finishedElapsed = 0; _resumeAfter = null;
-        _alignedAt = null; _alignedSection = null;
-        if (_restoredBoundary is { } restored)
-        { _lootAllowedAt = restored.AddSeconds(5); _boundaryAvailable = _restoredCleanStart; }
-        _status = "Warte auf Erkennung"; _building = [];
-        foreach (var input in _inputs.OrderBy(i => i.At).ThenBy(i => i.Type == "loot" ? 1 : 0))
+        // A rotation picked up mid-way may be placed by what followed; it is then replayed from its true start.
+        for (var pass = 0; ; pass++)
         {
-            CheckTimeout(input.At, input);
-            Apply(input);
+            Replay();
+            if (pass == 3 || !ResolvePickedUpStarts()) break;
         }
         foreach (var (key, previous) in _decisions)
             if (!_building.ContainsKey(key)) _journal.Add(new(Guid.NewGuid(), previous.At, _definition.SpotId,
@@ -208,6 +203,24 @@ internal class RotationPlatform : IRotationEventTracker
         _published.Clear();
         foreach (var (id, run) in current) _published[id] = run;
         Save();
+    }
+
+    private void Replay()
+    {
+        _finished.Clear(); _events.Clear(); _sections.Clear(); _visited.Clear(); _ambiguousStarts.Clear();
+        _sectionSamples.Clear();
+        foreach (var run in _history) RecordSectionSamples(run);
+        _start = _lootAllowedAt = _sectionStart = null; _runId = Guid.Empty; _position = -1;
+        _setupCount = 0; _completeStart = _missing = _boundaryAvailable = false; _finishedElapsed = 0; _resumeAfter = null;
+        _alignedAt = null; _alignedSection = null; _missingSections.Clear();
+        if (_restoredBoundary is { } restored)
+        { _lootAllowedAt = restored.AddSeconds(5); _boundaryAvailable = _restoredCleanStart; }
+        _status = "Warte auf Erkennung"; _building = [];
+        foreach (var input in _inputs.OrderBy(i => i.At).ThenBy(i => i.Type == "loot" ? 1 : 0))
+        {
+            CheckTimeout(input.At, input);
+            Apply(input);
+        }
     }
 
     private void Apply(Input input)
@@ -294,6 +307,9 @@ internal class RotationPlatform : IRotationEventTracker
         { Decision(input, "duplicate", "Wiederholte Einblendung ignoriert"); return; }
         var resumes = resumeAfter is { } resumed && indices.Any(s => s.Index > resumed);
         var next = Next(indices, resumes ? resumeAfter!.Value : _position);
+        var placed = resumes ? null : PickedUpStart(input, indices);
+        if (placed == RotationAlignment.RotationEnd) { BeginAtRotationEnd(input); return; }
+        if (placed is { } placedAt) next = indices.First(s => s.Index == placedAt);
         if (next.Step is null && InferOpening(input, indices)) next = Next(indices);
         // A message that belongs to exactly one step (several orbs of Elion's Tears) may repeat inside its own phase.
         // Where the rotation models the repetition itself (Hermesia's five offerings, Aphrodon's nine waves), one more
@@ -307,13 +323,16 @@ internal class RotationPlatform : IRotationEventTracker
             Finish(input, "aborted", "Mitteilung außerhalb der erlaubten Reihenfolge: " + input.Label);
             Begin(input, explicitStart);
             next = indices[0];
+            placed = explicitStart ? null : PickedUpStart(input, indices);
+            if (placed == RotationAlignment.RotationEnd) { BeginAtRotationEnd(input); return; }
+            if (placed is { } resynchronisedAt) next = indices.First(s => s.Index == resynchronisedAt);
             _status = "Synchronisiere … · " + input.Label;
         }
         InferClosing(input, next.Index, input.At);
         Enter(input, next.Index, input.Kind, input.Label, input.At);
-        // A rotation picked up mid-way knows where it stands once a message fits exactly one phase, or continues the
-        // step a timeout left.
-        if (_alignedAt is null && (indices.Length == 1 || resumes) && _start is { } runStart)
+        // A rotation picked up mid-way knows where it stands once a message fits exactly one phase, continues the step a
+        // timeout left, or the messages after it leave only one place it can have begun.
+        if (_alignedAt is null && (indices.Length == 1 || resumes || placed is not null) && _start is { } runStart)
         { _alignedAt = Math.Max(0, (input.At - runStart).TotalSeconds); _alignedSection = _sectionId; }
         _status = input.Label + (_completeStart && !_missing ? " · erkannt" : " · unvollständig erfasst");
         if (_definition.StartupCounterMessage is { } counter && !_visited.Contains(_definition.AmbientAfter ?? ""))
@@ -324,6 +343,52 @@ internal class RotationPlatform : IRotationEventTracker
     private bool Required(RotationStep step) => !step.Optional ||
         step.RequiredWhenBranchObserved && step.Requires is { } required && _visited.Contains(required);
 
+    /// <summary>
+    /// A rotation picked up mid-way at a message several steps share. Once the messages that followed leave a single
+    /// place it can have begun (<see cref="RotationAlignment"/>), the run is replayed from there, first message on;
+    /// until then the first candidate stands in and nothing is certain.
+    /// </summary>
+    private int? PickedUpStart(Input input, (RotationStep Step, int Index)[] indices)
+    {
+        if (_completeStart || _position >= 0 || _alignedAt is not null) return null;
+        int[] candidates = [.. indices.Select(s => s.Index),
+            .. _definition.AfkEndStartsRun && _definition.AfkEndMessages.Contains(input.Kind) ? [RotationAlignment.RotationEnd] : Array.Empty<int>()];
+        if (candidates.Length < 2) return null;
+        _ambiguousStarts.Add((input.Id, candidates));
+        if (!_startOverrides.TryGetValue(input.Id, out var start) || !candidates.Contains(start)) return null;
+        Decision(input, "placed", start == RotationAlignment.RotationEnd
+            ? "Nachträglich zugeordnet: Ende der vorigen Rotation"
+            : "Nachträglich zugeordnet: Einstieg bei " + _definition.Steps[start].Id);
+        return start;
+    }
+
+    // The message ended the previous rotation, and the spot opened the next one with it: a clean start after all.
+    private void BeginAtRotationEnd(Input input)
+    {
+        _completeStart = true; _alignedAt = 0; _alignedSection = null;
+        _status = "Warte auf Erkennung";
+    }
+
+    /// <summary>Places every rotation picked up at a shared message where the messages after it leave one start.</summary>
+    private bool ResolvePickedUpStarts()
+    {
+        if (_ambiguousStarts.Count == 0) return false;
+        var ordered = _inputs.OrderBy(i => i.At).ThenBy(i => i.Type == "loot" ? 1 : 0).ToList();
+        var changed = false;
+        foreach (var (id, candidates) in _ambiguousStarts)
+        {
+            // Only what followed without a pause: afterwards the spot may have reset.
+            var from = ordered.FindIndex(i => i.Id == id);
+            string[] kinds = [.. ordered.Skip(from).TakeWhile((i, n) => n == 0 || i.Type != "interrupt")
+                .Where(i => i.Type == "message").Select(i => i.Kind).Take(400)];
+            if (RotationAlignment.Resolve(_definition, candidates, kinds) is not { } start ||
+                _startOverrides.TryGetValue(id, out var known) && known == start) continue;
+            _startOverrides[id] = start;
+            changed = true;
+        }
+        return changed;
+    }
+
     private (RotationStep Step, int Index) Next((RotationStep Step, int Index)[] indices) => Next(indices, _position);
 
     private (RotationStep Step, int Index) Next((RotationStep Step, int Index)[] indices, int after) => indices.FirstOrDefault(s =>
@@ -331,10 +396,14 @@ internal class RotationPlatform : IRotationEventTracker
 
     private void Enter(Input input, int index, string kind, string label, DateTimeOffset at, bool inferred = false)
     {
-        if (_definition.Steps.Skip(_position + 1).Take(index - _position - 1).Any(Required))
+        string[] skipped = [.. _definition.Steps.Skip(_position + 1).Take(index - _position - 1).Where(Required).Select(s => s.Id)];
+        if (skipped.Length > 0)
         {
             _missing = true;
             Decision(input, "missing", "Erwartete Mitteilungen fehlen · Durchlauf wird nicht gewertet");
+            // Within what was observed, the phases in between are known to be missing, not merely untracked.
+            if (_position >= 0 && _start is { } start && _sectionStart is { } from && at > from)
+                _missingSections.Add(new(string.Join(" ", skipped), (from - start).TotalSeconds, (at - start).TotalSeconds));
         }
         CloseSection(at);
         var step = _definition.Steps[index];
@@ -400,7 +469,7 @@ internal class RotationPlatform : IRotationEventTracker
         _start = _sectionStart = input.At; _runId = input.Id; _position = -1; _sectionId = "startup";
         _events.Clear(); _sections.Clear(); _visited.Clear(); _completeStart = complete; _missing = false;
         _boundaryAvailable = false; _resumeAfter = null;
-        _alignedAt = complete ? 0 : null; _alignedSection = null;
+        _alignedAt = complete ? 0 : null; _alignedSection = null; _missingSections.Clear();
         AddEvent("start", "Rotationsstart", input.At);
         _status = "Warte auf Erkennung";
         Decision(input, "start", complete ? "Rotationsstart erkannt" : "Einstieg ohne bestätigten Rotationsbeginn · unvollständig");
@@ -458,6 +527,8 @@ internal class RotationPlatform : IRotationEventTracker
 
     private void CheckTimeout(DateTimeOffset now, Input input)
     {
+        // While a rotation picked up mid-way does not know its phase, the guessed phase's time says nothing either.
+        if (_start is not null && _alignedAt is null) return;
         if (_sectionStart is not { } start || TimeoutSeconds() is not { } limit || (now - start).TotalSeconds <= limit) return;
         var at = start.AddSeconds(limit);
         // A special event whose middle was seen is over, not stalled, when its closing banner never came.
@@ -514,7 +585,8 @@ internal class RotationPlatform : IRotationEventTracker
                 _definition.Steps[_position].Messages.All(_definition.IsSpecial)),
             WithoutSpecialEvents = new(withoutSpecial.Best, withoutSpecial.Ideal, withoutSpecial.Sectors, regular.Length),
             ComparedSpecialEvents = matchedSpecial,
-            AlignedAt = _start is null ? null : _alignedAt, AlignedSection = _start is null ? null : _alignedSection };
+            AlignedAt = _start is null ? null : _alignedAt, AlignedSection = _start is null ? null : _alignedSection,
+            MissingSections = _start is null ? [] : [.. _missingSections] };
     }
 
     private void Save()

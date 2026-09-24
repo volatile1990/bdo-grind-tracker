@@ -83,6 +83,8 @@ public sealed record RotationMonitorSnapshot
     public double? AlignedAt { get; init; }
     /// <summary>The section that message opened, to find the same moment in the reference.</summary>
     public string? AlignedSection { get; init; }
+    /// <summary>Stretches of the current rotation whose required phases were never seen (ids of the steps skipped).</summary>
+    public IReadOnlyList<RotationSection> MissingSections { get; init; } = [];
     /// <summary>For spots compared by their number of special events: the number the shown best and ideal have.</summary>
     public int? ComparedSpecialEvents { get; init; }
     /// <summary>The comparison without rotations that contained a special event.</summary>

@@ -816,6 +816,16 @@ internal sealed class NativeOverlayRenderer : IDisposable
                         Math.Clamp(bandHeight*.45f, 11, 18), Color.White, false, StringAlignment.Center, StringAlignment.Center,
                         darkOutline: _light);
             }
+            foreach (var gap in row == 1 ? current.Gaps : [])
+            {
+                // Required phases that were never seen, drawn over the phase they fell into.
+                var error = ColorTranslator.FromHtml(RotationCurrentRow.TrackingErrorColor);
+                var bounds = new RectangleF(X(gap.Start), y-bandHeight/2, Math.Max(0, X(gap.End)-X(gap.Start)-2), bandHeight);
+                using var fill = new SolidBrush(Color.FromArgb(55, error));
+                using var outline = new Pen(error, 1.5f) { DashPattern = [3, 2] };
+                graphics.FillRectangle(fill, bounds);
+                if (bounds.Width >= 2) graphics.DrawRectangle(outline, bounds.X, bounds.Y, bounds.Width, bounds.Height);
+            }
             foreach (var e in events.Where(e => e.Seconds <= end && RotationTimelinePresentation.IsMarker(e)))
             {
                 using var pen = new Pen(ColorTranslator.FromHtml(RotationPhases.MarkerStroke(rotation.SpotId, e, widget.RotationColors, row == 1)), 2);

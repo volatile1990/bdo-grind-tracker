@@ -157,14 +157,18 @@ public sealed class MagaiaRotationTests
         tracker.ObserveLoot(Epoch);
         Cycle(tracker, 0, 640, tears: false);
         Cycle(tracker, 640, 640, tears: false);
-        // The next rotation's first cycle: its orbs identify Elion's Tears and realign the cycles.
+        // The next rotation's first cycle: its orbs identify Elion's Tears. Two cycles without them before it can only
+        // have been the second and third, so the AFK end at 1280 was the rotation's end and started a full rotation.
         Cycle(tracker, 1280, 600, tears: true);
         Cycle(tracker, 1880, 640, tears: false);
         Cycle(tracker, 2520, 640, tears: false);
         Rotation(tracker, 3160, 1900, 10);
 
-        var runs = tracker.DrainCompleted().Where(r => r.Run.Outcome != "superseded").ToArray();
-        Assert.DoesNotContain(runs.SkipLast(1), r => r.Run.EligibleForStatistics);
+        var runs = tracker.DrainCompleted().Where(r => r.Run.Outcome != "superseded").OrderBy(r => r.StartedAt).ToArray();
+        Assert.False(runs[0].Run.EligibleForStatistics);
+        Assert.Equal("cycle-2-prayer", runs[0].Run.Sections[0].Id);
+        Assert.Equal((Epoch.AddSeconds(1280), "complete"), (runs[1].StartedAt, runs[1].Run.Outcome));
+        Assert.Equal(1880, runs[1].Run.Duration, 1);
         Assert.Equal("complete", runs[^1].Run.Outcome);
         Assert.Equal(1900, runs[^1].Run.Duration, 1);
     }
@@ -265,14 +269,105 @@ public sealed class MagaiaRotationTests
         Assert.Empty(row.Phases);
         Assert.Equal(unsure.Elapsed, row.ErrorEnd, 3);
 
-        // Elion's Tears exists in the first cycle only.
+        // Elion's Tears exists in the first cycle only: the final phase before it was the first cycle's too.
         tracker.Observe("sacred", "Elion's Tears", Epoch.AddSeconds(at + 4));
         var sure = Shown(tracker, Epoch.AddSeconds(at + 20));
-        Assert.Equal(("cycle-1-tears", 4.0), (sure.AlignedSection, sure.AlignedAt!.Value));
+        Assert.Equal(("cycle-1-doubt", 0.0), (sure.AlignedSection, sure.AlignedAt!.Value));
         row = RotationCurrentRow.Create(sure, sure.Best);
-        var reference = sure.Best!.Sections.Single(section => section.Id == "cycle-1-tears").Start;
+        var reference = sure.Best!.Sections.Single(section => section.Id == "cycle-1-doubt").Start;
         Assert.Equal(reference, row.ErrorEnd, 3);
         Assert.Equal(("Elion's Tears", reference), (row.Phases[0].Name, row.Phases[0].Start));
+    }
+
+    [Fact]
+    public void AfterAPauseTheOrderOfTheMessagesPlacesTheRotationInItsSecondCycle()
+    {
+        // Live session 24.09.2026: cycle 1, a short pause right after cycle 2 began, then cycles 2 and 3. Their final
+        // phases have no banner of their own, so no single message tells which cycle it is.
+        var tracker = References();
+        var begun = 4 * RotationSeconds;
+        PlayedRotation(tracker, 4, 7, until: CycleSeconds);
+        tracker.InterruptAt("Tracking pausiert · warte auf Rotationsstart", Epoch.AddSeconds(begun + CycleSeconds + 6));
+        PlayedRotation(tracker, 4, 7, from: CycleSeconds + 200, until: CycleSeconds + 560);
+        Assert.Null(Shown(tracker, Epoch.AddSeconds(begun + CycleSeconds + 565)).AlignedAt);
+
+        // A final phase without Elion's Tears rules out the first cycle; one cycle later only the second one fits.
+        PlayedRotation(tracker, 4, 7, from: CycleSeconds + 561, until: 2 * CycleSeconds + 553);
+        var picked = Shown(tracker, Epoch.AddSeconds(begun + 2 * CycleSeconds + 560));
+        Assert.Equal(("cycle-2-prayer", 0.0), (picked.AlignedSection, picked.AlignedAt!.Value));
+        var row = RotationCurrentRow.Create(picked, picked.Best);
+        Assert.Equal(CycleSeconds + 250, row.ErrorEnd, 3);
+        Assert.Equal(["Zyklus 2 · Ritter 1", "Unbroken Oath", "Zyklus 3 · DPS-Check"],
+            row.Phases.Select(phase => phase.Name).Where(name => name is "Zyklus 2 · Ritter 1" or "Unbroken Oath" or "Zyklus 3 · DPS-Check"));
+        Assert.Empty(row.Gaps);
+
+        // The rotation's real end closes it and opens the next one cleanly.
+        tracker.Observe("end", "end", Epoch.AddSeconds(begun + RotationSeconds));
+        PlayedRotation(tracker, 5, 7);
+        var runs = tracker.DrainCompleted().Where(r => r.Run.Outcome != "superseded").OrderBy(r => r.StartedAt).ToArray();
+        var afterPause = runs.Single(r => r.StartedAt == Epoch.AddSeconds(begun + CycleSeconds + 250));
+        Assert.Equal("cycle-2-prayer", afterPause.Run.Sections[0].Id);
+        Assert.Equal(RotationSeconds - CycleSeconds - 250, afterPause.Run.Duration, 3);
+        Assert.Equal("complete", runs[^1].Run.Outcome);
+        Assert.Equal(Epoch.AddSeconds(begun + RotationSeconds), runs[^1].StartedAt);
+    }
+
+    [Fact]
+    public void ElionsTearsPlacesARotationPickedUpAfterAResetFromItsFirstMessage()
+    {
+        // The spot reset during the pause; tracking resumed in a fresh first cycle whose start banner was missed.
+        var tracker = References();
+        var begun = 4 * RotationSeconds;
+        PlayedRotation(tracker, 4, 7, until: CycleSeconds);
+        tracker.InterruptAt("Tracking pausiert · warte auf Rotationsstart", Epoch.AddSeconds(begun + CycleSeconds + 6));
+        var fresh = begun + CycleSeconds + 100;
+        foreach (var (kind, seconds) in new[] { ("prayer", 250.0), ("knight", 330), ("knight", 390), ("knight", 430), ("doubt", 442) })
+            tracker.Observe(kind, kind, Epoch.AddSeconds(fresh + seconds));
+        Assert.Null(Shown(tracker, Epoch.AddSeconds(fresh + 444)).AlignedAt);
+
+        tracker.Observe("sacred", "Elion's Tears", Epoch.AddSeconds(fresh + 446));
+        var placed = Shown(tracker, Epoch.AddSeconds(fresh + 450));
+        // Everything seen since the pause belongs to the first cycle, not only what came after Elion's Tears.
+        Assert.Equal(("cycle-1-prayer", 0.0), (placed.AlignedSection, placed.AlignedAt!.Value));
+        Assert.Equal("Zyklus 1 · Ritter 1", RotationCurrentRow.Create(placed, placed.Best).Phases[0].Name);
+    }
+
+    [Fact]
+    public void APauseInTheAfkPhaseEndsWithTheRotationsEndAndACleanNextRotation()
+    {
+        var tracker = References();
+        var begun = 4 * RotationSeconds;
+        PlayedRotation(tracker, 4, 7, until: 2 * CycleSeconds + 560);
+        tracker.InterruptAt("Tracking pausiert · warte auf Rotationsstart", Epoch.AddSeconds(begun + 2 * CycleSeconds + 570));
+        // The first banner after the pause is the AFK end: a cycle boundary or the rotation's end.
+        tracker.Observe("end", "end", Epoch.AddSeconds(begun + RotationSeconds));
+        PlayedRotation(tracker, 5, 7);
+
+        var last = tracker.DrainCompleted().Where(r => r.Run.Outcome != "superseded").OrderBy(r => r.StartedAt).Last();
+        Assert.Equal(Epoch.AddSeconds(begun + RotationSeconds), last.StartedAt);
+        Assert.Equal("complete", last.Run.Outcome);
+    }
+
+    [Fact]
+    public void ARequiredPhaseThatWasNeverSeenIsMarkedWhereItFell()
+    {
+        var tracker = References();
+        var begun = 4 * RotationSeconds;
+        // The DPS check of the second cycle was not read.
+        PlayedRotation(tracker, 4, 7, until: CycleSeconds + 400, unread: (cycle, kind) => cycle == 2 && kind == "prayer");
+        var shown = Shown(tracker, Epoch.AddSeconds(begun + CycleSeconds + 410));
+        var gap = Assert.Single(shown.MissingSections);
+        Assert.Equal(("cycle-2-prayer", CycleSeconds, CycleSeconds + 330), (gap.Id, gap.Start, gap.End));
+        Assert.Equal(gap.Start, Assert.Single(RotationCurrentRow.Create(shown, shown.Best).Gaps).Start);
+    }
+
+    private static RotationPlatform References()
+    {
+        var tracker = new RotationPlatform(RotationDefinition.Magaia);
+        tracker.Observe("start", "Sünder beschworen", Epoch);
+        for (var i = 0; i < 4; i++) PlayedRotation(tracker, i, 7);
+        tracker.DrainCompleted();
+        return tracker;
     }
 
     // The monitor names the spot of the platform's snapshot.
@@ -283,14 +378,17 @@ public sealed class MagaiaRotationTests
 
     // One rotation as played on 23.09.2026, begun by the previous rotation's AFK end (or the start banner at zero). The
     // third cycle's last knight falls `lastKnight` seconds before its final phase.
-    private static void PlayedRotation(RotationPlatform tracker, int number, double lastKnight, double until = double.MaxValue)
+    private static void PlayedRotation(RotationPlatform tracker, int number, double lastKnight, double until = double.MaxValue,
+        double from = 0, Func<int, string, bool>? unread = null)
     {
         for (var cycle = 1; cycle <= RotationDefinition.MagaiaCycles; cycle++)
         {
             var offset = number * RotationSeconds + (cycle - 1) * CycleSeconds;
             void Message(string kind, double seconds)
             {
-                if (offset - number * RotationSeconds + seconds <= until) tracker.Observe(kind, kind, Epoch.AddSeconds(offset + seconds));
+                var into = offset - number * RotationSeconds + seconds;
+                if (into >= from && into <= until && unread?.Invoke(cycle, kind) != true)
+                    tracker.Observe(kind, kind, Epoch.AddSeconds(offset + seconds));
             }
             Message("prayer", 250);
             Message("knight", 330); Message("knight", 390); Message("knight", 430);

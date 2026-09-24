@@ -28,6 +28,7 @@ internal static partial class AppText
             "special event of this session counts, including those in abandoned or running rotations.";
         text["Special Event"] = "Special event";
         text["Tracking-Fehler"] = "Tracking error";
+        text["Tracking-Fehler · erwartete Phase nicht erkannt"] = "Tracking error · expected phase not recognised";
         text["Tracking-Fehler · der Beginn dieser Rotation wurde nicht sicher erfasst"] =
             "Tracking error · the beginning of this rotation was not reliably captured";
         text["Referenz mit {0} Special Events"] = "Reference with {0} special events";

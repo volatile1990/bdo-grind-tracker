@@ -53,6 +53,13 @@
                     }
                 </g>
             }
+            @foreach (var gap in current?.Gaps ?? [])
+            {
+                <g class="rotation-tracking-gap">
+                    <title>@T(RotationCurrentRow.GapTitle)</title>
+                    <rect x="@X(gap.Start)" y="@(y-14)" width="@Width(gap.End-gap.Start)" height="28" rx="2" fill="@RotationCurrentRow.TrackingErrorColor" fill-opacity=".2" stroke="@RotationCurrentRow.TrackingErrorColor" stroke-width="1.5" stroke-dasharray="4 3" vector-effect="non-scaling-stroke" />
+                </g>
+            }
             @foreach (var e in events.Where(e => e.Seconds <= end))
             {
                 <g>

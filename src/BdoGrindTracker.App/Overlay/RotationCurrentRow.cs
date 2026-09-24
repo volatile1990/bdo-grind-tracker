@@ -11,19 +11,22 @@ namespace BdoGrindTracker.App.Overlay;
 /// <param name="ErrorEnd">The tracking error spans from the row's start to here; 0 without one.</param>
 /// <param name="Phases">Only the phases that are certain.</param>
 /// <param name="Events">Every observed event, moved along; markers stay where they were seen.</param>
+/// <param name="Gaps">Stretches after that moment whose required phases were never seen, moved along as well.</param>
 public sealed record RotationCurrentRow(double Offset, double End, double ErrorEnd,
-    IReadOnlyList<RotationPhase> Phases, IReadOnlyList<RotationEvent> Events)
+    IReadOnlyList<RotationPhase> Phases, IReadOnlyList<RotationEvent> Events, IReadOnlyList<RotationSection> Gaps)
 {
     public const string TrackingErrorColor = "#E87C79";
     public const string TrackingErrorTitle = "Tracking-Fehler · der Beginn dieser Rotation wurde nicht sicher erfasst";
+    public const string GapTitle = "Tracking-Fehler · erwartete Phase nicht erkannt";
 
     public bool HasTrackingError => ErrorEnd > 0;
 
     public static RotationCurrentRow Create(RotationMonitorSnapshot state, RotationRun? reference, string? colors = "colored")
     {
         if (!IsPickedUp(state))
-            return new(0, state.Elapsed, 0, RotationPhases.Create(state.SpotId, state.Events, state.Elapsed, colors), state.Events);
-        if (state.AlignedAt is not { } aligned) return new(0, state.Elapsed, state.Elapsed, [], state.Events);
+            return new(0, state.Elapsed, 0, RotationPhases.Create(state.SpotId, state.Events, state.Elapsed, colors), state.Events,
+                state.MissingSections);
+        if (state.AlignedAt is not { } aligned) return new(0, state.Elapsed, state.Elapsed, [], state.Events, []);
         var offset = OffsetOf(state, reference);
         var anchor = aligned + offset;
         var end = state.Elapsed + offset;
@@ -34,7 +37,9 @@ public sealed record RotationCurrentRow(double Offset, double End, double ErrorE
         var phases = RotationPhases.Create(state.SpotId, counted, end, colors)
             .Where(phase => phase.End > anchor)
             .Select(phase => phase.Start < anchor ? phase with { Start = anchor } : phase).ToArray();
-        return new(offset, end, Math.Max(0, anchor), phases, events);
+        RotationSection[] gaps = [.. state.MissingSections.Where(gap => gap.End > aligned)
+            .Select(gap => gap with { Start = Math.Max(gap.Start, aligned) + offset, End = gap.End + offset })];
+        return new(offset, end, Math.Max(0, anchor), phases, events, gaps);
     }
 
     /// <summary>Seconds the current rotation moves to meet the reference; 0 while nothing is certain.</summary>

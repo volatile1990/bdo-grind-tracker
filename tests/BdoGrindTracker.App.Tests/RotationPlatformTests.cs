@@ -104,7 +104,9 @@ public sealed class RotationPlatformTests
         Assert.True(state.Synchronized);
         Assert.Equal("partial", state.TrackingState);
         Assert.Equal("spacetime", state.Events[^1].Kind);
-        Assert.Equal(4, tracker.DrainTimeline().Count(e => e.Type == "decision" && e.Kind == "phase"));
+        // Once the wormhole is known, earlier phase decisions are corrected in place (Corrects), never duplicated.
+        var timeline = tracker.DrainTimeline();
+        Assert.Equal(4, timeline.Count(e => e.Type == "decision" && e.Kind == "phase" && !timeline.Any(later => later.Corrects == e.Id)));
         Assert.Null(state.Best);
     }
 
