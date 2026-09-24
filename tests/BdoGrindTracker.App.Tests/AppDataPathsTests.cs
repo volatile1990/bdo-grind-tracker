@@ -65,6 +65,35 @@ public sealed class AppDataPathsTests
         Assert.False(Directory.Exists(local));
     }
 
+    [Fact]
+    public void TheTesterWorksOnTheStoreAppsDataWhenToldTo()
+    {
+        var local = Path.Combine(Path.GetTempPath(), "Grindcrest.Paths", Guid.NewGuid().ToString("N"));
+        var shared = Directory.CreateDirectory(Path.Combine(local, "Packages", "Grindcrest.Grindcrest_psjzbyy00rv1m", "LocalState")).FullName;
+        try
+        {
+            var paths = AppDataPaths.Create(AppPackageIdentity.Unpackaged, local,
+                () => throw new InvalidOperationException("No package query is needed."), shared);
+            Assert.Equal(shared, paths.BaseDirectory);
+            Assert.Equal(shared, paths.LegacyDirectory);
+            Assert.False(paths.IsPackaged);
+
+            // A missing or relative folder never silently falls back to separate data.
+            Assert.Throws<IOException>(() => AppDataPaths.Create(AppPackageIdentity.Unpackaged, local, () => "", Path.Combine(local, "missing")));
+            Assert.Throws<IOException>(() => AppDataPaths.Create(AppPackageIdentity.Unpackaged, local, () => "", "LocalState"));
+        }
+        finally { Directory.Delete(local, recursive: true); }
+    }
+
+    [Fact]
+    public void TheStoreAppIgnoresTheTestersDataFolder()
+    {
+        var local = Path.Combine(Path.GetTempPath(), "Grindcrest.Paths", Guid.NewGuid().ToString("N"));
+        const string family = "Grindcrest.Grindcrest_psjzbyy00rv1m";
+        var paths = AppDataPaths.Create(AppPackageIdentity.Packaged, local, () => family, Path.GetTempPath());
+        Assert.Equal(Path.Combine(local, "Packages", family, "LocalState"), paths.BaseDirectory);
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData("..")]

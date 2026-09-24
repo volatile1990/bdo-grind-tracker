@@ -13,8 +13,14 @@ internal sealed class AppDataPaths
         var localAppData = identity == AppPackageIdentity.Packaged
             ? ReadPhysicalLocalAppData()
             : Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        return Create(identity, localAppData, ReadPackageFamilyName);
+        return Create(identity, localAppData, ReadPackageFamilyName, Environment.GetEnvironmentVariable(DataDirectoryVariable));
     });
+
+    /// <summary>
+    /// Lets an unpackaged build (the local tester) work on another data folder, typically the Store app's LocalState,
+    /// so sessions recorded with the app can be examined with the current code. The Store app never reads it.
+    /// </summary>
+    internal const string DataDirectoryVariable = "GRINDCREST_DATA_DIRECTORY";
 
     public static AppDataPaths Current => Paths.Value;
     public string BaseDirectory { get; }
@@ -24,11 +30,19 @@ internal sealed class AppDataPaths
     private AppDataPaths(string baseDirectory, string legacyDirectory, bool isPackaged)
         => (BaseDirectory, LegacyDirectory, IsPackaged) = (baseDirectory, legacyDirectory, isPackaged);
 
-    internal static AppDataPaths Create(AppPackageIdentity identity, string localAppData, Func<string> readFamilyName)
+    internal static AppDataPaths Create(AppPackageIdentity identity, string localAppData, Func<string> readFamilyName,
+        string? dataDirectory = null)
     {
         var local = Path.GetFullPath(localAppData);
         var legacy = Path.Combine(local, "BdoGrindTracker");
-        if (identity == AppPackageIdentity.Unpackaged) return new(legacy, legacy, false);
+        if (identity == AppPackageIdentity.Unpackaged)
+        {
+            if (string.IsNullOrWhiteSpace(dataDirectory)) return new(legacy, legacy, false);
+            if (!Path.IsPathFullyQualified(dataDirectory) || !Directory.Exists(dataDirectory))
+                throw new IOException($"Der Datenordner aus {DataDirectoryVariable} existiert nicht: {dataDirectory}");
+            var shared = Path.GetFullPath(dataDirectory);
+            return new(shared, shared, false);
+        }
         if (identity != AppPackageIdentity.Packaged)
             throw new IOException("Der sichere Speicherort für Grindcrest-Daten konnte nicht ermittelt werden. Bitte Grindcrest erneut starten.");
 
