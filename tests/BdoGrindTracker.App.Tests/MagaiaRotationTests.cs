@@ -288,11 +288,15 @@ public sealed class MagaiaRotationTests
         var begun = 4 * RotationSeconds;
         PlayedRotation(tracker, 4, 7, until: CycleSeconds);
         tracker.InterruptAt("Tracking pausiert · warte auf Rotationsstart", Epoch.AddSeconds(begun + CycleSeconds + 6));
-        PlayedRotation(tracker, 4, 7, from: CycleSeconds + 200, until: CycleSeconds + 560);
-        Assert.Null(Shown(tracker, Epoch.AddSeconds(begun + CycleSeconds + 565)).AlignedAt);
+        PlayedRotation(tracker, 4, 7, from: CycleSeconds + 200, until: CycleSeconds + 500);
+        Assert.Null(Shown(tracker, Epoch.AddSeconds(begun + CycleSeconds + 505)).AlignedAt);
 
-        // A final phase without Elion's Tears rules out the first cycle; one cycle later only the second one fits.
-        PlayedRotation(tracker, 4, 7, from: CycleSeconds + 561, until: 2 * CycleSeconds + 553);
+        // The final phase reaches the AFK phase without Elion's Tears or Priest of the End: the second cycle.
+        PlayedRotation(tracker, 4, 7, from: CycleSeconds + 501, until: CycleSeconds + 553);
+        Assert.Equal("cycle-2-prayer", Shown(tracker, Epoch.AddSeconds(begun + CycleSeconds + 555)).AlignedSection);
+
+        // Priest of the End in the next final phase agrees.
+        PlayedRotation(tracker, 4, 7, from: CycleSeconds + 554, until: 2 * CycleSeconds + 553);
         var picked = Shown(tracker, Epoch.AddSeconds(begun + 2 * CycleSeconds + 560));
         Assert.Equal(("cycle-2-prayer", 0.0), (picked.AlignedSection, picked.AlignedAt!.Value));
         var row = RotationCurrentRow.Create(picked, picked.Best);
@@ -394,7 +398,9 @@ public sealed class MagaiaRotationTests
             Message("knight", 330); Message("knight", 390); Message("knight", 430);
             var doubt = 430 + (cycle == 3 ? lastKnight : 12);
             Message("doubt", doubt);
-            if (cycle == 1) Message("sacred", doubt + 4);
+            if (cycle == 1) { Message("sacred", doubt + 4); Message("tear", doubt + 6); }
+            // The name bar names the third cycle's final mechanic.
+            if (cycle == 3) Message("priest", doubt + 4);
             Message("afk", CycleSeconds - 77);
             Message("end", CycleSeconds);
         }

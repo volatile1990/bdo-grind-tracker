@@ -33,8 +33,10 @@ internal sealed record RotationDefinition(string SpotId, RotationStep[] Steps, s
     string? StartupCounterMessage = null, int StartupCounterTarget = 0, string StartupCounterLabel = "",
     int SetupTarget = 3, string[]? SpecialMessages = null, string[]? SpecialStartMessages = null,
     SpecialEventComparison SpecialComparison = SpecialEventComparison.Separate, bool AfkEndStartsRun = false,
-    IReadOnlyDictionary<string, string[]>? Evidence = null)
+    IReadOnlyDictionary<string, string[]>? Evidence = null, IReadOnlyDictionary<string, string>? ExpectedEvidence = null)
 {
+    // ExpectedEvidence: steps that always show a name before they end (Magaia's third final phase and Priest of the End).
+    // A rotation picked up mid-way that leaves such a step without its name was not in it.
     /// <summary>
     /// Messages that say where a rotation stands without being part of its order (monster names), with the steps
     /// they can be seen in. They neither start, move nor abort a run; a rotation picked up mid-way uses them to find
@@ -131,7 +133,11 @@ internal sealed record RotationDefinition(string SpotId, RotationStep[] Steps, s
         {
             ["tear"] = ["cycle-1-doubt", "cycle-1-tears", "cycle-1-afk"],
             ["priest"] = ["cycle-3-knight-3", "cycle-3-doubt", "cycle-3-afk"],
-        });
+        },
+        // Priest of the End is fought throughout the third final phase and read within seconds of its start (live
+        // session 24.09.2026: 4 s both times). A final phase that reaches the AFK phase without it is no third cycle.
+        // The first cycle's own step, Elion's Tears, is required anyway; together they leave only the second cycle.
+        ExpectedEvidence: new Dictionary<string, string> { ["cycle-3-doubt"] = "priest" });
 
     internal static RotationDefinition? Find(string? spotId) => spotId switch {
         LootSpotCatalog.HermesiaId => Hermesia, LootSpotCatalog.AphrodonId => Aphrodon,

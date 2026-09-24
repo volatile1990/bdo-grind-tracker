@@ -373,6 +373,9 @@ internal class RotationPlatform : IRotationEventTracker
         _status = "Warte auf Erkennung";
     }
 
+    /// <summary>How long a name read before a rotation picked up mid-way still tells about the step before it.</summary>
+    private static readonly TimeSpan NamesBeforeStart = TimeSpan.FromMinutes(3);
+
     /// <summary>Places every rotation picked up at a shared message where the messages after it leave one start.</summary>
     private bool ResolvePickedUpStarts()
     {
@@ -385,7 +388,15 @@ internal class RotationPlatform : IRotationEventTracker
             var from = ordered.FindIndex(i => i.Id == id);
             string[] kinds = [.. ordered.Skip(from).TakeWhile((i, n) => n == 0 || i.Type != "interrupt")
                 .Where(i => i.Type == "message").Select(i => i.Kind).Take(400)];
-            if (RotationAlignment.Resolve(_definition, candidates, kinds) is not { } start ||
+            // Names read just before (Elion's Tear lingering into the AFK phase in which tracking began).
+            var before = new List<string>();
+            for (var i = from - 1; i >= 0 && ordered[from].At - ordered[i].At <= NamesBeforeStart; i--)
+            {
+                if (ordered[i].Type is "loot" or "tick") continue;
+                if (ordered[i].Type != "message" || !_definition.IsEvidence(ordered[i].Kind)) break;
+                before.Insert(0, ordered[i].Kind);
+            }
+            if (RotationAlignment.Resolve(_definition, candidates, kinds, before) is not { } start ||
                 _startOverrides.TryGetValue(id, out var known) && known == start) continue;
             _startOverrides[id] = start;
             changed = true;

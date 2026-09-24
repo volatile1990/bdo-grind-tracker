@@ -3,9 +3,10 @@ namespace BdoGrindTracker.App.Overlay;
 /// <summary>
 /// Where a rotation picked up mid-way began. Every step its first message fits is a candidate. Each candidate walks the
 /// messages that followed, across the rotation's end into the next one, and counts the required steps it would have to
-/// skip. A banner that is always read turns its absence into evidence too: a Magaia final phase without Elion's Tears
-/// is no first cycle. The candidate that needs fewer skips than every other one is where the rotation began; until one
-/// does, nothing is certain.
+/// skip. Monster names (evidence) have to fit the step a candidate stands in, and a name its step always shows turns
+/// its absence into evidence too: a Magaia final phase that reaches the AFK phase without Priest of the End is no third
+/// cycle, and one without Elion's Tears no first. The candidate that needs fewer skips than every other one is where
+/// the rotation began; until one does, nothing is certain.
 /// </summary>
 internal static class RotationAlignment
 {
@@ -14,16 +15,18 @@ internal static class RotationAlignment
 
     /// <param name="candidates">Step indices the first message fits, or <see cref="RotationEnd"/>.</param>
     /// <param name="kinds">The messages from the first one on, in capture order.</param>
-    internal static int? Resolve(RotationDefinition definition, IReadOnlyList<int> candidates, IReadOnlyList<string> kinds)
+    /// <param name="before">Names read right before the first message: they belong to the step before the candidate.</param>
+    internal static int? Resolve(RotationDefinition definition, IReadOnlyList<int> candidates, IReadOnlyList<string> kinds,
+        IReadOnlyList<string>? before = null)
     {
         if (candidates.Count < 2) return candidates.Count == 1 ? candidates[0] : null;
-        var scored = candidates.Select(start => (Start: start, Skips: Skips(definition, start, kinds)))
+        var scored = candidates.Select(start => (Start: start, Skips: Skips(definition, start, kinds, before)))
             .OrderBy(candidate => candidate.Skips).ToArray();
         return scored[0].Skips < scored[1].Skips ? scored[0].Start : null;
     }
 
-    /// <summary>Required steps (and rotation ends) a rotation begun at <paramref name="start"/> could not have seen.</summary>
-    internal static int Skips(RotationDefinition definition, int start, IReadOnlyList<string> kinds)
+    /// <summary>Required steps (and rotation ends, and names) a rotation begun at <paramref name="start"/> could not have seen.</summary>
+    internal static int Skips(RotationDefinition definition, int start, IReadOnlyList<string> kinds, IReadOnlyList<string>? before = null)
     {
         var steps = definition.Steps;
         // One slot per step and one for the rotation's end; slot j belongs to rotation j / slots.
@@ -31,12 +34,20 @@ internal static class RotationAlignment
         var position = start == RotationEnd ? steps.Length : start;
         var skips = 0;
         var visited = start == RotationEnd ? new HashSet<string>() : [steps[start].Id];
+        // Names read while standing in the current step.
+        var named = new HashSet<string>();
+        // Names read before tracking began belong to the step before the candidate (the previous rotation's last step
+        // before the rotation's end or the first step).
+        var previous = start is RotationEnd or 0 ? steps.Length - 1 : start - 1;
+        foreach (var kind in before ?? [])
+            if (definition.Evidence?.TryGetValue(kind, out var seenBefore) == true && !seenBefore.Contains(steps[previous].Id)) skips++;
         foreach (var kind in kinds.Skip(1))
         {
             // A monster name moves nothing; it only has to fit the step the candidate stands in.
             if (definition.Evidence?.TryGetValue(kind, out var seenIn) == true)
             {
                 if (position % slots == steps.Length || !seenIn.Contains(steps[position % slots].Id)) skips++;
+                named.Add(kind);
                 continue;
             }
             if (Ambient(kind)) continue;
@@ -48,6 +59,10 @@ internal static class RotationAlignment
                 if (Fits(next, kind)) target = next;
             // Nothing within two rotations fits: the message itself is out of place.
             if (target is not { } found) { skips++; continue; }
+            // Leaving a step whose name never showed: it was not that step.
+            if (position % slots < steps.Length && definition.ExpectedEvidence?.TryGetValue(steps[position % slots].Id, out var expected) == true &&
+                !named.Contains(expected)) skips++;
+            named.Clear();
             for (var between = position + 1; between <= found; between++)
             {
                 if (between % slots == steps.Length)

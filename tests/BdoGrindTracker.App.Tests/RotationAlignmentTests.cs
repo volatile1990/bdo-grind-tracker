@@ -11,15 +11,19 @@ public sealed class RotationAlignmentTests
     private static int[] Prayers => [Step("cycle-1-prayer"), Step("cycle-2-prayer"), Step("cycle-3-prayer")];
 
     [Fact]
-    public void TwoCyclesWithoutElionsTearsCanOnlyBeTheSecondAndThird()
+    public void AFinalPhaseWithoutElionsTearsFollowedByOneWithPriestOfTheEndAreTheSecondAndThird()
     {
-        Assert.Equal(Step("cycle-2-prayer"), RotationAlignment.Resolve(Magaia, Prayers, [.. Cycle, .. Cycle]));
+        string[] third = ["prayer", "knight", "knight", "knight", "doubt", "priest", "afk", "end"];
+        Assert.Equal(Step("cycle-2-prayer"), RotationAlignment.Resolve(Magaia, Prayers, [.. Cycle, .. third]));
     }
 
     [Fact]
-    public void OneCycleWithoutElionsTearsLeavesTwoCandidates()
+    public void AFinalPhaseThatReachesTheAfkPhaseWithoutAnyNameIsTheSecondCycle()
     {
-        Assert.Null(RotationAlignment.Resolve(Magaia, Prayers, Cycle));
+        // Neither Elion's Tears nor Priest of the End: only the second cycle's Unbroken Oath is left.
+        Assert.Equal(Step("cycle-2-prayer"), RotationAlignment.Resolve(Magaia, Prayers, Cycle));
+        // Before the final phase ends, nothing tells the cycles apart.
+        Assert.Null(RotationAlignment.Resolve(Magaia, Prayers, ["prayer", "knight", "knight", "knight", "doubt"]));
         Assert.Null(RotationAlignment.Resolve(Magaia, Prayers, ["prayer", "knight"]));
     }
 

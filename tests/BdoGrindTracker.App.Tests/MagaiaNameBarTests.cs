@@ -66,8 +66,9 @@ public sealed class MagaiaNameBarTests
         int Step(string id) => Array.FindIndex(RotationDefinition.Magaia.Steps, step => step.Id == id);
         int[] prayers = [Step("cycle-1-prayer"), Step("cycle-2-prayer"), Step("cycle-3-prayer")];
         string[] finalPhase = ["prayer", "knight", "knight", "knight", "doubt"];
-        // Without a name the second and third cycle look the same.
-        Assert.Null(RotationAlignment.Resolve(RotationDefinition.Magaia, prayers, [.. finalPhase, "afk"]));
+        // Until the final phase ends without a name, the second and third cycle look the same.
+        Assert.Null(RotationAlignment.Resolve(RotationDefinition.Magaia, prayers, finalPhase));
+        Assert.Equal(Step("cycle-2-prayer"), RotationAlignment.Resolve(RotationDefinition.Magaia, prayers, [.. finalPhase, "afk"]));
         Assert.Equal(Step("cycle-3-prayer"), RotationAlignment.Resolve(RotationDefinition.Magaia, prayers, [.. finalPhase, "priest"]));
         Assert.Equal(Step("cycle-1-prayer"), RotationAlignment.Resolve(RotationDefinition.Magaia, prayers, [.. finalPhase, "tear"]));
     }
@@ -90,6 +91,50 @@ public sealed class MagaiaNameBarTests
         Assert.Equal("cycle-3-doubt", placed.CurrentPhaseId);
         // The name is no step: the run's own events stay the banners.
         Assert.DoesNotContain(placed.Events, e => e.Kind == "priest");
+    }
+
+    // Live test 24.09.2026, tracking begun in the first cycle's AFK phase at 16:24:10 (seconds from there).
+    private static readonly (string Kind, double Seconds)[] BegunInTheFirstAfkPhase =
+    [
+        ("tear", 0), ("end", 68), ("prayer", 324), ("knight", 434), ("knight", 487), ("knight", 555), ("doubt", 563),
+        ("afk", 624), ("end", 700), ("prayer", 949), ("knight", 1066), ("knight", 1113), ("knight", 1180), ("doubt", 1187),
+        ("priest", 1191), ("afk", 1253), ("end", 1330),
+    ];
+
+    private static RotationPlatform PickedUp(bool lingeringName, double until)
+    {
+        var tracker = new RotationPlatform(RotationDefinition.Magaia);
+        tracker.Observe("start", "start", Epoch.AddSeconds(-3000));
+        tracker.InterruptAt("Tracking pausiert · warte auf Rotationsstart", Epoch.AddSeconds(-2000));
+        foreach (var (kind, seconds) in BegunInTheFirstAfkPhase.Where(e => e.Seconds <= until && (lingeringName || e.Seconds > 0)))
+            tracker.Observe(kind, kind, Epoch.AddSeconds(seconds));
+        return tracker;
+    }
+
+    [Fact]
+    public void AnElionsTearLingeringInTheAfkPhasePlacesTheNextCycleRightAway()
+    {
+        // The name still showed from the first final phase: the AFK end after it opens the second cycle.
+        var placed = PickedUp(lingeringName: true, until: 68).Snapshot(Epoch.AddSeconds(70));
+        Assert.Equal(("cycle-2", 0.0), (placed.AlignedSection, placed.AlignedAt!.Value));
+    }
+
+    [Fact]
+    public void AFinalPhaseThatReachesTheAfkPhaseWithoutAnyNameIsTheSecondCycle()
+    {
+        // Without the lingering name: nothing is certain through the second cycle's final phase ...
+        Assert.Null(PickedUp(lingeringName: false, until: 563).Snapshot(Epoch.AddSeconds(600)).AlignedAt);
+        // ... until it reaches the AFK phase without Elion's Tears or Priest of the End.
+        var placed = PickedUp(lingeringName: false, until: 624).Snapshot(Epoch.AddSeconds(630));
+        Assert.Equal(("cycle-2", 0.0), (placed.AlignedSection, placed.AlignedAt!.Value));
+        Assert.Equal("cycle-2-afk", placed.CurrentPhaseId);
+
+        // The third cycle's Priest of the End agrees, and the rotation's end opens a clean next rotation.
+        var tracker = PickedUp(lingeringName: false, until: 1330);
+        var last = tracker.Snapshot(Epoch.AddSeconds(1335));
+        Assert.Equal(0, last.AlignedAt);
+        Assert.Null(last.AlignedSection);
+        Assert.Equal("incomplete", tracker.DrainCompleted().Where(r => r.Run.Outcome != "superseded").OrderBy(r => r.StartedAt).Last().Run.Outcome);
     }
 
     [Fact]
