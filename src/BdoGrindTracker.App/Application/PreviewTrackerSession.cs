@@ -81,6 +81,9 @@ internal sealed class PreviewTrackerSession : ITrackerSession
             Loot = new(totals, totals.Values.Sum(), Overlay.MagaiaDemoSession.ConfirmedEventCount),
             Silver = SilverValuation.Calculate(totals, Prices, Preferences.Tax),
             DropHistory = Overlay.MagaiaDemoSession.DropHistory,
+            // Illustrative breaks, so the preview shows the timeline's pause gaps.
+            Pauses = [new(TimeSpan.FromMinutes(30), observed.AddMinutes(-40), observed.AddMinutes(-32), SessionPause.Manual),
+                new(TimeSpan.FromMinutes(52), observed.AddMinutes(-12), observed.AddMinutes(-9), SessionPause.Automatic)],
             Rotation = new() { SpotId = LootSpotCatalog.MagaiaId, HasProfile = true, SupportsSpecialEvents = true,
                 SessionRotations = Overlay.MagaiaDemoSession.Completed(observed),
                 SessionSpecialEvents = Overlay.MagaiaDemoSession.Rotations.Sum(rotation => Overlay.MagaiaDemoSession.Fragments(rotation.Messages).Count) },

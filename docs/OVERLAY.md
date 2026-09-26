@@ -143,6 +143,9 @@ Steuereinstellungen bewertet und in der Höhe abgeflacht, damit ein wertvoller D
 übrigen Abschnitte nicht verdrängt. Abschnitte und Skala beziehen sich auf den sichtbaren
 Zeitraum. Fehlende Preise nennt eine Zeile unter dem Zeitstrahl. Die Referenzgröße ist
 360 × 144; kleinere Module verkleinern den ganzen Inhalt. Die Farben folgen dem Overlay-Theme.
+Jede Pause (manuell, automatisch oder durch Schließen der App) ist wie in der Live-Ansicht eine
+schraffierte Lücke fester Breite mit Pausenzeichen, unabhängig von ihrer Dauer; in der
+Editor-Vorschau nennt der Tooltip Art und Dauer.
 Module des früheren Silberverlaufs werden beim Laden zur Session-Timeline; ihr Zeitraum bleibt
 erhalten. Nach einem App-Neustart verwendet die Timeline die gespeicherten Drop-Zeitpunkte
 der Session. Die Wiederherstellung erfolgt pausiert; Offlinezeit zählt nicht mit. Bei

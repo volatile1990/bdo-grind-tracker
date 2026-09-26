@@ -82,6 +82,7 @@ internal sealed class LootHistoryStore
                 RotationTimeline = entry.RotationTimeline ?? [],
                 CombatStats = CombatStatsSpotRules.ForSpot(entry.CombatStats, entry.SpotId),
                 DropHistory = SessionDropHistory.Normalize(entry.DropHistory, entry.Duration, entry.Totals),
+                Pauses = SessionPauses.Normalize(entry.Pauses, entry.Duration),
                 CharacterClass = string.IsNullOrWhiteSpace(entry.CharacterClass)
                     ? null
                     : entry.CharacterClass.Trim(),

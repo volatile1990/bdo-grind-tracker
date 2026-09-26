@@ -70,7 +70,7 @@ public sealed class OverlaySessionTimelineTests
         Assert.True(timeline.IsSimplified);
         Assert.Equal(2, timeline.Rotations.Count);
         var first = timeline.Rotations[0];
-        Assert.Equal((.1, .7, "fastest"), (first.Left, first.Right, first.Status));
+        Assert.Equal((.1, .7, "fastest"), (Round(first.Left), Round(first.Right), first.Status));
         Assert.Equal(new[] { (.1, .6, false), (.6, .7, true) }, first.Phases.Select(part => (Round(part.Left), Round(part.Right), part.IsAfk)));
         Assert.All(first.Phases, part => Assert.Equal("", part.Color));
         // Without recorded mechanics the running rotation is one stretch.
@@ -436,6 +436,57 @@ public sealed class OverlaySessionTimelineTests
     }
 
     [Fact]
+    public void EveryPauseIsAGapOfOneWidthThatCutsWhatCrossesIt()
+    {
+        var noon = new DateTimeOffset(2026, 9, 26, 12, 0, 0, TimeSpan.Zero);
+        var snapshot = WithRotations(Snapshot(TimeSpan.FromSeconds(600), (100, 5_000_000), (320, 1_000_000), (500, 2_000_000)),
+            Rotation(250, 100, "complete")) with
+        {
+            TrashDrops = [new(TimeSpan.FromSeconds(295), "Trash", 10), new(TimeSpan.FromSeconds(305), "Trash", 10)],
+            // Two pauses at the same moment and a five hour one: all gaps are the same.
+            Pauses = [new(TimeSpan.FromSeconds(300), noon, noon.AddMinutes(1), SessionPause.Manual),
+                new(TimeSpan.FromSeconds(300), noon.AddMinutes(2), noon.AddMinutes(3), SessionPause.Automatic),
+                new(TimeSpan.FromSeconds(450), noon.AddHours(1), noon.AddHours(6), SessionPause.Closed)],
+        };
+
+        var timeline = Create(Widget() with { TimelineLayers = [.. SessionTimelineLayers.All.Select(layer => layer.Id)] }, snapshot);
+
+        Assert.Equal(2, timeline.Gaps.Count);
+        Assert.Equal(2, timeline.Gaps[0].Pauses.Count);
+        Assert.All(timeline.Gaps, gap => Assert.Equal(OverlaySessionTimeline.PauseGap / PlotWidth, gap.Right - gap.Left, 9));
+        Assert.Equal(3, timeline.SilverCurves.Count);
+        Assert.Equal(3, timeline.Baseline.Count);
+        Assert.True(Assert.Single(timeline.Rotations).Phases.Count >= 2);
+        foreach (var gap in timeline.Gaps)
+        {
+            bool Inside(double left, double right) => right > gap.Left + 1e-9 && left < gap.Right - 1e-9;
+            Assert.DoesNotContain(timeline.TrashBars, bar => Inside(bar.Left, bar.Right));
+            Assert.DoesNotContain(timeline.Baseline, piece => Inside(piece.Left, piece.Right));
+            Assert.DoesNotContain(timeline.Rotations.SelectMany(rotation => rotation.Phases), part => Inside(part.Left, part.Right));
+            Assert.DoesNotContain(timeline.SilverCurves.SelectMany(curve => curve), point => Inside(point.X, point.X));
+        }
+        // Without pauses the same timeline has no gaps and one stretch.
+        var plain = Create(Widget(), snapshot with { Pauses = [] });
+        Assert.Equal((0, 1), (plain.Gaps.Count, plain.SilverCurves.Count));
+    }
+
+    [Fact]
+    public async Task ThePreviewNamesEveryPauseOfAGap()
+    {
+        var noon = new DateTimeOffset(2026, 9, 26, 12, 0, 0, TimeSpan.Zero);
+        var snapshot = Snapshot(TimeSpan.FromSeconds(600), (100, 5_000_000)) with
+        {
+            Pauses = [new(TimeSpan.FromSeconds(300), noon, noon.AddMinutes(12), SessionPause.Manual),
+                new(TimeSpan.FromSeconds(300), noon.AddMinutes(20), noon.AddMinutes(24), SessionPause.Automatic)],
+        };
+
+        var html = await RenderAsync(Widget(), snapshot);
+
+        Assert.Equal(1, Regex.Count(html, "class=\"overlay-timeline-pause\""));
+        Assert.Contains("Pause · 00:12:00\nAutomatische Pause · 00:04:00", html);
+    }
+
+    [Fact]
     public void TheNativeOverlayRedrawsTheTimelineWhenItsDataChanges()
     {
         var snapshot = OverlaySnapshot.Demo;
@@ -447,6 +498,7 @@ public sealed class OverlaySessionTimelineTests
         Assert.True(state.Matches(settings, snapshot with { Consumables = ConsumablesPresentation.Create(null, "de") }, size));
         Assert.False(state.Matches(settings, snapshot with { SilverDrops = [.. snapshot.SilverDrops, new(TimeSpan.FromSeconds(939), 5)] }, size));
         Assert.False(state.Matches(settings, snapshot with { TrashDrops = [new(TimeSpan.FromSeconds(939), "Trash", 5)] }, size));
+        Assert.False(state.Matches(settings, snapshot with { Pauses = [.. snapshot.Pauses.SkipLast(1)] }, size));
         Assert.False(state.Matches(settings, snapshot with { SessionElapsed = snapshot.SessionElapsed + TimeSpan.FromSeconds(1) }, size));
         Assert.False(state.Matches(settings, snapshot with
         {

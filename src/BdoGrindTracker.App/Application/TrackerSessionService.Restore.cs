@@ -54,6 +54,7 @@ internal sealed partial class TrackerSessionService
                 Totals = new(newerHistory.Totals, StringComparer.OrdinalIgnoreCase),
                 // Legacy history can recover quantities but cannot establish a
                 // newer last-drop time for items whose quantities changed.
+                Pauses = newerHistory.Pauses ?? saved.Pauses,
                 DropHistory = newerHistory.DropHistory ?? saved.DropHistory?.Where(drop =>
                     newerHistory.Totals.TryGetValue(drop.ItemName, out var quantity) &&
                     saved.Totals.TryGetValue(drop.ItemName, out var previous) && quantity == previous).ToArray(),
@@ -83,6 +84,10 @@ internal sealed partial class TrackerSessionService
         _uiMailbox.Restore(summary, saved.ManualLootItems);
         _dropHistory.Restore(saved.SessionId, summary, saved.Duration, saved.DropHistory);
         _sessionClock.RestorePaused(saved.Duration);
+        // A session that was still tracking when Grindcrest ended without saving its pause was paused by that.
+        var pauses = SessionPauses.Normalize(saved.Pauses, saved.Duration);
+        SetPauses(pauses.Count > 0 && pauses[^1].IsOpen ? pauses
+            : [.. pauses, new SessionPause(saved.Duration, saved.UpdatedAt, null, SessionPause.Closed)]);
         _agrisSessionTracker.Restore(saved.Duration, new(saved.AgrisActiveDuration, saved.AgrisObservedDuration));
         _experienceSessionTracker.Restore(saved.Duration, new(saved.ExperienceGainedPercentagePoints,
             saved.ExperienceObservedDuration, saved.ExperienceStartLevel, saved.ExperienceEndLevel));
@@ -137,6 +142,27 @@ internal sealed partial class TrackerSessionService
 
     // UI delivery can lag behind the drop. Use the activity clock so removing
     // idle time on automatic pause does not also remove the newest marker.
+    /// <summary>Opens a pause at the current active time, unless one is already open.</summary>
+    private void BeginPause(string kind, DateTimeOffset startedAt)
+    {
+        if (!_hasSession || _demoMode || _pauses.Count > 0 && _pauses[^1].IsOpen) return;
+        SetPauses([.. _pauses, new SessionPause(_sessionClock.Elapsed, startedAt, null, kind)]);
+    }
+
+    /// <summary>Closes the open pause: tracking resumed.</summary>
+    private void EndPause(DateTimeOffset endedAt)
+    {
+        if (_pauses.Count == 0 || !_pauses[^1].IsOpen) return;
+        SetPauses([.. _pauses[..^1], _pauses[^1] with { EndedAt = endedAt }]);
+    }
+
+    private void SetPauses(IReadOnlyList<SessionPause> pauses)
+    {
+        _pauses.Clear();
+        _pauses.AddRange(pauses);
+        _pausesView = Array.AsReadOnly(_pauses.ToArray());
+    }
+
     private IReadOnlyList<SessionDropSample> CaptureDropHistory(LootSessionSnapshot summary, TimeSpan duration,
         bool manualCorrection = false) =>
         _dropHistory.Update(State with
@@ -190,6 +216,7 @@ internal sealed partial class TrackerSessionService
                     SessionSubmitted = _sessionSubmitted,
                     Totals = new(summary.Totals, StringComparer.OrdinalIgnoreCase),
                     DropHistory = drops,
+                    Pauses = _pausesView,
                     ConfirmedEventCount = summary.ConfirmedEventCount,
                     ManualLootItems = _sessionManualLootItems.ToArray(),
                     GarmothLocallyModified = _sessionGarmothLocallyModified,

@@ -622,22 +622,30 @@ internal sealed class NativeOverlayRenderer : IDisposable
         if (timeline.Trash is { } trash)
         {
             using var bars = new SolidBrush(Color.FromArgb(158, Html(trash.Color)));
-            foreach (var bar in trash.Bars.Where(bar => bar.Value > 0))
+            foreach (var bar in timeline.TrashBars)
             {
-                var top = At(bar.Start, bar.Filled);
-                graphics.FillRectangle(bars, top.X, top.Y, Math.Max(.8f, (float)(bar.End - bar.Start) * plot.Width),
+                var top = At(bar.Left, bar.Height);
+                graphics.FillRectangle(bars, top.X, top.Y, Math.Max(.8f, (float)(bar.Right - bar.Left) * plot.Width),
                     Math.Max(1, plot.Bottom - top.Y));
             }
         }
-        if (timeline.Silver is { Bars.Count: > 0 } silver)
+        if (timeline.SilverCurves.Count > 0)
         {
-            var points = silver.Bars.Select(bar => At((bar.Start + bar.End) / 2, bar.Filled)).ToArray();
             using var area = new SolidBrush(Color.FromArgb(51, colors.Silver));
-            graphics.FillPolygon(area, [new PointF(points[0].X, plot.Bottom), .. points, new PointF(points[^1].X, plot.Bottom)]);
             using var curve = new Pen(colors.Silver, 1.75f) { LineJoin = LineJoin.Round };
-            if (points.Length > 1) graphics.DrawLines(curve, points);
+            // One stretch between two pauses at a time: no line crosses a gap.
+            foreach (var stretch in timeline.SilverCurves)
+            {
+                var points = stretch.Select(point => At(point.X, point.Height)).ToArray();
+                if (points.Length == 0) continue;
+                graphics.FillPolygon(area, [new PointF(points[0].X, plot.Bottom), .. points, new PointF(points[^1].X, plot.Bottom)]);
+                if (points.Length > 1) graphics.DrawLines(curve, points);
+            }
         }
-        using (var axis = new Pen(Color.FromArgb(150, SlotEdge), 1)) graphics.DrawLine(axis, plot.Left, plot.Bottom, plot.Right, plot.Bottom);
+        using (var axis = new Pen(Color.FromArgb(150, SlotEdge), 1))
+            foreach (var piece in timeline.Baseline)
+                graphics.DrawLine(axis, plot.X + (float)piece.Left * plot.Width, plot.Bottom, plot.X + (float)piece.Right * plot.Width, plot.Bottom);
+        DrawTimelineGaps(graphics, timeline, RectangleF.FromLTRB(plot.Left, plot.Top, plot.Right, inner.Bottom), fontScale);
         using (var special = new SolidBrush(colors.Special))
             foreach (var x in timeline.SpecialEvents.Select(value => plot.X + (float)value * plot.Width))
                 graphics.FillPolygon(special, [new PointF(x, plot.Bottom - 6 * fontScale), new(x + 3.5f * fontScale, plot.Bottom),
@@ -646,6 +654,29 @@ internal sealed class NativeOverlayRenderer : IDisposable
         if (timeline.ShowsRotations)
             DrawTimelineRotations(graphics, timeline, RectangleF.FromLTRB(plot.Left,
                 plot.Bottom + (float)OverlaySessionTimeline.BandGap * fontScale, plot.Right, inner.Bottom), colors, fontScale);
+    }
+
+    /// <summary>A pause is a hatched gap of one width with a pause sign in its middle; its length is not drawn.</summary>
+    private void DrawTimelineGaps(Graphics graphics, OverlaySessionTimeline timeline, RectangleF area, float fontScale)
+    {
+        if (timeline.Gaps.Count == 0) return;
+        using var hatch = new HatchBrush(HatchStyle.WideUpwardDiagonal, Color.FromArgb(70, Muted), Color.Transparent);
+        using var edge = new Pen(Color.FromArgb(110, SlotEdge), 1) { DashPattern = [2, 2] };
+        using var sign = new SolidBrush(Muted);
+        foreach (var gap in timeline.Gaps)
+        {
+            var bounds = RectangleF.FromLTRB(area.X + (float)gap.Left * area.Width, area.Top, area.X + (float)gap.Right * area.Width, area.Bottom);
+            if (bounds.Width <= 0) continue;
+            graphics.FillRectangle(hatch, bounds);
+            graphics.DrawLine(edge, bounds.Left, bounds.Top, bounds.Left, bounds.Bottom);
+            graphics.DrawLine(edge, bounds.Right, bounds.Top, bounds.Right, bounds.Bottom);
+            var bar = Math.Min(2 * fontScale, bounds.Width / 5);
+            var height = Math.Min(10 * fontScale, bounds.Height / 2);
+            if (bar < .5f || height < 2) continue;
+            var middle = bounds.Y + bounds.Height / 2 - height / 2;
+            graphics.FillRectangle(sign, bounds.X + bounds.Width / 2 - bar * 1.75f, middle, bar, height);
+            graphics.FillRectangle(sign, bounds.X + bounds.Width / 2 + bar * .75f, middle, bar, height);
+        }
     }
 
     /// <summary>
@@ -742,9 +773,10 @@ internal sealed class NativeOverlayRenderer : IDisposable
                         graphics.FillRectangle(fill, segment);
                         if (part.IsSpecial)
                             graphics.DrawRectangle(outline, segment.X + .75f, segment.Y + .75f, segment.Width - 1.5f, segment.Height - 1.5f);
+                        // The rail runs under each phase, so it breaks at a pause's gap as well.
+                        fill.Color = style.State;
+                        graphics.FillRectangle(fill, X(part.Left), band.Bottom - rail, X(part.Right) - X(part.Left), rail);
                     }
-                    fill.Color = style.State;
-                    graphics.FillRectangle(fill, bounds.X, band.Bottom - rail, bounds.Width, rail);
                 }
                 graphics.Restore(clip);
             }

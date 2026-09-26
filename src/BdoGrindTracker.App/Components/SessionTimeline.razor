@@ -65,6 +65,14 @@
                  @onpointerdown="PointerDown" @onpointerdown:preventDefault="true" @onpointermove="PointerMove"
                  @onpointerup="PointerUp" @onpointercancel="PointerUp" @onlostpointercapture="PointerUp">
                 <svg viewBox="0 0 1000 240" preserveAspectRatio="none" role="img" aria-label="@T("Zeitstrahl der Session")">
+                    <defs>
+                        <clipPath id="@_clipId">
+                            @foreach (var (left, right) in Visible)
+                            {
+                                <rect x="@Num(left)" y="-10" width="@Num(Math.Max(0, right - left))" height="260" />
+                            }
+                        </clipPath>
+                    </defs>
                     @foreach (var tick in Ticks)
                     {
                         <line x1="@Num(X(tick))" x2="@Num(X(tick))" y1="16" y2="@Num(Baseline)" class="session-timeline-grid" />
@@ -73,6 +81,8 @@
                                   class="session-timeline-tick">@Presentation.Duration(tick)</text>
                         </g>
                     }
+                    @* Everything on the time axis is cut at the gaps of the pauses. *@
+                    <g clip-path="url(#@_clipId)">
                     @if (_series.Count > 0)
                     {
                         <line x1="0" x2="1000" y1="@Num(PlotTop)" y2="@Num(PlotTop)" class="session-timeline-scale" />
@@ -84,9 +94,10 @@
                         <g class="session-timeline-bars" style="--layer-color:@series.Color">
                             @foreach (var bar in series.Bars.Where(bar => bar.Value > 0))
                             {
-                                var width = (bar.End - bar.Start) * 1000 / _series.Count;
+                                var (left, box) = BarBox(bar);
+                                var width = box / _series.Count;
                                 var height = bar.Filled * PlotHeight;
-                                <rect x="@Num(bar.Start * 1000 + column * width)" y="@Num(Baseline - height)"
+                                <rect x="@Num(left + column * width)" y="@Num(Baseline - height)"
                                       width="@Num(Math.Max(.8, width))" height="@Num(Math.Max(1, height))">
                                     <title>@BarTitle(series, bar)</title>
                                 </rect>
@@ -171,11 +182,18 @@
                         <line class="session-timeline-marker-stem" x1="@Num(Math.Clamp(X(marker.At), 8, 992))" x2="@Num(Math.Clamp(X(marker.At), 8, 992))"
                               y1="@Num(marker.Icon + 10)" y2="@Num(Baseline)" stroke="@marker.Items[0].Color" />
                     }
+                    </g>
+                    @* While paused, now lies behind the gap of the running pause. *@
                     <g class="session-timeline-now">
-                        <line x1="@Num(Math.Min(X(State.Elapsed), 998))" x2="@Num(Math.Min(X(State.Elapsed), 998))" y1="16" y2="@Num(BandBottom)" />
-                        <path d="@($"M {Num(Math.Min(X(State.Elapsed), 998) - 4)} 16 H {Num(Math.Min(X(State.Elapsed), 998) + 4)} L {Num(Math.Min(X(State.Elapsed), 998))} 23 Z")" />
+                        <line x1="@Num(Math.Min(XAfter(State.Elapsed), 998))" x2="@Num(Math.Min(XAfter(State.Elapsed), 998))" y1="16" y2="@Num(BandBottom)" />
+                        <path d="@($"M {Num(Math.Min(XAfter(State.Elapsed), 998) - 4)} 16 H {Num(Math.Min(XAfter(State.Elapsed), 998) + 4)} L {Num(Math.Min(XAfter(State.Elapsed), 998))} 23 Z")" />
                     </g>
                 </svg>
+                @foreach (var gap in PauseGaps)
+                {
+                    <div class="session-timeline-pause" title="@gap.Title"
+                         style="left:@Num(gap.Left / 10)%;width:@Num(gap.Width / 10)%;top:@Percent(16)%;bottom:@Percent(Height - BandBottom)%"><span></span></div>
+                }
                 @if (ScaleCaption is { } caption)
                 {
                     <div class="session-timeline-scale-caption" style="top:@Percent(PlotTop - 2)%">@caption</div>

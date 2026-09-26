@@ -31,6 +31,8 @@ public partial class SessionTimeline
     private const double RailTop = 206, BandBottom = 212;
     // Drop icons in pixels: the stacked frame of a numbered icon reaches 3 pixels into the gap.
     private const double DropSize = 26, DropGap = 5;
+    // Every pause is a gap of this many pixels, however long it lasted.
+    private const double PauseGap = 16;
 
     private static readonly IReadOnlyDictionary<string, object> OpenAttribute =
         new Dictionary<string, object> { ["open"] = "open" };
@@ -45,6 +47,9 @@ public partial class SessionTimeline
     private double _trackWidth = 1000;
     private TimeSpan _from, _to;
     private IReadOnlyList<SessionRotationSpan> _spans = [];
+    private SessionTimelineAxis? _axis;
+    // Content inside a pause's gap is cut away; the id is unique for every timeline on the page.
+    private readonly string _clipId = "session-timeline-clip-" + Guid.NewGuid().ToString("N");
     private IReadOnlyList<TimelineRotation> _rotations = [];
     private IReadOnlyList<SessionTimelineSeries> _series = [];
     private SessionTimelineSeries? _silver;
@@ -230,27 +235,65 @@ public partial class SessionTimeline
         if (from + visible > Span) from = Span - visible;
         _from = from < TimeSpan.Zero ? TimeSpan.Zero : from;
         _to = _from + visible;
+        _axis = null;
     }
+
+    /// <summary>The window in viewBox units, with a gap of the same pixel width at every pause of the session.</summary>
+    private SessionTimelineAxis Axis => _axis ??= new(_from, _to, State.Pauses.Select(pause => pause.At), 1000,
+        PauseGap * 1000 / Math.Max(1, _trackWidth));
 
     /// <summary>SVG coordinates never depend on the user's culture: a decimal comma would break every path.</summary>
     private static string Num(double value) => value.ToString("0.###", CultureInfo.InvariantCulture);
 
-    private double X(TimeSpan at)
-    {
-        var window = (_to - _from).TotalSeconds;
-        return window <= 0 ? 0 : Math.Clamp((at - _from).TotalSeconds / window, -.1, 1.1) * 1000;
-    }
-    private double Width(TimeSpan length)
-    {
-        var window = (_to - _from).TotalSeconds;
-        return window <= 0 ? 0 : Math.Max(1, length.TotalSeconds / window * 1000);
-    }
+    /// <summary>Position of a moment in viewBox units; one exactly at a pause lies before its gap.</summary>
+    private double X(TimeSpan at) => _to <= _from ? 0 : Math.Clamp(Axis.X(at), -100, 1100);
+    /// <summary>Position of a moment that starts something; one exactly at a pause lies behind its gap.</summary>
+    private double XAfter(TimeSpan at) => _to <= _from ? 0 : Math.Clamp(Axis.XAfter(at), -100, 1100);
     /// <summary>A span cut to the visible picture: a rotation reaching past an edge keeps its true other edge.</summary>
     private (double Left, double Width) Clip(TimeSpan from, TimeSpan to)
     {
-        var left = Math.Clamp(X(from), 0, 1000);
+        var left = Math.Clamp(XAfter(from), 0, 1000);
         return (left, Math.Max(1, Math.Clamp(X(to), 0, 1000) - left));
     }
+
+    /// <summary>A bar's interval on the axis; one that holds a pause reaches across its gap, which cuts it.</summary>
+    private (double Left, double Width) BarBox(SessionTimelineBar bar)
+    {
+        var window = (_to - _from).TotalSeconds;
+        var left = XAfter(_from + TimeSpan.FromSeconds(bar.Start * window));
+        return (left, Math.Max(0, X(_from + TimeSpan.FromSeconds(bar.End * window)) - left));
+    }
+    private double BarMiddle(SessionTimelineBar bar)
+    {
+        var (left, width) = BarBox(bar);
+        return left + width / 2;
+    }
+
+    /// <summary>What is drawn stays outside the gaps: the stretches between them, reaching past both edges.</summary>
+    private IReadOnlyList<(double Left, double Right)> Visible
+    {
+        get
+        {
+            var pieces = Axis.Pieces(_from, _to).ToArray();
+            if (pieces.Length == 0) return [(-100, 1100)];
+            if (Axis.Gaps is not [var first, ..] || first > _from) pieces[0] = (-100, pieces[0].Right);
+            if (Axis.Gaps is not [.., var last] || last < _to) pieces[^1] = (pieces[^1].Left, 1100);
+            return pieces;
+        }
+    }
+
+    /// <summary>Each gap with what happened there; pauses at the same moment share one gap.</summary>
+    private IEnumerable<(double Left, double Width, string Title)> PauseGaps => Axis.Gaps.Select((at, index) =>
+        (Axis.GapLeft(index), Axis.GapWidth, string.Join("\n", State.Pauses.Where(pause => pause.At == at).Select(pause =>
+            T(PauseLabel(pause.Kind)) + " · " + Presentation.Duration(pause.Duration(DateTimeOffset.UtcNow)) +
+            (pause.IsOpen ? " · " + T("läuft") : ""))) + "\n" + F("nach {0} aktiver Zeit", Presentation.Duration(at))));
+
+    private static string PauseLabel(string kind) => kind switch
+    {
+        SessionPause.Automatic => "Automatische Pause",
+        SessionPause.Closed => "App geschlossen",
+        _ => "Pause",
+    };
     private static double Y(double height) => Baseline - Math.Clamp(height, 0, 1) * PlotHeight;
     private static string Percent(double units) => Num(units / Height * 100);
 
@@ -308,9 +351,10 @@ public partial class SessionTimeline
                 foreach (var bar in series.Bars)
                 {
                     if (bar.Value <= 0) continue;
-                    var width = (bar.End - bar.Start) * 1000 / _series.Count;
+                    var (left, box) = BarBox(bar);
+                    var width = box / _series.Count;
                     var inside = bar.Filled > .86;
-                    yield return new((bar.Start * 1000 + (index + .5) * width) / 10,
+                    yield return new((left + (index + .5) * width) / 10,
                         (inside ? Y(bar.Filled) + 13 : Y(bar.Filled) - 3) / Height * 100,
                         series.IsSilver ? Silver(bar.Value) : Number(bar.Value),
                         series.Color, BarTitle(series, bar), inside);
@@ -321,10 +365,10 @@ public partial class SessionTimeline
 
     /// <summary>The silver of each interval as a curve through the middle of every interval.</summary>
     private string SilverCurve => _silver is not { Bars.Count: > 0 } silver ? ""
-        : string.Join(" ", silver.Bars.Select(bar => Num((bar.Start + bar.End) / 2 * 1000) + "," + Num(Y(bar.Filled))));
+        : string.Join(" ", silver.Bars.Select(bar => Num(BarMiddle(bar)) + "," + Num(Y(bar.Filled))));
     private string SilverArea => _silver is not { Bars.Count: > 0 } silver ? ""
-        : Num((silver.Bars[0].Start + silver.Bars[0].End) / 2 * 1000) + "," + Num(Baseline) + " " + SilverCurve + " " +
-          Num((silver.Bars[^1].Start + silver.Bars[^1].End) / 2 * 1000) + "," + Num(Baseline);
+        : Num(BarMiddle(silver.Bars[0])) + "," + Num(Baseline) + " " + SilverCurve + " " +
+          Num(BarMiddle(silver.Bars[^1])) + "," + Num(Baseline);
 
     private IEnumerable<TimeSpan> SpecialEvents => !IsOn("special") ? []
         : _spans.SelectMany(span => span.SpecialEvents).Where(at => at >= _from && at <= _to);

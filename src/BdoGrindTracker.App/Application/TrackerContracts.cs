@@ -103,6 +103,8 @@ internal sealed record TrackerState
     public IReadOnlyList<string> ManualLootItems { get; init; } = [];
     public SilverValuationResult Silver { get; init; } = new(0, 0, 0, [], [], false);
     public IReadOnlyList<SessionDropSample> DropHistory { get; init; } = [];
+    /// <summary>Every pause of this session on its active-time axis; the last one is open while it is paused.</summary>
+    public IReadOnlyList<SessionPause> Pauses { get; init; } = [];
     public BdoGrindTracker.App.Overlay.RotationMonitorSnapshot Rotation { get; init; } = new();
     public string PriceStatus { get; init; } = "NPC- und Festwerte";
     public string Status { get; init; } = "Bereit für deine nächste Session.";

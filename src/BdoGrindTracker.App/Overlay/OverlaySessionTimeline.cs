@@ -29,6 +29,16 @@ public sealed record OverlayTimelineMarker(double X, double Height, IReadOnlyLis
 
 public sealed record OverlayTimelineTick(double X, string Label);
 
+/// <param name="Left">Left edge as a share of the plot width, 0..1.</param>
+/// <param name="Height">Share of the plot height the value reaches, 0..1.</param>
+public sealed record OverlayTimelineBar(double Left, double Right, double Height);
+
+/// <param name="X">Position as a share of the plot width, 0..1.</param>
+public sealed record OverlayTimelinePoint(double X, double Height);
+
+/// <param name="Pauses">Every pause at this moment of active time; they share one gap.</param>
+public sealed record OverlayTimelineGap(double Left, double Right, IReadOnlyList<SessionPause> Pauses);
+
 /// <summary>
 /// The session timeline as an overlay module, shared by the editor preview and the native overlay. Both renderers
 /// draw it from these shares of the plot, so they agree on every position.
@@ -38,9 +48,23 @@ public sealed record OverlaySessionTimeline(TimeSpan From, TimeSpan To, string C
     IReadOnlyList<OverlayTimelineRotation> Rotations, IReadOnlyList<double> SpecialEvents,
     IReadOnlyList<OverlayTimelineMarker> Markers, bool ShowsRotations, bool IsSimplified)
 {
+    /// <summary>Trash bars on the axis, cut where they hold a pause.</summary>
+    public IReadOnlyList<OverlayTimelineBar> TrashBars { get; init; } = [];
+
+    /// <summary>The silver curve, one stretch between two pauses per list, so no line crosses a gap.</summary>
+    public IReadOnlyList<IReadOnlyList<OverlayTimelinePoint>> SilverCurves { get; init; } = [];
+
+    /// <summary>The pieces of the baseline between the gaps.</summary>
+    public IReadOnlyList<OverlayTimelineBar> Baseline { get; init; } = [];
+
+    /// <summary>A gap of one fixed width for every pause, however long it lasted.</summary>
+    public IReadOnlyList<OverlayTimelineGap> Gaps { get; init; } = [];
+
     // Heights in layout pixels at font scale 1, the same for both renderers.
     public const double HeaderHeight = 20, TickHeight = 12, BandGap = 4, SimpleBandHeight = 14, PhaseBandHeight = 18;
     public const double IconSize = 20, IconGap = 5, DetailHeight = 16;
+    // Width of a pause's gap at font scale 1, the same for every pause.
+    public const double PauseGap = 10;
     // The size the timeline is laid out for at font scale 1; below it the content is scaled down as a whole.
     public const double ReferenceWidth = 360, ReferenceHeight = 144;
     // Room for an icon above the tallest layer.
@@ -90,7 +114,13 @@ public sealed record OverlaySessionTimeline(TimeSpan From, TimeSpan To, string C
         var empty = new OverlaySessionTimeline(from, to, caption, [], null, null, [], [], [], IsOn("rotations"), simplified);
         if (to <= TimeSpan.Zero) return empty;
 
-        double X(TimeSpan at) => Math.Clamp((at - from).TotalSeconds / (to - from).TotalSeconds, 0, 1);
+        var width = Math.Max(1, plotWidth);
+        var fontScale = Math.Clamp(widget.FontScale, .7, 2);
+        var axis = new SessionTimelineAxis(from, to, snapshot.Pauses.Select(pause => pause.At), width, PauseGap * fontScale);
+        double X(TimeSpan at) => Math.Clamp(axis.X(at) / width, 0, 1);
+        IEnumerable<(double Left, double Right)> Pieces(TimeSpan start, TimeSpan end) => axis.Pieces(start, end)
+            .Select(piece => (Math.Clamp(piece.Left / width, 0, 1), Math.Clamp(piece.Right / width, 0, 1)));
+        TimeSpan At(double share) => from + TimeSpan.FromSeconds(share * (to - from).TotalSeconds);
         var silver = !IsOn("silver") ? null : SessionTimelineChart.Series("silver", "Silber je Abschnitt",
             SessionTimelineLayers.ColorOf("silver"), snapshot.SilverDrops, drop => drop.Elapsed, drop => drop.Silver,
             from, to, isSilver: true, flatten: true);
@@ -105,20 +135,29 @@ public sealed record OverlaySessionTimeline(TimeSpan From, TimeSpan To, string C
         var rotations = !IsOn("rotations") ? [] : spans.Where(span => span.End > from && span.Start < to).Select(span =>
         {
             var phases = RotationPhases.Cached(snapshot.Rotation.SpotId, span.Events, span.Duration);
-            IEnumerable<OverlayTimelinePhase> parts = simplified ? Simplify(span, phases, X) : phases.Select(phase =>
-                new OverlayTimelinePhase(X(span.Start + TimeSpan.FromSeconds(phase.Start)),
-                    X(span.Start + TimeSpan.FromSeconds(phase.End)), phase.Name, phase.Color,
-                    RotationPhases.IsAfk(phase), phase.Special));
-            return new OverlayTimelineRotation(span, X(span.Start), X(span.End), [.. parts.Where(part => part.Right > part.Left)]);
+            IEnumerable<OverlayTimelinePhase> parts = simplified ? Simplify(span, phases, Pieces) : phases.SelectMany(phase =>
+                Pieces(span.Start + TimeSpan.FromSeconds(phase.Start), span.Start + TimeSpan.FromSeconds(phase.End))
+                    .Select(piece => new OverlayTimelinePhase(piece.Left, piece.Right, phase.Name, phase.Color,
+                        RotationPhases.IsAfk(phase), phase.Special)));
+            return new OverlayTimelineRotation(span, Math.Clamp(axis.XAfter(span.Start) / width, 0, 1), X(span.End),
+                [.. parts.Where(part => part.Right > part.Left)]);
         }).ToArray();
         var special = !IsOn("special") ? [] : spans.SelectMany(span => span.SpecialEvents)
             .Where(at => at >= from && at <= to).Select(X).ToArray();
 
         return empty with
         {
-            Ticks = TicksFor(from, to, plotWidth), Silver = silver, Trash = trash, Rotations = rotations,
-            SpecialEvents = special, Markers = !IsOn("rare") ? [] : MarkersFor(snapshot.DropMarkers, series, from, to, plotWidth,
-                Math.Clamp(widget.FontScale, .7, 2)),
+            Ticks = TicksFor(from, to, axis), Silver = silver, Trash = trash, Rotations = rotations,
+            SpecialEvents = special, Markers = !IsOn("rare") ? [] : MarkersFor(snapshot.DropMarkers, series, from, to, axis, fontScale),
+            TrashBars = trash is null ? [] : [.. trash.Bars.Where(bar => bar.Value > 0).SelectMany(bar =>
+                Pieces(At(bar.Start), At(bar.End)).Select(piece => new OverlayTimelineBar(piece.Left, piece.Right, bar.Filled)))],
+            // A point in the middle of an interval that holds a pause belongs to the stretch its middle lies in.
+            SilverCurves = silver is null ? [] : [.. silver.Bars.GroupBy(bar => axis.Segment(At((bar.Start + bar.End) / 2)))
+                .Select(stretch => (IReadOnlyList<OverlayTimelinePoint>)[.. stretch.Select(bar =>
+                    new OverlayTimelinePoint(X(At((bar.Start + bar.End) / 2)), bar.Filled))])],
+            Baseline = [.. Pieces(from, to).Select(piece => new OverlayTimelineBar(piece.Left, piece.Right, 0))],
+            Gaps = [.. axis.Gaps.Select((at, index) => new OverlayTimelineGap(axis.GapLeft(index) / width,
+                (axis.GapLeft(index) + axis.GapWidth) / width, [.. snapshot.Pauses.Where(pause => pause.At == at)]))],
         };
     }
 
@@ -127,19 +166,21 @@ public sealed record OverlaySessionTimeline(TimeSpan From, TimeSpan To, string C
     /// recorded mechanics is one stretch from start to end.
     /// </summary>
     private static IEnumerable<OverlayTimelinePhase> Simplify(SessionRotationSpan span, IReadOnlyList<RotationPhase> phases,
-        Func<TimeSpan, double> x)
+        Func<TimeSpan, TimeSpan, IEnumerable<(double Left, double Right)>> pieces)
     {
         var at = 0d;
         foreach (var afk in phases.Where(RotationPhases.IsAfk).OrderBy(phase => phase.Start))
         {
-            if (afk.Start > at) yield return Part(at, afk.Start, "Mechaniken", false);
-            yield return Part(Math.Max(at, afk.Start), afk.End, afk.Name, true);
+            if (afk.Start > at) foreach (var part in Part(at, afk.Start, "Mechaniken", false)) yield return part;
+            foreach (var part in Part(Math.Max(at, afk.Start), afk.End, afk.Name, true)) yield return part;
             at = Math.Max(at, afk.End);
         }
-        if (span.Duration > at) yield return Part(at, span.Duration, "Mechaniken", false);
+        if (span.Duration > at) foreach (var part in Part(at, span.Duration, "Mechaniken", false)) yield return part;
 
-        OverlayTimelinePhase Part(double start, double end, string name, bool isAfk) => new(
-            x(span.Start + TimeSpan.FromSeconds(start)), x(span.Start + TimeSpan.FromSeconds(end)), name, "", isAfk, false);
+        // A stretch that holds a pause is cut at its gap.
+        IEnumerable<OverlayTimelinePhase> Part(double start, double end, string name, bool isAfk) =>
+            pieces(span.Start + TimeSpan.FromSeconds(start), span.Start + TimeSpan.FromSeconds(end))
+                .Select(piece => new OverlayTimelinePhase(piece.Left, piece.Right, name, "", isAfk, false));
     }
 
     /// <summary>
@@ -147,13 +188,12 @@ public sealed record OverlaySessionTimeline(TimeSpan From, TimeSpan To, string C
     /// share a row: different items stand side by side, the same item appears once and names how many drops it holds.
     /// </summary>
     private static IReadOnlyList<OverlayTimelineMarker> MarkersFor(IReadOnlyList<OverlayDropMarker> drops,
-        IReadOnlyList<SessionTimelineSeries> series, TimeSpan from, TimeSpan to, double plotWidth, double fontScale)
+        IReadOnlyList<SessionTimelineSeries> series, TimeSpan from, TimeSpan to, SessionTimelineAxis axis, double fontScale)
     {
-        var window = (to - from).TotalSeconds;
         var visible = drops.Where(drop => drop.Elapsed >= from && drop.Elapsed <= to).OrderBy(drop => drop.Elapsed).ToArray();
-        var width = Math.Max(1, plotWidth);
+        var width = Math.Max(1, axis.Width);
         var (size, gap) = (IconSize * fontScale, IconGap * fontScale);
-        double Pixel(OverlayDropMarker drop) => (drop.Elapsed - from).TotalSeconds / window * width;
+        double Pixel(OverlayDropMarker drop) => axis.X(drop.Elapsed);
         List<OverlayTimelineMarker> markers = [];
         for (var index = 0; index < visible.Length;)
         {
@@ -174,16 +214,16 @@ public sealed record OverlaySessionTimeline(TimeSpan From, TimeSpan To, string C
     }
 
     /// <summary>Session times along the top, about one per 80 pixels, written as hours and minutes.</summary>
-    private static IReadOnlyList<OverlayTimelineTick> TicksFor(TimeSpan from, TimeSpan to, double plotWidth)
+    private static IReadOnlyList<OverlayTimelineTick> TicksFor(TimeSpan from, TimeSpan to, SessionTimelineAxis axis)
     {
         var window = (to - from).TotalSeconds;
-        var most = Math.Max(1, Math.Floor(plotWidth / 80));
+        var most = Math.Max(1, Math.Floor(axis.Width / 80));
         var step = new[] { 60d, 120, 300, 600, 900, 1800, 3600, 7200, 14400 }.FirstOrDefault(value => window / value <= most, 14400);
         List<OverlayTimelineTick> ticks = [];
         for (var second = Math.Ceiling(from.TotalSeconds / step) * step; second <= to.TotalSeconds; second += step)
         {
             var at = TimeSpan.FromSeconds(second);
-            ticks.Add(new((second - from.TotalSeconds) / window, $"{(int)at.TotalHours}:{at.Minutes:00}"));
+            ticks.Add(new(Math.Clamp(axis.X(at) / Math.Max(1, axis.Width), 0, 1), $"{(int)at.TotalHours}:{at.Minutes:00}"));
         }
         return ticks;
     }

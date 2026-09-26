@@ -29,6 +29,7 @@ internal sealed class NativeOverlayRenderState
                 _snapshot.TrackingButtonLabel != snapshot.TrackingButtonLabel)) return false;
             if (widget.Kind == "chart" && (_snapshot.SessionElapsed != snapshot.SessionElapsed ||
                 !SameItems(_snapshot.SilverDrops, snapshot.SilverDrops) || !SameItems(_snapshot.TrashDrops, snapshot.TrashDrops) ||
+                !SameItems(_snapshot.Pauses, snapshot.Pauses) ||
                 !SameItems(_snapshot.DropMarkers, snapshot.DropMarkers) ||
                 _snapshot.Rotation.SpotId != snapshot.Rotation.SpotId ||
                 !SameTimeline(_snapshot.Rotation.SessionRotations, snapshot.Rotation.SessionRotations))) return false;

@@ -120,6 +120,7 @@ internal sealed partial class TrackerSessionService
             Buffs = _hasBuffObservation ? _buffLedger.Snapshot : null,
             Totals = totals,
             DropHistory = CaptureDropHistory(_sessionSummary, duration),
+            Pauses = _pausesView,
             SilverBeforeTax = valuation.BeforeTax,
             SilverAfterTax = valuation.AfterTax,
             SilverIsComplete = valuation.IsComplete,

@@ -74,6 +74,9 @@
 .session-timeline-drop .asset-fallback .icon{width:14px;height:14px}
 .session-timeline-divider{width:1px;align-self:stretch;background:var(--timeline-grid);margin:0 2px}
 .session-timeline-reset{margin-left:auto}
+/* A pause is a gap of one width, however long it lasted: hatched, with a pause sign in its middle. */
+.session-timeline-pause{position:absolute;display:flex;align-items:center;justify-content:center;box-sizing:border-box;border-inline:1px dashed var(--timeline-line);background:repeating-linear-gradient(-45deg,color-mix(in srgb,var(--timeline-dim) 24%,transparent) 0 2px,transparent 2px 6px)}
+.session-timeline-pause span{width:7px;height:10px;box-sizing:border-box;border-inline:2px solid var(--timeline-dim)}
 .session-timeline-now line{stroke:var(--timeline-now);stroke-width:2;vector-effect:non-scaling-stroke;opacity:.85}
 .session-timeline-now path{fill:var(--timeline-now);opacity:.85}
 .session-timeline-summary{display:flex;flex-wrap:wrap;gap:8px 22px;margin:0}

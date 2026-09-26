@@ -117,6 +117,7 @@ internal sealed partial class OverlayMetrics
             ObservedAt = state.ObservedAt,
             SilverDrops = _silverDrops,
             TrashDrops = _trashDrops,
+            Pauses = state.Pauses,
             Rotation = rotation,
             DropMarkers = _dropMarkers,
             LootScroll = state.LootScroll,
@@ -247,11 +248,21 @@ internal sealed partial class OverlayMetrics
         {
             Elapsed = DemoSession.Elapsed, Silver = SilverValuation.Calculate(totals, prices, DemoSession.Tax),
             Loot = new LootSessionSnapshot(DemoSession.Totals, DemoSession.Totals.Values.Sum(), DemoSession.ConfirmedEventCount),
-            DropHistory = drops, Rotation = HermesiaRotationDemo.At(350),
+            DropHistory = drops, Rotation = HermesiaRotationDemo.At(350), Pauses = DemoPauses,
         };
         var snapshot = metrics.Update(state, preferences, prices);
         return snapshot with { DailyGoal = new(state.Silver.AfterTax, 10_000_000_000) { UiLanguage = language } };
     }
+
+    /// <summary>
+    /// Illustrative breaks of the example session, so the timeline shows its pause gaps. A property, not a field: the
+    /// demo snapshots above are created during static initialization, before later fields are set.
+    /// </summary>
+    private static IReadOnlyList<SessionPause> DemoPauses => Array.AsReadOnly(new SessionPause[]
+    {
+        new(TimeSpan.FromSeconds(900), new(2026, 9, 1, 18, 15, 0, TimeSpan.Zero), new(2026, 9, 1, 18, 27, 0, TimeSpan.Zero), SessionPause.Manual),
+        new(TimeSpan.FromSeconds(3300), new(2026, 9, 1, 19, 7, 0, TimeSpan.Zero), new(2026, 9, 1, 19, 11, 0, TimeSpan.Zero), SessionPause.Automatic),
+    });
 
     private static BuffLedgerSnapshot DemoConsumptions()
     {

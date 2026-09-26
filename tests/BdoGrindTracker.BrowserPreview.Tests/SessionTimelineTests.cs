@@ -155,6 +155,33 @@ public sealed class SessionTimelineTests
     }
 
     [Fact]
+    public async Task EveryPauseIsAGapOfOneWidthThatNamesItsLength()
+    {
+        await using var tracker = new PreviewTrackerSession();
+        var activator = new CapturingActivator();
+        await using var provider = new ServiceCollection().AddLogging().AddSingleton<ITrackerSession>(tracker)
+            .AddSingleton<IJSRuntime, NoJavaScript>().AddSingleton<IComponentActivator>(activator).BuildServiceProvider();
+        await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
+
+        var markup = await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            var rendered = await renderer.RenderComponentAsync<SessionTimeline>(ParameterView.Empty);
+            Invoke(activator.Components.OfType<SessionTimeline>().Single(), "ToggleOpen");
+            return WebUtility.HtmlDecode(rendered.ToHtmlString());
+        });
+
+        // The preview session paused twice, for eight and for three minutes: two gaps of the same width.
+        Assert.Equal(2, tracker.State.Pauses.Count);
+        var widths = Regex.Matches(markup, "class=\"session-timeline-pause\"[^>]*width:([0-9.]+)%").Select(match => match.Groups[1].Value).ToArray();
+        Assert.Equal(2, widths.Length);
+        Assert.Equal(widths[0], widths[1]);
+        Assert.Contains("Pause · 00:08:00", markup);
+        Assert.Contains("Automatic pause · 00:03:00", markup);
+        // What crosses a gap is cut there.
+        Assert.Matches("<g clip-path=\"url\\(#session-timeline-clip-[0-9a-f]+\\)\">", markup);
+    }
+
+    [Fact]
     public async Task EveryCoordinateIsWrittenInvariantlyUnderAGermanCulture()
     {
         var previous = (CultureInfo.CurrentCulture, CultureInfo.DefaultThreadCurrentCulture);

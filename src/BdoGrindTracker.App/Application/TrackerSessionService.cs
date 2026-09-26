@@ -43,6 +43,9 @@ internal sealed partial class TrackerSessionService : ITrackerSession
     private readonly FrameUiMailbox _uiMailbox = new();
     private readonly object _framePublicationSync = new();
     private readonly SessionDropHistory _dropHistory = new();
+    // The pauses of this session; the published list is replaced only when a pause begins or ends.
+    private readonly List<SessionPause> _pauses = [];
+    private IReadOnlyList<SessionPause> _pausesView = [];
     private readonly RotationMonitor _rotationMonitor = new();
     private readonly SessionRotationTimeline _rotationTimeline = new();
     private readonly GarmothUploadIntervals _garmothIntervals = new();
@@ -283,6 +286,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             Preferences = Preferences with { CharacterClassId = null, RecordLoot = false, RecordRotation = false };
         _garmothIntervals.Reset();
         _sessionClock.Reset();
+        SetPauses([]);
         _inactivityTimer.Reset();
         _uiMailbox.Reset();
         _sessionSummary = LootSessionSnapshot.Empty;
@@ -437,6 +441,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
                 ? "Tracking aktiv. " + settingsError
                 : "Tracking aktiv. Drops werden automatisch erkannt und gezählt.",
                 _settingsSaveError is not null);
+            EndPause(DateTimeOffset.UtcNow);
         }
         catch
         {
@@ -476,6 +481,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             // OCR. Later results may update loot but must not restart the timer.
             idleDuration = _inactivityTimer.PauseAndGetIdleDuration();
             _sessionClock.Pause(excludeTrailingIdle ? idleDuration : TimeSpan.Zero);
+            // The removed idle tail already belongs to the pause.
+            BeginPause(SessionPause.Manual, DateTimeOffset.UtcNow - (excludeTrailingIdle ? idleDuration : TimeSpan.Zero));
         }
         SetStatus("Wird pausiert. Die letzten Drops werden noch übernommen …");
         try
@@ -486,6 +493,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             {
                 idleDuration = _inactivityTimer.PauseAndGetIdleDuration();
                 _sessionClock.Pause(idleDuration);
+                BeginPause(SessionPause.Automatic, DateTimeOffset.UtcNow - idleDuration);
             }
         }
         finally { await CompleteBuffAnalysisAsync(); }
@@ -855,7 +863,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             ShutdownFailed = _shutdownFailed,
         };
         State = State with { ObservedAt = _captureSession.ObservationTime,
-            DropHistory = CaptureDropHistory(State.Loot, State.Elapsed),
+            DropHistory = CaptureDropHistory(State.Loot, State.Elapsed), Pauses = _pausesView,
             Rotation = _rotationTimeline.Update(_sessionId, State.Elapsed, _captureSession.ObservationTime,
                 _sessionStartedAt, _rotationMonitor.Snapshot(_captureSession.ObservationTime, _sessionSpotId,
                     Preferences.IncludeSpecialEventRotations)) };
@@ -921,6 +929,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         UpdateBuffSession();
         BeginBuffCompletion();
         _sessionClock.Pause();
+        // Closing Grindcrest while tracking pauses the session until the next start after a restart.
+        if (_uiRunning) BeginPause(SessionPause.Closed, DateTimeOffset.UtcNow);
         _inactivityTimer.Pause();
         try
         {

@@ -125,20 +125,24 @@
                         @if (Timeline.Trash is { } trash)
                         {
                             <g class="overlay-timeline-trash" style="--layer-color:@trash.Color">
-                                @foreach (var bar in trash.Bars.Where(bar => bar.Value > 0))
+                                @foreach (var bar in Timeline.TrashBars)
                                 {
-                                    var top = OverlaySessionTimeline.Y(bar.Filled) * 1000;
-                                    <rect x="@Css(bar.Start * 1000)" y="@Css(top)" width="@Css(Math.Max(.8, (bar.End - bar.Start) * 1000))" height="@Css(Math.Max(1, 1000 - top))" />
+                                    var top = OverlaySessionTimeline.Y(bar.Height) * 1000;
+                                    <rect x="@Css(bar.Left * 1000)" y="@Css(top)" width="@Css(Math.Max(.8, (bar.Right - bar.Left) * 1000))" height="@Css(Math.Max(1, 1000 - top))" />
                                 }
                             </g>
                         }
-                        @if (Timeline.Silver is { Bars.Count: > 0 } silver)
+                        @* One stretch between two pauses at a time: no line crosses a gap. *@
+                        @foreach (var stretch in Timeline.SilverCurves.Where(stretch => stretch.Count > 0))
                         {
-                            var curve = string.Join(" ", silver.Bars.Select(bar => Css((bar.Start + bar.End) / 2 * 1000) + "," + Css(OverlaySessionTimeline.Y(bar.Filled) * 1000)));
-                            <polygon class="overlay-timeline-silver-area" points="@($"{Css((silver.Bars[0].Start + silver.Bars[0].End) / 2 * 1000)},1000 {curve} {Css((silver.Bars[^1].Start + silver.Bars[^1].End) / 2 * 1000)},1000")" />
+                            var curve = string.Join(" ", stretch.Select(point => Css(point.X * 1000) + "," + Css(OverlaySessionTimeline.Y(point.Height) * 1000)));
+                            <polygon class="overlay-timeline-silver-area" points="@($"{Css(stretch[0].X * 1000)},1000 {curve} {Css(stretch[^1].X * 1000)},1000")" />
                             <polyline class="overlay-timeline-silver" points="@curve" />
                         }
-                        <line x1="0" x2="1000" y1="1000" y2="1000" class="overlay-timeline-axis" />
+                        @foreach (var piece in Timeline.Baseline)
+                        {
+                            <line x1="@Css(piece.Left * 1000)" x2="@Css(piece.Right * 1000)" y1="1000" y2="1000" class="overlay-timeline-axis" />
+                        }
                     </svg>
                     @foreach (var x in Timeline.SpecialEvents)
                     {
@@ -164,6 +168,10 @@
                         </div>
                     }
                 </div>
+                @foreach (var gap in Timeline.Gaps)
+                {
+                    <div class="overlay-timeline-pause" title="@PauseTitle(gap)" style="left:@Css(gap.Left * 100)%;width:@Css((gap.Right - gap.Left) * 100)%"><span></span></div>
+                }
                 @if (Timeline.ShowsRotations)
                 {
                     <div class="overlay-timeline-band @(Timeline.IsSimplified ? "is-simplified" : "is-phases")">
@@ -233,6 +241,9 @@
     // The preview's horizontal padding matches the native module's inset, so both group the same drop icons.
     private double PlotWidth => Math.Max(1, LayoutWidget.Width - 20);
     private OverlaySessionTimeline Timeline => _timeline ??= OverlaySessionTimeline.Create(LayoutWidget, Snapshot, PlotWidth);
+    private string PauseTitle(OverlayTimelineGap gap) => string.Join("\n", gap.Pauses.Select(pause =>
+        T(pause.Kind switch { SessionPause.Automatic => "Automatische Pause", SessionPause.Closed => "App geschlossen", _ => "Pause" }) +
+        " · " + Presentation.Duration(pause.Duration(DateTimeOffset.UtcNow)) + (pause.IsOpen ? " · " + T("läuft") : "")));
     private string PreviewStyle => $"width:{Css(LayoutWidget.Width)}px;height:{Css(LayoutWidget.Height)}px;transform:scale({Css(Content.Scale)});--widget-font-scale:{FontScale}" +
         (IsLoot ? $";--loot-item-size:{Css(Loot.ItemSize)}px;--loot-gap:{Css(Loot.Gap)}px;--loot-columns:{Math.Max(1, Loot.Columns)};--loot-cell-width:{Css(Loot.CellWidth)}px;--loot-cell-height:{Css(Loot.CellHeight)}px;--loot-header-height:{Css(Loot.HeaderHeight)}px;--loot-footer-height:{Css(Loot.FooterHeight)}px;--loot-layout-width:{Css(LootWidth)}px;--loot-layout-height:{Css(LootHeight)}px" : "");
     private int LootRows => (int)Math.Ceiling((double)Loot.VisibleItems.Count / Math.Max(1, Loot.Columns));
