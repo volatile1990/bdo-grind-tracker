@@ -314,17 +314,25 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         _demoMode = true;
         _sessionManualLootItems.Clear();
         _sessionGarmothLocallyModified = false;
-        _sessionSpotId = LootSpotCatalog.AphrodonId;
-        _sessionClass = CompanionCharacterClassCatalog.FindById("warrior-awakening");
-        var totals = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["Branch of Abundance"] = 18_420, ["Ancient Spirit Dust"] = 76,
-            ["Black Stone"] = 51, ["WON Origin Shard"] = 4,
-            ["WON Wandering Origin Crystal"] = 1, ["Broken Vestige of Goldroot"] = 1,
-            ["Nev's Fragment"] = 9,
-        };
-        _sessionSummary = new(totals, totals.Values.Sum(), 147);
-        SetStatus("Demostunde: nicht gespeicherte Beispieldaten. Tracking starten beendet die Demo.");
+        // A whole recorded Magaia grind, as if it had just ended: its drops, rotations, buffs and progress fill
+        // every part of the live session. Nothing of it is saved, recorded or uploaded.
+        var demo = Overlay.MagaiaDemoSession.Elapsed;
+        _sessionSpotId = LootSpotCatalog.MagaiaId;
+        _sessionClass = CompanionCharacterClassCatalog.FindById("shai");
+        var totals = new Dictionary<string, long>(Overlay.MagaiaDemoSession.Totals, StringComparer.OrdinalIgnoreCase);
+        _sessionSummary = new(totals, totals.Values.Sum(), Overlay.MagaiaDemoSession.ConfirmedEventCount);
+        var startedAt = DateTimeOffset.UtcNow - demo;
+        _sessionStartedAt = startedAt;
+        _sessionClock.RestorePaused(demo);
+        _dropHistory.Restore(_sessionId, _sessionSummary, demo, Overlay.MagaiaDemoSession.DropHistory, isDemo: true);
+        _rotationMonitor.RestoreSession(Overlay.MagaiaDemoSession.Runs(startedAt));
+        _agrisSessionTracker.Restore(demo, new(Overlay.MagaiaDemoSession.AgrisActiveDuration, Overlay.MagaiaDemoSession.AgrisObservedDuration));
+        _experienceSessionTracker.Restore(demo, new(Overlay.MagaiaDemoSession.ExperienceGainedPercentagePoints,
+            Overlay.MagaiaDemoSession.ExperienceObservedDuration, Overlay.MagaiaDemoSession.ExperienceLevel, Overlay.MagaiaDemoSession.ExperienceLevel));
+        _sessionCombatStats = new(Overlay.MagaiaDemoSession.Ap, Overlay.MagaiaDemoSession.Dp, CombatStatsCategory.Edania, startedAt + demo);
+        _buffLedger.Restore(Overlay.MagaiaDemoSession.Consumables(startedAt));
+        _hasBuffObservation = true;
+        SetStatus($"Demo: Magaia-Session vom {Overlay.MagaiaDemoSession.Date}, nicht gespeicherte Beispieldaten. Tracking starten beendet die Demo.");
         return Task.CompletedTask;
     });
 
@@ -340,6 +348,9 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         _buffLedger.Reset();
         _hasBuffObservation = false;
         _demoMode = false;
+        _sessionClock.Reset();
+        _rotationMonitor.RestoreSession([]);
+        _sessionStartedAt = null;
         _sessionSpotId = null;
         _sessionClass = null;
         _sessionSummary = LootSessionSnapshot.Empty;
@@ -829,7 +840,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             CharacterClassId = character?.Id,
             CharacterLabel = character?.DisplayName ?? (_classDetection.Status == CharacterClassDetectionStatus.Ambiguous
                 ? "Klasse mehrdeutig – bitte auswählen" : "Klasse unbekannt – automatische Erkennung"),
-            Elapsed = _demoMode ? TimeSpan.FromHours(1) : _sessionClock.Elapsed,
+            Elapsed = _sessionClock.Elapsed,
             IsWaitingForFirstDrop = !_demoMode && _uiRunning && _sessionClock.IsWaitingForFirstDrop,
             LootScroll = !_demoMode && _uiRunning
                 ? _lootScrollMonitor.Snapshot(_captureSession.ObservationTime) : LootScrollState.Unknown,
@@ -837,10 +848,10 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             AgrisActiveDuration = agrisDuration.ActiveDuration,
             AgrisObservedDuration = agrisDuration.ObservedDuration,
             Experience = experience,
-            CombatStats = _demoMode ? new(2374, 826, CombatStatsCategory.Edania, DateTimeOffset.UtcNow) : combatStats,
+            CombatStats = _demoMode ? _sessionCombatStats ?? CombatStatsState.Unknown : combatStats,
             ObservedCombatStatsCategory = observedCombatStatsCategory,
-            SessionCombatStats = _demoMode ? null : _sessionCombatStats,
-            Buffs = !_demoMode && _hasBuffObservation ? _buffLedger.Snapshot : null,
+            SessionCombatStats = _sessionCombatStats,
+            Buffs = _hasBuffObservation ? _buffLedger.Snapshot : null,
             BuffStatus = _demoMode ? "Buff-Erkennung ist in der Demo inaktiv." : BuffStatus,
             ExperienceGainedPercentagePoints = experienceProgress.GainedPercentagePoints,
             ExperienceObservedDuration = experienceProgress.ObservedDuration,

@@ -42,6 +42,8 @@ internal static partial class AppText
         new("Garmoth nicht gesendet: {0} Auto-Upload angehalten.", "Not sent to Garmoth: {0} Automatic uploads suspended.", true),
         new("Garmoth nicht gesendet: {0}", "Not sent to Garmoth: {0}", true),
         new("Tracking gestoppt: {0}", "Tracking stopped: {0}", true),
+        new("Demo: Magaia-Session vom {0}, nicht gespeicherte Beispieldaten. Tracking starten beendet die Demo.",
+            "Demo: Magaia session from {0}, unsaved sample data. Starting tracking ends the demo."),
         new("Aufzeichnung beendet: {0}", "Recording stopped: {0}", true),
         new("Rotation-Diagnose beendet: {0}", "Rotation diagnostics stopped: {0}", true),
         new("Startup · {0} / {1} Opfergaben", "Startup · {0} / {1} offerings"),

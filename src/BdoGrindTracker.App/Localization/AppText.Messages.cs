@@ -28,7 +28,6 @@ internal static partial class AppText
         text["Bildschirm 2 · 2560 × 1440"] = "Display 2 · 2560 × 1440";
         text["Bitte die laufende Session zuerst pausieren."] = "Please pause the current session first.";
         text["Neue Session angelegt. Die manuelle Diagnose-Aufzeichnung ist ausgeschaltet."] = "New session created. Manual diagnostic recording is off.";
-        text["Demostunde: nicht gespeicherte Beispieldaten. Tracking starten beendet die Demo."] = "Demo hour: unsaved sample data. Starting tracking ends the demo.";
         text["Kein Spielmonitor verfügbar."] = "No game display available.";
         text["Tracking-Start abgebrochen. Deine Session bleibt unverändert."] = "Tracking start cancelled. Your session is unchanged.";
         text["Tracking aktiv. Drops werden automatisch erkannt und gezählt."] = "Tracking active. Drops are detected and counted automatically.";

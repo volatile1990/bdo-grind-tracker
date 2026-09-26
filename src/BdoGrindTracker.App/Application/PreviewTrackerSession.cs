@@ -63,15 +63,18 @@ internal sealed class PreviewTrackerSession : ITrackerSession
 
     private void ShowSample()
     {
-        // The recorded Magaia session of 22.09.2026: its drops, rotations and special events fill the session timeline.
+        // The recorded Magaia session of the live session's demo: its drops, rotations and buffs fill the page.
         var totals = Overlay.MagaiaDemoSession.Totals.ToDictionary(item => item.Key, item => item.Value, StringComparer.Ordinal);
         var observed = DateTimeOffset.UtcNow;
+        var startedAt = observed - Overlay.MagaiaDemoSession.Elapsed;
         Change(new()
         {
             SessionId = Guid.NewGuid(), AnalyzerAvailable = true, IsDemo = true, HasApiKey = State.HasApiKey,
             SpotId = LootSpotCatalog.MagaiaId, ObservedAt = observed,
             CharacterLabel = "Shai · Succession", CharacterClassId = "shai", Elapsed = Overlay.MagaiaDemoSession.Elapsed,
-            Agris = new(AgrisStatus.Inactive), AgrisObservedDuration = Overlay.MagaiaDemoSession.Elapsed,
+            Agris = new(AgrisStatus.Inactive), AgrisActiveDuration = Overlay.MagaiaDemoSession.AgrisActiveDuration,
+            AgrisObservedDuration = Overlay.MagaiaDemoSession.AgrisObservedDuration,
+            Buffs = Overlay.MagaiaDemoSession.Consumables(startedAt),
             Experience = new(Overlay.MagaiaDemoSession.ExperienceLevel, .812m),
             ExperienceGainedPercentagePoints = Overlay.MagaiaDemoSession.ExperienceGainedPercentagePoints,
             ExperienceObservedDuration = Overlay.MagaiaDemoSession.ExperienceObservedDuration,
@@ -81,12 +84,12 @@ internal sealed class PreviewTrackerSession : ITrackerSession
             Loot = new(totals, totals.Values.Sum(), Overlay.MagaiaDemoSession.ConfirmedEventCount),
             Silver = SilverValuation.Calculate(totals, Prices, Preferences.Tax),
             DropHistory = Overlay.MagaiaDemoSession.DropHistory,
-            // Illustrative breaks, so the preview shows the timeline's pause gaps.
+            // Illustrative breaks the recorded session did not have, so the preview shows the timeline's pause gaps.
             Pauses = [new(TimeSpan.FromMinutes(30), observed.AddMinutes(-40), observed.AddMinutes(-32), SessionPause.Manual),
                 new(TimeSpan.FromMinutes(52), observed.AddMinutes(-12), observed.AddMinutes(-9), SessionPause.Automatic)],
             Rotation = new() { SpotId = LootSpotCatalog.MagaiaId, HasProfile = true, SupportsSpecialEvents = true,
                 SessionRotations = Overlay.MagaiaDemoSession.Completed(observed),
-                SessionSpecialEvents = Overlay.MagaiaDemoSession.Rotations.Sum(rotation => Overlay.MagaiaDemoSession.Fragments(rotation.Messages).Count) },
+                SessionSpecialEvents = Overlay.MagaiaDemoSession.Rotations.Sum(rotation => Overlay.MagaiaDemoSession.Fragments(rotation.Events).Count) },
             Status = "Vorschau · Beispieldaten werden weder aufgezeichnet noch hochgeladen.", PriceStatus = "EU · NPC- und Festwerte"
         });
     }
