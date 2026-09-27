@@ -34,6 +34,7 @@ internal sealed record TrackerPreferences
     public string? CaptureConfigurationPath { get; init; }
     public string? BuffRecognitionProfilePath { get; init; }
     public string GameLanguage { get; init; } = "auto";
+    public string RotationMessageLanguage { get; init; } = "auto";
     public string? CharacterClassId { get; init; }
     public int AutoPauseMinutes { get; init; } = 3;
     public bool AutoStartGrinding { get; init; }

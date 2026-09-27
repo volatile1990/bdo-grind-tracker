@@ -184,6 +184,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             DebugLogRetentionHours = _settings.DebugLogRetentionHours,
             IncludeSpecialEventRotations = _settings.RotationIncludeSpecialEvents,
             GameLanguage = _settings.GameLanguage,
+            RotationMessageLanguage = _settings.RotationMessageLanguage,
             CaptureConfigurationPath = _settings.CaptureConfigurationPath,
             FavoriteItems = _settings.FavoriteItems ?? [],
             LootColumnOrders = _settings.LootColumnOrders ?? new(),
@@ -369,6 +370,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             throw new InvalidOperationException("Kein Spielmonitor verfügbar.");
         var gameLanguage = ResolveGameLanguage();
         EnsureOcrLanguage(gameLanguage);
+        _rotationMonitor.ConfigureLanguage(ResolveRotationMessageLanguage(gameLanguage));
         if (Interlocked.CompareExchange(ref _lastCaptureStopError, null, null) is LootPanelUnavailableException panelError)
             throw panelError;
         var captureRegion = _captureSession.ResolveCaptureRegion(monitor?.Bounds ?? Rectangle.Empty);

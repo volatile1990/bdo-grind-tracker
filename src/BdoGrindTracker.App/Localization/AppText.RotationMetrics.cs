@@ -4,6 +4,15 @@ internal static partial class AppText
 {
     private static void AddRotationMetrics(Dictionary<string, string> text)
     {
+        text["Sprache der Spot-Nachrichten"] = "Spot message language";
+        text["Wie eingestellte Spielsprache"] = "Use selected game language";
+        text["Für Hermesia, Aphrodon, Magaia, Event Horizon und Zephyros. Das passende Windows-OCR-Sprachpaket muss installiert sein. Diese Auswahl gilt nur für Spot-Nachrichten; die Loot-Erkennung unterstützt Deutsch und Englisch."] = "For Hermesia, Aphrodon, Magaia, Event Horizon and Zephyros. The matching Windows OCR language pack must be installed. This selection applies to spot messages only; loot recognition supports German and English.";
+        text["Wähle Englisch, Deutsch, Französisch oder Spanisch für die Spot-Nachrichten."] = "Choose English, German, French or Spanish for spot messages.";
+
+        text["Brutstätte aktiviert"] = "Hatchery activated";
+        text["Brutstätte bereit"] = "Hatchery ready";
+        text["Brutstätte · Wellen"] = "Hatchery · Waves";
+        text["Schattenritter und Wellen"] = "Shadow Knights and waves";
         text["Kein Rotationsprofil für diesen Spot"] = "No rotation profile for this spot";
         text["Nach der ersten vollständigen Rotation"] = "After the first complete rotation";
         text["ohne Rückweg"] = "without walk back";

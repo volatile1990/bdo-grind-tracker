@@ -27,6 +27,7 @@ public static class RotationPhases
         if (spotId == LootSpotCatalog.AphrodonId) return CreateAphrodon(events, elapsed, colors);
         if (spotId == LootSpotCatalog.EventHorizonId) return CreateEventHorizon(events, elapsed, colors);
         if (spotId == LootSpotCatalog.MagaiaId) return CreateMagaia(events, elapsed, colors);
+        if (spotId == LootSpotCatalog.ZephyrosId) return CreateZephyros(events, elapsed, colors);
         if (spotId != LootSpotCatalog.HermesiaId || events.Count == 0 || !double.IsFinite(elapsed) || elapsed <= 0) return [];
         var phases = new List<RotationPhase>();
         string? active = null;
@@ -70,6 +71,38 @@ public static class RotationPhases
                 _ => (color, groupColor)
             };
             phases.Add(new(active, group, name, start, end, color, groupColor));
+        }
+    }
+
+    private static IReadOnlyList<RotationPhase> CreateZephyros(IReadOnlyList<RotationEvent> events, double elapsed, string? colors)
+    {
+        if (!double.IsFinite(elapsed) || elapsed <= 0) return [];
+        string[] order = ["start", "knights", "boss", "afk"];
+        string[] names = ["Brutstätte · Wellen", "Schattenritter und Wellen", "Beelzebub", "AFK"];
+        string[] palette = ["#78643C", "#32788F", "#9275BE", "#4D6275"];
+        var result = new List<RotationPhase>();
+        var active = -1;
+        double start = 0;
+        foreach (var e in events.Where(e => double.IsFinite(e.Seconds) && e.Seconds >= 0 && e.Seconds <= elapsed).OrderBy(e => e.Seconds))
+        {
+            if (e.Kind is "end" or "failure") { Finish(e.Seconds); active = -1; break; }
+            var next = Array.IndexOf(order, e.Kind);
+            if (next <= active) continue;
+            Finish(e.Seconds);
+            active = next;
+            start = e.Seconds;
+        }
+        Finish(elapsed);
+        return result;
+
+        void Finish(double end)
+        {
+            if (active < 0 || end <= start) return;
+            var color = NormalizeColors(colors) switch {
+                "gold" => active % 2 == 0 ? "#78643C" : "#948052",
+                "slate" => active % 2 == 0 ? "#45535E" : "#61717E",
+                "minimal" => active % 2 == 0 ? "#39434B" : "#505B64", _ => palette[active] };
+            result.Add(new(order[active], order[active], names[active], start, end, color, color));
         }
     }
 

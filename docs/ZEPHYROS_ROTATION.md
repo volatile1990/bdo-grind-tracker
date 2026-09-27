@@ -1,6 +1,6 @@
 # Zephyros Rotation Monitor
 
-Stand: im Arbeitsbaum implementiert, noch nicht committiert oder nach Main übernommen.
+Stand: zusammen mit den EN/DE/FR/SP-Übersetzungen für den lokalen Main-Stand freigegeben.
 
 ## Ablauf
 
@@ -85,6 +85,6 @@ Ausgangscommit `ef08fc1` reproduziert:
 - `ResolvedSpotVariantIsUsedWhenTheSessionIsCompleted`: drei Sammelprofil-Varianten.
 - `InitiallyUnreadableCronStaysBaselineAndOnlyNewBoonIsChargedAcrossPauseAndRestore`.
 
-Die Vorgabe, nur bei grünem Gesamttest einen Implementierungscommit anzulegen,
-blockiert den Commit. Zusätzlich überlappt die Registrierung mit der bereits
-uncommittierten Sprachintegration. Die fertigen Änderungen bleiben erhalten.
+Der Nutzer hat den lokalen Commit auf Main trotz dieser bekannten Ausgangsfehler
+ausdrücklich beauftragt. Sprachintegration und Zephyros werden wegen ihrer
+gemeinsamen Registrierung zusammen übernommen. Es erfolgt kein Push.

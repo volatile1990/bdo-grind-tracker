@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using BdoGrindTracker.App.Diagnostics;
 using BdoGrindTracker.App.Overlay;
 using BdoGrindTracker.Ocr;
@@ -10,7 +9,7 @@ internal static class HermesiaMessages
 {
     internal static string Recognize(Mat pixels, CompanionWindowsOcrRecognizer engine)
     {
-        var raw = engine.Recognize(pixels).Text;
+        var raw = RotationMessageProfile.ReadLines(engine.Recognize(pixels));
         // The crop holds only the banner stack, so one enlarged black-and-white pass
         // reads messages the raw pass misses under a bright background or boss dialogue.
         using var gray = new Mat();
@@ -20,7 +19,7 @@ internal static class HermesiaMessages
         var scale = Math.Min(2.5, 1300d / pixels.Width);
         Cv2.Resize(gray, enlarged, new OpenCvSharp.Size(), scale, scale, InterpolationFlags.Cubic);
         Cv2.Threshold(enlarged, binary, 145, 255, ThresholdTypes.Binary);
-        return raw + "\n" + engine.Recognize(binary).Text;
+        return raw + "\f" + RotationMessageProfile.ReadLines(engine.Recognize(binary));
     }
     // Short phrases: skill hints beside the banners can merge into a line's first word,
     // and the AFK banner's last word can touch the crop edge.
@@ -40,12 +39,9 @@ internal static class HermesiaMessages
         ("failure", "Rotation Failed", "valid authorization not confirmed")
     ];
 
-    internal static IReadOnlyList<(string Kind, string Label)> Parse(string text)
-    {
-        var normalized = Regex.Replace(text.ToLowerInvariant(), "[^a-z0-9]+", " ").Trim();
-        return Definitions.Where(d => normalized.Contains(d.Phrase, StringComparison.Ordinal))
-            .Select(d => (d.Kind, d.Label)).Distinct().ToArray();
-    }
+    internal static IReadOnlyList<(string Kind, string Label)> Parse(string text) => Parse(text, null);
+    internal static IReadOnlyList<(string Kind, string Label)> Parse(string text, string? language) =>
+        LocalizedRotationMessages.Parse("hermesia", text, Definitions, language);
 }
 
 /// <summary>Two-read confirmation and absence rearming for the 6.5-second banners.</summary>
@@ -348,8 +344,8 @@ internal class BufferedRotationProfileMonitor : IRotationProfileMonitor
                         if (_recognize is not null) sample.Text = _recognize(sample.Pixels);
                         else
                         {
-                            _ocr ??= CompanionWindowsOcrRecognizer.TryCreate("en-US", requirePreferredLanguage: true);
-                            if (_ocr is null) throw new InvalidOperationException("Englische Windows-Texterkennung fehlt.");
+                            _ocr ??= CompanionWindowsOcrRecognizer.TryCreate(_profile.OcrLanguageTag, throwIfUnavailable: true, requirePreferredLanguage: true);
+                            if (_ocr is null) throw new InvalidOperationException("Windows-Texterkennung für die Spot-Nachrichten fehlt.");
                             using var pixels = CompanionFrameDecoder.Decode(sample.Pixels);
                             sample.Text = _profile.Recognize(pixels, _ocr);
                         }
@@ -413,8 +409,8 @@ internal class BufferedRotationProfileMonitor : IRotationProfileMonitor
         if (_recognizeName is not null) text = _recognizeName(bar);
         else
         {
-            _ocr ??= CompanionWindowsOcrRecognizer.TryCreate("en-US", requirePreferredLanguage: true);
-            if (_ocr is null) throw new InvalidOperationException("Englische Windows-Texterkennung fehlt.");
+            _ocr ??= CompanionWindowsOcrRecognizer.TryCreate(_profile.OcrLanguageTag, throwIfUnavailable: true, requirePreferredLanguage: true);
+            if (_ocr is null) throw new InvalidOperationException("Windows-Texterkennung für die Spot-Nachrichten fehlt.");
             using var pixels = CompanionFrameDecoder.Decode(bar);
             text = RotationNameProfile.Recognize(pixels, _ocr);
         }

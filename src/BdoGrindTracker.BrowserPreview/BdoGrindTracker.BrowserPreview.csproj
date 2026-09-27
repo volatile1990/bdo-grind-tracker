@@ -22,6 +22,7 @@
     <Content Include="../BdoGrindTracker.App/Components/**/*.razor" Link="Components/%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="../BdoGrindTracker.App/Application/TrackerContracts.cs;../BdoGrindTracker.App/Application/CaptureConfigurationContracts.cs;../BdoGrindTracker.App/Application/PreviewTrackerSession.cs;../BdoGrindTracker.App/Application/AssetNames.cs" Link="Shared/Application/%(Filename)%(Extension)" />
     <Compile Include="../BdoGrindTracker.App/Analysis/RotationProfiles.Presentation.cs" Link="Shared/Analysis/RotationProfiles.Presentation.cs" />
+    <Compile Include="../BdoGrindTracker.App/Analysis/RotationMessageLanguage.cs" Link="Shared/Analysis/RotationMessageLanguage.cs" />
     <Compile Include="../BdoGrindTracker.App/Character/CompanionCharacterClassCatalog.cs" Link="Shared/Character/%(Filename)%(Extension)" />
     <Compile Include="../BdoGrindTracker.App/Pricing/BuffPriceCatalog.cs;../BdoGrindTracker.App/UI/BuffLedgerSnapshotJsonConverter.cs" Link="Shared/Buffs/%(Filename)%(Extension)" />
     <Compile Include="../BdoGrindTracker.App/Analysis/BuffRecognitionProfile.cs" Link="Shared/Analysis/BuffRecognitionProfile.cs" />

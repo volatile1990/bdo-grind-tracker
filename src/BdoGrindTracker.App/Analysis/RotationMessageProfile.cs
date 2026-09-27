@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using BdoGrindTracker.Ocr;
 using OpenCvSharp;
 
@@ -11,18 +10,21 @@ namespace BdoGrindTracker.App.Analysis;
 internal sealed record RotationMessageProfile(
     Func<string, IReadOnlyList<(string Kind, string Label)>> Parse,
     Func<int, int, Rectangle> Crop, bool SingleLine = false, int GapSamples = 2, double DuplicateSeconds = 8,
-    Func<string, string, int>? CountLines = null, string[]? CountedKinds = null, RotationNameProfile? Names = null)
+    Func<string, string, int>? CountLines = null, string[]? CountedKinds = null, RotationNameProfile? Names = null, string OcrLanguageTag = "en-US")
 {
+    internal static string ReadLines(CompanionOcrResult result) =>
+        result.Lines.Count > 0 ? string.Join('\n', result.Lines) : result.Text;
+
     internal string Recognize(Mat pixels, CompanionWindowsOcrRecognizer engine)
     {
         if (!SingleLine) return HermesiaMessages.Recognize(pixels, engine);
-        var text = engine.Recognize(pixels).Text;
+        var text = ReadLines(engine.Recognize(pixels));
         if (Parse(text).Count > 0) return text;
         using var gray = new Mat();
         using var enlarged = new Mat();
         Cv2.CvtColor(pixels, gray, ColorConversionCodes.BGR2GRAY);
         Cv2.Resize(gray, enlarged, new OpenCvSharp.Size(), 2, 2, InterpolationFlags.Cubic);
-        return text + "\n" + engine.Recognize(enlarged).Text;
+        return text + "\f" + ReadLines(engine.Recognize(enlarged));
     }
     // The centered stack of up to three system banners. Its place is a fixed share of the screen at any
     // resolution: the widest line (Hermesia AFK) spans 37.9–62 % of the width, the lines 54.7–63.5 % of the height.
@@ -32,6 +34,7 @@ internal sealed record RotationMessageProfile(
         (int)Math.Ceiling(w * .635), (int)Math.Ceiling(h * .71));
 
     internal static readonly RotationMessageProfile Hermesia = new(HermesiaMessages.Parse, BannerStack);
+    internal static readonly RotationMessageProfile Zephyros = new(ZephyrosMessages.Parse, BannerStack);
 
     // Same banner stack as Hermesia. Teleport black screens hide a banner for about 2.5 seconds,
     // so up to seven unreadable samples keep one sighting together.
@@ -70,12 +73,9 @@ internal static class EventHorizonMessages
         ("end", "AFK-Ende", "reconstruct space"),
     ];
 
-    internal static IReadOnlyList<(string Kind, string Label)> Parse(string text)
-    {
-        var normalized = Regex.Replace(text.ToLowerInvariant(), "[^a-z0-9]+", " ").Trim();
-        return Definitions.Where(d => normalized.Contains(d.Phrase, StringComparison.Ordinal))
-            .Select(d => (d.Kind, d.Label)).Distinct().ToArray();
-    }
+    internal static IReadOnlyList<(string Kind, string Label)> Parse(string text) => Parse(text, null);
+    internal static IReadOnlyList<(string Kind, string Label)> Parse(string text, string? language) =>
+        LocalizedRotationMessages.Parse("event-horizon", text, Definitions, language);
 }
 
 /// <summary>Magaia banners. Short phrases survive the OCR's usual misreads ("Hames", "Flarnes", "srnolder").</summary>
@@ -98,21 +98,15 @@ internal static class MagaiaMessages
         ("failure", "DPS-Check gescheitert", "sin stained history"),
     ];
 
-    internal static IReadOnlyList<(string Kind, string Label)> Parse(string text)
-    {
-        var normalized = Normalize(text);
-        return Definitions.Where(d => normalized.Contains(d.Phrase, StringComparison.Ordinal))
-            .Select(d => (d.Kind, d.Label)).Distinct().ToArray();
-    }
+    internal static IReadOnlyList<(string Kind, string Label)> Parse(string text) => Parse(text, null);
+    internal static IReadOnlyList<(string Kind, string Label)> Parse(string text, string? language) =>
+        LocalizedRotationMessages.Parse("magaia", text, Definitions, language);
 
     /// <summary>Lines of one message in a sample: the raw and the enlarged pass each read the whole stack once.</summary>
-    internal static int Lines(string text, string kind) => text.Split('\n').Max(pass =>
-    {
-        var normalized = Normalize(pass);
-        return Definitions.Where(d => d.Kind == kind).Max(d => Regex.Count(normalized, Regex.Escape(d.Phrase)));
-    });
+    internal static int Lines(string text, string kind) => Lines(text, kind, null);
+    internal static int Lines(string text, string kind, string? language) =>
+        LocalizedRotationMessages.CountLines("magaia", text, kind, Definitions, language);
 
-    private static string Normalize(string text) => Regex.Replace(text.ToLowerInvariant(), "[^a-z0-9]+", " ").Trim();
 }
 
 internal static class AphrodonMessages
@@ -128,12 +122,9 @@ internal static class AphrodonMessages
         ("end", "AFK-Ende", "blessing fades from the fields"),
         ("failure", "Vogelscheuche erwacht", "the scarecrow awakens as the commotion continues")
     ];
-    internal static IReadOnlyList<(string Kind, string Label)> Parse(string text)
-    {
-        var normalized = Regex.Replace(text.ToLowerInvariant(), "[^a-z0-9]+", " ").Trim();
-        return Definitions.Where(d => normalized.Contains(d.Phrase, StringComparison.Ordinal))
-            .Select(d => (d.Kind, d.Label)).ToArray();
-    }
+    internal static IReadOnlyList<(string Kind, string Label)> Parse(string text) => Parse(text, null);
+    internal static IReadOnlyList<(string Kind, string Label)> Parse(string text, string? language) =>
+        LocalizedRotationMessages.Parse("aphrodon", text, Definitions, language);
 }
 
 /// <summary>
@@ -154,7 +145,7 @@ internal sealed record RotationNameProfile(Func<int, int, Rectangle> Crop, Func<
         using var enlarged = new Mat();
         Cv2.CvtColor(pixels, gray, ColorConversionCodes.BGR2GRAY);
         Cv2.Resize(gray, enlarged, new OpenCvSharp.Size(), 2, 2, InterpolationFlags.Cubic);
-        return engine.Recognize(enlarged).Text;
+        return RotationMessageProfile.ReadLines(engine.Recognize(enlarged));
     }
 }
 
@@ -170,10 +161,7 @@ internal static class MagaiaNames
         ("priest", "Priest of the End", "priest of the"),
     ];
 
-    internal static IReadOnlyList<(string Kind, string Label)> Parse(string text)
-    {
-        var normalized = Regex.Replace(text.ToLowerInvariant(), "[^a-z0-9]+", " ").Trim();
-        return Definitions.Where(d => normalized.Contains(d.Phrase, StringComparison.Ordinal))
-            .Select(d => (d.Kind, d.Label)).Distinct().ToArray();
-    }
+    internal static IReadOnlyList<(string Kind, string Label)> Parse(string text) => Parse(text, null);
+    internal static IReadOnlyList<(string Kind, string Label)> Parse(string text, string? language) =>
+        LocalizedRotationMessages.Parse("magaia-names", text, Definitions, language);
 }

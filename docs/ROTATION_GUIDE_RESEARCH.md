@@ -5,7 +5,7 @@ Stand und Abrufdatum: **27. September 2026**.
 ## Ergebnis und Prüfkriterium
 
 36 konkrete, zuvor nicht registrierte Spots geprüft: **1 A, 27 B, 8 C**.
-Zephyros wurde im Arbeitsbaum ergänzt; noch kein Implementierungscommit. Die vier Ausgangsprofile sind
+Zephyros ist implementiert und für den lokalen Main-Stand freigegeben. Die vier Ausgangsprofile sind
 Hermesia, Aphrodon, Magaia und Event Horizon. Die Registrierung stimmt mit dem
 Ausgangsbestand der Kandidatenliste überein. Die drei Sammelprofile
 `dark-energy-floodlands`, `dehkia-ash-forest-unspecified` und
@@ -27,7 +27,7 @@ gelten nicht als Ablaufbeleg. Videos und Arbeitsdateien bleiben außerhalb des R
 **M** zählt die verfügbaren Meldungseinträge einschließlich unsicherer Kandidaten,
 nicht verschiedene sichtbare Texte oder bestätigte Ereignisse. **P** ist die Zahl
 vollständig belegter Pflichtphasen: `offen` bei B, `—` bei C. „Ergänzt“ ist nur bei
-Zephyros **ja, im Arbeitsbaum**, sonst **nein**. Die B-Tabellen nennen mögliche Textbezüge als
+Zephyros **ja**, sonst **nein**. Die B-Tabellen nennen mögliche Textbezüge als
 Arbeitshypothesen; daraus wurden keine Trigger oder Zeitgrenzen gebaut.
 
 ## Edania und Gavinya
@@ -38,7 +38,7 @@ Arbeitshypothesen; daraus wurden keine Trigger oder Zeitgrenzen gebaut.
 | Nymphamaré Castle · `nymphamare` | B | 6 / offen | Schamanen/Turm → Boss → Spire → Bubble/Fisch. [E1] | Kontamination, Reinigung und Dreamfish sind Kandidaten. Vollständige Start-/Endgrenzen und Bossübergänge fehlen. Aufnahme ab unberührtem Turm bis zur nächsten Aktivierung, einschließlich Aufstieg. |
 | Orbita Castle · `orbita` | B | 24 / offen | Zentraler Turm → drei dünne, drei dicke Säulen → Wellen → Titan → Pause. [E1], [V3] | V3 zeigt drei Sacred- und drei Corrupted-Golems, Rift, Titan und Wiederbeginn. Aufnahme von 2025: Textvarianten und 54–56 s Reinigung widersprechen teilweise dem neueren Guide. Aktuelle englische Aufnahme und Reparatur-/Reset-Gegenprobe fehlen. |
 | Tenebraum Castle · `tenebraum` | B | 15 / offen | Vier Türme mit je drei Wellen; Manticore bei 66 %, 33 % und Tod; Pause. [E1], [V2] | V2 belegt vier Turmfolgen, Bosskontrolle und sechs Befreiungen. Stärkere Kontrolle beendet den Versuch dort nicht. Kein eindeutiges AFK-Endbanner gefunden; nächster Turmschlag darf nicht als Ende der eigentlichen Pause gelten. Natürliches Pausenende und Abbruch gezielt aufnehmen. |
-| Zephyros Castle · `zephyros` | A | 11 verfügbar, 7 verwendet / 4 | Aktivierung → Wellen → Ritter/Wellen → Beelzebub → AFK → Bereitschaft. [V1], [E1] | Fünf vollständige Zyklen belegen den Normalablauf. Bannerpaare ergeben je ein Ereignis. Vier ungeprüfte Abbruchkandidaten bleiben ausgeschlossen. EN/DE/FR/SP-Profil im Arbeitsbaum; [Details](ZEPHYROS_ROTATION.md). |
+| Zephyros Castle · `zephyros` | A | 11 verfügbar, 7 verwendet / 4 | Aktivierung → Wellen → Ritter/Wellen → Beelzebub → AFK → Bereitschaft. [V1], [E1] | Fünf vollständige Zyklen belegen den Normalablauf. Bannerpaare ergeben je ein Ereignis. Vier ungeprüfte Abbruchkandidaten bleiben ausgeschlossen. EN/DE/FR/SP-Profil implementiert; [Details](ZEPHYROS_ROTATION.md). |
 | Aresion Temple · `aresion` | B | 43 / offen | Der Spotabschnitt enthält keine vollständige Mechanikbeschreibung. [E2] | Fünf Flammen-/Brazier-Kandidaten, 38 weitere unsichere Bosskandidaten. Kein belegter Pflichtpfad. Grindaufnahme ab Aktivierung durch zwei Zyklen; Wochenboss getrennt halten. |
 | Scales of Judgment · `scales-of-judgment` | B | 15 / offen | Der Spotabschnitt enthält keine vollständige Mechanikbeschreibung. [E2] | Judgment, Gleichgewicht, Chaos und Reset erscheinen plausibel, Reihenfolge und Wiederholungen unbestätigt. Erfolgreichen Lauf, fehlgeschlagene Prüfung und erneute Aktivierung aufnehmen. |
 | Gavinya Coastal Cliff · `gavinya-coastal-cliff` | B | 7 / offen | Offizielle Einführung bestätigt Schwefelgolems, keinen vollständigen Ablauf. [G1] | Hornstone-Absorption mit Erfolg/Gegenmaßnahme, Stalagmit und Schwarm sind Kandidaten. Start, Pflicht-/Bonuszweige und Abschluss offen. Aufnahme mit zerstörtem und unzerstörtem Hornstone samt erneutem Spawn. |
@@ -193,11 +193,11 @@ sind **keine verifizierten Bannerzeitpunkte** und begründen keine Klasse A.
 ## Implementierungsstand
 
 Zephyros ist mit Definition, Meldungsprofil, Registrierung, Darstellung und Tests
-im Arbeitsbaum ergänzt. Es nutzt die gemeinsame Plattform ohne neue Timer oder
-Recovery-Regeln und hängt von der noch uncommittierten Sprachintegration ab.
-Die übrigen 35 Kandidaten sind nicht registriert. Der Build ist erfolgreich;
-Implementierungscommits bleiben bei den dokumentierten bestehenden Fehlern im
-Gesamttest gesperrt. Es wurde nichts gepusht.
+ergänzt. Es nutzt die gemeinsame Plattform ohne neue Timer oder Recovery-Regeln
+und wird zusammen mit der Sprachintegration lokal auf Main übernommen. Die übrigen
+35 Kandidaten sind nicht registriert. Der Build ist erfolgreich. Der Nutzer hat den
+lokalen Commit trotz der vier dokumentierten Ausgangsfehler im Gesamttest
+ausdrücklich beauftragt. Es erfolgt kein Push.
 
 [E1]: https://www.blackdesertfoundry.com/edania-monster-zones-guide/
 [E2]: https://www.blackdesertfoundry.com/edania-inner-monster-zones-guide/

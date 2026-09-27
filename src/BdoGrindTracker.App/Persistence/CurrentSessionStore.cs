@@ -33,6 +33,7 @@ internal sealed record CurrentSessionSnapshot
     public required TimeSpan ExperienceObservedDuration { get; init; }
     public required int? ExperienceStartLevel { get; init; }
     public required int? ExperienceEndLevel { get; init; }
+    public string RotationMessageLanguage { get; init; } = "auto";
     public required string GameLanguage { get; init; }
     public required string? MonitorDeviceName { get; init; }
     public required bool RecordLoot { get; init; }
@@ -97,6 +98,7 @@ internal sealed class CurrentSessionStore(string path)
             snapshot.SpotId is { } spot && !LootSpotCatalog.Spots.Any(value => value.Id == spot) ||
             snapshot.CharacterClassId is { } character && CompanionCharacterClassCatalog.FindById(character) is null ||
             snapshot.ConfirmedEventCount < 0 || snapshot.Totals is null || snapshot.ManualLootItems is null ||
+            !Analysis.RotationMessageLanguage.IsKnown(snapshot.RotationMessageLanguage) ||
             snapshot.GameLanguage is not ("auto" or "en" or "de") || snapshot.MonitorDeviceName?.Length > 1024)
             throw new InvalidDataException("Die aktuelle Session enthält ungültige Stammdaten.");
         if (snapshot.Totals.Count > 10000 || snapshot.Totals.Any(pair =>

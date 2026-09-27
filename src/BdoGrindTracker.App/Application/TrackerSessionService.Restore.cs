@@ -119,6 +119,7 @@ internal sealed partial class TrackerSessionService
         Preferences = Preferences with
         {
             GameLanguage = saved.GameLanguage,
+            RotationMessageLanguage = saved.RotationMessageLanguage,
             MonitorDeviceName = Monitors.Any(monitor => monitor.DeviceName == saved.MonitorDeviceName)
                 ? saved.MonitorDeviceName : Preferences.MonitorDeviceName,
             // Diagnosis recording requires a new explicit choice after restart.
@@ -227,6 +228,7 @@ internal sealed partial class TrackerSessionService
                     ExperienceStartLevel = experience.StartLevel,
                     ExperienceEndLevel = experience.EndLevel,
                     GameLanguage = Preferences.GameLanguage,
+                    RotationMessageLanguage = Preferences.RotationMessageLanguage,
                     MonitorDeviceName = Preferences.MonitorDeviceName,
                     RecordLoot = Preferences.RecordLoot,
                     Uploads = uploads,

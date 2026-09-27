@@ -39,6 +39,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="..\..\data\rotation-message-patterns.json" LogicalName="BdoGrindTracker.App.RotationMessages.json" />
     <EmbeddedResource Include="..\..\data\branding\grindcrest-header.png" LogicalName="BdoGrindTracker.App.Branding.grindcrest-header.png" />
     <EmbeddedResource Include="..\..\data\ocr\loot-scroll\*.png" LogicalName="BdoGrindTracker.App.LootScroll.%(Filename)%(Extension)" />
     <EmbeddedResource Include="..\..\data\ocr\agris\*.png" LogicalName="BdoGrindTracker.App.Agris.%(Filename)%(Extension)" />

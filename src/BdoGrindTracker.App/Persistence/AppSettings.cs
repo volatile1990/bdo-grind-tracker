@@ -1,4 +1,4 @@
-﻿using BdoGrindTracker.App.Pricing;
+using BdoGrindTracker.App.Pricing;
 using BdoGrindTracker.App.Theming;
 using BdoGrindTracker.App.Localization;
 
@@ -24,6 +24,7 @@ internal sealed class AppSettings
     public string? CaptureConfigurationPath { get; set; }
     public string? BuffRecognitionProfilePath { get; set; }
     public string GameLanguage { get; set; } = "auto";
+    public string RotationMessageLanguage { get; set; } = "auto";
     public string UiLanguage { get; set; } = AppText.DefaultLanguage;
     public string ThemeId { get; set; } = AppThemes.Grindcrest;
     public string? OverlayThemeId { get; set; }
@@ -60,6 +61,7 @@ internal sealed class AppSettings
         ThemeId = AppThemes.Normalize(ThemeId);
         OverlayThemeId = AppThemes.NormalizeOverlay(OverlayThemeId);
         UiLanguage = AppText.NormalizeLanguage(UiLanguage);
+        if (!Analysis.RotationMessageLanguage.IsKnown(RotationMessageLanguage)) RotationMessageLanguage = "auto";
         if (GameLanguage is not ("auto" or "en" or "de")) GameLanguage = "auto";
         if (AutoPauseMinutes is < MinimumAutoPauseMinutes or > MaximumAutoPauseMinutes)
         {

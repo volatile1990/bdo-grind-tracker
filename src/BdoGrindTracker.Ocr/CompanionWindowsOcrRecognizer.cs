@@ -28,6 +28,8 @@ public sealed record CompanionOcrResult(
     // Optional coordinates from this exact OCR image. Historical/fake adapters
     // can keep their original text/first-word contract without supplying them.
     public IReadOnlyList<CompanionOcrWord> Words { get; init; } = [];
+    /// <summary>Original OCR lines for consumers that need whole-line matches.</summary>
+    public IReadOnlyList<string> Lines { get; init; } = [];
 }
 
 public sealed record CompanionOcrWord(string Text, CompanionOcrWordGeometry Geometry);
@@ -187,6 +189,7 @@ public sealed class CompanionWindowsOcrRecognizer
 
         var recognized = new CompanionOcrResult(result.Text, ReadFirstWordGeometry(result))
         {
+            Lines = result.Lines.Select(line => line.Text).ToArray(),
             Words = ReadWords(result, out var completeWordMetadata),
         };
         // Transient failures reading native geometry must be retried on the next
