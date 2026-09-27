@@ -4,8 +4,8 @@ Stand und Abrufdatum: **27. September 2026**.
 
 ## Ergebnis und Prüfkriterium
 
-36 konkrete, bisher nicht registrierte Spots geprüft: **0 A, 28 B, 8 C**.
-Kein zusätzlicher Spot wurde registriert. Die vier bestehenden Profile sind
+36 konkrete, zuvor nicht registrierte Spots geprüft: **1 A, 27 B, 8 C**.
+Zephyros wurde im Arbeitsbaum ergänzt; noch kein Implementierungscommit. Die vier Ausgangsprofile sind
 Hermesia, Aphrodon, Magaia und Event Horizon. Die Registrierung stimmt mit dem
 Ausgangsbestand der Kandidatenliste überein. Die drei Sammelprofile
 `dark-energy-floodlands`, `dehkia-ash-forest-unspecified` und
@@ -18,15 +18,16 @@ Ausgangsbestand der Kandidatenliste überein. Die drei Sammelprofile
   Ereignissen; daraus ergibt sich keine feste Gesamtrotation für diese Plattform.
 
 Die Klassen sind die Bewertung dieser Recherche, keine Behauptung über sämtliche
-Spielversionen. Webseiten wurden gelesen; kein Video wurde visuell ausgewertet.
-Ein Titel, Kapitelname oder Suchtreffer gilt nicht als Ablaufbeleg. Keine Medien
-wurden heruntergeladen. Für keinen neuen Spot sind Crop, OCR-Lesbarkeit oder
-Timing mit einer Spielaufnahme geprüft.
+Spielversionen. Nach zusätzlicher Freigabe wurden Stundenaufnahmen per Kommandozeile
+heruntergeladen und offline ausgewertet. Drei englische Videos wurden vollständig
+in Zweisekunden-Stichproben per OCR gelesen; ausgewählte Übergänge wurden visuell
+geprüft. Keine Prüfung jedes Einzelbildes auf Schnitte. Titel und Suchtreffer allein
+gelten nicht als Ablaufbeleg. Videos und Arbeitsdateien bleiben außerhalb des Repositories.
 
 **M** zählt die verfügbaren Meldungseinträge einschließlich unsicherer Kandidaten,
 nicht verschiedene sichtbare Texte oder bestätigte Ereignisse. **P** ist die Zahl
-vollständig belegter Pflichtphasen: `offen` bei B, `—` bei C. In allen Zeilen ist
-„ergänzt“ **nein**. Die Tabellen nennen mögliche Textbezüge ausdrücklich als
+vollständig belegter Pflichtphasen: `offen` bei B, `—` bei C. „Ergänzt“ ist nur bei
+Zephyros **ja, im Arbeitsbaum**, sonst **nein**. Die B-Tabellen nennen mögliche Textbezüge als
 Arbeitshypothesen; daraus wurden keine Trigger oder Zeitgrenzen gebaut.
 
 ## Edania und Gavinya
@@ -35,9 +36,9 @@ Arbeitshypothesen; daraus wurden keine Trigger oder Zeitgrenzen gebaut.
 | --- | --- | --- | --- | --- |
 | Aetherion Castle · `aetherion` | B | 11 / offen | Turm → Kreise/Geister → Black Wings → Muraka → Turm erneut. [E1] | Wurzel-, Black-Wings- und Muraka-Texte passen inhaltlich. Zahl der Wiederholungen und reguläres Ende gegenüber Abbruch offen. Zwei vollständige Turmzyklen samt auslaufender Pause aufnehmen. |
 | Nymphamaré Castle · `nymphamare` | B | 6 / offen | Schamanen/Turm → Boss → Spire → Bubble/Fisch. [E1] | Kontamination, Reinigung und Dreamfish sind Kandidaten. Vollständige Start-/Endgrenzen und Bossübergänge fehlen. Aufnahme ab unberührtem Turm bis zur nächsten Aktivierung, einschließlich Aufstieg. |
-| Orbita Castle · `orbita` | B | 24 / offen | Zentraler Turm → drei dünne, drei dicke Säulen → Wellen → Titan → Pause. [E1] | Sacred/Corrupted-Texte sind nicht eindeutig den sechs Säulen zugeordnet; Reparatur und Reset unklar. Zwei Zyklen mit allen Säulen, Titan-Tod und nächstem Turmschlag aufnehmen. |
-| Tenebraum Castle · `tenebraum` | B | 15 / offen | Vier Türme mit je drei Wellen; Manticore bei 66 %, 33 % und Tod; Pause. [E1] | Protokoll-, Kontroll- und Siegeltexte unterscheiden Rückzug, Erfolg und Abbruch nicht sicher. Durchgehender Lauf mit allen drei Bossbegegnungen und Wiederbeginn nötig. |
-| Zephyros Castle · `zephyros` | B | 11 / offen | Turm → Wellen/Ritter → Beelzebub → Pause → Turm. [E1] | Energie-, Ritter-, Boss- und Hatchery-Texte passen; Wiederholungszahl sowie reguläres Ende gegenüber Timeout offen. Zwei komplette Läufe, zusätzlich Verlassen des Bereichs dokumentieren. |
+| Orbita Castle · `orbita` | B | 24 / offen | Zentraler Turm → drei dünne, drei dicke Säulen → Wellen → Titan → Pause. [E1], [V3] | V3 zeigt drei Sacred- und drei Corrupted-Golems, Rift, Titan und Wiederbeginn. Aufnahme von 2025: Textvarianten und 54–56 s Reinigung widersprechen teilweise dem neueren Guide. Aktuelle englische Aufnahme und Reparatur-/Reset-Gegenprobe fehlen. |
+| Tenebraum Castle · `tenebraum` | B | 15 / offen | Vier Türme mit je drei Wellen; Manticore bei 66 %, 33 % und Tod; Pause. [E1], [V2] | V2 belegt vier Turmfolgen, Bosskontrolle und sechs Befreiungen. Stärkere Kontrolle beendet den Versuch dort nicht. Kein eindeutiges AFK-Endbanner gefunden; nächster Turmschlag darf nicht als Ende der eigentlichen Pause gelten. Natürliches Pausenende und Abbruch gezielt aufnehmen. |
+| Zephyros Castle · `zephyros` | A | 11 verfügbar, 7 verwendet / 4 | Aktivierung → Wellen → Ritter/Wellen → Beelzebub → AFK → Bereitschaft. [V1], [E1] | Fünf vollständige Zyklen belegen den Normalablauf. Bannerpaare ergeben je ein Ereignis. Vier ungeprüfte Abbruchkandidaten bleiben ausgeschlossen. EN/DE/FR/SP-Profil im Arbeitsbaum; [Details](ZEPHYROS_ROTATION.md). |
 | Aresion Temple · `aresion` | B | 43 / offen | Der Spotabschnitt enthält keine vollständige Mechanikbeschreibung. [E2] | Fünf Flammen-/Brazier-Kandidaten, 38 weitere unsichere Bosskandidaten. Kein belegter Pflichtpfad. Grindaufnahme ab Aktivierung durch zwei Zyklen; Wochenboss getrennt halten. |
 | Scales of Judgment · `scales-of-judgment` | B | 15 / offen | Der Spotabschnitt enthält keine vollständige Mechanikbeschreibung. [E2] | Judgment, Gleichgewicht, Chaos und Reset erscheinen plausibel, Reihenfolge und Wiederholungen unbestätigt. Erfolgreichen Lauf, fehlgeschlagene Prüfung und erneute Aktivierung aufnehmen. |
 | Gavinya Coastal Cliff · `gavinya-coastal-cliff` | B | 7 / offen | Offizielle Einführung bestätigt Schwefelgolems, keinen vollständigen Ablauf. [G1] | Hornstone-Absorption mit Erfolg/Gegenmaßnahme, Stalagmit und Schwarm sind Kandidaten. Start, Pflicht-/Bonuszweige und Abschluss offen. Aufnahme mit zerstörtem und unzerstörtem Hornstone samt erneutem Spawn. |
@@ -85,6 +86,29 @@ Arbeitshypothesen; daraus wurden keine Trigger oder Zeitgrenzen gebaut.
 | Orbita · `dark-energy-floodlands-orbita` | C | 13 / — | Packroute mit Orbs und gelegentlichem Boss. [E1] | Derselbe Ausschlussgrund; Titan wird nicht allein aus dem Gebietsnamen als Pflichtphase angenommen. |
 | Zephyros · `dark-energy-floodlands-zephyros` | C | 13 / — | Packroute mit Orbs und gelegentlichem Boss. [E1] | Derselbe Ausschlussgrund; Beelzebub wird nicht allein aus dem Gebietsnamen als Pflichtphase angenommen. |
 
+## Ausgewertete Stundenaufnahmen
+
+Abruf und Offline-Auswertung am 27. September 2026. Download mit yt-dlp,
+Videoanalyse mit OpenCV und Windows OCR, ohne Computer Use. Die ausgewerteten
+Fassungen haben 1920×1080 Pixel bei 60 Bildern/s. Veröffentlichungsdatum und Titel
+belegen weder Patchstand noch Schnittfreiheit.
+
+| Quelle | Datum / Dauer | Beobachtung und Grenze |
+| --- | --- | --- |
+| [V1: Zephyros, Succ Wiz](https://www.youtube.com/watch?v=UtAX9-qc-RY) | 2026-05-27 / 61:23 | Fünf vollständige Normalzyklen. Erster Start [0:14](https://www.youtube.com/watch?v=UtAX9-qc-RY&t=14s), Ritter 2:16, Boss 9:08, AFK 9:38, Bereitschaft [11:48](https://www.youtube.com/watch?v=UtAX9-qc-RY&t=708s), Neustart 11:52. Sieben Texte, fünf Ereignisarten, vier Abschnitte; Klasse A für diesen Normalablauf. |
+| [V2: Tenebraum, Awk Drakania](https://www.youtube.com/watch?v=fMNMvYq1jao) | 2026-07-25 / 61:11 | Vier Turmstarts 0:50 / 1:54 / 2:52 / 3:54, Manticore 4:56, Kontrollphasen 5:22 und 7:22, Befreiung [9:28](https://www.youtube.com/watch?v=fMNMvYq1jao&t=568s), nächster Turm 10:50. Sechs Befreiungen insgesamt. Bei [19:04](https://www.youtube.com/watch?v=fMNMvYq1jao&t=1144s) folgt auf stärkere Kontrolle dennoch Erfolg 19:32. AFK-Ende nicht durch einen eigenständigen Banner belegt. |
+| [V3: Orbita, Jonlaw](https://www.youtube.com/watch?v=nWk93-d9g4k) | 2025-08-23 / 68:00 | Fünf sichtbare Abschlüsse. Erster Start 1:52, Sacred-Golems 2:54 / 3:30 / 4:16, Wechsel 7:14, Corrupted-Golems 8:18 / 9:06 / 9:52, Rift 12:34, Titan 14:06, Reinigung [15:32](https://www.youtube.com/watch?v=nWk93-d9g4k&t=932s), Bereitschaft [16:28](https://www.youtube.com/watch?v=nWk93-d9g4k&t=988s). Alter Stand und abweichende Texte/Pause verhindern die ungeprüfte Übernahme als aktuelles Profil. |
+
+Die ebenfalls heruntergeladene [Orbita-Seraph-Aufnahme](https://www.youtube.com/watch?v=xs1vFyNq5IQ)
+(2026-02-10, 62:20) wurde nur auf Eignung geprüft. Die sichtbare Sprache erscheint
+portugiesisch und gehört nicht zu den vier vorhandenen Sprachfassungen.
+Daraus wurde keine neue Übersetzung abgeleitet.
+
+Bei V2 stehen die Banner oben im Bild; der Standardausschnitt in der unteren
+Bildmitte würde sie verpassen. V1 wurde zusätzlich mit dem unveränderten
+Produkt-Crop und dem tatsächlichen OCR-Pfad erfolgreich geprüft. Ein passender
+Analyse-Crop allein wäre noch kein Nachweis für die Laufzeiterkennung.
+
 ## Grenzen, Widersprüche und Zeitangaben
 
 - Jede B-Zeile nennt den noch fehlenden Ablaufbeleg. Auch bei plausibler
@@ -113,8 +137,9 @@ Arbeitshypothesen; daraus wurden keine Trigger oder Zeitgrenzen gebaut.
 
 ## Priorität für neue Aufnahmen
 
-1. **Orbita, Tenebraum, Zephyros:** Guide beschreibt bereits einen Zyklus; es fehlen
-   vor allem die sichtbaren Banner an jedem Übergang und die Wiederholungszahlen.
+1. **Orbita und Tenebraum:** Orbita im aktuellen Stand gegen V3 abgleichen;
+   bei Tenebraum natürliches AFK-Ende von manuellem Neustart trennen.
+   **Zephyros:** Verlassen/Tod/Timeout und DE-/FR-/SP-Aufnahmen ergänzen.
 2. **Orzekea, Yzrahid, Mirumok, Gyfin Upper:** Zyklus einschließlich Sonderzweigen,
    Abbruch und Wiederbeginn; Varianten/Modus zuerst im Bild zeigen.
 3. **Aetherion, Nymphamaré, Aresion, Scales, Gavinya:** lückenlose Aufnahme ab
@@ -167,11 +192,12 @@ sind **keine verifizierten Bannerzeitpunkte** und begründen keine Klasse A.
 
 ## Implementierungsstand
 
-Diese Recherche fügt keine Rotationsdefinition und keine Timer hinzu. Bestehende
-Phasenmodelle, Special Events, Fehlerbehandlung und Crops bleiben maßgeblich.
-Sie ist unabhängig von der parallel vorbereiteten Sprachintegration der vier
-bestehenden Profile. Für zusätzliche Spots ist keine Plattformerweiterung nötig,
-solange keiner die Klasse A erreicht.
+Zephyros ist mit Definition, Meldungsprofil, Registrierung, Darstellung und Tests
+im Arbeitsbaum ergänzt. Es nutzt die gemeinsame Plattform ohne neue Timer oder
+Recovery-Regeln und hängt von der noch uncommittierten Sprachintegration ab.
+Die übrigen 35 Kandidaten sind nicht registriert. Der Build ist erfolgreich;
+Implementierungscommits bleiben bei den dokumentierten bestehenden Fehlern im
+Gesamttest gesperrt. Es wurde nichts gepusht.
 
 [E1]: https://www.blackdesertfoundry.com/edania-monster-zones-guide/
 [E2]: https://www.blackdesertfoundry.com/edania-inner-monster-zones-guide/
@@ -189,3 +215,6 @@ solange keiner die Klasse A erreicht.
 [L1]: https://www.blackdesertfoundry.com/dehkias-lantern-guide/
 [L2]: https://garmoth.com/guides/post/dehkias-lantern
 [L3]: https://blackdesert.pearlabyss.com/GlobalLab/en-US/News/Notice/Detail?_boardNo=7385
+[V1]: https://www.youtube.com/watch?v=UtAX9-qc-RY
+[V2]: https://www.youtube.com/watch?v=fMNMvYq1jao
+[V3]: https://www.youtube.com/watch?v=nWk93-d9g4k
