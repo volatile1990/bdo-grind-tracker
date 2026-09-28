@@ -8,6 +8,13 @@ public sealed record OverlayContentLayout(OverlayWidget LayoutWidget, double Sca
     {
         var width = Valid(widget.Width, 160);
         var height = Valid(widget.Height, 72);
+        // Drop grids reflow at their actual size; ItemSize controls their cells.
+        if (Reflows(widget))
+        {
+            var fit = Math.Min(1, Math.Min(width / 80, height / 48));
+            return new(widget with { X = 0, Y = 0, Width = width / fit, Height = height / fit },
+                fit, width, height, 80, 48);
+        }
         var referenceWidth = Valid(widget.ContentWidth ?? width, width);
         var referenceHeight = Valid(widget.ContentHeight ?? height, height);
         var fontScale = double.IsFinite(widget.FontScale) ? Math.Clamp(widget.FontScale, .7, 2) : 1;
@@ -40,6 +47,8 @@ public sealed record OverlayContentLayout(OverlayWidget LayoutWidget, double Sca
             X = 0, Y = 0, Width = width / scale, Height = height / scale, FontScale = fontScale,
         }, scale, referenceWidth, referenceHeight, minimumWidth, minimumHeight);
     }
+
+    public static bool Reflows(OverlayWidget widget) => widget.Kind is "drop-grid" or "drops" && widget.ItemView == "grid";
 
     private static double Valid(double value, double fallback) => double.IsFinite(value) && value > 0
         ? Math.Clamp(value, 1, 1600) : fallback;

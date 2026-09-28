@@ -20,6 +20,7 @@ public sealed record OverlayInstance
 internal sealed record OverlayCollectionSettings
 {
     public int Version { get; init; } = 2;
+    public bool OverlaysVisible { get; init; } = true;
     public string SelectedOverlayId { get; init; } = OverlayInstance.DefaultId;
     public OverlayHotkeySettings? Hotkeys { get; init; }
     public IReadOnlyList<OverlayInstance> Overlays { get; init; } = Array.AsReadOnly(new[] { new OverlayInstance() });

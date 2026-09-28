@@ -5,6 +5,38 @@ namespace BdoGrindTracker.App.Tests;
 
 public sealed class OverlayContentLayoutTests
 {
+    [Theory]
+    [InlineData("drop-grid")]
+    [InlineData("drops")]
+    public void GridResizeReflowsColumnsAndItemSizeControlsSlotCapacity(string kind)
+    {
+        var snapshot = new OverlaySnapshot
+        {
+            Drops = Enumerable.Range(0, 12).Select(i => new OverlayLootItem($"item-{i}", $"Item {i}", "1")).ToArray(),
+        };
+        var widget = OverlayCatalog.CreateWidget(kind) with
+        {
+            Width = 200, Height = 500, ItemSize = 56, ItemFilter = "all", ShowLabel = false,
+        };
+        OverlayLootView Present(OverlayWidget value) =>
+            OverlayLootPresentation.Create(OverlayContentLayout.Create(value, snapshot).LayoutWidget, snapshot);
+        var narrow = Present(widget);
+        var wideWidget = OverlayLayout.ResizeWidget(widget, 380, 500);
+        var wide = Present(wideWidget);
+        Assert.Equal(3, narrow.Columns);
+        Assert.Equal(6, wide.Columns);
+        Assert.Equal(56, narrow.ItemSize);
+        Assert.Equal(56, wide.ItemSize);
+        var largerItems = Present(wideWidget with { ItemSize = 112 });
+        Assert.Equal(3, largerItems.Columns);
+        Assert.Equal(112, largerItems.ItemSize);
+        var shortGrid = Present(OverlayLayout.ResizeWidget(widget, 380, 48));
+        Assert.True(shortGrid.Columns > wide.Columns);
+        Assert.True(shortGrid.ItemSize < wide.ItemSize);
+        Assert.Equal(12, shortGrid.VisibleItems.Count);
+        Assert.Equal(0, shortGrid.HiddenCount);
+    }
+
     public static TheoryData<string> Kinds => new(OverlayCatalog.Widgets.Select(item => item.Kind));
 
     [Theory]
@@ -17,6 +49,14 @@ public sealed class OverlayContentLayoutTests
         {
             var resized = OverlayLayout.ResizeWidget(original, original.Width * factor, original.Height * factor);
             var after = OverlayContentLayout.Create(resized, OverlaySnapshot.Demo);
+            if (OverlayContentLayout.Reflows(original))
+            {
+                Assert.InRange(after.Scale, double.Epsilon, 1);
+                Assert.Equal(resized.Width, after.LayoutWidget.Width * after.Scale, 10);
+                Assert.Equal(resized.Height, after.LayoutWidget.Height * after.Scale, 10);
+                Assert.Equal(original.ItemSize, after.LayoutWidget.ItemSize);
+                continue;
+            }
             Assert.Equal(before.Scale * factor, after.Scale, 10);
             Assert.Equal(before.LayoutWidget.Width, after.LayoutWidget.Width, 10);
             Assert.Equal(before.LayoutWidget.Height, after.LayoutWidget.Height, 10);

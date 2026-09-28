@@ -1,7 +1,9 @@
 @inherits LocalizedComponentBase
 @using BdoGrindTracker.App.Overlay
 
-<div class="overlay-widget-viewport" data-content-width="@Css(Content.ReferenceWidth)" data-content-height="@Css(Content.ReferenceHeight)"
+<div class="overlay-widget-viewport" data-reflow="@OverlayContentLayout.Reflows(Widget).ToString().ToLowerInvariant()"
+     data-grid-count="@(IsLoot ? Loot.VisibleItems.Count : 0)" data-grid-size="@Css(Widget.ItemSize)" data-grid-font="@Css(Widget.FontScale)"
+     data-grid-header="@(Widget.ShowLabel ? 18 : 0)" data-grid-footer="@(IsLoot && Loot.HiddenCount > 0 ? 18 : 0)" data-content-width="@Css(Content.ReferenceWidth)" data-content-height="@Css(Content.ReferenceHeight)"
      data-min-content-width="@Css(Content.MinimumWidth)" data-min-content-height="@Css(Content.MinimumHeight)" data-content-layout="@PreviewStyle">
 <div class="overlay-widget-preview overlay-widget-@Widget.Kind @(Widget.Kind == "chart" ? "session-timeline" : "") @(IsLoot ? "is-loot-widget" : "") @(Metric.IsWarning ? "is-warning" : "") metric-tone-@Metric.Tone.ToString().ToLowerInvariant()" style="@PreviewStyle" title="@T(IsClock ? Clock.Tooltip : IsLoot ? Loot.Detail : Metric.Tooltip ?? (Metric.IsWarning ? "Loot-Scroll ist nicht aktiv." : Metric.Detail ?? ""))">
     @if (Widget.ShowLabel && Widget.Kind != "rotation-monitor")

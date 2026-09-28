@@ -35,6 +35,7 @@ internal sealed class RecordingOverlayService : IOverlayService
     }
     public Task<OverlaySaveResult> ReloadAsync() => _inner.ReloadAsync();
     public Task<OverlaySaveResult> SaveHotkeysAsync(OverlayHotkeySettings hotkeys) => _inner.SaveHotkeysAsync(hotkeys);
+    public bool OverlaysVisible => _inner.OverlaysVisible;
     public Task<OverlaySaveResult> ToggleAllOverlaysAsync() => _inner.ToggleAllOverlaysAsync();
     public Task<OverlaySaveResult> ToggleAllInteractionAsync() => _inner.ToggleAllInteractionAsync();
     public void UpdateHotkeyRuntime(string? status) => _inner.UpdateHotkeyRuntime(status);

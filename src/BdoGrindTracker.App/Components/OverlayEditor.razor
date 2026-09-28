@@ -48,7 +48,8 @@
             <div data-overlay-section="shortcuts" hidden="@(SelectedSection != "shortcuts")">
                 <section class="menu-panel oe-shortcuts" aria-label="@T("Globale Overlay-Tastenkürzel")">
                     <div class="oe-menu-heading"><h2>@T("Tastenkürzel")</h2><span class="oe-shortcuts-state @(Overlay.Hotkeys.Enabled && !IsBrowserPreview ? "enabled" : "")">@(IsBrowserPreview ? T("Nur Vorschau") : Overlay.Hotkeys.Enabled ? T("Global aktiv") : T("Deaktiviert"))</span></div>
-                    <p class="oe-help">@T("Für alle Overlays")</p>
+                    <p class="oe-help">@T("Blendet nur aktivierte Overlays ein oder aus. Die Auswahl der Overlays bleibt erhalten.")</p>
+                    <button type="button" class="button secondary" aria-pressed="@Overlay.OverlaysVisible" @onclick="async () => await Overlay.ToggleAllOverlaysAsync()">@(Overlay.OverlaysVisible ? T("Overlays ausblenden") : T("Overlays einblenden"))</button>
                     <button type="button" class="oe-shortcut" @onclick="OpenHotkeyEditor" aria-label="@T("Tastenkürzel für alle Overlays ein/aus ändern")"><span>@T("Alle Overlays ein / aus")</span><kbd>@Overlay.Hotkeys.ToggleOverlay.GetDisplayText(UiLanguage)</kbd></button>
                     <button type="button" class="oe-shortcut" @onclick="OpenHotkeyEditor" aria-label="@T("Tastenkürzel für Mausbedienung aller Overlays ändern")"><span>@T("Verschieben / Klicks ans Spiel")</span><kbd>@Overlay.Hotkeys.ToggleInteraction.GetDisplayText(UiLanguage)</kbd></button>
                     <button type="button" class="button secondary" @onclick="OpenHotkeyEditor">@T("Anpassen")</button>
@@ -226,7 +227,7 @@
                     {
                         <div class="oe-consumables-settings">
                             <p class="oe-help">@T("Alle verbrauchten Items bleiben sichtbar. Der Gesamtpreis entspricht der Live-Session.")</p>
-                            <label class="oe-field"><span>@T("Icon-Größe") <output>@Css(selected.ItemSize) px</output></span><input aria-label="@T("Icon-Größe")" type="range" min="32" max="112" step="4" value="@Css(selected.ItemSize)" @onchange='e => WidgetNumber(e, "itemSize")' /><small>@T("Unabhängig von der Schriftgröße.")</small></label>
+                            <label class="oe-field"><span>@T("Icon-Größe") <output>@Css(selected.ItemSize) px</output></span><input aria-label="@T("Icon-Größe")" type="range" min="32" max="112" step="4" value="@Css(selected.ItemSize)" @oninput='e => WidgetNumber(e, "itemSize")' /><small>@T("Unabhängig von der Schriftgröße.")</small></label>
                         </div>
                     }
                     @if (OverlayCatalog.IsLootWidget(selected.Kind))
@@ -237,7 +238,7 @@
                             {
                                 <label class="oe-field"><span>@T("Darstellung")</span><select aria-label="@T("Drop-Darstellung")" value="@selected.ItemView" @onchange="e => ChangeWidget(w => w with { ItemView = Text(e) })"><option value="grid">@T("Inventarraster")</option><option value="strip">@T("Horizontale Icon-Leiste")</option><option value="list">@T("Liste mit Namen")</option><option value="card">@T("Große Item-Karte")</option></select></label>
                             }
-                            <label class="oe-field"><span>@T("Icon-Größe") <output>@Css(selected.ItemSize) px</output></span><input aria-label="@T("Drop-Icon-Größe")" type="range" min="32" max="112" step="4" value="@Css(selected.ItemSize)" @onchange='e => WidgetNumber(e, "itemSize")' /><small>@T("Unabhängig von der Schriftgröße.")</small></label>
+                            <label class="oe-field"><span>@T("Item- und Platzgröße") <output>@Css(selected.ItemSize) px</output></span><input aria-label="@T("Drop-Icon-Größe")" type="range" min="32" max="112" step="4" value="@Css(selected.ItemSize)" @oninput='e => WidgetNumber(e, "itemSize")' /><small>@T("Unabhängig von der Schriftgröße.")</small></label>
                             @if (selected.Kind is not "drop-item" and not "rare-drops")
                             {
                                 <label class="oe-field"><span>@T("Welche Items")</span><select aria-label="@T("Drop-Filter")" value="@selected.ItemFilter" @onchange="e => ChangeWidget(w => w with { ItemFilter = Text(e) })"><option value="all">@T("Alle gesammelten Items")</option><option value="trash">@T("Nur Trashloot")</option><option value="rare">@T("Nur seltene Items")</option><option value="selected">@T("Eigene Auswahl")</option></select></label>

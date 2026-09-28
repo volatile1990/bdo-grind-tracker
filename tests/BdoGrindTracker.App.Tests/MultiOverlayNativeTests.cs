@@ -127,7 +127,8 @@ public sealed class MultiOverlayNativeTests
                 Assert.NotEqual(second.Handle, handle);
 
                 DispatchShortcut(hotkeys, 1, service.Hotkeys.ToggleOverlay);
-                Assert.All(service.Overlays, overlay => Assert.True(overlay.Settings.Enabled));
+                Assert.False(service.OverlaysVisible);
+                Assert.All(service.Overlays, overlay => Assert.False(overlay.Settings.Enabled));
                 DispatchShortcut(hotkeys, 2, service.Hotkeys.ToggleInteraction);
                 Assert.All(service.Overlays, overlay => Assert.Equal("passthrough", overlay.Settings.Interaction));
                 service.SelectOverlayAsync(firstId).GetAwaiter().GetResult();
@@ -144,9 +145,11 @@ public sealed class MultiOverlayNativeTests
                 Assert.True(first.IsDisposed);
                 Assert.Equal(handle, HotkeyWindow(host)!.Handle);
                 DispatchShortcut(hotkeys, 1, service.Hotkeys.ToggleOverlay);
+                Assert.True(service.OverlaysVisible);
                 Assert.False(service.Settings.Enabled);
                 DispatchShortcut(hotkeys, 1, service.Hotkeys.ToggleOverlay);
-                Assert.True(service.Settings.Enabled);
+                Assert.False(service.OverlaysVisible);
+                Assert.False(service.Settings.Enabled);
                 service.CreateOverlayAsync("Drittes", secondId).GetAwaiter().GetResult();
                 host.Tick();
                 Assert.Equal(1, created);

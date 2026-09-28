@@ -19,6 +19,7 @@ internal interface IOverlayService : IDisposable
 {
     event Action? Changed;
     OverlaySettings Settings { get; }
+    bool OverlaysVisible => true;
     string? LoadError { get; }
     Task<OverlaySaveResult> ReloadAsync();
     OverlayHotkeySettings Hotkeys { get; }

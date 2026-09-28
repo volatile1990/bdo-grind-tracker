@@ -4,6 +4,11 @@ internal static partial class AppText
 {
     private static void AddOverlay(Dictionary<string, string> text)
     {
+        text["Item- und Platzgröße"] = "Item and slot size";
+        text["Blendet nur aktivierte Overlays ein oder aus. Die Auswahl der Overlays bleibt erhalten."] = "Show or hide enabled overlays. Your overlay selection stays unchanged.";
+        text["Overlays über Tastenkürzel ausgeblendet."] = "Overlays hidden by shortcut.";
+        text["Overlays ausblenden"] = "Hide overlays";
+        text["Overlays einblenden"] = "Show overlays";
         text["Overlay-Bereiche"] = "Overlay sections";
         text["Fenster"] = "Windows";
         text["Vorlagen"] = "Templates";

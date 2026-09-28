@@ -21,7 +21,7 @@ public sealed class OverlayPersonalizationInteractionTests
         Assert.True(overlay.Hotkeys.Enabled);
         Assert.Contains("data-overlay-section=\"shortcuts\">", html);
         Assert.Contains("Global aktiv", html);
-        Assert.Contains("Für alle Overlays", html);
+        Assert.Contains("Die Auswahl der Overlays bleibt erhalten.", html);
         Assert.Contains("Alle Overlays ein / aus", html);
         Assert.Contains("<kbd>Strg+Alt+O</kbd>", html);
         Assert.Contains("<kbd>Strg+Alt+L</kbd>", html);
