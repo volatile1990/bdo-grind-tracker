@@ -23,28 +23,30 @@ internal interface IRotationProfileMonitor : IDisposable
 /// <summary>Each spot owns its message recognition, rotation rules and records.</summary>
 internal static partial class RotationProfiles
 {
-    private static readonly IReadOnlyDictionary<string, Func<IRotationProfileMonitor>> Factories =
-        new Dictionary<string, Func<IRotationProfileMonitor>>(StringComparer.Ordinal)
+    private static readonly IReadOnlyDictionary<string, Func<RotationMessageProfile, IRotationProfileMonitor>> Factories =
+        new Dictionary<string, Func<RotationMessageProfile, IRotationProfileMonitor>>(StringComparer.Ordinal)
         {
-            [LootSpotCatalog.HermesiaId] = () => CreateShared(LootSpotCatalog.HermesiaId, RotationMessageProfile.Hermesia),
-            [LootSpotCatalog.AphrodonId] = () => new BufferedRotationProfileMonitor(
-                new RotationPlatform(RotationDefinition.Aphrodon, RotationPlatform.DefaultPath(LootSpotCatalog.AphrodonId)), RotationMessageProfile.Aphrodon),
-            [LootSpotCatalog.MagaiaId] = () => new BufferedRotationProfileMonitor(
-                new RotationPlatform(RotationDefinition.Magaia, RotationPlatform.DefaultPath(LootSpotCatalog.MagaiaId)), RotationMessageProfile.Magaia),
-            [LootSpotCatalog.EventHorizonId] = () => new BufferedRotationProfileMonitor(
-                new RotationPlatform(RotationDefinition.EventHorizon, RotationPlatform.DefaultPath(LootSpotCatalog.EventHorizonId)), RotationMessageProfile.EventHorizon),
+            [LootSpotCatalog.HermesiaId] = messages => CreateShared(LootSpotCatalog.HermesiaId, messages),
+            [LootSpotCatalog.ZephyrosId] = messages => CreateShared(LootSpotCatalog.ZephyrosId, messages),
+            [LootSpotCatalog.AphrodonId] = messages => new BufferedRotationProfileMonitor(
+                new RotationPlatform(RotationDefinition.Aphrodon, RotationPlatform.DefaultPath(LootSpotCatalog.AphrodonId)), messages),
+            [LootSpotCatalog.MagaiaId] = messages => new BufferedRotationProfileMonitor(
+                new RotationPlatform(RotationDefinition.Magaia, RotationPlatform.DefaultPath(LootSpotCatalog.MagaiaId)), messages),
+            [LootSpotCatalog.EventHorizonId] = messages => new BufferedRotationProfileMonitor(
+                new RotationPlatform(RotationDefinition.EventHorizon, RotationPlatform.DefaultPath(LootSpotCatalog.EventHorizonId)), messages),
         };
 
     private static IRotationProfileMonitor CreateShared(string spot, RotationMessageProfile messages) =>
         new BufferedRotationProfileMonitor(new RotationPlatform(RotationDefinition.For(spot), RotationPlatform.DefaultPath(spot)), messages);
 
-    internal static IRotationProfileMonitor? Create(string? spotId) =>
-        spotId is not null && Factories.TryGetValue(spotId, out var create) ? create() : null;
+    internal static IRotationProfileMonitor? Create(string? spotId, string language = "en") =>
+        spotId is not null && Factories.TryGetValue(spotId, out var create) ? create(Messages(spotId, language)!) : null;
 
     private static readonly IReadOnlyDictionary<string, RotationMessageProfile> Recognition =
         new Dictionary<string, RotationMessageProfile>(StringComparer.Ordinal)
         {
             [LootSpotCatalog.HermesiaId] = RotationMessageProfile.Hermesia,
+            [LootSpotCatalog.ZephyrosId] = RotationMessageProfile.Zephyros,
             [LootSpotCatalog.AphrodonId] = RotationMessageProfile.Aphrodon,
             [LootSpotCatalog.EventHorizonId] = RotationMessageProfile.EventHorizon,
             [LootSpotCatalog.MagaiaId] = RotationMessageProfile.Magaia,
@@ -53,6 +55,22 @@ internal static partial class RotationProfiles
     /// <summary>The spot's message recognition, also used while watching for a rotation start before a session.</summary>
     internal static RotationMessageProfile? Messages(string? spotId) =>
         spotId is not null && Recognition.TryGetValue(spotId, out var profile) ? profile : null;
+
+    internal static RotationMessageProfile? Messages(string? spotId, string language)
+    {
+        if (Messages(spotId) is not { } profile) return null;
+        Func<string, IReadOnlyList<(string Kind, string Label)>> parse = spotId switch
+        {
+            LootSpotCatalog.HermesiaId => text => HermesiaMessages.Parse(text, language),
+            LootSpotCatalog.ZephyrosId => text => ZephyrosMessages.Parse(text, language),
+            LootSpotCatalog.AphrodonId => text => AphrodonMessages.Parse(text, language),
+            LootSpotCatalog.MagaiaId => text => MagaiaMessages.Parse(text, language),
+            _ => text => EventHorizonMessages.Parse(text, language)
+        };
+        return profile with { Parse = parse, OcrLanguageTag = RotationMessageLanguage.OcrTag(language),
+            CountLines = spotId == LootSpotCatalog.MagaiaId ? (text, kind) => MagaiaMessages.Lines(text, kind, language) : null,
+            Names = profile.Names is { } names ? names with { Parse = text => MagaiaNames.Parse(text, language) } : null };
+    }
 }
 
 /// <summary>Follows the tracker's selected/detected spot without leaking a previous spot's run.</summary>
@@ -135,7 +153,25 @@ internal sealed class RotationMonitor : IDisposable
     // appear before that drop. Until then every profile watches, and the detected spot keeps its own.
     private readonly Dictionary<string, IRotationProfileMonitor?> _candidates = new(StringComparer.Ordinal);
 
-    internal RotationMonitor(Func<string?, IRotationProfileMonitor?>? create = null) => _create = create ?? RotationProfiles.Create;
+    private string _language = "en";
+    internal RotationMonitor(Func<string?, IRotationProfileMonitor?>? create = null) =>
+        _create = create ?? (spot => RotationProfiles.Create(spot, _language));
+
+    internal void ConfigureLanguage(string language)
+    {
+        _ = RotationMessageLanguage.OcrTag(language);
+        lock (_sync)
+        {
+            if (_language == language) return;
+            _profile?.Interrupt("Sprache der Spot-Nachrichten geändert");
+            CollectCompleted();
+            _profile?.Dispose();
+            _profile = null;
+            _spotId = null;
+            DisposeCandidates();
+            _language = language;
+        }
+    }
     private void Select(string? spotId)
     {
         // A caller that does not know the spot yet says nothing about the one already detected: only a different

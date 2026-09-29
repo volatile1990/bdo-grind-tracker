@@ -22,6 +22,8 @@ public sealed record OverlaySnapshot
     public DateTimeOffset ObservedAt { get; init; }
     /// <summary>Net silver of each recorded loot increase, valued with the current prices.</summary>
     public IReadOnlyList<OverlaySilverDrop> SilverDrops { get; init; } = [];
+    /// <summary>Every pause of the session on its active-time axis.</summary>
+    public IReadOnlyList<SessionPause> Pauses { get; init; } = [];
     /// <summary>Each recorded increase of the spot's trash item.</summary>
     public IReadOnlyList<SessionDropSample> TrashDrops { get; init; } = [];
     public IReadOnlyList<OverlayDropMarker> DropMarkers { get; init; } = [];

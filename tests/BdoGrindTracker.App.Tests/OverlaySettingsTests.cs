@@ -69,7 +69,8 @@ public sealed class OverlaySettingsTests
         }
         using var restored = new OverlayService(tracker, new OverlaySettingsStore(folder.Path));
         Assert.Equal(2, restored.Overlays.Count);
-        Assert.All(restored.Overlays, overlay => Assert.True(overlay.Settings.Enabled));
+        Assert.False(restored.OverlaysVisible);
+        Assert.All(restored.Overlays, overlay => Assert.False(overlay.Settings.Enabled));
     }
 
     [Theory]

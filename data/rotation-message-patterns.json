@@ -1,0 +1,1794 @@
+[
+  {
+    "spot": "hermesia",
+    "kind": "offer",
+    "language": "en",
+    "text": "The overseer orders the Black Crystals to be offered up.",
+    "phrase": "overseer orders the black",
+    "mode": "contains"
+  },
+  {
+    "spot": "hermesia",
+    "kind": "offer",
+    "language": "de",
+    "text": "Der Aufseher befiehlt die Übergabe der Schwarzkristalle.",
+    "phrase": "aufseher befiehlt die",
+    "mode": "contains"
+  },
+  {
+    "spot": "hermesia",
+    "kind": "offer",
+    "language": "fr",
+    "text": "Le Surveillant ordonne l'offrande de cristaux noirs.",
+    "phrase": "ordonne l offrande",
+    "mode": "contains"
+  },
+  {
+    "spot": "hermesia",
+    "kind": "offer",
+    "language": "sp",
+    "text": "El inspector ordena entregar el cristal oscuro.",
+    "phrase": "ordena entregar el",
+    "mode": "contains"
+  },
+  {
+    "spot": "hermesia",
+    "kind": "porter",
+    "language": "en",
+    "text": "The porters gather to offer up the Black Crystals.",
+    "phrase": "porters gather to offer",
+    "mode": "contains"
+  },
+  {
+    "spot": "hermesia",
+    "kind": "porter",
+    "language": "de",
+    "text": "Die Lastenträger versammeln sich, um die Schwarzkristalle zu übergeben.",
+    "phrase": "lastenträger versammeln sich",
+    "mode": "contains"
+  },
+  {
+    "spot": "hermesia",
+    "kind": "porter",
+    "language": "fr",
+    "text": "Les porteurs se rassemblent pour offrir les cristaux noirs.",
+    "phrase": "pour offrir les",
+    "mode": "contains"
+  },
+  {
+    "spot": "hermesia",
+    "kind": "porter",
+    "language": "sp",
+    "text": "Los porteadores se reúnen para entregar el cristal oscuro.",
+    "phrase": "reúnen para entregar",
+    "mode": "contains"
+  },
+  {
+    "spot": "hermesia",
+    "kind": "drakania",
+    "language": "en",
+    "text": "Who dares interferes with our work!",
+    "phrase": "interferes with our",
+    "mode": "contains"
+  },
+  {
+    "spot": "hermesia",
+    "kind": "drakania",
+    "language": "de",
+    "text": "Wer wagt es, das große Werk zu stören?!",
+    "phrase": "es das grosse",
+    "mode": "contains"
+  },
+  {
+    "spot": "hermesia",
+    "kind": "drakania",
+    "language": "fr",
+    "text": "Qui ose entraver mon grand dessein !",
+    "phrase": "ose entraver mon",
+    "mode": "contains"
+  },
+  {
+    "spot": "hermesia",
+    "kind": "drakania",
+    "language": "sp",
+    "text": "¿Quién se atreve a interponerse en la gran labor?",
+    "phrase": "interponerse en la",
+    "mode": "contains"
+  },
+  {
+    "spot": "hermesia",
+    "kind": "drakania-kill",
+    "language": "en",
+    "text": "F... Father...!",
+    "phrase": "F... Father...!",
+    "mode": "line"
+  },
+  {
+    "spot": "hermesia",
+    "kind": "drakania-kill",
+    "language": "de",
+    "text": "V-Vater ...!",
+    "phrase": "V-Vater ...!",
+    "mode": "line"
+  },
+  {
+    "spot": "hermesia",
+    "kind": "drakania-kill",
+    "language": "fr",
+    "text": "P... Père !",
+    "phrase": "P... Père !",
+    "mode": "line"
+  },
+  {
+    "spot": "hermesia",
+    "kind": "drakania-kill",
+    "language": "sp",
+    "text": "¡Pa... padre...!  ",
+    "phrase": "¡Pa... padre...!  ",
+    "mode": "line"
+  },
+  {
+    "spot": "hermesia",
+    "kind": "transfer",
+    "language": "en",
+    "text": "Authority over two mines transferred.",
+    "phrase": "over two mines",
+    "mode": "contains"
+  },
+  {
+    "spot": "hermesia",
+    "kind": "transfer",
+    "language": "de",
+    "text": "Die Berechtigungen für zwei Steinbrüche wurden übertragen.",
+    "phrase": "für zwei steinbrüche",
+    "mode": "contains"
+  },
+  {
+    "spot": "hermesia",
+    "kind": "transfer",
+    "language": "fr",
+    "text": "Les autorisations de gestion de 2 carrières ont été transférées.",
+    "phrase": "gestion de 2",
+    "mode": "contains"
+  },
+  {
+    "spot": "hermesia",
+    "kind": "transfer",
+    "language": "sp",
+    "text": "Se han transferido los permisos de dos canteras.",
+    "phrase": "permisos de dos",
+    "mode": "contains"
+  },
+  {
+    "spot": "hermesia",
+    "kind": "mine-enter",
+    "language": "en",
+    "text": "Quarry management authority confirmed. Alert status lifted.",
+    "phrase": "confirmed alert status",
+    "mode": "contains"
+  },
+  {
+    "spot": "hermesia",
+    "kind": "mine-enter",
+    "language": "de",
+    "text": "Die Verwaltungsberechtigung für den Steinbruch wurde bestätigt. Die Alarmbereitschaft wird aufgehoben.",
+    "phrase": "wurde bestätigt die",
+    "mode": "contains"
+  },
+  {
+    "spot": "hermesia",
+    "kind": "mine-enter",
+    "language": "fr",
+    "text": "Autorisation de gestion de la carrière confirmée. Alerte levée.",
+    "phrase": "la carrière confirmée",
+    "mode": "contains"
+  },
+  {
+    "spot": "hermesia",
+    "kind": "mine-enter",
+    "language": "sp",
+    "text": "Permisos de administrador de la cantera confirmados. Desactivando el estado de alerta.",
+    "phrase": "la cantera confirmados",
+    "mode": "contains"
+  },
+  {
+    "spot": "hermesia",
+    "kind": "mine-second",
+    "language": "en",
+    "text": "The quarry quota was not met, leaving the Black Crystal energy unstable.",
+    "phrase": "quarry quota was not met",
+    "mode": "contains"
+  },
+  {
+    "spot": "hermesia",
+    "kind": "mine-second",
+    "language": "de",
+    "text": "Da das Soll des Steinbruchs nicht erfüllt wurde, wird die Energie des Schwarzkristalls instabil.",
+    "phrase": "erfüllt wurde wird",
+    "mode": "contains"
+  },
+  {
+    "spot": "hermesia",
+    "kind": "mine-second",
+    "language": "fr",
+    "text": "Le quota de la carrière étant insuffisant, l'énergie du cristal noir devient instable.",
+    "phrase": "la carrière étant",
+    "mode": "contains"
+  },
+  {
+    "spot": "hermesia",
+    "kind": "mine-second",
+    "language": "sp",
+    "text": "No se ha alcanzado la cuota de la cantera. La energía del cristal oscuro se está volviendo inestable.",
+    "phrase": "cantera la energía",
+    "mode": "contains"
+  },
+  {
+    "spot": "hermesia",
+    "kind": "mine-cleared",
+    "language": "en",
+    "text": "Work in the mine is suspended as the Black Crystal energy overloads.",
+    "phrase": "is suspended as",
+    "mode": "contains"
+  },
+  {
+    "spot": "hermesia",
+    "kind": "mine-cleared",
+    "language": "de",
+    "text": "Aufgrund einer Überlastung durch die Energie der Schwarzkristalle wird die Arbeit im Steinbruch vorübergehend eingestellt.",
+    "phrase": "überlastung durch die",
+    "mode": "contains"
+  },
+  {
+    "spot": "hermesia",
+    "kind": "mine-cleared",
+    "language": "fr",
+    "text": "Travaux suspendus en raison d'une surcharge de l'énergie des cristaux noirs dans la carrière.",
+    "phrase": "suspendus en raison",
+    "mode": "contains"
+  },
+  {
+    "spot": "hermesia",
+    "kind": "mine-cleared",
+    "language": "sp",
+    "text": "El trabajo en la cantera se detiene temporalmente por una sobrecarga de energía de cristales oscuros.",
+    "phrase": "una sobrecarga de",
+    "mode": "contains"
+  },
+  {
+    "spot": "hermesia",
+    "kind": "dragon",
+    "language": "en",
+    "text": "Markthanan's patrol descends.",
+    "phrase": "patrol descends",
+    "mode": "contains"
+  },
+  {
+    "spot": "hermesia",
+    "kind": "dragon",
+    "language": "de",
+    "text": "Ein Untergebener Makthanans, der auf Erkundung war, landet.",
+    "phrase": "auf erkundung war",
+    "mode": "contains"
+  },
+  {
+    "spot": "hermesia",
+    "kind": "dragon",
+    "language": "fr",
+    "text": "Les sbires de Markthanan en reconnaissance atterrissent.",
+    "phrase": "markthanan en reconnaissance",
+    "mode": "contains"
+  },
+  {
+    "spot": "hermesia",
+    "kind": "dragon",
+    "language": "sp",
+    "text": "Un subordinado de Markthanan que estaba patrullando desciende.",
+    "phrase": "markthanan que estaba",
+    "mode": "contains"
+  },
+  {
+    "spot": "hermesia",
+    "kind": "afk",
+    "language": "en",
+    "text": "Markthanan's Black Crystal goes out of control and begins absorbing nearby Black Crystals.",
+    "phrase": "begins absorbing nearby",
+    "mode": "contains"
+  },
+  {
+    "spot": "hermesia",
+    "kind": "afk",
+    "language": "de",
+    "text": "Makthanans Schwarzkristall gerät außer Kontrolle und beginnt, die Schwarzkristalle in der Umgebung zu absorbieren.",
+    "phrase": "kontrolle und beginnt",
+    "mode": "contains"
+  },
+  {
+    "spot": "hermesia",
+    "kind": "afk",
+    "language": "fr",
+    "text": "Le cristal noir de Markthanan s'emballe et commence à absorber les cristaux noirs des environs.",
+    "phrase": "markthanan s emballe",
+    "mode": "contains"
+  },
+  {
+    "spot": "hermesia",
+    "kind": "afk",
+    "language": "sp",
+    "text": "El cristal oscuro de Markthanan se ha vuelto imparable y empieza a absorber los cristales oscuros de los alrededores.",
+    "phrase": "markthanan se ha",
+    "mode": "contains"
+  },
+  {
+    "spot": "hermesia",
+    "kind": "failure",
+    "language": "en",
+    "text": "Intruder alert in effect. Valid authorization not confirmed.",
+    "phrase": "alert in effect",
+    "mode": "contains"
+  },
+  {
+    "spot": "hermesia",
+    "kind": "failure",
+    "language": "de",
+    "text": "Ein Eindringlingsalarm ist aktiv. Es wurde keine gültige Berechtigung bestätigt.",
+    "phrase": "ist aktiv es",
+    "mode": "contains"
+  },
+  {
+    "spot": "hermesia",
+    "kind": "failure",
+    "language": "fr",
+    "text": "Alerte intrusion en cours. Aucune autorisation valide détectée.",
+    "phrase": "en cours aucune",
+    "mode": "contains"
+  },
+  {
+    "spot": "hermesia",
+    "kind": "failure",
+    "language": "sp",
+    "text": "Alerta de intrusos activada. No se ha detectado ningún permiso válido.",
+    "phrase": "de intrusos activada",
+    "mode": "contains"
+  },
+  {
+    "spot": "aphrodon",
+    "kind": "setup",
+    "language": "en",
+    "text": "As the scarecrow falls, the workers of the golden fields gather around.",
+    "phrase": "falls the workers",
+    "mode": "contains"
+  },
+  {
+    "spot": "aphrodon",
+    "kind": "setup",
+    "language": "de",
+    "text": "Als die Vogelscheuche fällt, versammeln sich die Arbeiter des Goldfeldes.",
+    "phrase": "fällt versammeln sich",
+    "mode": "contains"
+  },
+  {
+    "spot": "aphrodon",
+    "kind": "setup",
+    "language": "fr",
+    "text": "Lorsque l'Épouvantail s'effondre, les ouvriers du Champ doré s'y rassemblent.",
+    "phrase": "doré s y",
+    "mode": "contains"
+  },
+  {
+    "spot": "aphrodon",
+    "kind": "setup",
+    "language": "sp",
+    "text": "Cuando el espantapájaros cae, los trabajadores del campo dorado se reúnen a su alrededor.",
+    "phrase": "campo dorado se",
+    "mode": "contains"
+  },
+  {
+    "spot": "aphrodon",
+    "kind": "small-scarecrow",
+    "language": "en",
+    "text": "The harvest winds begin to blow.",
+    "phrase": "harvest winds begin",
+    "mode": "contains"
+  },
+  {
+    "spot": "aphrodon",
+    "kind": "small-scarecrow",
+    "language": "de",
+    "text": "Der Wind der Erntezeit zieht auf.",
+    "phrase": "wind der erntezeit",
+    "mode": "contains"
+  },
+  {
+    "spot": "aphrodon",
+    "kind": "small-scarecrow",
+    "language": "fr",
+    "text": "La brise de la moisson souffle.",
+    "phrase": "brise de la moisson",
+    "mode": "contains"
+  },
+  {
+    "spot": "aphrodon",
+    "kind": "small-scarecrow",
+    "language": "sp",
+    "text": "Sopla el viento de la cosecha.",
+    "phrase": "viento de la cosecha",
+    "mode": "contains"
+  },
+  {
+    "spot": "aphrodon",
+    "kind": "restart",
+    "language": "en",
+    "text": "A golden fragrance rides the wind.",
+    "phrase": "fragrance rides the",
+    "mode": "contains"
+  },
+  {
+    "spot": "aphrodon",
+    "kind": "restart",
+    "language": "de",
+    "text": "Der Wind trägt einen goldenen Duft heran.",
+    "phrase": "wind trägt einen",
+    "mode": "contains"
+  },
+  {
+    "spot": "aphrodon",
+    "kind": "restart",
+    "language": "fr",
+    "text": "Un parfum d'or imprègne la brise.",
+    "phrase": "parfum d or",
+    "mode": "contains"
+  },
+  {
+    "spot": "aphrodon",
+    "kind": "restart",
+    "language": "sp",
+    "text": "El aroma dorado se desliza suavemente con la brisa.",
+    "phrase": "aroma dorado se",
+    "mode": "contains"
+  },
+  {
+    "spot": "aphrodon",
+    "kind": "hog",
+    "language": "en",
+    "text": "You sense the energy of abundance.",
+    "phrase": "you sense the energy of abundance",
+    "mode": "contains"
+  },
+  {
+    "spot": "aphrodon",
+    "kind": "hog",
+    "language": "de",
+    "text": "Die Energie des Überflusses ist zu spüren.",
+    "phrase": "die energie des überflusses",
+    "mode": "contains"
+  },
+  {
+    "spot": "aphrodon",
+    "kind": "hog",
+    "language": "fr",
+    "text": "L'énergie de l'abondance se fait ressentir.",
+    "phrase": "l énergie de l abondance se",
+    "mode": "contains"
+  },
+  {
+    "spot": "aphrodon",
+    "kind": "hog",
+    "language": "sp",
+    "text": "Se siente la energía de la abundancia.",
+    "phrase": "Se siente la energía de la abundancia.",
+    "mode": "line"
+  },
+  {
+    "spot": "aphrodon",
+    "kind": "agris",
+    "language": "en",
+    "text": "You sense an intoxicating energy of abundance.",
+    "phrase": "sense an intoxicating",
+    "mode": "contains"
+  },
+  {
+    "spot": "aphrodon",
+    "kind": "agris",
+    "language": "de",
+    "text": "Eine überwältigende Energie des Überflusses ist zu spüren.",
+    "phrase": "überwältigende energie des",
+    "mode": "contains"
+  },
+  {
+    "spot": "aphrodon",
+    "kind": "agris",
+    "language": "fr",
+    "text": "Une merveilleuse énergie de l'abondance se fait ressentir.",
+    "phrase": "merveilleuse énergie de",
+    "mode": "contains"
+  },
+  {
+    "spot": "aphrodon",
+    "kind": "agris",
+    "language": "sp",
+    "text": "Se siente la energía de la abundancia fascinante.",
+    "phrase": "la abundancia fascinante",
+    "mode": "contains"
+  },
+  {
+    "spot": "aphrodon",
+    "kind": "big-scarecrow",
+    "language": "en",
+    "text": "A scarecrow blessed with abundance appears.",
+    "phrase": "scarecrow blessed with",
+    "mode": "contains"
+  },
+  {
+    "spot": "aphrodon",
+    "kind": "big-scarecrow",
+    "language": "de",
+    "text": "Eine mit dem Segen des Überflusses erfüllte Vogelscheuche erscheint.",
+    "phrase": "überflusses erfüllte vogelscheuche",
+    "mode": "contains"
+  },
+  {
+    "spot": "aphrodon",
+    "kind": "big-scarecrow",
+    "language": "fr",
+    "text": "L'Épouvantail imprégné de la bénédiction de l'abondance apparaît.",
+    "phrase": "de la bénédiction de l abondance",
+    "mode": "contains"
+  },
+  {
+    "spot": "aphrodon",
+    "kind": "big-scarecrow",
+    "language": "sp",
+    "text": "Aparece un espantapájaros con la bendición de la abundancia.",
+    "phrase": "espantapájaros con la",
+    "mode": "contains"
+  },
+  {
+    "spot": "aphrodon",
+    "kind": "afk",
+    "language": "en",
+    "text": "Agris's blessing settles over the fields.",
+    "phrase": "blessing settles over",
+    "mode": "contains"
+  },
+  {
+    "spot": "aphrodon",
+    "kind": "afk",
+    "language": "de",
+    "text": "Der Segen von Agris erfüllt das gesamte Feld.",
+    "phrase": "von agris erfüllt",
+    "mode": "contains"
+  },
+  {
+    "spot": "aphrodon",
+    "kind": "afk",
+    "language": "fr",
+    "text": "La bénédiction d'Agris s'étend sur toute la plaine.",
+    "phrase": "d agris s étend",
+    "mode": "contains"
+  },
+  {
+    "spot": "aphrodon",
+    "kind": "afk",
+    "language": "sp",
+    "text": "La bendición de Agris se extiende por todo el campo.",
+    "phrase": "agris se extiende",
+    "mode": "contains"
+  },
+  {
+    "spot": "aphrodon",
+    "kind": "end",
+    "language": "en",
+    "text": "Agris's blessing fades from the fields.",
+    "phrase": "fades from the",
+    "mode": "contains"
+  },
+  {
+    "spot": "aphrodon",
+    "kind": "end",
+    "language": "de",
+    "text": "Der Segen von Agris, der die Felder erfüllte, ist verschwunden.",
+    "phrase": "agris der die",
+    "mode": "contains"
+  },
+  {
+    "spot": "aphrodon",
+    "kind": "end",
+    "language": "fr",
+    "text": "La bénédiction d'Agris, qui baignait la plaine, se dissipe.",
+    "phrase": "qui baignait la",
+    "mode": "contains"
+  },
+  {
+    "spot": "aphrodon",
+    "kind": "end",
+    "language": "sp",
+    "text": "La bendición de Agris que impregnaba los campos se desvanece.",
+    "phrase": "que impregnaba los",
+    "mode": "contains"
+  },
+  {
+    "spot": "aphrodon",
+    "kind": "failure",
+    "language": "en",
+    "text": "The scarecrow awakens as the commotion continues.",
+    "phrase": "awakens as the",
+    "mode": "contains"
+  },
+  {
+    "spot": "aphrodon",
+    "kind": "failure",
+    "language": "de",
+    "text": "Als der Tumult anhält, erwacht die Vogelscheuche.",
+    "phrase": "der tumult anhält",
+    "mode": "contains"
+  },
+  {
+    "spot": "aphrodon",
+    "kind": "failure",
+    "language": "fr",
+    "text": "Le tumulte s'éternisant, l'Épouvantail s'éveille.",
+    "phrase": "tumulte s éternisant",
+    "mode": "contains"
+  },
+  {
+    "spot": "aphrodon",
+    "kind": "failure",
+    "language": "sp",
+    "text": "El espantapájaros despierta ante el alboroto prolongado.",
+    "phrase": "ante el alboroto",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "start",
+    "language": "en",
+    "text": "The sinners are summoned.",
+    "phrase": "the sinners are summoned",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "start",
+    "language": "de",
+    "text": "Die Sünder werden gerufen.",
+    "phrase": "sünder werden",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "start",
+    "language": "fr",
+    "text": "Les Pécheurs sont invoqués.",
+    "phrase": "pécheurs sont invoqués",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "start",
+    "language": "sp",
+    "text": "Los culpables reciben la llamada.",
+    "phrase": "culpables reciben la",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "fragment",
+    "language": "en",
+    "text": "Aetos drops a Fragment of Divinity.",
+    "phrase": "drops a fragment",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "fragment",
+    "language": "de",
+    "text": "Aetos lässt das Fragment der Heiligkeit fallen.",
+    "phrase": "lässt das fragment",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "fragment",
+    "language": "fr",
+    "text": "Aetos fait tomber le Fragment de la divinité.",
+    "phrase": "tomber le fragment",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "fragment",
+    "language": "sp",
+    "text": "Aetos deja caer un fragmento divino.",
+    "phrase": "deja caer un fragmento",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "prayer",
+    "language": "en",
+    "text": "Flames of prayer rise from the brazier.",
+    "phrase": "prayer rise from",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "prayer",
+    "language": "de",
+    "text": "In der Feuerschale lodern die Flammen des Gebets auf.",
+    "phrase": "flammen des gebets",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "prayer",
+    "language": "fr",
+    "text": "La flamme de la prière s'élève dans le Brasier.",
+    "phrase": "prière s élève",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "prayer",
+    "language": "sp",
+    "text": "La llama de la oración se alza en el brasero.",
+    "phrase": "la oración se",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "knight",
+    "language": "en",
+    "text": "The Knight of Apocalypse passes judgment upon history.",
+    "phrase": "of apocalypse passes",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "knight",
+    "language": "de",
+    "text": "Die Reiterinnen der Offenbarung richten über die vergangenen Sünden der Geschichte.",
+    "phrase": "richten über die",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "knight",
+    "language": "fr",
+    "text": "La Cavalière de l'apocalypse condamne les péchés de l'histoire.",
+    "phrase": "condamne les péchés",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "knight",
+    "language": "sp",
+    "text": "El caballero de la revelación expía los pecados de la historia.",
+    "phrase": "expía los pecados",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "doubt",
+    "language": "en",
+    "text": "Flames of doubt smolder within the brazier.",
+    "phrase": "of doubt smolder",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "doubt",
+    "language": "de",
+    "text": "In der Feuerschale lodern die Flammen des Zweifels.",
+    "phrase": "lodern die flammen des zweifels",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "doubt",
+    "language": "fr",
+    "text": "La flamme du doute brûle ardemment dans le Brasier.",
+    "phrase": "du doute brûle",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "doubt",
+    "language": "sp",
+    "text": "La llama de la sospecha crece con fuerza en el brasero.",
+    "phrase": "crece con fuerza",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "sacred",
+    "language": "en",
+    "text": "Sacred power begins to fill the battlefield.",
+    "phrase": "power begins to",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "sacred",
+    "language": "de",
+    "text": "Das Schlachtfeld wird allmählich von heiliger Kraft erfüllt.",
+    "phrase": "wird allmählich von",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "sacred",
+    "language": "fr",
+    "text": "L'Énergie sacrée commence à imprégner le champ de bataille.",
+    "phrase": "imprégner le champ",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "sacred",
+    "language": "sp",
+    "text": "El poder sagrado comienza a impregnar el campo de batalla.",
+    "phrase": "a impregnar el",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "sacred",
+    "language": "en",
+    "text": "The sacred power surges more strongly across the battlefield.",
+    "phrase": "power surges more",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "sacred",
+    "language": "de",
+    "text": "Das Schlachtfeld wird von immer stärkerer heiliger Kraft erfüllt.",
+    "phrase": "wird von immer",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "sacred",
+    "language": "fr",
+    "text": "L'Énergie sacrée imprègne le champ de bataille avec encore plus de force.",
+    "phrase": "imprègne le champ",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "sacred",
+    "language": "sp",
+    "text": "El campo de batalla se impregna de un poder sagrado aún más intenso.",
+    "phrase": "se impregna de",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "sacred",
+    "language": "en",
+    "text": "The sacred power fails to take hold and fades.",
+    "phrase": "fails to take",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "sacred",
+    "language": "de",
+    "text": "Die heilige Kraft kann sich nicht festsetzen und zerstreut sich.",
+    "phrase": "kraft kann sich",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "sacred",
+    "language": "fr",
+    "text": "L'Énergie sacrée échoue à s'imprégner et se dissipe.",
+    "phrase": "s imprégner et",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "sacred",
+    "language": "sp",
+    "text": "El poder sagrado no logra arraigarse y se dispersa.",
+    "phrase": "arraigarse y se",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "sacred",
+    "language": "en",
+    "text": "The sacred power disperses in a soft glow.",
+    "phrase": "disperses in a",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "sacred",
+    "language": "de",
+    "text": "Die heilige Kraft zerstreut sich in sanftem Licht.",
+    "phrase": "sich in sanftem",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "sacred",
+    "language": "fr",
+    "text": "L'Énergie sacrée émet une douce lueur avant de se dissiper.",
+    "phrase": "lueur avant de",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "sacred",
+    "language": "sp",
+    "text": "El poder sagrado se dispersa emitiendo un tenue resplandor.",
+    "phrase": "emitiendo un tenue",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "sacred",
+    "language": "en",
+    "text": "The sacred power disperses in a radiant glow.",
+    "phrase": "in a radiant",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "sacred",
+    "language": "de",
+    "text": "Die heilige Kraft zerstreut sich in strahlendem Licht.",
+    "phrase": "sich in strahlendem",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "sacred",
+    "language": "fr",
+    "text": "L'Énergie sacrée émet une lueur éclatante avant de se dissiper.",
+    "phrase": "sacrée émet une",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "sacred",
+    "language": "sp",
+    "text": "El poder sagrado se dispersa emitiendo un brillo resplandeciente.",
+    "phrase": "sagrado se dispersa",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "afk",
+    "language": "en",
+    "text": "Flames of sin blaze atop the brazier.",
+    "phrase": "of sin blaze",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "afk",
+    "language": "de",
+    "text": "In der Feuerschale lodern die Flammen der Sünde auf.",
+    "phrase": "flammen der sünde",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "afk",
+    "language": "fr",
+    "text": "La flamme du péché brûle dans le brasier.",
+    "phrase": "du péché brûle",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "afk",
+    "language": "sp",
+    "text": "La llama del pecado arde en el brasero.",
+    "phrase": "pecado arde en",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "afk",
+    "language": "en",
+    "text": "Judgment falls upon the sinners who have forsaken their faith.",
+    "phrase": "falls upon the sinners",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "afk",
+    "language": "de",
+    "text": "Über die Sünder, die ihren Glauben verraten haben, wird das Urteil gesprochen.",
+    "phrase": "wird das urteil",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "afk",
+    "language": "fr",
+    "text": "Le jugement s'abat sur les Pécheurs ayant renié leur foi.",
+    "phrase": "ayant renié leur",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "afk",
+    "language": "sp",
+    "text": "El juicio caerá sobre los culpables que traicionaron la fe.",
+    "phrase": "caerá sobre los",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "end",
+    "language": "en",
+    "text": "The history of sin begins to repeat itself once more.",
+    "phrase": "history of sin begins",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "end",
+    "language": "de",
+    "text": "Die Geschichte der Sünde wird erneut nachgestellt.",
+    "phrase": "der sünde wird",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "end",
+    "language": "fr",
+    "text": "L'histoire des péchés commence à se reconstituer.",
+    "phrase": "péchés commence à",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "end",
+    "language": "sp",
+    "text": "La historia del pecado comienza a repetirse.",
+    "phrase": "pecado comienza a",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "away",
+    "language": "en",
+    "text": "The reenacted history begins to fade.",
+    "phrase": "reenacted history begins",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "away",
+    "language": "de",
+    "text": "Die nachgestellte Geschichte beginnt zu verblassen.",
+    "phrase": "geschichte beginnt zu",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "away",
+    "language": "fr",
+    "text": "L'histoire reconstituée commence à s'estomper.",
+    "phrase": "reconstituée commence à",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "away",
+    "language": "sp",
+    "text": "La historia recreada comienza a desvanecerse.",
+    "phrase": "recreada comienza a",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "back",
+    "language": "en",
+    "text": "The voice of the speaker awakens history once more.",
+    "phrase": "speaker awakens",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "back",
+    "language": "de",
+    "text": "Die Stimme des Boten erweckt die Geschichte erneut.",
+    "phrase": "stimme des boten",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "back",
+    "language": "fr",
+    "text": "La voix du Héraut éveille de nouveau l'histoire.",
+    "phrase": "voix du héraut",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "back",
+    "language": "sp",
+    "text": "Las palabras del portavoz despierta una vez más la historia.",
+    "phrase": "despierta una vez",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "failure",
+    "language": "en",
+    "text": "The sin-stained history begins to crumble.",
+    "phrase": "sin stained history",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "failure",
+    "language": "de",
+    "text": "Die von Sünde durchdrungene Geschichte zerbricht.",
+    "phrase": "von sünde durchdrungene",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "failure",
+    "language": "fr",
+    "text": "L'histoire entachée par le péché s'effondre.",
+    "phrase": "péché s effondre",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia",
+    "kind": "failure",
+    "language": "sp",
+    "text": "La historia manchada por el pecado, se derrumba.",
+    "phrase": "por el pecado se",
+    "mode": "contains"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "anomaly",
+    "language": "en",
+    "text": "Anomaly detected: Flow violation. Removing anomaly.",
+    "phrase": "flow violation",
+    "mode": "contains"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "anomaly",
+    "language": "de",
+    "text": "Abweichung erkannt: Aktueller Fluss wurde verletzt. Verfahren zur Entfernung der Abweichung wird begonnen.",
+    "phrase": "der abweichung wird",
+    "mode": "contains"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "anomaly",
+    "language": "fr",
+    "text": "Anomalie détectée : Violation du flux existant. Procédure de suppression de l'anomalie commencée.",
+    "phrase": "du flux existant",
+    "mode": "contains"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "anomaly",
+    "language": "sp",
+    "text": "Anomalía detectada: Alteración del flujo. Eliminando anomalía.",
+    "phrase": "alteración del flujo",
+    "mode": "contains"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "halted",
+    "language": "en",
+    "text": "![Error]: Anomaly removal halted. Searching cause... ▶ Teleport required.",
+    "phrase": "anomaly removal halted",
+    "mode": "contains"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "halted",
+    "language": "de",
+    "text": "![Fehler]: Verfahren zur Entfernung der Abweichung wurde gestoppt. Ursache wird gesucht ... ▶ Teleport erforderlich",
+    "phrase": "der abweichung wurde",
+    "mode": "contains"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "halted",
+    "language": "fr",
+    "text": "![Erreur] : Procédure de suppression d'anomalie interrompue. Recherche de la cause... ▶ Téléportation requise",
+    "phrase": "la cause téléportation",
+    "mode": "contains"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "halted",
+    "language": "sp",
+    "text": "[Error]: Eliminación de la anomalía detenida. Buscando la causa... ▶ Se requiere teletransporte.",
+    "phrase": "causa se requiere",
+    "mode": "contains"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "reception",
+    "language": "en",
+    "text": "Anomaly Detected: Will_Reception ▶ Obtainable.",
+    "phrase": "will reception",
+    "mode": "contains"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "reception",
+    "language": "de",
+    "text": "Anomalie aufgetreten: Wille_Empfang ▶ Erhältlich",
+    "phrase": "aufgetreten wille empfang",
+    "mode": "contains"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "reception",
+    "language": "fr",
+    "text": "Anomalie détectée : Réception_volonté ▶ Obtention possible",
+    "phrase": "détectée réception volonté",
+    "mode": "contains"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "reception",
+    "language": "sp",
+    "text": "Anomalía detectada: Recepción de voluntad ▶ Disponible.",
+    "phrase": "recepción de voluntad",
+    "mode": "contains"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "debris",
+    "language": "en",
+    "text": "![Error]: Debris falling due to dimensional rift collapse.",
+    "phrase": "debris falling due",
+    "mode": "contains"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "debris",
+    "language": "de",
+    "text": "![Fehler]: Durch den Zusammenbruch des Risses der Dimension stürzen Trümmer herab.",
+    "phrase": "risses der dimension",
+    "mode": "contains"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "debris",
+    "language": "fr",
+    "text": "![Erreur] : Chute de débris suite à l'effondrement de la Fissure dimensionnelle",
+    "phrase": "débris suite à",
+    "mode": "contains"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "debris",
+    "language": "sp",
+    "text": "[Error]: Caída de residuos por colapso de la fisura dimensional",
+    "phrase": "por colapso de",
+    "mode": "contains"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "distortion",
+    "language": "en",
+    "text": "Distortion Escalated - Warn■g: Expulsion Imminent.",
+    "phrase": "distortion escalated",
+    "mode": "contains"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "distortion",
+    "language": "de",
+    "text": "Verstärkte Verzerrung – Ankündigung des Beg■: Entfernen geplant",
+    "phrase": "verzerrung ankündigung des",
+    "mode": "contains"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "distortion",
+    "language": "fr",
+    "text": "Distorsion aggravée - Préavis d'■xécution : Bannissement prévu",
+    "phrase": "aggravée préavis",
+    "mode": "contains"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "distortion",
+    "language": "sp",
+    "text": "Distorsión intensificada - Adver■cia: Expulsión inminente.",
+    "phrase": "expulsión inminente",
+    "mode": "contains"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "spacetime",
+    "language": "en",
+    "text": "Spacetim○ distorti■n detected.",
+    "phrase": "spacetim\\w*.*distorti\\w*.*detected",
+    "mode": "glitched"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "spacetime",
+    "language": "de",
+    "text": "Raum-Zeit○Verz■ng erkannt",
+    "phrase": "raum\\s+zeit.*verz\\w*.*erkannt",
+    "mode": "glitched"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "spacetime",
+    "language": "fr",
+    "text": "Distorsio■ spatiotemporell○ détectée",
+    "phrase": "distorsio\\w*.*spatiotemporell\\w*.*détectée",
+    "mode": "glitched"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "spacetime",
+    "language": "sp",
+    "text": "Distor■ón espaciotemporal○ detectada",
+    "phrase": "distor\\w*.*espaciotemporal\\w*.*detectada",
+    "mode": "glitched"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "expansion",
+    "language": "en",
+    "text": "Expansion;[Create]=Wormhole acti○ted.",
+    "phrase": "create wormhole",
+    "mode": "contains"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "expansion",
+    "language": "de",
+    "text": "Expansion; [Erstellung] = Wurmloch wird akt○viert.",
+    "phrase": "erstellung wurmloch wird",
+    "mode": "contains"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "expansion",
+    "language": "fr",
+    "text": "Expansion ; [Création] = Activation de trou de v○r.",
+    "phrase": "activation de trou",
+    "mode": "contains"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "expansion",
+    "language": "sp",
+    "text": "Expansión;[Crear]=Agujero de gusano activ○do.",
+    "phrase": "crear agujero de",
+    "mode": "contains"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "boss",
+    "language": "en",
+    "text": "Hadum Vuhura... Kaheliak.",
+    "phrase": "Hadum Vuhura... Kaheliak.",
+    "mode": "line"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "boss",
+    "language": "de",
+    "text": "Hadum Vuhura ... Kaheliak.",
+    "phrase": "Hadum Vuhura ... Kaheliak.",
+    "mode": "line"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "boss",
+    "language": "fr",
+    "text": "Hadum Vuhura... Kaheliak.",
+    "phrase": "Hadum Vuhura... Kaheliak.",
+    "mode": "line"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "boss",
+    "language": "sp",
+    "text": "Hadum Vuhura... Kaheliak.  ",
+    "phrase": "Hadum Vuhura... Kaheliak.  ",
+    "mode": "line"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "boss-kill",
+    "language": "en",
+    "text": "Temporary damage to dimensional rift by ■■■■. ![Warning]: Falling debris.",
+    "phrase": "dimensional rift by",
+    "mode": "contains"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "boss-kill",
+    "language": "de",
+    "text": "Temporäre Beschädigung des Dimensionsrisses durch ■■■■ erkannt. ![Hinweis]: Herabfallende Objekte erwartet.",
+    "phrase": "des dimensionsrisses durch",
+    "mode": "contains"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "boss-kill",
+    "language": "fr",
+    "text": "Dégâts temporaires sur la fissure dimensionnelle causés par ■■■■■■. ![Attention] : Chute de débris prévue.",
+    "phrase": "temporaires sur la",
+    "mode": "contains"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "boss-kill",
+    "language": "sp",
+    "text": "Daño temporal en la fisura dimensional causado por ■■■■. [Advertencia]: Se prevé la caída de objetos.",
+    "phrase": "prevé la caída",
+    "mode": "contains"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "end",
+    "language": "en",
+    "text": "Searching timeline... ▶ Reset: Reconstruct Space (Execute)",
+    "phrase": "reconstruct space",
+    "mode": "contains"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "end",
+    "language": "de",
+    "text": "Zeitlinie wird erkundet ... ▶ Zurücksetzen: Raum wird neu erstellt (Beginn)",
+    "phrase": "raum wird neu",
+    "mode": "contains"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "end",
+    "language": "fr",
+    "text": "Recherche de la ligne temporelle... ▶ Réinitialisation : Reconstruction spatiale (Exécution)",
+    "phrase": "ligne temporelle réinitialisation",
+    "mode": "contains"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "end",
+    "language": "sp",
+    "text": "Buscando en la línea temporal... ▶ Restablecer: reconstruir el espacio (ejecutar)",
+    "phrase": "reconstruir el espacio",
+    "mode": "contains"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "end",
+    "language": "en",
+    "text": "Temporal delay detected. ▶ Reset: Reconstruct Space (Execute)",
+    "phrase": "reconstruct space",
+    "mode": "contains"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "end",
+    "language": "de",
+    "text": "Zeitverzögerung erkannt. ▶ Zurücksetzen: Raum wird neu erstellt (Beginn)",
+    "phrase": "raum wird neu",
+    "mode": "contains"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "end",
+    "language": "fr",
+    "text": "Ralentissement temporel détecté. ▶ Réinitialisation : Reconstruction spatiale (Exécution)",
+    "phrase": "temporel détecté réinitialisation",
+    "mode": "contains"
+  },
+  {
+    "spot": "event-horizon",
+    "kind": "end",
+    "language": "sp",
+    "text": "Retraso temporal detectado. ▶ Restablecer: reconstruir el espacio (ejecutar)",
+    "phrase": "reconstruir el espacio",
+    "mode": "contains"
+  },
+  {
+    "spot": "magaia-names",
+    "kind": "tear",
+    "language": "en",
+    "text": "Elion's Tear",
+    "phrase": "Elion's Tear",
+    "mode": "line"
+  },
+  {
+    "spot": "magaia-names",
+    "kind": "tear",
+    "language": "de",
+    "text": "Träne Elions",
+    "phrase": "Träne Elions",
+    "mode": "line"
+  },
+  {
+    "spot": "magaia-names",
+    "kind": "tear",
+    "language": "fr",
+    "text": "Larme d'Elion",
+    "phrase": "Larme d'Elion",
+    "mode": "line"
+  },
+  {
+    "spot": "magaia-names",
+    "kind": "tear",
+    "language": "sp",
+    "text": "Lágrima de Elion",
+    "phrase": "Lágrima de Elion",
+    "mode": "line"
+  },
+  {
+    "spot": "magaia-names",
+    "kind": "priest",
+    "language": "en",
+    "text": "Priest of the End",
+    "phrase": "Priest of the End",
+    "mode": "line"
+  },
+  {
+    "spot": "magaia-names",
+    "kind": "priest",
+    "language": "de",
+    "text": "Priester des Endes",
+    "phrase": "Priester des Endes",
+    "mode": "line"
+  },
+  {
+    "spot": "magaia-names",
+    "kind": "priest",
+    "language": "fr",
+    "text": "Prêtre de la fin",
+    "phrase": "Prêtre de la fin",
+    "mode": "line"
+  },
+  {
+    "spot": "magaia-names",
+    "kind": "priest",
+    "language": "sp",
+    "text": "Sacerdote del fin",
+    "phrase": "Sacerdote del fin",
+    "mode": "line"
+  },
+  {
+    "spot": "zephyros",
+    "kind": "start",
+    "language": "en",
+    "text": "Caphras's powerful energy stirs within the Lava Field Hatchery.",
+    "phrase": "within the lava",
+    "mode": "contains"
+  },
+  {
+    "spot": "zephyros",
+    "kind": "start",
+    "language": "de",
+    "text": "Caphras’ starke Energie ist in der Lavaland-Brutstätte zu spüren.",
+    "phrase": "in der lavaland",
+    "mode": "contains"
+  },
+  {
+    "spot": "zephyros",
+    "kind": "start",
+    "language": "fr",
+    "text": "Une puissante énergie de Caphras s'agite au cœur du Couvoir de Terre de lave.",
+    "phrase": "cœur du couvoir",
+    "mode": "contains"
+  },
+  {
+    "spot": "zephyros",
+    "kind": "start",
+    "language": "sp",
+    "text": "Se percibe una fuerte energía de Caphras en la incubadora del campo de lava.",
+    "phrase": "la incubadora del",
+    "mode": "contains"
+  },
+  {
+    "spot": "zephyros",
+    "kind": "knights",
+    "language": "en",
+    "text": "Caphras's gathered energy in the Hatchery spills forth, flooding the land.",
+    "phrase": "in the hatchery",
+    "mode": "contains"
+  },
+  {
+    "spot": "zephyros",
+    "kind": "knights",
+    "language": "de",
+    "text": "Die in der Brutstätte versammelte Caphras’ Energie zerstreut sich in der Umgebung.",
+    "phrase": "in der brutstätte",
+    "mode": "contains"
+  },
+  {
+    "spot": "zephyros",
+    "kind": "knights",
+    "language": "fr",
+    "text": "L'énergie de Caphras accumulée dans le Couvoir se déverse aux alentours.",
+    "phrase": "le couvoir se",
+    "mode": "contains"
+  },
+  {
+    "spot": "zephyros",
+    "kind": "knights",
+    "language": "sp",
+    "text": "La energía de Caphras reunida en la incubadora se dispersa por los alrededores.",
+    "phrase": "reunida en la",
+    "mode": "contains"
+  },
+  {
+    "spot": "zephyros",
+    "kind": "knights",
+    "language": "en",
+    "text": "Seeking to absorb Caphras's energy, the Zephyros Shadow Knight emerges.",
+    "phrase": "absorb caphras s",
+    "mode": "contains"
+  },
+  {
+    "spot": "zephyros",
+    "kind": "knights",
+    "language": "de",
+    "text": "Zephyros-Schattenritter sind erschienen, um Caphras’ Energie zu absorbieren.",
+    "phrase": "um caphras energie",
+    "mode": "contains"
+  },
+  {
+    "spot": "zephyros",
+    "kind": "knights",
+    "language": "fr",
+    "text": "Cherchant à absorber l'énergie de Caphras, le Chevalier des ombres de Zephyros fait son apparition.",
+    "phrase": "zephyros fait son",
+    "mode": "contains"
+  },
+  {
+    "spot": "zephyros",
+    "kind": "knights",
+    "language": "sp",
+    "text": "Aparecen el Caballero tenebroso de Zephyros para absorber la energía de Caphras.",
+    "phrase": "el caballero tenebroso",
+    "mode": "contains"
+  },
+  {
+    "spot": "zephyros",
+    "kind": "boss",
+    "language": "en",
+    "text": "Absorbing the last of Caphras's energy, Beelzebub emerges.",
+    "phrase": "energy beelzebub",
+    "mode": "contains"
+  },
+  {
+    "spot": "zephyros",
+    "kind": "boss",
+    "language": "de",
+    "text": "Beelzebub hat den Rest von Caphras’ Energie absorbiert und ist erschienen.",
+    "phrase": "hat den rest",
+    "mode": "contains"
+  },
+  {
+    "spot": "zephyros",
+    "kind": "boss",
+    "language": "fr",
+    "text": "Ayant absorbé l'énergie de Caphras restante, Belzébuth fait son apparition.",
+    "phrase": "belzébuth fait son",
+    "mode": "contains"
+  },
+  {
+    "spot": "zephyros",
+    "kind": "boss",
+    "language": "sp",
+    "text": "Al absorber la energía de Caphras restante, aparece Belcebú.",
+    "phrase": "de caphras restante",
+    "mode": "contains"
+  },
+  {
+    "spot": "zephyros",
+    "kind": "afk",
+    "language": "en",
+    "text": "As Beelzebub's energy wanes, the Hatchery's energy weakens.",
+    "phrase": "hatchery s energy",
+    "mode": "contains"
+  },
+  {
+    "spot": "zephyros",
+    "kind": "afk",
+    "language": "de",
+    "text": "Als Beelzebubs Kraft nachließ, wurde auch die Energie der Brutstätte schwächer.",
+    "phrase": "nachliess wurde auch",
+    "mode": "contains"
+  },
+  {
+    "spot": "zephyros",
+    "kind": "afk",
+    "language": "fr",
+    "text": "À mesure que l'énergie de Belzébuth se dissipe, celle du Couvoir faiblit également.",
+    "phrase": "de belzébuth se",
+    "mode": "contains"
+  },
+  {
+    "spot": "zephyros",
+    "kind": "afk",
+    "language": "sp",
+    "text": "Al disiparse la energía de Belcebú, la energía de la incubadora se vuelve más débil.",
+    "phrase": "de belcebú la",
+    "mode": "contains"
+  },
+  {
+    "spot": "zephyros",
+    "kind": "afk",
+    "language": "en",
+    "text": "The Hatchery begins to unleash a surge of its remaining energy.",
+    "phrase": "surge of its",
+    "mode": "contains"
+  },
+  {
+    "spot": "zephyros",
+    "kind": "afk",
+    "language": "de",
+    "text": "Die Brutstätte beginnt, die verbleibende Energie kraftvoll auszustrahlen.",
+    "phrase": "brutstätte beginnt die",
+    "mode": "contains"
+  },
+  {
+    "spot": "zephyros",
+    "kind": "afk",
+    "language": "fr",
+    "text": "Le Couvoir commence à déverser violemment l'énergie restante.",
+    "phrase": "couvoir commence à",
+    "mode": "contains"
+  },
+  {
+    "spot": "zephyros",
+    "kind": "afk",
+    "language": "sp",
+    "text": "La incubadora empieza a liberar intensamente la energía que le queda.",
+    "phrase": "empieza a liberar",
+    "mode": "contains"
+  },
+  {
+    "spot": "zephyros",
+    "kind": "end",
+    "language": "en",
+    "text": "The Hatchery stirs once more, returning to life.",
+    "phrase": "stirs once more",
+    "mode": "contains"
+  },
+  {
+    "spot": "zephyros",
+    "kind": "end",
+    "language": "de",
+    "text": "Die Brutstätte nimmt ihre Aktivitäten wieder auf.",
+    "phrase": "brutstätte nimmt ihre",
+    "mode": "contains"
+  },
+  {
+    "spot": "zephyros",
+    "kind": "end",
+    "language": "fr",
+    "text": "Le Couvoir recommence à être actif.",
+    "phrase": "couvoir recommence à",
+    "mode": "contains"
+  },
+  {
+    "spot": "zephyros",
+    "kind": "end",
+    "language": "sp",
+    "text": "La incubadora vuelve a estar en funcionamiento.",
+    "phrase": "incubadora vuelve a",
+    "mode": "contains"
+  }
+]

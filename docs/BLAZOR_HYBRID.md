@@ -61,6 +61,12 @@ die Fläche teilen, nicht aber ihre Einheiten.
   Bereich zu einer Linie ein.
 - **Special Events** stehen als Raute auf der Zeitachse, an dem Zeitpunkt, an dem sie
   auftraten.
+- **Pausen** unterbrechen die Zeitachse als schraffierte Lücke mit Pausenzeichen, immer gleich
+  breit, egal wie lange die Pause dauerte. Kurve, Balken und Rotationen enden davor und setzen
+  dahinter fort. Der Tooltip nennt Art und Dauer: Pause (manuell), Automatische Pause oder
+  App geschlossen (Grindcrest wurde während des Trackings beendet). Mehrere Pausen am selben
+  Punkt der aktiven Zeit teilen sich eine Lücke. Während einer laufenden Pause steht die
+  Jetzt-Markierung hinter ihrer Lücke. Die Pausen werden mit der Session gespeichert.
 - **Trashloot** zeigt als Balken, wie viel Trash zu welchem Zeitpunkt erkannt wurde. Über
   jedem Balken steht seine Menge; oben links nennt der Maßstab, wofür die volle Höhe jeder
   Ebene steht. Die Intervalle liegen auf

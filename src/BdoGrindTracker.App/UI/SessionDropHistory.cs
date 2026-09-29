@@ -78,13 +78,14 @@ internal sealed class SessionDropHistory
         return _snapshot ??= Array.AsReadOnly(_drops.ToArray());
     }
 
+    /// <param name="isDemo">The drops belong to the demo; the first update of a real session starts afresh.</param>
     internal void Restore(Guid sessionId, LootSessionSnapshot loot, TimeSpan duration,
-        IReadOnlyList<SessionDropSample>? drops)
+        IReadOnlyList<SessionDropSample>? drops, bool isDemo = false)
     {
         _drops.Clear();
         _drops.AddRange(Normalize(drops, duration, loot.Totals) ?? []);
         _sessionId = sessionId;
-        _isDemo = false;
+        _isDemo = isDemo;
         _confirmed = loot.ConfirmedEventCount;
         _totals = new(loot.Totals, StringComparer.OrdinalIgnoreCase);
         _lastElapsed = duration;

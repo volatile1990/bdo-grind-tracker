@@ -13,7 +13,7 @@ public partial class OverlayEditor
     [
         new("layout", "Layout", "edit", "/overlay?section=layout"),
         new("display", "Anzeige & Verhalten", "settings", "/overlay?section=display"),
-        new("windows", "Fenster", "monitor", "/overlay?section=windows"),
+        new("windows", "Weitere Overlays", "monitor", "/overlay?section=windows"),
         new("shortcuts", "Tastenkürzel", "key", "/overlay?section=shortcuts"),
         new("templates", "Vorlagen", "spark", "/overlay?section=templates"),
     ];

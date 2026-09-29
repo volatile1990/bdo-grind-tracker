@@ -88,21 +88,24 @@ public sealed class SharedOverlayHotkeyTests
 
         Assert.Equal(1, changes);
         Assert.Equal(selected, service.SelectedOverlayId);
-        Assert.All(service.Overlays, overlay =>
-        {
-            Assert.False(overlay.Settings.Enabled);
-            Assert.False(service.GetState(overlay.Id).Previewing);
-        });
+        Assert.False(service.OverlaysVisible);
+        Assert.All(service.Overlays, overlay => Assert.False(service.GetState(overlay.Id).Previewing));
+        Assert.True(service.Overlays.Single(overlay => overlay.Id == firstId).Settings.Enabled);
+        Assert.False(service.Settings.Enabled);
         Assert.Equal(540, service.Overlays.Single(overlay => overlay.Id == firstId).Settings.Width);
         using var restored = new OverlayService(tracker, new(folder.Path));
-        Assert.All(restored.Overlays, overlay => Assert.False(overlay.Settings.Enabled));
+        Assert.False(restored.OverlaysVisible);
+        Assert.True(restored.Overlays.Single(overlay => overlay.Id == firstId).Settings.Enabled);
+        Assert.False(restored.Settings.Enabled);
         Assert.True((await service.ToggleAllOverlaysAsync()).Succeeded);
         Assert.Equal(2, changes);
-        Assert.All(service.Overlays, overlay => Assert.True(overlay.Settings.Enabled));
+        Assert.True(service.OverlaysVisible);
+        Assert.True(service.Overlays.Single(overlay => overlay.Id == firstId).Settings.Enabled);
+        Assert.False(service.Settings.Enabled);
     }
 
     [Fact]
-    public async Task GlobalVisibilityHidesPreviewOnlyWindowsBeforeEnablingThemOnNextPress()
+    public async Task GlobalVisibilityNeverEnablesPreviewOnlyWindows()
     {
         await using var tracker = new PreviewTrackerSession();
         using var service = new OverlayService(tracker);
@@ -116,7 +119,8 @@ public sealed class SharedOverlayHotkeyTests
             Assert.False(service.GetState(overlay.Id).Previewing);
         });
         await service.ToggleAllOverlaysAsync();
-        Assert.All(service.Overlays, overlay => Assert.True(overlay.Settings.Enabled));
+        Assert.True(service.OverlaysVisible);
+        Assert.All(service.Overlays, overlay => Assert.False(overlay.Settings.Enabled));
     }
 
     [Fact]

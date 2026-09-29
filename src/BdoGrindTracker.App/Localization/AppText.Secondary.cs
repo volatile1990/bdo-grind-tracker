@@ -55,6 +55,10 @@ internal static partial class AppText
         text["Session-Timeline"] = "Session timeline";
         text["Zeitstrahl der Session"] = "Timeline of the session";
         text["Ebenen"] = "Layers";
+        text["Pause"] = "Pause";
+        text["App geschlossen"] = "App closed";
+        text["läuft"] = "running";
+        text["nach {0} aktiver Zeit"] = "after {0} of active time";
         text["Rotationen, Silber und seltene Drops im Sessionverlauf"] = "Rotations, silver and rare drops throughout the session";
         text["Session-Timeline-Zeitraum"] = "Session timeline time range";
         text["Session-Timeline-Rotationen"] = "Session timeline rotations";

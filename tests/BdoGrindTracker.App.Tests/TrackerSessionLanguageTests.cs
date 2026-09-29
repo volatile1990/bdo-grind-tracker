@@ -4,6 +4,38 @@ namespace BdoGrindTracker.App.Tests;
 
 public sealed partial class TrackerSessionServiceTests
 {
+    [Theory]
+    [InlineData("en")]
+    [InlineData("de")]
+    [InlineData("fr")]
+    [InlineData("sp")]
+    public async Task RotationLanguageLoadsAndSavesWithoutChangingLootLanguage(string language)
+    {
+        await using var fixture = new Fixture(autoUpload: false,
+            initialSettings: new AppSettings { GameLanguage = "en", RotationMessageLanguage = language });
+        Assert.Equal(language, fixture.Service.Preferences.RotationMessageLanguage);
+        var saved = await fixture.Service.SavePreferencesAsync(fixture.Service.Preferences with { RotationMessageLanguage = "auto" });
+        Assert.True(saved.Succeeded, saved.Error);
+        saved = await fixture.Service.SavePreferencesAsync(fixture.Service.Preferences with { RotationMessageLanguage = language });
+        Assert.True(saved.Succeeded, saved.Error);
+        Assert.Equal(language, fixture.Settings.Load().RotationMessageLanguage);
+        Assert.Equal("en", fixture.Service.Preferences.GameLanguage);
+        fixture.Begin();
+        var blocked = await fixture.Service.SavePreferencesAsync(fixture.Service.Preferences with { RotationMessageLanguage = "auto" });
+        Assert.False(blocked.Succeeded);
+        Assert.Equal(language, fixture.Service.Preferences.RotationMessageLanguage);
+    }
+
+    [Fact]
+    public async Task UnsupportedRotationLanguageRejectsTheWholePreferenceSave()
+    {
+        await using var fixture = new Fixture(autoUpload: false);
+        var previous = fixture.Service.Preferences;
+        var result = await fixture.Service.SavePreferencesAsync(previous with { RotationMessageLanguage = "ru", FamilyFame = 7200 });
+        Assert.False(result.Succeeded);
+        Assert.Same(previous, fixture.Service.Preferences);
+    }
+
     [Fact]
     public async Task RestoresUiLanguageWithoutChangingGameLanguage()
     {

@@ -44,6 +44,7 @@ internal sealed class OverlayService : IOverlayService
     public OverlaySnapshot Snapshot { get; private set; }
     public IReadOnlyList<OverlayTemplate> Templates { get; private set; }
     public string? TemplateError { get; private set; }
+    public bool OverlaysVisible => _collection.OverlaysVisible;
     public OverlayRuntimeState State => GetState(SelectedOverlayId);
     public OverlayRuntimeState GetState(string id)
     {
@@ -105,14 +106,8 @@ internal sealed class OverlayService : IOverlayService
 
     public Task<OverlaySaveResult> ToggleAllOverlaysAsync()
     {
-        var enabled = !Overlays.Any(overlay => overlay.Settings.Enabled) && _previewing.Count == 0;
-        return SaveCollection(_collection with
-        {
-            Overlays = Array.AsReadOnly(Overlays.Select(overlay => overlay with
-            {
-                Settings = overlay.Settings with { Enabled = enabled },
-            }).ToArray()),
-        }, SelectedOverlayId, sharedChange: true, clearPreviews: !enabled);
+        return SaveCollection(_collection with { OverlaysVisible = !OverlaysVisible },
+            SelectedOverlayId, sharedChange: true, clearPreviews: OverlaysVisible);
     }
 
     public Task<OverlaySaveResult> ToggleAllInteractionAsync()

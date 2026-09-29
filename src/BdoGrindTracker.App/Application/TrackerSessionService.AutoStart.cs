@@ -67,12 +67,16 @@ internal sealed partial class TrackerSessionService
         _automaticGrindNeedsCheckpoint = false;
     }
 
+    private string ResolveRotationMessageLanguage(string? gameLanguage = null) => RotationMessageLanguage.Resolve(
+        Preferences.RotationMessageLanguage, gameLanguage ?? (Preferences.GameLanguage == "auto"
+            ? _gameLanguageDetection.Language : Preferences.GameLanguage));
+
     private IAutomaticGrindMonitor CreateAutomaticGrindMonitor()
     {
         // Read/validate files before allocating a native notification thread.
         var calibration = _captureConfigurations.Read(Preferences.CaptureConfigurationPath);
         return new AutomaticGrindMonitor(new GrindStandbyCapture(), new GrindStartVisualDetector(),
-            calibration, _analyzerFactory);
+            calibration, _analyzerFactory, rotationStart: new RotationStartWatcher(language: ResolveRotationMessageLanguage()));
     }
 
     private bool CanWatchForGrind => Preferences.AutoStartGrinding &&

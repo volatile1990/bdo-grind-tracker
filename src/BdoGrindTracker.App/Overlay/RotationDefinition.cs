@@ -139,7 +139,14 @@ internal sealed record RotationDefinition(string SpotId, RotationStep[] Steps, s
         // The first cycle's own step, Elion's Tears, is required anyway; together they leave only the second cycle.
         ExpectedEvidence: new Dictionary<string, string> { ["cycle-3-doubt"] = "priest" });
 
+    // Knight kills and intervening packs have no separate observed banner boundaries.
+    // Keep them together; no inferred wave count or duration is needed.
+    internal static readonly RotationDefinition Zephyros = new(LootSpotCatalog.ZephyrosId,
+        [new("knights", ["knights"]), new("boss", ["boss"]), new("afk", ["afk"], Afk: true)],
+        ["start"], ["end"], [], LootStart: false);
+
     internal static RotationDefinition? Find(string? spotId) => spotId switch {
+        LootSpotCatalog.ZephyrosId => Zephyros,
         LootSpotCatalog.HermesiaId => Hermesia, LootSpotCatalog.AphrodonId => Aphrodon,
         LootSpotCatalog.EventHorizonId => EventHorizon, LootSpotCatalog.MagaiaId => Magaia, _ => null };
 

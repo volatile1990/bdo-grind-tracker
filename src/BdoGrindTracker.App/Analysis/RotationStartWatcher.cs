@@ -19,9 +19,11 @@ internal sealed class RotationStartWatcher : IDisposable
     internal static readonly TimeSpan Validity = TimeSpan.FromMinutes(3);
 
     /// <summary>The spots whose start banner can mean nothing else, with the messages to look for.</summary>
-    private static readonly (string SpotId, RotationMessageProfile Profile, string[] Starts)[] Watched =
+    private readonly (string SpotId, RotationMessageProfile Profile, string[] Starts)[] _watched;
+
+    private static (string SpotId, RotationMessageProfile Profile, string[] Starts)[] Watch(string language) =>
         [.. RotationProfiles.SupportedSpotIds
-            .Select(spotId => (SpotId: spotId, Profile: RotationProfiles.Messages(spotId),
+            .Select(spotId => (SpotId: spotId, Profile: RotationProfiles.Messages(spotId, language),
                 Starts: RotationDefinition.Find(spotId)?.UnmistakableStartMessages ?? []))
             .Where(watched => watched.Profile is not null && watched.Starts.Length > 0)
             .Select(watched => (watched.SpotId, watched.Profile!, watched.Starts))];
@@ -33,11 +35,15 @@ internal sealed class RotationStartWatcher : IDisposable
     private bool _disposed;
 
     internal RotationStartWatcher(Func<Bitmap, string>? recognize = null,
-        Func<Bitmap, CancellationToken, string>? recognizeWithCancellation = null)
+        Func<Bitmap, CancellationToken, string>? recognizeWithCancellation = null, string language = "en")
     {
         _recognize = recognize;
         _recognizeWithCancellation = recognizeWithCancellation;
+        _watched = Watch(language);
     }
+
+    internal RotationStartWatcher(Func<Bitmap, string>? recognize, string language)
+        : this(recognize, null, language) { }
 
     /// <summary>The start banner on screen, or null. Probes at most every <see cref="ProbeInterval"/>.</summary>
     internal RotationStartSighting? Observe(Bitmap frame, DateTimeOffset at,
@@ -48,7 +54,7 @@ internal sealed class RotationStartWatcher : IDisposable
         if (_lastProbe is { } probed && at - probed < ProbeInterval) return null;
         _lastProbe = at;
         // Spots share their banner area: each region is read once and parsed by every profile watching it.
-        foreach (var group in Watched.GroupBy(watched =>
+        foreach (var group in _watched.GroupBy(watched =>
             (Region: watched.Profile.Crop(frame.Width, frame.Height), watched.Profile.SingleLine)))
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -74,7 +80,7 @@ internal sealed class RotationStartWatcher : IDisposable
         cancellationToken.ThrowIfCancellationRequested();
         if (_recognizeWithCancellation is not null) return _recognizeWithCancellation(crop, cancellationToken);
         if (_recognize is not null) return _recognize(crop);
-        _ocr ??= CompanionWindowsOcrRecognizer.TryCreate("en-US", requirePreferredLanguage: true);
+        _ocr ??= CompanionWindowsOcrRecognizer.TryCreate(profile.OcrLanguageTag, throwIfUnavailable: true, requirePreferredLanguage: true);
         if (_ocr is null) return "";
         using var pixels = CompanionFrameDecoder.Decode(crop);
         return profile.Recognize(pixels, _ocr, cancellationToken);

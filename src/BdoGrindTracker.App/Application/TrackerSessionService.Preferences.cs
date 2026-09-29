@@ -1,5 +1,6 @@
-﻿using System.Net.Http;
+using System.Net.Http;
 using System.Security.Cryptography;
+using BdoGrindTracker.App.Analysis;
 using BdoGrindTracker.App.Character;
 using BdoGrindTracker.App.Integrations.Garmoth;
 using BdoGrindTracker.App.Persistence;
@@ -37,6 +38,7 @@ internal sealed partial class TrackerSessionService
             if (_hasSession && (preferences.MonitorDeviceName != Preferences.MonitorDeviceName ||
                 captureConfigurationChanged ||
                 preferences.GameLanguage != Preferences.GameLanguage ||
+                preferences.RotationMessageLanguage != Preferences.RotationMessageLanguage ||
                 preferences.RecordLoot != Preferences.RecordLoot ||
                 preferences.RecordRotation != Preferences.RecordRotation))
                 throw new ArgumentException("Monitor, BDO-Konfiguration, Spielsprache und Aufzeichnung können erst für eine neue Session geändert werden.");
@@ -46,6 +48,8 @@ internal sealed partial class TrackerSessionService
                     throw new InvalidOperationException("Die vorherige Texterkennung wird noch beendet. Bitte erneut versuchen.");
                 _captureConfigurations.Read(preferences.CaptureConfigurationPath);
             }
+            if (!RotationMessageLanguage.IsKnown(preferences.RotationMessageLanguage))
+                throw new ArgumentException("Wähle Englisch, Deutsch, Französisch oder Spanisch für die Spot-Nachrichten.");
             if (preferences.GameLanguage is not ("auto" or "en" or "de"))
                 throw new ArgumentException("Unterstützte Spielsprachen sind Deutsch und Englisch.");
             var classChanged = preferences.CharacterClassId != Preferences.CharacterClassId;
@@ -173,6 +177,7 @@ internal sealed partial class TrackerSessionService
         _settings.DebugLogRetentionHours = Preferences.DebugLogRetentionHours;
         _settings.RotationIncludeSpecialEvents = Preferences.IncludeSpecialEventRotations;
         _settings.GameLanguage = Preferences.GameLanguage;
+        _settings.RotationMessageLanguage = Preferences.RotationMessageLanguage;
         _settings.FavoriteItems = Preferences.FavoriteItems.ToArray();
         _settings.LootColumnOrders = Preferences.LootColumnOrders.ToDictionary(pair => pair.Key, pair => pair.Value.ToArray());
         _settings.CharacterClassId = Preferences.CharacterClassId;
@@ -221,6 +226,7 @@ internal sealed partial class TrackerSessionService
                 : Monitors.FirstOrDefault(monitor => monitor.DeviceName == recovered.MonitorDeviceName)?.DeviceName
                     ?? Monitors.FirstOrDefault(monitor => monitor.IsPrimary)?.DeviceName ?? Monitors.FirstOrDefault()?.DeviceName,
             GameLanguage = _hasSession ? Preferences.GameLanguage : recovered.GameLanguage,
+            RotationMessageLanguage = _hasSession ? Preferences.RotationMessageLanguage : recovered.RotationMessageLanguage,
             CaptureConfigurationPath = _hasSession ? Preferences.CaptureConfigurationPath : recovered.CaptureConfigurationPath,
             BuffRecognitionProfilePath = null,
             AutoPauseMinutes = recovered.AutoPauseMinutes,

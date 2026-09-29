@@ -37,6 +37,7 @@ internal sealed record TrackerPreferences
     public string? CaptureConfigurationPath { get; init; }
     public string? BuffRecognitionProfilePath { get; init; }
     public string GameLanguage { get; init; } = "auto";
+    public string RotationMessageLanguage { get; init; } = "auto";
     public string? CharacterClassId { get; init; }
     public int AutoPauseMinutes { get; init; } = 3;
     public bool AutoStartGrinding { get; init; }
@@ -105,8 +106,9 @@ internal sealed record TrackerState
     public string? GrindBenchmarkStatus { get; init; }
     public IReadOnlyList<string> ManualLootItems { get; init; } = [];
     public SilverValuationResult Silver { get; init; } = new(0, 0, 0, [], [], false);
-    public IReadOnlyList<SessionSilverSample> SilverHistory { get; init; } = [];
     public IReadOnlyList<SessionDropSample> DropHistory { get; init; } = [];
+    /// <summary>Every pause of this session on its active-time axis; the last one is open while it is paused.</summary>
+    public IReadOnlyList<SessionPause> Pauses { get; init; } = [];
     public BdoGrindTracker.App.Overlay.RotationMonitorSnapshot Rotation { get; init; } = new();
     public string PriceStatus { get; init; } = "NPC- und Festwerte";
     public string Status { get; init; } = "Bereit für deine nächste Session.";

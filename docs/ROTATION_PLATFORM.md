@@ -1,5 +1,19 @@
 # Shared rotation platform
 
+## Message languages
+
+The Hermesia, Aphrodon, Magaia, Event Horizon and Zephyros profiles accept EN, DE,
+FR and SP messages. `RotationProfiles.Messages` binds the selected parser and
+Windows OCR language to the same profile definition. `RotationStartWatcher` uses
+that selection as well. Changing the selection requires a new session.
+
+`LocalizedRotationMessages` preserves Unicode accents and physical OCR lines.
+Whole-line matching protects short or overlapping banners; a form-feed separates
+alternative OCR passes so stacked Magaia fragments are not counted twice.
+The existing English anchors, step order, timing rules and crops are retained.
+See [message overview](ROTATION_MESSAGES.md) and
+[configuration and verification limits](ROTATION_MESSAGES_RUNTIME.md).
+
 `RotationPlatform` owns timing, recovery, reference samples and decision history for Hermesia, Aphrodon and Event Horizon. The old tracker names are thin compatibility constructors. New spots describe their messages/crop in `RotationMessageProfile` and their ordered steps, alternatives, optional branches, start/failure/AFK-end messages and setup counters in `RotationDefinition`. They register in `RotationProfiles`; they do not implement another tracker.
 
 ## Special events
@@ -67,3 +81,11 @@ Overlay layout/presentation is intentionally a separate follow-up. The snapshot 
 `tests/fixtures/rotation/event-horizon-hour.messages.json` contains native-Windows-OCR message observations from the supplied 3,757.97-second, 2560×1440 recording, sampled every two seconds: 120 confirmed messages and eight AFK ends. It contains no inferred loot. Both message-only recovery and an explicitly synthetic loot-start integration scenario are tested. The original diagnostic's mid-rotation `spacetime` entry is covered separately.
 
 Optional local tests in `RotationRecordingReplayTests` read the supplied video, diagnostic JSONL and ultrawide screenshot when `ROTATION_RECORDING_DIRECTORY` is set. `ROTATION_REPLAY_CROPS` can point to pre-extracted banner crops at two-second intervals, numbered `000001.jpg` onward; `ROTATION_REPLAY_OUTPUT` selects the evidence log. Large videos and screenshots stay outside the test fixtures. The ultrawide check verifies the lower banner location included by the expanded crop.
+
+## Zephyros
+
+Zephyros uses the shared platform and BannerStack. Explicit activation opens a run;
+knights and their intervening waves form one section, followed by Beelzebub and AFK.
+The readiness banner closes the run, and the next activation opens a new one.
+Paired banners map to one event. No fixed timers, knight counters or random branches
+are inferred. See [recording evidence and limits](ZEPHYROS_ROTATION.md).

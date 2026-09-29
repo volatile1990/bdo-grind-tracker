@@ -246,9 +246,9 @@ public sealed class MultiOverlayEditorInteractionTests
         Assert.Contains("2 erstellt · 0 aktiv", markup());
 
         Assert.True((await overlay.ToggleAllOverlaysAsync()).Succeeded);
-        Assert.All(overlay.Overlays, window => Assert.True(window.Settings.Enabled));
-        Assert.True(Get<OverlaySettings>(editor, "_settings").Enabled);
-        Assert.Contains("2 erstellt · 2 aktiv", markup());
+        Assert.All(overlay.Overlays, window => Assert.False(window.Settings.Enabled));
+        Assert.False(Get<OverlaySettings>(editor, "_settings").Enabled);
+        Assert.Contains("2 erstellt · 0 aktiv", markup());
 
         Assert.True((await overlay.ToggleAllOverlaysAsync()).Succeeded);
 
@@ -322,12 +322,12 @@ public sealed class MultiOverlayEditorInteractionTests
         Assert.Equal(modules, overlay.Settings.Widgets);
         Assert.All(overlay.Overlays, window =>
         {
-            Assert.True(window.Settings.Enabled);
+            Assert.False(window.Settings.Enabled);
             Assert.Equal("passthrough", window.Settings.Interaction);
         });
-        Assert.True(Get<OverlaySettings>(editor, "_settings").Enabled);
+        Assert.False(Get<OverlaySettings>(editor, "_settings").Enabled);
         Assert.Equal("passthrough", Get<OverlaySettings>(editor, "_settings").Interaction);
-        Assert.Contains("2 erstellt · 2 aktiv", markup());
+        Assert.Contains("2 erstellt · 0 aktiv", markup());
         Assert.Matches("<select[^>]*value=\"passthrough\"", markup());
     });
 
@@ -349,13 +349,14 @@ public sealed class MultiOverlayEditorInteractionTests
         Assert.True((await overlay.ToggleAllInteractionAsync()).Succeeded);
 
         var displayed = Get<OverlaySettings>(editor, "_settings");
-        Assert.False(displayed.Enabled);
+        Assert.True(displayed.Enabled);
+        Assert.False(overlay.OverlaysVisible);
         Assert.Equal("passthrough", displayed.Interaction);
         Assert.Equal(before.Width, displayed.Width);
         Assert.Equal(before.Widgets, displayed.Widgets);
         Assert.Equal(error, Get<string>(editor, "_error"));
         Assert.Contains(error, markup());
-        Assert.Contains("2 erstellt · 0 aktiv", markup());
+        Assert.Contains("2 erstellt · 1 aktiv", markup());
         Assert.Matches("<select[^>]*value=\"passthrough\"", markup());
     });
 

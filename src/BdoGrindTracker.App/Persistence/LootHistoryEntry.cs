@@ -26,6 +26,7 @@ internal sealed record LootHistoryEntry
     public BdoGrindTracker.Core.Buffs.BuffLedgerSnapshot? Buffs { get; init; }
     public required Dictionary<string, long> Totals { get; init; }
     public IReadOnlyList<SessionDropSample>? DropHistory { get; init; }
+    public IReadOnlyList<SessionPause>? Pauses { get; init; }
     public required decimal SilverBeforeTax { get; init; }
     public required decimal SilverAfterTax { get; init; }
     public required bool SilverIsComplete { get; init; }

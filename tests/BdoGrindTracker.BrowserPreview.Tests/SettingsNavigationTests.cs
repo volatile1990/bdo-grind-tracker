@@ -15,6 +15,26 @@ namespace BdoGrindTracker.BrowserPreview.Tests;
 public sealed class SettingsNavigationTests
 {
     [Theory]
+    [InlineData("en")]
+    [InlineData("de")]
+    [InlineData("fr")]
+    [InlineData("sp")]
+    public async Task RotationLanguageSelectorSavesEachSupportedLanguage(string language)
+    {
+        await Render("diagnostics", async (_, fields, tracker, _, markup) =>
+        {
+            Assert.Contains("id=\"rotation-message-language\"", markup());
+            foreach (var option in new[] { "auto", "en", "de", "fr", "sp" })
+                Assert.Contains($"value=\"{option}\"", markup());
+            var lootLanguage = tracker.Preferences.GameLanguage;
+            SetField(fields, "_rotationMessageLanguage", language);
+            await Invoke(fields, "RotationMessageLanguageChanged");
+            Assert.Equal(language, tracker.Preferences.RotationMessageLanguage);
+            Assert.Equal(lootLanguage, tracker.Preferences.GameLanguage);
+        });
+    }
+
+    [Theory]
     [InlineData(null, "appearance")]
     [InlineData("unknown", "appearance")]
     [InlineData("appearance", "appearance")]

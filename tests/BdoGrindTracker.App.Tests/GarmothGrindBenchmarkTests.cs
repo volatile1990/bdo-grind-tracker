@@ -52,8 +52,8 @@ public sealed class GarmothGrindBenchmarkTests
     {
         await using var preview = new PreviewTrackerSession();
         Assert.Equal(preview.State.SpotId, preview.State.GrindBenchmark?.SpotId);
-        // The example session is the recorded Magaia hour: 14,308 helmets in 1:02 rate as average.
-        Assert.Equal(GrindRatingTier.Average, GrindRatingEvaluator.Evaluate(preview.State.SpotId,
+        // The example session is the recorded Magaia grind: 34,084 helmets in 2:02 rate as top.
+        Assert.Equal(GrindRatingTier.Top, GrindRatingEvaluator.Evaluate(preview.State.SpotId,
             preview.State.Loot.Totals[Overlay.MagaiaDemoSession.Trash], preview.State.Elapsed, preview.State.GrindBenchmark).Tier);
         await preview.NewSessionAsync();
         Assert.Null(preview.State.GrindBenchmark);

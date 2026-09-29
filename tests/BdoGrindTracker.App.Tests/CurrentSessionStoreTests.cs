@@ -7,6 +7,19 @@ namespace BdoGrindTracker.App.Tests;
 
 public sealed class CurrentSessionStoreTests
 {
+    [Theory]
+    [InlineData("auto")]
+    [InlineData("en")]
+    [InlineData("de")]
+    [InlineData("fr")]
+    [InlineData("sp")]
+    public void RotationMessageLanguageSurvivesCheckpointRoundTrip(string language)
+    {
+        using var fixture = new StoreFixture();
+        fixture.Store.Save(Example() with { RotationMessageLanguage = language });
+        Assert.Equal(language, fixture.Store.Load()!.RotationMessageLanguage);
+    }
+
     [Fact]
     public void RoundTripRetainsCurrentSessionIncludingZeroQuantityCorrections()
     {
@@ -74,6 +87,7 @@ public sealed class CurrentSessionStoreTests
 
     public static IEnumerable<object[]> InvalidSnapshots()
     {
+        yield return [Example() with { RotationMessageLanguage = "ru" }];
         yield return [Example() with { SessionId = Guid.Empty }];
         yield return [Example() with { Duration = TimeSpan.FromSeconds(-1) }];
         yield return [Example() with { ConfirmedEventCount = -1 }];

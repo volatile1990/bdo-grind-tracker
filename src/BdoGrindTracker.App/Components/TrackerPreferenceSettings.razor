@@ -41,6 +41,7 @@
                 @if (Section is null or "diagnostics")
                 {
                 <section class="panel settings-panel"><div class="settings-heading"><div class="settings-icon"><AppIcon Name="trend" /></div><h2>Rotation Monitor</h2></div>
+                    <label class="field"><span>@T("Sprache der Spot-Nachrichten")</span><select id="rotation-message-language" @bind="_rotationMessageLanguage" @bind:after="RotationMessageLanguageChanged" disabled="@State.HasSession"><option value="auto">@T("Wie eingestellte Spielsprache")</option><option value="en" lang="en">English</option><option value="de" lang="de">Deutsch</option><option value="fr" lang="fr">Français</option><option value="sp" lang="es">Español</option></select><small>@T("Für Hermesia, Aphrodon, Magaia, Event Horizon und Zephyros. Das passende Windows-OCR-Sprachpaket muss installiert sein. Diese Auswahl gilt nur für Spot-Nachrichten; die Loot-Erkennung unterstützt Deutsch und Englisch.")</small></label>
                     <label class="toggle-row"><span><strong>@T("Rotationen mit Special Events werten")</strong><small>@T("Special Events sind zufällige Mechaniken, die eine volle Rotation nicht braucht und die zusätzlich oder ersetzend auftreten: das Agris-Event in Aphrodon. Ausgeschaltet zählen Rotationen mit Special Event nicht für Bestzeit, Idealrotation, Bestabschnitte und Rotationen / h. In Event Horizon vergleicht der Rotation Monitor immer Rotationen mit gleich vielen Mini-AFKs. Die Fragmente of Divinity in Magaia fallen in fest getimte Phasen und ändern die Rotationslänge nicht; dort wird jede Rotation verglichen.")</small></span><input id="rotation-special-events" type="checkbox" class="switch" @bind="_includeSpecialEvents" @bind:after="SpecialEventsChanged" /></label>
                 </section>
                 }
@@ -96,6 +97,7 @@
     private bool _automaticDebugLogging;
     private string _region = "eu";
     private string _gameLanguage = "auto";
+    private string _rotationMessageLanguage = "auto";
     private string SelectedThemeId => AppThemes.Normalize(Tracker.Preferences.ThemeId);
     private string SelectedOverlayThemeId => AppThemes.NormalizeOverlay(Tracker.Preferences.OverlayThemeId) ?? "";
     private string MinimizeBehavior => Tracker.Preferences.MinimizeToTray ? "tray" : "minimize";
@@ -119,6 +121,7 @@
         var preferences = Tracker.Preferences;
         _characterClass = preferences.CharacterClassId;
         _gameLanguage = preferences.GameLanguage;
+        _rotationMessageLanguage = preferences.RotationMessageLanguage;
         _autoPause = preferences.AutoPauseMinutes.ToString(System.Globalization.CultureInfo.InvariantCulture);
         _recordLoot = preferences.RecordLoot;
         _recordRotation = preferences.RecordRotation;
@@ -137,6 +140,7 @@
     private Task CloseBehaviorChanged(string behavior) => behavior is "exit" or "tray"
         ? Save(p => p with { CloseToTray = behavior == "tray", CloseBehaviorConfigured = true })
         : Task.CompletedTask;
+    private Task RotationMessageLanguageChanged() => Save(p => p with { RotationMessageLanguage = _rotationMessageLanguage });
     private Task GameLanguageChanged() => Save(p => p with { GameLanguage = _gameLanguage });
     private Task CharacterChanged() => Save(p => p with { CharacterClassId = string.IsNullOrEmpty(_characterClass) ? null : _characterClass });
     private Task RecordingChanged() => Save(p => p with { RecordLoot = _recordLoot });

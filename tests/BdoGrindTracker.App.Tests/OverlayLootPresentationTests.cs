@@ -194,6 +194,13 @@ public sealed class OverlayLootPresentationTests
             var content = OverlayContentLayout.Create(physical, snapshot);
             var resized = OverlayLootPresentation.Create(content.LayoutWidget, snapshot);
 
+            if (mode == "grid")
+            {
+                Assert.Equal(baseline.VisibleItems, resized.VisibleItems);
+                Assert.Equal(baseline.HiddenCount, resized.HiddenCount);
+                AssertFitted(content.LayoutWidget, resized);
+                continue;
+            }
             Assert.Equal(factor, content.Scale, 10);
             Assert.Equal(baseline.VisibleItems, resized.VisibleItems);
             Assert.Equal(baseline.HiddenCount, resized.HiddenCount);

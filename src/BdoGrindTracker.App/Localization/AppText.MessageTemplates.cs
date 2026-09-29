@@ -47,6 +47,8 @@ internal static partial class AppText
         new("Tracking aktiv. {0}", "Tracking active. {0}", true),
         new("Bereit: Companion · {0} (Lootfilter).", "Ready: Companion · {0} (loot filter)."),
         new("Die Loot-Erkennung konnte nicht gestartet werden: {0}", "Loot detection could not be started: {0}", true),
+        new("Demo: Magaia-Session vom {0}, nicht gespeicherte Beispieldaten. Tracking starten beendet die Demo.",
+            "Demo: Magaia session from {0}, unsaved sample data. Starting tracking ends the demo."),
         new("Aufzeichnung beendet: {0}", "Recording stopped: {0}", true),
         new("Rotation-Diagnose beendet: {0}", "Rotation diagnostics stopped: {0}", true),
         new("Rotation: {0}", "Rotation: {0}", true),

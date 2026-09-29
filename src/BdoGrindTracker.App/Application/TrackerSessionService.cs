@@ -42,8 +42,10 @@ internal sealed partial class TrackerSessionService : ITrackerSession
     private readonly List<LootHistoryEntry> _historyEntries;
     private readonly FrameUiMailbox _uiMailbox = new();
     private readonly object _framePublicationSync = new();
-    private readonly SessionSilverHistory _silverHistory = new();
     private readonly SessionDropHistory _dropHistory = new();
+    // The pauses of this session; the published list is replaced only when a pause begins or ends.
+    private readonly List<SessionPause> _pauses = [];
+    private IReadOnlyList<SessionPause> _pausesView = [];
     private readonly RotationMonitor _rotationMonitor = new();
     private readonly SessionRotationTimeline _rotationTimeline = new();
     private readonly GarmothUploadIntervals _garmothIntervals = new();
@@ -186,6 +188,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             DebugLogRetentionHours = _settings.DebugLogRetentionHours,
             IncludeSpecialEventRotations = _settings.RotationIncludeSpecialEvents,
             GameLanguage = _settings.GameLanguage,
+            RotationMessageLanguage = _settings.RotationMessageLanguage,
             CaptureConfigurationPath = _settings.CaptureConfigurationPath,
             FavoriteItems = _settings.FavoriteItems ?? [],
             LootColumnOrders = _settings.LootColumnOrders ?? new(),
@@ -295,6 +298,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             Preferences = Preferences with { CharacterClassId = null, RecordLoot = false, RecordRotation = false };
         _garmothIntervals.Reset();
         _sessionClock.Reset();
+        SetPauses([]);
         _inactivityTimer.Reset();
         _uiMailbox.Reset();
         _sessionSummary = LootSessionSnapshot.Empty;
@@ -322,17 +326,25 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         _demoMode = true;
         _sessionManualLootItems.Clear();
         _sessionGarmothLocallyModified = false;
-        _sessionSpotId = LootSpotCatalog.AphrodonId;
-        _sessionClass = CompanionCharacterClassCatalog.FindById("warrior-awakening");
-        var totals = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["Branch of Abundance"] = 18_420, ["Ancient Spirit Dust"] = 76,
-            ["Black Stone"] = 51, ["WON Origin Shard"] = 4,
-            ["WON Wandering Origin Crystal"] = 1, ["Broken Vestige of Goldroot"] = 1,
-            ["Nev's Fragment"] = 9,
-        };
-        _sessionSummary = new(totals, totals.Values.Sum(), 147);
-        SetStatus("Demostunde: nicht gespeicherte Beispieldaten. Tracking starten beendet die Demo.");
+        // A whole recorded Magaia grind, as if it had just ended: its drops, rotations, buffs and progress fill
+        // every part of the live session. Nothing of it is saved, recorded or uploaded.
+        var demo = Overlay.MagaiaDemoSession.Elapsed;
+        _sessionSpotId = LootSpotCatalog.MagaiaId;
+        _sessionClass = CompanionCharacterClassCatalog.FindById("shai");
+        var totals = new Dictionary<string, long>(Overlay.MagaiaDemoSession.Totals, StringComparer.OrdinalIgnoreCase);
+        _sessionSummary = new(totals, totals.Values.Sum(), Overlay.MagaiaDemoSession.ConfirmedEventCount);
+        var startedAt = DateTimeOffset.UtcNow - demo;
+        _sessionStartedAt = startedAt;
+        _sessionClock.RestorePaused(demo);
+        _dropHistory.Restore(_sessionId, _sessionSummary, demo, Overlay.MagaiaDemoSession.DropHistory, isDemo: true);
+        _rotationMonitor.RestoreSession(Overlay.MagaiaDemoSession.Runs(startedAt));
+        _agrisSessionTracker.Restore(demo, new(Overlay.MagaiaDemoSession.AgrisActiveDuration, Overlay.MagaiaDemoSession.AgrisObservedDuration));
+        _experienceSessionTracker.Restore(demo, new(Overlay.MagaiaDemoSession.ExperienceGainedPercentagePoints,
+            Overlay.MagaiaDemoSession.ExperienceObservedDuration, Overlay.MagaiaDemoSession.ExperienceLevel, Overlay.MagaiaDemoSession.ExperienceLevel));
+        _sessionCombatStats = new(Overlay.MagaiaDemoSession.Ap, Overlay.MagaiaDemoSession.Dp, CombatStatsCategory.Edania, startedAt + demo);
+        _buffLedger.Restore(Overlay.MagaiaDemoSession.Consumables(startedAt));
+        _hasBuffObservation = true;
+        SetStatus($"Demo: Magaia-Session vom {Overlay.MagaiaDemoSession.Date}, nicht gespeicherte Beispieldaten. Tracking starten beendet die Demo.");
         return Task.CompletedTask;
     });
 
@@ -348,6 +360,9 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         _buffLedger.Reset();
         _hasBuffObservation = false;
         _demoMode = false;
+        _sessionClock.Reset();
+        _rotationMonitor.RestoreSession([]);
+        _sessionStartedAt = null;
         _sessionSpotId = null;
         _sessionClass = null;
         _sessionSummary = LootSessionSnapshot.Empty;
@@ -366,6 +381,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             throw new InvalidOperationException("Kein Spielmonitor verfügbar.");
         var gameLanguage = ResolveGameLanguage();
         EnsureOcrLanguage(gameLanguage);
+        _rotationMonitor.ConfigureLanguage(ResolveRotationMessageLanguage(gameLanguage));
         if (Interlocked.CompareExchange(ref _lastCaptureStopError, null, null) is LootPanelUnavailableException panelError)
             throw panelError;
         var captureRegion = _captureSession.ResolveCaptureRegion(monitor?.Bounds ?? Rectangle.Empty);
@@ -457,6 +473,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
                 ? "Tracking aktiv. " + settingsError
                 : "Tracking aktiv. Drops werden automatisch erkannt und gezählt.",
                 _settingsSaveError is not null);
+            EndPause(DateTimeOffset.UtcNow);
         }
         catch
         {
@@ -500,6 +517,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             // OCR. Later results may update loot but must not restart the timer.
             idleDuration = _inactivityTimer.PauseAndGetIdleDuration();
             _sessionClock.Pause(excludeTrailingIdle ? idleDuration : TimeSpan.Zero);
+            // The removed idle tail already belongs to the pause.
+            BeginPause(SessionPause.Manual, DateTimeOffset.UtcNow - (excludeTrailingIdle ? idleDuration : TimeSpan.Zero));
         }
         if (!windowUnavailable && !(Preferences.AutoStartGrinding &&
             Interlocked.CompareExchange(ref _lastCaptureStopError, null, null) is GameWindowUnavailableException))
@@ -512,6 +531,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             {
                 idleDuration = _inactivityTimer.PauseAndGetIdleDuration();
                 _sessionClock.Pause(idleDuration);
+                BeginPause(SessionPause.Automatic, DateTimeOffset.UtcNow - idleDuration);
             }
         }
         finally { await CompleteBuffAnalysisAsync(); }
@@ -866,7 +886,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             CharacterClassId = character?.Id,
             CharacterLabel = character?.DisplayName ?? (_classDetection.Status == CharacterClassDetectionStatus.Ambiguous
                 ? "Klasse mehrdeutig – bitte auswählen" : "Klasse unbekannt – automatische Erkennung"),
-            Elapsed = _demoMode ? TimeSpan.FromHours(1) : _sessionClock.Elapsed,
+            Elapsed = _sessionClock.Elapsed,
             IsWaitingForFirstDrop = !_demoMode && _uiRunning && _sessionClock.IsWaitingForFirstDrop,
             LootScroll = !_demoMode && _uiRunning
                 ? _lootScrollMonitor.Snapshot(_captureSession.ObservationTime) : LootScrollState.Unknown,
@@ -874,10 +894,10 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             AgrisActiveDuration = agrisDuration.ActiveDuration,
             AgrisObservedDuration = agrisDuration.ObservedDuration,
             Experience = experience,
-            CombatStats = _demoMode ? new(2374, 826, CombatStatsCategory.Edania, DateTimeOffset.UtcNow) : combatStats,
+            CombatStats = _demoMode ? _sessionCombatStats ?? CombatStatsState.Unknown : combatStats,
             ObservedCombatStatsCategory = observedCombatStatsCategory,
-            SessionCombatStats = _demoMode ? null : _sessionCombatStats,
-            Buffs = !_demoMode && _hasBuffObservation ? _buffLedger.Snapshot : null,
+            SessionCombatStats = _sessionCombatStats,
+            Buffs = _hasBuffObservation ? _buffLedger.Snapshot : null,
             BuffStatus = _demoMode ? "Buff-Erkennung ist in der Demo inaktiv." : BuffStatus,
             ExperienceGainedPercentagePoints = experienceProgress.GainedPercentagePoints,
             ExperienceObservedDuration = experienceProgress.ObservedDuration,
@@ -900,7 +920,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             ShutdownFailed = _shutdownFailed,
         };
         State = State with { ObservedAt = _captureSession.ObservationTime,
-            SilverHistory = _silverHistory.Update(State), DropHistory = CaptureDropHistory(State.Loot, State.Elapsed),
+            DropHistory = CaptureDropHistory(State.Loot, State.Elapsed), Pauses = _pausesView,
             Rotation = _rotationTimeline.Update(_sessionId, State.Elapsed, _captureSession.ObservationTime,
                 _sessionStartedAt, _rotationMonitor.Snapshot(_captureSession.ObservationTime, _sessionSpotId,
                     Preferences.IncludeSpecialEventRotations)) };
@@ -967,6 +987,8 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         BeginBuffCompletion();
         var idleDuration = _inactivityTimer.PauseAndGetIdleDuration();
         _sessionClock.Pause(idleDuration);
+        // Closing Grindcrest while tracking pauses the session until the next start after a restart.
+        if (_uiRunning) BeginPause(SessionPause.Closed, DateTimeOffset.UtcNow - idleDuration);
         try
         {
             try

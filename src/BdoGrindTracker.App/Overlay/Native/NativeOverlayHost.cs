@@ -21,7 +21,7 @@ internal sealed class NativeOverlayHost(IOverlayService service, ITrackerSession
         if (!validationMode) UpdateHotkeys();
         var overlays = service.Overlays.ToArray();
         var retained = overlays.Select(overlay => overlay.Id).ToHashSet(StringComparer.Ordinal);
-        var gameLocation = !validationMode && overlays.Any(overlay => overlay.Settings.Enabled || service.GetState(overlay.Id).Previewing)
+        var gameLocation = !validationMode && overlays.Any(overlay => (service.OverlaysVisible && overlay.Settings.Enabled) || service.GetState(overlay.Id).Previewing)
             ? (locateGame?.Invoke() ?? _game.Locate()) : default;
         foreach (var id in _windows.Keys.Where(id => !retained.Contains(id)).ToArray())
         {
@@ -118,10 +118,10 @@ internal sealed class NativeOverlayWindowHost(string id, IOverlayService service
         var preview = service.GetState(id).Previewing;
         try
         {
-            if (!settings.Enabled && !preview)
+            if ((!settings.Enabled || !service.OverlaysVisible) && !preview)
             {
                 _window?.Hide();
-                Publish(false, T("Overlay ausgeschaltet."), null);
+                Publish(false, T(settings.Enabled ? "Overlays über Tastenkürzel ausgeblendet." : "Overlay ausgeschaltet."), null);
                 return;
             }
             EnsureWindow();

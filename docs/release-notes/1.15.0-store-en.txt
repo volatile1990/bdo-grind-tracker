@@ -1,0 +1,8 @@
+What's new in Grindcrest 1.15.0:
+
+• Automatic grind detection quietly pauses when Black Desert is minimized and can resume on the next recognized drop.
+• Rotation messages are recognized in English, German, French and Spanish, with a verified rotation profile for Zephyros.
+• Pauses appear as gaps in session timelines and overlays and remain visible after a session is restored.
+• Share images focus on loot and hourly figures: trash loot comes first, followed by rare drops and other items. Clicking outside closes the preview.
+• Overlay drop grids adapt when resized, and the live demo shows a recorded Magaia session.
+• Localization, navigation and the grind rating scale have been improved.

@@ -94,11 +94,43 @@
                 const referenceHeight = number(viewport, "contentHeight") || height;
                 const minimumWidth = number(viewport, "minContentWidth") || 80;
                 const minimumHeight = number(viewport, "minContentHeight") || 48;
-                const scale = Math.min(width / referenceWidth, height / referenceHeight,
+                const scale = viewport.dataset.reflow === "true" ? Math.min(1, width / minimumWidth, height / minimumHeight) : Math.min(width / referenceWidth, height / referenceHeight,
                     width / minimumWidth, height / minimumHeight);
                 content.style.width = `${width / scale}px`;
                 content.style.height = `${height / scale}px`;
                 content.style.transform = `scale(${scale})`;
+                if (viewport.dataset.reflow === "true") {
+                    const count = Math.max(1, number(viewport, "gridCount"));
+                    const size = number(viewport, "gridSize") || 56;
+                    const font = number(viewport, "gridFont") || 1;
+                    const header = number(viewport, "gridHeader") * font;
+                    const footer = number(viewport, "gridFooter") * font;
+                    const innerWidth = Math.max(0, width / scale - 20);
+                    const innerHeight = Math.max(0, height / scale - 16);
+                    let columns = Math.max(1, Math.min(count, Math.floor((innerWidth + 4) / (size + 4))));
+                    const fit = cols => Math.min(1, innerWidth / (cols * size + (cols - 1) * 4),
+                        innerHeight / (header + footer + Math.ceil(count / cols) * size + (Math.ceil(count / cols) - 1) * 4));
+                    let cellScale = fit(columns);
+                    for (let cols = 1; cellScale < 1 && cols <= count; cols++) {
+                        const candidate = fit(cols);
+                        if (candidate > cellScale) { columns = cols; cellScale = candidate; }
+                    }
+                    const rows = Math.ceil(count / columns);
+                    const values = {
+                        "--widget-font-scale": font * cellScale,
+                        "--loot-item-size": `${size * cellScale}px`, "--loot-gap": `${4 * cellScale}px`,
+                        "--loot-columns": columns, "--loot-cell-width": `${size * cellScale}px`,
+                        "--loot-cell-height": `${size * cellScale}px`, "--loot-header-height": `${header * cellScale}px`,
+                        "--loot-footer-height": `${footer * cellScale}px`,
+                        "--loot-layout-width": `${(columns * size + (columns - 1) * 4) * cellScale}px`,
+                        "--loot-layout-height": `${(rows * size + (rows - 1) * 4) * cellScale}px`
+                    };
+                    for (const [key, value] of Object.entries(values)) content.style.setProperty(key, value);
+                    content.querySelectorAll(".overlay-widget-item").forEach(item => {
+                        const length = item.querySelector(".overlay-item-quantity")?.textContent.length || 1;
+                        item.style.setProperty("--loot-count-size", `${Math.max(.1, Math.min(13 * font * cellScale, Math.max(1, (size - 6) * cellScale) / (length * .65)))}px`);
+                    });
+                }
                 scheduleContentFit();
             };
             const snapshot = () => ({ width: number(stage, "width"), height: number(stage, "height"),
