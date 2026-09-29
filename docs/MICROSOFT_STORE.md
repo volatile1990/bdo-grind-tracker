@@ -1,6 +1,6 @@
 # Grindcrest im Microsoft Store
 
-Grindcrest wird ausschließlich über Microsoft Store verteilt. Das Paket ist ein MSIX für Windows x64; Microsoft übernimmt nach erfolgreicher Zertifizierung die Signierung, Downloads und Updates. GitHub bleibt für Quellcodeverwaltung und CI in Verwendung.
+Grindcrest wird ausschließlich über Microsoft Store verteilt. Das Paket ist ein MSIX für Windows x64; Microsoft übernimmt nach erfolgreicher Zertifizierung die Signierung, Downloads und Updates. Ein „Release“ bezeichnet hier nur den lokalen Bau und die Prüfung des MSIX mit einer angegebenen Version. Commit, Push, Tag, Upload und Partner-Center-Einreichung sind kein Teil eines Release-Auftrags.
 
 ## Zugeordnetes Produkt
 
@@ -29,12 +29,11 @@ Das Skript führt .NET- und JavaScript-Tests aus, veröffentlicht .NET samt Desk
 `-RequireWindowsOcr` verlangt, dass die nativen OCR-Tests tatsächlich laufen;
 die Windows-OCR-Sprachpakete für `en-US` und `de-DE` müssen auf dem Testrechner
 vorhanden sein. Ohne den Schalter erscheinen fehlende Voraussetzungen sichtbar
-als übersprungene Tests in Konsole und TRX. Das gilt auch für gehostete CI-Runner:
-deren grüner Lauf mit Skips ersetzt keine native Prüfung auf einem passenden Windows-PC.
+als übersprungene Tests in Konsole und TRX.
 
 Die [Versionshinweise für 1.15.0](release-notes/1.15.0.md) und die Texte für den
 [deutschen](release-notes/1.15.0-store.txt) und [englischen Store-Eintrag](release-notes/1.15.0-store-en.txt)
-beschreiben dieses Release.
+beschreiben diese Version.
 
 Das Paket deklariert `en-US` und `de-DE`. Englisch ist die Voreinstellung für die
 Oberfläche und den Shell-Ressourcenindex; eine gespeicherte deutsche Sprachwahl
@@ -45,11 +44,12 @@ aufgeschoben werden kann. Unter **Settings → Introduction & setup** bzw.
 
 Für Taskleiste, Start und Alt+Tab enthält das Paket transparente `Square44x44Logo.targetsize-*`-Icons in 15 Größen, jeweils als Standard-, `altform-unplated`- und `altform-lightunplated`-Variante. MakePri ordnet diese im mitgelieferten `resources.pri` dem Manifestlogo zu. `BackgroundColor="transparent"` allein verhindert die von Windows ergänzte farbige Hintergrundfläche nicht. Der PNG-Master und das EXE-Icon bleiben unverändert.
 
-Alternativ nach dem Push auf GitHub: **Actions → Build Grindcrest for Microsoft Store → Run workflow**. Das Artefakt `grindcrest-store-package` enthält das fertige MSIX. Der Workflow baut und prüft das Paket; die Einreichung im Partner Center erfolgt anschließend separat.
-
 Neue Store-Versionen haben vier numerische Komponenten: `1.0.1` wird zu `1.0.1.0`; die letzte Stelle bleibt für Microsoft 0. Für Änderungen nach einer Einreichung eine höhere Version verwenden.
 
-## Einreichen
+## Partner-Center-Einreichung (separater Vorgang)
+
+Die folgenden Schritte erfolgen nur auf gesonderten Auftrag. Das lokale Erstellen
+eines Releases lädt das Paket nicht hoch und reicht es nicht ein.
 
 1. Partner Center → **Apps und Spiele → Grindcrest → Neue Übermittlung** öffnen.
 2. Unter **Pakete** das `.msix` hochladen. Das lokal unsignierte Paket ist zur Store-Einreichung bestimmt, nicht zum direkten Installieren per Doppelklick.

@@ -326,8 +326,8 @@ werden. [Technik und Prüfung](docs/BROWSER_PREVIEW.md).
 ### Windows-App
 
 Zusätzlich zu den Laufzeitvoraussetzungen werden das **.NET-SDK 9.0.318 oder neuer**, **PowerShell
-7.2+** und **Node.js** für die JavaScript-Interaktionstests benötigt. CI verwendet
-Node.js 24. Ein Store-Build benötigt außerdem das Windows SDK ab 10.0.19041.0 mit
+7.2+** und **Node.js 24** für die JavaScript-Interaktionstests benötigt. Ein lokaler
+Store-Build benötigt außerdem das Windows SDK ab 10.0.19041.0 mit
 MakeAppx und MakePri.
 
 ```powershell
@@ -353,10 +353,11 @@ OCR-Voraussetzungen fehl:
 ./scripts/Build-StoreRelease.ps1 -Version 1.15.0 -RequireWindowsOcr
 ```
 
-Das erzeugte MSIX wird anschließend im Partner Center eingereicht. Ein lokaler
-Paketbuild veröffentlicht nichts. GitHub dient der Quellcodeverwaltung und CI;
-die Verteilung und Updates übernimmt ausschließlich Microsoft Store.
-[Store-Release erstellen](docs/RELEASING.md) · [Paketierung und Einreichung](docs/MICROSOFT_STORE.md).
+Ein Release bedeutet hier ausschließlich, das MSIX-Paket für den Microsoft Store
+lokal zu bauen. Mit dem fertigen Paket ist der Release-Auftrag abgeschlossen. Ein
+Upload oder eine Einreichung im Partner Center sowie Git-Pushes, Tags und
+GitHub-Releases erfolgen nur auf gesonderten ausdrücklichen Auftrag.
+[Store-Release erstellen](docs/RELEASING.md) · [Paketierung und separater Store-Prozess](docs/MICROSOFT_STORE.md).
 
 Weitere Details: [Silberbewertung](docs/SILVER_VALUATION.md),
 [Klassenerkennung](docs/CLASS_DETECTION.md), [HDR-Aufnahme](docs/HDR_CAPTURE.md) und
