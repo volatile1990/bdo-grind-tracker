@@ -127,6 +127,22 @@ public sealed class GrindGoalPreviewTests : IClassFixture<WebApplicationFactory<
         });
     }
 
+    [Fact]
+    public async Task CalendarButtonsNameTheirFullDateAndGoalStateIncludingAdjacentMonths()
+    {
+        await Render(null, async (page, goals, markup) =>
+        {
+            var date = new DateOnly(2026, 2, 18);
+            goals.Set([date], 1_250_000_000m);
+            Invoke(page, "ChangeDay", date);
+            await page.SetParametersAsync(ParameterView.Empty);
+            var html = markup();
+            Assert.Matches("aria-label=\"[^\"]*18\\. Februar 2026[^\"]*Ziel noch nicht erreicht[^\"]*\"", html);
+            Assert.Matches("aria-label=\"[^\"]*2026[^\"]*Außerhalb des angezeigten Monats[^\"]*\"", html);
+            Assert.Matches("aria-label=\"[^\"]*2\\. Februar 2026[^\"]*\"", html);
+        });
+    }
+
     private static async Task Render(string? section, Func<GrindGoals, GrindGoalStore, Func<string>, Task> test)
     {
         await using var tracker = new PreviewTrackerSession(empty: true);

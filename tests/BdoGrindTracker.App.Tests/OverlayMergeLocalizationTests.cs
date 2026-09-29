@@ -59,6 +59,39 @@ public sealed class OverlayMergeLocalizationTests
         Assert.Equal(expectedMarkers, html.Split("rotation-pack-marker").Length - 1);
     }
 
+    [Theory]
+    [InlineData("Neue Session · warte auf erstes Ereignis", "New session · waiting for the first event")]
+    [InlineData("Tracking pausiert · warte auf Rotationsstart", "Tracking paused · waiting for rotation start")]
+    [InlineData("Für diesen Spot sind noch keine Rotationsdaten hinterlegt", "No rotation data is available for this spot yet")]
+    [InlineData("Rotation fehlgeschlagen · Warte auf Erkennung", "Rotation failed · waiting for detection")]
+    public async Task RotationTimelineStatusFollowsUiLanguage(string german, string english)
+    {
+        var state = new RotationMonitorSnapshot { SpotName = "Ash Forest", Status = german, HasProfile = true };
+        var html = await RenderAsync<OverlayRotationTimeline>(new()
+        {
+            [nameof(OverlayRotationTimeline.State)] = state,
+            [nameof(OverlayRotationTimeline.Language)] = "en",
+        });
+        Assert.Contains(english, html);
+        Assert.DoesNotContain(german, html);
+        Assert.Equal(german, AppText.Translate(german, "de"));
+    }
+
+    [Fact]
+    public void DynamicRotationStatusesTranslateKnownEventNames()
+    {
+        Assert.Equal("Wormhole started · detected",
+            AppText.Translate("Wurmloch gestartet · erkannt", "en"));
+        Assert.Equal("Tracking paused · waiting for rotation start · waiting for detection",
+            AppText.Translate("Tracking pausiert · warte auf Rotationsstart · Warte auf Erkennung", "en"));
+        Assert.Equal("Setup · 2 / 9 · waiting for detection",
+            AppText.Translate("Aufbau · 2 / 9 · Warte auf Erkennung", "en"));
+        Assert.Equal("Section wave-1: time limit based on your own average exceeded · waiting for detection",
+            AppText.Translate("Abschnitt wave-1: Zeitgrenze der eigenen Durchschnittszeit überschritten · Warte auf Erkennung", "en"));
+        Assert.Equal("Rotation: English Windows text recognition is unavailable.",
+            AppText.Translate("Rotation: Englische Windows-Texterkennung fehlt.", "en"));
+    }
+
     [Fact]
     public async Task APickedUpRotationMeetsTheReferenceAtItsFirstCertainPhase()
     {

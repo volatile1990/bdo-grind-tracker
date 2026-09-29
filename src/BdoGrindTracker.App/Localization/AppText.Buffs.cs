@@ -5,7 +5,7 @@ internal static partial class AppText
     private static void AddBuffs(Dictionary<string, string> text)
     {
         text["Buffs und Kosten"] = "Buffs and costs";
-        text["Buffs & Kosten"] = "Buffs & costs";
+        text["Buffs & Kosten"] = "Buffs & Costs";
         text["In dieser Session verwendet"] = "Used this session";
         text["gezählte Buffs"] = "counted buffs";
         text["Bekannte Buffkosten"] = "Known buff cost";

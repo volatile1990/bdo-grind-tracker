@@ -4,7 +4,7 @@ internal static partial class AppText
 {
     private static void AddSetup(Dictionary<string, string> text)
     {
-        text["Einführung & Einrichtung"] = "Introduction & setup";
+        text["Einführung & Einrichtung"] = "Introduction & Setup";
         text["ERSTE SCHRITTE"] = "GETTING STARTED";
         text["Dein Loot. Von Anfang an im Blick."] = "Your loot. Tracked from the start.";
         text["Richte Grindcrest für dein Spiel ein. Alle Einstellungen kannst du später ändern."] = "Set up Grindcrest for your game. You can change every setting later.";
@@ -61,7 +61,6 @@ internal static partial class AppText
         text["Unter „Overlay“ kannst du eigene Anzeigen erstellen und aktivieren. Unter „Garmoth“ lässt sich der Upload separat verbinden. Die Loot-Diagnose in den Einstellungen brauchst du nur zur Fehlersuche."] = "Create and enable your own displays under Overlay. Connect uploads separately under Garmoth. Loot diagnostics in Settings are only needed for troubleshooting.";
         text["Vor dem Tracking noch prüfen"] = "Check before tracking";
         text["Spiel, OCR oder Erfassungsbereiche sind noch nicht bereit. Die Live-Session zeigt dir die offenen Schritte; du kannst die Einrichtung trotzdem speichern."] = "The game, OCR or capture areas are not ready yet. Live session will show you what still needs attention; you can save your setup now.";
-        text["Einstellungen werden bei Änderungen gespeichert."] = "Settings are saved as you make changes.";
         text["Einrichtung abschließen"] = "Complete setup";
         text["Einrichtung fortsetzen"] = "Continue setup";
         text["Noch neu hier? Richte die Erfassung ein und lerne die wichtigsten Schritte kennen."] = "New here? Set up capture and learn the essentials.";

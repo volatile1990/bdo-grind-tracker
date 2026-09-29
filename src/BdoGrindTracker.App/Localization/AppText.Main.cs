@@ -6,15 +6,12 @@ internal static partial class AppText
     {
         text["Hauptnavigation"] = "Main navigation";
         text["Grindcrest · Live-Session"] = "Grindcrest · Live session";
-        text["DEIN ABENTEUER"] = "YOUR ADVENTURE";
         text["Live-Session"] = "Live session";
         text["Verlauf"] = "History";
         text["Einstellungen"] = "Settings";
         text["Passe Grindcrest an deinen Alltag an."] = "Make Grindcrest work for you.";
         text["Einstellungsbereiche"] = "Settings categories";
         text["Silber & Markt"] = "Silver & Market";
-        text["Dein Loot. Deine Daten."] = "Your loot. Your data.";
-        text["Verlauf lokal auf deinem PC"] = "History stored locally on your PC";
         text["Demo-Modus"] = "Demo mode";
         text["Fehler"] = "Error";
         text["Tracking aktiv"] = "Tracking active";
@@ -115,6 +112,8 @@ internal static partial class AppText
         text["OCR-Sprachpaket installieren"] = "Install OCR language pack";
         text["Erneut prüfen"] = "Check again";
         text["Tracking nicht möglich"] = "Tracking unavailable";
+        text["Session-Einblicke"] = "Session insights";
+        text["Timeline und Details"] = "Timeline and details";
         text["Session-Details"] = "Session details";
         text["Bestätigte Drops"] = "Confirmed drops";
         text["Verschiedene Items"] = "Different items";
@@ -246,7 +245,6 @@ internal static partial class AppText
         text["EMPFOHLENE DP"] = "RECOMMENDED DP";
         text["Verteidigung"] = "Defense";
         text["KRISTALL-EMPFEHLUNG"] = "RECOMMENDED CRYSTAL";
-        text["Bewertung mit aktuellen Preisen und Steuereinstellungen · Silber pro Stunde berücksichtigt Lootmenge und Grindzeit."] = "Valuation uses current prices and tax settings · Silver per hour accounts for loot quantities and grind time.";
         text["SILBER NETTO GESAMT"] = "TOTAL NET SILVER";
         text["Kumulierter Silberwert deiner Sessions"] = "Cumulative silver value of your sessions";
         text["Silber pro Stunde je Session"] = "Silver per hour for each session";
@@ -255,7 +253,6 @@ internal static partial class AppText
         text["Ø Trash · letzte 5 Grindstunden"] = "Avg. trash · last 5 grind hours";
         text["Ø Trash · beste 5 Grindstunden"] = "Avg. trash · best 5 grind hours";
         text["Ø Silber / h · beste 5 Trash-Sessions"] = "Avg. silver / h · best 5 trash sessions";
-        text["* Enthält Sessions mit unvollständigen Silberwerten. Die Kennzahlen verwenden aktuelle Preise und Steuereinstellungen."] = "* Includes sessions with incomplete silver values. Metrics use current prices and tax settings.";
         text["Noch keine passenden Sessions"] = "No matching sessions yet";
         text["Für diesen Zeitraum oder diese Klasse gibt es keine Einträge."] = "There are no entries for this time period or class.";
         text["Deine erfassten Sessions an diesem Spot erscheinen hier automatisch."] = "Your recorded sessions at this spot appear here automatically.";

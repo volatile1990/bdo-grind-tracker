@@ -9,8 +9,8 @@ internal interface IGrindStandbyCapture : IDisposable
 }
 
 /// <summary>
-/// On-demand window snapshots for automatic start. Between standby samples there
-/// is no native capture session; only a short confirmation burst retains one.
+/// Keeps one window capture session while the game is foreground. Restarting WGC
+/// for every standby sample can make the game's hardware cursor flicker.
 /// </summary>
 internal sealed class GrindStandbyCapture : IGrindStandbyCapture
 {
@@ -20,7 +20,6 @@ internal sealed class GrindStandbyCapture : IGrindStandbyCapture
     private readonly IGameForegroundMonitor _foreground;
     private CancellationTokenSource? _inFlight;
     private Rectangle? _region;
-    private bool _burst;
     private volatile bool _disposed;
 
     internal GrindStandbyCapture() : this(new PassiveWindowCapture(), new NativeGameForegroundMonitor()) { }
@@ -28,6 +27,7 @@ internal sealed class GrindStandbyCapture : IGrindStandbyCapture
     internal GrindStandbyCapture(PassiveWindowCapture capture, IGameForegroundMonitor foreground)
     {
         _capture = capture;
+        _capture.SetMinimumUpdateInterval(GraphicsCaptureRateLimiter.StandbyMinimumInterval);
         _foreground = foreground;
         _foreground.Changed += OnForegroundChanged;
     }
@@ -71,7 +71,7 @@ internal sealed class GrindStandbyCapture : IGrindStandbyCapture
             finally
             {
                 lock (_cancellationSync) _inFlight = null;
-                if (!_burst || !succeeded || !_foreground.IsGameForeground)
+                if (!succeeded || !_foreground.IsGameForeground)
                 {
                     try { StopCaptureCore(); }
                     catch
@@ -91,8 +91,9 @@ internal sealed class GrindStandbyCapture : IGrindStandbyCapture
         lock (_sync)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            _burst = enabled;
-            if (!enabled) StopCaptureCore();
+            _capture.SetMinimumUpdateInterval(enabled
+                ? GraphicsCaptureRateLimiter.LiveMinimumInterval
+                : GraphicsCaptureRateLimiter.StandbyMinimumInterval);
         }
     }
 
@@ -102,8 +103,8 @@ internal sealed class GrindStandbyCapture : IGrindStandbyCapture
         lock (_sync)
         {
             if (_disposed) return;
-            _burst = false;
             StopCaptureCore();
+            _capture.SetMinimumUpdateInterval(GraphicsCaptureRateLimiter.StandbyMinimumInterval);
         }
     }
 

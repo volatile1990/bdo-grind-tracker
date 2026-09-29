@@ -24,6 +24,7 @@
                     <button class="button secondary" aria-label="@T("Nächster Monat")" @onclick="() => MoveMonth(1)">›</button>
                     <span>@F("{0} / {1} Tagesziele erreicht", monthReached, monthGoals.Length)</span>
                 </div>
+                <p class="valuation-note">@T("Gespeicherte Silberwerte · Bewertung beim Speichern")</p>
                 <div class="gg-layout">
                     <section class="gg-calendar" aria-label="@T("Monatsübersicht")">
                         <div class="gg-week gg-labels"><span>@T("Woche")</span>@foreach (var day in Enumerable.Range(0, 7).Select(index => UiCulture.DateTimeFormat.GetAbbreviatedDayName((DayOfWeek)((index + 1) % 7)))) { <span>@day.TrimEnd('.')</span> }</div>
@@ -31,11 +32,11 @@
                         {
                             var start = GridStart.AddDays(row*7);
                             <div class="gg-week @(start == _week ? "selected" : "")">
-                                <button class="gg-week-select" aria-label="@F("Woche ab {0}", start.ToString("m", UiCulture))" aria-pressed="@(start == _week)" @onclick="() => SelectWeek(start)">@T("KW") @ISOWeek.GetWeekOfYear(start.ToDateTime(TimeOnly.MinValue))</button>
+                                <button class="gg-week-select" aria-label="@F("Woche ab {0}", start.ToString("D", UiCulture))" aria-pressed="@(start == _week)" @onclick="() => SelectWeek(start)">@T("KW") @ISOWeek.GetWeekOfYear(start.ToDateTime(TimeOnly.MinValue))</button>
                                 @for (var column = 0; column < 7; column++)
                                 {
                                     var date = start.AddDays(column); var goal = Goals.Goals.GetValueOrDefault(date); var net = daily.GetValueOrDefault(date);
-                                    <button class="gg-day @(date.Month != _month.Month ? "outside" : "") @(date == _day ? "chosen" : "") @(goal > 0 && net >= goal ? "reached" : "")" aria-pressed="@(date == _day)" @onclick="() => SelectDay(date)">
+                                    <button class="gg-day @(date.Month != _month.Month ? "outside" : "") @(date == _day ? "chosen" : "") @(goal > 0 && net >= goal ? "reached" : "")" aria-label="@CalendarDayLabel(date, net, goal)" aria-pressed="@(date == _day)" @onclick="() => SelectDay(date)">
                                         <span>@date.Day</span><strong>@Silver(net)</strong><small>@(goal > 0 ? F("von {0}", Silver(goal)) : T("Kein Ziel"))</small>
                                         @if (goal > 0) { <progress value="@Math.Clamp(net,0,goal)" max="@goal" aria-label="@T("Zielfortschritt")"></progress> }
                                         @if (dailyDrops.TryGetValue(date, out var drops) && drops.Length > 0)
@@ -105,6 +106,10 @@
     private DateOnly GridStart => Monday(_month);
     private int WeekCount => (DateTime.DaysInMonth(_month.Year,_month.Month)+_month.DayNumber-GridStart.DayNumber+6)/7;
     private static DateOnly Monday(DateOnly date) => date.AddDays(-((int)date.DayOfWeek+6)%7);
+    private string CalendarDayLabel(DateOnly date, decimal net, decimal goal) =>
+        date.ToString("D", UiCulture) + " · " + F("Netto: {0}", Silver(net)) + " · " +
+        (goal > 0 ? F("Ziel: {0} · {1}", Silver(goal), T(net >= goal ? "Ziel erreicht" : "Ziel noch nicht erreicht")) : T("Kein Ziel")) +
+        (date.Month != _month.Month || date.Year != _month.Year ? " · " + T("Außerhalb des angezeigten Monats") : "");
     protected override void OnInitialized() { base.OnInitialized(); Goals.Load(); SelectDay(_day); }
     private void MoveMonth(int delta) { _month = _month.AddMonths(delta); SelectDay(_month); }
     private void MoveDay(int delta) => ChangeDay(_day.AddDays(delta));

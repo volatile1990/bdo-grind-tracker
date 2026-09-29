@@ -6,6 +6,35 @@ namespace BdoGrindTracker.App.Tests;
 
 public sealed class OverlaySettingsTests
 {
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("{\"Version\":2,\"Overlays\":[{\"Id\":\"existing\",\"Name\":\"Existing\",\"Settings\":{\"SnapToGrid\":false}}]}")]
+    public void ExistingLayoutsWithoutAutoAlignEnableItByDefault(string json)
+    {
+        using var folder = new TestFolder();
+        File.WriteAllText(System.IO.Path.Combine(folder.Path, "overlay.json"), json);
+        var store = new OverlaySettingsStore(folder.Path);
+        var collection = store.LoadCollection();
+        Assert.Null(store.LoadError);
+        Assert.True(Assert.Single(collection.Overlays).Settings.AutoAlign);
+        Assert.True(new OverlaySettings().AutoAlign);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ExplicitAutoAlignDisableSurvivesRestartIndependentlyOfGrid(bool snapToGrid)
+    {
+        using var folder = new TestFolder();
+        await using var tracker = new PreviewTrackerSession();
+        using (var service = new OverlayService(tracker, new OverlaySettingsStore(folder.Path)))
+            Assert.True((await service.SaveAsync(service.Settings with { AutoAlign = false, SnapToGrid = snapToGrid })).Succeeded);
+
+        using var restored = new OverlayService(tracker, new OverlaySettingsStore(folder.Path));
+        Assert.False(restored.Settings.AutoAlign);
+        Assert.Equal(snapToGrid, restored.Settings.SnapToGrid);
+    }
+
     [Fact]
     public async Task TemporaryReadFailureBlocksOverwriteUntilTheOriginalCollectionCanBeReloaded()
     {

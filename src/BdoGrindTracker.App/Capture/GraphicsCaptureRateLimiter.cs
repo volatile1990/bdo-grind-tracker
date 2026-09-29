@@ -11,11 +11,14 @@ internal static unsafe class GraphicsCaptureRateLimiter
     // Leave a fresh frame between the tracker's 200 ms observations. Matching that
     // cadence exactly can miss the next frame because WGC timestamps must be newer
     // than the observation request, and capture/polling clocks are not synchronized.
-    private static readonly TimeSpan MinimumInterval = TimeSpan.FromMilliseconds(100);
+    internal static readonly TimeSpan LiveMinimumInterval = TimeSpan.FromMilliseconds(100);
+    internal static readonly TimeSpan StandbyMinimumInterval = TimeSpan.FromMilliseconds(500);
     private static readonly Guid Session5Id = new("67c0ea62-1f85-5061-925a-239be0ac09cb");
     private const int ENoInterface = unchecked((int)0x80004002);
 
-    internal static bool TryApply(GraphicsCaptureSession session)
+    internal static bool TryApply(GraphicsCaptureSession session) => TryApply(session, LiveMinimumInterval);
+
+    internal static bool TryApply(GraphicsCaptureSession session, TimeSpan minimumInterval)
     {
         ArgumentNullException.ThrowIfNull(session);
         try
@@ -27,7 +30,7 @@ internal static unsafe class GraphicsCaptureRateLimiter
                 return false;
 
             using var reference = WinRT.MarshalInspectable<GraphicsCaptureSession>.CreateMarshaler(session);
-            return TryApply(reference.ThisPtr);
+            return TryApply(reference.ThisPtr, minimumInterval);
         }
         catch (Exception error) when (error is COMException or InvalidCastException or
             NotSupportedException or UnauthorizedAccessException)
@@ -37,7 +40,9 @@ internal static unsafe class GraphicsCaptureRateLimiter
         }
     }
 
-    internal static bool TryApply(nint session)
+    internal static bool TryApply(nint session) => TryApply(session, LiveMinimumInterval);
+
+    internal static bool TryApply(nint session, TimeSpan minimumInterval)
     {
         if (session == 0) throw new ArgumentException("A capture session is required.", nameof(session));
         nint rateSession = 0;
@@ -58,7 +63,7 @@ internal static unsafe class GraphicsCaptureRateLimiter
             // IGraphicsCaptureSession5 inherits IInspectable, then get/put_MinUpdateInterval.
             // windows.foundation.h defines TimeSpan as one signed 64-bit Duration.
             var setInterval = (delegate* unmanaged[Stdcall]<nint, AbiTimeSpan, int>)(*(nint**)rateSession)[7];
-            result = setInterval(rateSession, new AbiTimeSpan { Duration = MinimumInterval.Ticks });
+            result = setInterval(rateSession, new AbiTimeSpan { Duration = minimumInterval.Ticks });
             if (result >= 0) return true;
             LogFailure(result);
             return false;

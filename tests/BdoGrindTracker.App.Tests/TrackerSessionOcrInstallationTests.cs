@@ -17,6 +17,79 @@ namespace BdoGrindTracker.App.Tests;
 public sealed class TrackerSessionOcrInstallationTests
 {
     [Theory]
+    [InlineData("en", "de", "en-US")]
+    [InlineData("de", "en", "de-DE")]
+    [InlineData("auto", "en", "en-US")]
+    [InlineData("auto", "de", "de-DE")]
+    public async Task StartupChecksTheRequiredLanguageEvenWhenAFallbackAnalyzerIsAvailable(
+        string preference, string detected, string expectedTag)
+    {
+        var analyzer = new SyntheticAnalyzer { Missing = true };
+        await using var fixture = new Fixture(analyzer, preference: preference,
+            languageDetector: () => new(detected, "Synthetic language"));
+
+        Assert.True(fixture.Service.State.AnalyzerAvailable);
+        Assert.Equal(expectedTag, fixture.Service.State.MissingOcrLanguageTag);
+        Assert.NotNull(fixture.Service.State.TrackingBlockedReason);
+        Assert.Single(analyzer.Configured);
+        Assert.Empty(fixture.Installer.Requests);
+        Assert.Equal(0, fixture.Captures);
+        Assert.False(fixture.Service.State.HasSession);
+        Assert.False(fixture.Service.State.IsRunning);
+    }
+
+    [Fact]
+    public async Task ChangingToAMissingLanguageOffersInstallationWithoutASeparateCheck()
+    {
+        var analyzer = new SyntheticAnalyzer { IsMissingForLanguage = language => language == "de" };
+        await using var fixture = new Fixture(analyzer, preference: "en");
+        Assert.Null(fixture.Service.State.MissingOcrLanguageTag);
+
+        var saved = await fixture.Service.SavePreferencesAsync(fixture.Service.Preferences with { GameLanguage = "de" });
+
+        Assert.True(saved.Succeeded);
+        Assert.Equal("de-DE", fixture.Service.State.MissingOcrLanguageTag);
+        Assert.NotNull(fixture.Service.State.TrackingBlockedReason);
+        Assert.Equal(new[] { "en", "de" }, analyzer.Configured);
+        Assert.Empty(fixture.Installer.Requests);
+        Assert.Equal(0, fixture.Captures);
+    }
+
+    [Fact]
+    public async Task NewlyDetectedAutomaticLanguageIsCheckedWhenPreferencesRefresh()
+    {
+        string? detected = null;
+        var analyzer = new SyntheticAnalyzer { Missing = true };
+        await using var fixture = new Fixture(analyzer,
+            languageDetector: () => new(detected, "Synthetic language"));
+        Assert.Empty(analyzer.Configured);
+        Assert.Null(fixture.Service.State.MissingOcrLanguageTag);
+        detected = "en";
+
+        var saved = await fixture.Service.SavePreferencesAsync(fixture.Service.Preferences);
+
+        Assert.True(saved.Succeeded);
+        Assert.Equal("en-US", fixture.Service.State.MissingOcrLanguageTag);
+        Assert.Equal(new[] { "en" }, analyzer.Configured);
+        Assert.Empty(fixture.Installer.Requests);
+        Assert.Equal(0, fixture.Captures);
+    }
+
+    [Fact]
+    public async Task UnrelatedPreferenceChangesDoNotRepeatTheInitialOcrCheck()
+    {
+        var analyzer = new SyntheticAnalyzer();
+        await using var fixture = new Fixture(analyzer);
+        Assert.Equal(new[] { "en" }, analyzer.Configured);
+
+        await fixture.Service.SavePreferencesAsync(fixture.Service.Preferences with { AutoPauseMinutes = 12 });
+
+        Assert.Equal(new[] { "en" }, analyzer.Configured);
+        Assert.Empty(fixture.Installer.Requests);
+        Assert.Equal(0, fixture.Captures);
+    }
+
+    [Theory]
     [InlineData("de", "en")]
     [InlineData("auto", "de")]
     public async Task StartupMissingLanguageUsesTheSelectedOrDetectedGermanLanguage(string preference, string detected)

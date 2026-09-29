@@ -4,9 +4,24 @@
 @using BdoGrindTracker.App.UI
 
 @{ Refresh(); }
-<details class="panel session-timeline" @attributes="Expanded">
-    <summary @onclick="ToggleOpen"><span class="session-timeline-title"><AppIcon Name="trend" /><strong>@T("Session-Timeline")</strong></span><small>@F("{0} · {1} Drops", Presentation.Duration(State.Elapsed), Number(Drops.Count))</small></summary>
-    @if (_open)
+@if (Embedded)
+{
+    <section class="panel session-timeline session-timeline-embedded">
+        <div class="session-timeline-heading"><h3 class="session-timeline-title"><AppIcon Name="trend" />@T("Session-Timeline")</h3><small>@F("{0} · {1} Drops", Presentation.Duration(State.Elapsed), Number(Drops.Count))</small></div>
+        @TimelineBody
+    </section>
+}
+else
+{
+    <details class="panel session-timeline" @attributes="Expanded">
+        <summary @onclick="ToggleOpen"><span class="session-timeline-title"><AppIcon Name="trend" /><strong>@T("Session-Timeline")</strong></span><small>@F("{0} · {1} Drops", Presentation.Duration(State.Elapsed), Number(Drops.Count))</small></summary>
+        @TimelineBody
+    </details>
+}
+
+@code {
+    private RenderFragment TimelineBody => @<text>
+    @if (IsOpen)
     {
         <div class="session-timeline-body">
             <div class="session-timeline-layers" role="group" aria-label="@T("Ebenen")">
@@ -20,11 +35,11 @@
                 <span class="session-timeline-divider"></span>
                 <button type="button" class="text-button" @onclick="() => _lootList = !_lootList"
                         disabled="@(State.Loot.Totals.Count == 0)" aria-expanded="@_lootList">
-                    <AppIcon Name="loot" />@T("Loot Selector")@(_chosen.Length > 0 ? $" · {_chosen.Length}" : "")
+                    <AppIcon Name="loot" />@T("Loot auswählen")@(_chosen.Length > 0 ? $" · {_chosen.Length}" : "")
                 </button>
                 <button type="button" class="text-button" @onclick="() => _rotationList = !_rotationList"
                         disabled="@(_spans.Count == 0)" aria-expanded="@_rotationList">
-                    <AppIcon Name="history" />@T("Show specific rotation")
+                    <AppIcon Name="history" />@T("Bestimmte Rotation anzeigen")
                 </button>
                 @if (_zoom > 1 || _selected is not null)
                 {
@@ -61,7 +76,16 @@
                     }
                 </ul>
             }
-            <div class="session-timeline-track" @ref="_track" @onwheel="Wheel"
+            <div class="session-timeline-view-controls" role="group" aria-label="@T("Ausschnitt steuern")">
+                <button type="button" class="button secondary" @onclick="() => Pan(-1)" disabled="@(_zoom <= 1 || _from <= TimeSpan.Zero)" aria-label="@T("Ausschnitt früher anzeigen")"><AppIcon Name="back" /></button>
+                <button type="button" class="button secondary" @onclick="() => Zoom(.8)" disabled="@(_zoom <= 1)" aria-label="@T("Timeline herauszoomen")">−</button>
+                <span>@F("Zoom {0}×", _zoom.ToString("0.##", UiCulture))</span>
+                <button type="button" class="button secondary" @onclick="() => Zoom(1.25)" disabled="@(_zoom >= 120)" aria-label="@T("Timeline hineinzoomen")">+</button>
+                <button type="button" class="button secondary" @onclick="() => Pan(1)" disabled="@(_zoom <= 1 || _to >= Span)" aria-label="@T("Ausschnitt später anzeigen")"><AppIcon Name="arrow" /></button>
+                <button type="button" class="text-button" @onclick="ToggleExactValues" aria-expanded="@_exactOpen" aria-controls="@_exactId">@T(_exactOpen ? "Exakte Werte ausblenden" : "Exakte Werte anzeigen")</button>
+            </div>
+            <span class="sr-only" role="status" aria-live="polite">@_windowStatus</span>
+            <div class="session-timeline-track" @ref="_track" @onwheel="Wheel" tabindex="0" role="region" aria-label="@T("Timeline-Ausschnitt")" aria-describedby="@_helpId" @onkeydown="TrackKeyDown"
                  @onpointerdown="PointerDown" @onpointerdown:preventDefault="true" @onpointermove="PointerMove"
                  @onpointerup="PointerUp" @onpointercancel="PointerUp" @onlostpointercapture="PointerUp">
                 <svg viewBox="0 0 1000 240" preserveAspectRatio="none" role="img" aria-label="@T("Zeitstrahl der Session")">
@@ -236,7 +260,31 @@
                     <div><dt>@T("Ausschnitt")</dt><dd>@(Presentation.Duration(_from) + " – " + Presentation.Duration(_to))</dd></div>
                 }
             </dl>
-            <p class="session-timeline-help">@T("Shift + Mausrad zoomt, Ziehen verschiebt den Ausschnitt.")</p>
+            <p id="@_helpId" class="session-timeline-help">@T("Shift + Mausrad zoomt, Ziehen verschiebt den Ausschnitt. Auf der Timeline: Plus/Minus zoomt, Pfeil links/rechts verschiebt, Pos1 zeigt die ganze Session. Exakte Werte stehen in der Tabelle.")</p>
+            @if (_exactOpen)
+            {
+                var exactRows = ExactRows();
+                var exactPages = Math.Max(1, (exactRows.Count + ExactPageSize - 1) / ExactPageSize);
+                _exactPage = Math.Clamp(_exactPage, 1, exactPages);
+                <section id="@_exactId" class="session-timeline-exact" aria-label="@T("Exakte Timeline-Werte")">
+                    <h4>@T("Exakte Timeline-Werte")</h4>
+                    <p>@T("Drops und Rotationsphasen im sichtbaren Ausschnitt. Abschnittswerte folgen den ausgewählten Ebenen. Zeiten beziehen sich auf die aktive Sessionzeit.")</p>
+                    <div class="table-scroll" tabindex="0" role="region" aria-label="@T("Tabelle der Timeline-Werte")">
+                        <table><thead><tr><th scope="col">@T("Zeit")</th><th scope="col">@T("Typ")</th><th scope="col">@T("Ereignis")</th><th scope="col">@T("Exakter Wert")</th></tr></thead><tbody>
+                            @foreach (var row in exactRows.Skip((_exactPage - 1) * ExactPageSize).Take(ExactPageSize))
+                            {
+                                <tr><td>@ExactTime(row.Start)@(row.End is { } end ? " – " + ExactTime(end) : "")</td><td>@row.Kind</td><td>@row.Label</td><td>@row.Value</td></tr>
+                            }
+                        </tbody></table>
+                    </div>
+                    @if (exactRows.Count == 0) { <p>@T("Keine erfassten Werte in diesem Ausschnitt.")</p> }
+                    else
+                    {
+                        <div class="pagination"><span>@F("{0}–{1} von {2} Werten", (_exactPage - 1) * ExactPageSize + 1, Math.Min(_exactPage * ExactPageSize, exactRows.Count), exactRows.Count)</span><div><button type="button" class="icon-button" @onclick="() => _exactPage--" disabled="@(_exactPage <= 1)" aria-label="@T("Vorherige Seite der Timeline-Werte")"><AppIcon Name="back" /></button><span>@F("Seite {0} von {1}", _exactPage, exactPages)</span><button type="button" class="icon-button" @onclick="() => _exactPage++" disabled="@(_exactPage >= exactPages)" aria-label="@T("Nächste Seite der Timeline-Werte")"><AppIcon Name="arrow" /></button></div></div>
+                    }
+                </section>
+            }
         </div>
     }
-</details>
+    </text>;
+}

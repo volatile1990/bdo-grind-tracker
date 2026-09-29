@@ -17,11 +17,13 @@ public sealed class GrindStandbyCaptureTests
         Assert.Empty(fixture.Sources);
     }
 
-    [Fact]
-    public void BackgroundCheckReleasesBurstEvenBeforeForegroundNotificationArrives()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void BackgroundCheckReleasesCaptureEvenBeforeForegroundNotificationArrives(bool burst)
     {
         using var fixture = new Fixture();
-        fixture.Capture.SetBurst(true);
+        fixture.Capture.SetBurst(burst);
         using (fixture.Capture.Capture(CancellationToken.None).Bitmap) { }
         fixture.Foreground.IsForeground = false;
 
@@ -44,7 +46,7 @@ public sealed class GrindStandbyCaptureTests
     }
 
     [Fact]
-    public void EveryStandbySampleReleasesNativeCaptureAndPreservesPixelMetadata()
+    public void StandbySamplesReuseNativeCaptureAndPreservePixelMetadata()
     {
         using var fixture = new Fixture();
 
@@ -55,19 +57,22 @@ public sealed class GrindStandbyCaptureTests
             Assert.True(captured.IsToneMapped);
             Assert.Equal(12345L, captured.AcquiredAtTimestamp);
             Assert.Equal(new Size(4, 3), captured.Bitmap.Size);
-            Assert.True(Assert.Single(fixture.Sources).Disposed);
+            Assert.False(Assert.Single(fixture.Sources).Disposed);
         }
         using (fixture.Capture.Capture(CancellationToken.None).Bitmap) { }
 
-        Assert.Equal(2, fixture.Selections);
-        Assert.Equal(2, fixture.Sources.Count);
-        Assert.All(fixture.Sources, source => Assert.True(source.Disposed));
+        Assert.Equal(1, fixture.Selections);
+        var source = Assert.Single(fixture.Sources);
+        Assert.Equal(2, source.Captures);
+        Assert.False(source.Disposed);
+        Assert.Equal(GraphicsCaptureRateLimiter.StandbyMinimumInterval, Assert.Single(source.Intervals));
     }
 
     [Fact]
-    public void ConfirmationBurstReusesNativeSourceAndReturningToStandbyReleasesIt()
+    public void StandbyAndConfirmationBurstChangeRateWithoutRestartingNativeCapture()
     {
         using var fixture = new Fixture();
+        using (fixture.Capture.Capture(CancellationToken.None).Bitmap) { }
         fixture.Capture.SetBurst(true);
 
         using (fixture.Capture.Capture(CancellationToken.None).Bitmap) { }
@@ -75,18 +80,27 @@ public sealed class GrindStandbyCaptureTests
 
         Assert.Equal(1, fixture.Selections);
         var source = Assert.Single(fixture.Sources);
-        Assert.Equal(2, source.Captures);
+        Assert.Equal(3, source.Captures);
         Assert.False(source.Disposed);
 
         fixture.Capture.SetBurst(false);
-        Assert.True(source.Disposed);
+        using (fixture.Capture.Capture(CancellationToken.None).Bitmap) { }
+        Assert.False(source.Disposed);
+        Assert.Equal(1, fixture.Selections);
+        Assert.Single(fixture.Sources);
+        Assert.Equal(4, source.Captures);
+        Assert.Equal(new[] { GraphicsCaptureRateLimiter.StandbyMinimumInterval,
+            GraphicsCaptureRateLimiter.LiveMinimumInterval, GraphicsCaptureRateLimiter.StandbyMinimumInterval },
+            source.Intervals);
     }
 
-    [Fact]
-    public void ForegroundNotificationReleasesIdleBurstAndNextSampleRebinds()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ForegroundNotificationReleasesIdleCaptureAndNextSampleRebinds(bool burst)
     {
         using var fixture = new Fixture();
-        fixture.Capture.SetBurst(true);
+        fixture.Capture.SetBurst(burst);
         using (fixture.Capture.Capture(CancellationToken.None).Bitmap) { }
 
         fixture.Foreground.SetForeground(false);
@@ -99,11 +113,16 @@ public sealed class GrindStandbyCaptureTests
         fixture.Foreground.SetForeground(true);
         using (fixture.Capture.Capture(CancellationToken.None).Bitmap) { }
         Assert.Equal(2, fixture.Selections);
-        Assert.All(fixture.Sources, source => Assert.True(source.Disposed));
+        Assert.Equal(2, fixture.Sources.Count);
+        Assert.True(fixture.Sources[0].Disposed);
+        Assert.False(fixture.Sources[1].Disposed);
+        Assert.Equal(GraphicsCaptureRateLimiter.StandbyMinimumInterval, Assert.Single(fixture.Sources[1].Intervals));
     }
 
-    [Fact]
-    public async Task FocusLossCancelsPendingCaptureWithoutWaitingForAnotherStandbyTick()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task FocusLossCancelsPendingCaptureWithoutWaitingForAnotherStandbyTick(bool burst)
     {
         using var fixture = new Fixture();
         using var started = new ManualResetEventSlim();
@@ -114,7 +133,7 @@ public sealed class GrindStandbyCaptureTests
                 throw new TimeoutException("Foreground notification did not cancel capture.");
             token.ThrowIfCancellationRequested();
         };
-        fixture.Capture.SetBurst(true);
+        fixture.Capture.SetBurst(burst);
         var pending = Task.Run(() => fixture.Capture.Capture(CancellationToken.None));
         Assert.True(started.Wait(TimeSpan.FromSeconds(5)));
 
@@ -138,11 +157,13 @@ public sealed class GrindStandbyCaptureTests
         Assert.Throws<ArgumentException>(() => _ = source.LastBitmap.Width);
     }
 
-    [Fact]
-    public void CaptureFailureReleasesBurstBeforeRetrying()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void CaptureFailureReleasesSourceBeforeRetrying(bool burst)
     {
         using var fixture = new Fixture();
-        fixture.Capture.SetBurst(true);
+        fixture.Capture.SetBurst(burst);
         fixture.OnCapture = _ => throw new InvalidOperationException("Native acquisition failed.");
 
         Assert.Throws<InvalidOperationException>(() => fixture.Capture.Capture(CancellationToken.None));
@@ -153,11 +174,13 @@ public sealed class GrindStandbyCaptureTests
         Assert.Equal(2, fixture.Selections);
     }
 
-    [Fact]
-    public void SuspendReleasesBurstAndCancelledCallDoesNotCreateSource()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void SuspendReleasesCaptureAndCancelledCallDoesNotCreateSource(bool burst)
     {
         using var fixture = new Fixture();
-        fixture.Capture.SetBurst(true);
+        fixture.Capture.SetBurst(burst);
         using (fixture.Capture.Capture(CancellationToken.None).Bitmap) { }
 
         fixture.Capture.Suspend();
@@ -166,11 +189,13 @@ public sealed class GrindStandbyCaptureTests
         Assert.Single(fixture.Sources);
     }
 
-    [Fact]
-    public void DisposeDetachesForegroundEventsAndReleasesCaptureAndMonitor()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void DisposeDetachesForegroundEventsAndReleasesCaptureAndMonitor(bool burst)
     {
         using var fixture = new Fixture();
-        fixture.Capture.SetBurst(true);
+        fixture.Capture.SetBurst(burst);
         using (fixture.Capture.Capture(CancellationToken.None).Bitmap) { }
 
         fixture.Capture.Dispose();
@@ -230,6 +255,8 @@ public sealed class GrindStandbyCaptureTests
         internal bool Disposed;
         internal int Captures;
         internal Bitmap? LastBitmap;
+        internal readonly List<TimeSpan> Intervals = [];
+        public void SetMinimumUpdateInterval(TimeSpan interval) => Intervals.Add(interval);
         public CapturedDesktopBitmap Capture(Func<WindowCaptureGeometry> readGeometry, CancellationToken cancellationToken)
         {
             Captures++;

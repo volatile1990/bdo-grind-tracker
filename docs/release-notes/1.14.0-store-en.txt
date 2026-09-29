@@ -1,0 +1,10 @@
+What's new in Grindcrest 1.14.0:
+
+• New tray icon: Configure minimize and close (X) behavior separately. Capture and overlays keep running while hidden in the tray; click the icon to reopen the window.
+• Choose spot variants in your history: Assign saved sessions to a compatible location or tier. Loot quantities and class stay unchanged; submitted sessions and pending uploads remain protected.
+• Easier timeline navigation: Zoom and pan with buttons or the keyboard, and view exact drop quantities, time intervals and rotation phases in a table.
+• Clearer history: Loot columns appear before XP, AP/DP and consumables, favorites follow trash loot, and session details are directly accessible.
+• Clearer silver valuation: History, grind goals and session images identify the price basis they use.
+• Improved readability and controls: Capture settings follow your theme, overlay modules support keyboard selection, and setup identifies the capture check still needed.
+• Corrected session time on exit: Final idle time is deducted just as it is when pausing.
+• More reliable configuration selection and capture: XP, AP/DP and class detection follow the selected BDO configuration, with fixes to banner checks, the overlay cache and saving overlay positions.

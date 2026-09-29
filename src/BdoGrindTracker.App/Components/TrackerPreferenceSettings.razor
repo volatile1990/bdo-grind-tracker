@@ -19,6 +19,15 @@
                     }
                 </section>
                 }
+                @if (Section is null or "window")
+                {
+                <section class="panel settings-panel"><div class="settings-heading"><div class="settings-icon"><AppIcon Name="monitor" /></div><h2>@T("Fenster & Tray")</h2></div>
+                    <p class="field-note">@T("Grindcrest bleibt als Symbol im Infobereich der Windows-Taskleiste verfügbar. Ein Klick auf das Tray-Symbol öffnet das Fenster wieder.")</p>
+                    <label class="field"><span>@T("Beim Minimieren")</span><select id="window-minimize-behavior" @bind:get="MinimizeBehavior" @bind:set="MinimizeBehaviorChanged"><option value="minimize">@T("Normal minimieren")</option><option value="tray">@T("In den Tray minimieren")</option></select><small>@T("Normal minimiert bleibt das Fenster in der Taskleiste. Im Tray ist es vollständig verborgen.")</small></label>
+                    <label class="field"><span>@T("Beim Schließen (X)")</span><select id="window-close-behavior" @bind:get="CloseBehavior" @bind:set="CloseBehaviorChanged">@if (!Tracker.Preferences.CloseBehaviorConfigured) { <option value="ask" disabled>@T("Beim ersten Schließen fragen")</option> }<option value="exit">@T("Programm beenden")</option><option value="tray">@T("In den Tray minimieren")</option></select><small>@T("Über „Beenden“ im Rechtsklick-Menü des Tray-Symbols kannst du Grindcrest jederzeit vollständig schließen.")</small></label>
+                    <div class="subtle-box"><AppIcon Name="info" /><span>@T("Im Tray läuft die Erfassung weiter. Eine laufende Session wird durch das Verbergen des Fensters nicht pausiert.")</span></div>
+                </section>
+                }
                 @if (Section is null or "capture")
                 {
                 <section class="panel settings-panel"><div class="settings-heading"><div class="settings-icon"><AppIcon Name="monitor" /></div><h2>@T("Erfassung")</h2></div>
@@ -32,7 +41,7 @@
                 @if (Section is null or "diagnostics")
                 {
                 <section class="panel settings-panel"><div class="settings-heading"><div class="settings-icon"><AppIcon Name="trend" /></div><h2>Rotation Monitor</h2></div>
-                    <label class="toggle-row"><span><strong>@T("Rotationen mit Special Events werten")</strong><small>@T("Special Events sind zufällige Mechaniken, die eine volle Rotation nicht braucht und die zusätzlich oder ersetzend auftreten: das Agris-Event in Aphrodon. Ausgeschaltet zählen Rotationen mit Special Event nicht für Bestzeit, Idealrotation, Bestabschnitte und Rotations / h. In Event Horizon vergleicht der Rotation Monitor immer Rotationen mit gleich vielen Mini-AFKs. Die Fragmente of Divinity in Magaia fallen in fest getimte Phasen und ändern die Rotationslänge nicht; dort wird jede Rotation verglichen.")</small></span><input id="rotation-special-events" type="checkbox" class="switch" @bind="_includeSpecialEvents" @bind:after="SpecialEventsChanged" /></label>
+                    <label class="toggle-row"><span><strong>@T("Rotationen mit Special Events werten")</strong><small>@T("Special Events sind zufällige Mechaniken, die eine volle Rotation nicht braucht und die zusätzlich oder ersetzend auftreten: das Agris-Event in Aphrodon. Ausgeschaltet zählen Rotationen mit Special Event nicht für Bestzeit, Idealrotation, Bestabschnitte und Rotationen / h. In Event Horizon vergleicht der Rotation Monitor immer Rotationen mit gleich vielen Mini-AFKs. Die Fragmente of Divinity in Magaia fallen in fest getimte Phasen und ändern die Rotationslänge nicht; dort wird jede Rotation verglichen.")</small></span><input id="rotation-special-events" type="checkbox" class="switch" @bind="_includeSpecialEvents" @bind:after="SpecialEventsChanged" /></label>
                 </section>
                 }
                 @if (Section is null or "diagnostics")
@@ -89,6 +98,8 @@
     private string _gameLanguage = "auto";
     private string SelectedThemeId => AppThemes.Normalize(Tracker.Preferences.ThemeId);
     private string SelectedOverlayThemeId => AppThemes.NormalizeOverlay(Tracker.Preferences.OverlayThemeId) ?? "";
+    private string MinimizeBehavior => Tracker.Preferences.MinimizeToTray ? "tray" : "minimize";
+    private string CloseBehavior => !Tracker.Preferences.CloseBehaviorConfigured ? "ask" : Tracker.Preferences.CloseToTray ? "tray" : "exit";
     private RenderFragment ThemeOptions => @<text><option value="@AppThemes.Grindcrest">Grindcrest</option><option value="@AppThemes.BlackDesert">Black Desert</option><option value="@AppThemes.Light">Light</option><option value="@AppThemes.Cats">@T("Katzen")</option><option value="@AppThemes.Obsidian">Obsidian</option><option value="@AppThemes.Kamasylvia">Kamasylvia</option><option value="@AppThemes.Valencia">Valencia</option></text>;
     private string ThemeDescription(string themeId) => themeId switch
     {
@@ -122,6 +133,10 @@
     private Task UiLanguageChanged(string language) => SavePreferenceChange(p => p with { UiLanguage = language });
     private Task ThemeChanged(string themeId) => Save(p => p with { ThemeId = themeId });
     private Task OverlayThemeChanged(string themeId) => Save(p => p with { OverlayThemeId = themeId.Length == 0 ? null : themeId });
+    private Task MinimizeBehaviorChanged(string behavior) => Save(p => p with { MinimizeToTray = behavior == "tray" });
+    private Task CloseBehaviorChanged(string behavior) => behavior is "exit" or "tray"
+        ? Save(p => p with { CloseToTray = behavior == "tray", CloseBehaviorConfigured = true })
+        : Task.CompletedTask;
     private Task GameLanguageChanged() => Save(p => p with { GameLanguage = _gameLanguage });
     private Task CharacterChanged() => Save(p => p with { CharacterClassId = string.IsNullOrEmpty(_characterClass) ? null : _characterClass });
     private Task RecordingChanged() => Save(p => p with { RecordLoot = _recordLoot });

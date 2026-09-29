@@ -13,16 +13,18 @@ internal sealed record RotationMessageProfile(
     Func<int, int, Rectangle> Crop, bool SingleLine = false, int GapSamples = 2, double DuplicateSeconds = 8,
     Func<string, string, int>? CountLines = null, string[]? CountedKinds = null, RotationNameProfile? Names = null)
 {
-    internal string Recognize(Mat pixels, CompanionWindowsOcrRecognizer engine)
+    internal string Recognize(Mat pixels, CompanionWindowsOcrRecognizer engine,
+        CancellationToken cancellationToken = default)
     {
-        if (!SingleLine) return HermesiaMessages.Recognize(pixels, engine);
-        var text = engine.Recognize(pixels).Text;
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!SingleLine) return HermesiaMessages.Recognize(pixels, engine, cancellationToken);
+        var text = engine.Recognize(pixels, cancellationToken).Text;
         if (Parse(text).Count > 0) return text;
         using var gray = new Mat();
         using var enlarged = new Mat();
         Cv2.CvtColor(pixels, gray, ColorConversionCodes.BGR2GRAY);
         Cv2.Resize(gray, enlarged, new OpenCvSharp.Size(), 2, 2, InterpolationFlags.Cubic);
-        return text + "\n" + engine.Recognize(enlarged).Text;
+        return text + "\n" + engine.Recognize(enlarged, cancellationToken).Text;
     }
     // The centered stack of up to three system banners. Its place is a fixed share of the screen at any
     // resolution: the widest line (Hermesia AFK) spans 37.9–62 % of the width, the lines 54.7–63.5 % of the height.

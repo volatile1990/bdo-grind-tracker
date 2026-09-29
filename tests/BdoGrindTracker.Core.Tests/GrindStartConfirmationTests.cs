@@ -9,6 +9,7 @@ public sealed class GrindStartConfirmationTests
     {
         var detector = new GrindStartConfirmation(Start, acceptInitialArrival: true);
         Assert.True(detector.Observe(Projection(5, 1, Start.AddMilliseconds(-50))));
+        Assert.Equal(LootSpotCatalog.AetherionId, detector.SpotId);
     }
 
     [Fact]
@@ -18,6 +19,81 @@ public sealed class GrindStartConfirmationTests
         Assert.False(detector.Observe(Projection(0, 0, null)));
         Assert.False(detector.Observe(Projection(0, 0, null)));
         Assert.True(detector.Observe(Projection(5, 1, Start.AddMilliseconds(-50))));
+        Assert.Equal(LootSpotCatalog.AetherionId, detector.SpotId);
+    }
+
+    [Theory]
+    [InlineData("Tainted Armor Fragment", LootSpotCatalog.DarkEnergyFloodlandsId)]
+    [InlineData("Faded Dark Energy", LootSpotCatalog.DarkEnergyFloodlandsId)]
+    [InlineData("Tainted Specter's Cloth", "dehkia-ash-forest-unspecified")]
+    [InlineData("Winter Tree Snow Crystal", "winter-tree-fossil-unspecified")]
+    public void SharedTrashIdentifiesTheExistingSpotFamily(string trash, string spotId)
+    {
+        var detector = new GrindStartConfirmation(Start, acceptInitialArrival: true);
+        Assert.True(detector.Observe(Projection(5, 1, Start, trash)));
+        Assert.Equal(spotId, detector.SpotId);
+    }
+
+    [Fact]
+    public void TwoTrashNamesFromOneSpotIdentifyTheSameFamily()
+    {
+        var detector = new GrindStartConfirmation(Start, acceptInitialArrival: true);
+        Assert.True(detector.Observe(new LootTotalsProjection(2, new Dictionary<string, long>
+        {
+            ["Tainted Armor Fragment"] = 5,
+            ["Faded Dark Energy"] = 5,
+        }, 2, Start)));
+        Assert.Equal(LootSpotCatalog.DarkEnergyFloodlandsId, detector.SpotId);
+    }
+
+    [Theory]
+    [InlineData("Chilled Soul Piece", "Elion Follower's Helmet")]
+    [InlineData("Elion Follower's Helmet", "Chilled Soul Piece")]
+    public void MixedSpotTrashConfirmsActivityWithoutChoosingAnArbitrarySpot(string first, string second)
+    {
+        var detector = new GrindStartConfirmation(Start, acceptInitialArrival: true);
+        Assert.True(detector.Observe(new LootTotalsProjection(2, new Dictionary<string, long>
+        {
+            [first] = 5,
+            [second] = 5,
+        }, 2, Start)));
+        Assert.Null(detector.SpotId);
+    }
+
+    [Fact]
+    public void LaterArrivalIdentifiesOnlyTheGrowingTrashDespiteAnotherSpotInTheBaseline()
+    {
+        var detector = new GrindStartConfirmation(Start);
+        Assert.False(detector.Observe(Projection(50, 10, Start)));
+        Assert.Null(detector.SpotId);
+        Assert.True(detector.Observe(new LootTotalsProjection(11, new Dictionary<string, long>
+        {
+            ["Chilled Soul Piece"] = 50,
+            ["Elion Follower's Helmet"] = 5,
+        }, 11, Start.AddSeconds(1))));
+        Assert.Equal(LootSpotCatalog.MagaiaId, detector.SpotId);
+    }
+
+    [Fact]
+    public void LaterArrivalWithMultipleGrowingSpotFamiliesDoesNotChooseOne()
+    {
+        var detector = new GrindStartConfirmation(Start);
+        Assert.False(detector.Observe(Projection(50, 10, Start)));
+        Assert.True(detector.Observe(new LootTotalsProjection(12, new Dictionary<string, long>
+        {
+            ["Chilled Soul Piece"] = 55,
+            ["Elion Follower's Helmet"] = 5,
+        }, 12, Start.AddSeconds(1))));
+        Assert.Null(detector.SpotId);
+    }
+
+    [Fact]
+    public void SubsequentObservationsPreserveTheSpotOfTheConfirmingArrival()
+    {
+        var detector = new GrindStartConfirmation(Start, acceptInitialArrival: true);
+        Assert.True(detector.Observe(Projection(5, 1, Start)));
+        Assert.True(detector.Observe(Projection(10, 2, Start.AddSeconds(1), "Elion Follower's Helmet")));
+        Assert.Equal(LootSpotCatalog.AetherionId, detector.SpotId);
     }
 
     [Theory]
@@ -29,6 +105,7 @@ public sealed class GrindStartConfirmationTests
     {
         var detector = new GrindStartConfirmation(Start, acceptInitialArrival: true);
         Assert.False(detector.Observe(Projection(5, drops, Start, item)));
+        Assert.Null(detector.SpotId);
     }
 
     [Fact]
@@ -39,7 +116,9 @@ public sealed class GrindStartConfirmationTests
         var corrected = Projection(20, 5, Start) with { QuantityCorrectionRevision = 1 };
         Assert.False(detector.Observe(corrected));
         Assert.False(detector.Observe(corrected));
+        Assert.Null(detector.SpotId);
         Assert.True(detector.Observe(Projection(25, 6, Start.AddSeconds(1)) with { QuantityCorrectionRevision = 1 }));
+        Assert.Equal(LootSpotCatalog.AetherionId, detector.SpotId);
     }
 
     [Fact]

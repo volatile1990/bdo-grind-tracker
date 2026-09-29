@@ -19,21 +19,27 @@ internal sealed class AutomaticGrindMonitor(
     CompanionCalibration calibration,
     Func<string, ILootFrameAnalyzer> createAnalyzer,
     TimeProvider? timeProvider = null,
-    RotationStartWatcher? rotationStart = null) : IAutomaticGrindMonitor
+    RotationStartWatcher? rotationStart = null,
+    TimeSpan? initialBannerTimeout = null) : IAutomaticGrindMonitor
 {
     private readonly TimeProvider _time = timeProvider ?? TimeProvider.System;
     private readonly RotationStartWatcher _rotationStart = rotationStart ?? new RotationStartWatcher();
     private RotationStartSighting? _seenRotationStart;
+    private long? _seenRotationStartTimestamp;
+    private int _disposed;
+    private readonly TimeSpan _initialBannerTimeout = initialBannerTimeout ?? AnalysisTimeout;
 
     /// <summary>The rotation start banner that is still recent enough to confirm the next trash drop.</summary>
     public RotationStartSighting? RecentRotationStart => _seenRotationStart is { } seen &&
-        _time.GetUtcNow() - seen.At <= RotationStartWatcher.Validity ? seen : null;
+        _seenRotationStartTimestamp is { } observed &&
+        _time.GetElapsedTime(observed) <= RotationStartWatcher.Validity ? seen : null;
 
     /// <summary>The sighting a starting session takes over: one banner confirms one start, never a later drop too.</summary>
     private RotationStartSighting? TakeRecentRotationStart()
     {
         var recent = RecentRotationStart;
         _seenRotationStart = null;
+        _seenRotationStartTimestamp = null;
         return recent;
     }
     private long? _lastSample;
@@ -50,6 +56,7 @@ internal sealed class AutomaticGrindMonitor(
 
     public async Task<AutoStartDetection?> CheckAsync(string language, CancellationToken cancellationToken)
     {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
         cancellationToken.ThrowIfCancellationRequested();
         if (!_pendingAnalysis.IsCompleted) return null;
         if (!capture.IsGameForeground)
@@ -68,12 +75,22 @@ internal sealed class AutomaticGrindMonitor(
                 "Bitte UI-Konfiguration speichern.");
         // A rotation start banner alone never starts a session: walking past a spot can show it. It only marks the
         // spot as grinding, so the next trash drop starts the session without waiting for five of them.
-        if (_rotationStart.Observe(first.Bitmap, _time.GetUtcNow()) is { } sighting) _seenRotationStart = sighting;
-        else if (_seenRotationStart is { } seen && _time.GetUtcNow() - seen.At > RotationStartWatcher.Validity)
+        if (await ObserveRotationStartAsync(first.Bitmap, replay.Frames[0].Metadata.CapturedAtUtc,
+            replay, cancellationToken).ConfigureAwait(false) is { } sighting)
+        {
+            _seenRotationStart = sighting;
+            _seenRotationStartTimestamp = _lastSample;
+        }
+        else if (RecentRotationStart is null)
+        {
             _seenRotationStart = null;
+            _seenRotationStartTimestamp = null;
+        }
+        cancellationToken.ThrowIfCancellationRequested();
         if (!visual.Observe(first.Bitmap, calibration) ||
             (_lastBurstEnd is { } ended && _time.GetElapsedTime(ended) < BurstCooldown)) return null;
         ILootFrameAnalyzer? analyzer = null;
+        var failed = false;
         try
         {
             _confirming = true;
@@ -137,6 +154,7 @@ internal sealed class AutomaticGrindMonitor(
                 if (analysis.LootProjection is { } projection && confirmation.Observe(projection))
                 {
                     replay.DetectedDropAt = projection.LatestArrivalAt ?? at;
+                    replay.SpotId = confirmation.SpotId;
                     replay.RotationStart = TakeRecentRotationStart();
                     return replay.Detach();
                 }
@@ -148,12 +166,22 @@ internal sealed class AutomaticGrindMonitor(
                 replay.Add(frame, at);
             }
         }
+        catch
+        {
+            failed = true;
+            throw;
+        }
         finally
         {
             try
             {
-                try { capture.SetBurst(false); }
-                finally { capture.Suspend(); }
+                // A completed probe returns to slow sampling on the same native
+                // session. Only interrupted/failed work must release it here.
+                if (failed || cancellationToken.IsCancellationRequested ||
+                    !capture.IsGameForeground || !_pendingAnalysis.IsCompleted)
+                    capture.Suspend();
+                else
+                    capture.SetBurst(false);
             }
             finally
             {
@@ -162,6 +190,41 @@ internal sealed class AutomaticGrindMonitor(
                 analyzer?.Dispose();
             }
         }
+    }
+
+    private async Task<RotationStartSighting?> ObserveRotationStartAsync(Bitmap frame, DateTimeOffset at,
+        AutoStartDetection replay, CancellationToken cancellationToken)
+    {
+        var workerCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var worker = Task.Run(() => _rotationStart.Observe(frame, at, workerCancellation.Token), CancellationToken.None);
+        try
+        {
+            var sighting = await worker.WaitAsync(_initialBannerTimeout, cancellationToken).ConfigureAwait(false);
+            workerCancellation.Dispose();
+            cancellationToken.ThrowIfCancellationRequested();
+            return sighting;
+        }
+        catch
+        {
+            Task cancellation;
+            try { cancellation = ObserveCancellationAsync(workerCancellation.CancelAsync()); }
+            catch (ObjectDisposedException) { cancellation = Task.CompletedTask; }
+            // Even a reader that ignores cancellation still owns its image and watcher.
+            // Leave the caller promptly, but prevent another probe and defer disposal.
+            if (!worker.IsCompleted || !cancellation.IsCompleted)
+                _pendingAnalysis = DisposeAfterBannerAsync(Task.WhenAll(worker, cancellation),
+                    replay.Detach(), workerCancellation);
+            else workerCancellation.Dispose();
+            capture.Suspend();
+            throw;
+        }
+    }
+
+    private static async Task DisposeAfterBannerAsync(Task pending, AutoStartDetection replay,
+        CancellationTokenSource cancellation)
+    {
+        try { await pending.ConfigureAwait(false); } catch (Exception) { }
+        finally { cancellation.Dispose(); replay.Dispose(); }
     }
 
     private static async Task ObserveCancellationAsync(Task cancellation)
@@ -180,7 +243,20 @@ internal sealed class AutomaticGrindMonitor(
         }
     }
 
-    public void Dispose() { capture.Dispose(); visual.Reset(); _rotationStart.Dispose(); }
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        capture.Dispose();
+        visual.Reset();
+        if (_pendingAnalysis.IsCompleted) _rotationStart.Dispose();
+        else _ = DisposeWatcherAfterAnalysisAsync(_pendingAnalysis, _rotationStart);
+    }
+
+    private static async Task DisposeWatcherAfterAnalysisAsync(Task pending, RotationStartWatcher watcher)
+    {
+        try { await pending.ConfigureAwait(false); } catch (Exception) { }
+        finally { watcher.Dispose(); }
+    }
 }
 
 /// <summary>At most three recent full frames and 128 MiB; replay uses the live reconciler.</summary>
@@ -191,6 +267,8 @@ internal sealed class AutoStartDetection : IDisposable
     private long _bytes;
     public IReadOnlyList<(Bitmap Bitmap, CapturedFrameMetadata Metadata)> Frames => _frames;
     public DateTimeOffset? DetectedDropAt { get; set; }
+    /// <summary>The spot identified by the confirmed trash arrival, independent of older replay rows.</summary>
+    public string? SpotId { get; set; }
     /// <summary>Set when a rotation start banner preceded this drop: the session starts confirmed and from that banner.</summary>
     public RotationStartSighting? RotationStart { get; set; }
 
@@ -224,12 +302,13 @@ internal sealed class AutoStartDetection : IDisposable
 
     public AutoStartDetection Detach()
     {
-        var owned = new AutoStartDetection { DetectedDropAt = DetectedDropAt, RotationStart = RotationStart };
+        var owned = new AutoStartDetection { DetectedDropAt = DetectedDropAt, SpotId = SpotId, RotationStart = RotationStart };
         owned._frames.AddRange(_frames);
         owned._bytes = _bytes;
         _frames.Clear();
         _bytes = 0;
         DetectedDropAt = null;
+        SpotId = null;
         return owned;
     }
 

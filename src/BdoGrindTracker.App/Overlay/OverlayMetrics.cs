@@ -19,8 +19,8 @@ internal sealed partial class OverlayMetrics
     private static readonly HashSet<string> TrashItems = TrashLootMinimumCatalog.Entries
         .Select(entry => entry.ItemName).ToHashSet(StringComparer.Ordinal);
 
-    // A deliberately explicit presentation filter. The aggregate does not retain whether
-    // an item was read in the rare banner, and common market materials are not rare drops.
+    // Shared presentation filter for the overlay and share image. The aggregate does not retain
+    // whether an item was read in the rare banner, and common market materials are not rare drops.
     private static readonly HashSet<string> RareItems = new(StringComparer.Ordinal)
     {
         "Apeiron Belt", "Apeiron Earring", "Apeiron Necklace", "Apeiron Ring",
@@ -45,6 +45,8 @@ internal sealed partial class OverlayMetrics
         "White Primordial Pigment - Sovereign", "White Primordial Luster - Sovereign",
         "White Primordial Pigment - Edana", "White Primordial Luster - Edana",
     };
+
+    internal static bool IsRareItem(string itemName) => RareItems.Contains(itemName);
 
     internal OverlaySnapshot Update(TrackerState state, TrackerPreferences preferences, LootPriceSnapshot? prices = null)
     {
@@ -134,7 +136,7 @@ internal sealed partial class OverlayMetrics
     private static OverlayMetric RotationsPerHour(RotationMonitorSnapshot rotation, string language, bool includeSpecialEvents = true)
     {
         string T(string value) => AppText.Translate(value, language);
-        const string label = "Rotations / h";
+        var label = T("Rotationen / h");
         const string tooltip = "Volle Rotationen pro Stunde beim aktuellen Tempo: 60 Minuten geteilt durch die " +
             "durchschnittliche Zeit der letzten bis zu drei in dieser Session vollständig abgeschlossenen Rotationen, " +
             "jeweils einschließlich Rückweg bis zum Start der nächsten Rotation. Bis die nächste Rotation beginnt, gilt " +
@@ -157,7 +159,7 @@ internal sealed partial class OverlayMetrics
     private static OverlayMetric RotationCount(RotationMonitorSnapshot rotation, string language)
     {
         string T(string value) => AppText.Translate(value, language);
-        const string label = "Rotation Counter";
+        var label = T("Rotationszähler");
         const string tooltip = "Vollständig abgeschlossene Rotationen am aktuellen Spot in dieser Session. " +
             "Abgebrochene oder unvollständig erkannte Rotationen zählen nicht.";
         if (!rotation.HasProfile) return new(label, "—", T("Kein Rotationsprofil für diesen Spot"), Tooltip: T(tooltip));

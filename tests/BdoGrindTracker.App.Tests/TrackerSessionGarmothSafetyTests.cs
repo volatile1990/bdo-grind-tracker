@@ -282,8 +282,13 @@ public sealed partial class TrackerSessionServiceTests
         await WaitUntilAsync(() => fixture.Requests.Count == 1);
         try
         {
+            Assert.True((await pending.WaitAsync(TimeSpan.FromSeconds(5))).Succeeded);
+            Assert.False(fixture.Service.State.IsBusy);
             await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Service.UpdateLootQuantityAsync(
                 sessionId, "Black Crystal Fragment", 3, 10));
+            Assert.False((await fixture.Service.UpdateHistoryLootAsync(sessionId,
+                new Dictionary<string, long> { ["Black Crystal Fragment"] = 3 })).Succeeded);
+            Assert.False((await fixture.Service.DeleteHistoryAsync(sessionId)).Succeeded);
             var diskEntry = Assert.Single(fixture.HistoryStore.Load());
             Assert.Equal(10, diskEntry.Totals["Black Crystal Fragment"]);
             Assert.Empty(diskEntry.GarmothPendingCorrectionIntervals);
@@ -298,6 +303,7 @@ public sealed partial class TrackerSessionServiceTests
         {
             response.TrySetResult(new HttpResponseMessage(HttpStatusCode.OK));
             await pending;
+            await WaitForAutomaticUploadsAsync(fixture);
         }
         Assert.True((await fixture.Service.UpdateLootQuantityAsync(sessionId, "Black Crystal Fragment", 3, 10)).Succeeded);
         var corrected = Assert.Single(fixture.HistoryStore.Load());
@@ -315,7 +321,9 @@ public sealed partial class TrackerSessionServiceTests
         await fixture.ProcessAfter(TimeSpan.FromMinutes(2), ("Black Crystal Fragment", 10));
         await fixture.Service.PauseAsync();
         var sessionId = fixture.Service.State.SessionId;
-        Assert.False((await fixture.Service.NewSessionAsync()).Succeeded);
+        Assert.True((await fixture.Service.NewSessionAsync()).Succeeded);
+        await WaitForAutomaticUploadsAsync(fixture);
+        Assert.True(fixture.Service.State.IsError);
         Assert.True((await fixture.Service.UpdateLootQuantityAsync(sessionId, "Black Crystal Fragment", 3, 10)).Succeeded);
         fixture.Respond = () => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
         await fixture.Service.TickAsync();
@@ -347,13 +355,16 @@ public sealed partial class TrackerSessionServiceTests
         await WaitUntilAsync(() => fixture.Requests.Count == 1);
         try
         {
-            Assert.False((await fixture.Service.ToggleTrackingAsync()).Succeeded);
-            Assert.False(fixture.Service.State.IsRunning);
+            Assert.True((await pending.WaitAsync(TimeSpan.FromSeconds(5))).Succeeded);
+            Assert.True((await fixture.Service.ToggleTrackingAsync()).Succeeded);
+            Assert.True(fixture.Service.State.IsRunning);
+            Assert.True((await fixture.Service.PauseAsync()).Succeeded);
         }
         finally
         {
             response.TrySetResult(new HttpResponseMessage(HttpStatusCode.OK));
             await pending;
+            await WaitForAutomaticUploadsAsync(fixture);
         }
         var saved = Assert.Single(fixture.HistoryStore.Load());
         Assert.Equal(10, saved.Totals["Black Crystal Fragment"]);

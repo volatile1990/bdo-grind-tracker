@@ -242,6 +242,8 @@ internal sealed partial class TrackerSessionService
 
     private void RefreshMissingOcrLanguageOffer()
     {
+        if (_uiRunning || _captureSession.IsRunning || _captureSession.HasPendingAnalysis ||
+            _isInstallingOcrLanguage || _demoMode) return;
         var language = Preferences.GameLanguage == "auto" ? _gameLanguageDetection.Language : Preferences.GameLanguage;
         if (language is null && _analyzer.MissingOcrLanguageTag is not null)
         {
@@ -252,7 +254,10 @@ internal sealed partial class TrackerSessionService
             return;
         }
         if (_checkedOcrGameLanguage == language) return;
-        if (_missingOcrLanguageTag is not null || _analyzer.MissingOcrLanguageTag is not null)
+        var hadMissingLanguage = _missingOcrLanguageTag is not null || _analyzer.MissingOcrLanguageTag is not null;
+        // Startup can create a usable analyzer from a different Windows profile language.
+        // Verify the selected game language before offering tracking or completing setup.
+        if (hadMissingLanguage || (language is not null && _analyzer.IsAvailable))
         {
             _missingOcrLanguageTag = null;
             _ocrLanguageError = null;
@@ -261,8 +266,11 @@ internal sealed partial class TrackerSessionService
                 try
                 {
                     EnsureOcrLanguage(language);
-                    _status = "Bereit für deine nächste Session.";
-                    _isError = false;
+                    if (hadMissingLanguage)
+                    {
+                        _status = "Bereit für deine nächste Session.";
+                        _isError = false;
+                    }
                 }
                 catch (Exception exception)
                 {

@@ -9,9 +9,9 @@
     <aside class="sidebar" aria-label="@T("Hauptnavigation")">
         <a class="brand" href="#" aria-label="@T("Grindcrest · Live-Session")" @onclick="() => Navigate(Page.Live)" @onclick:preventDefault>
             <AssetImage Src="assets/branding/grindcrest-header.png" Alt="" Class="brand-mark" Fallback="spark" />
-            <span><strong>GRINDCREST</strong><small>BLACK DESERT TRACKER</small></span>
+            <span><strong>Grindcrest</strong></span>
         </a>
-        <div class="nav-caption">@T("DEIN ABENTEUER")</div>
+        <div class="sidebar-divider" aria-hidden="true"></div>
         <nav>
             <button class="nav-item @(_page == Page.Live ? "active" : "")" aria-label="@T("Live-Session")" title="@T("Live-Session")" aria-current="@(_page == Page.Live ? "page" : null)" @onclick="() => Navigate(Page.Live)"><AppIcon Name="live" /><span>@T("Live-Session")</span>@if (State.IsRunning) { <span class="nav-live-dot"></span> }</button>
             <button class="nav-item @(_page == Page.History ? "active" : "")" aria-label="@T("Verlauf")" title="@T("Verlauf")" aria-current="@(_page == Page.History ? "page" : null)" @onclick="() => Navigate(Page.History)"><AppIcon Name="history" /><span>@T("Verlauf")</span><span class="nav-count">@Tracker.History.Count</span></button>
@@ -25,7 +25,6 @@
             <div class="cats-sidebar-scene" aria-hidden="true"><img src="assets/themes/cats/sidebar-napping-kitten.png" alt="" draggable="false" /></div>
         }
         <div class="sidebar-bottom">
-            <div class="local-note"><AppIcon Name="shield" /><div><strong>@T("Dein Loot. Deine Daten.")</strong><span>@T("Verlauf lokal auf deinem PC")</span></div></div>
             <div class="sidebar-version"><span>Grindcrest</span><span>@Version</span></div>
         </div>
     </aside>

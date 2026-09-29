@@ -3,12 +3,87 @@ using BdoGrindTracker.App.Capture;
 using BdoGrindTracker.App.Persistence;
 using BdoGrindTracker.App.Services;
 using BdoGrindTracker.Ocr;
+using BdoGrindTracker.App.Character;
 using System.Text.Json;
 
 namespace BdoGrindTracker.App.Tests;
 
 public sealed partial class TrackerSessionServiceTests
 {
+    [Fact]
+    public async Task OptionalHudAndClassReadersUseTheBoundExternalLootConfiguration()
+    {
+        using var files = new CaptureConfigurationFiles();
+        var local = files.Configuration("default", "41", 1920, 1080);
+        var selected = files.Configuration("backup", "42", 3840, 2160,
+            xml: "<GameOptionGlobal><Resolution Width='3840' Height='2160'/><UiScale Value='1.49'/></GameOptionGlobal>" +
+                "<UIData><UIData Index='159' IsShow='true' RelativePosX='0.5' RelativePosY='0.7'/></UIData>");
+        var character = Path.Combine(Path.GetDirectoryName(selected)!, "100", "200", "gameVariable.xml");
+        Directory.CreateDirectory(Path.GetDirectoryName(character)!);
+        File.WriteAllText(Path.Combine(Path.GetDirectoryName(selected)!, "100", "gameVariable.xml"), "<Variables/>");
+        File.WriteAllText(character, "<QuickSlotSkillData SkillNo='7366'/>");
+        var localCharacter = Path.Combine(Path.GetDirectoryName(local)!, "100", "300", "gameVariable.xml");
+        Directory.CreateDirectory(Path.GetDirectoryName(localCharacter)!);
+        File.WriteAllText(Path.Combine(Path.GetDirectoryName(local)!, "100", "gameVariable.xml"), "<Variables/>");
+        File.WriteAllText(localCharacter, "<QuickSlotSkillData SkillNo='1768'/>");
+        File.SetLastWriteTimeUtc(local, DateTime.UtcNow.AddHours(1));
+        var catalog = new CaptureConfigurationCatalog(files.Installation("default"));
+        var calibration = catalog.Read(selected);
+        await using var fixture = CreateCaptureConfigurationFixture(files, selected);
+        SetField(fixture.Service, "_analyzer", new BoundConfigurationAnalyzer(calibration));
+        var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+        var detector = fixture.Service.GetType().GetMethod("DetectSelectedCharacterClass", flags)!
+            .CreateDelegate<Func<CharacterClassDetection>>(fixture.Service);
+        SetField(fixture.Service, "_detectCharacterClass", detector);
+
+        await fixture.Service.TickAsync();
+        await AwaitClassRefresh(fixture.Service);
+
+        Assert.Equal("maegu-awakening", fixture.Service.State.CharacterClassId);
+        var hud = (ExperienceHudConfiguration)fixture.Service.GetType()
+            .GetMethod("ReadSelectedHudConfiguration", flags)!.Invoke(fixture.Service, null)!;
+        Assert.Equal(calibration.ScreenWidth, hud.ScreenWidth);
+        Assert.Equal(calibration.ScreenHeight, hud.ScreenHeight);
+        Assert.Equal((double)calibration.UiScale, hud.UiScale);
+        // A newer unrelated default save cannot replace a bound capture profile.
+        Assert.Equal(local, catalog.Scan(null).ActivePath);
+        Assert.Equal(selected, (await fixture.Service.ScanCaptureConfigurationsAsync()).ActivePath);
+    }
+
+    [Fact]
+    public Task SelectingAnotherConfigurationDiscardsAnOlderInFlightClassResult() => RunOnHostContextAsync(async () =>
+    {
+        using var files = new CaptureConfigurationFiles();
+        var initial = files.Configuration("default", "41");
+        var selected = files.Configuration("backup", "42");
+        await using var fixture = CreateCaptureConfigurationFixture(files, initial);
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var oldDetection = new TaskCompletionSource<CharacterClassDetection>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var calls = 0;
+        SetField(fixture.Service, "_detectCharacterClass", (Func<CharacterClassDetection>)(() =>
+        {
+            if (Interlocked.Increment(ref calls) != 1) return DetectedClass("maegu-awakening");
+            entered.TrySetResult();
+            return oldDetection.Task.GetAwaiter().GetResult();
+        }));
+        await fixture.Service.TickAsync();
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        try
+        {
+            Assert.True((await fixture.Service.SelectCaptureConfigurationAsync(selected)).Succeeded);
+            Assert.Null(fixture.Service.State.CharacterClassId);
+        }
+        finally { oldDetection.TrySetResult(DetectedClass("warrior-awakening")); }
+        await AwaitClassRefresh(fixture.Service);
+        Assert.Null(fixture.Service.State.CharacterClassId);
+
+        await fixture.Service.TickAsync();
+        await AwaitClassRefresh(fixture.Service);
+
+        Assert.Equal("maegu-awakening", fixture.Service.State.CharacterClassId);
+        Assert.Equal(selected, fixture.Service.Preferences.CaptureConfigurationPath);
+    });
+
     [Fact]
     public void CaptureCatalogUsesTheSelectedExternalInstallationAndItsOwnGameOptions()
     {

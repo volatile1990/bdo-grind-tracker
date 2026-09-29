@@ -15,6 +15,10 @@
             {
                 <span class="grind-spectrum-stop" style="left:@Percent(stop.Position)"><span>@stop.Label</span>@if (!Compact) { <small>@stop.Value</small> }</span>
             }
+            @if (!Compact && spectrum.UpperEndLabel is { } endLabel)
+            {
+                <span class="grind-spectrum-endpoint">@endLabel</span>
+            }
         </div>
     </div>
 }

@@ -254,7 +254,7 @@ internal sealed class NativeOverlayRenderer : IDisposable
                 var goal = snapshot.DailyGoal;
                 if (widget.ShowLabel)
                 {
-                    Draw(graphics,"Daily Goal",new RectangleF(inner.X,inner.Y,inner.Width,14),10,Muted);
+                    Draw(graphics, T("Tagesziel"), new RectangleF(inner.X,inner.Y,inner.Width,14),10,Muted);
                     inner.Y += 18; inner.Height -= 18;
                 }
                 Draw(graphics,goal.Value,new RectangleF(inner.X,inner.Y,inner.Width,Math.Max(1,inner.Height-42)),20*(float)widget.FontScale,Gold,true);
@@ -364,6 +364,9 @@ internal sealed class NativeOverlayRenderer : IDisposable
             Draw(graphics, stop.Label, new RectangleF(x - halfLabel, inner.Y + 16 * fontScale, halfLabel * 2, 11 * fontScale),
                 8 * fontScale, Muted, horizontal: StringAlignment.Center);
         }
+        if (spectrum.UpperEndLabel is { Length: > 0 } endLabel && track.Width >= 120 * fontScale)
+            Draw(graphics, endLabel, new RectangleF(track.Right - 48 * fontScale, inner.Y + 16 * fontScale,
+                48 * fontScale, 11 * fontScale), 8 * fontScale, Muted, horizontal: StringAlignment.Far);
         var radius = 4.5f * fontScale;
         var markerX = track.X + Math.Clamp(track.Width * (float)(spectrum.Position / 100), radius, Math.Max(radius, track.Width - radius));
         using (var marker = new SolidBrush(Text))

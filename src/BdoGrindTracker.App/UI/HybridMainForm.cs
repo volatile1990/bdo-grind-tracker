@@ -32,6 +32,7 @@ internal sealed class HybridMainForm : Form
     private readonly System.Windows.Forms.Timer _timer = new() { Interval = 500 };
     private readonly bool _smokeTest;
     private readonly bool _hidden;
+    private readonly WindowTrayIcon? _trayIcon;
     private readonly Stopwatch _startup = Stopwatch.StartNew();
     private bool _ticking;
     private bool _closing;
@@ -84,6 +85,8 @@ internal sealed class HybridMainForm : Form
         var services = new ServiceCollection();
         services.AddWindowsFormsBlazorWebView();
         services.AddSingleton<ITrackerSession>(session);
+        services.AddSingleton<ISessionImageExporter>(new WindowsSessionImageExporter(
+            this, RunOnUiThreadAsync, () => session.Preferences.UiLanguage));
         var grindGoals = new GrindGoalStore(preview || smokeTest ? null : Path.Combine(AppDataPaths.Current.BaseDirectory, "grind-goals.json"));
         services.AddSingleton(grindGoals);
         _overlay = new OverlayService(session, preview || smokeTest ? null : new OverlaySettingsStore(),
@@ -117,13 +120,17 @@ internal sealed class HybridMainForm : Form
             args.WebView.CoreWebView2.Settings.IsStatusBarEnabled = false;
             args.WebView.CoreWebView2.Settings.IsZoomControlEnabled = true;
             args.WebView.CoreWebView2.ProcessFailed += (_, failure) => FailStartup(
-                "Die Oberfläche konnte nicht ausgeführt werden: " + failure.ProcessFailedKind);
+                AppText.Format("Die Oberfläche konnte nicht ausgeführt werden: {0}",
+                    _session.Preferences.UiLanguage, failure.ProcessFailedKind));
         };
         Controls.Add(_web);
         _timer.Tick += Tick;
         Shown += (_, _) => _timer.Start();
         FormClosing += CloseAsync;
         ResizeEnd += (_, _) => SaveWindowPlacement();
+        if (!_hidden)
+            _trayIcon = new WindowTrayIcon(this, () => _session.Preferences, SaveWindowPlacement,
+                () => !_closing && !_closed && !_storePreparing && !_storeInstalling);
     }
 
     protected override bool ShowWithoutActivation => _hidden;
@@ -250,8 +257,13 @@ internal sealed class HybridMainForm : Form
         if (_closing) return;
         ExitCode = 1;
         if (_hidden) Console.Error.WriteLine(message);
-        else MessageBox.Show(this, T(message), "Grindcrest", MessageBoxButtons.OK, MessageBoxIcon.Error);
-        Close();
+        else
+        {
+            _trayIcon?.RestoreWindow();
+            MessageBox.Show(this, T(message), "Grindcrest", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        if (_trayIcon is { } tray) tray.RequestExit();
+        else Close();
     }
 
     private async void CloseAsync(object? sender, FormClosingEventArgs e)
@@ -262,6 +274,8 @@ internal sealed class HybridMainForm : Form
         e.Cancel = true;
         if (_storePreparing) return;
         if (_closing) return;
+        if (_trayIcon is { } tray && await tray.HandleCloseAsync(e.CloseReason, ConfigureCloseBehaviorAsync)) return;
+        if (_closing || _closed || IsDisposed || _storePreparing || _storeInstalling) return;
         _closing = true;
         SaveWindowPlacement();
         _timer.Stop();
@@ -282,12 +296,40 @@ internal sealed class HybridMainForm : Form
             _closing = false;
             Enabled = true;
             _timer.Start();
+            _trayIcon?.CancelExit();
             if (_hidden) Console.Error.WriteLine(error.Message);
             else MessageBox.Show(this,
                 T("Die Session konnte nicht vollständig gespeichert werden. Grindcrest bleibt geöffnet. " +
                 "Prüfe den freien Speicherplatz oder die Dateisperre und wähle „Erneut sichern“.") + "\n\n" + T(error.Message),
                 T("Session noch nicht gespeichert"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
+    }
+
+    private async Task<bool> ConfigureCloseBehaviorAsync()
+    {
+        string? error;
+        try
+        {
+            _trayIcon?.RestoreWindow();
+            var closeToTray = WindowClosePrompt.Show(this, _session.Preferences.UiLanguage);
+            if (closeToTray is null || _closing || _closed || IsDisposed || _storePreparing || _storeInstalling)
+                return false;
+            var result = await _session.SavePreferencesAsync(_session.Preferences with
+            {
+                CloseToTray = closeToTray.Value,
+                CloseBehaviorConfigured = true,
+            });
+            if (result.Succeeded) return true;
+            error = result.Error;
+        }
+        catch (Exception exception)
+        {
+            error = exception.Message;
+        }
+        if (!_closing && !_closed && !IsDisposed)
+            MessageBox.Show(this, T("Grindcrest bleibt geöffnet. Bitte versuche es erneut.") + "\n\n" + T(error ?? ""),
+                T("Auswahl konnte nicht gespeichert werden"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        return false;
     }
 
     private void SaveWindowPlacement()
@@ -376,6 +418,7 @@ internal sealed class HybridMainForm : Form
         if (disposing && !_resourcesDisposed)
         {
             _resourcesDisposed = true;
+            _trayIcon?.Dispose();
             _timer.Dispose();
             _nativeOverlay.Dispose();
             _overlay.Dispose();

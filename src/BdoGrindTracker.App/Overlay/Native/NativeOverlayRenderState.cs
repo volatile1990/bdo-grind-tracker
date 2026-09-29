@@ -64,8 +64,8 @@ internal sealed class NativeOverlayRenderState
         ReferenceEquals(before, after) || before.Count == after.Count && before.Zip(after).All(pair =>
             pair.First.Duration == pair.Second.Duration && pair.First.StartedAfter == pair.Second.StartedAfter &&
             pair.First.StartedAt == pair.Second.StartedAt && pair.First.Outcome == pair.Second.Outcome &&
-            pair.First.SpecialEvents == pair.Second.SpecialEvents &&
-            (pair.First.Events?.Count ?? 0) == (pair.Second.Events?.Count ?? 0));
+            SameItems(pair.First.SpecialEventSeconds ?? [], pair.Second.SpecialEventSeconds ?? []) &&
+            SameItems(pair.First.Events ?? [], pair.Second.Events ?? []));
 
     private static bool SameRotation(RotationMonitorSnapshot before, RotationMonitorSnapshot after, string mode) =>
         before.SpotId == after.SpotId && before.Elapsed == after.Elapsed &&

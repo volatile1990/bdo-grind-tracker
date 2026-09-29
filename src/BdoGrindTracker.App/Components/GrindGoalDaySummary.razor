@@ -18,6 +18,7 @@
         <div><span>@T("SILBER NETTO")</span><strong class="gold">@Silver(silver)@partial</strong></div>
         <div><span>@T("Ø SILBER / STUNDE")</span><strong>@(duration > TimeSpan.Zero ? Silver(Hourly(silver, duration)) : "—")@partial</strong></div>
     </div>
+    <p class="valuation-note">@T("Gespeicherte Silberwerte · Bewertung beim Speichern")</p>
     @if (partial.Length > 0) { <p class="valuation-note">@T("* Enthält Sessions mit unvollständigen Silberwerten.")</p> }
     <section class="panel chronological-history" aria-label="@T("Sessions des ausgewählten Tages")">
         @foreach (var session in sessions)

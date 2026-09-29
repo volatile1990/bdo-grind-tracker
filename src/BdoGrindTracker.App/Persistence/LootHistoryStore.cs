@@ -42,8 +42,10 @@ internal sealed class LootHistoryStore
         }
         catch (Exception exception) when (exception is JsonException or IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException)
         {
+            System.Diagnostics.Trace.TraceWarning("History load failed for {0}: {1} (0x{2:X8}).",
+                Path.GetFileName(_historyPath), exception.GetType().Name, exception.HResult);
             LoadError = "Der Verlauf konnte nicht gelesen werden und wird nicht überschrieben. " +
-                "Bitte prüfe die Datei " + _historyPath + " und versuche das Speichern erneut. " + exception.Message;
+                "Bitte prüfe die Datei " + _historyPath + " und versuche das Speichern erneut.";
             return [];
         }
     }

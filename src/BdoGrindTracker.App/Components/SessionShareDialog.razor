@@ -1,0 +1,163 @@
+@inherits LocalizedComponentBase
+@inject IJSRuntime JS
+@inject IServiceProvider Services
+
+<dialog id="@_dialogId" class="modal session-share-modal" aria-labelledby="@(_dialogId + "-title")" data-backdrop-close @oncancel="CloseAsync" @oncancel:preventDefault>
+    <div class="modal-heading">
+        <h2 id="@(_dialogId + "-title")">@T("Session teilen")</h2>
+        <button type="button" class="icon-button" data-dialog-close @onclick="CloseAsync" aria-label="@T("Dialog schließen")"><AppIcon Name="close" /></button>
+    </div>
+    <div class="session-share-preview" aria-busy="@(_busy ? "true" : "false")">
+        @if (_pngDataUrl is { } image)
+        {
+            <img src="@image" alt="@T("Bildvorschau der Session")" />
+        }
+        else if (_busy)
+        {
+            <div class="session-share-loading" role="status"><AppIcon Name="share" /><span>@T("Bild wird erstellt …")</span></div>
+        }
+    </div>
+    @if (_error is not null)
+    {
+        <div class="notice error-notice session-share-message" role="alert"><AppIcon Name="info" /><span>@T(_error)</span></div>
+    }
+    @if (_status is not null)
+    {
+        <p class="session-share-message session-share-success" role="status"><AppIcon Name="check" />@T(_status)</p>
+    }
+    <div class="modal-actions session-share-actions">
+        @if (_pngDataUrl is null && !_busy && _data is not null)
+        {
+            <button type="button" class="button secondary" @onclick="RenderImageAsync"><AppIcon Name="refresh" />@T("Erneut versuchen")</button>
+        }
+        <button type="button" class="button secondary" @onclick="CopyAsync" disabled="@(_busy || _pngDataUrl is null)"><AppIcon Name="copy" />@T("Bild kopieren")</button>
+        <button type="button" class="button primary" @onclick="SaveAsync" disabled="@(_busy || _pngDataUrl is null)"><AppIcon Name="download" />@T("PNG speichern")</button>
+    </div>
+</dialog>
+
+@code {
+    private readonly string _dialogId = "session-share-" + Guid.NewGuid().ToString("N");
+    private SessionShareImageData? _data;
+    private string? _pngDataUrl, _error, _status;
+    private bool _busy, _disposed;
+    private int _generation;
+
+    public async Task ShowAsync(SessionShareImageData data)
+    {
+        if (_disposed) return;
+        _data = data;
+        _pngDataUrl = null;
+        _error = _status = null;
+        _busy = true;
+        var generation = ++_generation;
+        StateHasChanged();
+        try
+        {
+            await JS.InvokeVoidAsync("grindcrest.showDialog", _dialogId);
+            if (IsCurrent(generation)) await RenderImageAsync();
+        }
+        catch (Exception)
+        {
+            if (!IsCurrent(generation)) return;
+            _busy = false;
+            _error = "Das Bild konnte nicht erstellt werden. Bitte erneut versuchen.";
+            StateHasChanged();
+        }
+    }
+
+    private async Task RenderImageAsync()
+    {
+        if (_disposed || _data is not { } data) return;
+        var generation = ++_generation;
+        _busy = true;
+        _error = _status = null;
+        StateHasChanged();
+        try
+        {
+            var image = await JS.InvokeAsync<string>("grindcrestSessionShare.render", data);
+            if (!IsCurrent(generation)) return;
+            if (string.IsNullOrWhiteSpace(image) || !image.StartsWith("data:image/png;base64,", StringComparison.Ordinal))
+                throw new InvalidOperationException("The session image could not be rendered.");
+            _pngDataUrl = image;
+        }
+        catch (Exception)
+        {
+            if (IsCurrent(generation)) _error = "Das Bild konnte nicht erstellt werden. Bitte erneut versuchen.";
+        }
+        finally
+        {
+            if (IsCurrent(generation))
+            {
+                _busy = false;
+                StateHasChanged();
+            }
+        }
+    }
+
+    private Task SaveAsync() => ExportAsync(copy: false);
+    private Task CopyAsync() => ExportAsync(copy: true);
+
+    private async Task ExportAsync(bool copy)
+    {
+        if (_disposed || _busy || _pngDataUrl is not { } image || _data is not { } data) return;
+        var generation = _generation;
+        _busy = true;
+        _error = _status = null;
+        StateHasChanged();
+        try
+        {
+            var exporter = Services.GetService(typeof(ISessionImageExporter)) as ISessionImageExporter;
+            var completed = true;
+            if (copy)
+            {
+                if (exporter is not null) await exporter.CopyAsync(image);
+                else await JS.InvokeVoidAsync("grindcrestSessionShare.copy", image);
+            }
+            else
+            {
+                if (exporter is not null) completed = await exporter.SaveAsync(image, data.FileName);
+                else await JS.InvokeVoidAsync("grindcrestSessionShare.download", image, data.FileName);
+            }
+            if (IsCurrent(generation) && completed)
+                _status = copy ? "Bild in die Zwischenablage kopiert." : "Bild gespeichert.";
+        }
+        catch (Exception)
+        {
+            if (IsCurrent(generation)) _error = copy
+                ? "Das Bild konnte nicht kopiert werden. Du kannst es als PNG speichern."
+                : "Das Bild konnte nicht gespeichert werden. Bitte erneut versuchen.";
+        }
+        finally
+        {
+            if (IsCurrent(generation))
+            {
+                _busy = false;
+                StateHasChanged();
+            }
+        }
+    }
+
+    private async Task CloseAsync()
+    {
+        if (_disposed) return;
+        ++_generation;
+        _busy = false;
+        _data = null;
+        _pngDataUrl = _error = _status = null;
+        StateHasChanged();
+        try { await JS.InvokeVoidAsync("grindcrest.closeDialog", _dialogId); }
+        catch (Exception exception) when (_disposed && exception is
+            ObjectDisposedException or JSDisconnectedException or OperationCanceledException) { }
+    }
+
+    private bool IsCurrent(int generation) => !_disposed && generation == _generation;
+
+    public override void Dispose()
+    {
+        _disposed = true;
+        ++_generation;
+        _data = null;
+        _pngDataUrl = null;
+        base.Dispose();
+    }
+}

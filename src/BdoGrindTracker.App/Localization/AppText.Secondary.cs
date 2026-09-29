@@ -62,7 +62,7 @@ internal static partial class AppText
         text["Alle Phasen"] = "All phases";
         text["Mechaniken"] = "Mechanics";
         text["Wie die Session-Timeline der App, fortlaufend bis jetzt. Silber je Abschnitt ist mit den aktuellen Marktpreisen bewertet und in der Höhe abgeflacht, damit ein wertvoller Drop die übrigen Abschnitte nicht verdrängt. Seltene Drops und Favoriten erscheinen als Icon."] = "Like the app's session timeline, running up to now. Silver per interval is valued at current market prices and flattened in height, so a valuable drop does not crowd out the other intervals. Rare drops and favorites appear as icons.";
-        text["Seltene Drops & Favoriten"] = "Rare drops & favorites";
+        text["Seltene Drops & Favoriten"] = "Rare Drops & Favorites";
         text["Silber je Abschnitt"] = "Silver per interval";
         text["Alle Drops"] = "All drops";
         text["Show specific rotation"] = "Show specific rotation";
@@ -291,9 +291,12 @@ internal static partial class AppText
         text["{0} % über {1}"] = "{0}% above {1}";
         text["Referenz: {0} Trash / h"] = "Reference: {0} trash / h";
         text["+{0} Trash / h über {1}"] = "+{0} trash / h above {1}";
-        text["Die Position zeigt den Fortschritt zwischen den Referenzwerten, keinen Spieler-Perzentilrang."] = "The position shows progress between reference values, not a player percentile rank.";
+        text["Die Position zeigt den Abstand auf der Skala, keinen Spieler-Perzentilrang."] = "The position shows distance along the scale, not a player percentile rank.";
+        text["Bei nur einem Average-Referenzwert reicht die rechte Skalenhälfte bis 50 % darüber."] = "With Average as the only reference, the right half of the scale reaches 50% above it.";
+        text["+50 %"] = "+50%";
         text["Vorläufig"] = "Provisional";
-        text["Abweichende Loot-Buffs"] = "Different loot buffs";
+        text["{0} Agris"] = "{0} Agris";
+        text["Agris aktiv"] = "Agris active";
         text["Keine Bewertung verfügbar."] = "No rating available.";
         text["Average ab {0}"] = "Average from {0}";
         text["High ab {0}"] = "High from {0}";
@@ -302,7 +305,8 @@ internal static partial class AppText
         text["Referenz: {0} · Stand {1}."] = "Reference: {0} · As of {1}.";
         text["Quelle: {0}"] = "Source: {0}";
         text["Vorläufig: weniger als 5 Minuten aktive Grindzeit."] = "Provisional: less than 5 minutes of active grind time.";
-        text["Abweichende Loot-Buffs: Der Vergleich berücksichtigt keine Buff-Korrektur."] = "Different loot buffs: the comparison does not adjust for buffs.";
+        text["Agris ist aktiv; die Dauer wurde noch nicht erfasst."] = "Agris is active; its duration has not been measured yet.";
+        text["Der Vergleich berücksichtigt keine Agris-Korrektur."] = "The comparison does not adjust for Agris.";
         text["Version {0} ist verfügbar."] = "Version {0} is available.";
         text["Noch nicht geprüft."] = "Not checked yet.";
         text["Suche nach neuen Versionen …"] = "Checking for new versions …";

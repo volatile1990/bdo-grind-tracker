@@ -1,0 +1,5 @@
+Neu in Grindcrest 1.12.0:
+
+• Mehr Platz für Inhalte: Die Hauptnavigation bleibt links, die Untermenüs in Verlauf, Garmoth, Overlay, Grind-Zielen und Einstellungen stehen jetzt oben.
+• Bei schmalen Fenstern brechen die Untermenüs in weitere Zeilen um. Beschriftungen und der aktive Bereich bleiben sichtbar.
+• Die automatische Grinderkennung verwendet die Fensteraufnahme zwischen Prüfungen weiter. Dadurch entfallen sekündliche Neustarts, die Cursorflackern im Spiel auslösen können. Bei Fokusverlust, Fehlern oder deaktivierter Automatik wird die Aufnahme freigegeben.

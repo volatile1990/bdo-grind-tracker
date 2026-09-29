@@ -1,0 +1,6 @@
+What's new in Grindcrest 1.11.0:
+
+• The session timeline now has its own section below the grind spot card in the live dashboard.
+• Dragging the timeline is more reliable: Time labels are no longer selected and item images are no longer dragged along. Panning continues when the pointer leaves the timeline until you release the mouse button.
+• Rotations keep their timeline positions after a restart. They are anchored to the saved session start, so time spent with the tracker closed no longer shifts their placement.
+• Rotations that begin before the session's first active second and extend into the session remain visible. This particularly helps with automatic grind detection after an earlier start message. The visible segment and displayed start time begin no earlier than session time zero.

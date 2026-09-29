@@ -18,6 +18,28 @@ namespace BdoGrindTracker.BrowserPreview.Tests;
 public sealed class SessionTimelineTests
 {
     [Fact]
+    public async Task EmbeddedTimelineShowsItsChartImmediatelyWithoutAnotherDisclosure()
+    {
+        await using var tracker = new PreviewTrackerSession();
+        await using var provider = new ServiceCollection().AddLogging().AddSingleton<ITrackerSession>(tracker)
+            .AddSingleton<IJSRuntime, NoJavaScript>().BuildServiceProvider();
+        await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
+
+        var markup = await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            var rendered = await renderer.RenderComponentAsync<SessionTimeline>(ParameterView.FromDictionary(
+                new Dictionary<string, object?> { [nameof(SessionTimeline.Embedded)] = true }));
+            return WebUtility.HtmlDecode(rendered.ToHtmlString());
+        });
+
+        Assert.Contains("session-timeline-embedded", markup);
+        Assert.Contains("session-timeline-track", markup);
+        Assert.Contains("session-timeline-silver", markup);
+        Assert.DoesNotContain("<details", markup);
+        Assert.DoesNotContain("<summary", markup);
+    }
+
+    [Fact]
     public async Task TheTimelineShowsRotationsRareDropsAndTheSilverCurveByDefault()
     {
         await using var tracker = new PreviewTrackerSession();
@@ -37,7 +59,9 @@ public sealed class SessionTimelineTests
         // Closed, the section costs nothing but its summary.
         Assert.Contains("session-timeline", collapsed);
         Assert.DoesNotContain("session-timeline-track", collapsed);
+        Assert.Contains("Loot Selector", markup);
         Assert.Contains("Show specific rotation", markup);
+        Assert.Contains("Heights flattened", markup);
         // The default layers are on, the optional ones are off.
         foreach (var layer in SessionTimelineLayers.Default) Assert.Contains($"session-timeline-layer is-on", markup);
         Assert.Contains("session-timeline-silver", markup);
@@ -45,6 +69,30 @@ public sealed class SessionTimelineTests
         // Session length, average and fastest rotation below the axis.
         Assert.Contains("Session", markup);
         Assert.Contains("session-timeline-summary", markup);
+    }
+
+    [Fact]
+    public async Task TimelineControlsRenderInGermanWhenGermanIsSelected()
+    {
+        await using var tracker = new PreviewTrackerSession();
+        await tracker.SavePreferencesAsync(tracker.Preferences with { UiLanguage = "de" });
+        var activator = new CapturingActivator();
+        await using var provider = new ServiceCollection().AddLogging().AddSingleton<ITrackerSession>(tracker)
+            .AddSingleton<IJSRuntime, NoJavaScript>().AddSingleton<IComponentActivator>(activator).BuildServiceProvider();
+        await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
+
+        var markup = await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            var rendered = await renderer.RenderComponentAsync<SessionTimeline>(ParameterView.Empty);
+            Invoke(activator.Components.OfType<SessionTimeline>().Single(), "ToggleOpen");
+            return WebUtility.HtmlDecode(rendered.ToHtmlString());
+        });
+
+        Assert.Contains("Loot auswählen", markup);
+        Assert.Contains("Bestimmte Rotation anzeigen", markup);
+        Assert.Contains("Höhen abgeflacht", markup);
+        Assert.DoesNotContain("Loot Selector", markup);
+        Assert.DoesNotContain("Show specific rotation", markup);
     }
 
     [Fact]
@@ -218,6 +266,85 @@ public sealed class SessionTimelineTests
             Assert.Equal(.625, Field<double>(component, "_center"), 6);
         });
     }
+
+    [Fact]
+    public async Task KeyboardZoomAndPanStayWithinTheSessionAndHomeRestoresTheWholeView()
+    {
+        await using var tracker = new PreviewTrackerSession(empty: true);
+        Change(tracker, tracker.State with { Elapsed = TimeSpan.FromHours(1) });
+        var activator = new CapturingActivator();
+        await using var provider = new ServiceCollection().AddLogging().AddSingleton<ITrackerSession>(tracker)
+            .AddSingleton<IJSRuntime, NoJavaScript>().AddSingleton<IComponentActivator>(activator).BuildServiceProvider();
+        await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
+        await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            var rendered = await renderer.RenderComponentAsync<SessionTimeline>(ParameterView.FromDictionary(
+                new Dictionary<string, object?> { [nameof(SessionTimeline.Embedded)] = true }));
+            var component = activator.Components.OfType<SessionTimeline>().Single();
+            var markup = WebUtility.HtmlDecode(rendered.ToHtmlString());
+            Assert.Contains("tabindex=\"0\" role=\"region\" aria-label=\"Timeline time range\"", markup);
+            Assert.Contains("plus/minus zooms", markup);
+
+            await Event(component, "TrackKeyDown", new KeyboardEventArgs { Key = "+" });
+            Assert.Equal(1.25, Field<double>(component, "_zoom"));
+            var before = Field<TimeSpan>(component, "_from");
+            await Event(component, "TrackKeyDown", new KeyboardEventArgs { Key = "ArrowRight", CtrlKey = true });
+            Assert.Equal(before, Field<TimeSpan>(component, "_from"));
+            await Event(component, "TrackKeyDown", new KeyboardEventArgs { Key = "ArrowRight" });
+            Assert.True(Field<TimeSpan>(component, "_from") > before);
+            for (var i = 0; i < 10; i++) await Event(component, "TrackKeyDown", new KeyboardEventArgs { Key = "ArrowRight" });
+            Assert.Equal(tracker.State.Elapsed, Field<TimeSpan>(component, "_to"));
+            for (var i = 0; i < 10; i++) await Event(component, "TrackKeyDown", new KeyboardEventArgs { Key = "ArrowLeft" });
+            Assert.Equal(TimeSpan.Zero, Field<TimeSpan>(component, "_from"));
+
+            await Event(component, "TrackKeyDown", new KeyboardEventArgs { Key = "Home" });
+            Assert.Equal(1, Field<double>(component, "_zoom"));
+            Assert.Equal(TimeSpan.Zero, Field<TimeSpan>(component, "_from"));
+            Assert.Equal(tracker.State.Elapsed, Field<TimeSpan>(component, "_to"));
+        });
+    }
+
+    [Fact]
+    public async Task ExactValuesExposeUnabbreviatedDropsAndCorrectionsInBoundedPages()
+    {
+        await using var tracker = new PreviewTrackerSession(empty: true);
+        Change(tracker, tracker.State with
+        {
+            Elapsed = TimeSpan.FromMinutes(1),
+            DropHistory = Enumerable.Range(0, 30).Select(index => new SessionDropSample(
+                TimeSpan.FromMilliseconds(100 + index * 1000), "Item A", index == 0 ? 123456789 : index == 1 ? -1 : 1)).ToArray(),
+        });
+        var activator = new CapturingActivator();
+        await using var provider = new ServiceCollection().AddLogging().AddSingleton<ITrackerSession>(tracker)
+            .AddSingleton<IJSRuntime, NoJavaScript>().AddSingleton<IComponentActivator>(activator).BuildServiceProvider();
+        await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
+        await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            var rendered = await renderer.RenderComponentAsync<SessionTimeline>(ParameterView.FromDictionary(
+                new Dictionary<string, object?> { [nameof(SessionTimeline.Embedded)] = true }));
+            var component = activator.Components.OfType<SessionTimeline>().Single();
+            await Event(component, "ToggleExactValues");
+            var markup = WebUtility.HtmlDecode(rendered.ToHtmlString());
+            Assert.Contains("aria-label=\"Table of timeline values\"", markup);
+            Assert.Contains("00:00:00.100", markup);
+            Assert.Contains("123,456,789", markup);
+            Assert.Contains("Correction", markup);
+            Assert.Contains("1–25 of 30 values", markup);
+            var body = Regex.Match(markup, "<tbody>([\\s\\S]*?)</tbody>").Groups[1].Value;
+            Assert.Equal(25, Regex.Count(body, "<tr>"));
+
+            Set(component, "_exactPage", 2);
+            await Event(component, "Refresh");
+            markup = WebUtility.HtmlDecode(rendered.ToHtmlString());
+            Assert.Contains("26–30 of 30 values", markup);
+            Assert.Equal(5, Regex.Count(Regex.Match(markup, "<tbody>([\\s\\S]*?)</tbody>").Groups[1].Value, "<tr>"));
+            await Event(component, "TrackKeyDown", new KeyboardEventArgs { Key = "+" });
+            Assert.Equal(1, Field<int>(component, "_exactPage"));
+        });
+    }
+
+    private static Task Event(SessionTimeline component, string method, params object[] arguments) =>
+        ((IHandleEvent)component).HandleEventAsync(new EventCallbackWorkItem((Action)(() => Invoke(component, method, arguments))), null);
 
     private static void Change(PreviewTrackerSession tracker, TrackerState state) =>
         typeof(PreviewTrackerSession).GetMethod("Change", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(tracker, [state, false]);

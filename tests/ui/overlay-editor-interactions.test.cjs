@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const script = fs.readFileSync(path.join(__dirname, '../../src/BdoGrindTracker.App/wwwroot/overlay-editor.js'), 'utf8');
+const alignmentScript = fs.readFileSync(path.join(__dirname, '../../src/BdoGrindTracker.App/wwwroot/overlay-alignment.js'), 'utf8');
 
 function classList() {
     const values = new Set();
@@ -16,16 +17,18 @@ function classList() {
     };
 }
 
-function setup({ chrome = true, snap = false, corner = 'se', widgets: widgetLayouts = [] } = {}) {
+function setup({ chrome = true, snap = false, autoAlign = false, corner = 'se', widgets: widgetLayouts = [] } = {}) {
     const width = 400, height = 200;
     const chromeX = chrome ? 4 : 0, chromeY = chrome ? 34 : 0;
     const chromeLeft = chrome ? 2 : 0, chromeTop = chrome ? 32 : 0;
     const listeners = new Map(), calls = [], observers = [];
+    const guideLayer = { children: [], style: { setProperty(name, value) { this[name] = value; } },
+        replaceChildren() { this.children = []; }, appendChild(element) { this.children.push(element); } };
     const stage = {
-        dataset: { overlayId: 'overlay-1', width: String(width), height: String(height), snap: String(snap),
+        dataset: { overlayId: 'overlay-1', width: String(width), height: String(height), snap: String(snap), autoAlign: String(autoAlign),
             ...(chrome ? { chromeX: String(chromeX), chromeY: String(chromeY) } : {}) },
         style: { width: `${width + chromeX}px`, height: `${height + chromeY}px` }, classList: classList(),
-        querySelector(selector) { return selector === '.oe-stage-content' ? content : null; },
+        querySelector(selector) { return selector === '.oe-stage-content' ? content : selector === '.oe-alignment-guides' ? guideLayer : null; },
         querySelectorAll(selector) { return selector === '.oe-widget' ? widgets : []; },
         contains(element) { return widgets.includes(element); },
         getBoundingClientRect() {
@@ -66,6 +69,7 @@ function setup({ chrome = true, snap = false, corner = 'se', widgets: widgetLayo
     });
     const module = capture('[data-module-kind]');
     module.dataset.moduleKind = 'duration';
+    module.dataset.moduleWidth = '160'; module.dataset.moduleHeight = '80';
     module.querySelector = selector => selector === 'strong' ? { textContent: 'Zeit' } : null;
     const canvasHandles = Object.fromEntries(['nw', 'ne', 'sw', 'se'].map(corner => {
         const handle = capture('[data-canvas-resize]');
@@ -76,7 +80,8 @@ function setup({ chrome = true, snap = false, corner = 'se', widgets: widgetLayo
     const widgets = widgetLayouts.map((layout, index) => ({
         dataset: { widgetId: `widget-${index}`, ...Object.fromEntries(Object.entries(layout).map(([name, value]) => [name, String(value)])) },
         style: { left: `${layout.x}px`, top: `${layout.y}px`, width: `${layout.width}px`, height: `${layout.height}px` },
-        querySelector() { return null; },
+        querySelector() { return null; }, focus() {}, matches() { return false; },
+        closest(selector) { return selector === '.oe-widget' ? this : null; },
         getBoundingClientRect() {
             const origin = content.getBoundingClientRect(), scale = stage.getBoundingClientRect().scale;
             const left = origin.left + parseFloat(this.style.left) * scale, top = origin.top + parseFloat(this.style.top) * scale;
@@ -84,9 +89,16 @@ function setup({ chrome = true, snap = false, corner = 'se', widgets: widgetLayo
             return { left, top, right: left + width, bottom: top + height, width, height };
         }
     }));
+    widgets.forEach(widget => {
+        for (const [property, selector] of [['grip', '[data-widget-drag]'], ['resize', '[data-widget-resize]']]) {
+            widget[property] = capture(selector);
+            widget[property].closest = current => current === selector ? widget[property] : current === '.oe-widget' ? widget : null;
+        }
+    });
     const root = {
         querySelector(selector) { return { '.oe-stage-viewport': viewport, '.oe-stage-wrap': wrap, '.oe-stage': stage }[selector] ?? null; },
-        contains(element) { return element === module || Object.values(canvasHandles).includes(element) || widgets.includes(element); },
+        contains(element) { return element === module || Object.values(canvasHandles).includes(element)
+            || widgets.some(widget => element === widget || element === widget.grip || element === widget.resize); },
         addEventListener(name, callback) { listeners.set(name, callback); },
         removeEventListener(name, callback) { if (listeners.get(name) === callback) listeners.delete(name); }
     };
@@ -94,7 +106,7 @@ function setup({ chrome = true, snap = false, corner = 'se', widgets: widgetLayo
     const document = {
         getElementById() { return root; },
         body: { classList: classList(), appendChild(element) { ghosts.push(element); } },
-        createElement() { return { style: {}, remove() { this.removed = true; } }; },
+        createElement() { return { style: {}, children: [], appendChild(element) { this.children.push(element); }, remove() { this.removed = true; } }; },
         addEventListener() {}, removeEventListener() {}
     };
     class Observer {
@@ -102,6 +114,7 @@ function setup({ chrome = true, snap = false, corner = 'se', widgets: widgetLayo
         observe() {} disconnect() {}
     }
     const window = {};
+    vm.runInNewContext(alignmentScript, { window });
     vm.runInNewContext(script, { window, document, console, ResizeObserver: Observer, MutationObserver: Observer,
         getComputedStyle() { return { paddingLeft: '0', paddingRight: '0' }; },
         requestAnimationFrame() { return 1; }, cancelAnimationFrame() {}, setTimeout() {} });
@@ -112,8 +125,29 @@ function setup({ chrome = true, snap = false, corner = 'se', widgets: widgetLayo
         listeners.get(type)?.(event);
         return event;
     };
-    return { stage, content, wrap, module, canvasHandle, canvasHandles, widgets, dispatch, calls, ghosts, observers, document };
+    return { stage, content, wrap, module, canvasHandle, canvasHandles, widgets, dispatch, calls, ghosts, observers, document, guideLayer };
 }
+
+test('Enter and Space select a focused widget group without moving it', () => {
+    const { widgets, dispatch, calls } = setup({ widgets: [{ x: 20, y: 30, width: 80, height: 40 }] });
+    const widget = widgets[0];
+    const original = { ...widget.style };
+    for (const key of ['Enter', ' ']) {
+        assert.equal(dispatch('keydown', { target: widget, key }).defaultPrevented, true);
+        assert.deepEqual(calls.at(-1), ['SelectWidget', 'widget-0']);
+    }
+    assert.deepEqual(widget.style, original);
+    assert.equal(calls.some(call => call[0] === 'NudgeWidget'), false);
+});
+
+test('widget selection shortcuts leave Tab, modifiers and nested buttons to their normal handlers', () => {
+    const { widgets, dispatch, calls } = setup({ widgets: [{ x: 20, y: 30, width: 80, height: 40 }] });
+    const widget = widgets[0];
+    assert.equal(dispatch('keydown', { target: widget, key: 'Tab' }).defaultPrevented, false);
+    assert.equal(dispatch('keydown', { target: widget, key: 'Enter', ctrlKey: true }).defaultPrevented, false);
+    assert.equal(dispatch('keydown', { target: widget.grip, key: 'Enter' }).defaultPrevented, false);
+    assert.equal(calls.length, 0);
+});
 
 test('window fit includes external chrome while saved canvas dimensions remain content only', () => {
     const { stage, wrap } = setup();
@@ -277,4 +311,81 @@ test('the existing true-valued southeast handle remains compatible with the corn
     dispatch('pointermove', { clientX: 352, clientY: 187 });
     dispatch('pointerup');
     assert.deepEqual(calls, [['CommitCanvasCorner', 500, 240, 'true']]);
+});
+
+const unequalHeightWidgets = [
+    { x: 20, y: 9, width: 160, height: 61 },
+    { x: 20, y: 83, width: 160, height: 79 },
+    { x: 25, y: 210, width: 160, height: 60 }
+];
+
+function dragThird(editor, modifiers = {}) {
+    editor.dispatch('pointerdown', { target: editor.widgets[2].grip });
+    // At 50% scale, the raw origin is (23, 178). The equal gap target is y=175,
+    // deliberately between 8px grid points because the two prior heights differ.
+    editor.dispatch('pointermove', { clientX: -1, clientY: -16, ...modifiers });
+}
+
+test('auto-align commits the exact repeated gap above grid snapping at a scaled preview with chrome', () => {
+    const editor = setup({ snap: true, autoAlign: true, widgets: unequalHeightWidgets });
+    const untouched = editor.widgets.slice(0, 2).map(widget => ({ ...widget.style }));
+    dragThird(editor);
+    assert.equal(editor.widgets[2].style.left, '20px');
+    assert.equal(editor.widgets[2].style.top, '175px');
+    assert.ok(editor.guideLayer.children.some(line => line.className.includes('is-gap')));
+    assert.equal(editor.guideLayer.style['--guide-scale'], '2');
+    editor.dispatch('pointerup');
+    assert.deepEqual(editor.calls.at(-1), ['CommitWidgetGeometry', 'widget-2', 20, 175, 160, 60]);
+    assert.deepEqual(editor.widgets.slice(0, 2).map(widget => widget.style), untouched);
+    assert.equal(editor.guideLayer.children.length, 0);
+});
+
+for (const autoAlign of [true, false]) {
+    test(`grid remains independent when auto-align is ${autoAlign ? 'temporarily bypassed with Alt' : 'disabled'}`, () => {
+        const editor = setup({ snap: true, autoAlign, widgets: unequalHeightWidgets });
+        dragThird(editor, { altKey: autoAlign });
+        assert.equal(editor.widgets[2].style.left, '24px');
+        assert.equal(editor.widgets[2].style.top, '176px');
+        assert.equal(editor.guideLayer.children.length, 0);
+        editor.dispatch('pointerup');
+        assert.deepEqual(editor.calls.at(-1), ['CommitWidgetGeometry', 'widget-2', 24, 176, 160, 60]);
+    });
+}
+
+for (const cancellation of ['pointercancel', 'Escape']) {
+    test(`${cancellation} removes auto-align guides and restores the widget without saving`, () => {
+        const editor = setup({ autoAlign: true, widgets: unequalHeightWidgets });
+        dragThird(editor);
+        assert.ok(editor.guideLayer.children.length > 0);
+        if (cancellation === 'Escape') editor.dispatch('keydown', { key: 'Escape' });
+        else editor.dispatch('pointercancel');
+        assert.deepEqual(editor.widgets[2].style, { left: '25px', top: '210px', width: '160px', height: '60px' });
+        assert.equal(editor.guideLayer.children.length, 0);
+        assert.ok(editor.calls.every(call => call[0] !== 'CommitWidgetGeometry'));
+        assert.equal(editor.widgets[2].grip.captured.size, 0);
+    });
+}
+
+test('new modules use their declared dimensions for equal-gap alignment and content-relative drop coordinates', () => {
+    const editor = setup({ snap: true, autoAlign: true, widgets: unequalHeightWidgets.slice(0, 2) });
+    const rect = editor.content.getBoundingClientRect();
+    const point = { clientX: rect.left + 11.5, clientY: rect.top + 89 };
+    editor.dispatch('pointerdown', { target: editor.module });
+    editor.dispatch('pointermove', point);
+    assert.ok(editor.guideLayer.children.length > 0);
+    editor.dispatch('pointerup', point);
+    assert.deepEqual(editor.calls.at(-1), ['AddModuleAt', 'duration', 20, 175]);
+    assert.equal(editor.guideLayer.children.length, 0);
+});
+
+test('widget resizing aligns the right edge without rounding it back onto the grid', () => {
+    const editor = setup({ snap: true, autoAlign: true, widgets: [
+        { x: 20, y: 10, width: 173, height: 60 },
+        { x: 20, y: 100, width: 140, height: 60 }
+    ] });
+    editor.dispatch('pointerdown', { target: editor.widgets[1].resize });
+    editor.dispatch('pointermove', { clientX: 16, clientY: 0 });
+    assert.equal(editor.widgets[1].style.width, '173px');
+    editor.dispatch('pointerup');
+    assert.deepEqual(editor.calls.at(-1), ['CommitWidgetGeometry', 'widget-1', 20, 100, 173, 60]);
 });

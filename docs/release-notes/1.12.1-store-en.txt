@@ -1,0 +1,6 @@
+What's new in Grindcrest 1.12.1:
+
+• Event Horizon rotation comparisons account for the number of mini AFKs. Magaia's fragments no longer split rotations into separate comparison groups.
+• Mini-AFK messages missed during loading screens can be inferred from the detected midpoint without using inferred events for mechanic best times.
+• Short rotation sections allow more timing variation. After a timeout, recognition resumes in the appropriate cycle.
+• When tracking starts midway through a rotation, time, progress and phases align with the reference. The uncertain beginning remains marked as a tracking error.

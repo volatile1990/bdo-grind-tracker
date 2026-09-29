@@ -12,8 +12,10 @@ var builder = WebApplication.CreateBuilder(new WebApplicationOptions
     WebRootPath = Path.Combine(AppContext.BaseDirectory, "wwwroot"),
 });
 builder.WebHost.UseUrls("http://127.0.0.1:5180");
-builder.Services.AddDataProtection().UseEphemeralDataProtectionProvider().DisableAutomaticKeyGeneration();
-builder.Services.AddRazorComponents().AddInteractiveServerComponents();
+builder.Services.AddSingleton<IDataProtectionProvider>(new EphemeralDataProtectionProvider());
+builder.Services.AddRazorComponents().AddInteractiveServerComponents()
+    // Session image previews return a local PNG through JS interop.
+    .AddHubOptions(options => options.MaximumReceiveMessageSize = 36 * 1024 * 1024);
 // A circuit owns its demo data. Separate browser tabs never share edits.
 builder.Services.AddScoped<ITrackerSession>(_ => new PreviewTrackerSession());
 builder.Services.AddScoped(_ => new GrindGoalStore(null));

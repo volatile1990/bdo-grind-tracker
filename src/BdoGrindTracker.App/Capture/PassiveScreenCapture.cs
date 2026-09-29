@@ -240,6 +240,7 @@ internal sealed unsafe class PassiveScreenCapture : IDisposable
                 DxgiOutduplFrameInfo frameInfo = default;
                 nint resource = 0;
                 var frameAcquired = false;
+                CapturedDesktopBitmap? captured = null;
                 try
                 {
                     var acquireResult = AcquireNextFrame(
@@ -267,20 +268,31 @@ internal sealed unsafe class PassiveScreenCapture : IDisposable
                         continue;
                     }
 
-                    return CopyFrame(resource);
+                    captured = CopyFrame(resource);
+                    return captured.Value;
                 }
                 finally
                 {
-                    Release(ref resource);
-                    if (frameAcquired)
+                    try
                     {
-                        var releaseResult = ReleaseFrame(_outputDuplication);
-                        if (releaseResult == DxgiErrorAccessLost)
+                        Release(ref resource);
+                        if (frameAcquired)
                         {
-                            throw new DesktopDuplicationAccessLostException();
-                        }
+                            var releaseResult = ReleaseFrame(_outputDuplication);
+                            if (releaseResult == DxgiErrorAccessLost)
+                            {
+                                throw new DesktopDuplicationAccessLostException();
+                            }
 
-                        ThrowIfFailed(releaseResult);
+                            ThrowIfFailed(releaseResult);
+                        }
+                    }
+                    catch
+                    {
+                        // A throwing finally cancels the pending return. There is
+                        // no caller to own pixels already copied from this frame.
+                        captured?.Bitmap.Dispose();
+                        throw;
                     }
                 }
             }

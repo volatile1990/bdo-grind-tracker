@@ -172,9 +172,9 @@ internal static partial class GarmothCatalog
     // cannot choose between Garmoth IDs 208/209/210 without a location input.
     internal static string? GetSpotUploadLimitation(string? spotId) => spotId switch
     {
-        "dark-energy-floodlands" => "Für den Garmoth-Upload bitte das genaue Gebiet der Dark Energy Floodlands in der Live-Session auswählen: Great Red Sea, Orbita oder Zephyros.",
-        "dehkia-ash-forest-unspecified" => "Für den Garmoth-Upload bitte die Dehkia-Stufe von Ash Forest in der Live-Session auswählen.",
-        "winter-tree-fossil-unspecified" => "Für den Garmoth-Upload bitte Winter Tree Fossil (280ap) in der Live-Session bestätigen. Die 250-AP-Variante verwendet denselben Trashloot.",
+        "dark-energy-floodlands" => "Für den Garmoth-Upload bitte das genaue Gebiet der Dark Energy Floodlands auswählen: Great Red Sea, Orbita oder Zephyros. Öffne diese Session unter Live oder Verlauf → Bearbeiten.",
+        "dehkia-ash-forest-unspecified" => "Für den Garmoth-Upload bitte die Dehkia-Stufe von Ash Forest auswählen. Öffne diese Session unter Live oder Verlauf → Bearbeiten.",
+        "winter-tree-fossil-unspecified" => "Für den Garmoth-Upload bitte Winter Tree Fossil (280ap) bestätigen. Die 250-AP-Variante verwendet denselben Trashloot. Öffne diese Session unter Live oder Verlauf → Bearbeiten.",
         _ => null,
     };
 

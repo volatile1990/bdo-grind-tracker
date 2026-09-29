@@ -69,6 +69,31 @@ public sealed class BlazorFrontendTests
     }
 
     [Fact]
+    public async Task AutomaticallyPausedWindowShowsNoAlertWhileRealTrackingErrorsStillDo()
+    {
+        var session = new SnapshotSession { Preferences = new() { AutoStartGrinding = true, UiLanguage = "de" }, State = new()
+        {
+            AnalyzerAvailable = true, HasSession = true,
+            Status = "Pausiert. Die Session bleibt erhalten.",
+        } };
+
+        var pausedMarkup = WebUtility.HtmlDecode(await RenderAsync<LiveDashboard>(session));
+        Assert.DoesNotContain("error-notice", pausedMarkup);
+        Assert.DoesNotContain("role=\"alert\"", pausedMarkup);
+        Assert.Contains("checked", Regex.Match(pausedMarkup, "<input[^>]*id=\"auto-start-grinding\"[^>]*>").Value);
+
+        var errorSession = new SnapshotSession
+        {
+            Preferences = session.Preferences,
+            State = session.State with { IsError = true, Status = "Tracking gestoppt: Aufnahmefehler." },
+        };
+        var errorMarkup = WebUtility.HtmlDecode(await RenderAsync<LiveDashboard>(errorSession));
+        Assert.Contains("error-notice", errorMarkup);
+        Assert.Contains("role=\"alert\"", errorMarkup);
+        Assert.Contains("Tracking gestoppt: Aufnahmefehler.", errorMarkup);
+    }
+
+    [Fact]
     public async Task SettingsShowTheResolvedRecordingFolderFromTheSession()
     {
         var session = new SnapshotSession { DiagnosticsDirectory = @"C:\Users\Example\AppData\Local\Packages\Grindcrest_family\LocalState\diagnostics" };
@@ -452,6 +477,44 @@ public sealed class BlazorFrontendTests
         Assert.Equal(0, session.CommandCalls);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task BackgroundUploadKeepsLiveControlsAvailableAndLocksOnlyTheUploadingHistorySession(bool running)
+    {
+        var pending = HistoryEntry(Guid.NewGuid());
+        var other = HistoryEntry(Guid.NewGuid());
+        var session = new SnapshotSession
+        {
+            State = ActiveState() with { IsRunning = running, PendingGarmothUploads = [pending.SessionId] },
+            History = [pending, other]
+        };
+
+        var live = await RenderAsync<LiveDashboard>(session);
+        Assert.False(IsDisabled(ButtonAttributes(live, running ? "Pausieren" : "Fortsetzen")));
+        Assert.False(IsDisabled(ButtonAttributes(live, "Neue Session")));
+        Assert.False(IsDisabled(AriaButtonAttributes(live, "Gesamtmenge für Black Crystal Fragment bearbeiten")));
+
+        var garmoth = WebUtility.HtmlDecode(await RenderAsync<GarmothDashboard>(session));
+        Assert.True(IsDisabled(ButtonAttributes(garmoth, "Alles hochladen")));
+        Assert.True(IsDisabled(AriaButtonAttributes(garmoth, "Aktuellen Session-Anteil hochladen")));
+        Assert.All(AriaButtons(garmoth, "Gespeicherte Session hochladen"), attributes => Assert.True(IsDisabled(attributes)));
+        Assert.Contains("Sendet …", SessionRow(garmoth, pending.SessionId));
+        Assert.DoesNotContain("Sendet …", SessionRow(garmoth, other.SessionId));
+
+        var history = await RenderAsync<HistoryDashboard>(session,
+            new Dictionary<string, object?> { [nameof(HistoryDashboard.SpotId)] = pending.SpotId });
+        foreach (var entry in session.History)
+        {
+            var row = SessionRow(history, entry.SessionId);
+            var uploading = entry.SessionId == pending.SessionId;
+            Assert.Equal(uploading, IsDisabled(AriaButtonAttributes(row, "Session bearbeiten")));
+            Assert.Equal(uploading, IsDisabled(AriaButtonAttributes(row, "Session löschen")));
+            Assert.Equal(uploading, IsDisabled(AriaButtonAttributes(row, "Gesamtmenge für Black Crystal Fragment bearbeiten")));
+        }
+        Assert.Equal(0, session.CommandCalls);
+    }
+
     [Fact]
     public async Task SubmittedSessionCannotResumeFromTheLiveScreen()
     {
@@ -719,17 +782,31 @@ public sealed class BlazorFrontendTests
     }
 
     [Theory]
-    [InlineData(true, false, true)]
-    [InlineData(false, true, true)]
-    [InlineData(false, false, false)]
-    public async Task StoreInstallButtonRequiresPausedIdleSession(bool running, bool busy, bool disabled)
+    [InlineData(true, false, false, true)]
+    [InlineData(false, true, false, true)]
+    [InlineData(false, false, true, true)]
+    [InlineData(false, false, false, false)]
+    public async Task StoreInstallButtonRequiresPausedIdleSession(bool running, bool busy, bool pendingUpload, bool disabled)
     {
-        var session = new SnapshotSession { State = ActiveState() with { IsRunning = running, IsBusy = busy } };
+        var session = new SnapshotSession
+        {
+            State = ActiveState() with
+            {
+                IsRunning = running, IsBusy = busy, PendingGarmothUploads = pendingUpload ? [Guid.NewGuid()] : []
+            }
+        };
         var updates = new StaticUpdates(new(true, "1.0.1", null,
             UpdatePhase.ReadyToRestart, 100, "Update bereit.") { UsesStore = true });
         var markup = await RenderAsync<AppUpdates>(session, updates: updates);
         Assert.Equal(disabled, IsDisabled(ButtonAttributes(markup, "Update installieren")));
         Assert.DoesNotContain("Beta-Updates", markup);
+        var dialog = await RenderAsync<StoreUpdateDialog>(session, updates: updates);
+        Assert.Equal(disabled, IsDisabled(ButtonAttributes(dialog, "Update installieren")));
+        if (pendingUpload)
+        {
+            Assert.Contains("Warte, bis der aktuelle Vorgang abgeschlossen ist.", WebUtility.HtmlDecode(markup));
+            Assert.Contains("Warte, bis der aktuelle Vorgang abgeschlossen ist.", WebUtility.HtmlDecode(dialog));
+        }
     }
 
     private static TrackerState ActiveState()
@@ -832,6 +909,13 @@ public sealed class BlazorFrontendTests
             .Select(match => match.Groups["attributes"].Value);
 
     private static string AriaButtonAttributes(string markup, string label) => Assert.Single(AriaButtons(markup, label));
+
+    private static string SessionRow(string markup, Guid sessionId)
+    {
+        var row = Regex.Match(markup, $"<tr[^>]*data-session-id=\"{sessionId}\"[^>]*>.*?</tr>", RegexOptions.Singleline);
+        Assert.True(row.Success, $"Missing session row: {sessionId}");
+        return row.Value;
+    }
 
     private static void AssertNoGarmothControls(string markup)
     {

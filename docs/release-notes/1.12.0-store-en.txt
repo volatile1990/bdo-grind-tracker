@@ -1,0 +1,5 @@
+What's new in Grindcrest 1.12.0:
+
+• More room for content: The main navigation stays on the left, while submenus in History, Garmoth, Overlay, Grind Goals, and Settings now appear at the top.
+• Submenus wrap onto additional rows in narrow windows, keeping labels and the active section visible.
+• Automatic grind detection reuses its window capture between checks. This removes once-per-second capture restarts that can cause cursor flicker in the game. Capture is released when the game loses focus, an error occurs, or automatic detection is disabled.

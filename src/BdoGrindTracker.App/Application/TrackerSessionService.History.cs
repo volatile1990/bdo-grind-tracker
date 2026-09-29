@@ -27,7 +27,8 @@ internal sealed partial class TrackerSessionService
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             _historyDirty = true;
-            _historyPersistenceError = "Verlauf noch nicht gespeichert. Die Session bleibt in Grindcrest erhalten. " + exception.Message;
+            TracePersistenceFailure("history save", "loot-history-v1.json", exception);
+            _historyPersistenceError = "Verlauf noch nicht gespeichert. Die Session bleibt in Grindcrest erhalten.";
             throw;
         }
     }
@@ -149,7 +150,7 @@ internal sealed partial class TrackerSessionService
             // Shutdown deliberately catches ordinary persistence failures. The
             // update host still needs a durable failure signal before restarting.
             if (_shutdownStarted) _shutdownFailed = true;
-            SetStatus("Verlauf nicht gespeichert: " + exception.Message, true);
+            SetStatus("Verlauf noch nicht gespeichert. Die Session bleibt in Grindcrest erhalten.", true);
             if (throwOnError) throw;
         }
     }
@@ -184,7 +185,7 @@ internal sealed partial class TrackerSessionService
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             // Keep the in-memory block even if saving fails after a remote write.
-            SetStatus("Upload abgeschlossen, sein lokaler Status konnte nicht gespeichert werden: " + exception.Message, true);
+            SetStatus("Upload abgeschlossen, sein lokaler Status konnte nicht gespeichert werden.", true);
             saved = false;
         }
         PublishState();
@@ -193,6 +194,7 @@ internal sealed partial class TrackerSessionService
 
     public Task<TrackerCommandResult> DeleteHistoryAsync(Guid sessionId) => RunOperationAsync(() =>
     {
+        EnsureHistoryUploadIdle(sessionId);
         if (_hasSession && sessionId == _sessionId)
             throw new InvalidOperationException("Die aktuelle Session kann erst nach einer neuen Session gelöscht werden.");
         var entry = _historyEntries.FirstOrDefault(candidate => candidate.SessionId == sessionId);
@@ -216,6 +218,7 @@ internal sealed partial class TrackerSessionService
     public Task<TrackerCommandResult> UpdateHistoryLootAsync(Guid sessionId, IReadOnlyDictionary<string, long> totals,
         string? characterClass = null) => RunOperationAsync(() =>
     {
+        EnsureHistoryUploadIdle(sessionId);
         ArgumentNullException.ThrowIfNull(totals);
         if (_hasSession && sessionId == _sessionId)
             throw new InvalidOperationException("Die aktuelle Session kann erst nach einer neuen Session bearbeitet werden.");
@@ -261,6 +264,7 @@ internal sealed partial class TrackerSessionService
 
     public Task<TrackerCommandResult> UpdateLootQuantityAsync(Guid sessionId, string itemName, long quantity, long originalQuantity)
     {
+        EnsureHistoryUploadIdle(sessionId);
         // Frozen HTTP requests can finish while quantities are corrected. Only
         // another local command or shutdown blocks this short transaction.
         if (_shutdownStarted || _disposed || _operationInProgress)

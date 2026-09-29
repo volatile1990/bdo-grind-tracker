@@ -18,6 +18,9 @@ linear interpoliert. Die Prozentangabe beschreibt den Weg von der erreichten
 zur nächsten Referenz, keinen Spieler-Perzentilrang. Zusätzlich wird der noch
 fehlende Trash pro Stunde angezeigt. Unter Average beginnt die Skala bei null;
 oberhalb der höchsten Referenz läuft sie um ein weiteres Referenzintervall aus.
+Ist nur Average vorhanden, zeigt die rechte Balkenhälfte den Bereich bis
+**50 % über Average** statt bis 100 %. So bleibt ein üblicher Abstand zum
+Durchschnitt sichtbar; das rechte Ende ist mit +50 % beschriftet.
 Der Marker bleibt am Skalenende, während Text und Stundenwert auch darüber hinaus
 die tatsächliche Leistung zeigen. Gleiche Schwellen teilen eine Markierung.
 
@@ -110,10 +113,11 @@ dieser Ladeweg fehlschlägt, bleibt der letzte Stand mit einem Fehlerstatus nutz
 ## Vergleichbarkeit
 
 Verglichen wird der tatsächliche Trash-pro-Stunde-Wert, ohne heimliche
-Buff-Normalisierung. Bekannte abweichende Scroll-Stufen, eine inaktive Scroll
-sowie aktive oder in dieser Session erfasste Agris-Nutzung erhalten einen Hinweis.
-Unbekannte Erkennung wird nicht als abweichender Buff ausgegeben. Die Erkennung
-kann nicht jede bisherige Buff-Änderung der Session belegen; eine Agris-Münze wird
+Buff-Normalisierung. Das Rating zeigt die ungefähr gemessene Agris-Dauer der
+Session, etwa „≈ 25 Min. Agris“. Bei gerade aktivem Agris ohne gemessene Dauer
+steht „Agris aktiv“; Beobachtungslücken werden im Tooltip genannt. Der
+Loot-Scroll-Status erhält keinen eigenen Hinweis im Rating. Die Erkennung kann
+nicht jede bisherige Buff-Änderung der Session belegen; eine Agris-Münze wird
 nicht erkannt. Die Referenzbedingungen bleiben daher Teil des Vergleichs.
 Garmoth verwendet teilweise spotabhängige Drop-Multiplikatoren; eine pauschale
 Umrechnung wäre nicht für alle Spots gleichwertig.

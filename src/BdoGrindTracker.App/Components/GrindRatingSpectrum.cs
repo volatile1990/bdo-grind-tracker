@@ -7,13 +7,15 @@ namespace BdoGrindTracker.App.Components;
 public sealed record GrindRatingStop(string Label, decimal TrashPerHour, double Position, string Value,
     OverlayMetricTone Tone);
 
-/// <summary>Interpolates within the available benchmark intervals, not population percentiles.</summary>
+/// <summary>Interpolates within benchmark intervals and zooms the range above a lone Average reference.</summary>
 public sealed record GrindRatingSpectrum(double Position, IReadOnlyList<GrindRatingStop> Stops,
     string ProgressLabel, string GapLabel, string Description, string TrashHourly)
 {
+    public string? UpperEndLabel { get; init; }
+
     public bool Equals(GrindRatingSpectrum? other) => other is not null && Position == other.Position &&
         ProgressLabel == other.ProgressLabel && GapLabel == other.GapLabel && Description == other.Description &&
-        TrashHourly == other.TrashHourly && Stops.SequenceEqual(other.Stops);
+        TrashHourly == other.TrashHourly && UpperEndLabel == other.UpperEndLabel && Stops.SequenceEqual(other.Stops);
 
     public override int GetHashCode()
     {
@@ -23,6 +25,7 @@ public sealed record GrindRatingSpectrum(double Position, IReadOnlyList<GrindRat
         hash.Add(GapLabel);
         hash.Add(Description);
         hash.Add(TrashHourly);
+        hash.Add(UpperEndLabel);
         foreach (var stop in Stops) hash.Add(stop);
         return hash.ToHashCode();
     }
@@ -40,6 +43,7 @@ public sealed record GrindRatingSpectrum(double Position, IReadOnlyList<GrindRat
         };
         if (benchmark.HighTrashPerHour is { } high) references.Add(("High", high, OverlayMetricTone.Positive));
         if (benchmark.TopTrashPerHour is { } top) references.Add(("Top", top, OverlayMetricTone.Accent));
+        var averageOnly = references.Count == 1;
 
         // Shared thresholds occupy one position. Never invent absent High/Top references.
         var groups = references.GroupBy(reference => reference.Rate).ToArray();
@@ -66,7 +70,10 @@ public sealed record GrindRatingSpectrum(double Position, IReadOnlyList<GrindRat
         else
         {
             var last = stops[^1];
-            var interval = last.TrashPerHour - (stops.Length > 1 ? stops[^2].TrashPerHour : 0);
+            // With Average as the only reference, reserve the right half for +0 to +50%.
+            // The previous +100% range visually understated ordinary gains above Average.
+            var interval = averageOnly ? last.TrashPerHour / 2 :
+                last.TrashPerHour - (stops.Length > 1 ? stops[^2].TrashPerHour : 0);
             var fraction = Math.Min(1, (double)(rate - last.TrashPerHour) / (double)interval);
             position = last.Position + fraction * (100 - last.Position);
             var label = references[^1].Label;
@@ -81,7 +88,11 @@ public sealed record GrindRatingSpectrum(double Position, IReadOnlyList<GrindRat
         var hourly = Number(rate) + " Trash / h";
         var description = hourly + ". " + progress + ". " + gap + ". " +
             string.Join(" · ", stops.Select(stop => stop.Label + ": " + stop.Value)) + ". " +
-            AppText.Translate("Die Position zeigt den Fortschritt zwischen den Referenzwerten, keinen Spieler-Perzentilrang.", language);
-        return new(Math.Clamp(position, 0, 100), Array.AsReadOnly(stops), progress, gap, description, hourly);
+            AppText.Translate("Die Position zeigt den Abstand auf der Skala, keinen Spieler-Perzentilrang.", language) +
+            (averageOnly ? " " + AppText.Translate("Bei nur einem Average-Referenzwert reicht die rechte Skalenhälfte bis 50 % darüber.", language) : "");
+        return new(Math.Clamp(position, 0, 100), Array.AsReadOnly(stops), progress, gap, description, hourly)
+        {
+            UpperEndLabel = averageOnly ? AppText.Translate("+50 %", language) : null,
+        };
     }
 }

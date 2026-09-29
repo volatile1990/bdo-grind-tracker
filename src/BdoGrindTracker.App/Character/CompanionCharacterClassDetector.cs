@@ -54,24 +54,7 @@ internal sealed class CompanionCharacterClassDetector
             var installations = installationDirectories.Where(Path.IsPathFullyQualified)
                 .Select(Path.GetFullPath).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
             var selectedPaths = SelectCharacterConfigurations(blackDesertDirectoryPath, installations);
-            if (selectedPaths.Count == 0)
-            {
-                return CharacterClassDetection.Unavailable;
-            }
-            CharacterClassDetection? accepted = null;
-            foreach (var selectedPath in selectedPaths)
-            {
-                using var reader = GameVariableXmlReader.Open(selectedPath,
-                    CreateReaderSettings(), maxBytes: MaxXmlCharacters * 2);
-                var detected = ReadSkills(reader);
-                // A tied save time does not prove which character is active.
-                // Only identical class/spec evidence may resolve such a tie.
-                if (detected.Status != CharacterClassDetectionStatus.Detected) return detected;
-                if (accepted is not null && accepted.Class != detected.Class)
-                    return new(null, CharacterClassDetectionStatus.Ambiguous);
-                accepted = detected;
-            }
-            return accepted ?? CharacterClassDetection.Unknown;
+            return DetectConfigurations(selectedPaths);
         }
         catch (Exception exception) when (exception is IOException or
             UnauthorizedAccessException or XmlException or ArgumentException or
@@ -81,6 +64,48 @@ internal sealed class CompanionCharacterClassDetector
             // forward exception messages to the dashboard or an upload.
             return CharacterClassDetection.Unavailable;
         }
+    }
+
+    public CharacterClassDetection DetectProfile(string profileDirectoryPath,
+        IEnumerable<string> installationDirectories, string? selectedGameVariablePath = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(profileDirectoryPath);
+        ArgumentNullException.ThrowIfNull(installationDirectories);
+        try
+        {
+            var installations = installationDirectories.Where(Path.IsPathFullyQualified)
+                .Select(Path.GetFullPath).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            // A manually selected character XML carries its own authoritative
+            // skills. A profile-wide XML instead needs this account's children.
+            var exact = selectedGameVariablePath is null ? null : DetectConfigurations([selectedGameVariablePath]);
+            if (exact is not null && exact.Status != CharacterClassDetectionStatus.Unknown) return exact;
+            var paths = SelectCharacterConfigurationsInProfile(Path.GetFullPath(profileDirectoryPath), installations);
+            return paths.Count == 0 && exact is not null ? exact : DetectConfigurations(paths);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or
+            XmlException or ArgumentException or System.Security.SecurityException)
+        {
+            return CharacterClassDetection.Unavailable;
+        }
+    }
+
+    private static CharacterClassDetection DetectConfigurations(IReadOnlyList<string> selectedPaths)
+    {
+        if (selectedPaths.Count == 0) return CharacterClassDetection.Unavailable;
+        CharacterClassDetection? accepted = null;
+        foreach (var selectedPath in selectedPaths)
+        {
+            using var reader = GameVariableXmlReader.Open(selectedPath,
+                CreateReaderSettings(), maxBytes: MaxXmlCharacters * 2);
+            var detected = ReadSkills(reader);
+            // A tied save time does not prove which character is active.
+            // Only identical class/spec evidence may resolve such a tie.
+            if (detected.Status != CharacterClassDetectionStatus.Detected) return detected;
+            if (accepted is not null && accepted.Class != detected.Class)
+                return new(null, CharacterClassDetectionStatus.Ambiguous);
+            accepted = detected;
+        }
+        return accepted ?? CharacterClassDetection.Unknown;
     }
 
     internal static CharacterClassDetection DetectFromGameVariableText(string text)

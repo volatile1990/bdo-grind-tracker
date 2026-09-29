@@ -1,0 +1,6 @@
+Neu in Grindcrest 1.11.1:
+
+• Timeline und Session-Details sind jetzt im aufklappbaren Bereich „Session-Einblicke“ direkt unter den verbrauchten Items zusammengefasst. Der Bereich ist zunächst geschlossen und nutzt denselben Hintergrund wie die Drops- und Verbrauchsanzeige.
+• Die neue Auto-Ausrichtung im Overlay-Layoutbuilder ist standardmäßig aktiv. Beim Verschieben rasten Module an nahen Kanten, Mittellinien und gleichmäßigen Abständen ein. Beim Ändern der Größe hilft sie, Kanten, Modulgrößen und Abstände anzugleichen.
+• Hilfslinien und Abstandsangaben erleichtern die Platzierung. Die Ausrichtung berücksichtigt die tatsächlichen Modulgrößen und funktioniert unabhängig vom 8-px-Raster. Sie lässt sich ausschalten oder beim Ziehen mit Alt vorübergehend aussetzen.
+• Eigene Overlay-Vorlagen speichern die Auto-Ausrichtung. Für vorhandene Vorlagen ohne diese Einstellung ist sie standardmäßig aktiv.

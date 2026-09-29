@@ -1,4 +1,5 @@
 using BdoGrindTracker.Core;
+using BdoGrindTracker.App.UI;
 
 namespace BdoGrindTracker.App.Services;
 
@@ -31,8 +32,10 @@ internal sealed partial class TrackerSessionService
 
     public Task<TrackerCommandResult> SelectSpotVariantAsync(Guid sessionId, string spotId) => RunOperationAsync(() =>
     {
+        if (sessionId != _sessionId || !_hasSession)
+            return SelectHistoricalSpotVariant(sessionId, spotId);
         RefreshPendingState(publish: false);
-        if (sessionId != _sessionId || !CanChangeSpotVariant)
+        if (!CanChangeSpotVariant)
             throw new InvalidOperationException("Der Spot kann für diese Session nicht mehr geändert werden.");
         var variant = LootSpotCatalog.VariantsFor(_sessionSpotId!).FirstOrDefault(candidate => candidate.Id == spotId)
             ?? throw new ArgumentException("Bitte eine Variante des erkannten Spots auswählen.");
@@ -57,4 +60,34 @@ internal sealed partial class TrackerSessionService
         SetStatus("Spot-Auswahl gespeichert: " + variant.DisplayName);
         return Task.CompletedTask;
     });
+
+    private Task SelectHistoricalSpotVariant(Guid sessionId, string spotId)
+    {
+        EnsureHistoryUploadIdle(sessionId);
+        if (_garmothPersistenceError is { } error) throw new IOException(error);
+        var index = _historyEntries.FindIndex(entry => entry.SessionId == sessionId);
+        if (index < 0) throw new InvalidOperationException("Diese Session ist nicht mehr verfügbar.");
+        var previous = _historyEntries[index];
+        if (previous.GarmothUploadBlocked || previous.GarmothUploadedAt is not null ||
+            _garmothRestartBlocks.Contains(sessionId))
+            throw new InvalidOperationException("Der Spot einer bereits übertragenen oder gesperrten Session kann nicht mehr geändert werden.");
+        var variant = LootSpotCatalog.VariantsFor(previous.SpotId).FirstOrDefault(candidate => candidate.Id == spotId)
+            ?? throw new ArgumentException("Bitte eine Variante des erkannten Spots auswählen.");
+        if (previous.SpotId == variant.Id) return Task.CompletedTask;
+        _historyEntries[index] = previous with
+        {
+            SpotId = variant.Id,
+            CombatStats = CombatStatsSpotRules.ForSpot(previous.CombatStats, variant.Id),
+        };
+        _historyChanged = true;
+        try { SaveHistoryEntries(); }
+        catch
+        {
+            _historyEntries[index] = previous;
+            _historyChanged = true;
+            throw;
+        }
+        SetStatus("Spot-Auswahl gespeichert: " + variant.DisplayName);
+        return Task.CompletedTask;
+    }
 }

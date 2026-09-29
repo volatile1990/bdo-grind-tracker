@@ -30,6 +30,25 @@ public sealed class RotationStartWatcherTests
     }
 
     [Fact]
+    public void CancellationDuringOneRegionDoesNotReadAnotherOrPublishItsBanner()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var reads = 0;
+        using var watcher = new RotationStartWatcher(recognizeWithCancellation: (_, token) =>
+        {
+            Assert.Equal(cancellation.Token, token);
+            reads++;
+            cancellation.Cancel();
+            return "The sinners are summoned.";
+        });
+        using var frame = new Bitmap(2560, 1440);
+
+        Assert.ThrowsAny<OperationCanceledException>(() => watcher.Observe(frame, Epoch, cancellation.Token));
+
+        Assert.Equal(1, reads);
+    }
+
+    [Fact]
     public void ItReadsAtMostEveryThreeSecondsAndSkipsUnusableFrames()
     {
         var reads = 0;

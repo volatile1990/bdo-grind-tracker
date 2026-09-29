@@ -78,7 +78,7 @@ html:scope[data-theme="black-desert"],
     box-shadow: var(--bdo-bevel);
 }
 :scope[data-theme="black-desert"] :is(.brand strong, .browser-preview-banner strong) { color: var(--gold-bright); }
-:scope[data-theme="black-desert"] :is(.brand small, .breadcrumb strong, .local-note strong) { color: #c7c1b1; }
+:scope[data-theme="black-desert"] .breadcrumb strong { color: #c7c1b1; }
 :scope[data-theme="black-desert"] .nav-item {
     color: #c3bdaf;
     border-radius: 1px;
@@ -103,11 +103,11 @@ html:scope[data-theme="black-desert"],
     background: #141517a6;
     color: #c8bfa8;
 }
-:scope[data-theme="black-desert"] :is(.nav-caption, .eyebrow, .metric-label, .metric-label .icon, .hero-kicker) { color: #bbae8c; }
+:scope[data-theme="black-desert"] :is(.eyebrow, .metric-label, .metric-label .icon, .hero-kicker) { color: #bbae8c; }
 :scope[data-theme="black-desert"] :is(.status-dot.running, .nav-live-dot) { background: var(--teal); box-shadow: 0 0 5px #a4bf8326; }
 
 /* Native-style flat window bodies and shallow, beveled title bands. */
-:scope[data-theme="black-desert"] :is(.panel, .metric-card, .spot-card, .chronological-session-card, .settings-savebar, .oe-custom-templates, .garmoth-current) {
+:scope[data-theme="black-desert"] :is(.panel, .metric-card, .spot-card, .chronological-session-card, .oe-custom-templates, .garmoth-current) {
     border-radius: 2px;
     border-color: var(--bdo-border);
     background: linear-gradient(135deg, #242528, #191a1c 80%);
@@ -158,7 +158,7 @@ html:scope[data-theme="black-desert"],
 :scope[data-theme="black-desert"] :is(.field > span, .oe-field, .oe-check, .oe-shortcut, .oe-module strong, .oe-hotkey-field > legend, .oe-custom-templates > label, .quantity, .detail-list dd, .spot-session-table .session-duration-column, .spot-session-table .session-loot-quantity, .empty-state h3, .chronological-session-actions) { color: var(--text); }
 :scope[data-theme="black-desert"] :is(.item-cell small, .chronological-identity small, .chronological-silver small, .chronological-duration, .chronological-session-header small, .oe-module small, .oe-module-group-label, .oe-section-title > span, .oe-canvas-empty, .oe-module > .icon:last-child) { color: var(--muted); }
 :scope[data-theme="black-desert"] :is(.silver-cell, .chronological-session-silver, .favorite-tag, .session-favorite-star, .spot-card-stats strong, .history-secondary-metrics strong, .oe-module > .icon:first-child, .oe-window-heading > .icon, .oe-module-group-label:first-child, .oe-canvas-empty strong) { color: var(--gold); }
-:scope[data-theme="black-desert"] :is(.oe-save-state, .settings-autosave, .settings-savebar > span, .oe-shortcuts-state.enabled) { color: var(--teal); }
+:scope[data-theme="black-desert"] :is(.oe-save-state, .oe-shortcuts-state.enabled) { color: var(--teal); }
 
 /* Dark metal controls instead of filled gold pills. Preserve focus/disabled states. */
 :scope[data-theme="black-desert"] :is(.button, .icon-button, .session-favorite-button, .quantity-edit-trigger, .oe-module, .oe-item-action, .oe-item-result, .oe-modifier, .oe-widget-delete) { border-radius: 1px; }
@@ -585,14 +585,14 @@ html:is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme
 :is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) ::selection { color: var(--text); background: var(--theme-selected); }
 :is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) ::-webkit-scrollbar-thumb { background: var(--theme-control-line); border-color: var(--bg); }
 :is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) :is(.brand strong, .browser-preview-banner strong, .eyebrow, .hero-kicker) { color: var(--gold); }
-:is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) :is(.brand small, .breadcrumb strong, .local-note strong, .nav-caption, .sidebar-version) { color: var(--muted); }
+:is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) :is(.breadcrumb strong, .sidebar-version) { color: var(--muted); }
 :is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) .nav-item { background: transparent; color: var(--muted); border-radius: var(--radius); }
 :is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) .nav-item:hover { color: var(--text); background: var(--theme-hover); border-color: var(--line); }
 :is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) .nav-item.active { background: var(--theme-selected); color: var(--gold-bright); border-color: var(--theme-control-line); }
 :is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) :is(.status-dot.running, .nav-live-dot) { background: var(--teal); box-shadow: none; }
 :is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) .status-dot.error { background: var(--red); }
 :is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) :is(.region-badge, .nav-count, .count-pill, .badge, .item-tag, .trait-list span, .spot-session-count, .hero-badge, .live-session-status) { border-color: var(--line); background: var(--theme-inset); color: var(--muted); }
-:is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) :is(.panel, .metric-card, .spot-card, .chronological-session-card, .settings-savebar, .oe-custom-templates, .garmoth-current) { border-color: var(--line); border-radius: var(--radius); background: var(--panel); box-shadow: var(--shadow); }
+:is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) :is(.panel, .metric-card, .spot-card, .chronological-session-card, .oe-custom-templates, .garmoth-current) { border-color: var(--line); border-radius: var(--radius); background: var(--panel); box-shadow: var(--shadow); }
 :is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) :is(.panel-heading, .loot-table-header, .oe-canvas-toolbar, .oe-section-title, .oe-behavior > summary) { background: transparent; }
 :is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) :is(.gold-metric, .oe-shortcuts, .oe-window-manager) { background: var(--theme-info); border-color: var(--theme-info-line); }
 :is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) .chronological-history { background: transparent; border: 0; box-shadow: none; }
@@ -601,7 +601,7 @@ html:is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme
 :is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) :is(.field > span, .oe-field, .oe-check, .oe-shortcut, .oe-module strong, .oe-hotkey-field > legend, .oe-custom-templates > label, .quantity, .detail-list dd, .spot-session-table .session-duration-column, .spot-session-table .session-loot-quantity, .empty-state h3, .chronological-session-actions, .toggle-row strong, .garmoth-current-title, .metric-value) { color: var(--text); }
 :is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) :is(.metric-label, .metric-label .icon, .item-cell small, .chronological-identity small, .chronological-silver small, .chronological-duration, .chronological-session-header small, .oe-module small, .oe-module-group-label, .oe-section-title > span, .oe-canvas-empty, .oe-module > .icon:last-child, .sort-field, .filter-field, .garmoth-history-footnote, .garmoth-upload-table small) { color: var(--muted); }
 :is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) :is(.silver-cell, .chronological-session-silver, .favorite-tag, .session-favorite-star, .spot-card-stats strong, .history-secondary-metrics strong, .oe-module > .icon:first-child, .oe-window-heading > .icon, .oe-module-group-label:first-child, .oe-canvas-empty strong, .gold-metric .metric-value, .spot-session-table .session-silver-column, .garmoth-transfer-icon, .session-loot-column small) { color: var(--gold-bright); }
-:is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) :is(.oe-save-state, .settings-autosave, .settings-savebar > span, .oe-shortcuts-state.enabled) { color: var(--teal); }
+:is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) :is(.oe-save-state, .oe-shortcuts-state.enabled) { color: var(--teal); }
 :is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) .spot-card-footer > span:last-child { color: var(--gold-bright); }
 :is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) :is(.agris-live-value, .rotation-live-value) small { color: var(--muted); }
 :is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme="obsidian"], :scope[data-theme="kamasylvia"], :scope[data-theme="valencia"]) :is(.filter-count, .spot-detail-identity p, .spot-guidance span, .spot-guidance small, .session-identity small, .session-duration, .session-agris-time, .chronological-session-duration .session-agris-time, .garmoth-key-explainer, .garmoth-connection-actions .text-button, .garmoth-session-identity > div > span, .garmoth-session-state, .garmoth-total-caption span, .garmoth-current-metrics span, .garmoth-valuation, .garmoth-current-transfer p, .garmoth-current-actions > span, .garmoth-history-count, .garmoth-history-identity small, .garmoth-history-identity small.garmoth-history-class, .garmoth-duration, .garmoth-history-status small, .garmoth-history-footnote p, .garmoth-confirm-note, .garmoth-status-label.is-pending) { color: var(--muted); }
@@ -766,7 +766,7 @@ html:is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme
     background-image: repeating-linear-gradient(0deg, #f4d5a703 0 1px, transparent 1px 4px);
 }
 :scope[data-theme="cats"] .sidebar > :is(.brand, nav, .sidebar-bottom) { flex-shrink: 0; }
-:scope[data-theme="cats"] .nav-caption { margin-top: 30px; }
+:scope[data-theme="cats"] .sidebar-divider { margin-top: 30px; }
 :scope[data-theme="cats"] .nav-item.active { border-style: dashed; }
 :scope[data-theme="cats"] .cats-sidebar-scene {
     position: relative;
@@ -913,9 +913,8 @@ html:is(:scope[data-theme="light"], :scope[data-theme="cats"], :scope[data-theme
 @media (max-height: 740px) and (min-width: 1051px) {
     :scope[data-theme="cats"] .cats-sidebar-scene { min-height: 70px; margin-top: 4px; }
     :scope[data-theme="cats"] .sidebar { padding-top: 18px; padding-bottom: 12px; }
-    :scope[data-theme="cats"] .nav-caption { margin-top: 20px; }
+    :scope[data-theme="cats"] .sidebar-divider { margin-top: 20px; }
     :scope[data-theme="cats"] .sidebar-bottom { padding-top: 0; }
-    :scope[data-theme="cats"] .local-note { padding-top: 10px; padding-bottom: 13px; }
 }
 
 /* Goals and rotation modules use the same page and overlay palettes. The

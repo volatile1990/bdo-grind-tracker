@@ -27,6 +27,9 @@ internal sealed record TrackerPreferences
     public string UiLanguage { get; init; } = AppText.DefaultLanguage;
     public string ThemeId { get; init; } = AppThemes.Grindcrest;
     public string? OverlayThemeId { get; init; }
+    public bool MinimizeToTray { get; init; }
+    public bool CloseToTray { get; init; }
+    public bool CloseBehaviorConfigured { get; init; }
     public string EffectiveOverlayThemeId => AppThemes.Normalize(AppThemes.NormalizeOverlay(OverlayThemeId) ?? ThemeId);
     public IReadOnlyList<string> FavoriteItems { get; init; } = [];
     public IReadOnlyDictionary<string, string[]> LootColumnOrders { get; init; } = new Dictionary<string, string[]>();
@@ -114,6 +117,7 @@ internal sealed record TrackerState
     public bool IsRecordingRotation { get; init; }
     public string? DebugLogError { get; init; }
     public bool HasApiKey { get; init; }
+    public IReadOnlyList<Guid> PendingGarmothUploads { get; init; } = [];
     public bool UploadBlocked { get; init; }
     public bool AutomaticSuspended { get; init; }
     public bool AutomaticUploadNeedsReview { get; init; }

@@ -8,7 +8,7 @@
             <label><span>@T("Gesamtmenge")</span><input @ref="_input" type="text" inputmode="numeric" autocomplete="off"
                 aria-label="@F("Gesamtmenge für {0}", ItemLabel(ItemName))" aria-invalid="@(_error is not null ? "true" : "false")"
                 @bind="_value" @bind:event="oninput" /></label>
-            <div class="quantity-edit-actions"><button type="submit" class="icon-button" aria-label="@T("Menge speichern")" title="@T("Speichern (Enter)")" disabled="@(Acting || !State.CanEditLoot)"><AppIcon Name="check" /></button><button type="button" class="icon-button" aria-label="@T("Bearbeitung abbrechen")" title="@T("Abbrechen (Esc)")" @onclick="Cancel" disabled="@Acting"><AppIcon Name="close" /></button></div>
+            <div class="quantity-edit-actions"><button type="submit" class="icon-button" aria-label="@T("Menge speichern")" title="@T("Speichern (Enter)")" disabled="@(Acting || !CanEdit)"><AppIcon Name="check" /></button><button type="button" class="icon-button" aria-label="@T("Bearbeitung abbrechen")" title="@T("Abbrechen (Esc)")" @onclick="Cancel" disabled="@Acting"><AppIcon Name="close" /></button></div>
             @if (Quantity != _originalQuantity) { <small class="quantity-edit-note">@T("Zwischenzeitliche Drops bleiben erhalten.")</small> }
             @if (HasGarmothUpload) { <small class="quantity-edit-note">@T("Bereits übertragene Garmoth-Einträge bleiben unverändert.")</small> }
             @if (_error is not null) { <small class="quantity-edit-error" role="alert">@T(_error)</small> }
@@ -16,7 +16,7 @@
     }
     else
     {
-        <button @ref="_trigger" type="button" class="quantity-edit-trigger" aria-label="@F("Gesamtmenge für {0} bearbeiten", ItemLabel(ItemName))" title="@(State.CanEditLoot ? T("Gesamtmenge bearbeiten") : null)" @onclick="Begin" disabled="@(!State.CanEditLoot)">@DisplayQuantity</button>
+        <button @ref="_trigger" type="button" class="quantity-edit-trigger" aria-label="@F("Gesamtmenge für {0} bearbeiten", ItemLabel(ItemName))" title="@(CanEdit ? T("Gesamtmenge bearbeiten") : null)" @onclick="Begin" disabled="@(!CanEdit)">@DisplayQuantity</button>
     }
 </div>
 
@@ -35,6 +35,7 @@
     private string? _error;
     private ElementReference _input;
     private ElementReference _trigger;
+    private bool CanEdit => State.CanEditLoot && !State.PendingGarmothUploads.Contains(SessionId);
     private bool HasGarmothUpload => Tracker.History.Any(entry => entry.SessionId == SessionId &&
         (entry.GarmothUploadedAt is not null || entry.GarmothUploadBlocked)) ||
         SessionId == State.SessionId && State.UploadBlocked;
@@ -58,7 +59,7 @@
 
     private void Begin()
     {
-        if (!State.CanEditLoot) return;
+        if (!CanEdit) return;
         _editingSessionId = SessionId;
         _editingItemName = ItemName;
         _originalQuantity = Quantity;
@@ -72,7 +73,7 @@
     private void OnKeyDown(KeyboardEventArgs args) { if (args.Key == "Escape" && !Acting) Cancel(); }
     private async Task Save()
     {
-        if (!_editing || Acting || !State.CanEditLoot) return;
+        if (!_editing || Acting || !CanEdit) return;
         if (!long.TryParse(_value, NumberStyles.None, CultureInfo.InvariantCulture, out var quantity))
         {
             _error = "Bitte eine ganze Menge ab 0 eingeben.";

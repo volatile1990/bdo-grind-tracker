@@ -79,7 +79,7 @@ public sealed class AutomaticLootSpotLock
         _evidence.Clear();
     }
 
-    private static string? SpotIdForTrash(string name) => name switch
+    internal static string? SpotIdForTrash(string name) => name switch
     {
         "Chilled Soul Piece" => LootSpotCatalog.AetherionId,
         "Contaminated Coral Piece" => LootSpotCatalog.NymphamareId,

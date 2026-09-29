@@ -16,6 +16,22 @@ public sealed class ExperienceHudConfigurationReaderTests
         fixture.WriteProfile("character", Global(800, 600, "0.5"));
         Directory.SetLastWriteTimeUtc(older, DateTime.UnixEpoch);
         Directory.SetLastWriteTimeUtc(selected, DateTime.UnixEpoch.AddSeconds(1));
+        File.SetLastWriteTimeUtc(Path.Combine(older, "gameVariable.xml"), DateTime.UnixEpoch);
+        File.SetLastWriteTimeUtc(Path.Combine(selected, "gameVariable.xml"), DateTime.UnixEpoch.AddSeconds(1));
+
+        Assert.Equal(new ExperienceHudConfiguration(3840, 2160, 1.49), fixture.Read());
+    }
+
+    [Fact]
+    public void ProfileSelectionUsesXmlSaveTimeInsteadOfDirectoryActivity()
+    {
+        using var fixture = new ConfigurationFixture();
+        var active = fixture.WriteProfile("111", Global(3840, 2160, "1.49"));
+        var stale = fixture.WriteProfile("222", Global(1920, 1080, "1"));
+        File.SetLastWriteTimeUtc(Path.Combine(active, "gameVariable.xml"), DateTime.UnixEpoch.AddMinutes(2));
+        File.SetLastWriteTimeUtc(Path.Combine(stale, "gameVariable.xml"), DateTime.UnixEpoch.AddMinutes(1));
+        Directory.SetLastWriteTimeUtc(active, DateTime.UnixEpoch.AddMinutes(1));
+        Directory.SetLastWriteTimeUtc(stale, DateTime.UnixEpoch.AddMinutes(2));
 
         Assert.Equal(new ExperienceHudConfiguration(3840, 2160, 1.49), fixture.Read());
     }

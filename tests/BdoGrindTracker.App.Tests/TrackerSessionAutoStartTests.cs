@@ -2,6 +2,7 @@ using System.Reflection;
 using BdoGrindTracker.App.Analysis;
 using BdoGrindTracker.App.Capture;
 using BdoGrindTracker.App.Persistence;
+using BdoGrindTracker.Core;
 
 namespace BdoGrindTracker.App.Tests;
 
@@ -63,6 +64,11 @@ public sealed partial class TrackerSessionServiceTests
             await monitor.CancellationObserved.Task.WaitAsync(TimeSpan.FromSeconds(5));
             monitor.Complete(late);
             await stop.WaitAsync(TimeSpan.FromSeconds(5));
+            // The command can finish before asynchronous cancellation cleanup.
+            // A fresh probe is eligible only after that cleanup has drained.
+            var drain = (Task)fixture.Service.GetType().GetField("_autoStartPendingAnalysis",
+                BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(fixture.Service)!;
+            await drain.WaitAsync(TimeSpan.FromSeconds(5));
             await fixture.Service.TickAsync();
             await fixture.Service.TickAsync();
 
@@ -317,6 +323,165 @@ public sealed partial class TrackerSessionServiceTests
     }
 
     [Fact]
+    public async Task MinimizedGamePausesQuietlyAndResumesTheSameSessionAfterANewDrop()
+    {
+        var monitor = new ControlledAutoStartMonitor { IsGameForeground = false };
+        await using var fixture = new Fixture(autoUpload: false,
+            initialSettings: new() { AutoStartGrinding = true }, autoStartMonitorFactory: () => monitor);
+        fixture.Begin();
+        await fixture.ProcessAfter(TimeSpan.FromSeconds(10), ("Black Crystal Fragment", 3));
+        var sessionId = fixture.Service.State.SessionId;
+        var loot = fixture.Service.State.Loot.TotalQuantity;
+        fixture.Time.Advance(TimeSpan.FromSeconds(5));
+
+        typeof(BdoGrindTracker.App.Services.TrackerSessionService)
+            .GetMethod("CaptureSessionStopped", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .Invoke(fixture.Service, [null, new CaptureSessionStoppedEventArgs(
+                new GameWindowUnavailableException("Synthetic minimized game window"))]);
+        await fixture.Service.TickAsync();
+        await monitor.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.False(fixture.Service.State.IsRunning);
+        Assert.False(fixture.Service.State.IsError);
+        Assert.True(fixture.Service.State.HasSession);
+        Assert.Equal(sessionId, fixture.Service.State.SessionId);
+        Assert.Equal(loot, fixture.Service.State.Loot.TotalQuantity);
+        Assert.False(fixture.Clock.IsRunning);
+        Assert.Null(typeof(BdoGrindTracker.App.Services.TrackerSessionService)
+            .GetField("_autoStartRetryStarted", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .GetValue(fixture.Service));
+        Assert.False(File.Exists(Path.Combine(fixture.DirectoryPath, "last-capture-error.json")));
+
+        var pausedElapsed = fixture.Service.State.Elapsed;
+        fixture.Time.Advance(TimeSpan.FromMinutes(2));
+        await fixture.Service.TickAsync();
+        Assert.Equal(pausedElapsed, fixture.Service.State.Elapsed);
+
+        monitor.IsGameForeground = true;
+        using var detection = AutoStartFrames(fixture, 1);
+        detection.SpotId = LootSpotCatalog.HermesiaId;
+        monitor.Complete(detection);
+        await WaitForAutoStartProbeAsync(fixture);
+        await fixture.Service.TickAsync();
+
+        Assert.True(fixture.Service.State.IsRunning);
+        Assert.False(fixture.Service.State.IsError);
+        Assert.Equal(sessionId, fixture.Service.State.SessionId);
+        Assert.Equal(loot, fixture.Service.State.Loot.TotalQuantity);
+        Assert.Equal(pausedElapsed, fixture.Service.State.Elapsed);
+        Assert.False(fixture.Service.State.IsWaitingForFirstDrop);
+        Assert.Empty(detection.Frames);
+    }
+
+    [Fact]
+    public async Task NewSpotAfterMinimizedPauseCompletesTheOldSessionBeforeStartingAnother()
+    {
+        var monitor = new ControlledAutoStartMonitor { IsGameForeground = false };
+        await using var fixture = new Fixture(autoUpload: false,
+            initialSettings: new() { AutoStartGrinding = true }, autoStartMonitorFactory: () => monitor);
+        fixture.Begin();
+        await fixture.ProcessAfter(TimeSpan.FromSeconds(10), ("Black Crystal Fragment", 3));
+        var oldSessionId = fixture.Service.State.SessionId;
+
+        typeof(BdoGrindTracker.App.Services.TrackerSessionService)
+            .GetMethod("CaptureSessionStopped", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .Invoke(fixture.Service, [null, new CaptureSessionStoppedEventArgs(
+                new GameWindowUnavailableException("Synthetic minimized game window"))]);
+        await fixture.Service.TickAsync();
+        await monitor.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.False(fixture.Service.State.IsRunning);
+
+        monitor.IsGameForeground = true;
+        using var detection = AutoStartFrames(fixture, 1);
+        detection.SpotId = LootSpotCatalog.AphrodonId;
+        monitor.Complete(detection);
+        await WaitForAutoStartProbeAsync(fixture);
+        await fixture.Service.TickAsync();
+
+        Assert.True(fixture.Service.State.IsRunning);
+        Assert.False(fixture.Service.State.IsError);
+        Assert.NotEqual(oldSessionId, fixture.Service.State.SessionId);
+        Assert.Equal(LootSpotCatalog.AphrodonId, fixture.Service.State.SpotId);
+        Assert.Equal(0, fixture.Service.State.Loot.TotalQuantity);
+        var completed = Assert.Single(fixture.HistoryStore.Load());
+        Assert.Equal(oldSessionId, completed.SessionId);
+        Assert.Equal(3, completed.Totals["Black Crystal Fragment"]);
+    }
+
+    [Fact]
+    public async Task ManualPauseBeforeTheMinimizeEventIsHandledStaysNeutral()
+    {
+        var monitor = new ControlledAutoStartMonitor { IsGameForeground = false };
+        await using var fixture = new Fixture(autoUpload: false,
+            initialSettings: new() { AutoStartGrinding = true }, autoStartMonitorFactory: () => monitor);
+        fixture.Begin();
+        typeof(BdoGrindTracker.App.Services.TrackerSessionService)
+            .GetMethod("CaptureSessionStopped", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .Invoke(fixture.Service, [null, new CaptureSessionStoppedEventArgs(
+                new GameWindowUnavailableException("Synthetic minimized game window"))]);
+
+        Assert.True((await fixture.Service.PauseAsync()).Succeeded);
+        Assert.False(fixture.Service.State.IsRunning);
+        Assert.False(fixture.Service.State.IsError);
+        Assert.True(fixture.Service.State.HasSession);
+        await fixture.Service.TickAsync();
+        await monitor.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
+    public async Task UnrelatedCaptureFailureStillShowsAnErrorWithAutomaticDetectionEnabled()
+    {
+        await using var fixture = new Fixture(autoUpload: false,
+            initialSettings: new() { AutoStartGrinding = true });
+        fixture.Begin();
+        typeof(BdoGrindTracker.App.Services.TrackerSessionService)
+            .GetMethod("CaptureSessionStopped", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .Invoke(fixture.Service, [null, new CaptureSessionStoppedEventArgs(
+                new InvalidOperationException("Synthetic capture failure"))]);
+
+        await fixture.Service.TickAsync();
+
+        Assert.False(fixture.Service.State.IsRunning);
+        Assert.True(fixture.Service.State.IsError);
+        Assert.Contains("Synthetic capture failure", fixture.Service.State.Status);
+    }
+
+    [Fact]
+    public async Task MinimizeBetweenDetectionAndCaptureSetupRetriesWithoutAnErrorBanner()
+    {
+        var first = new ControlledAutoStartMonitor();
+        var retry = new ControlledAutoStartMonitor { IsGameForeground = false };
+        var constructed = 0;
+        using var windowCapture = new PassiveWindowCapture(
+            () => throw new GameWindowUnavailableException("Synthetic minimized game window"),
+            _ => throw new NotSupportedException(),
+            (_, _) => throw new NotSupportedException());
+        await using var fixture = new Fixture(autoUpload: false,
+            suppliedCapture: new PassiveCaptureSession(windowCapture),
+            initialSettings: new() { AutoStartGrinding = true },
+            autoStartMonitorFactory: () => ++constructed == 1 ? first : retry);
+
+        await fixture.Service.TickAsync();
+        await first.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        using var detection = AutoStartFrames(fixture, 1);
+        first.Complete(detection);
+        await WaitForAutoStartProbeAsync(fixture);
+        await fixture.Service.TickAsync();
+
+        Assert.False(fixture.Service.State.IsRunning);
+        Assert.False(fixture.Service.State.HasSession);
+        Assert.False(fixture.Service.State.IsError);
+        Assert.Empty(detection.Frames);
+        Assert.Null(typeof(BdoGrindTracker.App.Services.TrackerSessionService)
+            .GetField("_autoStartRetryStarted", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .GetValue(fixture.Service));
+
+        await fixture.Service.TickAsync();
+        await retry.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(2, constructed);
+    }
+
+    [Fact]
     public async Task ErrorRetryStillWaitsForOldNativeAnalysisAfterTheCooldownExpires()
     {
         var pending = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -351,6 +516,40 @@ public sealed partial class TrackerSessionServiceTests
             Assert.True(fixture.Service.Preferences.AutoStartGrinding);
         }
         finally { pending.TrySetResult(); }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task TrackingBlockDisposesStandbyMonitorAfterItsProbeFinishes(bool pendingProbe)
+    {
+        var monitor = new ControlledAutoStartMonitor(ignoreCancellation: true);
+        await using var fixture = new Fixture(autoUpload: false,
+            initialSettings: new() { AutoStartGrinding = true }, autoStartMonitorFactory: () => monitor);
+        await fixture.Service.TickAsync();
+        await monitor.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        if (!pendingProbe)
+        {
+            monitor.Complete(null);
+            await WaitForAutoStartProbeAsync(fixture);
+        }
+
+        SetField(fixture.Service, "_settingsSaveError", "Settings could not be saved.");
+        try
+        {
+            await fixture.Service.TickAsync().WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal(!pendingProbe, monitor.Disposed);
+        }
+        finally { monitor.Complete(null); }
+
+        if (pendingProbe)
+        {
+            await WaitForAutoStartProbeAsync(fixture);
+            await fixture.Service.TickAsync();
+        }
+        Assert.True(monitor.Disposed);
+        Assert.True(fixture.Service.Preferences.AutoStartGrinding);
+        Assert.False(fixture.Service.State.IsRunning);
     }
 
     private static AutoStartDetection AutoStartFrames(Fixture fixture, int count)

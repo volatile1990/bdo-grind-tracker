@@ -1,4 +1,5 @@
 using System.Net;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using BdoGrindTracker.App.Components;
 using BdoGrindTracker.App.Persistence;
@@ -151,7 +152,7 @@ public sealed class AgrisPresentationTests
     {
         var services = new ServiceCollection().AddLogging().AddSingleton<ITrackerSession>(session)
             .AddSingleton<IJSRuntime, NoJavaScript>().AddSingleton<NavigationManager, StaticNavigation>()
-            .AddSingleton<IComponentActivator>(new HistoryActivator(chronological));
+            .AddSingleton<IComponentActivator>(new DashboardActivator(chronological));
         await using var provider = services.BuildServiceProvider();
         await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
         var parameters = typeof(T) == typeof(HistoryDashboard) && !chronological
@@ -161,13 +162,16 @@ public sealed class AgrisPresentationTests
             WebUtility.HtmlDecode((await renderer.RenderComponentAsync<T>(parameters)).ToHtmlString()));
     }
 
-    private sealed class HistoryActivator(bool chronological) : IComponentActivator
+    private sealed class DashboardActivator(bool chronological) : IComponentActivator
     {
         public IComponent CreateInstance(Type type)
         {
             var component = (IComponent)Activator.CreateInstance(type)!;
             if (component is HistoryDashboard && chronological)
                 type.GetProperty(nameof(HistoryDashboard.QueryView))!.SetValue(component, "all");
+            // Agris details are rendered when the optional insights panel is open.
+            if (component is LiveDashboard)
+                type.GetField("_insightsOpen", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(component, true);
             return component;
         }
     }

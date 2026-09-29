@@ -1,0 +1,8 @@
+What's new in Grindcrest 1.13.0:
+
+• Share session images: Save live sessions and sessions from your history as PNGs or copy them to the clipboard. Loot icons, quantities and hourly rates take priority, with compact columns for larger item lists.
+• Automatic spot changes: When automatic grind detection recognizes another spot's trash loot after a pause, it saves the previous session and starts a new one with separate loot totals and time.
+• Session timeline in the overlay: View silver, rare drops, favorites, special events and rotations with selectable layers and time ranges.
+• Clearer drop icons: Different items appear side by side; only identical items are grouped together.
+• Improved placement when tracking starts mid-rotation: Later messages and, at Magaia, monster names help identify the cycle and correct an initially estimated placement.
+• Fewer unnecessary calculations and redraws in the timeline and overlay.

@@ -19,7 +19,7 @@
         @if (_selectedItem.Length > 0) { <small>@F("Ausgewählt: {0}", ItemLabel(_selectedItem))</small> }
         @if (HasGarmothUpload) { <div class="notice warning-notice"><AppIcon Name="info" />@T("Bereits übertragene Garmoth-Einträge bleiben unverändert.")</div> }
         @if (_error is not null) { <div class="notice error-notice" role="alert">@T(_error)</div> }
-        <div class="modal-actions"><button type="button" class="button secondary" @onclick="Close" disabled="@Acting">@T("Abbrechen")</button><button type="submit" class="button primary" disabled="@(Acting || !State.CanEditLoot || _selectedItem.Length == 0)">@T("Menge ergänzen")</button></div>
+        <div class="modal-actions"><button type="button" class="button secondary" @onclick="Close" disabled="@Acting">@T("Abbrechen")</button><button type="submit" class="button primary" disabled="@(Acting || !CanEdit || _selectedItem.Length == 0)">@T("Menge ergänzen")</button></div>
     </form>
 </dialog>
 
@@ -36,8 +36,9 @@
     private Guid _editingSessionId;
     private bool _open;
     private bool _closePending;
-    private bool CanAdd => State.CanEditLoot && SessionId.HasValue && SpotId is not null && MissingItems.Any();
-    private string? UnavailableReason => !State.CanEditLoot ? T("Ein Vorgang wird gerade ausgeführt.") :
+    private bool CanEdit => State.CanEditLoot && SessionId is { } id && !State.PendingGarmothUploads.Contains(id);
+    private bool CanAdd => CanEdit && SpotId is not null && MissingItems.Any();
+    private string? UnavailableReason => !CanEdit ? T("Ein Vorgang wird gerade ausgeführt.") :
         SpotId is null ? T("Sobald der Spot erkannt wurde, kannst du fehlende Gegenstände ergänzen.") :
         !MissingItems.Any() ? T("Alle Gegenstände des Spotkatalogs sind bereits erfasst. Nutze die Mengenbearbeitung.") : null;
     private IEnumerable<string> MissingItems => SpotId is null ? [] : LootSpotCatalog.GetRequired(SpotId).AllowedItems
@@ -80,7 +81,7 @@
 
     private async Task Save()
     {
-        if (!_open || Acting || !State.CanEditLoot || SessionId != _editingSessionId) return;
+        if (!_open || Acting || !CanEdit || SessionId != _editingSessionId) return;
         if (!_items.Contains(_selectedItem, StringComparer.OrdinalIgnoreCase)) { _error = "Wähle einen Gegenstand aus dem Spotkatalog."; return; }
         if (!long.TryParse(_quantity, NumberStyles.None, CultureInfo.InvariantCulture, out var quantity) || quantity <= 0)
         {

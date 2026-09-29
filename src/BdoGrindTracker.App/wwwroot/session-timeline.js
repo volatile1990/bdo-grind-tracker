@@ -7,6 +7,11 @@ window.sessionTimeline = {
         element.addEventListener("wheel", event => {
             if (event.shiftKey) event.preventDefault();
         }, { passive: false });
+        element.addEventListener("keydown", event => {
+            if (event.target === element && !event.altKey && !event.ctrlKey && !event.metaKey &&
+                ["+", "=", "-", "ArrowLeft", "ArrowRight", "Home"].includes(event.key))
+                event.preventDefault();
+        });
     },
     // The pointer keeps belonging to the timeline while it is dragged, even when it leaves the element or the
     // window. Without that a drag ends silently as soon as the pointer crosses the edge.

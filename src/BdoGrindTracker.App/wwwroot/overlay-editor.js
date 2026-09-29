@@ -13,6 +13,7 @@
             const wrap = root.querySelector(".oe-stage-wrap");
             const stage = root.querySelector(".oe-stage");
             const inspector = root.querySelector(".oe-inspector");
+            const guideLayer = stage.querySelector(".oe-alignment-guides");
             let drag = null, ghost = null, suppressClick = false, disposed = false, contentFrame = null;
             const invoke = (name, ...args) => {
                 if (disposed) return;
@@ -105,6 +106,42 @@
             const contentRect = () => number(stage, "chromeY") > 0
                 ? stage.querySelector(".oe-stage-content").getBoundingClientRect() : stage.getBoundingClientRect();
             const grid = value => stage.dataset.snap === "true" ? Math.round(value / 8) * 8 : Math.round(value);
+            const showGuides = guides => {
+                if (!guideLayer) return;
+                guideLayer.replaceChildren();
+                guideLayer.style.setProperty("--guide-scale", String(1 / (drag?.scale || 1)));
+                for (const guide of guides) {
+                    const line = document.createElement("span");
+                    const vertical = guide.x1 === guide.x2;
+                    line.className = `oe-alignment-guide ${vertical ? "is-vertical" : "is-horizontal"} ${guide.kind === "gap" ? "is-gap" : ""}`;
+                    line.style.left = `${Math.min(guide.x1, guide.x2)}px`;
+                    line.style.top = `${Math.min(guide.y1, guide.y2)}px`;
+                    line.style.width = `${Math.abs(guide.x2 - guide.x1)}px`;
+                    line.style.height = `${Math.abs(guide.y2 - guide.y1)}px`;
+                    if (guide.kind === "gap" && Number.isFinite(guide.value)) {
+                        const label = document.createElement("span");
+                        label.textContent = `${guide.value.toLocaleString(document.documentElement?.lang || undefined, { maximumFractionDigits: 1 })} px`;
+                        line.appendChild(label);
+                    }
+                    guideLayer.appendChild(line);
+                }
+            };
+            const align = (rect, mode, e) => {
+                const minimum = { width: Math.min(80, drag.width), height: Math.min(40, drag.height) };
+                if (stage.dataset.autoAlign === "true" && !e.altKey && window.grindcrestOverlayAlignment
+                    && rect.width > 0 && rect.height > 0) {
+                    const result = window.grindcrestOverlayAlignment.snap({ rect, peers: drag.peers, mode,
+                        tolerance: Math.min(24, 6 / drag.scale), bounds: { width: 1600, height: 1200 },
+                        minimum, grid: stage.dataset.snap === "true" ? 8 : 0 });
+                    showGuides(result.guides);
+                    return result;
+                }
+                showGuides([]);
+                return mode === "resize"
+                    ? { ...rect, width: clamp(grid(rect.width), minimum.width, 1600 - rect.x),
+                        height: clamp(grid(rect.height), minimum.height, 1200 - rect.y) }
+                    : { ...rect, x: clamp(grid(rect.x), 0, 1600 - rect.width), y: clamp(grid(rect.y), 0, 1200 - rect.height) };
+            };
             const restoreWidget = widget => {
                 widget.element.style.left = `${widget.x}px`;
                 widget.element.style.top = `${widget.y}px`;
@@ -125,6 +162,7 @@
                 }
             };
             const cleanupDrag = () => {
+                showGuides([]);
                 wrap.style.position = ""; wrap.style.left = ""; wrap.style.top = "";
                 document.body.classList.remove("oe-resizing-reverse");
                 ghost?.remove(); ghost = null;
@@ -148,6 +186,7 @@
                 if (module) {
                     drag.kind = module.dataset.moduleKind;
                     drag.label = module.querySelector("strong")?.textContent || "Modul";
+                    drag.width = number(module, "moduleWidth"); drag.height = number(module, "moduleHeight");
                 } else {
                     e.preventDefault();
                     const widget = capture.closest(".oe-widget");
@@ -161,6 +200,10 @@
                         capture.focus({ preventScroll: true });
                     }
                 }
+                drag.peers = Array.from(stage.querySelectorAll(".oe-widget"))
+                    .filter(element => element !== drag.element)
+                    .map(element => ({ id: element.dataset.widgetId, x: number(element, "x"), y: number(element, "y"),
+                        width: number(element, "width"), height: number(element, "height") }));
                 capture.setPointerCapture(e.pointerId);
             };
             const move = e => {
@@ -176,7 +219,11 @@
                     }
                     ghost.style.left = `${e.clientX + 12}px`; ghost.style.top = `${e.clientY + 12}px`;
                     const rect = contentRect();
-                    stage.classList.toggle("is-drop-target", e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom);
+                    const inside = e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
+                    stage.classList.toggle("is-drop-target", inside);
+                    if (inside) align({ x: (e.clientX - rect.left) / drag.scale, y: (e.clientY - rect.top) / drag.scale,
+                        width: drag.width, height: drag.height }, "move", e);
+                    else showGuides([]);
                     return;
                 }
                 if (drag.type === "canvas") {
@@ -204,12 +251,14 @@
                     return;
                 }
                 if (drag.type === "move") {
-                    drag.newX = clamp(grid(drag.x + dx), 0, 1600 - drag.width);
-                    drag.newY = clamp(grid(drag.y + dy), 0, 1200 - drag.height);
+                    const aligned = align({ x: drag.x + dx, y: drag.y + dy, width: drag.width, height: drag.height }, "move", e);
+                    drag.newX = aligned.x;
+                    drag.newY = aligned.y;
                     drag.element.style.left = `${drag.newX}px`; drag.element.style.top = `${drag.newY}px`;
                 } else {
-                    drag.newWidth = clamp(grid(drag.width + dx), Math.min(80, drag.width), 1600 - drag.x);
-                    drag.newHeight = clamp(grid(drag.height + dy), Math.min(40, drag.height), 1200 - drag.y);
+                    const aligned = align({ x: drag.x, y: drag.y, width: drag.width + dx, height: drag.height + dy }, "resize", e);
+                    drag.newWidth = aligned.width;
+                    drag.newHeight = aligned.height;
                     drag.element.style.width = `${drag.newWidth}px`; drag.element.style.height = `${drag.newHeight}px`;
                     resizeContent(drag.element, drag.newWidth, drag.newHeight);
                 }
@@ -226,8 +275,11 @@
                     if (cancelled) restore(current);
                     else if (current.type === "add") {
                         const rect = contentRect();
-                        if (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom)
-                            invoke("AddModuleAt", current.kind, grid((e.clientX - rect.left) / current.scale), grid((e.clientY - rect.top) / current.scale));
+                        if (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom) {
+                            const aligned = align({ x: (e.clientX - rect.left) / current.scale, y: (e.clientY - rect.top) / current.scale,
+                                width: current.width, height: current.height }, "move", e);
+                            invoke("AddModuleAt", current.kind, aligned.x, aligned.y);
+                        }
                     } else if (current.type === "canvas") invoke("CommitCanvasCorner", current.newWidth, current.newHeight, current.corner);
                     else invoke("CommitWidgetGeometry", current.id, current.newX ?? current.x, current.newY ?? current.y, current.newWidth ?? current.width, current.newHeight ?? current.height);
                 }
@@ -250,6 +302,11 @@
                 if (e.altKey || e.ctrlKey || e.metaKey || e.target.matches("input,select,textarea") || e.target.closest("[data-widget-delete]")) return;
                 const widget = e.target.closest(".oe-widget");
                 if (!widget) return;
+                if (e.target === widget && (e.key === "Enter" || e.key === " ")) {
+                    e.preventDefault();
+                    invoke("SelectWidget", widget.dataset.widgetId);
+                    return;
+                }
                 const step = e.shiftKey ? 8 : 1;
                 const deltas = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] };
                 const delta = deltas[e.key];
@@ -273,7 +330,11 @@
                 document.addEventListener("click", outsideClick);
             }
             const resizeObserver = new ResizeObserver(fit); resizeObserver.observe(viewport);
-            const mutationObserver = new MutationObserver(fit);
+            const mutationObserver = new MutationObserver(records => {
+                // Drawing pointer guides must not trigger a text/layout fit for every widget.
+                if (records.length && records.every(record => record.target === guideLayer || guideLayer?.contains(record.target))) return;
+                fit();
+            });
             mutationObserver.observe(stage, { attributes: true, subtree: true, childList: true, characterData: true,
                 attributeFilter: ["data-overlay-id", "data-width", "data-height", "data-chrome-x", "data-chrome-y", "data-content-width", "data-content-height", "data-min-content-width", "data-min-content-height", "data-content-layout"] });
             fit();

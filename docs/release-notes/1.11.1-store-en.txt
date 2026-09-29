@@ -1,0 +1,6 @@
+What's new in Grindcrest 1.11.1:
+
+• The timeline and session details are now grouped in a collapsible “Session insights” section directly below consumed items. It starts collapsed and uses the same background as the drops and consumed items panels.
+• Auto-align in the overlay layout builder is enabled by default. When moving modules, they snap to nearby edges, centerlines and equal spacing. When resizing, it helps match edges, module sizes and spacing.
+• Alignment guides and gap measurements make placement easier. Auto-align accounts for actual module sizes and works independently of the 8-pixel grid. You can turn it off or hold Alt while dragging to temporarily bypass it.
+• Custom overlay templates save the auto-align setting. It is enabled by default for existing templates that do not yet include this setting.

@@ -27,15 +27,23 @@ internal sealed class RotationStartWatcher : IDisposable
             .Select(watched => (watched.SpotId, watched.Profile!, watched.Starts))];
 
     private readonly Func<Bitmap, string>? _recognize;
+    private readonly Func<Bitmap, CancellationToken, string>? _recognizeWithCancellation;
     private CompanionWindowsOcrRecognizer? _ocr;
     private DateTimeOffset? _lastProbe;
     private bool _disposed;
 
-    internal RotationStartWatcher(Func<Bitmap, string>? recognize = null) => _recognize = recognize;
+    internal RotationStartWatcher(Func<Bitmap, string>? recognize = null,
+        Func<Bitmap, CancellationToken, string>? recognizeWithCancellation = null)
+    {
+        _recognize = recognize;
+        _recognizeWithCancellation = recognizeWithCancellation;
+    }
 
     /// <summary>The start banner on screen, or null. Probes at most every <see cref="ProbeInterval"/>.</summary>
-    internal RotationStartSighting? Observe(Bitmap frame, DateTimeOffset at)
+    internal RotationStartSighting? Observe(Bitmap frame, DateTimeOffset at,
+        CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (_disposed) return null;
         if (_lastProbe is { } probed && at - probed < ProbeInterval) return null;
         _lastProbe = at;
@@ -43,6 +51,7 @@ internal sealed class RotationStartWatcher : IDisposable
         foreach (var group in Watched.GroupBy(watched =>
             (Region: watched.Profile.Crop(frame.Width, frame.Height), watched.Profile.SingleLine)))
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var region = group.Key.Region;
             if (region.Width < 32 || region.Height < 16 ||
                 !new Rectangle(Point.Empty, frame.Size).Contains(region)) continue;
@@ -50,7 +59,8 @@ internal sealed class RotationStartWatcher : IDisposable
             string? text = null;
             foreach (var (spotId, profile, starts) in group)
             {
-                text ??= Read(crop, profile);
+                text ??= Read(crop, profile, cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
                 if (text.Length == 0) break;
                 foreach (var message in profile.Parse(text))
                     if (starts.Contains(message.Kind)) return new(spotId, message.Kind, message.Label, at);
@@ -59,13 +69,15 @@ internal sealed class RotationStartWatcher : IDisposable
         return null;
     }
 
-    private string Read(Bitmap crop, RotationMessageProfile profile)
+    private string Read(Bitmap crop, RotationMessageProfile profile, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (_recognizeWithCancellation is not null) return _recognizeWithCancellation(crop, cancellationToken);
         if (_recognize is not null) return _recognize(crop);
         _ocr ??= CompanionWindowsOcrRecognizer.TryCreate("en-US", requirePreferredLanguage: true);
         if (_ocr is null) return "";
         using var pixels = CompanionFrameDecoder.Decode(crop);
-        return profile.Recognize(pixels, _ocr);
+        return profile.Recognize(pixels, _ocr, cancellationToken);
     }
 
     public void Dispose()

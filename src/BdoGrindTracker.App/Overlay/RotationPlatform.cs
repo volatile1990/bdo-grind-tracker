@@ -77,7 +77,12 @@ internal class RotationPlatform : IRotationEventTracker
             }
         }
         catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException or InvalidDataException)
-        { _cannotOverwrite = true; _error = "Rotationsreferenzen konnten nicht geladen werden: " + e.Message; }
+        {
+            System.Diagnostics.Trace.TraceWarning("Rotation references load failed: {0} (0x{1:X8}).",
+                e.GetType().Name, e.HResult);
+            _cannotOverwrite = true;
+            _error = "Rotationsreferenzen konnten nicht geladen werden.";
+        }
         foreach (var run in _history) RecordSectionSamples(run);
     }
 
@@ -628,6 +633,10 @@ internal class RotationPlatform : IRotationEventTracker
             AtomicFile.WriteAllText(_path, json); _lastSaved = json; _error = null;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
-        { _error = "Rotationsreferenzen nicht gespeichert: " + e.Message; }
+        {
+            System.Diagnostics.Trace.TraceWarning("Rotation references save failed: {0} (0x{1:X8}).",
+                e.GetType().Name, e.HResult);
+            _error = "Rotationsreferenzen nicht gespeichert.";
+        }
     }
 }

@@ -119,10 +119,16 @@
         </section>
 
         <section class="panel oe-workspace" aria-labelledby="oe-canvas-title">
-            <div class="oe-canvas-toolbar"><h2 id="oe-canvas-title">Layout</h2><label class="oe-check"><input type="checkbox" checked="@_demo" @onchange="e => _demo = Checked(e)" /><span>@T("Beispieldaten")</span></label><label class="oe-check"><input type="checkbox" checked="@_settings.SnapToGrid" @onchange="e => Change(s => s with { SnapToGrid = Checked(e) })" /><span>@T("8-px-Raster")</span></label><span class="oe-data-kind">@(_demo ? T("Beispieldaten") : T("Live-Daten"))</span></div>
+            <div class="oe-canvas-toolbar">
+                <h2 id="oe-canvas-title">Layout</h2>
+                <label class="oe-check"><input type="checkbox" checked="@_demo" @onchange="e => _demo = Checked(e)" /><span>@T("Beispieldaten")</span></label>
+                <label class="oe-check"><input type="checkbox" checked="@_settings.SnapToGrid" @onchange="e => Change(s => s with { SnapToGrid = Checked(e) })" /><span>@T("8-px-Raster")</span></label>
+                <label class="oe-check" title="@T("Richtet nahe Kanten, Mittelpunkte und Abstände automatisch aus. Alt beim Ziehen setzt die Auto-Ausrichtung vorübergehend aus.")"><input type="checkbox" checked="@_settings.AutoAlign" @onchange="e => Change(s => s with { AutoAlign = Checked(e) })" /><span>@T("Auto-Ausrichtung")</span></label>
+                <span class="oe-data-kind">@(_demo ? T("Beispieldaten") : T("Live-Daten"))</span>
+            </div>
             <div class="oe-stage-viewport" data-theme="@PreviewSnapshot.ThemeId" @ref="_viewport">
                 <div class="oe-stage-wrap">
-                    <div class="oe-stage @(_settings.ShowBorder ? "has-border" : "") @(Chrome.HasTitleBar ? "has-window-chrome" : "")" data-overlay-id="@_editingOverlayId" data-width="@Css(_settings.Width)" data-height="@Css(_settings.Height)" data-chrome-x="@Css(Chrome.Horizontal)" data-chrome-y="@Css(Chrome.Vertical)" data-snap="@_settings.SnapToGrid.ToString().ToLowerInvariant()" style="@StageStyle" @onclick="ClearSelection">
+                    <div class="oe-stage @(_settings.ShowBorder ? "has-border" : "") @(Chrome.HasTitleBar ? "has-window-chrome" : "")" data-overlay-id="@_editingOverlayId" data-width="@Css(_settings.Width)" data-height="@Css(_settings.Height)" data-chrome-x="@Css(Chrome.Horizontal)" data-chrome-y="@Css(Chrome.Vertical)" data-snap="@_settings.SnapToGrid.ToString().ToLowerInvariant()" data-auto-align="@_settings.AutoAlign.ToString().ToLowerInvariant()" style="@StageStyle" @onclick="ClearSelection">
                         @if (Chrome.HasTitleBar) { <OverlayWindowTitle Title="@SelectedOverlayName" /> }
                         <div class="oe-stage-content" style="@ContentStyle">
                         @if (_settings.Widgets.Count == 0) { <div class="oe-canvas-empty"><AppIcon Name="plus" /><strong>@T("Dein Layout")</strong><span>@T("Füge das erste Modul hinzu.")</span></div> }
@@ -135,6 +141,7 @@
                                 <button class="oe-widget-resize" data-widget-resize="@widget.Id" aria-label="@(Label(widget.Kind) + T(" vergrößern; alternativ Größe in den Moduleinstellungen ändern"))" title="@T("Größe ändern")"></button>
                             </div>
                         }
+                        <div class="oe-alignment-guides" aria-hidden="true"></div>
                         </div>
                         <button class="oe-canvas-resize" data-canvas-resize="true" aria-label="@T("Overlay-Größe ändern; alternativ Breite und Höhe unter der Fläche eingeben")" title="@T("Overlay-Größe ändern")"></button>
                         <button class="oe-canvas-resize oe-canvas-resize-nw" data-canvas-resize="nw" aria-label="@T("Overlay-Größe oben links ändern")" title="@T("Größe oben links ändern")"></button>

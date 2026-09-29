@@ -1,0 +1,9 @@
+What's new in Grindcrest 1.10.0:
+
+• Interactive session timeline with rotations, silver, trash loot and drop markers. Select layers and items, zoom with Shift + mouse wheel and focus on individual rotations.
+• Magaia joins the Rotation Monitor: three cycles with phase and cycle times, plus Fragment of Divinity events. Comparisons account for fragment counts.
+• New overlay modules show special event counts and events per hour. Rotations with special events can optionally be excluded from comparisons; Magaia compares by fragment count.
+• Optional automatic grind detection confirms sessions in Aphrodon and Magaia from a unique start message followed by a trash drop. The first rotation is timed from that message.
+• Clearer sections for history, grind goals, Garmoth and overlays. Module previews in the editor; dragging the in-game corner scales the entire overlay, including text and icons.
+• Garmoth automation now uploads complete sessions when you choose New session. Previously enabled automation uses this new trigger. Pausing, full hours and closing the app do not trigger uploads. Existing duplicate-upload protection remains.
+• Adventure's Boon and Body Enhancement are always valued as their 300-minute variants; Turning Gates keeps its remaining-time-based valuation. Saved consumption records are preserved.

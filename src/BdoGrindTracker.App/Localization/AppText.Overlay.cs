@@ -88,9 +88,9 @@ internal static partial class AppText
         text["Tastenkürzel für Mausbedienung aller Overlays ändern"] = "Change mouse interaction shortcut for all overlays";
         text["Verschieben / Klicks ans Spiel"] = "Move / pass clicks to game";
         text["Anpassen"] = "Customize";
-        text["Anzeige & Verhalten"] = "Display & behavior";
+        text["Anzeige & Verhalten"] = "Display & Behavior";
         text["Mit der Maus"] = "Mouse interaction";
-        text["Verschieben & bedienen"] = "Move & interact";
+        text["Verschieben & bedienen"] = "Move & Interact";
         text["Position gesperrt, Buttons bedienbar"] = "Position locked, buttons usable";
         text["Alle Mausklicks ans Spiel weitergeben"] = "Pass all mouse clicks to the game";
         text["Wann anzeigen"] = "When to show";
@@ -124,8 +124,10 @@ internal static partial class AppText
         text["Vorlage löschen"] = "Delete template";
         text["Module"] = "Widgets";
         text["Auf die Fläche ziehen oder anklicken."] = "Drag onto the canvas or click to add.";
-        text["Metriken & Steuerung"] = "Metrics & controls";
+        text["Metriken & Steuerung"] = "Metrics & Controls";
         text["8-px-Raster"] = "8 px grid";
+        text["Auto-Ausrichtung"] = "Auto-align";
+        text["Richtet nahe Kanten, Mittelpunkte und Abstände automatisch aus. Alt beim Ziehen setzt die Auto-Ausrichtung vorübergehend aus."] = "Automatically aligns nearby edges, centers and equal gaps. Hold Alt while dragging to temporarily bypass auto-align.";
         text["Live-Daten"] = "Live data";
         text["Dein Layout"] = "Your layout";
         text["Füge das erste Modul hinzu."] = "Add your first widget.";
@@ -162,7 +164,7 @@ internal static partial class AppText
         text["Timeline-Farben"] = "Timeline colors";
         text["Eingefärbt"] = "Colored";
         text["Schiefer"] = "Slate";
-        text["Dezent · Gold & Grau"] = "Subtle · Gold & gray";
+        text["Dezent · Gold & Grau"] = "Subtle · Gold & Gray";
         text["Rotationsvergleich"] = "Rotation comparison";
         text["Beste vollständige Rotation"] = "Best complete rotation";
         text["Bestrotation + Mechanik-Bestzeiten"] = "Best rotation + mechanic best times";
@@ -296,7 +298,7 @@ internal static partial class AppText
         text["Ein gewähltes Item als eigene Kachel"] = "One selected item in its own tile";
         text["Aktive Zeit"] = "Active time";
         text["Grindzeit ohne Pausen"] = "Grind time excluding pauses";
-        text["Uhrzeit & Tag/Nacht"] = "Clock & day/night";
+        text["Uhrzeit & Tag/Nacht"] = "Clock & Day/Night";
         text["Lokale Uhrzeit, BDO-Zeit und Zeit bis zum Wechsel"] = "Local time, BDO time and countdown to the next change";
         text["Automatisch erkannter Spot"] = "Automatically detected spot";
         text["Silber netto"] = "Net silver";

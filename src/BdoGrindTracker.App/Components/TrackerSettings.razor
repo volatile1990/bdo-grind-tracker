@@ -13,10 +13,6 @@
         <div class="settings-content">
             <TrackerPreferenceSettings @ref="_fields" Section="@SelectedSection" />
             <div hidden="@(SelectedSection != "capture")"><CaptureConfigurationSettings /></div>
-            @if (SelectedSection != "updates")
-            {
-                <p class="settings-save-hint"><AppIcon Name="check" />@T("Einstellungen werden bei Änderungen gespeichert.")</p>
-            }
         </div>
     </div>
 </div>
@@ -27,6 +23,7 @@
     private static readonly MenuSection[] Categories =
     [
         new("appearance", "Erscheinungsbild", "spark", "settings/appearance"),
+        new("window", "Fenster & Tray", "monitor", "settings/window"),
         new("capture", "Erfassung", "monitor", "settings/capture"),
         new("silver", "Silber & Markt", "silver", "settings/silver"),
         new("diagnostics", "Diagnose", "shield", "settings/diagnostics"),

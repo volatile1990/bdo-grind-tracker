@@ -113,6 +113,7 @@ public sealed class AutomaticGrindMonitorTests
         Assert.Equal(2, fixture.Capture.Captures);
         Assert.Empty(fixture.Analyzers);
         Assert.Empty(fixture.Capture.BurstChanges);
+        Assert.Equal(0, fixture.Capture.Suspensions);
         Assert.All(fixture.Capture.Bitmaps, AssertDisposed);
     }
 
@@ -137,9 +138,11 @@ public sealed class AutomaticGrindMonitorTests
         Assert.True(analyzer.IsToneMapped);
         Assert.True(analyzer.Disposed);
         Assert.Equal(new[] { true, false }, fixture.Capture.BurstChanges);
+        Assert.Equal(0, fixture.Capture.Suspensions);
         Assert.False(fixture.Monitor.IsConfirming);
         Assert.Single(detection.Frames);
         Assert.Equal(detection.Frames[^1].Metadata.CapturedAtUtc.AddMilliseconds(-50), detection.DetectedDropAt);
+        Assert.Equal(LootSpotCatalog.AetherionId, detection.SpotId);
         Assert.All(detection.Frames, frame =>
         {
             Assert.True(frame.Metadata.IsHdr);
@@ -164,7 +167,38 @@ public sealed class AutomaticGrindMonitorTests
         Assert.NotNull(detection);
         Assert.Equal(2, Assert.Single(fixture.Analyzers).Calls);
         Assert.Equal(initialAt.AddMilliseconds(-50), detection.DetectedDropAt);
+        Assert.Equal(LootSpotCatalog.AetherionId, detection.SpotId);
         Assert.True(detection.DetectedDropAt < detection.Frames[^1].Metadata.CapturedAtUtc);
+    }
+
+    [Fact]
+    public async Task DetectionUsesConfirmedTrashInsteadOfTheAnalyzersOlderSpotLock()
+    {
+        using var fixture = new Fixture();
+        fixture.Behavior = (_, _, at, _) => Task.FromResult(
+            Result(Projection(5, 1, at, "Elion Follower's Helmet")) with { SpotId = LootSpotCatalog.AetherionId });
+
+        using var detection = await fixture.Monitor.CheckAsync("en", CancellationToken.None);
+
+        Assert.NotNull(detection);
+        Assert.Equal(LootSpotCatalog.MagaiaId, detection.SpotId);
+    }
+
+    [Fact]
+    public async Task MixedSpotTrashDoesNotFallBackToTheAnalyzersSpotLock()
+    {
+        using var fixture = new Fixture();
+        fixture.Behavior = (_, _, at, _) => Task.FromResult(Result(new LootTotalsProjection(2,
+            new Dictionary<string, long>
+            {
+                ["Chilled Soul Piece"] = 5,
+                ["Elion Follower's Helmet"] = 5,
+            }, 2, at)) with { SpotId = LootSpotCatalog.AetherionId });
+
+        using var detection = await fixture.Monitor.CheckAsync("en", CancellationToken.None);
+
+        Assert.NotNull(detection);
+        Assert.Null(detection.SpotId);
     }
 
     [Fact]
@@ -189,18 +223,20 @@ public sealed class AutomaticGrindMonitorTests
     }
 
     [Fact]
-    public void DetachTransfersDetectedArrivalWithReplayOwnership()
+    public void DetachTransfersDetectedArrivalAndSpotWithReplayOwnership()
     {
         var at = DateTimeOffset.UnixEpoch.AddSeconds(7);
-        using var original = new AutoStartDetection { DetectedDropAt = at };
+        using var original = new AutoStartDetection { DetectedDropAt = at, SpotId = LootSpotCatalog.MagaiaId };
         var bitmap = new Bitmap(2, 2);
         original.Add(new CapturedDesktopBitmap(bitmap, IsHdr: false, IsToneMapped: false), at.AddSeconds(1));
 
         using var detached = original.Detach();
 
         Assert.Equal(at, detached.DetectedDropAt);
+        Assert.Equal(LootSpotCatalog.MagaiaId, detached.SpotId);
         Assert.Same(bitmap, Assert.Single(detached.Frames).Bitmap);
         Assert.Null(original.DetectedDropAt);
+        Assert.Null(original.SpotId);
         Assert.Empty(original.Frames);
     }
 
@@ -243,7 +279,125 @@ public sealed class AutomaticGrindMonitorTests
 
         Assert.Equal(2, fixture.Analyzers.Count);
         Assert.Equal(4, fixture.Capture.Captures);
+        Assert.Equal(new[] { true, false, true, false }, fixture.Capture.BurstChanges);
+        Assert.Equal(0, fixture.Capture.Suspensions);
         Assert.All(fixture.Analyzers, analyzer => Assert.True(analyzer.Disposed));
+    }
+
+    [Fact]
+    public async Task FailedBurstReleasesRetainedCapture()
+    {
+        using var fixture = new Fixture();
+        fixture.Behavior = (_, _, _, _) => throw new InvalidOperationException("OCR failed.");
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            fixture.Monitor.CheckAsync("en", CancellationToken.None));
+
+        Assert.Equal(1, fixture.Capture.Suspensions);
+        Assert.False(fixture.Monitor.IsConfirming);
+        Assert.True(Assert.Single(fixture.Analyzers).Disposed);
+        Assert.All(fixture.Capture.Bitmaps, AssertDisposed);
+    }
+
+    [Fact]
+    public async Task FocusLostDuringOcrReleasesRetainedCapture()
+    {
+        using var fixture = new Fixture();
+        fixture.Behavior = (_, _, _, _) =>
+        {
+            fixture.Capture.Foreground = false;
+            return Task.FromResult(Result());
+        };
+
+        Assert.Null(await fixture.Monitor.CheckAsync("en", CancellationToken.None));
+
+        Assert.Equal(1, fixture.Capture.Suspensions);
+        Assert.False(fixture.Monitor.IsConfirming);
+        Assert.True(Assert.Single(fixture.Analyzers).Disposed);
+        Assert.All(fixture.Capture.Bitmaps, AssertDisposed);
+    }
+
+    [Fact]
+    public async Task BannerCancellationReleasesTheCallerAndRetainsTheUnresponsiveReadersInputs()
+    {
+        using var entered = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        using var cancellation = new CancellationTokenSource();
+        using var fixture = new Fixture(2560, 1440, bannerReader: (_, token) =>
+        {
+            entered.Set();
+            release.Wait(); // Deliberately ignores cancellation, like an unresponsive native reader.
+            return "The sinners are summoned.";
+        });
+        var check = fixture.Monitor.CheckAsync("en", cancellation.Token);
+        try
+        {
+            Assert.True(entered.Wait(TimeSpan.FromSeconds(5)));
+            cancellation.Cancel();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => check.WaitAsync(TimeSpan.FromSeconds(2)));
+            Assert.False(fixture.Monitor.PendingAnalysis.IsCompleted);
+            Assert.Equal(1, fixture.Capture.Suspensions);
+            Assert.Empty(fixture.Analyzers);
+            Assert.Equal(0, fixture.Visual.Observations);
+            fixture.Capture.Bitmaps[0].GetPixel(0, 0);
+            fixture.Time.Advance(TimeSpan.FromSeconds(10));
+            Assert.Null(await fixture.Monitor.CheckAsync("en", CancellationToken.None));
+            Assert.Equal(1, fixture.Capture.Captures);
+            fixture.Monitor.Dispose();
+            fixture.Capture.Bitmaps[0].GetPixel(0, 0);
+        }
+        finally
+        {
+            release.Set();
+            await fixture.Monitor.PendingAnalysis.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        AssertDisposed(fixture.Capture.Bitmaps[0]);
+        Assert.Null(fixture.Monitor.RecentRotationStart);
+    }
+
+    [Fact]
+    public async Task InitialBannerWatchdogBoundsAnUnresponsiveReaderBeforeTheLootBurst()
+    {
+        using var entered = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        using var fixture = new Fixture(2560, 1440, bannerReader: (_, _) =>
+        {
+            entered.Set();
+            release.Wait();
+            return "";
+        }, initialBannerTimeout: TimeSpan.FromSeconds(1));
+        try
+        {
+            var check = fixture.Monitor.CheckAsync("en", CancellationToken.None);
+            Assert.True(entered.Wait(TimeSpan.FromSeconds(5)));
+            await Assert.ThrowsAsync<TimeoutException>(() => check.WaitAsync(TimeSpan.FromSeconds(2)));
+            Assert.False(fixture.Monitor.PendingAnalysis.IsCompleted);
+            Assert.Empty(fixture.Analyzers);
+            Assert.False(fixture.Monitor.IsConfirming);
+            Assert.Equal(1, fixture.Capture.Suspensions);
+            fixture.Capture.Bitmaps[0].GetPixel(0, 0);
+        }
+        finally
+        {
+            release.Set();
+            await fixture.Monitor.PendingAnalysis.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        AssertDisposed(fixture.Capture.Bitmaps[0]);
+    }
+
+    [Fact]
+    public async Task WallClockCorrectionCannotExtendBannerValidity()
+    {
+        using var fixture = new Fixture(2560, 1440);
+        fixture.Visual.Candidate = false;
+        fixture.BannerText = "The sinners are summoned.";
+        Assert.Null(await fixture.Monitor.CheckAsync("en", CancellationToken.None));
+        Assert.IsType<RotationStartSighting>(fixture.Monitor.RecentRotationStart);
+        fixture.Time.ShiftUtc(TimeSpan.FromHours(1));
+        Assert.NotNull(fixture.Monitor.RecentRotationStart);
+        fixture.Time.ShiftUtc(TimeSpan.FromHours(-2));
+        fixture.Time.Advance(RotationStartWatcher.Validity + TimeSpan.FromSeconds(1));
+        Assert.Null(fixture.Monitor.RecentRotationStart);
     }
 
     [Fact]
@@ -262,6 +416,7 @@ public sealed class AutomaticGrindMonitorTests
             await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await check);
 
             Assert.False(fixture.Monitor.PendingAnalysis.IsCompleted);
+            Assert.Equal(1, fixture.Capture.Suspensions);
             Assert.False(Assert.Single(fixture.Analyzers).Disposed);
             Assert.Single(fixture.Capture.Bitmaps).GetPixel(0, 0);
             fixture.Time.Advance(TimeSpan.FromMinutes(1));
@@ -306,7 +461,8 @@ public sealed class AutomaticGrindMonitorTests
         /// <summary>Banner text the rotation start watcher reads from each captured frame.</summary>
         internal string BannerText = "";
 
-        internal Fixture(int width = 2, int height = 2)
+        internal Fixture(int width = 2, int height = 2,
+            Func<Bitmap, CancellationToken, string>? bannerReader = null, TimeSpan? initialBannerTimeout = null)
         {
             Capture.FrameSize = new Size(width, height);
             Monitor = new AutomaticGrindMonitor(Capture, Visual,
@@ -317,7 +473,7 @@ public sealed class AutomaticGrindMonitorTests
                     var analyzer = new FakeAnalyzer((call, frame, at, token) => Behavior(call, frame, at, token));
                     Analyzers.Add(analyzer);
                     return analyzer;
-                }, Time, new RotationStartWatcher(_ => BannerText));
+                }, Time, new RotationStartWatcher(_ => BannerText, bannerReader), initialBannerTimeout);
         }
 
         public void Dispose() => Monitor.Dispose();
@@ -385,10 +541,12 @@ public sealed class AutomaticGrindMonitorTests
     private sealed class AdvancingClock : TimeProvider
     {
         private long _timestamp;
+        private long _utcOffset;
         public override long TimestampFrequency => TimeSpan.TicksPerSecond;
         public override long GetTimestamp() => Interlocked.Read(ref _timestamp);
-        public override DateTimeOffset GetUtcNow() => DateTimeOffset.UnixEpoch.AddTicks(GetTimestamp());
+        public override DateTimeOffset GetUtcNow() => DateTimeOffset.UnixEpoch.AddTicks(GetTimestamp() + Interlocked.Read(ref _utcOffset));
         internal void Advance(TimeSpan elapsed) => Interlocked.Add(ref _timestamp, elapsed.Ticks);
+        internal void ShiftUtc(TimeSpan shift) => Interlocked.Add(ref _utcOffset, shift.Ticks);
         public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
         {
             Assert.Equal(Timeout.InfiniteTimeSpan, period);

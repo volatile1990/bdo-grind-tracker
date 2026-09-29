@@ -138,7 +138,9 @@ public sealed partial class TrackerSessionServiceTests
         Assert.Empty(fixture.Requests);
         Assert.False(fixture.Service.State.AutomaticSuspended);
         Assert.Equal(variantId, fixture.Service.State.SpotId);
-        await fixture.Service.PauseAsync();
+        fixture.Analyzer.CompletionResult = Analysis() with { SpotId = familyId };
+        Assert.True((await fixture.Service.PauseAsync()).Succeeded);
+        Assert.Equal(variantId, fixture.Service.State.SpotId);
         Assert.True((await fixture.Service.NewSessionAsync()).Succeeded);
         Assert.Single(fixture.Requests);
         Assert.Equal(variantId, Assert.Single(fixture.Service.History).SpotId);

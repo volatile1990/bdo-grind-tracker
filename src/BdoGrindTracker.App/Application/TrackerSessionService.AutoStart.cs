@@ -110,6 +110,11 @@ internal sealed partial class TrackerSessionService
             // Never join a worker here: manual commands remain responsive while
             // cancellation unwinds an in-progress native recognition request.
             RequestAutoStartCancellation();
+            // Completed standby probes now retain their native source. Cancelling
+            // their old token alone cannot release it when tracking becomes blocked.
+            if (_autoStartStopTask.IsCompleted && _autoStartMonitor is not null &&
+                _autoStartProbe is not { IsCompleted: false })
+                await StopAutoStartProbeAsync();
             return;
         }
         if (_autoStartProbe is { IsCompleted: false }) return;
@@ -125,8 +130,20 @@ internal sealed partial class TrackerSessionService
                 {
                     // Take ownership before entering the normal command gate. Its
                     // cleanup can now stop the standby source without losing replay.
-                    var result = await RunOperationAsync(() => StartTrackingAsync(detection));
-                    if (!_uiRunning)
+                    var windowUnavailable = false;
+                    var result = await RunOperationAsync(async () =>
+                    {
+                        try { await StartTrackingAsync(detection); }
+                        catch (GameWindowUnavailableException)
+                        {
+                            // The game was minimized between the last sample and capture setup.
+                            windowUnavailable = true;
+                            SetStatus(_hasSession ? "Pausiert. Die Session bleibt erhalten."
+                                : "Bereit für deine nächste Session.");
+                        }
+                    });
+                    if (windowUnavailable) ResetAutoStartRetry();
+                    else if (!_uiRunning)
                     {
                         ScheduleAutoStartRetry(result.Error ?? "Autostart konnte nicht starten.");
                     }
@@ -140,7 +157,7 @@ internal sealed partial class TrackerSessionService
             catch (Exception exception)
             {
                 // Ordinary focus/resize transitions may invalidate a sample.
-                if (_autoStartMonitor?.IsGameForeground != true)
+                if (exception is GameWindowUnavailableException || _autoStartMonitor?.IsGameForeground != true)
                 {
                     await StopAutoStartProbeAsync();
                     return;

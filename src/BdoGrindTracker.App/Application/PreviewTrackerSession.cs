@@ -163,6 +163,20 @@ internal sealed class PreviewTrackerSession : ITrackerSession
     }
     public Task<TrackerCommandResult> UploadAsync() { Change(State with { Status = "Vorschau · Es wird nichts an Garmoth gesendet." }); return Task.FromResult(TrackerCommandResult.Success); }
     public Task<TrackerCommandResult> UploadHistoryAsync(Guid sessionId) => UploadAsync();
+    public Task<TrackerCommandResult> SelectSpotVariantAsync(Guid sessionId, string spotId)
+    {
+        var index = _history.FindIndex(entry => entry.SessionId == sessionId);
+        if (index < 0) return Task.FromResult(new TrackerCommandResult("Diese Session ist nicht mehr verfügbar."));
+        var entry = _history[index];
+        if (entry.GarmothUploadedAt is not null || entry.GarmothUploadBlocked || State.PendingGarmothUploads.Contains(sessionId))
+            return Task.FromResult(new TrackerCommandResult("Die Spotvariante kann nach einer Übertragung oder bei einem offenen Upload nicht geändert werden."));
+        if (!LootSpotCatalog.VariantsFor(entry.SpotId).Any(variant => variant.Id == spotId))
+            return Task.FromResult(new TrackerCommandResult("Für diese Session kann kein Spot ausgewählt werden."));
+        if (entry.SpotId == spotId) return Task.FromResult(TrackerCommandResult.Success);
+        _history[index] = entry with { SpotId = spotId, CombatStats = CombatStatsSpotRules.ForSpot(entry.CombatStats, spotId) };
+        Changed?.Invoke();
+        return Task.FromResult(TrackerCommandResult.Success);
+    }
     public Task<TrackerCommandResult> UpdateHistoryLootAsync(Guid sessionId, IReadOnlyDictionary<string, long> totals, string? characterClass = null)
     {
         var index = _history.FindIndex(entry => entry.SessionId == sessionId);

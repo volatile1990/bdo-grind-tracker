@@ -85,6 +85,9 @@ internal sealed partial class TrackerSessionService
             _garmothApiKey = nextKey;
             var regionChanged = region != Preferences.MarketRegion;
             var previousCaptureConfiguration = Preferences.CaptureConfigurationPath;
+            var previousMinimizeToTray = Preferences.MinimizeToTray;
+            var previousCloseToTray = Preferences.CloseToTray;
+            var previousCloseBehaviorConfigured = Preferences.CloseBehaviorConfigured;
             var previousDebugLogging = Preferences.AutomaticDebugLogging;
             var previousDebugHours = Preferences.DebugLogRetentionHours;
             var wasAutoStartEnabled = Preferences.AutoStartGrinding;
@@ -106,14 +109,20 @@ internal sealed partial class TrackerSessionService
                 ResetAutoStartRetry();
             if (!TrySaveSettings(preferences.SetupCompleted))
             {
-                // A failed save must not silently switch the capture source for this run.
+                // A failed save must not silently switch capture or window behavior for this run.
                 Preferences = Preferences with
                 {
                     CaptureConfigurationPath = previousCaptureConfiguration,
+                    MinimizeToTray = previousMinimizeToTray,
+                    CloseToTray = previousCloseToTray,
+                    CloseBehaviorConfigured = previousCloseBehaviorConfigured,
                     AutomaticDebugLogging = previousDebugLogging,
                     DebugLogRetentionHours = previousDebugHours,
                 };
                 _settings.CaptureConfigurationPath = previousCaptureConfiguration;
+                _settings.MinimizeToTray = previousMinimizeToTray;
+                _settings.CloseToTray = previousCloseToTray;
+                _settings.CloseBehaviorConfigured = previousCloseBehaviorConfigured;
                 _settings.AutomaticDebugLogging = previousDebugLogging;
                 _settings.DebugLogRetentionHours = previousDebugHours;
                 return;
@@ -152,6 +161,9 @@ internal sealed partial class TrackerSessionService
         _settings.UpdateCapturePreferences(Preferences.MonitorDeviceName);
         _settings.ThemeId = Preferences.ThemeId;
         _settings.OverlayThemeId = Preferences.OverlayThemeId;
+        _settings.MinimizeToTray = Preferences.MinimizeToTray;
+        _settings.CloseToTray = Preferences.CloseToTray;
+        _settings.CloseBehaviorConfigured = Preferences.CloseBehaviorConfigured;
         _settings.UiLanguage = Preferences.UiLanguage;
         _settings.CaptureConfigurationPath = Preferences.CaptureConfigurationPath;
         _settings.BuffRecognitionProfilePath = null;
@@ -180,7 +192,8 @@ internal sealed partial class TrackerSessionService
             _settings.SetupCompleted = previousSetupCompleted;
             // Settings persistence is optional for local capture. Keep the error
             // visible across producer updates, while explicit Save still fails.
-            _settingsSaveError = "Einstellungen nicht gespeichert: " + exception.Message;
+            TracePersistenceFailure("settings save", "settings.json", exception);
+            _settingsSaveError = "Einstellungen nicht gespeichert. Prüfe Speicherplatz und Zugriffsrechte.";
             SetStatus(_settingsSaveError, true);
             return false;
         }
@@ -200,6 +213,9 @@ internal sealed partial class TrackerSessionService
             SetupCompleted = recovered.SetupCompleted,
             ThemeId = recovered.ThemeId,
             OverlayThemeId = recovered.OverlayThemeId,
+            MinimizeToTray = recovered.MinimizeToTray,
+            CloseToTray = recovered.CloseToTray,
+            CloseBehaviorConfigured = recovered.CloseBehaviorConfigured,
             UiLanguage = recovered.UiLanguage,
             MonitorDeviceName = _hasSession ? Preferences.MonitorDeviceName
                 : Monitors.FirstOrDefault(monitor => monitor.DeviceName == recovered.MonitorDeviceName)?.DeviceName
@@ -248,10 +264,11 @@ internal sealed partial class TrackerSessionService
 
     private async Task RefreshClassDetectionCoreAsync()
     {
+        var generation = _classDetectionGeneration;
         try
         {
             var detected = await Task.Run(_detectCharacterClass);
-            if (_shutdownStarted || _disposed) return;
+            if (_shutdownStarted || _disposed || generation != _classDetectionGeneration) return;
             _classDetection = detected;
             // Start and preference commands apply the detection themselves after
             // awaiting it. Periodic recovery must not save over an in-flight
@@ -271,7 +288,7 @@ internal sealed partial class TrackerSessionService
         }
         catch
         {
-            if (_shutdownStarted || _disposed) return;
+            if (_shutdownStarted || _disposed || generation != _classDetectionGeneration) return;
             // The detector can observe account-specific paths. Its failure text
             // is intentionally not exposed; manual class selection remains usable.
             _classDetection = CharacterClassDetection.Unavailable;

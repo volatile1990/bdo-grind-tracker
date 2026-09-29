@@ -96,19 +96,26 @@ public sealed class GrindRatingPresentationTests
     }
 
     [Theory]
-    [InlineData("agris-active", true)]
-    [InlineData("agris-earlier", true)]
-    [InlineData("scroll-one", true)]
-    [InlineData("scroll-inactive", true)]
-    [InlineData("scroll-two", false)]
-    [InlineData("unknown", false)]
-    public void KnownDifferentLootBuffsDiscloseComparisonLimitsWithoutChangingTheRate(string scenario, bool differing)
+    [InlineData("agris-active", "Agris aktiv")]
+    [InlineData("agris-earlier", "≈ 25 Min. Agris")]
+    [InlineData("agris-subminute", "≈ unter 1 Min. Agris")]
+    [InlineData("agris-scroll-one", "≈ 25 Min. Agris")]
+    [InlineData("scroll-one", null)]
+    [InlineData("scroll-inactive", null)]
+    [InlineData("scroll-two", null)]
+    [InlineData("unknown", null)]
+    public void RatingShowsMeasuredAgrisTimeButNoLootScrollBadge(string scenario, string? expectedDetail)
     {
         var state = State();
         state = scenario switch
         {
             "agris-active" => state with { Agris = new(AgrisStatus.Active) },
-            "agris-earlier" => state with { AgrisActiveDuration = TimeSpan.FromMinutes(1) },
+            "agris-earlier" => state with { Agris = new(AgrisStatus.Inactive), AgrisActiveDuration = TimeSpan.FromMinutes(25),
+                AgrisObservedDuration = TimeSpan.FromMinutes(30) },
+            "agris-subminute" => state with { AgrisActiveDuration = TimeSpan.FromSeconds(20),
+                AgrisObservedDuration = TimeSpan.FromMinutes(1) },
+            "agris-scroll-one" => state with { AgrisActiveDuration = TimeSpan.FromMinutes(25),
+                AgrisObservedDuration = TimeSpan.FromMinutes(30), LootScroll = new(LootScrollStatus.Active, 1) },
             "scroll-one" => state with { LootScroll = new(LootScrollStatus.Active, 1) },
             "scroll-inactive" => state with { LootScroll = new(LootScrollStatus.Inactive) },
             "scroll-two" => state with { LootScroll = new(LootScrollStatus.Active, 2) },
@@ -118,9 +125,29 @@ public sealed class GrindRatingPresentationTests
 
         Assert.Equal("High Tier", presentation.Label);
         Assert.Equal(16300m, presentation.Result.TrashPerHour);
-        Assert.Equal(differing, presentation.Description.Contains("Abweichende Loot-Buffs", StringComparison.Ordinal));
-        Assert.Equal(differing ? "Abweichende Loot-Buffs" : null, presentation.Detail);
+        Assert.Equal(expectedDetail, presentation.Detail);
+        Assert.Equal(expectedDetail is not null, presentation.Description.Contains("Agris-Korrektur", StringComparison.Ordinal));
+        Assert.DoesNotContain("Abweichende Loot-Buffs", presentation.Description);
+        if (scenario is "agris-earlier" or "agris-scroll-one")
+            Assert.Contains("Nicht erkannt: 30 Min.", presentation.Description);
+        if (scenario == "agris-active") Assert.Contains("Dauer wurde noch nicht erfasst", presentation.Description);
+        if (scenario == "agris-subminute") Assert.DoesNotContain("0 Min. Agris", presentation.Detail);
         Assert.False(new OverlayMetrics().Update(state, new() { UiLanguage = "de" }).Metrics["grind-rating"].IsWarning);
+    }
+
+    [Fact]
+    public void EnglishRatingShowsAgrisDurationInsteadOfGenericBuffText()
+    {
+        var state = State() with { AgrisActiveDuration = TimeSpan.FromMinutes(25),
+            AgrisObservedDuration = TimeSpan.FromHours(1) };
+
+        var presentation = new LiveSessionPresentation(state, "en").GrindRating;
+        var metric = new OverlayMetrics().Update(state, new() { UiLanguage = "en" }).Metrics["grind-rating"];
+
+        Assert.Equal("≈ 25 min Agris", presentation.Detail);
+        Assert.Equal(presentation.Detail, metric.Detail);
+        Assert.Contains("Agris active: approximately 25 min", presentation.Description);
+        Assert.DoesNotContain("Different loot buffs", presentation.Description);
     }
 
     [Theory]

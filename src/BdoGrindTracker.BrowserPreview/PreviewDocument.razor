@@ -11,13 +11,14 @@
     <link rel="icon" href="assets/branding/grindcrest.ico" />
     <link rel="stylesheet" href="@AppStylesheet" />
     <link rel="stylesheet" href="@GarmothStylesheet" />
-    <link rel="stylesheet" href="@Stylesheet("grind-goals.css")" />
+    <link rel="stylesheet" href="@VersionedAsset("grind-goals.css")" />
     <link rel="stylesheet" href="updates.css" />
-    <link rel="stylesheet" href="@Stylesheet("overlay-editor.css")" />
+    <link rel="stylesheet" href="@VersionedAsset("overlay-editor.css")" />
     <link rel="stylesheet" href="overlay-widgets.css" />
     <link rel="stylesheet" href="overlay-consumables.css" />
     <link rel="stylesheet" href="consumables.css" />
     <link rel="stylesheet" href="session-timeline.css" />
+    <link rel="stylesheet" href="@VersionedAsset("session-share.css")" />
     <link rel="stylesheet" href="browser-preview.css" />
     <link rel="stylesheet" href="@ThemeStylesheet" />
 </head>
@@ -25,8 +26,10 @@
     <div id="app"><PreviewShell @rendermode="@(new InteractiveServerRenderMode(prerender: false))" /></div>
     <div id="blazor-error-ui" role="alert"><span data-error-message>The preview was interrupted. </span><a href="">Reload</a></div>
     <script src="app.js"></script>
-    <script src="overlay-editor.js"></script>
+    <script src="@VersionedAsset("overlay-alignment.js")"></script>
+    <script src="@VersionedAsset("overlay-editor.js")"></script>
     <script src="session-timeline.js"></script>
+    <script src="@VersionedAsset("session-share.js")"></script>
     <script src="_framework/blazor.web.js"></script>
 </body>
 </html>
@@ -36,5 +39,5 @@
     private string AppStylesheet => $"app.css?v={System.IO.File.GetLastWriteTimeUtc(System.IO.Path.Combine(HostEnvironment.WebRootPath, "app.css")).Ticks}";
     private string GarmothStylesheet => $"garmoth.css?v={System.IO.File.GetLastWriteTimeUtc(System.IO.Path.Combine(HostEnvironment.WebRootPath, "garmoth.css")).Ticks}";
     private string ThemeStylesheet => $"themes.css?v={System.IO.File.GetLastWriteTimeUtc(System.IO.Path.Combine(HostEnvironment.WebRootPath, "themes.css")).Ticks}";
-    private string Stylesheet(string file) => $"{file}?v={System.IO.File.GetLastWriteTimeUtc(System.IO.Path.Combine(HostEnvironment.WebRootPath, file)).Ticks}";
+    private string VersionedAsset(string file) => $"{file}?v={System.IO.File.GetLastWriteTimeUtc(System.IO.Path.Combine(HostEnvironment.WebRootPath, file)).Ticks}";
 }

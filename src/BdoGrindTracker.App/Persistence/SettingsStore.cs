@@ -51,8 +51,10 @@ internal sealed class SettingsStore
         }
         catch (Exception exception) when (exception is JsonException or IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException)
         {
+            System.Diagnostics.Trace.TraceWarning("Settings load failed for {0}: {1} (0x{2:X8}).",
+                Path.GetFileName(_settingsPath), exception.GetType().Name, exception.HResult);
             LoadError = "Die Einstellungen konnten nicht gelesen werden und werden nicht überschrieben. " +
-                "Bitte prüfe die Datei " + _settingsPath + " und versuche das erneute Laden und Sichern. " + exception.Message;
+                "Bitte prüfe die Datei " + _settingsPath + " und versuche das erneute Laden und Sichern.";
             return CreateCurrentDefaults();
         }
     }

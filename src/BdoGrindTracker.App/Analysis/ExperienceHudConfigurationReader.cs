@@ -3,6 +3,7 @@ using System.Security;
 using System.Text;
 using System.Xml;
 using System.Xml.Linq;
+using BdoGrindTracker.Ocr;
 
 namespace BdoGrindTracker.App.Analysis;
 
@@ -15,6 +16,11 @@ internal sealed record ExperienceHudConfiguration(int ScreenWidth, int ScreenHei
 internal sealed class ExperienceHudConfigurationReader
 {
     private const int MaximumFileBytes = 4 * 1024 * 1024;
+
+    internal static ExperienceHudConfiguration? FromCalibration(CompanionCalibration? calibration) =>
+        calibration is { ScreenWidth: > 0 and <= 32768, ScreenHeight: > 0 and <= 32768 } &&
+        float.IsFinite(calibration.UiScale) && calibration.UiScale is >= .5f and <= 3f
+            ? new(calibration.ScreenWidth, calibration.ScreenHeight, calibration.UiScale) : null;
 
     public ExperienceHudConfiguration? ReadDefault()
     {
@@ -73,7 +79,9 @@ internal sealed class ExperienceHudConfigurationReader
         {
             if (!uint.TryParse(Path.GetFileName(candidate), NumberStyles.AllowLeadingSign,
                     CultureInfo.InvariantCulture, out var id) || id == 0) continue;
-            var written = Directory.GetLastWriteTimeUtc(candidate);
+            var variablesPath = Path.Combine(candidate, "gameVariable.xml");
+            if (!File.Exists(variablesPath)) continue;
+            var written = File.GetLastWriteTimeUtc(variablesPath);
             if (selected is not null && written < selectedWriteTime) continue;
             selected = candidate;
             selectedWriteTime = written;

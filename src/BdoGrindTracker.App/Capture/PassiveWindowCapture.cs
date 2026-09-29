@@ -10,21 +10,44 @@ internal sealed class PassiveWindowCapture : IDisposable
     private readonly object _sync = new();
     private readonly Func<WindowCaptureTarget> _locate;
     private readonly Func<WindowCaptureTarget, WindowCaptureGeometry> _readGeometry;
-    private readonly Func<WindowCaptureTarget, WindowCaptureGeometry, IWindowFrameSource> _createSource;
+    private readonly Func<WindowCaptureTarget, WindowCaptureGeometry, TimeSpan, IWindowFrameSource> _createSource;
     private WindowCaptureTarget? _target;
     private IWindowFrameSource? _source;
+    private TimeSpan _minimumUpdateInterval = GraphicsCaptureRateLimiter.LiveMinimumInterval;
     private bool _disposed;
 
     public PassiveWindowCapture() : this(NativeWindowCapture.LocateGame,
-        NativeWindowCapture.ReadGeometry, static (target, geometry) => new GraphicsWindowFrameSource(target, geometry)) { }
+        NativeWindowCapture.ReadGeometry, static (target, geometry, minimumInterval) =>
+            new GraphicsWindowFrameSource(target, geometry, minimumInterval)) { }
 
     internal PassiveWindowCapture(Func<WindowCaptureTarget> locate,
         Func<WindowCaptureTarget, WindowCaptureGeometry> readGeometry,
         Func<WindowCaptureTarget, WindowCaptureGeometry, IWindowFrameSource> createSource)
+        : this(locate, readGeometry, (target, geometry, minimumInterval) =>
+        {
+            var source = createSource(target, geometry);
+            try { source.SetMinimumUpdateInterval(minimumInterval); return source; }
+            catch { source.Dispose(); throw; }
+        }) { }
+
+    private PassiveWindowCapture(Func<WindowCaptureTarget> locate,
+        Func<WindowCaptureTarget, WindowCaptureGeometry> readGeometry,
+        Func<WindowCaptureTarget, WindowCaptureGeometry, TimeSpan, IWindowFrameSource> createSource)
     {
         _locate = locate;
         _readGeometry = readGeometry;
         _createSource = createSource;
+    }
+
+    internal void SetMinimumUpdateInterval(TimeSpan minimumInterval)
+    {
+        lock (_sync)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_minimumUpdateInterval == minimumInterval) return;
+            _source?.SetMinimumUpdateInterval(minimumInterval);
+            _minimumUpdateInterval = minimumInterval;
+        }
     }
 
     internal Rectangle PrepareCapture()
@@ -52,7 +75,7 @@ internal sealed class PassiveWindowCapture : IDisposable
             if (clientRegion != new Rectangle(Point.Empty, target.ClientSize))
                 throw new InvalidOperationException("Der Aufnahmebereich stimmt nicht mit dem gebundenen Spielfenster überein.");
             var geometry = ReadValidatedGeometry(target);
-            _source ??= _createSource(target, geometry);
+            _source ??= _createSource(target, geometry, _minimumUpdateInterval);
             // The frame source checks the HWND while waiting and immediately before
             // returning pixels; minimizing or closing cannot replay its last image.
             return _source.Capture(() => ReadValidatedGeometry(target), cancellationToken);
@@ -114,37 +137,50 @@ internal readonly record struct WindowCaptureGeometry(
 
 internal interface IWindowFrameSource : IDisposable
 {
+    void SetMinimumUpdateInterval(TimeSpan minimumInterval);
     CapturedDesktopBitmap Capture(Func<WindowCaptureGeometry> readGeometry, CancellationToken cancellationToken);
 }
+
+/// <summary>The game window cannot currently supply pixels, but may become capturable again.</summary>
+internal sealed class GameWindowUnavailableException(string message) : InvalidOperationException(message);
 
 internal static class NativeWindowCapture
 {
     internal static WindowCaptureTarget LocateGame()
     {
         var candidates = new List<WindowCaptureTarget>();
+        var unavailableGameWindow = false;
         NativeOverlayApi.EnumWindows((window, _) =>
         {
-            if (!NativeOverlayApi.IsWindowVisible(window) || NativeOverlayApi.IsIconic(window) || GetWindow(window, 4) != 0)
-                return true;
+            if (GetWindow(window, 4) != 0) return true;
             try
             {
                 NativeOverlayApi.GetWindowThreadProcessId(window, out var processId);
                 if (processId == 0 || processId == Environment.ProcessId) return true;
                 using var process = Process.GetProcessById(checked((int)processId));
                 if (!NativeOverlayGameWindow.IsGameProcessName(process.ProcessName)) return true;
+                if (!NativeOverlayApi.IsWindowVisible(window) || NativeOverlayApi.IsIconic(window) || IsCloaked(window))
+                {
+                    unavailableGameWindow = true;
+                    return true;
+                }
                 var target = new WindowCaptureTarget(window, processId, Size.Empty);
                 var geometry = ReadGeometry(target);
                 if (geometry.ClientBounds.Width > 0 && geometry.ClientBounds.Height > 0)
                     candidates.Add(target with { ClientSize = geometry.ClientBounds.Size });
             }
+            catch (GameWindowUnavailableException) { unavailableGameWindow = true; }
             catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception) { }
             return true;
         }, 0);
         var foreground = NativeOverlayApi.GetForegroundWindow();
-        return candidates.OrderByDescending(candidate => candidate.Handle == foreground)
+        var selected = candidates.OrderByDescending(candidate => candidate.Handle == foreground)
             .ThenByDescending(candidate => (long)candidate.ClientSize.Width * candidate.ClientSize.Height)
-            .Cast<WindowCaptureTarget?>().FirstOrDefault()
-            ?? throw new InvalidOperationException("Kein sichtbares Black-Desert-Spielfenster gefunden. Spiel öffnen und minimierte Fenster wiederherstellen.");
+            .Cast<WindowCaptureTarget?>().FirstOrDefault();
+        if (selected is { } target) return target;
+        if (unavailableGameWindow)
+            throw new GameWindowUnavailableException("Das Black-Desert-Spielfenster ist minimiert oder nicht sichtbar. Fenster wiederherstellen und Tracking erneut starten.");
+        throw new InvalidOperationException("Kein sichtbares Black-Desert-Spielfenster gefunden. Spiel öffnen und minimierte Fenster wiederherstellen.");
     }
 
     internal static WindowCaptureGeometry ReadGeometry(WindowCaptureTarget target)
@@ -153,7 +189,7 @@ internal static class NativeWindowCapture
         if (!NativeOverlayApi.IsWindow(target.Handle) || processId != target.ProcessId)
             throw new InvalidOperationException("Das aufgenommene Black-Desert-Spielfenster wurde geschlossen. Tracking bitte erneut starten.");
         if (!NativeOverlayApi.IsWindowVisible(target.Handle) || NativeOverlayApi.IsIconic(target.Handle) || IsCloaked(target.Handle))
-            throw new InvalidOperationException("Das Black-Desert-Spielfenster ist minimiert oder nicht sichtbar. Fenster wiederherstellen und Tracking erneut starten.");
+            throw new GameWindowUnavailableException("Das Black-Desert-Spielfenster ist minimiert oder nicht sichtbar. Fenster wiederherstellen und Tracking erneut starten.");
         if (!GetClientRect(target.Handle, out var client) || !GetWindowRect(target.Handle, out var window))
             throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
         var origin = new NativeOverlayApi.NativePoint(0, 0);

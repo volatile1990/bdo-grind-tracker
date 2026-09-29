@@ -16,15 +16,18 @@ internal sealed class GraphicsWindowFrameSource : IWindowFrameSource
     private readonly Direct3D11CaptureFramePool _pool;
     private readonly GraphicsCaptureSession _session;
     private readonly bool _isHdr;
+    private TimeSpan _minimumUpdateInterval;
     private bool _disposed;
     private volatile bool _closed;
     internal bool IsCaptureBorderSuppressed { get; }
 
-    internal GraphicsWindowFrameSource(WindowCaptureTarget target, WindowCaptureGeometry geometry)
+    internal GraphicsWindowFrameSource(WindowCaptureTarget target, WindowCaptureGeometry geometry,
+        TimeSpan? minimumUpdateInterval = null)
     {
         if (!GraphicsCaptureSession.IsSupported())
             throw new NotSupportedException("Windows unterstützt die Spielfensteraufnahme auf diesem System nicht.");
         _isHdr = geometry.IsHdr;
+        _minimumUpdateInterval = minimumUpdateInterval ?? GraphicsCaptureRateLimiter.LiveMinimumInterval;
         _item = WindowCaptureDevice.CreateItem(target.Handle);
         _device = new WindowCaptureDevice();
         try
@@ -37,7 +40,7 @@ internal sealed class GraphicsWindowFrameSource : IWindowFrameSource
                 _session = _pool.CreateCaptureSession(_item);
                 _session.IsCursorCaptureEnabled = false;
                 IsCaptureBorderSuppressed = WindowCaptureDevice.TryDisableCaptureBorder(_session);
-                GraphicsCaptureRateLimiter.TryApply(_session);
+                GraphicsCaptureRateLimiter.TryApply(_session, _minimumUpdateInterval);
                 _item.Closed += OnClosed;
                 _session.StartCapture();
             }
@@ -50,6 +53,14 @@ internal sealed class GraphicsWindowFrameSource : IWindowFrameSource
             }
         }
         catch { _device.Dispose(); throw; }
+    }
+
+    public void SetMinimumUpdateInterval(TimeSpan minimumInterval)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (_minimumUpdateInterval == minimumInterval) return;
+        GraphicsCaptureRateLimiter.TryApply(_session, minimumInterval);
+        _minimumUpdateInterval = minimumInterval;
     }
 
     public CapturedDesktopBitmap Capture(Func<WindowCaptureGeometry> readGeometry, CancellationToken cancellationToken)

@@ -42,6 +42,10 @@ Die Vorlagen **Kompakt**, **Dashboard**, **Loot-Inventar** und **Loot-Leiste** b
 Trash pro Stunde über einem großen Inventarraster an (336 × 640).
 Module lassen sich aus der Bibliothek auf die Arbeitsfläche ziehen oder per Klick
 hinzufügen. Auf der Fläche können sie verschoben, vergrößert und verkleinert werden.
+Die standardmäßig aktive **Auto-Ausrichtung** lässt Module beim Annähern an
+Kanten, Mittelpunkte und gleichmäßige Abstände einrasten. Hilfslinien zeigen die
+Ausrichtung während des Ziehens an. Sie funktioniert unabhängig vom **8-px-Raster**;
+mit gedrückter **Alt**-Taste lässt sie sich beim Ziehen vorübergehend aussetzen.
 Wird die Overlay-Fläche am Eckgriff oder über Breite und Höhe geändert,
 bleiben Position, Breite und Höhe aller Module unverändert. So lässt sich freie
 Fläche entfernen, ohne die Komponenten zu verkleinern. Inhalte außerhalb der
@@ -67,7 +71,7 @@ Unter **Eigene Vorlagen** kann es später geladen, mit dem aktuellen Layout
 eine Bestätigung.
 
 Eine eigene Vorlage enthält Module samt Itemauswahl und Gestaltung, die Größe der
-Arbeitsfläche, Skalierung, Deckkraft, Rahmen und Raster. Beim Laden bleiben die
+Arbeitsfläche, Skalierung, Deckkraft, Rahmen, Raster und Auto-Ausrichtung. Beim Laden bleiben die
 aktuelle Fensterposition, Sichtbarkeit, Ein-/Aus-Zustand, Mausbedienung,
 Tastenkürzel und der Ausschluss aus Bildschirmaufnahmen erhalten.
 Die Vorlagen liegen lokal in `overlay-templates.json`.

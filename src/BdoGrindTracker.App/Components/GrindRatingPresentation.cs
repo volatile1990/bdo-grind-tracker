@@ -4,11 +4,16 @@ using BdoGrindTracker.App.Localization;
 
 namespace BdoGrindTracker.App.Components;
 
-internal sealed class GrindRatingPresentation(GrindRatingResult result, bool differingLootBuffs = false,
+internal sealed class GrindRatingPresentation(GrindRatingResult result, AgrisPresentation agris, bool agrisIsActive,
     string? benchmarkStatus = null, string? language = "de")
 {
     private string T(string text) => AppText.Translate(text, language);
     private string F(string text, params object[] args) => AppText.Format(text, language, args);
+    private string? AgrisDetail => agris.ActiveDurationLabel is { } duration
+        ? F("{0} Agris", duration) : agrisIsActive ? T("Agris aktiv") : null;
+    private string? AgrisDescription => AgrisDetail is null ? null :
+        (agris.ActiveDurationLabel is null ? T("Agris ist aktiv; die Dauer wurde noch nicht erfasst.") : agris.Description) + " " +
+        T("Der Vergleich berücksichtigt keine Agris-Korrektur.");
     internal GrindRatingResult Result => result;
     internal GrindRatingSpectrum? Spectrum => GrindRatingSpectrum.Create(result, language);
     internal string Label => result.Tier switch
@@ -28,7 +33,7 @@ internal sealed class GrindRatingPresentation(GrindRatingResult result, bool dif
     };
     internal string ToneClass => "metric-tone-" + Tone.ToString().ToLowerInvariant();
     internal string? Detail => result.Tier == GrindRatingTier.Unavailable ? null :
-        result.IsProvisional ? T("Vorläufig") : differingLootBuffs ? T("Abweichende Loot-Buffs") : null;
+        result.IsProvisional ? T("Vorläufig") : AgrisDetail;
     internal string Description
     {
         get
@@ -43,7 +48,7 @@ internal sealed class GrindRatingPresentation(GrindRatingResult result, bool dif
                 F("Referenz: {0} · Stand {1}.", T(benchmark.Conditions), benchmark.UpdatedAt.ToString("d", AppText.Culture(language))) + " " +
                 F("Quelle: {0}", benchmark.SourceUrl) +
                 (result.IsProvisional ? " · " + T("Vorläufig: weniger als 5 Minuten aktive Grindzeit.") : "") +
-                (differingLootBuffs ? " · " + T("Abweichende Loot-Buffs: Der Vergleich berücksichtigt keine Buff-Korrektur.") : "") +
+                (AgrisDescription is { } agrisDescription ? " · " + agrisDescription : "") +
                 refreshStatus;
         }
     }

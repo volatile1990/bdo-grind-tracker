@@ -59,6 +59,70 @@ public sealed class PassiveWindowCaptureTests
     }
 
     [Fact]
+    public void MinimumUpdateIntervalChangesReuseTheSourceAndSurviveRebinding()
+    {
+        var sources = new List<FakeSource>();
+        var selections = 0;
+        using var capture = new PassiveWindowCapture(
+            () => { selections++; return new WindowCaptureTarget(123, 456, Size.Empty); },
+            _ => Borderless(new Rectangle(100, 100, 8, 6)), (_, _) =>
+            {
+                var source = new FakeSource();
+                sources.Add(source);
+                return source;
+            });
+
+        capture.SetMinimumUpdateInterval(GraphicsCaptureRateLimiter.StandbyMinimumInterval);
+        capture.SetMinimumUpdateInterval(GraphicsCaptureRateLimiter.StandbyMinimumInterval);
+        Assert.Empty(sources);
+        Assert.Equal(0, selections);
+        var region = capture.PrepareCapture();
+        using (capture.Capture(region, CancellationToken.None).Bitmap) { }
+        var first = Assert.Single(sources);
+        Assert.Equal(new[] { TimeSpan.FromMilliseconds(500) }, first.MinimumIntervals);
+
+        capture.SetMinimumUpdateInterval(GraphicsCaptureRateLimiter.LiveMinimumInterval);
+        capture.SetMinimumUpdateInterval(GraphicsCaptureRateLimiter.LiveMinimumInterval);
+        using (capture.Capture(region, CancellationToken.None).Bitmap) { }
+        capture.SetMinimumUpdateInterval(GraphicsCaptureRateLimiter.StandbyMinimumInterval);
+        using (capture.Capture(region, CancellationToken.None).Bitmap) { }
+
+        Assert.Single(sources);
+        Assert.Equal(1, selections);
+        Assert.False(first.Disposed);
+        Assert.Equal(new[] { TimeSpan.FromMilliseconds(500), TimeSpan.FromMilliseconds(100),
+            TimeSpan.FromMilliseconds(500) }, first.MinimumIntervals);
+        Assert.Equal(first.MinimumIntervals, first.CapturedIntervals);
+
+        capture.StopCapture();
+        Assert.True(first.Disposed);
+        region = capture.PrepareCapture();
+        using (capture.Capture(region, CancellationToken.None).Bitmap) { }
+
+        Assert.Equal(2, selections);
+        Assert.Equal(2, sources.Count);
+        Assert.Equal(new[] { TimeSpan.FromMilliseconds(500) }, sources[1].MinimumIntervals);
+        Assert.Equal(sources[1].MinimumIntervals, sources[1].CapturedIntervals);
+    }
+
+    [Fact]
+    public void CaptureUsesTheLiveIntervalByDefault()
+    {
+        var source = new FakeSource();
+        using var capture = new PassiveWindowCapture(() => new(123, 456, Size.Empty),
+            _ => Borderless(new Rectangle(100, 100, 8, 6)), (_, _) => source);
+
+        var region = capture.PrepareCapture();
+        using (capture.Capture(region, CancellationToken.None).Bitmap) { }
+        capture.SetMinimumUpdateInterval(GraphicsCaptureRateLimiter.LiveMinimumInterval);
+        using (capture.Capture(region, CancellationToken.None).Bitmap) { }
+
+        Assert.Equal(new[] { TimeSpan.FromMilliseconds(100) }, source.MinimumIntervals);
+        Assert.Equal(new[] { TimeSpan.FromMilliseconds(100), TimeSpan.FromMilliseconds(100) },
+            source.CapturedIntervals);
+    }
+
+    [Fact]
     public void ResizeFailsBeforeAFrameCanReachAnalyzer()
     {
         var geometry = Borderless(new Rectangle(100, 100, 800, 600));
@@ -168,10 +232,14 @@ public sealed class PassiveWindowCaptureTests
         internal bool Disposed { get; private set; }
         internal bool ThrowOnDispose { get; init; }
         internal int Captures { get; private set; }
+        internal List<TimeSpan> MinimumIntervals { get; } = [];
+        internal List<TimeSpan> CapturedIntervals { get; } = [];
+        public void SetMinimumUpdateInterval(TimeSpan minimumInterval) => MinimumIntervals.Add(minimumInterval);
         public CapturedDesktopBitmap Capture(Func<WindowCaptureGeometry> readGeometry, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             Captures++;
+            CapturedIntervals.Add(MinimumIntervals[^1]);
             var geometry = readGeometry();
             return new CapturedDesktopBitmap(new Bitmap(geometry.ClientBounds.Width, geometry.ClientBounds.Height), geometry.IsHdr);
         }

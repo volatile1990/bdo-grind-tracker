@@ -30,7 +30,15 @@ internal static class Presentation
         : $"{Math.Max(0, (int)duration.TotalMinutes)} min";
     internal static decimal Hours(TimeSpan duration) => (decimal)duration.Ticks / TimeSpan.TicksPerHour;
     internal static decimal Hourly(decimal amount, TimeSpan duration) => duration > TimeSpan.Zero ? amount / Hours(duration) : 0;
-    internal static string SpotName(string? id, string? language = "de") => LootSpotCatalog.Spots.FirstOrDefault(spot => spot.Id == id)?.DisplayName ?? AppText.Translate("Grindspot wird erkannt", language);
+    internal static string SpotName(string? id, string? language = "de")
+    {
+        var name = LootSpotCatalog.Spots.FirstOrDefault(spot => spot.Id == id)?.DisplayName;
+        if (name is null) return AppText.Translate("Grindspot wird erkannt", language);
+        // Catalog identity stays independent of the UI language. Localize the
+        // actionable suffix of unresolved variants rather than persisted IDs.
+        return name.Replace("(Stufe wählen)", "(" + AppText.Translate("Stufe wählen", language) + ")", StringComparison.Ordinal)
+            .Replace("(AP bestätigen)", "(" + AppText.Translate("AP bestätigen", language) + ")", StringComparison.Ordinal);
+    }
     internal static LootSpotPresentation? Profile(string? id) => LootSpotPresentationCatalog.Profiles.FirstOrDefault(profile => profile.SpotId == id);
     internal static string SpotBackgroundStyle(LootSpotPresentation? profile, bool shaded = false)
     {

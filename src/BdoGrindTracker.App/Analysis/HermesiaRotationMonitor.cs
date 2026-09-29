@@ -8,9 +8,11 @@ namespace BdoGrindTracker.App.Analysis;
 
 internal static class HermesiaMessages
 {
-    internal static string Recognize(Mat pixels, CompanionWindowsOcrRecognizer engine)
+    internal static string Recognize(Mat pixels, CompanionWindowsOcrRecognizer engine,
+        CancellationToken cancellationToken = default)
     {
-        var raw = engine.Recognize(pixels).Text;
+        cancellationToken.ThrowIfCancellationRequested();
+        var raw = engine.Recognize(pixels, cancellationToken).Text;
         // The crop holds only the banner stack, so one enlarged black-and-white pass
         // reads messages the raw pass misses under a bright background or boss dialogue.
         using var gray = new Mat();
@@ -20,7 +22,7 @@ internal static class HermesiaMessages
         var scale = Math.Min(2.5, 1300d / pixels.Width);
         Cv2.Resize(gray, enlarged, new OpenCvSharp.Size(), scale, scale, InterpolationFlags.Cubic);
         Cv2.Threshold(enlarged, binary, 145, 255, ThresholdTypes.Binary);
-        return raw + "\n" + engine.Recognize(binary).Text;
+        return raw + "\n" + engine.Recognize(binary, cancellationToken).Text;
     }
     // Short phrases: skill hints beside the banners can merge into a line's first word,
     // and the AFK banner's last word can touch the crop edge.
@@ -394,7 +396,12 @@ internal class BufferedRotationProfileMonitor : IRotationProfileMonitor
                         if (!_disposed && epoch == _epoch)
                         {
                             diagnostics?.Note(spot, probedAt, "error", e.Message);
-                            InterruptCore("Erkennung unterbrochen · warte auf erstes Ereignis"); _error = "Rotation: " + e.Message;
+                            System.Diagnostics.Trace.TraceWarning("Rotation detection failed: {0} (0x{1:X8}).",
+                                e.GetType().Name, e.HResult);
+                            InterruptCore("Erkennung unterbrochen · warte auf erstes Ereignis");
+                            _error = e is InvalidOperationException && e.Message == "Englische Windows-Texterkennung fehlt."
+                                ? "Rotation: " + e.Message
+                                : "Rotationserkennung vorübergehend nicht verfügbar.";
                         }
                     }
                 }

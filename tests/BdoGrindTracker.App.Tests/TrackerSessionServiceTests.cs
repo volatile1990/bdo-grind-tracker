@@ -9,6 +9,7 @@ using BdoGrindTracker.App.Services;
 using BdoGrindTracker.App.Capture;
 using BdoGrindTracker.App.Character;
 using BdoGrindTracker.App.Integrations.Garmoth;
+using BdoGrindTracker.App.Localization;
 using BdoGrindTracker.App.Persistence;
 using BdoGrindTracker.App.Pricing;
 using BdoGrindTracker.App.UI;
@@ -33,11 +34,12 @@ public sealed partial class TrackerSessionServiceTests
             analyzer: new SyntheticAnalyzer { ConfigureLanguage = configured.Add });
         Assert.Equal("auto", fixture.Service.Preferences.GameLanguage);
         Assert.Equal("en", fixture.Service.State.DetectedGameLanguage);
+        Assert.Equal(new[] { "en" }, configured);
         language = "de";
         await fixture.Service.ToggleTrackingAsync();
         Assert.True(fixture.Service.State.IsRunning);
         Assert.Equal("de", fixture.Service.State.DetectedGameLanguage);
-        Assert.Equal(new[] { "de" }, configured);
+        Assert.Equal(new[] { "en", "de" }, configured);
     }
 
     [Fact]
@@ -53,9 +55,10 @@ public sealed partial class TrackerSessionServiceTests
         Assert.Contains("Textsprache", fixture.Service.State.Status);
         Assert.True((await fixture.Service.SavePreferencesAsync(fixture.Service.Preferences with { GameLanguage = "de" })).Succeeded);
         Assert.Equal("de", fixture.Settings.Load().GameLanguage);
+        Assert.Equal(new[] { "de" }, configured);
         await fixture.Service.ToggleTrackingAsync();
         Assert.True(fixture.Service.State.IsRunning);
-        Assert.Equal(new[] { "de" }, configured);
+        Assert.Equal(new[] { "de", "de" }, configured);
         Assert.False((await fixture.Service.SavePreferencesAsync(fixture.Service.Preferences with { GameLanguage = "en" })).Succeeded);
         Assert.Equal("de", fixture.Settings.Load().GameLanguage);
     }
@@ -120,6 +123,7 @@ public sealed partial class TrackerSessionServiceTests
         Assert.False(fixture.Clock.IsRunning);
         Assert.False(fixture.Service.State.HasSession);
         await fixture.Service.NewSessionAsync();
+        await WaitForAutomaticUploadsAsync(fixture);
         await fixture.Service.SavePreferencesAsync(fixture.Service.Preferences);
         Assert.True(fixture.Service.State.IsError);
         Assert.False(fixture.Service.State.AnalyzerAvailable);
@@ -278,6 +282,7 @@ public sealed partial class TrackerSessionServiceTests
         Assert.Equal(submitted, fixture.Service.State.IsSubmitted);
 
         await fixture.Service.NewSessionAsync();
+        await WaitForAutomaticUploadsAsync(fixture);
         await fixture.Service.UpdateLootQuantityAsync(id, "Black Crystal Fragment", 2, 0);
         saved = Assert.Single(fixture.HistoryStore.Load());
         Assert.Equal(2, saved.Totals["Black Crystal Fragment"]);
@@ -325,6 +330,7 @@ public sealed partial class TrackerSessionServiceTests
         Assert.Empty(fixture.Requests);
 
         await fixture.Service.NewSessionAsync();
+        await WaitForAutomaticUploadsAsync(fixture);
 
         AssertPayload(Assert.Single(fixture.Requests), 120, 3);
         var saved = Assert.Single(fixture.HistoryStore.Load());
@@ -378,6 +384,7 @@ public sealed partial class TrackerSessionServiceTests
         await fixture.ProcessAfter(TimeSpan.FromMinutes(90), ("Black Crystal Fragment", 2));
         await fixture.Service.PauseAsync();
         await fixture.Service.NewSessionAsync();
+        await WaitForAutomaticUploadsAsync(fixture);
 
         Assert.Empty(fixture.Requests);
         Assert.False(fixture.Settings.Load().GarmothAutoUploadEnabled);
@@ -407,6 +414,7 @@ public sealed partial class TrackerSessionServiceTests
         Assert.Empty(fixture.Requests);
 
         await fixture.Service.NewSessionAsync();
+        await WaitForAutomaticUploadsAsync(fixture);
 
         AssertPayload(Assert.Single(fixture.Requests), 125, 7, 5, blackStoneNetUnit: 2_600);
         Assert.NotEqual(id, fixture.Service.State.SessionId);
@@ -419,6 +427,7 @@ public sealed partial class TrackerSessionServiceTests
         Assert.NotNull(saved.GarmothUploadedAt);
         await fixture.Service.TickAsync();
         await fixture.Service.NewSessionAsync();
+        await WaitForAutomaticUploadsAsync(fixture);
         await fixture.Service.UploadHistoryAsync(id);
         Assert.Single(fixture.Requests);
     }
@@ -432,6 +441,7 @@ public sealed partial class TrackerSessionServiceTests
         await fixture.Service.PauseAsync();
 
         await fixture.Service.NewSessionAsync();
+        await WaitForAutomaticUploadsAsync(fixture);
 
         AssertPayload(Assert.Single(fixture.Requests), 2, 3);
     }
@@ -445,6 +455,7 @@ public sealed partial class TrackerSessionServiceTests
         await fixture.ProcessAfter(TimeSpan.FromMinutes(90), ("Black Crystal Fragment", 2));
 
         await fixture.Service.NewSessionAsync();
+        await WaitForAutomaticUploadsAsync(fixture);
 
         Assert.Empty(fixture.Requests);
         Assert.Equal(id, fixture.Service.State.SessionId);
@@ -452,7 +463,7 @@ public sealed partial class TrackerSessionServiceTests
     }
 
     [Fact]
-    public async Task PendingCompletedSessionCannotBeSentTwiceOrReplaced()
+    public async Task PendingCompletedSessionUploadDoesNotBlockNewSessionAndCannotBeSentTwice()
     {
         await using var fixture = new Fixture();
         var response = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -465,11 +476,12 @@ public sealed partial class TrackerSessionServiceTests
         try
         {
             await WaitUntilAsync(() => fixture.Requests.Count == 1);
-            Assert.False(pending.IsCompleted);
+            Assert.True((await pending.WaitAsync(TimeSpan.FromSeconds(5))).Succeeded);
             Assert.False(fixture.Service.State.HasSession);
-            Assert.True(fixture.Service.State.IsBusy);
-            await fixture.Service.NewSessionAsync();
-            await fixture.Service.UploadHistoryAsync(id);
+            Assert.False(fixture.Service.State.IsBusy);
+            Assert.Contains(id, fixture.Service.State.PendingGarmothUploads);
+            Assert.True((await fixture.Service.NewSessionAsync()).Succeeded);
+            Assert.False((await fixture.Service.UploadHistoryAsync(id)).Succeeded);
             await fixture.Service.TickAsync();
             AssertPayload(Assert.Single(fixture.Requests), 75, 7);
         }
@@ -477,6 +489,7 @@ public sealed partial class TrackerSessionServiceTests
         {
             response.TrySetResult(new HttpResponseMessage(HttpStatusCode.OK));
             await pending;
+            await WaitForAutomaticUploadsAsync(fixture);
         }
         Assert.False(fixture.Service.State.IsBusy);
         Assert.True(Assert.Single(fixture.HistoryStore.Load()).GarmothUploadBlocked);
@@ -501,6 +514,7 @@ public sealed partial class TrackerSessionServiceTests
         Assert.Equal(11, fixture.Service.State.Loot.TotalQuantity);
         await fixture.Service.UploadAsync();
         await fixture.Service.NewSessionAsync();
+        await WaitForAutomaticUploadsAsync(fixture);
         Assert.Single(fixture.Requests);
     }
 
@@ -516,6 +530,7 @@ public sealed partial class TrackerSessionServiceTests
         await fixture.ProcessAfter(TimeSpan.FromMinutes(90), ("Black Crystal Fragment", 7), ("Black Stone", 4));
         await fixture.Service.PauseAsync();
         await fixture.Service.NewSessionAsync();
+        await WaitForAutomaticUploadsAsync(fixture);
 
         Assert.False(fixture.Service.State.HasSession);
         var saved = Assert.Single(fixture.HistoryStore.Load());
@@ -527,6 +542,7 @@ public sealed partial class TrackerSessionServiceTests
         Assert.Equal(status == HttpStatusCode.OK, saved.GarmothUploadedAt.HasValue);
         await fixture.Service.UploadHistoryAsync(id);
         await fixture.Service.NewSessionAsync();
+        await WaitForAutomaticUploadsAsync(fixture);
         await fixture.Service.TickAsync();
         Assert.Single(fixture.Requests);
     }
@@ -541,12 +557,14 @@ public sealed partial class TrackerSessionServiceTests
         await fixture.ProcessAfter(TimeSpan.FromMinutes(90), ("Black Crystal Fragment", 7));
         await fixture.Service.PauseAsync();
         await fixture.Service.NewSessionAsync();
+        await WaitForAutomaticUploadsAsync(fixture);
 
         Assert.False(fixture.Service.State.HasSession);
         Assert.False(Assert.Single(fixture.HistoryStore.Load()).GarmothUploadBlocked);
         Assert.True(fixture.Service.State.IsError);
         await fixture.Service.TickAsync();
         await fixture.Service.NewSessionAsync();
+        await WaitForAutomaticUploadsAsync(fixture);
         Assert.Single(fixture.Requests);
         fixture.Respond = () => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
         await fixture.Service.UploadHistoryAsync(id);
@@ -568,12 +586,14 @@ public sealed partial class TrackerSessionServiceTests
         await fixture.ProcessAfter(TimeSpan.FromMinutes(2), ("Black Crystal Fragment", 2));
         await fixture.Service.PauseAsync();
         await fixture.Service.NewSessionAsync();
+        await WaitForAutomaticUploadsAsync(fixture);
         fixture.Respond = () => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
         fixture.Begin();
         var nextId = fixture.Service.State.SessionId;
         await fixture.ProcessAfter(TimeSpan.FromMinutes(3), ("Black Crystal Fragment", 5));
         await fixture.Service.PauseAsync();
         await fixture.Service.NewSessionAsync();
+        await WaitForAutomaticUploadsAsync(fixture);
 
         Assert.Equal(2, fixture.Requests.Count);
         AssertPayload(fixture.Requests.ToArray()[1], 3, 5);
@@ -590,6 +610,7 @@ public sealed partial class TrackerSessionServiceTests
         await fixture.ProcessAfter(TimeSpan.FromMinutes(2), ("Black Crystal Fragment", 2));
         await fixture.Service.PauseAsync();
         await fixture.Service.NewSessionAsync();
+        await WaitForAutomaticUploadsAsync(fixture);
         await fixture.Service.SavePreferencesAsync(fixture.Service.Preferences with { AutoUpload = true });
         await fixture.Service.TickAsync();
         Assert.Empty(fixture.Requests);
@@ -597,6 +618,7 @@ public sealed partial class TrackerSessionServiceTests
         await fixture.ProcessAfter(TimeSpan.FromMinutes(3), ("Black Crystal Fragment", 5));
         await fixture.Service.PauseAsync();
         await fixture.Service.NewSessionAsync();
+        await WaitForAutomaticUploadsAsync(fixture);
 
         AssertPayload(Assert.Single(fixture.Requests), 3, 5);
         Assert.False(fixture.HistoryStore.Load().Single(entry => entry.SessionId == previousId).GarmothUploadBlocked);
@@ -616,6 +638,7 @@ public sealed partial class TrackerSessionServiceTests
         AssertPayload(Assert.Single(fixture.Requests), 90, 5);
         Assert.True(fixture.Service.State.IsSubmitted);
         await fixture.Service.NewSessionAsync();
+        await WaitForAutomaticUploadsAsync(fixture);
         await fixture.Service.TickAsync();
         await fixture.Service.UploadHistoryAsync(id);
         Assert.Single(fixture.Requests);
@@ -630,6 +653,7 @@ public sealed partial class TrackerSessionServiceTests
         await fixture.Service.PauseAsync();
 
         await fixture.Service.NewSessionAsync();
+        await WaitForAutomaticUploadsAsync(fixture);
 
         Assert.Empty(fixture.Requests);
         Assert.False(fixture.Service.State.HasSession);
@@ -653,6 +677,7 @@ public sealed partial class TrackerSessionServiceTests
         await fixture.Service.PauseAsync();
 
         await fixture.Service.NewSessionAsync();
+        await WaitForAutomaticUploadsAsync(fixture);
 
         Assert.Empty(fixture.Requests);
         Assert.False(fixture.Service.State.HasSession);
@@ -667,6 +692,7 @@ public sealed partial class TrackerSessionServiceTests
         await fixture.Service.PauseAsync();
 
         await fixture.Service.NewSessionAsync();
+        await WaitForAutomaticUploadsAsync(fixture);
 
         Assert.Empty(fixture.Requests);
         Assert.Empty(fixture.HistoryStore.Load());
@@ -685,6 +711,7 @@ public sealed partial class TrackerSessionServiceTests
         Directory.CreateDirectory(journalPath);
 
         await fixture.Service.NewSessionAsync();
+        await WaitForAutomaticUploadsAsync(fixture);
 
         Assert.Empty(fixture.Requests);
         Assert.False(fixture.Service.State.HasSession);
@@ -729,6 +756,7 @@ public sealed partial class TrackerSessionServiceTests
         await fixture.Service.PauseAsync();
 
         await fixture.Service.NewSessionAsync();
+        await WaitForAutomaticUploadsAsync(fixture);
 
         AssertPayload(Assert.Single(fixture.Requests), 120, 20, 5);
     }
@@ -755,6 +783,7 @@ public sealed partial class TrackerSessionServiceTests
         await fixture.Service.PauseAsync();
 
         await fixture.Service.NewSessionAsync();
+        await WaitForAutomaticUploadsAsync(fixture);
 
         AssertPayload(Assert.Single(fixture.Requests), 60, 5);
     }
@@ -802,6 +831,7 @@ public sealed partial class TrackerSessionServiceTests
         Assert.True((await fixture.Service.PauseAsync()).Succeeded);
         Assert.Equal(TimeSpan.FromMinutes(2), fixture.Service.State.Elapsed);
         await fixture.Service.NewSessionAsync();
+        await WaitForAutomaticUploadsAsync(fixture);
 
         Assert.NotEqual(id, fixture.Service.State.SessionId);
         Assert.Equal(TimeSpan.Zero, fixture.Service.State.Elapsed);
@@ -854,6 +884,7 @@ public sealed partial class TrackerSessionServiceTests
         await fixture.Service.UploadAsync();
         await fixture.Service.TickAsync();
         await fixture.Service.NewSessionAsync();
+        await WaitForAutomaticUploadsAsync(fixture);
         await fixture.Service.ShutdownAsync();
 
         Assert.Equal(0, fixture.Captures);
@@ -873,6 +904,7 @@ public sealed partial class TrackerSessionServiceTests
         await fixture.Service.TickAsync();
         await fixture.Service.PauseAsync();
         await fixture.Service.NewSessionAsync();
+        await WaitForAutomaticUploadsAsync(fixture);
 
         await fixture.Service.UpdateHistoryLootAsync(id, new Dictionary<string, long>
         {
@@ -1005,6 +1037,8 @@ public sealed partial class TrackerSessionServiceTests
         await fixture.Service.PauseAsync();
         var completion = fixture.Service.NewSessionAsync();
         await WaitUntilAsync(() => fixture.Requests.Count == 1);
+        Assert.True((await completion.WaitAsync(TimeSpan.FromSeconds(5))).Succeeded);
+        Assert.False(fixture.Service.State.IsBusy);
         var shutdown = fixture.Service.ShutdownAsync();
         try
         {
@@ -1089,6 +1123,7 @@ public sealed partial class TrackerSessionServiceTests
         Assert.False(fixture.Analyzer.Disposed);
         Assert.Equal(5, Assert.Single(fixture.HistoryStore.Load()).Totals["Black Crystal Fragment"]);
         await fixture.Service.NewSessionAsync();
+        await WaitForAutomaticUploadsAsync(fixture);
         Assert.False(fixture.Service.State.HasSession);
     }
 
@@ -1135,6 +1170,7 @@ public sealed partial class TrackerSessionServiceTests
         Assert.True(fixture.Service.State.IsBusy);
         await fixture.Service.ToggleTrackingAsync();
         await fixture.Service.NewSessionAsync();
+        await WaitForAutomaticUploadsAsync(fixture);
         Assert.False(fixture.Service.State.IsRunning);
         Assert.Equal(sessionId, fixture.Service.State.SessionId);
         Assert.Equal(3, fixture.Service.State.Loot.TotalQuantity);
@@ -1146,6 +1182,7 @@ public sealed partial class TrackerSessionServiceTests
         Assert.False(fixture.Service.State.IsBusy);
         Assert.False(fixture.Analyzer.Disposed);
         await fixture.Service.NewSessionAsync();
+        await WaitForAutomaticUploadsAsync(fixture);
         Assert.False(fixture.Service.State.HasSession);
     }
 
@@ -1247,7 +1284,10 @@ public sealed partial class TrackerSessionServiceTests
         await WaitUntilAsync(() => fixture.Captures == 1);
         Assert.True(fixture.Service.State.IsRunning);
         Assert.True(fixture.Service.State.IsError);
-        Assert.Contains("Einstellungen nicht gespeichert", fixture.Service.State.Status);
+        Assert.Equal("Tracking aktiv. Einstellungen nicht gespeichert. Prüfe Speicherplatz und Zugriffsrechte.",
+            fixture.Service.State.Status);
+        Assert.Equal("Tracking active. Settings not saved. Check disk space and access permissions.",
+            AppText.Translate(fixture.Service.State.Status, "en"));
         await fixture.ProcessAfter(TimeSpan.FromMinutes(1), ("Black Crystal Fragment", 2));
         await fixture.Service.TickAsync();
         Assert.True(fixture.Service.State.IsError);
@@ -1334,6 +1374,9 @@ public sealed partial class TrackerSessionServiceTests
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         while (!predicate()) await Task.Delay(1, timeout.Token);
     }
+
+    private static Task WaitForAutomaticUploadsAsync(Fixture fixture) =>
+        WaitUntilAsync(() => fixture.Service.State.PendingGarmothUploads.Count == 0);
 
     private static Task RunOnHostContextAsync(Func<Task> action)
     {

@@ -202,6 +202,58 @@ public sealed class HistoryDashboardRegressionTests
         Assert.DoesNotContain("class=\"edit-loot-row\"", markup);
     }
 
+    [Fact]
+    public async Task LootPrecedesSecondaryMetadataAndSavedColumnOrderStillWins()
+    {
+        var trash = Presentation.Profile(LootSpotCatalog.HermesiaId)!.TrashItemName;
+        var favorite = LootSpotCatalog.GetRequired(LootSpotCatalog.HermesiaId).AllowedItems.First(name => name != trash);
+        var session = new HistorySession { Preferences = new() { UiLanguage = "de", FavoriteItems = [favorite] } };
+        var path = "/history/spots/" + LootSpotCatalog.HermesiaId;
+        var markup = await RenderAsync(session, path);
+        var header = Regex.Match(markup, "<thead>(.*?)</thead>", RegexOptions.Singleline).Value;
+        var columns = Regex.Matches(header, "data-loot-name=\"([^\"]+)\"").Select(match => match.Groups[1].Value).ToArray();
+        Assert.Equal(trash, columns[0]);
+        Assert.Equal(favorite, columns[1]);
+        Assert.True(header.IndexOf("session-loot-column", StringComparison.Ordinal) < header.IndexOf("session-experience-column", StringComparison.Ordinal));
+        Assert.Contains("aria-label=\"Sessiondetails anzeigen\"", markup);
+
+        session = new HistorySession { Preferences = session.Preferences with
+        {
+            LootColumnOrders = new Dictionary<string, string[]> { [LootSpotCatalog.HermesiaId] = [favorite, trash] }
+        } };
+        markup = await RenderAsync(session, path);
+        header = Regex.Match(markup, "<thead>(.*?)</thead>", RegexOptions.Singleline).Value;
+        columns = Regex.Matches(header, "data-loot-name=\"([^\"]+)\"").Select(match => match.Groups[1].Value).ToArray();
+        Assert.Equal(favorite, columns[0]);
+        Assert.Equal(trash, columns[1]);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task HistoricalVariantCorrectionIsAvailableOnlyBeforeSubmission(bool submitted)
+    {
+        var entry = Entry("dehkia-ash-forest-unspecified", 10, DateTimeOffset.Now.AddDays(-1), "Warrior · Awakening")
+            with { GarmothUploadedAt = submitted ? DateTimeOffset.Now : null };
+        var markup = await RenderAsync(new() { History = [entry] }, $"/history/spots/{entry.SpotId}/{entry.SessionId}?edit=1");
+        Assert.Contains("Spotvariante dieser Session", markup);
+        Assert.Contains("[Dehkia] Ash Forest", markup);
+        var select = Regex.Match(markup, "Spotvariante dieser Session</span>\\s*<select[^>]*>");
+        Assert.True(select.Success);
+        Assert.Equal(submitted, select.Value.Contains("disabled", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task HistoryOpensReferencedDetailsWithoutRedundantValuationHint()
+    {
+        var session = new HistorySession();
+        var entry = session.History[0];
+        var markup = await RenderAsync(session, $"/history/spots/{entry.SpotId}/{entry.SessionId}");
+        Assert.Contains("aria-expanded=\"true\"", markup);
+        Assert.DoesNotContain($"id=\"session-details-{entry.SessionId}\" class=\"session-details-row\" hidden", markup);
+        Assert.DoesNotContain("Bewertung mit aktuellen Preisen und Steuereinstellungen", markup);
+    }
+
     [Theory]
     [InlineData("/history?view=all")]
     [InlineData("/history/spots/hermesia")]
@@ -290,7 +342,7 @@ public sealed class HistoryDashboardRegressionTests
     {
         public event Action? Changed { add { } remove { } }
         public TrackerState State { get; } = new() { AnalyzerAvailable = true };
-        public TrackerPreferences Preferences { get; } = new() { UiLanguage = "de" };
+        public TrackerPreferences Preferences { get; init; } = new() { UiLanguage = "de" };
         public IReadOnlyList<TrackerMonitor> Monitors { get; } = [];
         public IReadOnlyList<LootHistoryEntry> History { get; set; } = [Entry(LootSpotCatalog.HermesiaId, 10, DateTimeOffset.Now.AddDays(-1), "Warrior · Awakening")];
         public LootPriceSnapshot Prices { get; } = LootPriceCatalog.FixedSnapshot("eu");

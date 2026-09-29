@@ -56,6 +56,67 @@ public sealed class SetupWizardTests
     }
 
     [Fact]
+    public async Task EnteringCaptureStepChecksOcrAutomaticallyWithoutStartingTracking()
+    {
+        await using var tracker = new PreviewTrackerSession(empty: true);
+        var activator = new CapturingActivator();
+        await using var provider = Services(tracker, activator, new TestNavigation());
+        await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
+        await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            var rendered = await renderer.RenderComponentAsync<SetupWizard>(ParameterView.Empty);
+            var wizard = activator.Components.OfType<SetupWizard>().Single();
+            Assert.Null(tracker.State.OcrInstallationStatus);
+            await Invoke(wizard, "Next");
+            Assert.Null(tracker.State.OcrInstallationStatus);
+
+            await Invoke(wizard, "Next");
+
+            Assert.NotNull(tracker.State.OcrInstallationStatus);
+            Assert.Contains("Windows language packs are not checked", WebUtility.HtmlDecode(rendered.ToHtmlString()));
+            Assert.False(tracker.State.IsRunning);
+            Assert.False(tracker.State.HasSession);
+
+            await Invoke(wizard, "Next");
+            await tracker.NewSessionAsync();
+            Assert.Null(tracker.State.OcrInstallationStatus);
+
+            // Re-entering the step also refreshes packages installed outside the app.
+            await Invoke(wizard, "Back");
+
+            Assert.NotNull(tracker.State.OcrInstallationStatus);
+            Assert.False(tracker.State.IsRunning);
+            Assert.False(tracker.State.HasSession);
+
+            // Ordinary state updates must not trigger repeated checks.
+            await tracker.NewSessionAsync();
+            Assert.Null(tracker.State.OcrInstallationStatus);
+        });
+    }
+
+    [Fact]
+    public async Task EnteringCaptureStepDoesNotReconfigureOcrWhileTracking()
+    {
+        await using var tracker = new PreviewTrackerSession(empty: true);
+        await tracker.ToggleTrackingAsync();
+        var activator = new CapturingActivator();
+        await using var provider = Services(tracker, activator, new TestNavigation());
+        await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
+        await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            await renderer.RenderComponentAsync<SetupWizard>(ParameterView.Empty);
+            var wizard = activator.Components.OfType<SetupWizard>().Single();
+
+            await Invoke(wizard, "Next");
+            await Invoke(wizard, "Next");
+
+            Assert.Equal(2, GetField<int>(wizard, "_step"));
+            Assert.Null(tracker.State.OcrInstallationStatus);
+            Assert.True(tracker.State.IsRunning);
+        });
+    }
+
+    [Fact]
     public async Task CompletionKeepsChosenSettingsWithoutStartingTrackingOrEnablingUploads()
     {
         await using var tracker = new PreviewTrackerSession(empty: true);
@@ -207,6 +268,35 @@ public sealed class SetupWizardTests
             Assert.Contains("overlays", english, StringComparison.OrdinalIgnoreCase);
             Assert.Equal("de", tracker.Preferences.GameLanguage);
             Assert.False(tracker.Preferences.SetupCompleted);
+        });
+    }
+
+    [Fact]
+    public async Task VisitedSetupStepsDoNotClaimThatCaptureHasBeenVerifiedAndTheCheckStaysOptional()
+    {
+        await using var tracker = new PreviewTrackerSession(empty: true);
+        var activator = new CapturingActivator();
+        await using var provider = Services(tracker, activator, new TestNavigation());
+        await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
+        await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            var rendered = await renderer.RenderComponentAsync<SetupWizard>(ParameterView.Empty);
+            var wizard = activator.Components.OfType<SetupWizard>().Single();
+            for (var step = 0; step < 4; step++) await Invoke(wizard, "Next");
+            var markup = WebUtility.HtmlDecode(rendered.ToHtmlString());
+            Assert.Contains("is-visited", markup);
+            Assert.DoesNotContain("is-done", markup);
+            Assert.Contains("Capture areas still need an in-game check", markup);
+            Assert.Contains("Check capture now", markup);
+            Assert.DoesNotContain("Your first session is ready", markup);
+
+            await Invoke(wizard, "MoveTo", 2);
+            Assert.Contains("capture-configuration", rendered.ToHtmlString());
+            await Invoke(wizard, "Next");
+            await Invoke(wizard, "Next");
+            await Invoke(wizard, "Complete");
+            Assert.True(tracker.Preferences.SetupCompleted);
+            Assert.False(tracker.State.IsRunning);
         });
     }
 

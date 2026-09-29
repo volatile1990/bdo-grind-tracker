@@ -44,6 +44,7 @@
                 <div class="live-session-buttons">
                     <button class="button primary" @onclick="() => Act(State.IsRunning ? Tracker.PauseAsync : Tracker.ToggleTrackingAsync)" disabled="@(Acting || (State.IsRunning ? !State.CanPause : State.IsBusy || State.IsSubmitted || !State.AnalyzerAvailable || State.TrackingBlockedReason is not null || State.MissingOcrLanguageTag is not null || State.OcrRestartRequired))" title="@(State.IsSubmitted ? T("Diese Session ist abgeschlossen. Beginne eine neue Session.") : T(State.TrackingBlockedReason))"><AppIcon Name="@(State.IsRunning ? "pause" : "play")" />@(State.IsRunning ? T("Pausieren") : State.HasSession ? T("Fortsetzen") : T("Tracking starten"))</button>
                     <button class="button secondary" @onclick="RequestNew" disabled="@(Acting || State.IsBusy)"><AppIcon Name="plus" />@T("Neue Session")</button>
+                    <button type="button" class="button secondary session-share-trigger" @onclick="ShareSession" disabled="@(!State.HasSession && !State.IsDemo)" title="@T("Session teilen")" aria-label="@T("Session teilen")"><AppIcon Name="share" /></button>
                 </div>
                 <div class="live-auto-start">
                     <label class="live-auto-start-toggle">
@@ -61,7 +62,47 @@
         </div>
         <ConsumablesReadout Value="State.Buffs" />
     </section>
-    <SessionTimeline />
+
+    <section class="panel live-insights @(_insightsOpen ? "is-open" : null)" aria-labelledby="live-insights-title">
+        <h2 class="live-insights-heading">
+            <button id="live-insights-title" class="live-insights-toggle" type="button" aria-expanded="@(_insightsOpen ? "true" : "false")" aria-controls="live-insights-content" @onclick="() => _insightsOpen = !_insightsOpen">
+                <AppIcon Name="history" />
+                <span>@T("Session-Einblicke")</span>
+                <small>@T("Timeline und Details")</small>
+                <AppIcon Name="down" Class="live-insights-chevron" />
+            </button>
+        </h2>
+        <div id="live-insights-content" hidden="@(!_insightsOpen)">
+            <SessionTimeline Embedded="true" Visible="_insightsOpen" />
+            @if (_insightsOpen)
+            {
+                <section class="live-insights-details" aria-labelledby="live-details-title">
+                    <div class="panel-heading"><h3 id="live-details-title">@T("Session-Details")</h3><AppIcon Name="live" /></div>
+                    <dl class="detail-list">
+                        <div><dt>@T("Bestätigte Drops")</dt><dd>@Number(State.Loot.ConfirmedEventCount)</dd></div>
+                        <div><dt>@T("Verschiedene Items")</dt><dd>@State.Loot.ItemTypeCount</dd></div>
+                        <div><dt>@T("Bruttowert")</dt><dd>@(CanShowSilver ? Silver(State.Silver.BeforeTax) : "—")@(!State.Silver.IsComplete ? " *" : "")</dd></div>
+                        <div><dt>@T("Markterlös")</dt><dd>@Tracker.Preferences.Tax.MarketReturnRate.ToString("P2", UiCulture)</dd></div>
+                        <div><dt>Loot-Scroll</dt><dd class="@(SessionMetrics.LootScrollWarning ? "gold" : null)">@SessionMetrics.LootScroll</dd></div>
+                        <div><dt>Agris</dt><dd class="agris-live-value"><span>@SessionMetrics.Agris</span>@if (SessionMetrics.AgrisTime.HasObservation) { <small title="@SessionMetrics.AgrisTime.Description" aria-label="@SessionMetrics.AgrisTime.Description">@F("{0} aktiv", SessionMetrics.AgrisTime.Duration)</small> }</dd></div>
+                        <div><dt>@T("Erfahrung")</dt><dd class="experience-live-value @(SessionMetrics.Experience.IsLoss ? "is-loss" : "")" title="@SessionMetrics.Experience.Description"><span class="experience-gain">@SessionMetrics.Experience.Gain</span>@if (SessionMetrics.Experience.HasObservation) { <small class="experience-hourly">@SessionMetrics.Experience.Hourly / h</small> }</dd></div>
+                        @if (State.Rotation.HasProfile)
+                        {
+                            <div><dt>@T("Rotationen")</dt><dd class="rotation-live-value"><span>@Number(RotationCount)</span>@if (RotationAverage is { } average) { <small>@F("Ø {0}", BdoGrindTracker.App.Overlay.RotationPhases.Duration(average))</small> }</dd></div>
+                            <div><dt>@T("Schnellste Rotation")</dt><dd>@(RotationFastest is { } fastest ? BdoGrindTracker.App.Overlay.RotationPhases.Duration(fastest) : "—")</dd></div>
+                            <div><dt>@T("Rotationen / h")</dt><dd title="@T("Beim aktuellen Tempo: 60 Minuten geteilt durch die durchschnittliche Zeit der letzten bis zu drei Rotationen, jeweils mit Rückweg.")">@(RotationsPerHour is { } perHour ? perHour.ToString("0.0", UiCulture) : "—")</dd></div>
+                            @if (State.Rotation.SupportsSpecialEvents)
+                            {
+                                <div><dt>Special Events</dt><dd class="rotation-live-value"><span>@Number(State.Rotation.SessionSpecialEvents)</span>@if (SpecialEventsPerHour is { } specialRate) { <small>@F("{0} / h", specialRate.ToString("0.0", UiCulture))</small> }</dd></div>
+                            }
+                        }
+                        <div><dt>@T("Automatische Pause")</dt><dd>@F("{0} Min.", Tracker.Preferences.AutoPauseMinutes)</dd></div>
+                    </dl>
+                    <div class="subtle-box"><AppIcon Name="shield" /><span>@T("Die automatische Pause greift, wenn kein neuer Loot erkannt wird.")</span></div>
+                </section>
+            }
+        </div>
+    </section>
 
     @if (State.IsDemo)
     {
@@ -136,30 +177,6 @@
                     <p class="grind-rating-empty">@T("Keine Bewertung verfügbar.")</p>
                 }
             </section>
-            <section class="panel session-summary">
-                <div class="panel-heading"><h2>@T("Session-Details")</h2><AppIcon Name="live" /></div>
-                <dl class="detail-list">
-                    <div><dt>@T("Bestätigte Drops")</dt><dd>@Number(State.Loot.ConfirmedEventCount)</dd></div>
-                    <div><dt>@T("Verschiedene Items")</dt><dd>@State.Loot.ItemTypeCount</dd></div>
-                    <div><dt>@T("Bruttowert")</dt><dd>@(CanShowSilver ? Silver(State.Silver.BeforeTax) : "—")@(!State.Silver.IsComplete ? " *" : "")</dd></div>
-                    <div><dt>@T("Markterlös")</dt><dd>@Tracker.Preferences.Tax.MarketReturnRate.ToString("P2", UiCulture)</dd></div>
-                    <div><dt>Loot-Scroll</dt><dd class="@(SessionMetrics.LootScrollWarning ? "gold" : null)">@SessionMetrics.LootScroll</dd></div>
-                    <div><dt>Agris</dt><dd class="agris-live-value"><span>@SessionMetrics.Agris</span>@if (SessionMetrics.AgrisTime.HasObservation) { <small title="@SessionMetrics.AgrisTime.Description" aria-label="@SessionMetrics.AgrisTime.Description">@F("{0} aktiv", SessionMetrics.AgrisTime.Duration)</small> }</dd></div>
-                    <div><dt>@T("Erfahrung")</dt><dd class="experience-live-value @(SessionMetrics.Experience.IsLoss ? "is-loss" : "")" title="@SessionMetrics.Experience.Description"><span class="experience-gain">@SessionMetrics.Experience.Gain</span>@if (SessionMetrics.Experience.HasObservation) { <small class="experience-hourly">@SessionMetrics.Experience.Hourly / h</small> }</dd></div>
-                    @if (State.Rotation.HasProfile)
-                    {
-                        <div><dt>@T("Rotationen")</dt><dd class="rotation-live-value"><span>@Number(RotationCount)</span>@if (RotationAverage is { } average) { <small>@F("Ø {0}", BdoGrindTracker.App.Overlay.RotationPhases.Duration(average))</small> }</dd></div>
-                        <div><dt>@T("Schnellste Rotation")</dt><dd>@(RotationFastest is { } fastest ? BdoGrindTracker.App.Overlay.RotationPhases.Duration(fastest) : "—")</dd></div>
-                        <div><dt>Rotations / h</dt><dd title="@T("Beim aktuellen Tempo: 60 Minuten geteilt durch die durchschnittliche Zeit der letzten bis zu drei Rotationen, jeweils mit Rückweg.")">@(RotationsPerHour is { } perHour ? perHour.ToString("0.0", UiCulture) : "—")</dd></div>
-                        @if (State.Rotation.SupportsSpecialEvents)
-                        {
-                            <div><dt>Special Events</dt><dd class="rotation-live-value"><span>@Number(State.Rotation.SessionSpecialEvents)</span>@if (SpecialEventsPerHour is { } specialRate) { <small>@F("{0} / h", specialRate.ToString("0.0", UiCulture))</small> }</dd></div>
-                        }
-                    }
-                    <div><dt>@T("Automatische Pause")</dt><dd>@F("{0} Min.", Tracker.Preferences.AutoPauseMinutes)</dd></div>
-                </dl>
-                <div class="subtle-box"><AppIcon Name="shield" /><span>@T("Die automatische Pause greift, wenn kein neuer Loot erkannt wird.")</span></div>
-            </section>
             @if (!State.Silver.IsComplete || State.Silver.IsStale)
             {
                 <div class="valuation-note"><AppIcon Name="info" /><span>@(!State.Silver.IsComplete ? F("* Teilbetrag: {0} noch ohne verlässlichen Preis. ", string.Join(", ", State.Silver.MissingItems.Concat(State.Silver.OverflowItems).Select(ItemLabel))) : "")@(State.Silver.IsStale ? T("Einige Marktwerte stammen aus dem Cache.") : "")</span></div>
@@ -172,6 +189,8 @@
     }
 </div>
 
+<SessionShareDialog @ref="_shareDialog" />
+
 <dialog id="live-confirm" class="modal confirm-modal" aria-labelledby="live-confirm-title" @oncancel="CloseConfirmation">
     <div class="modal-heading"><div><span class="eyebrow">SESSION</span><h2 id="live-confirm-title">@T("Neue Session beginnen?")</h2></div><button class="icon-button" @onclick="CloseConfirmation" aria-label="@T("Dialog schließen")"><AppIcon Name="close" /></button></div>
     <p>@(State.IsDemo ? T("Die Demo wird beendet. Beispieldaten werden nicht im Verlauf gespeichert.") : T("Die aktuelle Session wird beendet und im Verlauf gesichert.")) @T("Für die neue Session beginnen Zeit und Loot wieder bei null.")</p>
@@ -180,6 +199,15 @@
 </dialog>
 
 @code {
+    private SessionShareDialog? _shareDialog;
+    private Task ShareSession()
+    {
+        var state = State;
+        if (_shareDialog is null || !state.HasSession && !state.IsDemo) return Task.CompletedTask;
+        var startedAt = Tracker.History.FirstOrDefault(session => session.SessionId == state.SessionId)?.StartedAt;
+        return _shareDialog.ShowAsync(SessionSharePresentation.FromLive(state, Tracker.Preferences, startedAt));
+    }
+    private bool _insightsOpen;
     private CombatStatsState? FreshCombatStats => CombatStatsSpotRules.ForSpot(State.CombatStats, State.SpotId);
     private CombatStatsState? DisplayCombatStats => FreshCombatStats ?? CombatStatsSpotRules.ForSpot(State.SessionCombatStats, State.SpotId);
     private Task AutoStartChanged(bool enabled) => SavePreferenceChange(p => p with { AutoStartGrinding = enabled });

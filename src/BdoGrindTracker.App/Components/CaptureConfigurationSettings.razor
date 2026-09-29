@@ -122,10 +122,10 @@
     .capture-configuration-heading>div:nth-child(2) { flex:1;min-width:220px }
     .capture-configuration-heading p { font-size:13px;margin-top:5px }
     .capture-configuration code { display:block;overflow-wrap:anywhere;white-space:normal;font-size:12px;line-height:1.6;color:var(--muted) }
-    .capture-active-file { display:grid;gap:6px;padding:14px 16px;margin-bottom:16px;background:#11171d;border:1px solid var(--line);border-radius:8px }
+    .capture-active-file { display:grid;gap:6px;padding:14px 16px;margin-bottom:16px;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px }
     .capture-active-file>span { color:var(--gold);font-size:13px }
     .capture-actions { display:flex;gap:10px;flex-wrap:wrap;margin:16px 0 }
-    .capture-automatic { display:flex;align-items:flex-start;gap:10px;border:1px solid var(--line);background:#151a21;border-radius:8px;padding:12px 15px }
+    .capture-automatic { display:flex;align-items:flex-start;gap:10px;border:1px solid var(--line);background:var(--panel-raised);color:var(--text);border-radius:8px;padding:12px 15px }
     .capture-automatic input,.capture-file-choice input { flex-shrink:0;accent-color:var(--gold);margin:3px 0 }
     .capture-automatic small { display:block;margin-top:4px;color:var(--muted) }
     .capture-list-summary { display:flex;flex-wrap:wrap;align-items:center;gap:5px 9px;margin:20px 0 14px;font-size:13px;color:var(--muted) }
@@ -137,27 +137,27 @@
     .capture-list-result { display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:36px;color:var(--muted);font-size:12px }
     .capture-options { max-height:420px;overflow:auto;overscroll-behavior:contain;border:1px solid var(--line);border-radius:7px;scrollbar-gutter:stable }
     .capture-file-table { width:100%;border-collapse:collapse;table-layout:fixed;min-width:640px;font-size:12px }
-    .capture-file-table th { position:sticky;top:0;z-index:1;background:#1b222b;color:var(--muted);font-size:11px;font-weight:600;text-align:left;padding:10px 9px;white-space:normal;border-bottom:1px solid var(--line) }
+    .capture-file-table th { position:sticky;top:0;z-index:1;background:var(--panel-raised);color:var(--muted);font-size:11px;font-weight:600;text-align:left;padding:10px 9px;white-space:normal;border-bottom:1px solid var(--line) }
     .capture-file-table th:first-child { width:27% }
     .capture-file-table th:nth-child(2) { width:13% }
     .capture-file-table th:nth-child(3) { width:14% }
     .capture-file-table th:nth-child(4),.capture-file-table th:nth-child(5) { width:18% }
     .capture-file-table th:last-child { width:10% }
     .capture-file-table td { padding:10px 9px;vertical-align:top;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums;overflow-wrap:anywhere }
-    .capture-file-row:hover { background:#ffffff03 }
-    .capture-file-row.is-selected { background:#d3ae6312 }
+    .capture-file-row:hover { background:color-mix(in srgb,var(--text) 5%,transparent) }
+    .capture-file-row.is-selected { background:color-mix(in srgb,var(--gold) 9%,var(--panel)) }
     .capture-file-row.is-selected td:first-child { box-shadow:inset 3px 0 var(--gold) }
     .capture-file-table small { display:block;margin-top:4px;color:var(--muted);font-size:11px }
     .capture-file-choice { display:flex;align-items:flex-start;gap:9px;cursor:pointer }
     .capture-file-name { font-weight:600;overflow-wrap:anywhere }
-    .capture-active-badge { display:inline-block;margin:5px 0 0 22px;font-size:10px;color:var(--teal);border:1px solid #72cbb755;border-radius:4px;padding:1px 5px }
+    .capture-active-badge { display:inline-block;margin:5px 0 0 22px;font-size:10px;color:var(--teal);border:1px solid currentColor;border-radius:4px;padding:1px 5px }
     .capture-muted { color:var(--muted) }
-    .capture-unusable { color:#d79992 }
+    .capture-unusable { color:var(--red) }
     .capture-text-button { border:0;background:transparent;color:var(--gold);padding:2px 0;font:inherit;font-size:12px;text-align:left;cursor:pointer }
     .capture-text-button:hover { text-decoration:underline }
     .capture-text-button:focus-visible { outline:2px solid var(--gold);outline-offset:3px }
     .capture-text-button:disabled { opacity:.5;cursor:default }
-    .capture-file-details { background:#11171d }
+    .capture-file-details { background:var(--bg);color:var(--text) }
     .capture-file-details td { padding:12px 15px }
     .capture-file-details .field-error { margin:8px 0 2px;max-width:850px;line-height:1.6 }
     .capture-file-details .field-note { margin:7px 0 0 }

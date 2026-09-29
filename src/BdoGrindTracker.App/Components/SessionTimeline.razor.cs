@@ -9,6 +9,9 @@ namespace BdoGrindTracker.App.Components;
 
 public partial class SessionTimeline
 {
+    [Parameter] public bool Embedded { get; set; }
+    [Parameter] public bool Visible { get; set; } = true;
+
     /// <param name="Count">Drops of this item the icon stands for.</param>
     private sealed record TimelineMarkerItem(string Item, int Count, string Color, string Title);
 
@@ -39,6 +42,13 @@ public partial class SessionTimeline
     private readonly HashSet<string> _layers = [.. SessionTimelineLayers.Default];
     private readonly HashSet<string> _items = new(StringComparer.Ordinal);
     private bool _rotationList, _lootList;
+    private bool _exactOpen;
+    private int _exactPage = 1;
+    private const int ExactPageSize = 25;
+    private readonly string _exactId = "timeline-values-" + Guid.NewGuid().ToString("N");
+    private readonly string _helpId = "timeline-help-" + Guid.NewGuid().ToString("N");
+    private string? _windowStatus;
+    private sealed record ExactTimelineRow(TimeSpan Start, TimeSpan? End, string Kind, string Label, string Value);
     private double _zoom = 1, _center = .5;
     private int? _selected;
     private double? _dragFrom;
@@ -63,6 +73,7 @@ public partial class SessionTimeline
     /// <summary>Keeps the section open across state updates once the user opened it.</summary>
     private IReadOnlyDictionary<string, object> Expanded => _open ? OpenAttribute : NoAttributes;
     private bool _open;
+    private bool IsOpen => Visible && (Embedded || _open);
 
     /// <summary>
     /// What the timeline draws for the visible window, recomputed once per render and only while it is open. The worth
@@ -72,8 +83,10 @@ public partial class SessionTimeline
     private void Refresh()
     {
         UpdateWindow();
-        if (!_open)
+        if (!IsOpen)
         {
+            _attached = false;
+            _dragFrom = null;
             _spans = []; _rotations = []; _series = []; _silver = null; _markers = [];
             return;
         }
@@ -175,7 +188,7 @@ public partial class SessionTimeline
         await base.OnAfterRenderAsync(firstRender);
         // A Shift wheel zooms the timeline; every other wheel keeps scrolling the page, which Blazor alone
         // cannot express: its preventDefault is static per handler.
-        if (!_open || _attached) return;
+        if (!IsOpen || _attached) return;
         _attached = true;
         try
         {
@@ -351,9 +364,80 @@ public partial class SessionTimeline
             _unchanged = true;
             return;
         }
-        _zoom = Math.Clamp(_zoom * (e.DeltaY < 0 ? 1.25 : .8), 1, 120);
-        _selected = null;
+        Zoom(e.DeltaY < 0 ? 1.25 : .8);
+    }
+
+    private void Zoom(double factor)
+    {
+        // Normalize the center to the actual visible window before zooming near an edge.
         UpdateWindow();
+        _center = (_from + (_to - _from) / 2).TotalSeconds / Span.TotalSeconds;
+        _zoom = Math.Clamp(_zoom * factor, 1, 120);
+        _selected = null;
+        ViewChanged();
+    }
+
+    private void Pan(int direction)
+    {
+        UpdateWindow();
+        var window = _to - _from;
+        _center = Math.Clamp((_from + window / 2).TotalSeconds / Span.TotalSeconds + direction / (_zoom * 4), 0, 1);
+        _selected = null;
+        ViewChanged();
+    }
+
+    private void ViewChanged()
+    {
+        _exactPage = 1;
+        UpdateWindow();
+        _windowStatus = F("Ausschnitt: {0} bis {1}", ExactTime(_from), ExactTime(_to));
+    }
+
+    private void TrackKeyDown(KeyboardEventArgs e)
+    {
+        if (e.AltKey || e.CtrlKey || e.MetaKey) return;
+        switch (e.Key)
+        {
+            case "+": case "=": Zoom(1.25); break;
+            case "-": Zoom(.8); break;
+            case "ArrowLeft": Pan(-1); break;
+            case "ArrowRight": Pan(1); break;
+            case "Home": ResetView(); break;
+        }
+    }
+
+    private void ToggleExactValues() { _exactOpen = !_exactOpen; _exactPage = 1; }
+
+    private static string ExactTime(TimeSpan value)
+    {
+        var positive = value < TimeSpan.Zero ? (value == TimeSpan.MinValue ? TimeSpan.MaxValue : -value) : value;
+        return (value < TimeSpan.Zero ? "−" : "") + ((long)positive.TotalHours).ToString("00", CultureInfo.InvariantCulture) +
+            positive.ToString(@"\:mm\:ss\.fff", CultureInfo.InvariantCulture);
+    }
+
+    private IReadOnlyList<ExactTimelineRow> ExactRows()
+    {
+        List<ExactTimelineRow> rows = [];
+        foreach (var series in Layers)
+            foreach (var bar in series.Bars.Where(bar => bar.Value > 0))
+            {
+                var duration = _to - _from;
+                rows.Add(new(_from + duration * bar.Start, _from + duration * bar.End, T("Zeitabschnitt"), series.Label,
+                    series.IsSilver ? F("{0} Silber", bar.Value.ToString("0.############################", UiCulture))
+                        : bar.Value.ToString("0.############################", UiCulture)));
+            }
+        foreach (var drop in Drops.Where(drop => drop.Quantity != 0 && drop.Elapsed >= _from && drop.Elapsed <= _to))
+            rows.Add(new(drop.Elapsed, null, T(drop.Quantity < 0 ? "Korrektur" : "Drop"), ItemLabel(drop.ItemName), drop.Quantity.ToString("N0", UiCulture)));
+        foreach (var rotation in _rotations)
+            foreach (var phase in rotation.Phases)
+            {
+                var start = rotation.Span.Start + TimeSpan.FromSeconds(phase.Start);
+                var end = rotation.Span.Start + TimeSpan.FromSeconds(phase.End);
+                if (end < _from || start > _to) continue;
+                rows.Add(new(start, end, T("Rotationsphase"), F("Rotation {0}", rotation.Span.Number) + " · " + T(phase.Name),
+                    F("{0} Sekunden", (phase.End - phase.Start).ToString("0.###", UiCulture))));
+            }
+        return rows.OrderBy(row => row.Start).ThenBy(row => row.Label, StringComparer.CurrentCulture).ToArray();
     }
 
     private async Task PointerDown(PointerEventArgs e)
@@ -391,7 +475,7 @@ public partial class SessionTimeline
         // A little room on both sides keeps the neighbouring drops visible.
         _zoom = Math.Clamp(Span.TotalSeconds / Math.Max(1, length * 1.3), 1, 120);
         _center = Math.Clamp((span.Start + (span.End - span.Start) / 2).TotalSeconds / Math.Max(1, Span.TotalSeconds), 0, 1);
-        UpdateWindow();
+        ViewChanged();
         StateHasChanged();
     }
 
@@ -400,7 +484,7 @@ public partial class SessionTimeline
         _zoom = 1;
         _center = .5;
         _selected = null;
-        UpdateWindow();
+        ViewChanged();
         StateHasChanged();
     }
 }

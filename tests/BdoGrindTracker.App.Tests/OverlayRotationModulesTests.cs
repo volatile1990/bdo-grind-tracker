@@ -51,11 +51,16 @@ public sealed class OverlayRotationModulesTests
 
         // The latest walk back is still running and counts with the session average of 20 seconds.
         var rate = metrics["rotations-hour"];
-        Assert.Equal(("Rotations / h", "5,6", "Ø 10:40 · letzte 3"), (rate.Label, rate.Value, rate.Detail));
+        Assert.Equal(("Rotationen / h", "5,6", "Ø 10:40 · letzte 3"), (rate.Label, rate.Value, rate.Detail));
         Assert.Contains("letzten bis zu drei", rate.Tooltip);
         Assert.Contains("Rückweg", rate.Tooltip);
         var count = metrics["rotation-count"];
-        Assert.Equal(("Rotation Counter", "4", "Zuletzt 10:40"), (count.Label, count.Value, count.Detail));
+        Assert.Equal(("Rotationszähler", "4", "Zuletzt 10:40"), (count.Label, count.Value, count.Detail));
+
+        var english = new OverlayMetrics().Update(WithRotations(new(900, 20), new(600, 15), new(620, 25), new(640)),
+            new() { UiLanguage = "en" }).Metrics;
+        Assert.Equal("Rotations / h", english["rotations-hour"].Label);
+        Assert.Equal("Rotation Counter", english["rotation-count"].Label);
 
         // Only complete rotations are rotations: an aborted attempt and the running one are neither counted nor shown.
         var mixed = new OverlayMetrics().Update(WithRotations(new SessionRotationTiming(600, 20),
@@ -116,11 +121,11 @@ public sealed class OverlayRotationModulesTests
     {
         var snapshot = OverlaySnapshot.Demo;
         var rotations = await RenderAsync(OverlayCatalog.CreateWidget("rotations-hour"), snapshot);
-        Assert.Contains("Rotations / h", rotations);
+        Assert.Contains("Rotationen / h", rotations);
         // Six completed rotations of the example session with walk backs of 14 to 18 seconds.
         Assert.Contains("Ø 10:35 · letzte 3", rotations);
         Assert.Contains("5,7", rotations);
-        Assert.Contains("Rotation Counter", await RenderAsync(OverlayCatalog.CreateWidget("rotation-count"), snapshot));
+        Assert.Contains("Rotationszähler", await RenderAsync(OverlayCatalog.CreateWidget("rotation-count"), snapshot));
     }
 
     // A billion-silver favorite and a little trash in the section from 20 to 30 seconds.

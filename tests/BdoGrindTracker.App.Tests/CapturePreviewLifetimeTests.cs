@@ -115,6 +115,8 @@ public sealed class CapturePreviewLifetimeTests
         internal int Captures { get; private set; }
         internal int Disposals { get; private set; }
 
+        public void SetMinimumUpdateInterval(TimeSpan minimumInterval) { }
+
         public CapturedDesktopBitmap Capture(Func<WindowCaptureGeometry> readGeometry, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();

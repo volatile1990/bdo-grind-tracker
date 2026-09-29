@@ -15,7 +15,7 @@ public sealed record OverlayTemplate
         {
             Width = layout.Width, Height = layout.Height, Widgets = layout.Widgets,
             Scale = layout.Scale, BackgroundOpacity = layout.BackgroundOpacity,
-            ShowBorder = layout.ShowBorder, SnapToGrid = layout.SnapToGrid,
+            ShowBorder = layout.ShowBorder, SnapToGrid = layout.SnapToGrid, AutoAlign = layout.AutoAlign,
         };
     }
 
@@ -42,7 +42,7 @@ public sealed record OverlayTemplate
         {
             Width = layout.Width, Height = layout.Height, Widgets = layout.Widgets,
             Scale = layout.Scale, BackgroundOpacity = layout.BackgroundOpacity,
-            ShowBorder = layout.ShowBorder, SnapToGrid = layout.SnapToGrid,
+            ShowBorder = layout.ShowBorder, SnapToGrid = layout.SnapToGrid, AutoAlign = layout.AutoAlign,
         });
         return normalized with
         {

@@ -1,4 +1,5 @@
 using System.Net;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using BdoGrindTracker.App.Components;
 using BdoGrindTracker.App.Persistence;
@@ -145,7 +146,7 @@ public sealed class ExperiencePresentationTests
     {
         var services = new ServiceCollection().AddLogging().AddSingleton<ITrackerSession>(session)
             .AddSingleton<IJSRuntime, NoJavaScript>().AddSingleton<NavigationManager, StaticNavigation>()
-            .AddSingleton<IComponentActivator>(new HistoryActivator(view == "chronological"));
+            .AddSingleton<IComponentActivator>(new DashboardActivator(view == "chronological"));
         await using var provider = services.BuildServiceProvider();
         await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
         var parameters = view == "spot"
@@ -159,13 +160,16 @@ public sealed class ExperiencePresentationTests
         });
     }
 
-    private sealed class HistoryActivator(bool chronological) : IComponentActivator
+    private sealed class DashboardActivator(bool chronological) : IComponentActivator
     {
         public IComponent CreateInstance(Type type)
         {
             var component = (IComponent)Activator.CreateInstance(type)!;
             if (component is HistoryDashboard && chronological)
                 type.GetProperty(nameof(HistoryDashboard.QueryView))!.SetValue(component, "all");
+            // Experience values are shown after opening the session insights.
+            if (component is LiveDashboard)
+                type.GetField("_insightsOpen", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(component, true);
             return component;
         }
     }

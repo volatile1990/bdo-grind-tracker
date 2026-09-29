@@ -207,6 +207,29 @@ public sealed class HistoryDashboardLifecycleTests
         _ => new JSException("Wheel setup failed")
     };
 
+    [Fact]
+    public async Task SavingAnEditDoesNotReviveOrClearAnotherRouteAfterDelayedDialogClose()
+    {
+        var js = new ControlledJavaScript();
+        var closing = js.DelayNext("grindcrest.closeDialog", "history-edit");
+        var tracker = new PreviewTrackerSession();
+        var component = CreateComponent(js, tracker);
+        var entry = tracker.History.First(session => session.SpotId == LootSpotCatalog.HermesiaId);
+        typeof(HistoryDashboard).GetMethod("PrepareEdit", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(component, [entry]);
+        var saving = (Task)typeof(HistoryDashboard).GetMethod("SaveEdit", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(component, [])!;
+        Assert.False(saving.IsCompleted);
+
+        SetField(component, "_target", null);
+        SetField(component, "_spotId", LootSpotCatalog.MagaiaId);
+        SetField(component, "_dialogError", "New route error");
+        closing.SetResult();
+        await saving;
+
+        Assert.Null(typeof(HistoryDashboard).GetField("_target", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(component));
+        Assert.Equal("New route error", typeof(HistoryDashboard).GetField("_dialogError", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(component));
+        Assert.Single(js.Calls);
+    }
+
     private static HistoryDashboard CreateComponent(IJSRuntime js, ITrackerSession? tracker = null)
     {
         var component = new HistoryDashboard();

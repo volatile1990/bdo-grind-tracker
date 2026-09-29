@@ -28,6 +28,12 @@ internal sealed class AppSettings
     public string ThemeId { get; set; } = AppThemes.Grindcrest;
     public string? OverlayThemeId { get; set; }
 
+    public bool MinimizeToTray { get; set; }
+
+    public bool CloseToTray { get; set; }
+
+    public bool CloseBehaviorConfigured { get; set; }
+
     public string? SpotId { get; set; }
 
     public string? CharacterClassId { get; set; }

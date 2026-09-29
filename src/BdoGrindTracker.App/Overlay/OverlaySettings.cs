@@ -52,6 +52,7 @@ public sealed record OverlaySettings
     public double BackgroundOpacity { get; init; } = .85;
     public bool ShowBorder { get; init; } = true;
     public bool SnapToGrid { get; init; } = true;
+    public bool AutoAlign { get; init; } = true;
     public bool CaptureExcluded { get; init; } = true;
     public bool HotkeysEnabled { get; init; } = true;
     public int HotkeySettingsVersion { get; init; } = CurrentHotkeySettingsVersion;
@@ -78,7 +79,7 @@ public static class OverlayCatalog
         new OverlayWidgetDefinition("spot", "Grindspot", "Automatisch erkannter Spot", "pin", 344, 64),
         new OverlayWidgetDefinition("silver", "Silber netto", "Wert nach Marktsteuern", "silver", 168, 72),
         new OverlayWidgetDefinition("experience", "Erfahrung", "EXP-Zuwachs der Session und EXP pro Stunde", "trend", 200, 88),
-        new OverlayWidgetDefinition("daily-goal", "Daily Goal", "Fortschritt zum heutigen Netto-Silberziel", "trend", 280, 104),
+        new OverlayWidgetDefinition("daily-goal", "Tagesziel", "Fortschritt zum heutigen Netto-Silberziel", "trend", 280, 104),
         new OverlayWidgetDefinition("silver-hour", "Silber / Stunde", "Durchschnitt der Session", "trend", 168, 72),
         new OverlayWidgetDefinition("trash", "Trashloot", "Gesammelte Trashmenge", "loot", 168, 72),
         new OverlayWidgetDefinition("trash-hour", "Trash / Stunde", "Trashmenge pro aktiver Stunde", "trend", 168, 72),
@@ -86,8 +87,8 @@ public static class OverlayCatalog
         new OverlayWidgetDefinition("rare-drops", "Seltene Drops", "Seltene Gegenstände im Blick", "spark", 344, 112),
         new OverlayWidgetDefinition("chart", "Session-Timeline", "Rotationen, Silber und seltene Drops im Sessionverlauf", "trend", 360, 144),
         new OverlayWidgetDefinition("rotation-monitor", "Rotation Monitor", "Mechanik-Timeline mit Playhead, Bestrotation und Sektorvergleich", "trend", 600, 96),
-        new OverlayWidgetDefinition("rotations-hour", "Rotations / h", "Volle Rotationen pro Stunde beim aktuellen Tempo", "trend", 168, 72),
-        new OverlayWidgetDefinition("rotation-count", "Rotation Counter", "Vollendete Rotationen in dieser Session", "history", 168, 72),
+        new OverlayWidgetDefinition("rotations-hour", "Rotationen / h", "Volle Rotationen pro Stunde beim aktuellen Tempo", "trend", 168, 72),
+        new OverlayWidgetDefinition("rotation-count", "Rotationszähler", "Vollendete Rotationen in dieser Session", "history", 168, 72),
         new OverlayWidgetDefinition("special-events", "Special Events", "Zufällige Zusatz- und Ersatzmechaniken in dieser Session", "spark", 168, 72),
         new OverlayWidgetDefinition("special-events-hour", "Special Events / h", "Special Events pro aktiver Stunde", "trend", 168, 72),
         new OverlayWidgetDefinition("controls", "Tracking-Steuerung", "Grind starten, pausieren und fortsetzen", "play", 168, 56),

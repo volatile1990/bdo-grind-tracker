@@ -1,3 +1,4 @@
+using System.Net.Http;
 using System.Text.Json;
 using BdoGrindTracker.App.Integrations.Garmoth;
 using BdoGrindTracker.App.Persistence;
@@ -7,9 +8,14 @@ namespace BdoGrindTracker.App.Services;
 
 internal sealed partial class TrackerSessionService
 {
+    private sealed class GarmothUploadIntentSaveException(Exception inner) : IOException(
+        "Die Uploadabsicht konnte nicht sicher gespeichert werden. Es wurde nichts gesendet.", inner);
+
     private GarmothUploadJournalStore _garmothJournal = null!;
     private string? _garmothPersistenceError;
     private readonly HashSet<Guid> _garmothRestartBlocks = [];
+    private readonly HashSet<Guid> _pendingAutomaticGarmothUploads = [];
+    private Task _automaticGarmothUploadTask = Task.CompletedTask;
 
     private void InitializeGarmothUploadJournal()
     {
@@ -49,7 +55,8 @@ internal sealed partial class TrackerSessionService
         }
         catch (Exception exception) when (IsJournalFailure(exception))
         {
-            _garmothPersistenceError = "Das Garmoth-Uploadjournal konnte nicht gelesen werden. Uploads sind zum Schutz vor Dubletten gesperrt. " + exception.Message;
+            TracePersistenceFailure("Garmoth upload journal load", GarmothUploadJournalStore.FileName, exception);
+            _garmothPersistenceError = "Das Garmoth-Uploadjournal konnte nicht gelesen werden. Uploads sind zum Schutz vor Dubletten gesperrt.";
         }
     }
 
@@ -88,6 +95,7 @@ internal sealed partial class TrackerSessionService
 
     private async Task UploadCurrentSessionCoreAsync(GarmothUploadPreview? confirmed = null)
     {
+        EnsureAutomaticUploadsIdle();
         if (_sessionSubmitted || _provisionalAutomaticGrind || _garmothIntervals.IsBlocked || _garmothRestartBlocks.Contains(_sessionId) || !_hasSession || _demoMode)
             throw new InvalidOperationException("Diese Session kann derzeit nicht übertragen werden.");
         EnsureGarmothUploadAvailable();
@@ -117,22 +125,77 @@ internal sealed partial class TrackerSessionService
         {
             if (interval is not null)
                 _garmothIntervals.Complete(interval, new(GarmothUploadStatus.Rejected, "Lokale Upload-Vorbereitung fehlgeschlagen."));
-            SetStatus("Garmoth nicht gesendet: " + exception.Message, true);
+            ReportGarmothUploadFailure("Garmoth upload", exception);
         }
         finally { _garmothUploadInProgress = false; PublishState(); }
     }
 
-    private async Task UploadCompletedSessionAutomaticallyAsync(Guid sessionId)
+    private void QueueCompletedSessionUpload(Guid sessionId)
     {
         if (!Preferences.AutoUpload || _garmothApiKey.Length == 0) return;
         var entry = _historyEntries.FirstOrDefault(candidate => candidate.SessionId == sessionId);
         if (entry is null || entry.GarmothUploadBlocked || entry.GarmothUploadedAt is not null ||
-            _garmothRestartBlocks.Contains(sessionId)) return;
+            _garmothRestartBlocks.Contains(sessionId) || !_pendingAutomaticGarmothUploads.Add(sessionId)) return;
 
-        // Only the session just completed by NewSessionAsync is eligible. The
+        // Only the session just completed manually or by a spot change is eligible. The
         // saved entry uses the same full-session payload and journal as a manual
         // history upload; earlier history is never silently retried or backfilled.
-        await UploadHistoryCoreAsync(sessionId, automatic: true);
+        // Keep the host synchronization context for history/state mutations. Only
+        // the network wait runs in the background, independently of UI commands.
+        _automaticGarmothUploadTask = UploadCompletedSessionAutomaticallyAsync(
+            _automaticGarmothUploadTask, entry, Preferences.MarketRegion, Preferences.Tax);
+    }
+
+    private async Task UploadCompletedSessionAutomaticallyAsync(Task previous, LootHistoryEntry entry,
+        string region, SilverTaxOptions tax)
+    {
+        // A failed background upload must not fail the command that already
+        // saved and replaced the session, even if the failure is synchronous.
+        _commandOutcome.Value = null;
+        try
+        {
+            await previous;
+            if (!Preferences.AutoUpload || _garmothApiKey.Length == 0) return;
+            EnsureGarmothUploadAvailable();
+            LootPriceSnapshot prices;
+            try { prices = await _priceProvider.GetSnapshotAsync(region, _priceLifetime.Token); }
+            catch (Exception exception) when (exception is HttpRequestException or IOException or
+                InvalidDataException or OperationCanceledException)
+            {
+                prices = _priceProvider.GetCachedSnapshot(region);
+            }
+            // Preferences may change during the price request. Keep the saved
+            // session's valuation, but honor disabling uploads/removing the key.
+            if (!Preferences.AutoUpload || _garmothApiKey.Length == 0) return;
+            EnsureGarmothUploadAvailable();
+            var preview = ConfirmedOrCurrent(GarmothUploadPreview.ForHistory(entry, prices, tax), null);
+            SetStatus("Garmoth automatisch: abgeschlossene Session wird übertragen …");
+            var result = await SendJournaledGarmothAsync(preview);
+            var historySaved = !result.BlocksAnotherUpload || MarkHistoryUploadBlocked(entry.SessionId,
+                result.Status == GarmothUploadStatus.Succeeded, preview.Draft!.LocalSessionId, completesSession: true);
+            SetUploadResult(result, historySaved, "");
+        }
+        catch (Exception exception)
+        {
+            ReportGarmothUploadFailure("automatic Garmoth upload", exception);
+        }
+        finally
+        {
+            _pendingAutomaticGarmothUploads.Remove(entry.SessionId);
+            PublishState();
+        }
+    }
+
+    private void EnsureAutomaticUploadsIdle()
+    {
+        if (_pendingAutomaticGarmothUploads.Count > 0)
+            throw new InvalidOperationException("Bitte warte, bis der laufende Garmoth-Upload abgeschlossen ist.");
+    }
+
+    private void EnsureHistoryUploadIdle(Guid sessionId)
+    {
+        if (_pendingAutomaticGarmothUploads.Contains(sessionId))
+            throw new InvalidOperationException("Diese Session wird gerade zu Garmoth übertragen. Bitte warte, bis der Upload abgeschlossen ist.");
     }
 
     public Task<TrackerCommandResult> UploadHistoryAsync(Guid sessionId)
@@ -141,8 +204,9 @@ internal sealed partial class TrackerSessionService
         return RunOperationAsync(() => UploadHistoryCoreAsync(sessionId));
     }
 
-    private async Task UploadHistoryCoreAsync(Guid sessionId, GarmothUploadPreview? confirmed = null, bool automatic = false)
+    private async Task UploadHistoryCoreAsync(Guid sessionId, GarmothUploadPreview? confirmed = null)
     {
+        EnsureAutomaticUploadsIdle();
         var entry = _historyEntries.FirstOrDefault(e => e.SessionId == sessionId);
         if (entry is null || entry.GarmothUploadBlocked || _garmothRestartBlocks.Contains(sessionId))
             throw new InvalidOperationException("Diese Session ist nicht mehr verfügbar oder bereits gegen weitere Uploads gesperrt.");
@@ -153,8 +217,7 @@ internal sealed partial class TrackerSessionService
         {
             if (confirmed is null) await RefreshPricesAsync();
             var preview = ConfirmedOrCurrent(GarmothUploadPreview.ForHistory(entry, Prices, Preferences.Tax), confirmed);
-            SetStatus(automatic ? "Garmoth automatisch: abgeschlossene Session wird übertragen …"
-                : "Grind aus dem Verlauf wird übertragen …");
+            SetStatus("Grind aus dem Verlauf wird übertragen …");
             var result = await SendJournaledGarmothAsync(preview);
             var historySaved = !result.BlocksAnotherUpload || MarkHistoryUploadBlocked(sessionId,
                 result.Status == GarmothUploadStatus.Succeeded, preview.Draft!.LocalSessionId, completesSession: true);
@@ -188,7 +251,8 @@ internal sealed partial class TrackerSessionService
         try { attemptId = _garmothJournal.Begin(draft); }
         catch (Exception exception) when (IsJournalFailure(exception))
         {
-            throw new IOException("Die Uploadabsicht konnte nicht sicher gespeichert werden. Es wurde nichts gesendet. " + exception.Message, exception);
+            TracePersistenceFailure("Garmoth upload intent save", GarmothUploadJournalStore.FileName, exception);
+            throw new GarmothUploadIntentSaveException(exception);
         }
         GarmothUploadResult result;
         try { result = await _garmothClient.UploadAsync(draft, _garmothApiKey); }
@@ -201,7 +265,8 @@ internal sealed partial class TrackerSessionService
         try { _garmothJournal.Complete(attemptId, result.Status); }
         catch (Exception exception) when (IsJournalFailure(exception))
         {
-            _garmothPersistenceError = "Das Upload-Ergebnis konnte lokal nicht gespeichert werden. Die Uploadabsicht bleibt erhalten; weitere Uploads sind zum Schutz vor Dubletten gesperrt. " + exception.Message;
+            TracePersistenceFailure("Garmoth upload result save", GarmothUploadJournalStore.FileName, exception);
+            _garmothPersistenceError = "Das Upload-Ergebnis konnte lokal nicht gespeichert werden. Die Uploadabsicht bleibt erhalten; weitere Uploads sind zum Schutz vor Dubletten gesperrt.";
             _garmothIntervals.BlockFurtherUploads();
             result = result with
             {
@@ -222,6 +287,13 @@ internal sealed partial class TrackerSessionService
         SetStatus(result.Message + guidance + (historySaved ? "" :
             " Der lokale Verlaufstatus konnte nicht gespeichert werden. Der Dublettenschutz bleibt im Uploadjournal erhalten."),
             result.Status != GarmothUploadStatus.Succeeded || result.LocalPersistenceFailed || !historySaved);
+
+    private void ReportGarmothUploadFailure(string operation, Exception exception)
+    {
+        TraceOperationFailure(operation, exception);
+        SetStatus(exception is GarmothUploadIntentSaveException ? exception.Message :
+            "Garmoth-Upload konnte nicht abgeschlossen werden. Prüfe den Status in Garmoth, bevor du es erneut versuchst.", true);
+    }
 
     private static bool IsJournalFailure(Exception exception) => exception is IOException or UnauthorizedAccessException
         or InvalidDataException or JsonException or ArgumentException or InvalidOperationException or NotSupportedException;

@@ -36,6 +36,9 @@ internal static partial class AppText
         AddSecondary(text);
         AddOverlay(text);
         AddMessages(text);
+        AddCaptureErrors(text);
+        AddGarmothStatus(text);
+        AddPersistenceErrors(text);
         AddSetup(text);
         AddThemes(text);
         AddUploadCorrections(text);
@@ -43,6 +46,10 @@ internal static partial class AppText
         AddLootDrops(text);
         AddBuffs(text);
         AddNavigation(text);
+        AddSessionShare(text);
+        AddTray(text);
+        AddAuditHistory(text);
+        AddAuditUi(text);
         return text.ToFrozenDictionary(StringComparer.Ordinal);
     }
 

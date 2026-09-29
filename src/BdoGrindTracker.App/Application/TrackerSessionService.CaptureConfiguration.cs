@@ -1,6 +1,8 @@
 using BdoGrindTracker.App.Analysis;
 using BdoGrindTracker.App.Capture;
 using BdoGrindTracker.App.Localization;
+using BdoGrindTracker.App.Character;
+using BdoGrindTracker.Ocr;
 
 namespace BdoGrindTracker.App.Services;
 
@@ -9,6 +11,23 @@ internal sealed partial class TrackerSessionService
     private readonly CaptureConfigurationCatalog _captureConfigurations;
     private readonly Func<string?> _browseCaptureConfiguration;
     private bool _captureConfigurationReloadPending;
+
+    // The analyzer owns the selected profile and geometry for this capture
+    // segment. Optional readers must not independently pick another account.
+    private CompanionCalibration? SelectedGameCalibration()
+    {
+        if (_analyzer.CaptureCalibration is { } bound) return bound;
+        try { return _captureConfigurations.Read(Preferences.CaptureConfigurationPath); }
+        catch (Exception error) when (CaptureConfigurationCatalog.IsConfigurationError(error)) { return null; }
+    }
+
+    private ExperienceHudConfiguration? ReadSelectedHudConfiguration() =>
+        ExperienceHudConfigurationReader.FromCalibration(SelectedGameCalibration());
+
+    private CharacterClassDetection DetectSelectedCharacterClass() => SelectedGameCalibration() is { } selected
+        ? new CompanionCharacterClassDetector().DetectProfile(selected.ProfileDirectoryPath,
+            BlackDesertInstallationLocator.FindDirectories(), selected.GameVariablePath)
+        : CharacterClassDetection.Unavailable;
 
     public Task<CaptureConfigurationScan> ScanCaptureConfigurationsAsync()
     {
@@ -91,6 +110,14 @@ internal sealed partial class TrackerSessionService
         _analyzer = replacement;
         _captureConfigurationReloadPending = false;
         previous.Dispose();
+        if (!_hasSession)
+        {
+            _classDetectionGeneration++;
+            _classDetection = CharacterClassDetection.Unknown;
+            _sessionClass = SelectedCharacterClass;
+            _nextClassDetectionAt = DateTimeOffset.MinValue;
+            _ = RefreshClassDetectionAsync();
+        }
         _checkedOcrGameLanguage = null;
         _missingOcrLanguageTag = null;
         _ocrLanguageError = null;

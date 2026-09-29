@@ -18,6 +18,7 @@ public sealed class SettingsNavigationTests
     [InlineData(null, "appearance")]
     [InlineData("unknown", "appearance")]
     [InlineData("appearance", "appearance")]
+    [InlineData("window", "window")]
     [InlineData("capture", "capture")]
     [InlineData("silver", "silver")]
     [InlineData("diagnostics", "diagnostics")]
@@ -30,6 +31,7 @@ public sealed class SettingsNavigationTests
             var markers = new Dictionary<string, string>
             {
                 ["appearance"] = "id=\"interface-language\"",
+                ["window"] = "id=\"window-minimize-behavior\"",
                 ["capture"] = "Spielsprache in Black Desert",
                 ["silver"] = "Dein effektiver Markterlös",
                 ["diagnostics"] = "id=\"automatic-debug-logging\"",

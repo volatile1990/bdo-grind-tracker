@@ -74,8 +74,10 @@ internal sealed class CurrentSessionStore(string path)
         catch (Exception error) when (error is JsonException or IOException or InvalidDataException or UnauthorizedAccessException or
             ArgumentException or OverflowException)
         {
+            System.Diagnostics.Trace.TraceWarning("Current session load failed for {0}: {1} (0x{2:X8}).",
+                Path.GetFileName(_path), error.GetType().Name, error.HResult);
             LoadError = "Die aktuelle Session konnte nicht gelesen werden und wird nicht überschrieben. " +
-                "Bitte prüfe die Datei " + _path + ". " + error.Message;
+                "Bitte prüfe die Datei " + _path + ".";
             return null;
         }
     }

@@ -3,6 +3,7 @@ using System.Net;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using BdoGrindTracker.App.Components;
 using BdoGrindTracker.App.Localization;
 using BdoGrindTracker.App.Overlay;
@@ -60,6 +61,41 @@ public sealed class LocalizationTests
     }
 
     [Fact]
+    public void TimelineAndNativeStartupMessagesUseTheSelectedLanguage()
+    {
+        Assert.Equal("Loot auswählen", AppText.Translate("Loot auswählen", "de"));
+        Assert.Equal("Loot Selector", AppText.Translate("Loot auswählen", "en"));
+        Assert.Equal("Bestimmte Rotation anzeigen", AppText.Translate("Bestimmte Rotation anzeigen", "de"));
+        Assert.Equal("Show specific rotation", AppText.Translate("Bestimmte Rotation anzeigen", "en"));
+        Assert.Equal("Rotationen / h", AppText.Translate("Rotationen / h", "de"));
+        Assert.Equal("Rotations / h", AppText.Translate("Rotationen / h", "en"));
+        Assert.Equal("Heights flattened", AppText.Translate("Höhen abgeflacht", "en"));
+        Assert.Equal("Blazor could not start within 30 seconds.",
+            AppText.Translate("Blazor konnte innerhalb von 30 Sekunden nicht gestartet werden.", "en"));
+        Assert.Equal("The interface could not run: BrowserProcessExited",
+            AppText.Format("Die Oberfläche konnte nicht ausgeführt werden: {0}", "en", "BrowserProcessExited"));
+    }
+
+    [Fact]
+    public void FixedRazorLabelsHaveAnEnglishResource()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !Directory.Exists(Path.Combine(root.FullName, "src", "BdoGrindTracker.App", "Components")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var components = Path.Combine(root.FullName, "src", "BdoGrindTracker.App", "Components");
+        var neutral = new HashSet<string>(StringComparer.Ordinal) { "Name", "{0} / h" };
+        var missing = Directory.EnumerateFiles(components, "*.razor")
+            .SelectMany(path => Regex.Matches(File.ReadAllText(path), @"\b(?:T|F)\(""(?<key>[^""\\]+)""")
+                .Select(match => (File: Path.GetFileName(path), Key: match.Groups["key"].Value)))
+            .Where(entry => !neutral.Contains(entry.Key) && !AppText.English.ContainsKey(entry.Key)
+                && AppText.Translate(entry.Key, "en") == entry.Key)
+            .Distinct().OrderBy(entry => entry.File).ThenBy(entry => entry.Key).ToArray();
+        Assert.True(missing.Length == 0, "Missing English UI resources: " +
+            string.Join("; ", missing.Select(entry => entry.File + ": " + entry.Key)));
+    }
+
+    [Fact]
     public void FormatsNumbersDurationsAndStatusArgumentsForEachLanguage()
     {
         Assert.Equal("1,234,567", Presentation.Number(1234567, "en"));
@@ -77,6 +113,62 @@ public sealed class LocalizationTests
             AppText.Translate("AFK beendet · Startup unvollständig (3 / 5 Opfergaben), Rotation nicht gezählt · warte auf erstes Ereignis", "en"));
         Assert.Equal("Paused · startup discarded (3 / 5 offerings), does not count as a complete rotation",
             AppText.Translate("Pausiert · Startup verworfen (3 / 5 Opfergaben), zählt nicht als vollständige Rotation", "en"));
+    }
+
+    [Theory]
+    [InlineData(
+        "Tracking gestoppt: Das Black-Desert-Spielfenster ist minimiert oder nicht sichtbar. Fenster wiederherstellen und Tracking erneut starten.",
+        "Tracking stopped: The Black Desert game window is minimized or not visible. Restore the window and restart tracking.")]
+    [InlineData(
+        "Tracking gestoppt: Der HDR-Modus des Spielfensters hat sich geändert. Tracking bitte erneut starten.",
+        "Tracking stopped: The game window's HDR mode changed. Restart tracking.")]
+    [InlineData(
+        "Tracking gestoppt: Nicht unterstütztes DXGI-Bildformat: UnknownPixelFormat.",
+        "Tracking stopped: Unsupported DXGI image format: UnknownPixelFormat.")]
+    [InlineData(
+        "Tracking: Erfassung derzeit nicht verfügbar.",
+        "Tracking: Capture is currently unavailable.")]
+    [InlineData(
+        "Die Windows-Texterkennung für Deutsch (de-DE) ist nicht installiert.",
+        "Windows text recognition for German (de-DE) is not installed.")]
+    [InlineData(
+        "Die Loot-Erkennung konnte nicht gestartet werden: InvalidDataException: Die Item-Liste des Grindspots fehlt oder ist leer.",
+        "Loot detection could not be started: InvalidDataException: The grind spot item list is missing or empty.")]
+    [InlineData(
+        "Die Loot-Erkennung konnte nicht gestartet werden: InvalidDataException: Die Item-Liste des Grindspots fehlt oder ist leer. -> IOException: external/path.json",
+        "Loot detection could not be started: InvalidDataException: The grind spot item list is missing or empty. -> IOException: external/path.json")]
+    [InlineData(
+        "Bereit: Companion · Ash Forest (Lootfilter).",
+        "Ready: Companion · Ash Forest (loot filter).")]
+    [InlineData(
+        "Bereit: Companion · Ash Forest (Lootfilter). · Rare-Droplog nicht verfügbar; normales Droplog bleibt aktiv.",
+        "Ready: Companion · Ash Forest (loot filter). · Rare drop log unavailable; normal drop log remains active.")]
+    public void CaptureFailuresTranslateEntireStatusIncludingKnownNestedMessages(string german, string english)
+    {
+        Assert.Equal(german, AppText.Translate(german, "de"));
+        Assert.Equal(english, AppText.Translate(german, "en"));
+    }
+
+    [Fact]
+    public void UnknownSystemErrorDetailsRemainUntouched()
+    {
+        Assert.Equal("Tracking stopped: external error/path.json",
+            AppText.Translate("Tracking gestoppt: external error/path.json", "en"));
+    }
+
+    [Fact]
+    public void UnresolvedVariantsAndUploadActionsFollowTheUiLanguage()
+    {
+        Assert.Equal("[Dehkia] Ash Forest (select tier)", Presentation.SpotName("dehkia-ash-forest-unspecified", "en"));
+        Assert.Equal("Winter Tree Fossil (confirm AP)", Presentation.SpotName("winter-tree-fossil-unspecified", "en"));
+        Assert.Contains("Stufe wählen", Presentation.SpotName("dehkia-ash-forest-unspecified", "de"));
+        foreach (var spot in new[] { "dark-energy-floodlands", "dehkia-ash-forest-unspecified", "winter-tree-fossil-unspecified" })
+        {
+            var message = BdoGrindTracker.App.Integrations.Garmoth.GarmothCatalog.GetSpotUploadLimitation(spot)!;
+            var translated = AppText.Translate(message, "en");
+            Assert.Contains("History → Edit", translated);
+            Assert.DoesNotContain("auswählen", translated);
+        }
     }
 
     [Fact]

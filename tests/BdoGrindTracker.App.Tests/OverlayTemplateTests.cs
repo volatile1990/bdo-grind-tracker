@@ -15,7 +15,7 @@ public sealed class OverlayTemplateTests
         {
             Enabled = true, Interaction = "passthrough", Visibility = "always", CaptureExcluded = false,
             HotkeysEnabled = true, PositionX = .8, PositionY = .7,
-            Scale = 1.25, BackgroundOpacity = .45, ShowBorder = false, SnapToGrid = false,
+            Scale = 1.25, BackgroundOpacity = .45, ShowBorder = false, SnapToGrid = false, AutoAlign = false,
         };
         using (var service = new OverlayService(tracker, templateStore: new(folder.Path)))
         {
@@ -43,6 +43,7 @@ public sealed class OverlayTemplateTests
         Assert.Equal(source.BackgroundOpacity, applied.BackgroundOpacity);
         Assert.Equal(source.ShowBorder, applied.ShowBorder);
         Assert.Equal(source.SnapToGrid, applied.SnapToGrid);
+        Assert.Equal(source.AutoAlign, applied.AutoAlign);
         Assert.Equal(source.Widgets.Select(widget => widget.Kind), applied.Widgets.Select(widget => widget.Kind));
         Assert.Equal(current.Enabled, applied.Enabled);
         Assert.Equal(current.Interaction, applied.Interaction);
@@ -55,9 +56,26 @@ public sealed class OverlayTemplateTests
 
         using var json = JsonDocument.Parse(File.ReadAllText(folder.FilePath));
         var layout = json.RootElement.GetProperty("Templates")[0].GetProperty("Layout");
-        Assert.Equal(new[] { "BackgroundOpacity", "Height", "Scale", "ShowBorder", "SnapToGrid", "Widgets", "Width" },
+        Assert.Equal(new[] { "AutoAlign", "BackgroundOpacity", "Height", "Scale", "ShowBorder", "SnapToGrid", "Widgets", "Width" },
             layout.EnumerateObject().Select(property => property.Name).Order(StringComparer.Ordinal));
         Assert.False(File.Exists(System.IO.Path.Combine(folder.Path, "overlay.json")));
+    }
+
+    [Fact]
+    public void OlderTemplatesWithoutAutoAlignDefaultToEnabled()
+    {
+        using var folder = new TemplateFolder();
+        File.WriteAllText(folder.FilePath, """
+            {"Version":1,"Templates":[{"Id":"ea9fe6a18e694625a534b706c020a72b","Name":"Existing","Layout":{
+                "Width":360,"Height":260,"Widgets":[],"Scale":1,"BackgroundOpacity":0.85,
+                "ShowBorder":true,"SnapToGrid":false}}]}
+            """);
+        var store = new OverlayTemplateStore(folder.Path);
+        var template = Assert.Single(store.Load());
+        Assert.Null(store.LoadError);
+        Assert.True(template.Layout.AutoAlign);
+        Assert.True(template.ApplyTo(new() { AutoAlign = false }).AutoAlign);
+        Assert.False(template.Layout.SnapToGrid);
     }
 
     [Fact]

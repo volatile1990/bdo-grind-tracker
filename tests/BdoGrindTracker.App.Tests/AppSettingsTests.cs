@@ -8,6 +8,58 @@ public sealed class AppSettingsTests
 {
     [Theory]
     [InlineData("{}")]
+    [InlineData("{ \"SettingsVersion\": 7, \"SetupCompleted\": true }")]
+    public void MissingTrayPreferencesKeepNormalMinimizeAndRequireAnExplicitCloseChoice(string json)
+    {
+        var settings = JsonSerializer.Deserialize<AppSettings>(json)!;
+
+        settings.UpgradeDefaults();
+
+        Assert.False(settings.MinimizeToTray);
+        Assert.False(settings.CloseToTray);
+        Assert.False(settings.CloseBehaviorConfigured);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void LegacyClosePreferenceDoesNotImplyAnExplicitCloseChoice(bool closeToTray)
+    {
+        var settings = JsonSerializer.Deserialize<AppSettings>(
+            JsonSerializer.Serialize(new { SettingsVersion = 7, CloseToTray = closeToTray }))!;
+
+        settings.UpgradeDefaults();
+        var reloaded = JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(settings))!;
+
+        Assert.Equal(closeToTray, reloaded.CloseToTray);
+        Assert.False(reloaded.CloseBehaviorConfigured);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void IndependentTrayPreferencesSurviveUpgradeAndJsonRoundTrip(bool minimizeToTray, bool closeToTray)
+    {
+        var settings = new AppSettings
+        {
+            MinimizeToTray = minimizeToTray,
+            CloseToTray = closeToTray,
+            CloseBehaviorConfigured = true,
+        };
+
+        settings.UpgradeDefaults();
+        var reloaded = JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(settings))!;
+        reloaded.UpgradeDefaults();
+
+        Assert.Equal(minimizeToTray, reloaded.MinimizeToTray);
+        Assert.Equal(closeToTray, reloaded.CloseToTray);
+        Assert.True(reloaded.CloseBehaviorConfigured);
+    }
+
+    [Theory]
+    [InlineData("{}")]
     [InlineData("{ \"SettingsVersion\": 6, \"AutoPauseMinutes\": 12 }")]
     public void AutomaticGarmothUploadsRequireExplicitOptIn(string json)
     {

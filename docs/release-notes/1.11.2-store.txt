@@ -1,0 +1,5 @@
+Neu in Grindcrest 1.11.2:
+
+• Beim Start wird automatisch geprüft, ob das OCR-Sprachpaket für die gewählte Spielsprache installiert ist. Ein vorhandenes Paket für eine andere Sprache verdeckt ein fehlendes Paket nicht mehr.
+• Beim Öffnen des Erfassungsschritts in der Setup-Tour wird OCR automatisch erneut geprüft. Ein zusätzlicher Klick auf die OCR-Prüfung ist nicht nötig.
+• Nach einem Wechsel der Spielsprache wird der OCR-Status für die neu gewählte Sprache aktualisiert.

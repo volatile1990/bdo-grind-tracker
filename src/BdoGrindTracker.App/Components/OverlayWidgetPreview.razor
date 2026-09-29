@@ -217,7 +217,7 @@
     [Parameter] public EventCallback OnToggleTracking { get; set; }
     [Parameter] public EventCallback OnNewSession { get; set; }
 
-    private OverlayMetric Metric => Snapshot.Metrics.GetValueOrDefault(Widget.Kind) ?? new(OverlayCatalog.Find(Widget.Kind)?.Label ?? T("Modul"), "—");
+    private OverlayMetric Metric => Snapshot.Metrics.GetValueOrDefault(Widget.Kind) ?? new(T(OverlayCatalog.Find(Widget.Kind)?.Label ?? "Modul"), "—");
     private bool IsConsumables => Widget.Kind == "consumables";
     private bool IsLoot => IsConsumables || OverlayCatalog.IsLootWidget(Widget.Kind);
     private bool IsClock => Widget.Kind == "clock";

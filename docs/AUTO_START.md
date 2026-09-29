@@ -34,15 +34,29 @@ Sessionspot — ein Rückfall auf „unbekannt" würde die laufende Rotation ver
 Ab der fünften Ankunft wird die Session gespeichert und verwendet die normale
 Auto-Pause-Einstellung. Vorher werden weder Verlauf noch Wiederherstellungspunkt
 gespeichert oder Garmoth-Uploads erlaubt. Manuell gestartete und bereits bestehende
-Sessions bleiben erhalten; eine automatisch pausierte Session wird fortgesetzt.
-Ein Spot- oder Klassenwechsel benötigt weiterhin
-**Neue Session**.
+Sessions bleiben erhalten. Nach einer manuellen oder automatischen Pause setzt
+erkannter Trashloot desselben Spots die Session fort. Erkennt die Automatik
+eindeutig Trashloot eines anderen Spots, speichert sie die bisherige Session im
+Verlauf und startet eine neue Session für diesen Spot. Die neuen Drops und die
+Sessionzeit werden dabei getrennt gezählt. Varianten mit gemeinsamem Trashloot
+gelten weiterhin als derselbe Spot; die gewählte Variante bleibt erhalten.
+Ohne eindeutige Spotzuordnung wird die bestehende Session fortgesetzt.
+Ein Klassenwechsel benötigt weiterhin **Neue Session**.
 
 Nur der Schalter schaltet die automatische Erkennung aus. Eine manuelle Pause
 stoppt die Session; solange der Schalter aktiviert bleibt, überwacht die Automatik
-anschließend wieder neue Drops und setzt eine bestehende Session fort. Auch
+anschließend wieder neue Drops und setzt die Session fort oder startet bei einem
+erkannten Spotwechsel eine neue. Auch
 **Neue Session** und ein App-Neustart benötigen keine separate Reaktivierung.
 Alte gespeicherte Automatik-Pausen werden ignoriert.
+
+Wird Black Desert während einer laufenden Aufnahme minimiert oder unsichtbar,
+pausiert Grindcrest die bestehende Session ohne Fehlermeldung. Sobald das
+Spielfenster wieder sichtbar und im Vordergrund ist, prüft die aktivierte
+Automatik neue Drops. Ein erkannter Drop setzt dieselbe Session fort oder
+beginnt bei einem eindeutig anderen Spot eine neue; ein Klick auf
+**Fortsetzen** ist nicht nötig. Die Zeit während der Unterbrechung zählt nicht
+zur Grindzeit. Eine ausdrücklich manuell pausierte Session verhält sich ebenso.
 
 Nach einem Erkennungs- oder Startfehler erfolgt frühestens nach zehn Sekunden
 ein neuer Versuch. Fehlende OCR-Sprachpakete, ungültige Kalibrierung,
@@ -53,11 +67,17 @@ eine Erfassung; nach Behebung arbeitet die eingeschaltete Automatik weiter.
 
 - Ein `SetWinEventHook` mit `WINEVENT_OUTOFCONTEXT` beobachtet Vordergrundwechsel.
   Sein Thread schläft in der Windows-Nachrichtenschleife. Bei inaktivem oder
-  minimiertem BDO werden keine Bilder aufgenommen. Ein laufender Burst gibt die
-  Fensteraufnahme bei Fokusverlust frei.
+  minimiertem BDO werden keine Bilder aufgenommen. Bereitschaft und Lootprüfung
+  geben die Fensteraufnahme bei Fokusverlust sofort frei.
 - In Bereitschaft wird höchstens einmal pro Sekunde ein Spielfensterbild gelesen.
-  Die native Aufnahme wird nach jedem solchen Bild vollständig beendet. Es läuft
-  kein WGC-Stream mit hoher Bildrate im Hintergrund zwischen den Prüfungen.
+  Solange BDO im Vordergrund bleibt, wird dieselbe native Aufnahme wiederverwendet.
+  Dadurch entfallen die sekündlichen WGC-Neustarts, die den Spielcursor zum
+  Flackern bringen können. Auch der Wechsel zur Lootprüfung und zurück startet
+  die Aufnahme nicht neu. Deaktivieren, Fokusverlust, Fehler und Beenden geben sie frei.
+  Unterstützt Windows [`MinUpdateInterval`](https://learn.microsoft.com/en-us/uwp/api/windows.graphics.capture.graphicscapturesession.minupdateinterval), beträgt der native Mindestabstand in
+  Bereitschaft 500 ms und während der Lootprüfung 100 ms. Das lässt Spielraum für
+  frische Bilder vor den jeweiligen Abfragen; ältere Windows-Versionen verwenden
+  weiterhin die native Standardrate.
 - Der rein verwaltete Bildvergleich liest nur die kalibrierte Textzeile des
   neuesten normalen Loots. Lokaler Kontrast und Glyphstruktur liefern einen
   Verdacht; bewegter Hintergrund allein bestätigt keinen Grind. Das erste Bild

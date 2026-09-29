@@ -59,7 +59,7 @@ internal static class Program
             catch (AbandonedMutexException) { acquired = true; }
             if (!acquired)
             {
-                MessageBox.Show("Grindcrest läuft bereits. Bitte verwende das geöffnete Fenster.",
+                MessageBox.Show("Grindcrest läuft bereits. Du kannst es über das Grindcrest-Symbol im Infobereich der Taskleiste öffnen.",
                     "Grindcrest", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return 0;
             }

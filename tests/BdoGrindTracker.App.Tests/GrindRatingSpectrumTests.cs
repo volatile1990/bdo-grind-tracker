@@ -110,7 +110,7 @@ public sealed class GrindRatingSpectrumTests
     [Theory]
     [InlineData(5_000, 25, "50 % von Average")]
     [InlineData(10_000, 50, "Average erreicht")]
-    [InlineData(12_500, 62.5, "25,0 % über Average")]
+    [InlineData(12_500, 75, "25,0 % über Average")]
     [InlineData(30_000, 100, "200,0 % über Average")]
     public void AverageOnlySourceNeverCreatesHigherReferences(long trash, double position, string progress)
     {
@@ -119,8 +119,37 @@ public sealed class GrindRatingSpectrumTests
         Assert.Equal("Average", Assert.Single(spectrum.Stops).Label);
         Assert.Equal(position, spectrum.Position);
         Assert.Equal(progress, spectrum.ProgressLabel);
+        Assert.Equal("+50 %", spectrum.UpperEndLabel);
         Assert.DoesNotContain("High", spectrum.Description);
         Assert.DoesNotContain("Top", spectrum.Description);
+    }
+
+    [Theory]
+    [InlineData("de", "+50 %", "18,1 % über Average", "bis 50 % darüber")]
+    [InlineData("en", "+50%", "18.1% above Average", "reaches 50% above it")]
+    public async Task AverageOnlyScaleMakesAnEighteenPercentGainVisible(string language, string endLabel,
+        string progress, string descriptionFragment)
+    {
+        var benchmark = Benchmark() with
+        {
+            AverageTrashPerHour = 12_979, HighTrashPerHour = null, TopTrashPerHour = null,
+        };
+        var spectrum = Spectrum(15_332, benchmark, language);
+
+        Assert.Equal(50, Assert.Single(spectrum.Stops).Position);
+        Assert.InRange(spectrum.Position, 68.12, 68.14);
+        Assert.Equal(progress, spectrum.ProgressLabel);
+        Assert.Equal(endLabel, spectrum.UpperEndLabel);
+        Assert.Contains(descriptionFragment, spectrum.Description);
+
+        var full = await Render<GrindRatingScale>(new() { [nameof(GrindRatingScale.Value)] = spectrum });
+        var compact = await Render<GrindRatingScale>(new()
+        {
+            [nameof(GrindRatingScale.Value)] = spectrum,
+            [nameof(GrindRatingScale.Compact)] = true,
+        });
+        Assert.Contains($"class=\"grind-spectrum-endpoint\">{endLabel}</span>", full);
+        Assert.DoesNotContain("grind-spectrum-endpoint", compact);
     }
 
     [Theory]

@@ -37,6 +37,39 @@ public sealed class MultiOverlayNativeTests
     }
 
     [Fact]
+    public void GeometryCanBeCommittedWhileTheSameWindowAwaitsATrackingCommand()
+    {
+        RunInSta(() =>
+        {
+            var tracker = new PreviewTrackerSession(empty: true);
+            try
+            {
+                using var service = new OverlayService(tracker);
+                var id = service.SelectedOverlayId;
+                using var host = new NativeOverlayWindowHost(id, service, tracker, () => { });
+                var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                var command = (Task)typeof(NativeOverlayWindowHost)
+                    .GetMethod("RunCommandAsync", BindingFlags.NonPublic | BindingFlags.Instance)!
+                    .Invoke(host, new object[] { (Func<Task>)(() => release.Task) })!;
+                var bounds = new Rectangle(100, 200, 360, 260);
+                var monitor = new Rectangle(0, 0, 1920, 1080);
+                var expected = NativeOverlayGeometry.RelativePosition(bounds, monitor);
+                try
+                {
+                    Assert.False(command.IsCompleted);
+                    host.CommitGeometryAsync(bounds, null, monitor).GetAwaiter().GetResult();
+                    Assert.Equal(expected.X, service.Settings.PositionX);
+                    Assert.Equal(expected.Y, service.Settings.PositionY);
+                    Assert.False(command.IsCompleted);
+                }
+                finally { release.TrySetResult(); }
+                command.GetAwaiter().GetResult();
+            }
+            finally { tracker.DisposeAsync().AsTask().GetAwaiter().GetResult(); }
+        });
+    }
+
+    [Fact]
     public void WindowsHaveSeparateHandlesAndCallbacksKeepTheirOriginalIdAfterEditorSelectionChanges()
     {
         RunInSta(() =>

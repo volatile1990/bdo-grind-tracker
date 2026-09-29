@@ -1,0 +1,10 @@
+Neu in Grindcrest 1.14.0:
+
+• Neues Tray-Symbol: Minimieren und Schließen (X) lassen sich getrennt konfigurieren. Im Tray laufen Erfassung und Overlays weiter; das Symbol öffnet das Fenster wieder.
+• Spotvarianten im Verlauf auswählen: Gespeicherte Sessions lassen sich einem kompatiblen Gebiet oder einer kompatiblen Stufe zuordnen. Lootmengen und Klasse bleiben erhalten; übertragene Sessions und offene Uploads bleiben geschützt.
+• Einfachere Timeline-Bedienung: Buttons und Tastatur zum Zoomen und Verschieben sowie eine Tabelle mit exakten Dropmengen, Zeitabschnitten und Rotationsphasen.
+• Übersichtlicherer Verlauf: Lootspalten vor XP, AP/DP und Verbrauch, Favoriten nach Trashloot und direkt erreichbare Sessiondetails.
+• Klarere Silberbewertung: Verlauf, Grindziele und Sessionbilder nennen die verwendete Preisgrundlage.
+• Verbesserte Lesbarkeit und Bedienung: Erfassungseinstellungen folgen dem Theme, Overlaymodule sind per Tastatur auswählbar und die Einführung nennt die noch ausstehende Erfassungsprüfung.
+• Korrigierte Sessionzeit beim Beenden: Abschließender Leerlauf wird wie beim Pausieren abgezogen.
+• Zuverlässigere Konfigurationszuordnung und Aufnahme: XP, AP/DP und Klasse folgen der gewählten BDO-Konfiguration; Korrekturen an Bannerprüfung, Overlaycache und Speicherung der Overlayposition.

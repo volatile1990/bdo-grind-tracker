@@ -4,6 +4,28 @@ internal static partial class AppText
 {
     private static void AddRotationMetrics(Dictionary<string, string> text)
     {
+        text["Neue Session · warte auf erstes Ereignis"] = "New session · waiting for the first event";
+        text["Tracking pausiert · warte auf Rotationsstart"] = "Tracking paused · waiting for rotation start";
+        text["Für diesen Spot sind noch keine Rotationsdaten hinterlegt"] = "No rotation data is available for this spot yet";
+        text["Warte auf Spot-Erkennung"] = "Waiting for spot detection";
+        text["Warte auf Erkennung"] = "Waiting for detection";
+        text["Rotation fehlgeschlagen · Warte auf Erkennung"] = "Rotation failed · waiting for detection";
+        text["AFK beendet · Warte auf Erkennung"] = "AFK ended · waiting for detection";
+        text["Spot-Aufbau neu gestartet"] = "Spot setup restarted";
+        text["Session nach Neustart wiederhergestellt · Warte auf Erkennung"] =
+            "Session restored after restart · waiting for detection";
+        text["Bildsignal unterbrochen · warte auf erstes Ereignis"] =
+            "Video signal interrupted · waiting for the first event";
+        text["Tracking pausiert · warte auf erstes Ereignis"] =
+            "Tracking paused · waiting for the first event";
+        text["Erkennung unterbrochen · warte auf erstes Ereignis"] =
+            "Detection interrupted · waiting for the first event";
+        text["Rotation Monitor beendet"] = "Rotation Monitor stopped";
+        text["Tracking pausiert"] = "Tracking paused";
+        text["Rotationsreferenzen konnten nicht geladen werden."] = "Rotation references could not be loaded.";
+        text["Rotationsreferenzen nicht gespeichert."] = "Rotation references were not saved.";
+        text["Rotationserkennung vorübergehend nicht verfügbar."] =
+            "Rotation detection is temporarily unavailable.";
         text["Kein Rotationsprofil für diesen Spot"] = "No rotation profile for this spot";
         text["Nach der ersten vollständigen Rotation"] = "After the first complete rotation";
         text["ohne Rückweg"] = "without walk back";
@@ -17,7 +39,7 @@ internal static partial class AppText
         text["Zufällige Zusatz- und Ersatzmechaniken in dieser Session"] = "Random extra and replacing mechanics in this session";
         text["Special Events pro aktiver Stunde"] = "Special events per active hour";
         text["Rotationen mit Special Events werten"] = "Count rotations with special events";
-        text["Special Events sind zufällige Mechaniken, die eine volle Rotation nicht braucht und die zusätzlich oder ersetzend auftreten: das Agris-Event in Aphrodon. Ausgeschaltet zählen Rotationen mit Special Event nicht für Bestzeit, Idealrotation, Bestabschnitte und Rotations / h. In Event Horizon vergleicht der Rotation Monitor immer Rotationen mit gleich vielen Mini-AFKs. Die Fragmente of Divinity in Magaia fallen in fest getimte Phasen und ändern die Rotationslänge nicht; dort wird jede Rotation verglichen."] =
+        text["Special Events sind zufällige Mechaniken, die eine volle Rotation nicht braucht und die zusätzlich oder ersetzend auftreten: das Agris-Event in Aphrodon. Ausgeschaltet zählen Rotationen mit Special Event nicht für Bestzeit, Idealrotation, Bestabschnitte und Rotationen / h. In Event Horizon vergleicht der Rotation Monitor immer Rotationen mit gleich vielen Mini-AFKs. Die Fragmente of Divinity in Magaia fallen in fest getimte Phasen und ändern die Rotationslänge nicht; dort wird jede Rotation verglichen."] =
             "Special events are random mechanics a full rotation does not need, appearing in addition or as a replacement: the Agris event at Aphrodon. When off, rotations with a special event do not count for best time, ideal rotation, best sections and rotations / h. At Event Horizon the Rotation Monitor always compares rotations with the same number of mini AFKs. Magaia's fragments of divinity fall into phases with a fixed timing and do not change a rotation's length; there every rotation is compared.";
         text["Special Events sind zufällige Mechaniken, die eine volle Rotation nicht braucht " +
             "und die zusätzlich oder ersetzend auftreten: das Agris-Event in Aphrodon, das Mini-AFK in Event Horizon und die " +

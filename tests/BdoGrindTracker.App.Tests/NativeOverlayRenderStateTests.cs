@@ -128,6 +128,83 @@ public sealed class NativeOverlayRenderStateTests
     }
 
     [Fact]
+    public void ChartRepaintsChangedRotationEventContentsEvenWhenTheirCountsStayEqual()
+    {
+        var state = new NativeOverlayRenderState();
+        var settings = new OverlaySettings { Widgets = [OverlayCatalog.CreateWidget("chart") with
+        {
+            TimelineLayers = ["rotations", "special"], TimelineRotationView = OverlayTimelineLayers.PhasesView,
+        }] };
+        var timing = new SessionRotationTiming(120, StartedAfter: TimeSpan.Zero,
+            SpecialEventSeconds: [35], Events: [new("start", "Start", 0), new("drakania", "Drakania", 30)]);
+        var snapshot = new OverlaySnapshot
+        {
+            SessionElapsed = TimeSpan.FromMinutes(2),
+            Rotation = new() { SpotId = "hermesia", SessionRotations = [timing] },
+        };
+        state.Remember(settings, snapshot, new(600, 200));
+        var equivalent = timing with { Events = timing.Events!.ToArray(), SpecialEventSeconds = [35] };
+        Assert.True(state.Matches(settings, snapshot with { Rotation = snapshot.Rotation with
+        {
+            SessionRotations = [equivalent],
+        } }, new(600, 200)));
+        foreach (var changed in new[]
+        {
+            timing with { Events = [new("start", "Start", 0), new("drakania", "Drakania", 60)] },
+            timing with { Events = [new("start", "Start", 0), new("afk", "AFK", 30)] },
+            timing with { SpecialEventSeconds = [75] },
+        })
+            Assert.False(state.Matches(settings, snapshot with { Rotation = snapshot.Rotation with
+            {
+                SessionRotations = [changed],
+            } }, new(600, 200)));
+    }
+
+    [Fact]
+    public void CaptureExclusionRetriesFailedChangesAndKeepsOnlyTheSuccessfullyAppliedState()
+    {
+        var now = 0L;
+        var attempts = new List<bool>();
+        var fail = false;
+        var state = new NativeOverlayCaptureExclusion(() => now);
+        string? Apply(bool requested)
+        {
+            attempts.Add(requested);
+            return fail ? "Windows failure" : null;
+        }
+        Assert.Null(state.Apply(false, Apply));
+        fail = true;
+        Assert.Equal("Windows failure", state.Apply(true, Apply));
+        now = 4_999;
+        Assert.Equal("Windows failure", state.Apply(true, Apply));
+        Assert.Equal(new[] { false, true }, attempts);
+        // Returning to the last successfully applied setting clears the obsolete error.
+        Assert.Null(state.Apply(false, Apply));
+        Assert.Equal(2, attempts.Count);
+        fail = false;
+        Assert.Null(state.Apply(true, Apply));
+        Assert.Equal(new[] { false, true, true }, attempts);
+        Assert.Null(state.Apply(true, Apply));
+        Assert.Equal(3, attempts.Count);
+        state.Invalidate();
+        Assert.Null(state.Apply(true, Apply));
+        Assert.Equal(4, attempts.Count);
+    }
+
+    [Fact]
+    public void CaptureExclusionRetriesAfterItsBoundedBackoff()
+    {
+        var now = 0L;
+        var attempts = 0;
+        var state = new NativeOverlayCaptureExclusion(() => now);
+        string? Apply(bool _) => ++attempts == 1 ? "Windows failure" : null;
+        Assert.NotNull(state.Apply(true, Apply));
+        now = 5_000;
+        Assert.Null(state.Apply(true, Apply));
+        Assert.Equal(2, attempts);
+    }
+
+    [Fact]
     public void ConflictedHotkeyRetriesWithoutReleasingAnAlreadyRegisteredShortcut()
     {
         var now = 0L;

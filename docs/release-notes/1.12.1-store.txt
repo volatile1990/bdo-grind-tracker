@@ -1,0 +1,6 @@
+Neu in Grindcrest 1.12.1:
+
+• Rotationsvergleiche am Ereignishorizont berücksichtigen die Anzahl der Mini-AFKs. Magaias Fragmente führen nicht mehr zu getrennten Vergleichsgruppen.
+• Während Ladebildschirmen fehlende Mini-AFK-Mitteilungen können aus der erkannten Mitte ergänzt werden, ohne daraus Mechanikbestzeiten abzuleiten.
+• Kurze Rotationsabschnitte erhalten mehr Zeitspielraum. Nach einem Zeitlimit setzt die Erkennung im passenden Zyklus fort.
+• Bei einem Einstieg mitten in einer Rotation werden Zeit, Fortschritt und Phasen passend zur Referenz ausgerichtet. Der unsicher erfasste Anfang bleibt gekennzeichnet.

@@ -211,7 +211,8 @@ internal sealed partial class TrackerSessionService
         }
         catch (Exception error) when (error is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException or OverflowException)
         {
-            _currentSessionPersistenceError = "Die aktuelle Session ist noch nicht gespeichert. " + error.Message;
+            TracePersistenceFailure("current session save", CurrentSessionStore.FileName, error);
+            _currentSessionPersistenceError = "Die aktuelle Session ist noch nicht gespeichert.";
             if (_shutdownStarted) _shutdownFailed = true;
             SetStatus(_currentSessionPersistenceError, true);
             if (throwOnError) throw;
@@ -229,7 +230,8 @@ internal sealed partial class TrackerSessionService
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         {
-            _currentSessionPersistenceError = "Die neue Session konnte noch nicht angelegt werden. " + error.Message;
+            TracePersistenceFailure("current session reset", CurrentSessionStore.FileName, error);
+            _currentSessionPersistenceError = "Die neue Session konnte noch nicht angelegt werden.";
             throw;
         }
     }

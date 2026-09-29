@@ -36,7 +36,8 @@ public partial class GarmothDashboard
         bool Blocked, bool Uploaded, bool LocallyModified);
 
     private bool InteractionBlocked => _disposed || Acting || _preparing || _batchUploading || State.IsBusy;
-    private bool UploadsAvailable => !State.IsDemo && !State.IsBusy && State.HasApiKey && State.PersistenceError is null;
+    private bool UploadsAvailable => !State.IsDemo && !State.IsBusy && State.PendingGarmothUploads.Count == 0 &&
+        State.HasApiKey && State.PersistenceError is null;
     private void FormChanged() => _saveFeedback = null;
     private void ResetPage() => _page = 1;
     private string UploadFeedbackText => _uploadFeedback is not { } feedback ? ""
@@ -93,12 +94,13 @@ public partial class GarmothDashboard
         return _batchTargets.All(target => Matches(target, rows));
     }
 
-    private string RowStatus(UploadRow row) => row.Uploaded
+    private bool IsUploading(UploadRow row) => _uploadingSession == row.SessionId || State.PendingGarmothUploads.Contains(row.SessionId);
+    private string RowStatus(UploadRow row) => IsUploading(row) ? T("Sendet …") : row.Uploaded
         ? row.IsCurrent && !State.IsSubmitted && !State.UploadBlocked ? T("Teilweise hochgeladen") : T("Hochgeladen")
         : row.Blocked ? T("Upload gesperrt") : T("Noch offen");
     private string UploadHint(UploadRow row) => State.IsDemo ? T("Demo-Sessions werden nicht hochgeladen.")
         : !State.HasApiKey ? T("Zuerst einen Garmoth-API-Schlüssel hinterlegen.")
-        : InteractionBlocked ? T("Ein Vorgang wird gerade ausgeführt.")
+        : InteractionBlocked || State.PendingGarmothUploads.Count > 0 ? T("Ein Vorgang wird gerade ausgeführt.")
         : T(State.PersistenceError ?? row.Preview.Error ?? (row.IsCurrent ? "Rest hochladen und Session abschließen" : "Session hochladen"));
 
     private Task SaveKey() => string.IsNullOrWhiteSpace(_apiKey) ? Task.CompletedTask

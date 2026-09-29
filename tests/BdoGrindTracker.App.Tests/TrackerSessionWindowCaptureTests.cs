@@ -258,6 +258,7 @@ public sealed partial class TrackerSessionServiceTests
     private sealed class ServiceWindowSource : IWindowFrameSource
     {
         public bool Disposed { get; private set; }
+        public void SetMinimumUpdateInterval(TimeSpan minimumInterval) { }
         public CapturedDesktopBitmap Capture(Func<WindowCaptureGeometry> geometry, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();

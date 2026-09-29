@@ -1,0 +1,6 @@
+Neu in Grindcrest 1.11.0:
+
+• Die Session-Timeline hat jetzt einen eigenen Bereich unterhalb der Spotkarte im Live-Dashboard.
+• Der Zeitstrahl lässt sich zuverlässiger verschieben: Beim Ziehen werden keine Zeitangaben markiert oder Itembilder mitgezogen. Das Verschieben bleibt auch außerhalb der Timeline aktiv, bis die Maustaste losgelassen wird.
+• Rotationen behalten nach einem Neustart ihre Position auf der Timeline. Ihre Platzierung richtet sich nach dem gespeicherten Beginn der Session, damit die Zeit bei geschlossenem Tracker die Anzeige nicht verschiebt.
+• Rotationen, die vor der ersten aktiven Sessionsekunde beginnen und in die Session hineinreichen, bleiben sichtbar. Das hilft insbesondere beim automatischen Grindstart nach einer zuvor erkannten Startmeldung. Der sichtbare Abschnitt und die Startanzeige beginnen frühestens bei Sessionzeit null.

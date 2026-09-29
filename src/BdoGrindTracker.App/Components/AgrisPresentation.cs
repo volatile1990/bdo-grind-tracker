@@ -10,6 +10,7 @@ internal sealed class AgrisPresentation(TimeSpan? active, TimeSpan? observed, Ti
     private TimeSpan Observed => TimeSpan.FromTicks(Math.Clamp(observed?.Ticks ?? 0, 0, SessionDuration.Ticks));
     private TimeSpan Active => TimeSpan.FromTicks(Math.Clamp(active?.Ticks ?? 0, 0, Observed.Ticks));
     private bool IsPartial => Observed < SessionDuration;
+    internal string? ActiveDurationLabel => HasObservation && Active > TimeSpan.Zero ? $"≈ {ShortTime(Active)}" : null;
     internal string Duration => HasObservation ? $"≈ {ShortTime(Active)}{(IsPartial ? " *" : "")}" : "—";
     internal string Description => !HasObservation
         ? AppText.Translate(active is null || observed is null ? "Agris nicht erfasst." : "Agris nicht erkannt.", language)

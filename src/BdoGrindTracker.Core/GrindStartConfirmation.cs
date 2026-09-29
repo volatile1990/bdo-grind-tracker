@@ -15,6 +15,9 @@ public sealed class GrindStartConfirmation(DateTimeOffset startedAt, bool accept
     private bool _confirmed;
     private bool _acceptInitialArrival = acceptInitialArrival;
 
+    /// <summary>The unambiguous trash spot behind the confirming arrival, if known.</summary>
+    public string? SpotId { get; private set; }
+
     public bool Observe(LootTotalsProjection projection)
     {
         ArgumentNullException.ThrowIfNull(projection);
@@ -26,9 +29,9 @@ public sealed class GrindStartConfirmation(DateTimeOffset startedAt, bool accept
         // The reconciler can date the visually new row just before the triggering
         // capture. Independent visual evidence permits that initial estimate;
         // neither another arrival nor another OCR-positive frame is required.
-        if (_acceptInitialArrival && projection.ConfirmedDropCount > 0 &&
-            projection.Totals.Any(pair => TrashNames.Contains(pair.Key) && pair.Value > 0))
-            _confirmed = true;
+        if (_acceptInitialArrival && projection.ConfirmedDropCount > 0)
+            Confirm(projection.Totals.Where(pair => TrashNames.Contains(pair.Key) && pair.Value > 0)
+                .Select(pair => pair.Key));
         if (previous is null)
         {
             if (projection.LatestArrivalAt > _lastArrival) _lastArrival = projection.LatestArrivalAt.Value;
@@ -42,9 +45,23 @@ public sealed class GrindStartConfirmation(DateTimeOffset startedAt, bool accept
         // A corrected trash quantity and a simultaneous non-monster arrival are
         // not proof of a new monster drop. Legacy projections without correction
         // metadata still use the independent arrival/count/quantity checks.
-        if (newArrival && unchangedCorrections && projection.Totals.Any(pair => TrashNames.Contains(pair.Key) &&
-                pair.Value > previous.Totals.GetValueOrDefault(pair.Key)))
-            _confirmed = true;
+        if (newArrival && unchangedCorrections)
+            Confirm(projection.Totals.Where(pair => TrashNames.Contains(pair.Key) &&
+                pair.Value > previous.Totals.GetValueOrDefault(pair.Key)).Select(pair => pair.Key));
         return _confirmed;
+    }
+
+    private void Confirm(IEnumerable<string> trashNames)
+    {
+        if (_confirmed) return;
+        var names = trashNames.ToArray();
+        if (names.Length == 0) return;
+        _confirmed = true;
+        // Old and new spots can coexist in a replay. Only an unambiguous
+        // confirming arrival identifies its spot; shared variants map to their
+        // existing family ID instead of arbitrarily choosing a concrete variant.
+        var spotIds = names.Select(AutomaticLootSpotLock.SpotIdForTrash).Distinct(StringComparer.Ordinal)
+            .Take(2).ToArray();
+        SpotId = spotIds.Length == 1 ? spotIds[0] : null;
     }
 }

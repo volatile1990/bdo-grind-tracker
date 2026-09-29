@@ -12,7 +12,7 @@
     <ol class="setup-progress" aria-label="@T("Einrichtungsschritte")">
         @for (var index = 0; index < Steps.Length; index++)
         {
-            <li class="@(index == _step ? "is-current" : index < _step ? "is-done" : "")" aria-current="@(index == _step ? "step" : null)"><span class="setup-step-number">@if (index < _step) { <AppIcon Name="check" /> } else { @(index + 1) }</span><span>@T(Steps[index])</span></li>
+            <li class="@(index == _step ? "is-current" : index < _step ? "is-visited" : "")" aria-current="@(index == _step ? "step" : null)"><span class="setup-step-number">@(index + 1)</span><span>@T(Steps[index])@if (index < _step) { <span class="sr-only"> · @T("Schritt durchlaufen")</span> }</span></li>
         }
     </ol>
 
@@ -73,6 +73,9 @@
                 <section class="panel settings-panel"><h3>@T("So startest du deine erste Session")</h3><ol class="setup-checklist"><li>@T("Wähle in der Live-Session „Tracking starten“. Die aktive Zeit beginnt mit dem ersten neu gezählten Drop.")</li><li>@T("Der Spot wird aus deinem Trashloot erkannt. Falls mehrere Gebiete denselben Trashloot haben, wähle die passende Variante.")</li><li>@T("Pausieren erhält deine Session. Ohne neuen Loot greift die automatische Pause; die abschließende Leerlaufzeit wird abgezogen.")</li><li>@T("Beginne vor einem Spot- oder Charakterwechsel eine neue Session. Deine bisherigen Sessions findest du im Verlauf.")</li></ol></section>
             </div>
             <div class="setup-optional"><AppIcon Name="settings" /><p><strong>@T("Als Nächstes – ganz optional")</strong><span>@T("Unter „Overlay“ kannst du eigene Anzeigen erstellen und aktivieren. Unter „Garmoth“ lässt sich der Upload separat verbinden. Die Loot-Diagnose in den Einstellungen brauchst du nur zur Fehlersuche.")</span></p></div>
+            <section class="setup-readiness subtle-box" aria-labelledby="setup-readiness-title">
+                <AppIcon Name="monitor" /><div><strong id="setup-readiness-title">@T("Erfassungsbereiche im Spiel noch prüfen")</strong><p>@T("Die Schritte speichern deine Einstellungen. Sie bestätigen nicht, dass Name und Menge im Spielbild vollständig sichtbar sind. Du kannst jetzt eine Vorschau prüfen oder dies vor deinem ersten Grind nachholen.")</p><button type="button" class="button secondary" @onclick="() => MoveTo(2)" disabled="@Busy">@T("Erfassung jetzt prüfen")</button></div>
+            </section>
             @if (State.MissingOcrLanguageTag is not null || State.OcrRestartRequired || State.TrackingBlockedReason is not null || !State.AnalyzerAvailable)
             {
                 <div class="notice warning-notice"><AppIcon Name="info" /><div><strong>@T("Vor dem Tracking noch prüfen")</strong><span>@T("Spiel, OCR oder Erfassungsbereiche sind noch nicht bereit. Die Live-Session zeigt dir die offenen Schritte; du kannst die Einrichtung trotzdem speichern.")</span></div></div>
@@ -80,12 +83,12 @@
         }
     </section>
 
-    <footer class="setup-footer"><span class="field-note">@T("Einstellungen werden bei Änderungen gespeichert.")</span><div><button class="button secondary" @onclick="Back" disabled="@(Busy || _step == 0)"><AppIcon Name="back" />@T("Zurück")</button>@if (_step < Steps.Length - 1) { <button class="button primary" @onclick="Next" disabled="@Busy">@T("Weiter")<AppIcon Name="arrow" /></button> } else { <button class="button primary" @onclick="Complete" disabled="@Busy"><AppIcon Name="check" />@T("Einrichtung abschließen")</button> }</div></footer>
+    <footer class="setup-footer"><div><button class="button secondary" @onclick="Back" disabled="@(Busy || _step == 0)"><AppIcon Name="back" />@T("Zurück")</button>@if (_step < Steps.Length - 1) { <button class="button primary" @onclick="Next" disabled="@Busy">@T("Weiter")<AppIcon Name="arrow" /></button> } else { <button class="button primary" @onclick="Complete" disabled="@Busy"><AppIcon Name="check" />@T("Einrichtung abschließen")</button> }</div></footer>
 </div>
 
 @code {
     private static readonly string[] Steps = ["Willkommen", "Droplog", "Erfassung", "Silber", "Loslegen"];
-    private static readonly string[] Titles = ["Mach Grindcrest zu deinem Tracker", "Lass deine Lootmeldungen sichtbar", "Verbinde die Erfassung mit deinem Spiel", "Stimme deine Silberbewertung ab", "Deine erste Session kann kommen"];
+    private static readonly string[] Titles = ["Mach Grindcrest zu deinem Tracker", "Lass deine Lootmeldungen sichtbar", "Verbinde die Erfassung mit deinem Spiel", "Stimme deine Silberbewertung ab", "Deine erste Session vorbereiten"];
     private int _step;
     private bool _focusPending, _recheckingOcr;
     private ElementReference _stepTitle;
@@ -95,20 +98,21 @@
     {
         if (Busy || _step >= Steps.Length - 1) return;
         if (_fields is not null && !await _fields.CommitAsync()) return;
-        MoveTo(_step + 1);
+        await MoveTo(_step + 1);
     }
     private async Task Back()
     {
         if (Busy || _step == 0) return;
         if (_fields is not null && !await _fields.CommitAsync()) return;
-        MoveTo(_step - 1);
+        await MoveTo(_step - 1);
     }
-    private void MoveTo(int step)
+    private async Task MoveTo(int step)
     {
         _fields = null;
         _step = step;
         _focusPending = true;
         ClearActionError();
+        if (_step == 2) await RecheckOcr();
     }
     private async Task Leave()
     {
@@ -138,7 +142,6 @@
 }
 
 <style>
-    .setup-page { max-width:1180px;margin-inline:auto }
     .setup-heading { display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:30px }
     .setup-heading h1 { margin:10px 0;font-size:clamp(24px,2.5vw,34px);letter-spacing:-.7px }
     .setup-heading p,.setup-content p { color:var(--muted);line-height:1.7 }
@@ -148,7 +151,7 @@
     .setup-progress .is-current { border-color:var(--gold);color:var(--text);background:var(--panel-raised) }
     .setup-step-number { display:grid;place-items:center;flex-shrink:0;width:27px;height:27px;border:1px solid var(--line);border-radius:50%;font-size:12px }
     .is-current .setup-step-number { background:var(--gold);color:var(--bg);border-color:var(--gold);font-weight:700 }
-    .is-done .setup-step-number { color:var(--teal);border-color:var(--teal) }
+    .is-visited .setup-step-number { color:var(--muted);border-color:var(--muted) }
     .setup-step-number .icon { width:15px;height:15px }
     .setup-step-heading { margin-bottom:22px }
     .setup-step-heading h2 { margin:8px 0;font-size:22px }
@@ -180,9 +183,12 @@
     .setup-optional p { margin:0 }
     .setup-optional strong { display:block;color:var(--text);margin-bottom:5px }
     .setup-optional span { display:block }
-    .setup-footer { display:flex;justify-content:space-between;align-items:center;gap:18px;border-top:1px solid var(--line);padding-top:22px;margin-top:28px }
+    .setup-readiness { margin-top:0;align-items:flex-start }
+    .setup-readiness>div { min-width:0 }
+    .setup-readiness strong { display:block;color:var(--text) }
+    .setup-content .setup-readiness p { margin:7px 0 14px }
+    .setup-footer { display:flex;justify-content:flex-end;align-items:center;gap:18px;border-top:1px solid var(--line);padding-top:22px;margin-top:28px }
     .setup-footer>div { display:flex;gap:10px }
-    .setup-footer .field-note { margin:0 }
     @@media(max-width:1050px) { .setup-progress li { flex-direction:column;gap:6px;padding:12px 6px;text-align:center } }
     @@media(max-width:800px) { .setup-columns { grid-template-columns:1fr } .setup-heading { flex-direction:column;gap:0 } .setup-footer { flex-wrap:wrap } .setup-footer>div { margin-left:auto } .setup-progress li { font-size:11px } }
 </style>

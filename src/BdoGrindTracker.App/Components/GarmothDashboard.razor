@@ -76,7 +76,7 @@
                             @if (row.Blocked && !row.Uploaded) { <small>@T("Ergebnis in Garmoth prüfen")</small> }
                             else if (!row.Blocked && !row.Preview.IsReady) { <small>@T(row.Preview.Error ?? "")</small> }
                         </div></td>
-                        <td class="garmoth-row-action"><button class="button secondary" aria-label="@T(row.IsCurrent ? "Aktuellen Session-Anteil hochladen" : "Gespeicherte Session hochladen")" @onclick="() => AskUpload(row)" disabled="@(!CanUpload(row))" title="@UploadHint(row)"><AppIcon Name="upload" />@(_uploadingSession == row.SessionId ? T("Sendet …") : T("Hochladen"))</button>
+                        <td class="garmoth-row-action"><button class="button secondary" aria-label="@T(row.IsCurrent ? "Aktuellen Session-Anteil hochladen" : "Gespeicherte Session hochladen")" @onclick="() => AskUpload(row)" disabled="@(!CanUpload(row))" title="@UploadHint(row)"><AppIcon Name="upload" />@(IsUploading(row) ? T("Sendet …") : T("Hochladen"))</button>
                             @if (row.Preview.CorrectionHref is { } correctionHref) { <a class="text-button" href="@correctionHref">@T(row.Preview.CorrectionLabel ?? "")</a> }
                         </td>
                     </tr>

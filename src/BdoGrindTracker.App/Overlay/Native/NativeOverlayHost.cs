@@ -100,7 +100,7 @@ internal sealed class NativeOverlayWindowHost(string id, IOverlayService service
     private readonly NativeOverlayRenderState _renderState = new();
     private NativeOverlayForm? _window;
     private bool _disposed, _commandInProgress;
-    private bool? _captureExcluded;
+    private readonly NativeOverlayCaptureExclusion _captureExclusion = new();
     private string? _captureError, _commandError;
     private double _dpi = 96;
     private OverlaySettings _lastSettings = new();
@@ -127,11 +127,7 @@ internal sealed class NativeOverlayWindowHost(string id, IOverlayService service
             EnsureWindow();
             _window!.Text = "Grindcrest – " + overlay.Name;
             _window!.SetInteraction(settings.Interaction);
-            if (_captureExcluded != settings.CaptureExcluded)
-            {
-                _captureError = _window.SetCaptureExcluded(settings.CaptureExcluded);
-                _captureExcluded = settings.CaptureExcluded;
-            }
+            _captureError = _captureExclusion.Apply(settings.CaptureExcluded, _window.SetCaptureExcluded);
             var (gameScreen, foreground) = gameLocation;
             var screen = gameScreen ?? Screen.PrimaryScreen ?? Screen.AllScreens.FirstOrDefault();
             if (screen is null)
@@ -174,7 +170,7 @@ internal sealed class NativeOverlayWindowHost(string id, IOverlayService service
     {
         if (_window is not null) return;
         _window = new NativeOverlayForm();
-        _window.HandleCreated += (_, _) => { _captureExcluded = null; _renderState.Invalidate(); };
+        _window.HandleCreated += (_, _) => { _captureExclusion.Invalidate(); _renderState.Invalidate(); };
         _window.CreateResize = bounds => new NativeOverlayResize(Settings, bounds, _window.MonitorBounds, _dpi,
             OverlayWindowChrome.For(service.Snapshot.ThemeId, Settings.ShowBorder));
         _window.RenderBitmap = size =>
@@ -184,15 +180,8 @@ internal sealed class NativeOverlayWindowHost(string id, IOverlayService service
             _window!.SetActions(actions);
             return bitmap;
         };
-        _window.GeometryCommitted += (bounds, resized) => _ = RunCommandAsync(async () =>
-        {
-            var position = NativeOverlayGeometry.RelativePosition(bounds, _window.MonitorBounds);
-            // Commit exactly the layout already shown during the corner drag.
-            var result = resized is not null
-                ? await service.SaveAsync(id, resized with { PositionX = position.X, PositionY = position.Y })
-                : await service.SavePositionAsync(id, position.X, position.Y);
-            if (!result.Succeeded) throw new InvalidOperationException(result.Error);
-        });
+        _window.GeometryCommitted += (bounds, resized) =>
+            _ = CommitGeometryAsync(bounds, resized, _window.MonitorBounds);
         _window.ActionClicked += action =>
         {
             if (action.StartsWith("toggle-tracking:", StringComparison.Ordinal) && service.Snapshot.CanToggleTracking)
@@ -205,6 +194,26 @@ internal sealed class NativeOverlayWindowHost(string id, IOverlayService service
                         await service.NewSessionAsync();
                 });
         };
+    }
+
+    internal async Task CommitGeometryAsync(Rectangle bounds, OverlaySettings? resized, Rectangle monitorBounds)
+    {
+        if (_disposed || !service.Overlays.Any(overlay => overlay.Id == id)) return;
+        try
+        {
+            // Settings persistence is independent of an awaiting tracking action.
+            // A drag completed while pause is draining must still keep its geometry.
+            var position = NativeOverlayGeometry.RelativePosition(bounds, monitorBounds);
+            var result = resized is not null
+                ? await service.SaveAsync(id, resized with { PositionX = position.X, PositionY = position.Y })
+                : await service.SavePositionAsync(id, position.X, position.Y);
+            _commandError = result.Error;
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            _commandError = exception.Message;
+        }
+        finally { if (!_disposed) refresh(); }
     }
 
     private async Task RunCommandAsync(Func<Task> action)
@@ -246,5 +255,32 @@ internal sealed class NativeOverlayWindowHost(string id, IOverlayService service
             _window.Dispose();
         }
         _renderer.Dispose();
+    }
+}
+
+/// <summary>Remember only successfully applied affinity and bound retries after a transient Windows failure.</summary>
+internal sealed class NativeOverlayCaptureExclusion(Func<long>? timestamp = null)
+{
+    private bool? _applied, _requested;
+    private string? _error;
+    private long _retryAt;
+
+    internal string? Apply(bool requested, Func<bool, string?> apply)
+    {
+        if (_applied == requested) return _error = null;
+        var now = timestamp?.Invoke() ?? Environment.TickCount64;
+        if (_requested == requested && _error is not null && now < _retryAt) return _error;
+        _requested = requested;
+        _error = apply(requested);
+        if (_error is null) _applied = requested;
+        else _retryAt = now + 5_000;
+        return _error;
+    }
+
+    internal void Invalidate()
+    {
+        _applied = _requested = null;
+        _error = null;
+        _retryAt = 0;
     }
 }

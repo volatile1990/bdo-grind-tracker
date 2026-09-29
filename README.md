@@ -4,7 +4,7 @@ Grindcrest ist ein lokaler, passiver Loot-Tracker für Black Desert auf Windows.
 Er erkennt Drops aus dem Spielfenster und zeigt Lootmengen, aktive Grindzeit,
 Silber und Stundenwerte im Dashboard und in anpassbaren Ingame-Overlays.
 
-**Version 1.9.2:** [Übersichtlichere Einstellungen und zuverlässigere Rare-Drop-Erkennung](docs/release-notes/1.9.2.md).
+**Version 1.14.0:** [Tray-Symbol, Spotvarianten im Verlauf und bessere Timeline-Bedienung](docs/release-notes/1.14.0.md).
 
 ## Funktionen
 
@@ -15,7 +15,7 @@ Silber und Stundenwerte im Dashboard und in anpassbaren Ingame-Overlays.
 - AP/DP aus der Spielanzeige mit farblich erkannter Kategorie (Allgemein, Edania, Halbmenschen oder Kamasilvia), live und zur jeweiligen Session gespeichert.
 - Automatische Buff-Erkennung ohne manuelle Einrichtung, mit Verbrauchsicons, Mengen und Gesamtkosten im Live-Header, Verlauf und Overlay.
 - Optionale automatische Grinderkennung mit sparsamer Bereitschaft und kurzer Lootprüfung bei einem Startverdacht.
-- Optionaler Garmoth-Upload mit Vorschau, Bestätigung und Schutz vor doppelten Übertragungen; abgeschlossene Sessions können auf Wunsch automatisch hochgeladen werden.
+- Optionaler Garmoth-Upload mit Vorschau, Bestätigung und Schutz vor doppelten Übertragungen; abgeschlossene Sessions können auf Wunsch automatisch im Hintergrund hochgeladen werden. Die nächste Session und das Overlay bleiben währenddessen bedienbar.
 - Windows-OCR-Installation mit Fortschrittsanzeige, erneuter Verfügbarkeitsprüfung und lokaler Diagnose.
 - Deutsche und englische Oberfläche einschließlich Overlays, Zahlen- und Datumsformaten; die Auswahl wird lokal gespeichert.
 
@@ -36,7 +36,15 @@ Windows-Systembestandteil. Fehlt es, zeigt Grindcrest einen Installationshinweis
 2. Grindcrest starten und unter **Live-Session** auf **Tracking starten** klicken. Falls angeboten, **OCR-Sprachpaket installieren** wählen und der Windows-Abfrage zustimmen. Der Fortschritt stammt von Windows; erst die erfolgreiche OCR-Prüfung gibt das Tracking frei.
 3. Ab dem ersten neu gezählten Drop läuft die aktive Zeit. Aus dem Trashloot wird der Spot erkannt. Bei Varianten mit gleichem Trashloot das konkrete Gebiet vor einem Garmoth-Upload auswählen.
 4. **Pausieren** erhält die Session und zieht die Zeit seit dem letzten erkannten Drop ab; **Fortsetzen** zählt ab dem nächsten neuen Drop weiter. Ohne neue Drops pausiert Grindcrest standardmäßig nach drei Minuten und zieht ebenfalls die abschließende Leerlaufzeit ab. Das Intervall ist einstellbar.
-5. Vor einem Spot- oder Charakterwechsel **Neue Session** wählen. Beim nächsten Programmstart wird die zuletzt gespeicherte aktuelle Session pausiert geladen.
+5. Bei aktivierter Grinderkennung schließt Trashloot eines anderen Spots nach einer Pause die bisherige Session ab und startet eine neue. Sonst vor einem Spotwechsel sowie vor einem Charakterwechsel **Neue Session** wählen. Beim nächsten Programmstart wird die zuletzt gespeicherte aktuelle Session pausiert geladen.
+
+Mit **Session teilen** lassen sich die Live-Session und einzelne Sessions im
+Verlauf als Bild vorbereiten. Die Vorschau hält den Stand beim Öffnen fest;
+laufendes Tracking zählt währenddessen weiter. **PNG speichern** öffnet in der
+Desktop-App die Dateiauswahl, **Bild kopieren** legt das Bild zum Einfügen in
+Chats in die Zwischenablage. Enthalten sind Spot, Klasse, Zeit, Lootmengen und
+Stundenwerte, Silber sowie verfügbare Kampf-, Agris-, Erfahrungs-, Rotations- und
+Verbrauchsdaten. Historische Sessions behalten ihre gespeicherten Silberwerte.
 
 AP/DP werden während des Trackings aus der Anzeige links oben im Spielfenster
 gelesen. Die Schriftfarbe bestimmt die Kategorie. Die Live-Ansicht zeigt bestätigte
@@ -101,12 +109,18 @@ In der **Live-Session** neben **Tracking starten** und **Neue Session** lässt s
 **Grind automatisch erkennen** ein- und ausschalten. Die Option ist standardmäßig aus. Während der
 Bereitschaft wird der Lootbereich nur sparsam geprüft, solange Black Desert im
 Vordergrund ist; ein möglicher Drop löst eine kurze Texterkennung aus. Bestätigter
-Monsterloot startet sofort eine neue Session oder setzt eine automatisch pausierte
-Session fort. Eine neue automatische Session wird nach fünf getrennten Drops
+Monsterloot startet sofort eine neue Session oder setzt eine pausierte Session
+fort. Erkennt die Automatik nach der Pause einen anderen Trashloot-Spot, speichert
+sie die bisherige Session und startet für den neuen Spot eine eigene Session.
+Eine neue automatische Session wird nach fünf getrennten Drops
 gespeichert; vorher wird sie nach einer Minute ohne neuen Drop verworfen.
 Auch nach manuellem Pausieren bleibt die Automatik bereit; ausgeschaltet wird sie
 nur über den Schalter. Kurz sichtbare erste Drops können wegen der sparsamen
 Prüfung fehlen; die Sessionzeit beginnt mit dem ersten bestätigten Drop.
+Wird Black Desert während einer laufenden Aufnahme minimiert, pausiert die
+Session ohne Fehlermeldung. Bei aktiviertem Schalter prüft die Automatik nach
+Wiederherstellung im Vordergrund den nächsten Drop und setzt die Session fort
+oder beginnt bei einem anderen Grindspot eine neue.
 [Ablauf, Ressourcen und Grenzen](docs/AUTO_START.md).
 
 Unter **Overlay** lassen sich Fenster erstellen, konfigurieren und am Desktop
@@ -155,6 +169,17 @@ Grindcrest merkt sich beim Beenden Position, Größe und Maximierung des
 Hauptfensters. Beim nächsten Start wird diese Anordnung wiederhergestellt;
 ist der bisherige Bildschirm nicht mehr angeschlossen, bleibt das Fenster
 auf einem verfügbaren Bildschirm sichtbar.
+
+Grindcrest erscheint auch als Tray-Symbol im Infobereich der Windows-Taskleiste.
+Unter **Einstellungen → Fenster & Tray** lässt sich unabhängig festlegen, ob
+**Minimieren** das Fenster normal minimiert oder vollständig in den Tray verbirgt,
+und ob **Schließen (X)** die App beendet oder in den Tray verbirgt. Standardmäßig
+wird normal minimiert. Beim ersten Klick auf **X** fragt Grindcrest nach der
+gewünschten Aktion und speichert diese Auswahl für künftige Klicks auf **X**.
+Die Auswahl lässt sich jederzeit in den Einstellungen ändern oder schon vor dem
+ersten Schließen festlegen.
+Im Tray laufen Erfassung und Overlays weiter. Ein Klick auf das Symbol öffnet das
+Fenster wieder; das Rechtsklick-Menü bietet **Grindcrest öffnen** und **Beenden**.
 
 Updates werden in der App angeboten und setzen eine pausierte Session voraus.
 Angeboten werden die von Microsoft für die Installation freigegebenen
@@ -325,7 +350,7 @@ Paketinhalte. Mit **`-RequireWindowsOcr`** schlägt es bei fehlenden nativen
 OCR-Voraussetzungen fehl:
 
 ```powershell
-./scripts/Build-StoreRelease.ps1 -Version 1.9.2 -RequireWindowsOcr
+./scripts/Build-StoreRelease.ps1 -Version 1.14.0 -RequireWindowsOcr
 ```
 
 Das erzeugte MSIX wird anschließend im Partner Center eingereicht. Ein lokaler

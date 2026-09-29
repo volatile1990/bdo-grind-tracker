@@ -236,6 +236,36 @@ public sealed partial class CompanionCharacterClassDetectorTests
     }
 
     [Fact]
+    public void ExplicitProfileDoesNotBorrowANewerAccountsClass()
+    {
+        using var fixture = new CharacterConfigurationFixture();
+        fixture.Create("111", "100", 1768, accessDays: -5);
+        fixture.Create("111", "100/200", 7366, accessDays: -3);
+        fixture.Create("222", "100", 1768, accessDays: -5);
+        fixture.Create("222", "100/300", 1768, accessDays: -1);
+        fixture.SetProfileWrite("111", -3);
+        fixture.SetProfileWrite("222", -1);
+
+        var result = new CompanionCharacterClassDetector().DetectProfile(
+            Path.Combine(fixture.Root, "UserCache", "111"), []);
+
+        Assert.Equal("maegu-awakening", result.Class?.Id);
+    }
+
+    [Fact]
+    public void SelectedCharacterXmlUsesItsOwnSkillsWithoutScanningAnotherCharacter()
+    {
+        using var fixture = new CharacterConfigurationFixture();
+        var selected = fixture.Create("111", "100/200", 7366, accessDays: -3);
+        fixture.Create("111", "100/300", 1768, accessDays: -1);
+
+        var result = new CompanionCharacterClassDetector().DetectProfile(
+            Path.GetDirectoryName(selected)!, [], selected);
+
+        Assert.Equal("maegu-awakening", result.Class?.Id);
+    }
+
+    [Fact]
     public void ManualChoiceLookupAcceptsOnlyCatalogIds()
     {
         Assert.Equal("Wukong", CompanionCharacterClassCatalog.FindById("wukong")?.DisplayName);

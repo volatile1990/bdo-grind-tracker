@@ -1,0 +1,5 @@
+What's new in Grindcrest 1.11.2:
+
+• On startup, Grindcrest automatically checks whether the OCR language pack for the selected game language is installed. An installed pack for a different language no longer hides a missing pack.
+• Opening the capture step in the setup tour automatically checks OCR again. There is no need to click the OCR check button separately.
+• Changing the game language updates the OCR status for the newly selected language.

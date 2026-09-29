@@ -124,19 +124,20 @@ internal sealed class OverlayTemplateStore(string? directory = null)
         public required double BackgroundOpacity { get; init; }
         public required bool ShowBorder { get; init; }
         public required bool SnapToGrid { get; init; }
+        public bool AutoAlign { get; init; } = true;
 
         public OverlaySettings ToSettings() => new()
         {
             Width = Width, Height = Height, Widgets = Widgets,
             Scale = Scale, BackgroundOpacity = BackgroundOpacity,
-            ShowBorder = ShowBorder, SnapToGrid = SnapToGrid,
+            ShowBorder = ShowBorder, SnapToGrid = SnapToGrid, AutoAlign = AutoAlign,
         };
 
         public static StoredLayout FromSettings(OverlaySettings layout) => new()
         {
             Width = layout.Width, Height = layout.Height, Widgets = layout.Widgets,
             Scale = layout.Scale, BackgroundOpacity = layout.BackgroundOpacity,
-            ShowBorder = layout.ShowBorder, SnapToGrid = layout.SnapToGrid,
+            ShowBorder = layout.ShowBorder, SnapToGrid = layout.SnapToGrid, AutoAlign = layout.AutoAlign,
         };
     }
 }

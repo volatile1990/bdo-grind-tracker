@@ -18,27 +18,52 @@ public sealed class GraphicsCaptureRateLimiterTests
         Assert.Equal(1, session.Releases);
     }
 
+    [Fact]
+    public void StandbyAndLiveIntervalsCanChangeOnTheSameNativeSession()
+    {
+        using var session = new NativeCaptureSession();
+
+        Assert.True(GraphicsCaptureRateLimiter.TryApply(session.Pointer,
+            GraphicsCaptureRateLimiter.StandbyMinimumInterval));
+        Assert.Equal(TimeSpan.FromMilliseconds(500).Ticks, session.IntervalTicks);
+        Assert.True(GraphicsCaptureRateLimiter.TryApply(session.Pointer,
+            GraphicsCaptureRateLimiter.LiveMinimumInterval));
+        Assert.Equal(TimeSpan.FromMilliseconds(100).Ticks, session.IntervalTicks);
+        Assert.True(GraphicsCaptureRateLimiter.TryApply(session.Pointer,
+            GraphicsCaptureRateLimiter.StandbyMinimumInterval));
+        Assert.Equal(TimeSpan.FromMilliseconds(500).Ticks, session.IntervalTicks);
+
+        Assert.Equal(3, session.SetterCalls);
+        Assert.Equal(3, session.Releases);
+    }
+
     [Theory]
-    [InlineData(unchecked((int)0x80004002))] // E_NOINTERFACE: older Windows.
-    [InlineData(unchecked((int)0x80004005))] // E_FAIL: platform failure.
-    public void MissingOrUnavailableInterfacePreservesUnthrottledCapture(int queryResult)
+    [InlineData(unchecked((int)0x80004002), false)] // E_NOINTERFACE: older Windows.
+    [InlineData(unchecked((int)0x80004002), true)]
+    [InlineData(unchecked((int)0x80004005), false)] // E_FAIL: platform failure.
+    [InlineData(unchecked((int)0x80004005), true)]
+    public void MissingOrUnavailableInterfacePreservesUnthrottledCapture(int queryResult, bool standby)
     {
         using var session = new NativeCaptureSession { QueryResult = queryResult };
 
-        Assert.False(GraphicsCaptureRateLimiter.TryApply(session.Pointer));
+        Assert.False(GraphicsCaptureRateLimiter.TryApply(session.Pointer, standby
+            ? GraphicsCaptureRateLimiter.StandbyMinimumInterval : GraphicsCaptureRateLimiter.LiveMinimumInterval));
 
         Assert.Equal(0, session.SetterCalls);
         Assert.Equal(0, session.Releases);
     }
 
     [Theory]
-    [InlineData(unchecked((int)0x80070057))] // E_INVALIDARG: unsupported interval.
-    [InlineData(unchecked((int)0x80004001))] // E_NOTIMPL: unsupported setter.
-    public void RejectedIntervalIsNonfatalAndStillReleasesInterface(int setterResult)
+    [InlineData(unchecked((int)0x80070057), false)] // E_INVALIDARG: unsupported interval.
+    [InlineData(unchecked((int)0x80070057), true)]
+    [InlineData(unchecked((int)0x80004001), false)] // E_NOTIMPL: unsupported setter.
+    [InlineData(unchecked((int)0x80004001), true)]
+    public void RejectedIntervalIsNonfatalAndStillReleasesInterface(int setterResult, bool standby)
     {
         using var session = new NativeCaptureSession { SetterResult = setterResult };
 
-        Assert.False(GraphicsCaptureRateLimiter.TryApply(session.Pointer));
+        Assert.False(GraphicsCaptureRateLimiter.TryApply(session.Pointer, standby
+            ? GraphicsCaptureRateLimiter.StandbyMinimumInterval : GraphicsCaptureRateLimiter.LiveMinimumInterval));
 
         Assert.Equal(1, session.SetterCalls);
         Assert.Equal(1, session.Releases);

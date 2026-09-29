@@ -38,6 +38,8 @@ internal static partial class AppText
         text["Tracking aktiv. Normales Droplog wird erkannt; Rare-Droplog nicht verfügbar. BDO-UI-Einstellungen prüfen."] = "Tracking active. Normal drops are detected; the rare drop log is unavailable. Check the BDO UI settings.";
         text["Bitte die Session pausieren und laufende Vorgänge abwarten."] = "Please pause the session and wait for current operations to finish.";
         text["Die Einstellungen konnten nicht gespeichert werden."] = "Settings could not be saved.";
+        text["Einstellungen nicht gespeichert. Prüfe Speicherplatz und Zugriffsrechte."] =
+            "Settings not saved. Check disk space and access permissions.";
         text["Die abgebrochene Texterkennung wird noch beendet. Bitte Grindcrest neu starten, falls sie nicht reagiert."] = "The cancelled text recognition is still stopping. Please restart Grindcrest if it does not respond.";
         text["Die zuletzt übertragene Session wurde wiederhergestellt. Für einen weiteren Grind eine neue Session anlegen."] = "The last uploaded session was restored. Create a new session to start another grind.";
         text["Die gespeicherte Session kann erst ohne laufende Session oder Demo erneut geladen werden."] = "The saved session can only be reloaded when no session or demo is running.";
@@ -47,6 +49,8 @@ internal static partial class AppText
         text["Grind aus dem Verlauf gelöscht."] = "Grind deleted from history.";
         text["Mindestens ein Gegenstand muss erhalten bleiben."] = "At least one item must remain.";
         text["Bitte warte, bis der laufende Vorgang abgeschlossen ist."] = "Please wait for the current operation to finish.";
+        text["Bitte warte, bis der laufende Garmoth-Upload abgeschlossen ist."] = "Please wait for the current Garmoth upload to finish.";
+        text["Diese Session wird gerade zu Garmoth übertragen. Bitte warte, bis der Upload abgeschlossen ist."] = "This session is being uploaded to Garmoth. Please wait for the upload to finish.";
         text["Diese Session ist nicht mehr verfügbar."] = "This session is no longer available.";
         text["Dieser Gegenstand gehört nicht zur Session."] = "This item does not belong to the session.";
         text["Die Einstellungen konnten nicht gespeichert werden, weil Grindcrest beendet wird."] = "Settings could not be saved because Grindcrest is closing.";

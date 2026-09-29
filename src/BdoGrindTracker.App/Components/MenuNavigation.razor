@@ -7,7 +7,7 @@
            href="@category.Href" aria-current="@(Selected == category.Id ? "page" : null)"
            aria-disabled="@(Disabled ? "true" : null)" tabindex="@(Disabled ? "-1" : null)"
            @onclick="() => SelectSection(category.Id)" @onclick:preventDefault="@(OnSelect.HasDelegate || Disabled)">
-            <AppIcon Name="@category.Icon" /><span>@T(category.Label)</span><AppIcon Name="chevron" />
+            <AppIcon Name="@category.Icon" /><span>@T(category.Label)</span>
         </a>
     }
 </nav>

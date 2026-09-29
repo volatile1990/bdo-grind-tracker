@@ -1,4 +1,5 @@
 using System.Net;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using BdoGrindTracker.App.Components;
 using BdoGrindTracker.App.Overlay;
@@ -117,7 +118,7 @@ public sealed class OverlayLiveSessionParityTests
         };
         await using var tracker = new SnapshotSession(state);
         using var overlay = new OverlayService(tracker);
-        var markup = await RenderDashboardAsync(tracker);
+        var markup = await RenderDashboardAsync(tracker, insightsOpen: true);
 
         Assert.Same(state.LootScroll, overlay.Snapshot.LootScroll);
         var metric = overlay.Snapshot.Metrics["loot-scroll"];
@@ -314,17 +315,30 @@ public sealed class OverlayLiveSessionParityTests
         Silver = state.Silver with { MissingItems = ["Unpriced drop"] },
     };
 
-    private static async Task<string> RenderDashboardAsync(ITrackerSession tracker)
+    private static async Task<string> RenderDashboardAsync(ITrackerSession tracker, bool insightsOpen = false)
     {
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddSingleton(tracker);
         services.AddSingleton<IJSRuntime, NoJavaScript>();
         services.AddSingleton<NavigationManager, StaticNavigation>();
+        services.AddSingleton<IComponentActivator>(new DashboardActivator(insightsOpen));
         await using var provider = services.BuildServiceProvider();
         await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
         return await renderer.Dispatcher.InvokeAsync(async () =>
             (await renderer.RenderComponentAsync<LiveDashboard>(ParameterView.Empty)).ToHtmlString());
+    }
+
+    private sealed class DashboardActivator(bool insightsOpen) : IComponentActivator
+    {
+        public IComponent CreateInstance(Type type)
+        {
+            var component = (IComponent)Activator.CreateInstance(type)!;
+            // Detail presentation is now available inside the optional insights panel.
+            if (component is LiveDashboard && insightsOpen)
+                type.GetField("_insightsOpen", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(component, true);
+            return component;
+        }
     }
 
     private sealed class NoJavaScript : IJSRuntime
