@@ -185,10 +185,10 @@ internal class BufferedRotationProfileMonitor : IRotationProfileMonitor
     /// <summary>A name that stays in the bar while the fight goes on counts once per sighting.</summary>
     internal static readonly TimeSpan NameSighting = TimeSpan.FromSeconds(30);
 
-    private sealed class Sample(Bitmap pixels, DateTimeOffset at, System.Drawing.Size frame, Rectangle region, Bitmap? name)
+    private sealed class Sample(RotationBannerSample banner, DateTimeOffset at, System.Drawing.Size frame, Rectangle region, Bitmap? name)
     {
         private int _references = 1;
-        internal Bitmap Pixels { get; } = pixels;
+        internal RotationBannerSample Banner { get; } = banner;
         /// <summary>The name bar of the monster being fought, when the profile reads it.</summary>
         internal Bitmap? Name { get; } = name;
         internal DateTimeOffset At { get; } = at;
@@ -196,7 +196,7 @@ internal class BufferedRotationProfileMonitor : IRotationProfileMonitor
         internal Rectangle Region { get; } = region;
         internal string? Text { get; set; }
         internal void Retain() => Interlocked.Increment(ref _references);
-        internal void Release() { if (Interlocked.Decrement(ref _references) == 0) { Pixels.Dispose(); Name?.Dispose(); } }
+        internal void Release() { if (Interlocked.Decrement(ref _references) == 0) { Banner.Release(); Name?.Dispose(); } }
     }
 
     internal BufferedRotationProfileMonitor(IRotationEventTracker tracker, RotationMessageProfile profile, Func<Bitmap, string>? recognize = null,
@@ -271,7 +271,9 @@ internal class BufferedRotationProfileMonitor : IRotationProfileMonitor
         }
     }
 
-    public void Observe(Bitmap frame, DateTimeOffset at)
+    public void Observe(Bitmap frame, DateTimeOffset at) => Observe(frame, at, null);
+
+    internal void Observe(Bitmap frame, DateTimeOffset at, RotationFrameSamples? sharedSamples)
     {
         lock (_sync)
         {
@@ -286,7 +288,15 @@ internal class BufferedRotationProfileMonitor : IRotationProfileMonitor
             var nameRegion = _profile.Names?.Crop(frame.Width, frame.Height);
             var name = nameRegion is { Width: >= 32, Height: >= 8 } bar
                 ? frame.Clone(bar, System.Drawing.Imaging.PixelFormat.Format24bppRgb) : null;
-            _buffer.Add(new Sample(frame.Clone(region, System.Drawing.Imaging.PixelFormat.Format24bppRgb), at, frame.Size, region, name));
+            RotationBannerSample? banner = null;
+            try
+            {
+                banner = sharedSamples is not null && _recognize is null && !_profile.SingleLine
+                    ? sharedSamples.Acquire(region, _profile.OcrLanguageTag)
+                    : new RotationBannerSample(frame.Clone(region, System.Drawing.Imaging.PixelFormat.Format24bppRgb));
+                _buffer.Add(new Sample(banner, at, frame.Size, region, name));
+            }
+            catch { banner?.Release(); name?.Dispose(); throw; }
             _lastSample = at;
             while (_buffer.Count > 21 || at - _buffer[0].At > TimeSpan.FromSeconds(10))
             { _buffer[0].Release(); _buffer.RemoveAt(0); }
@@ -338,19 +348,16 @@ internal class BufferedRotationProfileMonitor : IRotationProfileMonitor
                 var probedAt = samples[^1].At;
                 try
                 {
-                    diagnostics?.Probe(spot, probedAt, samples[^1].Pixels, samples[^1].Frame, samples[^1].Region);
+                    if (diagnostics is not null)
+                        samples[^1].Banner.WithPixels(pixels =>
+                            diagnostics.Probe(spot, probedAt, pixels, samples[^1].Frame, samples[^1].Region));
                     string Read(int index)
                     {
                         var sample = samples[index];
                         if (sample.Text is not null) return sample.Text;
-                        if (_recognize is not null) sample.Text = _recognize(sample.Pixels);
-                        else
-                        {
-                            _ocr ??= CompanionWindowsOcrRecognizer.TryCreate(_profile.OcrLanguageTag, throwIfUnavailable: true, requirePreferredLanguage: true);
-                            if (_ocr is null) throw new InvalidOperationException("Windows-Texterkennung für die Spot-Nachrichten fehlt.");
-                            using var pixels = CompanionFrameDecoder.Decode(sample.Pixels);
-                            sample.Text = _profile.Recognize(pixels, _ocr);
-                        }
+                        sample.Text = _recognize is not null
+                            ? sample.Banner.ReadBitmap(_recognize)
+                            : sample.Banner.Read(ReadBanner);
                         diagnostics?.Read(spot, sample.At, sample.Text, _profile.Parse(sample.Text).Select(match => match.Kind));
                         var matches = _profile.Parse(sample.Text);
                         if (matches.Count > 0)
@@ -407,6 +414,13 @@ internal class BufferedRotationProfileMonitor : IRotationProfileMonitor
                     lock (_sync) _busy = false;
                 }
             });
+    }
+    private string ReadBanner(Mat pixels, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        _ocr ??= CompanionWindowsOcrRecognizer.TryCreate(_profile.OcrLanguageTag, throwIfUnavailable: true, requirePreferredLanguage: true);
+        if (_ocr is null) throw new InvalidOperationException("Windows-Texterkennung für die Spot-Nachrichten fehlt.");
+        return _profile.Recognize(pixels, _ocr, cancellationToken);
     }
     // One read per probe: the newest sample's name bar. Called on the worker, outside the lock.
     private IReadOnlyList<(string Kind, string Label)> ReadName(Sample sample, RotationDiagnosticRecording? diagnostics, string spot)

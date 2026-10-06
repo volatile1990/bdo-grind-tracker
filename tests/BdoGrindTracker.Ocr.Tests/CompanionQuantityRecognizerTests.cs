@@ -6,6 +6,49 @@ namespace BdoGrindTracker.Ocr.Tests;
 public sealed class CompanionQuantityRecognizerTests
 {
     [Fact]
+    public void Recognize_StridedInputRetainsExactQuantityScoreAndSourcePixels()
+    {
+        using var one = CreateTemplate(1);
+        using var two = CreateTemplate(2);
+        using var three = CreateTemplate(3);
+        using var parent = CreateRegion(width: 140, height: 36);
+        using var region = new Mat(parent, new Rect(5, 4, 100, 28));
+        Stamp(region, one, 8, 7);
+        Stamp(region, two, 26, 7);
+        Stamp(region, three, 44, 7);
+        using var contiguous = region.Clone();
+        using var before = parent.Clone();
+        using var recognizer = CreateRecognizer((1, one, .999f), (2, two, .999f), (3, three, .999f));
+        Assert.False(region.IsContinuous());
+
+        var expected = recognizer.Recognize(contiguous);
+        var actual = recognizer.Recognize(region);
+
+        Assert.NotNull(actual);
+        Assert.Equal(123, actual.Quantity);
+        Assert.Equal(expected, actual);
+        Assert.Equal(BitConverter.SingleToInt32Bits(expected!.AverageScore),
+            BitConverter.SingleToInt32Bits(actual.AverageScore));
+        Assert.Equal(0d, Cv2.Norm(before, parent, NormTypes.INF));
+    }
+
+    [Theory]
+    [InlineData(7, 3)]
+    [InlineData(3, 7)]
+    public void Recognize_EqualScoresRetainTheFirstTemplateInEncounterOrder(int firstDigit, int secondDigit)
+    {
+        using var shared = CreateTemplate(9);
+        using var region = CreateRegion();
+        Stamp(region, shared, 18, 7);
+        using var recognizer = CreateRecognizer((firstDigit, shared, .999f), (secondDigit, shared, .999f));
+
+        var actual = recognizer.Recognize(region);
+
+        Assert.NotNull(actual);
+        Assert.Equal(firstDigit, actual.Quantity);
+    }
+
+    [Fact]
     public void Recognize_ComposesDigitsFromLeftToRightAfterBackwardGrouping()
     {
         using var one = CreateTemplate(1);

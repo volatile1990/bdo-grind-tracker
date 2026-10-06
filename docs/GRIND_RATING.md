@@ -59,7 +59,8 @@ Loot-Erkennung. Ein Garmoth-API-Key ist dafür nicht erforderlich.
 
 Während des Abrufs und bei fehlender Verbindung bleiben zuletzt gespeicherte
 Referenzen nutzbar. Ohne gespeicherte Daten dient die obige, mitgelieferte
-Referenz als Rückfall. Ihr ursprüngliches Referenzdatum bleibt dabei erhalten;
+Referenz für Inner Edania als Rückfall; weitere unterstützte Spots verwenden den
+anonym abgerufenen Stand vom 02.10.2026. Das ursprüngliche Referenzdatum bleibt erhalten;
 ein fehlgeschlagener Abruf macht alte Werte nicht zu aktuellen Werten.
 Der Tooltip zeigt den Aktualisierungsstatus zusammen mit Quelle und Stand.
 
@@ -125,3 +126,67 @@ Umrechnung wäre nicht für alle Spots gleichwertig.
 Live- und Editor-Tooltips zeigen Bedingungen, Schwellen, Quelle und Datum. Das
 native Overlay zeigt denselben Wert, dieselbe Farbe und kurze Zustands-Hinweise.
 Die Bewertung greift nicht in Tracking, Lootzählung oder Uploads ein.
+
+## Seltene Drops und erwarteter Durchschnitt
+
+Seltene Drops mit einer passenden öffentlichen Garmoth-Stundenrate zeigen den
+erwarteten Durchschnitt für die aktive Sessiondauer sowie den Abstand dazu.
+Der Vergleich gleicht außerdem dein tatsächliches Trash pro Stunde mit dem
+Garmoth-Trash-Durchschnitt aus derselben Referenz wie die Rare-Drop-Raten ab.
+Pausen zählen nicht zur Grindzeit. Die Droprate ist in der Live-Session sichtbar
+und editierbar; neue Sessions verwenden standardmäßig **320 %**. Vergleichswerte
+werden mit voller Präzision berechnet und mit zwei Nachkommastellen dargestellt.
+Ein fehlender oder nicht eindeutig zum Spot passender Wert bleibt ohne Vergleich.
+
+Wie in BDO und Garmoth bezeichnet die Eingabe den **Dropratenbonus** zusätzlich
+zur Grundrate von 100 %. Der öffentliche, kostenlose Garmoth-Regler steht auf
+100 % Bonus. Die rohe API-Stundenrate wird dort deshalb bereits mit 2 multipliziert.
+Für 320 % Bonus lautet die Rechnung entsprechend:
+
+`erwartete Menge = öffentliche Garmoth-Rate bei 100 % × (100 + 320) / 200 × aktive Stunden × (eigenes Trash/h / Garmoth-Trash/h)`
+
+Beispiel: Garmoth zeigt bei 100 % Bonus ungerundet 2,00 Drops/h. Bei 320 % Bonus
+sind das bei gleicher Trashleistung 4,20 Drops/h beziehungsweise durchschnittlich
+2,10 Drops in 30 aktiven Minuten. Erreichst du statt 10.000 Referenz-Trash/h
+selbst 12.000 Trash/h, steigt die Erwartung um 20 % auf 5,04 Drops/h beziehungsweise
+2,52 Drops in 30 Minuten. **Über**, **unter** oder **im Durchschnitt** vergleicht die tatsächliche
+Dropmenge mit dieser ungerundeten Erwartung. Das ist ein beobachteter
+Community-Durchschnitt, keine Garantie für den einzelnen Grind.
+
+Die Rechnung nutzt den gesamten gezählten Trash des aktuellen Spots. Suche und
+Umschalten auf die Stundenanzeige verändern die Grundlage nicht. Änderungen an
+Trashmengen, Dropratenbonus oder Referenz aktualisieren den Vergleich sofort.
+Solange kein positiver Trash erfasst wurde, erscheint noch keine Erwartung.
+Bei unveränderter Trashmenge steigt die erwartete Dropanzahl auch durch eine
+längere aktive Dauer nicht: Die Rechnung entspricht der angepassten Garmoth-Rate
+multipliziert mit eigenem Gesamt-Trash geteilt durch Referenz-Trash/h.
+Der Tooltip zeigt beide Trash-Stundenwerte, ihren Faktor und die angepasste Rate.
+Die Trash-Referenz verwendet Loot-Scroll Lv.2 ohne Agris; no-scroll-Spots behalten
+ihre eigenen Bedingungen. Der tatsächliche Session-Trash erhält keine zusätzliche
+Agris- oder Lootmengen-Normalisierung.
+
+Garmoth-Spots mit `no-scroll` erhalten keinen Dropratenmultiplikator. Für den
+derzeit unterstützten **Winter Tree Fossil (280)** bleiben sowohl seltene Drops
+als auch Trash bei der öffentlichen Roh-Stundenrate. Die Referenz nennt hier
+„Keine Loot-Scroll-Boni · ohne Agris“. Dehkia's Light wird als verbrauchtes Item
+von Garmoth ebenfalls ausgenommen und gehört nicht zum lokalen Rare-Kanal.
+
+Die mitgelieferten seltenen Drop-Raten stammen aus dem erfolgreichen anonymen
+Live-Abruf vom **02.10.2026, 12:37 MESZ**, für alle 40 unterstützten Garmoth-Spots.
+Die [Quellen und reduzierten Originaldaten](../tests/fixtures/garmoth/SOURCES.md)
+belegen den tatsächlichen API-Vertrag und die Bedingungen. Garmoth-`item_key`
+bestimmt das kanonische Item; übersetzte API-Namen werden nicht zur Zuordnung
+verwendet. Nur lokal bekannte seltene Items, die zu diesem Spot gehören, erhalten
+eine Vergleichsrate.
+
+Seltene Drops tragen einen dazugehörigen Trash-Durchschnitt, ein eigenes
+Referenzdatum und einen eigenen Quellenlink,
+wenn ihr Stand vom Trash-Referenzstand abweicht. Die ursprünglichen sechs
+Inner-Edania-Trashwerte bleiben dadurch unverändert datiert. Ein fehlgeschlagener
+Abruf oder eine neue gültige Trashantwort ohne seltene Drop-Raten bewahrt die
+letzte verfügbare Rare-Referenz einschließlich ihres zugehörigen Trash-Durchschnitts
+mit ihrem ursprünglichen Datum und Zeitraum. Ältere Cache-Raten ohne diesen
+zugehörigen Trashwert werden durch eine vollständige mitgelieferte Rare-Referenz
+ersetzt; gültige Trashwerte für die Grind-Bewertung bleiben erhalten.
+Cachewerte werden auf Spot, Itemkanal, nichtnegative Rate, positiven
+Referenz-Trashwert, Quelle und Datum geprüft.

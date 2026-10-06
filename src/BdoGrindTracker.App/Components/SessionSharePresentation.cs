@@ -82,7 +82,8 @@ internal static class SessionSharePresentation
         string Number(decimal value) => Presentation.Number(value, language);
         string Money(decimal? value) => value is { } amount
             ? (source.SilverIsComplete ? "" : "≈ ") + Presentation.Silver(amount, language) : "—";
-        string Hourly(decimal amount) => LiveSessionPresentation.Hourly(amount, source.Duration) is { } rate ? Number(rate) : "—";
+        string Hourly(decimal amount) => LiveSessionPresentation.Hourly(amount, source.Duration) is { } rate
+            ? Presentation.HourlyNumber(rate, language) : "—";
         var profile = Presentation.Profile(source.SpotId);
         var character = CompanionCharacterClassCatalog.FindById(source.CharacterClass)
             ?? CompanionCharacterClassCatalog.Classes.FirstOrDefault(candidate =>

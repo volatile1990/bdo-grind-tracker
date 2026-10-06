@@ -30,7 +30,7 @@ internal sealed class SettingsStore
         try
         {
             // File.Exists hides access failures. Only actual absence permits defaults to be saved.
-            using var file = new FileStream(_settingsPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            using var file = new FileStream(_settingsPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
             if (file.Length > MaximumFileBytes) throw new InvalidDataException("Die Einstellungsdatei ist zu groß.");
             using var document = JsonDocument.Parse(file);
             var settings = document.RootElement.Deserialize<AppSettings>(JsonOptions)

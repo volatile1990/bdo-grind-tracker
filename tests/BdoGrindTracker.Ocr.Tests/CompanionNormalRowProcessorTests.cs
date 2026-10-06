@@ -5,6 +5,31 @@ namespace BdoGrindTracker.Ocr.Tests;
 public sealed class CompanionNormalRowProcessorTests
 {
     [Theory]
+    [InlineData(1)]
+    [InlineData(3)]
+    [InlineData(4)]
+    public void HsvConversionMatchesTheOriginalCopyForStridedSourcesAndOwnsItsPixels(int channels)
+    {
+        using var parent = new Mat(20, 40, MatType.CV_8UC(channels));
+        Cv2.Randu(parent, Scalar.All(0), Scalar.All(256));
+        using var source = new Mat(parent, new Rect(3, 2, 30, 15));
+        using var before = source.Clone();
+        using var bgr = new Mat();
+        if (channels == 1) Cv2.CvtColor(source, bgr, ColorConversionCodes.GRAY2BGR);
+        else if (channels == 4) Cv2.CvtColor(source, bgr, ColorConversionCodes.BGRA2BGR);
+        else source.CopyTo(bgr);
+        using var expected = new Mat();
+        Cv2.CvtColor(bgr, expected, ColorConversionCodes.BGR2HSV);
+
+        using var actual = CompanionNormalRowProcessor.ConvertToHsv(source);
+
+        Assert.Equal(0d, Cv2.Norm(expected, actual, NormTypes.INF));
+        Assert.Equal(0d, Cv2.Norm(before, source, NormTypes.INF));
+        source.SetTo(Scalar.All(0));
+        Assert.Equal(0d, Cv2.Norm(expected, actual, NormTypes.INF));
+    }
+
+    [Theory]
     [InlineData(129, 10)]
     [InlineData(259, 10)]
     [InlineData(260, 0)]

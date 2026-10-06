@@ -7,9 +7,8 @@
 
 @{
     // All visible totals, counts and rows use the same projection for this render.
-    var filtered = Filtered.ToArray();
-    var visibleSessions = (_spotId is null ? filtered : filtered.Where(session => session.SpotId == _spotId))
-        .OrderByDescending(session => session.StartedAt).ToArray();
+    var projection = Projection;
+    var visibleSessions = projection.Sessions;
     var visibleProfiles = VisibleProfiles.ToArray();
     var pageCount = Math.Max(1, (visibleSessions.Length + PageSize - 1) / PageSize);
     _page = Math.Clamp(_page, 1, pageCount);
@@ -78,11 +77,11 @@
         <div class="spot-grid">
             @foreach (var profile in visibleProfiles)
             {
-                var sessions = filtered.Where(session => session.SpotId == profile.SpotId).ToArray();
-                var metrics = HistoryPresentation.CalculateMetrics(profile, sessions);
+                var sessions = projection.ForSpot(profile.SpotId);
+                var metrics = projection.Metrics(profile);
                 <button class="spot-card" @onclick="() => OpenSpot(profile.SpotId)">
                     <div class="spot-card-art" style="@SpotBackgroundStyle(profile)"><span class="spot-session-count">@sessions.Length @(sessions.Length == 1 ? "Session" : "Sessions")</span><AssetImage Src="@("assets/spot-icons/" + profile.IconFileName)" Alt="" Class="spot-card-emblem" Fallback="pin" /><div><span class="eyebrow">@profile.RegionName.ToUpperInvariant()</span><h3>@SpotName(profile.SpotId)</h3></div></div>
-                    <div class="spot-card-body"><div class="spot-card-stats"><div><span>@T("Ø SILBER / H")</span><strong>@(sessions.Length > 0 ? Silver(metrics.AverageSilverPerHour) : "—")@PartialMark(sessions)</strong></div><div><span>TRASH / H</span><strong>@(sessions.Length > 0 ? Number(metrics.TrashPerHour) : "—")</strong></div></div><div class="spot-card-footer"><span>@SpotGuidanceSummary(profile)</span><span>@T("Spot ansehen") <AppIcon Name="arrow" /></span></div></div>
+                    <div class="spot-card-body"><div class="spot-card-stats"><div><span>@T("Ø SILBER / H")</span><strong>@(sessions.Length > 0 ? Silver(metrics.AverageSilverPerHour) : "—")@PartialMark(sessions)</strong></div><div><span>TRASH / H</span><strong>@(sessions.Length > 0 ? Presentation.HourlyNumber(metrics.TrashPerHour, UiLanguage) : "—")</strong></div></div><div class="spot-card-footer"><span>@SpotGuidanceSummary(profile)</span><span>@T("Spot ansehen") <AppIcon Name="arrow" /></span></div></div>
                 </button>
             }
         </div>
@@ -92,8 +91,8 @@
     else if (Profile(_spotId) is { } profile)
     {
         var sessions = visibleSessions;
-        var metrics = HistoryPresentation.CalculateMetrics(profile, sessions);
-        var chart = HistoryPresentation.BuildChartData(profile, sessions);
+        var metrics = projection.Metrics(profile, chronological: true);
+        var chart = projection.Chart(profile);
         <section class="spot-detail-hero" style="@SpotBackgroundStyle(profile)">
             <div class="hero-shade"></div>
             <div class="spot-detail-content">
@@ -123,9 +122,9 @@
         <div class="history-metrics-grid">
             <article class="metric-card gold-metric"><span class="metric-label">@T("SILBER NETTO GESAMT")</span><strong class="metric-value">@(sessions.Length > 0 ? Silver(metrics.TotalSilver) : "—")@PartialMark(sessions)</strong><Sparkline Values="chart.CumulativeSilver" Label="@T("Kumulierter Silberwert deiner Sessions")" /></article>
             <article class="metric-card"><span class="metric-label">@T("Ø SILBER / STUNDE")</span><strong class="metric-value">@(sessions.Length > 0 ? Silver(metrics.AverageSilverPerHour) : "—")@PartialMark(sessions)</strong><Sparkline Values="chart.SilverPerHour" Label="@T("Silber pro Stunde je Session")" /></article>
-            <article class="metric-card"><span class="metric-label">@T("TRASH / STUNDE")</span><strong class="metric-value teal">@(sessions.Length > 0 ? Number(metrics.TrashPerHour) : "—")</strong><Sparkline Values="chart.TrashPerHour" Label="@T("Trashloot pro Stunde je Session")" /></article>
+            <article class="metric-card"><span class="metric-label">@T("TRASH / STUNDE")</span><strong class="metric-value teal">@(sessions.Length > 0 ? Presentation.HourlyNumber(metrics.TrashPerHour, UiLanguage) : "—")</strong><Sparkline Values="chart.TrashPerHour" Label="@T("Trashloot pro Stunde je Session")" /></article>
         </div>
-        <div class="history-secondary-metrics"><div><span>@T("Ø Trash · letzte 5 Grindstunden")</span><strong>@(sessions.Length > 0 ? Number(metrics.RecentFiveHourTrashPerHour) : "—") / h</strong></div><div><span>@T("Ø Trash · beste 5 Grindstunden")</span><strong>@(sessions.Length > 0 ? Number(metrics.BestFiveHourTrashPerHour) : "—") / h</strong></div><div><span>@T("Ø Silber / h · beste 5 Trash-Sessions")</span><strong>@(sessions.Length > 0 ? Silver(metrics.BestFiveHourAverageSilverPerHour) : "—")@PartialMark(sessions)</strong></div></div>
+        <div class="history-secondary-metrics"><div><span>@T("Ø Trash · letzte 5 Grindstunden")</span><strong>@(sessions.Length > 0 ? Presentation.HourlyNumber(metrics.RecentFiveHourTrashPerHour, UiLanguage) : "—") / h</strong></div><div><span>@T("Ø Trash · beste 5 Grindstunden")</span><strong>@(sessions.Length > 0 ? Presentation.HourlyNumber(metrics.BestFiveHourTrashPerHour, UiLanguage) : "—") / h</strong></div><div><span>@T("Ø Silber / h · beste 5 Trash-Sessions")</span><strong>@(sessions.Length > 0 ? Silver(metrics.BestFiveHourAverageSilverPerHour) : "—")@PartialMark(sessions)</strong></div></div>
         @if (sessions.Any(entry => !entry.SilverIsComplete)) { <p class="valuation-note">@T("* Enthält Sessions mit unvollständigen Silberwerten.")</p> }
         <section class="panel history-sessions"><div class="panel-heading"><div><h2>Sessions <span class="count-pill">@sessions.Length</span></h2><p>@F("Gespeicherte Ergebnisse · {0} aktive Zeit", ShortDuration(TimeSpan.FromHours((double)metrics.TotalHours)))</p></div></div>
             @if (sessions.Length == 0) { <div class="empty-state"><div class="empty-symbol"><AppIcon Name="history" /></div><h3>@T("Noch keine passenden Sessions")</h3><p>@(Tracker.History.Any(session => session.SpotId == _spotId) ? T("Für diesen Zeitraum oder diese Klasse gibt es keine Einträge.") : T("Deine erfassten Sessions an diesem Spot erscheinen hier automatisch."))</p><button class="button secondary" @onclick="OnLive">@T("Zur Live-Session") <AppIcon Name="arrow" /></button></div> }
@@ -255,22 +254,15 @@
     private sealed class EditRow { public required string Name { get; init; } public string Quantity { get; set; } = "0"; }
     private sealed record LootColumn(string Name, decimal SilverPerHour);
     private IEnumerable<string> HistoryClasses => Tracker.History.Select(session => session.CharacterClass).Where(name => !string.IsNullOrWhiteSpace(name)).Cast<string>().Distinct().Order();
-    private IEnumerable<LootHistoryEntry> Filtered => Tracker.History
-        .Where(session => (_days == 0 || session.StartedAt >= DateTimeOffset.Now.AddDays(-_days))
-            && (_class.Length == 0 || session.CharacterClass == _class)
-            && (_spotId is not null || MatchesSearch(session.SpotId)))
-        .Select(ValueAtCurrentPrices);
+    private readonly HistoryPresentationCache _historyProjection = new();
+    private HistoryProjection Projection => _historyProjection.Update(Tracker.History, Tracker.Prices,
+        Tracker.Preferences.Tax, _spotId, _days, _class, _query, UiLanguage, DateTimeOffset.Now);
     private bool MatchesSearch(string spotId) => SpotName(spotId).Contains(_query.Trim(), StringComparison.OrdinalIgnoreCase);
     private IEnumerable<LootSpotPresentation> VisibleProfiles => LootSpotPresentationCatalog.Profiles.Where(profile => MatchesSearch(profile.SpotId));
-    private IEnumerable<LootHistoryEntry> SpotSessions => Filtered.Where(session => session.SpotId == _spotId).OrderByDescending(session => session.StartedAt);
-    private IEnumerable<LootHistoryEntry> AllSessions => Filtered.OrderByDescending(session => session.StartedAt);
+    private IEnumerable<LootHistoryEntry> SpotSessions => Projection.Sessions;
+    private IEnumerable<LootHistoryEntry> AllSessions => Projection.Sessions;
     private int PageCount => Math.Max(1, (SpotSessions.Count() + PageSize - 1) / PageSize);
     private int AllPageCount => Math.Max(1, (AllSessions.Count() + PageSize - 1) / PageSize);
-    private LootHistoryEntry ValueAtCurrentPrices(LootHistoryEntry entry)
-    {
-        var value = SilverValuation.Calculate(entry.Totals, Tracker.Prices, Tracker.Preferences.Tax);
-        return entry with { SilverBeforeTax = value.BeforeTax, SilverAfterTax = value.AfterTax, SilverIsComplete = value.IsComplete };
-    }
     private static string PartialMark(IEnumerable<LootHistoryEntry> sessions) => sessions.Any(entry => !entry.SilverIsComplete) ? " *" : "";
     protected override void OnParametersSet()
     {

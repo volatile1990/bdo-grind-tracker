@@ -28,6 +28,7 @@
     <Compile Include="../BdoGrindTracker.App/Analysis/BuffRecognitionProfile.cs" Link="Shared/Analysis/BuffRecognitionProfile.cs" />
     <Compile Include="../BdoGrindTracker.App/Analysis/AutomaticBuffCatalog.cs" Link="Shared/Analysis/AutomaticBuffCatalog.cs" />
     <EmbeddedResource Include="../../data/ocr/buffs/catalog.json" LogicalName="BdoGrindTracker.App.Buffs.catalog.json" />
+    <EmbeddedResource Include="../../data/garmoth-benchmarks-20261002.json" LogicalName="BdoGrindTracker.App.GarmothBenchmarks.json" />
     <Compile Include="../BdoGrindTracker.App/UI/CombatStatsState.cs" Link="Shared/UI/CombatStatsState.cs" />
     <Compile Include="../BdoGrindTracker.App/UI/CombatStatsSpotRules.cs" Link="Shared/UI/CombatStatsSpotRules.cs" />
     <Compile Include="../BdoGrindTracker.App/Analysis/CombatStatsColorClassifier.cs" Link="Shared/Analysis/CombatStatsColorClassifier.cs" />

@@ -1,0 +1,31 @@
+<Project>
+  <PropertyGroup>
+    <!-- Other runtime architectures retain the managed implementation. -->
+    <NativeKernelsEnabled Condition="'$(NativeKernelsEnabled)' == '' and '$(OS)' == 'Windows_NT' and ('$(RuntimeIdentifier)' == '' or '$(RuntimeIdentifier)' == 'win-x64') and '$(PlatformTarget)' != 'x86' and '$(PlatformTarget)' != 'ARM' and '$(PlatformTarget)' != 'ARM64' and '$(Platform)' != 'x86' and '$(Platform)' != 'ARM' and '$(Platform)' != 'ARM64'">true</NativeKernelsEnabled>
+    <NativeKernelsEnabled Condition="'$(NativeKernelsEnabled)' == ''">false</NativeKernelsEnabled>
+    <DefineConstants Condition="'$(NativeKernelsEnabled)' == 'true'">$(DefineConstants);GRINDCREST_NATIVE_KERNELS</DefineConstants>
+    <NativePixelConverterSourceDirectory>$(MSBuildThisFileDirectory)</NativePixelConverterSourceDirectory>
+    <NativePixelConverterTargetsFile>$(MSBuildThisFileFullPath)</NativePixelConverterTargetsFile>
+    <NativePixelConverterBuildScript>$(MSBuildThisFileDirectory)..\scripts\Build-NativeKernels.ps1</NativePixelConverterBuildScript>
+    <NativePixelConverterOutputDirectory>$([MSBuild]::NormalizePath('$(MSBuildProjectDirectory)', '$(BaseIntermediateOutputPath)', '$(Configuration)', '$(TargetFramework)', '$(RuntimeIdentifier)', 'native', 'win-x64'))</NativePixelConverterOutputDirectory>
+    <NativePixelConverterDll>$(NativePixelConverterOutputDirectory)\Grindcrest.Native.dll</NativePixelConverterDll>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(NativeKernelsEnabled)' == 'true'">
+    <!-- Content metadata also propagates this DLL into project-reference builds. -->
+    <Content Include="$(NativePixelConverterDll)" Link="Grindcrest.Native.dll"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Visible="false" />
+  </ItemGroup>
+
+  <Target Name="BuildGrindcrestNativeKernels"
+          BeforeTargets="PrepareForBuild;GetCopyToOutputDirectoryItems;ComputeFilesToPublish"
+          Condition="'$(NativeKernelsEnabled)' == 'true' and '$(DesignTimeBuild)' != 'true'"
+          Inputs="$(NativePixelConverterSourceDirectory)Grindcrest.Native.cpp;$(NativePixelConverterSourceDirectory)Grindcrest.Native.h;$(NativePixelConverterBuildScript);$(NativePixelConverterTargetsFile);$(NativePixelConverterCompiler)"
+          Outputs="$(NativePixelConverterDll)">
+    <Error Condition="'$(OS)' != 'Windows_NT'" Text="Grindcrest native kernels require a Windows build host. Use NativeKernelsEnabled=false for a managed-only development build." />
+    <Exec Command="powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(NativePixelConverterBuildScript)&quot; -OutputDirectory &quot;$(NativePixelConverterOutputDirectory)&quot; -CompilerPath &quot;$(NativePixelConverterCompiler)&quot;" />
+    <ItemGroup>
+      <FileWrites Include="$(NativePixelConverterOutputDirectory)\Grindcrest.Native.dll;$(NativePixelConverterOutputDirectory)\Grindcrest.Native.obj;$(NativePixelConverterOutputDirectory)\Grindcrest.Native.lib;$(NativePixelConverterOutputDirectory)\Grindcrest.Native.exp" />
+    </ItemGroup>
+  </Target>
+</Project>

@@ -143,7 +143,7 @@ public sealed class GarmothGrindBenchmarkProviderTests
         var snapshot = await provider.RefreshAsync();
 
         Assert.Contains($"6 von {GarmothCatalog.SupportedSpotCount}", snapshot.Status);
-        Assert.Equal(6, snapshot.Benchmarks.Count);
+        Assert.Equal(GarmothCatalog.SupportedSpotCount, snapshot.Benchmarks.Count);
         Assert.Equal(12472m, snapshot.Find(LootSpotCatalog.AphrodonId)!.AverageTrashPerHour);
         Assert.Equal(12893m, snapshot.Find(LootSpotCatalog.HermesiaId)!.AverageTrashPerHour);
         var magaia = snapshot.Find(LootSpotCatalog.MagaiaId)!;
@@ -153,7 +153,7 @@ public sealed class GarmothGrindBenchmarkProviderTests
         Assert.Equal(13323m, snapshot.Find(LootSpotCatalog.AresionId)!.AverageTrashPerHour);
         Assert.Equal(15243m, snapshot.Find(LootSpotCatalog.ScalesOfJudgmentId)!.AverageTrashPerHour);
         Assert.Equal(12590m, snapshot.Find(LootSpotCatalog.EventHorizonId)!.AverageTrashPerHour);
-        foreach (var reference in snapshot.Benchmarks)
+        foreach (var reference in snapshot.Benchmarks.Where(reference => reference.UpdatedAt == new ManualTime().GetUtcNow()))
         {
             Assert.Equal(new ManualTime().GetUtcNow(), reference.UpdatedAt);
             Assert.EndsWith("endDate=2026-09-17", reference.SourceUrl);
@@ -439,17 +439,18 @@ public sealed class GarmothGrindBenchmarkProviderTests
     [InlineData("orbita", 185)]
     [InlineData("tenebraum", 193)]
     [InlineData("zephyros", 194)]
-    public async Task OuterSpotWithoutBundledReferenceCanRefreshAndSurviveAnOfflineRestart(string spotId, int garmothId)
+    public async Task OuterSpotCanRefreshItsDatedBundledReferenceAndSurviveAnOfflineRestart(string spotId, int garmothId)
     {
         // Synthetic transport data exercises mapping and persistence, not a bundled average.
         var collective = Collective.Replace("\"grindspot_id\":215", $"\"grindspot_id\":{garmothId}", StringComparison.Ordinal);
         var metadata = Metadata.Replace("\"215\"", $"\"{garmothId}\"", StringComparison.Ordinal);
         using var directory = new CacheDirectory();
         var time = new ManualTime();
+        time.Advance(TimeSpan.FromDays(30));
         GrindBenchmark received;
         using (var provider = new GarmothGrindBenchmarkProvider(HandlerFor(collective, metadata), directory.Path, time))
         {
-            Assert.Null(provider.GetCachedSnapshot().Find(spotId));
+            Assert.NotNull(provider.GetCachedSnapshot().Find(spotId));
             received = Assert.IsType<GrindBenchmark>((await provider.RefreshAsync()).Find(spotId));
             Assert.Equal(12001m, received.AverageTrashPerHour);
             Assert.Contains($"/best-grind-spots/{garmothId}?", received.SourceUrl);
@@ -464,11 +465,13 @@ public sealed class GarmothGrindBenchmarkProviderTests
     }
 
     [Fact]
-    public async Task OuterSpotsRemainWithoutInventedReferencesWhenOnlyInnerDataIsAvailable()
+    public async Task PartialInnerRefreshPreservesObservedOuterReferencesAndDoesNotInventUnspecifiedLocations()
     {
         using var provider = Provider(Collective, Metadata);
         var snapshot = await provider.RefreshAsync();
-        foreach (var spotId in new[] { "aetherion", "nymphamare", "orbita", "tenebraum", "zephyros", "dark-energy-floodlands" })
+        foreach (var spotId in new[] { "aetherion", "nymphamare", "orbita", "tenebraum", "zephyros" })
+            Assert.Equal(GarmothGrindBenchmarks.Find(spotId), snapshot.Find(spotId));
+        foreach (var spotId in new[] { "dark-energy-floodlands", "dehkia-ash-forest-unspecified", "winter-tree-fossil-unspecified" })
         {
             Assert.Null(snapshot.Find(spotId));
             Assert.Equal(GrindRatingTier.Unavailable, GrindRatingEvaluator.Evaluate(spotId, 1000,

@@ -18,6 +18,13 @@ window.grindcrest = {
     showDialog: function (id) {
         const dialog = document.getElementById(id);
         if (dialog && !dialog.open) {
+            if (dialog.hasAttribute('data-managed-cancel') && !dialog.dataset.managedCancelBound) {
+                dialog.dataset.managedCancelBound = 'true';
+                dialog.addEventListener('cancel', event => {
+                    event.preventDefault();
+                    dialog.querySelector('[data-dialog-close]')?.click();
+                });
+            }
             if (dialog.hasAttribute('data-backdrop-close') && !dialog.dataset.backdropCloseBound) {
                 dialog.dataset.backdropCloseBound = 'true';
                 dialog.addEventListener('click', event => {

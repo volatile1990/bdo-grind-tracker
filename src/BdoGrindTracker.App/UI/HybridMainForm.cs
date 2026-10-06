@@ -33,6 +33,7 @@ internal sealed class HybridMainForm : Form
     private readonly bool _smokeTest;
     private readonly bool _hidden;
     private readonly WindowTrayIcon? _trayIcon;
+    private readonly WindowCloseDialogController _windowDialogs = new();
     private readonly Stopwatch _startup = Stopwatch.StartNew();
     private bool _ticking;
     private bool _closing;
@@ -55,11 +56,13 @@ internal sealed class HybridMainForm : Form
     public HybridMainForm(ITrackerSession session, bool smokeTest = false, int? debugPort = null, bool preview = false, bool hidden = false)
     {
         _session = session;
-        _persistPlacement = !preview && !smokeTest && !hidden;
+        var isolatedUi = preview || smokeTest || session.State.IsReadOnly;
+        _persistPlacement = !isolatedUi && !hidden;
         _startupPlacement = _persistPlacement ? _placementStore.Load() : null;
         _smokeTest = smokeTest;
         _hidden = smokeTest || hidden;
-        Text = AppBranding.WindowTitle + (preview ? " · " + T("Vorschau") : "");
+        Text = AppBranding.WindowTitle + (session.State.IsReadOnly ? " · " + T("Store-Session · Lesemodus")
+            : preview ? " · " + T("Vorschau") : "");
         Icon = AppBranding.CreateWindowIcon();
         ApplyTheme();
         AutoScaleDimensions = new SizeF(96, 96);
@@ -85,15 +88,16 @@ internal sealed class HybridMainForm : Form
         var services = new ServiceCollection();
         services.AddWindowsFormsBlazorWebView();
         services.AddSingleton<ITrackerSession>(session);
+        services.AddSingleton(_windowDialogs);
         services.AddSingleton<ISessionImageExporter>(new WindowsSessionImageExporter(
             this, RunOnUiThreadAsync, () => session.Preferences.UiLanguage));
-        var grindGoals = new GrindGoalStore(preview || smokeTest ? null : Path.Combine(AppDataPaths.Current.BaseDirectory, "grind-goals.json"));
+        var grindGoals = new GrindGoalStore(isolatedUi ? null : Path.Combine(AppDataPaths.Current.BaseDirectory, "grind-goals.json"));
         services.AddSingleton(grindGoals);
-        _overlay = new OverlayService(session, preview || smokeTest ? null : new OverlaySettingsStore(),
-            preview || smokeTest ? null : new OverlayTemplateStore(), grindGoals);
+        _overlay = new OverlayService(session, isolatedUi ? null : new OverlaySettingsStore(),
+            isolatedUi ? null : new OverlayTemplateStore(), grindGoals);
         services.AddSingleton<IOverlayService>(_overlay);
-        _nativeOverlay = new NativeOverlayHost(_overlay, session, this, validationMode: preview || smokeTest);
-        _updates = AppUpdateRuntime.Current.CreateUpdates(!preview && !smokeTest,
+        _nativeOverlay = new NativeOverlayHost(_overlay, session, this, validationMode: isolatedUi);
+        _updates = AppUpdateRuntime.Current.CreateUpdates(!isolatedUi,
             () => new StoreAppUpdateService(new StoreUpdateBackend(() => IsDisposed ? 0 : Handle, RunOnUiThreadAsync),
                 () => _closing || session.State.IsRunning || session.State.IsBusy,
                 PrepareStoreInstallAsync, AppBranding.Version));
@@ -104,7 +108,7 @@ internal sealed class HybridMainForm : Form
         _web.RootComponents.Add<TrackerApp>("#app");
         _web.BlazorWebViewInitializing += (_, args) =>
         {
-            args.UserDataFolder = preview || smokeTest
+            args.UserDataFolder = isolatedUi
                 ? Path.Combine(Path.GetTempPath(), "Grindcrest.UiValidation", Environment.ProcessId.ToString())
                 : Path.Combine(AppDataPaths.Current.BaseDirectory, "webview2");
             if (debugPort is not null)
@@ -255,6 +259,8 @@ internal sealed class HybridMainForm : Form
     private void FailStartup(string message)
     {
         if (_closing) return;
+        _renderReady = false;
+        _windowDialogs.CancelPending();
         ExitCode = 1;
         if (_hidden) Console.Error.WriteLine(message);
         else
@@ -270,13 +276,16 @@ internal sealed class HybridMainForm : Form
     {
         if (_closed) return;
         // A Store installation may close us. Its durable save has already finished.
-        if (_storeInstalling) { _closed = true; return; }
+        if (_storeInstalling) { _windowDialogs.CancelPending(); _closed = true; return; }
         e.Cancel = true;
         if (_storePreparing) return;
         if (_closing) return;
-        if (_trayIcon is { } tray && await tray.HandleCloseAsync(e.CloseReason, ConfigureCloseBehaviorAsync)) return;
+        // Before Blazor is ready, X must still be able to exit without awaiting an invisible prompt.
+        if (_trayIcon is { } tray && (_session.Preferences.CloseBehaviorConfigured || CanShowWindowDialog) &&
+            await tray.HandleCloseAsync(e.CloseReason, ConfigureCloseBehaviorAsync)) return;
         if (_closing || _closed || IsDisposed || _storePreparing || _storeInstalling) return;
         _closing = true;
+        _windowDialogs.CancelPending();
         SaveWindowPlacement();
         _timer.Stop();
         Enabled = false;
@@ -298,38 +307,43 @@ internal sealed class HybridMainForm : Form
             _timer.Start();
             _trayIcon?.CancelExit();
             if (_hidden) Console.Error.WriteLine(error.Message);
-            else MessageBox.Show(this,
-                T("Die Session konnte nicht vollständig gespeichert werden. Grindcrest bleibt geöffnet. " +
-                "Prüfe den freien Speicherplatz oder die Dateisperre und wähle „Erneut sichern“.") + "\n\n" + T(error.Message),
-                T("Session noch nicht gespeichert"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            else await ShowWindowErrorAsync("Session noch nicht gespeichert",
+                "Die Session konnte nicht vollständig gespeichert werden. Grindcrest bleibt geöffnet. " +
+                "Prüfe den freien Speicherplatz oder die Dateisperre und wähle „Erneut sichern“.", error.Message);
         }
     }
 
     private async Task<bool> ConfigureCloseBehaviorAsync()
     {
-        string? error;
-        try
+        _trayIcon?.RestoreWindow();
+        if (!CanShowWindowDialog) return false;
+        var choice = await _windowDialogs.AskAsync(async closeToTray =>
         {
-            _trayIcon?.RestoreWindow();
-            var closeToTray = WindowClosePrompt.Show(this, _session.Preferences.UiLanguage);
-            if (closeToTray is null || _closing || _closed || IsDisposed || _storePreparing || _storeInstalling)
-                return false;
-            var result = await _session.SavePreferencesAsync(_session.Preferences with
+            TrackerCommandResult result = new("Grindcrest bleibt geöffnet. Bitte versuche es erneut.");
+            await RunOnUiThreadAsync(async () =>
             {
-                CloseToTray = closeToTray.Value,
-                CloseBehaviorConfigured = true,
+                if (!CanShowWindowDialog || _closing || _closed || _storePreparing || _storeInstalling) return;
+                var saved = await _session.SavePreferencesAsync(_session.Preferences with
+                {
+                    CloseToTray = closeToTray,
+                    CloseBehaviorConfigured = true,
+                });
+                result = new(saved.Error);
             });
-            if (result.Succeeded) return true;
-            error = result.Error;
-        }
-        catch (Exception exception)
-        {
-            error = exception.Message;
-        }
-        if (!_closing && !_closed && !IsDisposed)
-            MessageBox.Show(this, T("Grindcrest bleibt geöffnet. Bitte versuche es erneut.") + "\n\n" + T(error ?? ""),
-                T("Auswahl konnte nicht gespeichert werden"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
-        return false;
+            return result;
+        });
+        return choice is not null && !_closing && !_closed && !IsDisposed && !_storePreparing && !_storeInstalling;
+    }
+
+    private bool CanShowWindowDialog => _renderReady && !IsDisposed && _windowDialogs.IsAvailable;
+
+    private Task ShowWindowErrorAsync(string title, string message, string? detail)
+    {
+        if (CanShowWindowDialog) return _windowDialogs.ShowErrorAsync(title, message, detail);
+        // A broken or unavailable WebView cannot display an in-app recovery message.
+        MessageBox.Show(this, T(message) + "\n\n" + T(detail ?? ""), T(title),
+            MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        return Task.CompletedTask;
     }
 
     private void SaveWindowPlacement()
@@ -384,6 +398,7 @@ internal sealed class HybridMainForm : Form
         {
             if (_closing || _storePreparing || _storeInstalling || _session.State.IsRunning || _session.State.IsBusy) return;
             _storePreparing = true;
+            _windowDialogs.CancelPending();
             _timer.Stop();
             // Keep the native owner window and its message pump alive for Store dialogs.
             _web.Enabled = false;
@@ -418,6 +433,7 @@ internal sealed class HybridMainForm : Form
         if (disposing && !_resourcesDisposed)
         {
             _resourcesDisposed = true;
+            _windowDialogs.Detach();
             _trayIcon?.Dispose();
             _timer.Dispose();
             _nativeOverlay.Dispose();

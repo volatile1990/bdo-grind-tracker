@@ -20,7 +20,7 @@
     @if (SessionEntry?.GarmothLocallyModified == true) { <div class="notice warning-notice"><AppIcon Name="info" />@T("Lokal korrigiert; Garmoth unverändert.")</div> }
     @if (Totals.Count > 0)
     {
-        var rows = Rows.ToArray();
+        var rows = Rows;
         <div class="table-scroll">
             <table class="loot-table">
                 <thead><tr><th scope="col">@T("Gegenstand")</th><th scope="col" class="numeric">@(_hourly ? T("Menge / h") : T("Menge"))</th><th scope="col" class="numeric">@(_hourly ? T("Netto / h") : T("Wert netto"))</th></tr></thead>
@@ -28,12 +28,26 @@
                     @foreach (var item in rows)
                     {
                         var isTrash = item.Name == TrashName;
-                        var showLastDrop = ShowLastDrop && !isTrash && LootSourceCatalog.Allows(item.Name, LootSource.Rare);
+                        var isRare = !isTrash && LootSourceCatalog.Allows(item.Name, LootSource.Rare);
+                        var showLastDrop = ShowLastDrop && isRare;
+                        var comparison = ShowRareDropComparison && isRare ? RareDropPresentation.Create(item.Name, item.Quantity,
+                            TimeSpan.FromTicks(DurationTicks), SpotId, State.GrindBenchmark, Tracker.Preferences.DropRatePercent, SessionTrashCount, UiLanguage) : null;
+                        var quantity = _hourly ? Presentation.HourlyNumber(Hourly(item.Quantity, TimeSpan.FromTicks(DurationTicks)), UiLanguage) : Number(item.Quantity);
                         <tr @key="item.Name" class="@(Tracker.Preferences.FavoriteItems.Contains(item.Name) ? "favorite-loot-row" : "")">
                             <td>
                                 <div class="item-cell">
                                     <AssetImage Src="@ItemIcon(item.Name)" Alt="" Class="item-image" />
-                                    <span class="item-copy"><strong>@ItemLabel(item.Name)</strong><small>@(isTrash ? T("Trashloot · NPC-Verkauf") : Kind(item.Name))@if (item.Stale) { <span class="inline-warning"> @T("· Cachepreis")</span> }@if (IsManualItem(item.Name)) { <span class="manual-loot-tag" title="@T("Diese Menge enthält eine manuelle Korrektur.")"> @T("· Manuell korrigiert")</span> }</small></span>
+                                    <span class="item-copy">
+                                        <strong>@ItemLabel(item.Name)</strong><small>@(isTrash ? T("Trashloot · NPC-Verkauf") : Kind(item.Name))@if (item.Stale) { <span class="inline-warning"> @T("· Cachepreis")</span> }@if (IsManualItem(item.Name)) { <span class="manual-loot-tag" title="@T("Diese Menge enthält eine manuelle Korrektur.")"> @T("· Manuell korrigiert")</span> }</small>
+                                        @if (comparison is not null)
+                                        {
+                                            <a class="rare-drop-comparison @comparison.ToneClass" href="@(State.GrindBenchmark!.RareDropSourceUrl ?? State.GrindBenchmark.SourceUrl)" target="_blank" rel="noopener noreferrer" title="@comparison.Description" aria-label="@(ItemLabel(item.Name) + ": " + comparison.Description)">@comparison.Label</a>
+                                        }
+                                        else if (ShowRareDropComparison && isRare)
+                                        {
+                                            <span class="rare-drop-comparison is-unavailable">@T(DurationTicks <= 0 ? "Vergleich ab erstem Drop" : SessionTrashCount <= 0 ? "Vergleich ab erstem Trash-Drop" : "Garmoth Ø nicht verfügbar")</span>
+                                        }
+                                    </span>
                                     <span class="item-tags">
                                         @if (isTrash) { <span class="item-tag">TRASH</span> }
                                         @if (Tracker.Preferences.FavoriteItems.Contains(item.Name)) { <span class="item-tag favorite-tag">@T("★ FAVORIT")</span> }
@@ -45,14 +59,14 @@
                                     </span>
                                 </div>
                             </td>
-                            <td class="numeric quantity">@if (EditableSessionId is { } sessionId) { <LootQuantityEditor SessionId="sessionId" ItemName="@item.Name" Quantity="item.Quantity" DisplayQuantity="@Number(_hourly ? Hourly(item.Quantity, TimeSpan.FromTicks(DurationTicks)) : item.Quantity)" /> } else { @Number(_hourly ? Hourly(item.Quantity, TimeSpan.FromTicks(DurationTicks)) : item.Quantity) }</td>
+                            <td class="numeric quantity">@if (EditableSessionId is { } sessionId) { <LootQuantityEditor SessionId="sessionId" ItemName="@item.Name" Quantity="item.Quantity" DisplayQuantity="@quantity" /> } else { @quantity }</td>
                             <td class="numeric silver-cell" title="@(item.Value.HasValue ? F("{0} Silber netto", Number(item.Value.Value)) : T("Für diesen Gegenstand fehlt ein Preis."))">@(item.Value.HasValue ? Silver(_hourly ? Hourly(item.Value.Value, TimeSpan.FromTicks(DurationTicks)) : item.Value.Value) : T("Preis fehlt"))</td>
                         </tr>
                     }
                 </tbody>
             </table>
         </div>
-        @if (rows.Length == 0) { <div class="inline-empty">@F("Kein Gegenstand passt zu „{0}“.", _query)</div> }
+        @if (rows.Count == 0) { <div class="inline-empty">@F("Kein Gegenstand passt zu „{0}“.", _query)</div> }
         <div class="table-footnote"><AppIcon Name="info" /><span>@T("NPC-Werte ohne Steuer · Marktwerte mit deinen Silber-Einstellungen")</span></div>
     }
     else
@@ -68,6 +82,7 @@
     [Parameter] public string? SpotId { get; set; }
     [Parameter] public bool AllowAddingItems { get; set; }
     [Parameter] public bool ShowLastDrop { get; set; }
+    [Parameter] public bool ShowRareDropComparison { get; set; }
     [Parameter] public string? TrashName { get; set; }
     [Parameter] public string Title { get; set; } = "Dein Loot";
     [Parameter] public string Subtitle { get; set; } = "Alle erfassten Drops dieser Session";
@@ -78,6 +93,7 @@
     private bool _focusSearch;
     private bool _focusSearchToggle;
     private readonly string _searchId = "loot-search-" + Guid.NewGuid().ToString("N");
+    private long SessionTrashCount => TrashName is not null ? Totals.GetValueOrDefault(TrashName) : 0;
     private ElementReference _searchInput;
     private ElementReference _searchToggle;
     private LootHistoryEntry? SessionEntry => EditableSessionId is { } sessionId ? Tracker.History.FirstOrDefault(entry => entry.SessionId == sessionId) : null;
@@ -114,30 +130,8 @@
         _focusSearch = false;
         _focusSearchToggle = true;
     }
-    private sealed record LootRow(string Name, long Quantity, decimal? Value, bool Stale, TimeSpan? LastDropElapsed);
-    private IEnumerable<LootRow> Rows
-    {
-        get
-        {
-            var lastDrops = new Dictionary<string, TimeSpan>(StringComparer.OrdinalIgnoreCase);
-            if (ShowLastDrop && EditableSessionId == State.SessionId)
-                foreach (var drop in State.DropHistory)
-                    if (drop.Quantity > 0 && drop.Elapsed >= TimeSpan.Zero && drop.Elapsed <= State.Elapsed &&
-                        (!lastDrops.TryGetValue(drop.ItemName, out var previous) || drop.Elapsed > previous))
-                        lastDrops[drop.ItemName] = drop.Elapsed;
-            var items = Totals.Where(pair => pair.Key.Contains(_query, StringComparison.OrdinalIgnoreCase) ||
-                ItemLocalizationCatalog.GermanNames.GetValueOrDefault(pair.Key, pair.Key).Contains(_query, StringComparison.OrdinalIgnoreCase)).Select(pair =>
-            {
-                var valuation = SilverValuation.Calculate(new Dictionary<string, long> { [pair.Key] = pair.Value }, Tracker.Prices, Tracker.Preferences.Tax);
-                return new LootRow(pair.Key, pair.Value, valuation.IsComplete ? valuation.AfterTax : null, valuation.IsStale,
-                    lastDrops.TryGetValue(pair.Key, out var lastDrop) ? lastDrop : null);
-            });
-            return _sort switch
-            {
-                "quantity" => items.OrderByDescending(item => item.Quantity).ThenBy(item => item.Name),
-                "name" => items.OrderBy(item => ItemLabel(item.Name)),
-                _ => items.OrderByDescending(item => item.Value).ThenBy(item => item.Name)
-            };
-        }
-    }
+    private readonly LootTableProjectionCache _projection = new();
+    private IReadOnlyList<LootTableRow> Rows => _projection.Update(Totals, Tracker.Prices, Tracker.Preferences.Tax,
+        _query, _sort, Tracker.Preferences.GameLanguage == "auto" ? State.DetectedGameLanguage ?? "en" : Tracker.Preferences.GameLanguage,
+        State.DropHistory, State.Elapsed, ShowLastDrop && EditableSessionId == State.SessionId ? State.SessionId : null);
 }

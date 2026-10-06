@@ -44,6 +44,8 @@ internal static partial class AppText
         AddUploadCorrections(text);
         AddRotationMetrics(text);
         AddLootDrops(text);
+        AddRareDrops(text);
+        AddStoreSessionViewer(text);
         AddBuffs(text);
         AddNavigation(text);
         AddSessionShare(text);

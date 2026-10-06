@@ -18,7 +18,7 @@ Für die Paketierung werden keine Konto-Passwörter, MSA-App-Secrets oder Signie
 
 ## Paket erstellen
 
-Windows, PowerShell 7.2+, .NET SDK 9.0.318 oder neuer aus der 9er-Reihe, Node.js 24 und das Windows SDK ab 10.0.19041.0 mit `MakeAppx.exe` und `MakePri.exe` sind erforderlich.
+Windows, PowerShell 7.2+, .NET SDK 9.0.318 oder neuer aus der 9er-Reihe, Node.js 24, die Visual-Studio-C++-Buildtools mit x64-MSVC und das Windows SDK ab 10.0.19041.0 mit `MakeAppx.exe` und `MakePri.exe` sind erforderlich. Die App baut und veröffentlicht `Grindcrest.Native.dll` automatisch; [Details zu den nativen Rechenkernen](NATIVE_KERNELS.md).
 
 ```powershell
 ./scripts/Build-StoreRelease.ps1 -Version 1.15.0 -RequireWindowsOcr

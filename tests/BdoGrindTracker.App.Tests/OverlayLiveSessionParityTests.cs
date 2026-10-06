@@ -82,7 +82,7 @@ public sealed class OverlayLiveSessionParityTests
         Assert.False(metric.IsWarning);
         Assert.Null(metric.Detail);
         Assert.Equal(new LiveSessionPresentation(state).GrindRating.Description, metric.Tooltip);
-        Assert.Contains("Average ab 13.946 · High ab 16.300 · Top ab 18.500", metric.Tooltip);
+        Assert.Contains("Average ab 13.946,00 · High ab 16.300,00 · Top ab 18.500,00", metric.Tooltip);
         Assert.Contains("Loot-Scroll Lv.2 · ohne Agris", WebUtility.HtmlDecode(markup));
         Assert.Contains(state.GrindBenchmarkStatus, metric.Tooltip);
         Assert.Contains(state.GrindBenchmarkStatus, WebUtility.HtmlDecode(markup));

@@ -36,7 +36,7 @@ public sealed record GrindRatingSpectrum(double Position, IReadOnlyList<GrindRat
             result.TrashPerHour is not { } rate) return null;
 
         string F(string text, params object[] args) => AppText.Format(text, language, args);
-        string Number(decimal value) => Presentation.Number(value, language);
+        string HourlyNumber(decimal value) => Presentation.HourlyNumber(value, language);
         var references = new List<(string Label, decimal Rate, OverlayMetricTone Tone)>
         {
             ("Average", benchmark.AverageTrashPerHour, OverlayMetricTone.Default),
@@ -49,7 +49,7 @@ public sealed record GrindRatingSpectrum(double Position, IReadOnlyList<GrindRat
         var groups = references.GroupBy(reference => reference.Rate).ToArray();
         var stops = groups.Select((group, index) => new GrindRatingStop(
             string.Join(" / ", group.Select(reference => reference.Label)), group.Key,
-            (index + 1d) / (groups.Length + 1) * 100, Number(group.Key), group.Last().Tone)).ToArray();
+            (index + 1d) / (groups.Length + 1) * 100, HourlyNumber(group.Key), group.Last().Tone)).ToArray();
         var nextIndex = Array.FindIndex(stops, stop => rate < stop.TrashPerHour);
         double position;
         string progress;
@@ -62,10 +62,10 @@ public sealed record GrindRatingSpectrum(double Position, IReadOnlyList<GrindRat
                 (next.TrashPerHour - (previous?.TrashPerHour ?? 0));
             position = (previous?.Position ?? 0) + (double)fraction * (next.Position - (previous?.Position ?? 0));
             // A rounded 100% would falsely suggest the next threshold has been reached.
-            var percentage = Number(decimal.Floor(fraction * 100));
+            var percentage = Presentation.Number(decimal.Floor(fraction * 100), language);
             progress = previous is null ? F("{0} % von {1}", percentage, next.Label) :
                 F("{0} → {1} · {2} %", groups[nextIndex - 1].Last().Label, next.Label, percentage);
-            gap = F("Noch {0} Trash / h bis {1}", Number(decimal.Ceiling(next.TrashPerHour - rate)), next.Label);
+            gap = F("Noch {0} Trash / h bis {1}", HourlyNumber(next.TrashPerHour - rate), next.Label);
         }
         else
         {
@@ -82,10 +82,10 @@ public sealed record GrindRatingSpectrum(double Position, IReadOnlyList<GrindRat
             progress = rate == last.TrashPerHour ? F("{0} erreicht", label) : F("{0} % über {1}", percentage, label);
             var difference = rate - last.TrashPerHour;
             gap = difference == 0 ? F("Referenz: {0} Trash / h", last.Value) :
-                F("+{0} Trash / h über {1}", difference < 1 ? "<1" : Number(difference), label);
+                F("+{0} Trash / h über {1}", HourlyNumber(difference), label);
         }
 
-        var hourly = Number(rate) + " Trash / h";
+        var hourly = HourlyNumber(rate) + " Trash / h";
         var description = hourly + ". " + progress + ". " + gap + ". " +
             string.Join(" · ", stops.Select(stop => stop.Label + ": " + stop.Value)) + ". " +
             AppText.Translate("Die Position zeigt den Abstand auf der Skala, keinen Spieler-Perzentilrang.", language) +

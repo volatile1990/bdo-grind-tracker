@@ -30,22 +30,15 @@ internal static unsafe class DesktopPixelConverter
                 PixelFormat.Format32bppRgb);
             try
             {
-                for (var y = 0; y < height; y++)
+                if (lookup is not null)
+                    CopyHdrPixels(source, rowPitch, data.Scan0, data.Stride, width, height, lookup);
+                else
                 {
-                    var src = (byte*)source + checked((nuint)y * rowPitch);
-                    var dst = (byte*)data.Scan0 + checked((nint)y * data.Stride);
-                    if (lookup is null)
-                        Buffer.MemoryCopy(src, dst, Math.Abs(data.Stride), rowBytes);
-                    else
+                    for (var y = 0; y < height; y++)
                     {
-                        var rgba = (ushort*)src;
-                        for (var x = 0; x < width; x++)
-                        {
-                            dst[x * 4] = lookup[rgba[x * 4 + 2]];
-                            dst[x * 4 + 1] = lookup[rgba[x * 4 + 1]];
-                            dst[x * 4 + 2] = lookup[rgba[x * 4]];
-                            dst[x * 4 + 3] = 255;
-                        }
+                        var src = (byte*)source + checked((nuint)y * rowPitch);
+                        var dst = (byte*)data.Scan0 + checked((nint)y * data.Stride);
+                        Buffer.MemoryCopy(src, dst, Math.Abs(data.Stride), rowBytes);
                     }
                 }
             }
@@ -56,6 +49,34 @@ internal static unsafe class DesktopPixelConverter
         {
             bitmap.Dispose();
             throw;
+        }
+    }
+
+    // Keep a managed reference/fallback and a narrow seam for parity tests and local benchmarks.
+    internal static bool CopyHdrPixels(nint source, uint rowPitch, nint destination, int destinationStride,
+        int width, int height, byte[] lookup, bool useNative = true)
+    {
+        if (useNative && NativeDesktopPixelConverter.TryConvert(source, rowPitch, destination,
+                destinationStride, width, height, lookup))
+            return true;
+        CopyHdrPixelsManaged(source, rowPitch, destination, destinationStride, width, height, lookup);
+        return false;
+    }
+
+    internal static void CopyHdrPixelsManaged(nint source, uint rowPitch, nint destination,
+        int destinationStride, int width, int height, byte[] lookup)
+    {
+        for (var y = 0; y < height; y++)
+        {
+            var rgba = (ushort*)((byte*)source + checked((nuint)y * rowPitch));
+            var dst = (byte*)destination + checked((nint)y * destinationStride);
+            for (var x = 0; x < width; x++)
+            {
+                dst[x * 4] = lookup[rgba[x * 4 + 2]];
+                dst[x * 4 + 1] = lookup[rgba[x * 4 + 1]];
+                dst[x * 4 + 2] = lookup[rgba[x * 4]];
+                dst[x * 4 + 3] = 255;
+            }
         }
     }
 
@@ -72,7 +93,7 @@ internal static unsafe class DesktopPixelConverter
         return (byte)Math.Clamp((int)MathF.Round(encoded * 255f), 0, 255);
     }
 
-    private static byte[] CreateHalfLookup()
+    internal static byte[] CreateHalfLookup()
     {
         var lookup = new byte[65536];
         for (var bits = 0; bits < lookup.Length; bits++)

@@ -73,7 +73,7 @@ internal sealed class GraphicsWindowFrameSource : IWindowFrameSource
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (_closed) throw new InvalidOperationException("Das aufgenommene Black-Desert-Spielfenster wurde geschlossen.");
+            if (_closed) throw new GameWindowUnavailableException("Das aufgenommene Black-Desert-Spielfenster wurde geschlossen.");
             var geometry = readGeometry();
             if (geometry.IsHdr != _isHdr)
                 throw new InvalidOperationException("Der HDR-Modus des Spielfensters hat sich geändert. Tracking bitte erneut starten.");

@@ -14,8 +14,8 @@ namespace BdoGrindTracker.App.Tests;
 public sealed class GrindRatingSpectrumTests
 {
     [Theory]
-    [InlineData(12_000, 37.5, "Average → High · 50 %", "Noch 2.000 Trash / h bis High")]
-    [InlineData(17_000, 62.5, "High → Top · 50 %", "Noch 3.000 Trash / h bis Top")]
+    [InlineData(12_000, 37.5, "Average → High · 50 %", "Noch 2.000,00 Trash / h bis High")]
+    [InlineData(17_000, 62.5, "High → Top · 50 %", "Noch 3.000,00 Trash / h bis Top")]
     public void MarkerAndRemainingTrashUseTheCurrentBenchmarkInterval(long trash, double position,
         string progress, string gap)
     {
@@ -45,7 +45,7 @@ public sealed class GrindRatingSpectrumTests
         if (tier == GrindRatingTier.Top)
         {
             Assert.Equal("Top erreicht", spectrum.ProgressLabel);
-            Assert.Equal("Referenz: 20.000 Trash / h", spectrum.GapLabel);
+            Assert.Equal("Referenz: 20.000,00 Trash / h", spectrum.GapLabel);
         }
     }
 
@@ -64,12 +64,12 @@ public sealed class GrindRatingSpectrumTests
         Assert.Contains("99 %", spectrum.ProgressLabel);
         Assert.DoesNotContain("100 %", spectrum.ProgressLabel);
         Assert.DoesNotContain("erreicht", spectrum.ProgressLabel);
-        Assert.Equal($"Noch 1 Trash / h bis {nextLabel}", spectrum.GapLabel);
+        Assert.Equal($"Noch 0,20 Trash / h bis {nextLabel}", spectrum.GapLabel);
     }
 
     [Theory]
-    [InlineData(0, 0, "0 % von Average", "Noch 10.000 Trash / h bis Average")]
-    [InlineData(5_000, 12.5, "50 % von Average", "Noch 5.000 Trash / h bis Average")]
+    [InlineData(0, 0, "0 % von Average", "Noch 10.000,00 Trash / h bis Average")]
+    [InlineData(5_000, 12.5, "50 % von Average", "Noch 5.000,00 Trash / h bis Average")]
     public void ZeroAndBelowAverageRemainOnTheScale(long trash, double position, string progress, string gap)
     {
         var spectrum = Spectrum(trash);
@@ -80,9 +80,9 @@ public sealed class GrindRatingSpectrumTests
     }
 
     [Theory]
-    [InlineData(23_000, 87.5, "15,0 % über Top", "+3.000 Trash / h über Top")]
-    [InlineData(26_000, 100, "30,0 % über Top", "+6.000 Trash / h über Top")]
-    [InlineData(60_000, 100, "200,0 % über Top", "+40.000 Trash / h über Top")]
+    [InlineData(23_000, 87.5, "15,0 % über Top", "+3.000,00 Trash / h über Top")]
+    [InlineData(26_000, 100, "30,0 % über Top", "+6.000,00 Trash / h über Top")]
+    [InlineData(60_000, 100, "200,0 % über Top", "+40.000,00 Trash / h über Top")]
     public void AboveTopRetainsItsTrueDistanceWhenTheMarkerReachesTheScaleEnd(long trash, double position,
         string progress, string gap)
     {
@@ -94,8 +94,8 @@ public sealed class GrindRatingSpectrumTests
     }
 
     [Theory]
-    [InlineData(null, 20_000, 15_000, "Top", "Average → Top · 50 %", "Noch 5.000 Trash / h bis Top")]
-    [InlineData(14_000, null, 12_000, "High", "Average → High · 50 %", "Noch 2.000 Trash / h bis High")]
+    [InlineData(null, 20_000, 15_000, "Top", "Average → Top · 50 %", "Noch 5.000,00 Trash / h bis Top")]
+    [InlineData(14_000, null, 12_000, "High", "Average → High · 50 %", "Noch 2.000,00 Trash / h bis High")]
     public void MissingOptionalReferenceUsesOnlyTheKnownInterval(int? high, int? top, long trash,
         string lastLabel, string progress, string gap)
     {
@@ -204,8 +204,8 @@ public sealed class GrindRatingSpectrumTests
     }
 
     [Theory]
-    [InlineData("de", "Average → High · 50 %", "Noch 2.000 Trash / h bis High", "12.000 Trash / h", "keinen Spieler-Perzentilrang")]
-    [InlineData("en", "Average → High · 50%", "2,000 trash / h to reach High", "12,000 Trash / h", "not a player percentile rank")]
+    [InlineData("de", "Average → High · 50 %", "Noch 2.000,00 Trash / h bis High", "12.000,00 Trash / h", "keinen Spieler-Perzentilrang")]
+    [InlineData("en", "Average → High · 50%", "2,000.00 trash / h to reach High", "12,000.00 Trash / h", "not a player percentile rank")]
     public void SpectrumLocalizesProgressNumbersAndItsMeaning(string language, string progress,
         string gap, string hourly, string explanation)
     {
@@ -257,7 +257,7 @@ public sealed class GrindRatingSpectrumTests
         Assert.Contains("Average", markup);
         Assert.Contains("High", markup);
         Assert.Contains("Top", markup);
-        Assert.Equal(!compact, markup.Contains("<small>10.000</small>", StringComparison.Ordinal));
+        Assert.Equal(!compact, markup.Contains("<small>10.000,00</small>", StringComparison.Ordinal));
     }
 
     [Fact]

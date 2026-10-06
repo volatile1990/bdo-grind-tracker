@@ -137,6 +137,8 @@ internal sealed class PreviewTrackerSession : ITrackerSession
             return Task.FromResult(new PreferenceSaveResult("Bitte wähle ein bekanntes Overlay-Theme oder „Wie Hauptfenster“."));
         if (preferences.DebugLogRetentionHours is < AppSettings.MinimumDebugLogRetentionHours or > AppSettings.MaximumDebugLogRetentionHours)
             return Task.FromResult(new PreferenceSaveResult("Die Aufbewahrungsdauer für Debuglogs muss zwischen 1 und 168 Stunden liegen."));
+        if (preferences.DropRatePercent is < AppSettings.MinimumDropRatePercent or > AppSettings.MaximumDropRatePercent)
+            return Task.FromResult(new PreferenceSaveResult("Die Droprate muss zwischen 0 und 1000 % liegen."));
         var hasApiKey = apiKey is null ? State.HasApiKey : !string.IsNullOrWhiteSpace(apiKey);
         Preferences = preferences with { AutoUpload = preferences.AutoUpload && hasApiKey, BuffRecognitionProfilePath = null };
         Prices = LootPriceCatalog.FixedSnapshot(preferences.MarketRegion);

@@ -155,6 +155,16 @@ public sealed class PassiveWindowCaptureTests
     }
 
     [Fact]
+    public void ClosedBoundWindowIsClassifiedAsTemporarilyUnavailable()
+    {
+        var closed = new WindowCaptureTarget(0, 123, new Size(800, 600));
+
+        var error = Assert.Throws<GameWindowUnavailableException>(() => NativeWindowCapture.ReadGeometry(closed));
+
+        Assert.Contains("geschlossen", error.Message);
+    }
+
+    [Fact]
     public void FailedRebindCannotResumePreviouslyBoundWindow()
     {
         var selections = 0;

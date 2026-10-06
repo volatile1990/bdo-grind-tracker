@@ -64,8 +64,8 @@ public sealed class SessionSharePresentationTests
         Assert.DoesNotContain("\"Status\":", before, StringComparison.Ordinal);
         Assert.Equal(["Black Crystal Fragment", "Rare item"], image.Loot.Select(row => row.Name));
         Assert.Equal("12.000", image.Loot[0].Quantity);
-        Assert.Equal("24.000", image.Loot[0].Hourly);
-        Assert.Equal("6", image.Loot[1].Hourly);
+        Assert.Equal("24.000,00", image.Loot[0].Hourly);
+        Assert.Equal("6,00", image.Loot[1].Hourly);
         Assert.True(Assert.IsAssignableFrom<IList>(image.Loot).IsReadOnly);
         Assert.True(Assert.IsAssignableFrom<IList>(image.Details).IsReadOnly);
         Assert.StartsWith("assets/spot-backgrounds/", image.BackgroundUrl);

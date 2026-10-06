@@ -29,9 +29,9 @@ public sealed class GrindRatingPresentationTests
         Assert.Equal("Average Tier", presentation.Label);
         Assert.Equal(presentation.Label, metric.Value);
         Assert.Equal(presentation.Description, metric.Tooltip);
-        Assert.Contains("Average ab 12.803", presentation.Description);
-        Assert.Contains("High ab 14.000", markup);
-        Assert.Contains("Top ab 15.200", markup);
+        Assert.Contains("Average ab 12.803,00", presentation.Description);
+        Assert.Contains("High ab 14.000,00", markup);
+        Assert.Contains("Top ab 15.200,00", markup);
         Assert.Contains("Stand 12.09.2026", markup);
         Assert.Contains("startDate=2026-09-10", markup);
         Assert.Contains("endDate=2026-09-17", markup);
@@ -183,7 +183,7 @@ public sealed class GrindRatingPresentationTests
         var presentation = new LiveSessionPresentation(state).GrindRating;
 
         Assert.Equal("Average Tier", presentation.Label);
-        Assert.Contains("Average ab 13.946 Trash / h", presentation.Description);
+        Assert.Contains("Average ab 13.946,00 Trash / h", presentation.Description);
         Assert.DoesNotContain("High ab", presentation.Description);
         Assert.DoesNotContain("Top ab", presentation.Description);
     }

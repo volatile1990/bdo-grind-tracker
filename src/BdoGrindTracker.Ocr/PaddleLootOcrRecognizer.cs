@@ -98,13 +98,17 @@ public sealed class PaddleLootOcrRecognizer : ISecondaryLootOcrRecognizer
         using var resized = new Mat();
         Cv2.Resize(bgr, resized, new OpenCvSharp.Size(resizedWidth, 48), interpolation: InterpolationFlags.Linear);
         var pixels = new float[3 * 48 * width]; // Padding is zero AFTER normalization, per upstream.
+        var rows = resized.AsRows<Vec3b>();
         for (var y = 0; y < 48; y++)
+        {
+            var row = rows[y];
             for (var x = 0; x < resizedWidth; x++)
             {
-                var pixel = resized.At<Vec3b>(y, x);
+                var pixel = row[x];
                 for (var channel = 0; channel < 3; channel++)
                     pixels[channel * 48 * width + y * width + x] = pixel[channel] / 127.5f - 1;
             }
+        }
         return (pixels, width);
     }
 

@@ -90,11 +90,13 @@ public sealed class CompanionQuantityRecognizer : IDisposable
 
             var scoreRows = scores.Rows;
             var scoreColumns = scores.Cols;
+            var rows = scores.AsRows<float>();
             for (var y = 0; y < scoreRows; y++)
             {
+                var row = rows[y];
                 for (var x = 0; x < scoreColumns; x++)
                 {
-                    var score = scores.At<float>(y, x);
+                    var score = row[x];
                     if (score >= template.Threshold)
                     {
                         ReconcileCandidate(

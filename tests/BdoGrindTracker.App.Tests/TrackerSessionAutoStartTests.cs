@@ -322,8 +322,10 @@ public sealed partial class TrackerSessionServiceTests
         Assert.Empty(fresh.Frames);
     }
 
-    [Fact]
-    public async Task MinimizedGamePausesQuietlyAndResumesTheSameSessionAfterANewDrop()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task UnavailableGamePausesQuietlyAndResumesTheSameSessionAfterANewDrop(bool closed)
     {
         var monitor = new ControlledAutoStartMonitor { IsGameForeground = false };
         await using var fixture = new Fixture(autoUpload: false,
@@ -337,13 +339,16 @@ public sealed partial class TrackerSessionServiceTests
         typeof(BdoGrindTracker.App.Services.TrackerSessionService)
             .GetMethod("CaptureSessionStopped", BindingFlags.Instance | BindingFlags.NonPublic)!
             .Invoke(fixture.Service, [null, new CaptureSessionStoppedEventArgs(
-                new GameWindowUnavailableException("Synthetic minimized game window"))]);
+                new GameWindowUnavailableException(closed
+                    ? "Das aufgenommene Black-Desert-Spielfenster wurde geschlossen."
+                    : "Synthetic minimized game window"))]);
         await fixture.Service.TickAsync();
         await monitor.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         Assert.False(fixture.Service.State.IsRunning);
         Assert.False(fixture.Service.State.IsError);
         Assert.True(fixture.Service.State.HasSession);
+        Assert.DoesNotContain("Tracking gestoppt", fixture.Service.State.Status);
         Assert.Equal(sessionId, fixture.Service.State.SessionId);
         Assert.Equal(loot, fixture.Service.State.Loot.TotalQuantity);
         Assert.False(fixture.Clock.IsRunning);
@@ -371,6 +376,23 @@ public sealed partial class TrackerSessionServiceTests
         Assert.Equal(pausedElapsed, fixture.Service.State.Elapsed);
         Assert.False(fixture.Service.State.IsWaitingForFirstDrop);
         Assert.Empty(detection.Frames);
+    }
+
+    [Fact]
+    public async Task ClosedWindowWithManualTrackingStillReportsTheStopError()
+    {
+        await using var fixture = new Fixture(autoUpload: false);
+        fixture.Begin();
+        typeof(BdoGrindTracker.App.Services.TrackerSessionService)
+            .GetMethod("CaptureSessionStopped", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .Invoke(fixture.Service, [null, new CaptureSessionStoppedEventArgs(
+                new GameWindowUnavailableException("Das aufgenommene Black-Desert-Spielfenster wurde geschlossen."))]);
+
+        await fixture.Service.TickAsync();
+
+        Assert.False(fixture.Service.State.IsRunning);
+        Assert.True(fixture.Service.State.IsError);
+        Assert.Contains("geschlossen", fixture.Service.State.Status);
     }
 
     [Fact]

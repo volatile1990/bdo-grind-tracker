@@ -68,6 +68,38 @@ public sealed class SecondaryLootOcrRecognizerTests
         Assert.Equal(0, pixels[^1]);
     }
 
+    [Theory]
+    [InlineData(1, 100, 31)]
+    [InlineData(3, 703, 43)]
+    [InlineData(4, 3500, 41)]
+    public void TensorMatchesLegacyElementAccessBitForBitForStridedInput(int channels, int width, int height)
+    {
+        using var parent = new Mat(height + 4, width + 8, MatType.CV_8UC(channels));
+        var parentHeight = parent.Height;
+        var parentWidth = parent.Width;
+        for (var y = 0; y < parentHeight; y++)
+        for (var x = 0; x < parentWidth; x++)
+        {
+            var blue = (byte)((x * 13 + y * 37) % 256);
+            var green = (byte)((x * 43 + y * 11) % 256);
+            var red = (byte)((x * 7 + y * 29) % 256);
+            if (channels == 1) parent.Set(y, x, blue);
+            else if (channels == 3) parent.Set(y, x, new Vec3b(blue, green, red));
+            else parent.Set(y, x, new Vec4b(blue, green, red, (byte)((x + y) % 256)));
+        }
+        using var image = new Mat(parent, new Rect(3, 2, width, height));
+        using var before = image.Clone();
+        Assert.False(image.IsContinuous());
+
+        var expected = PrepareInputWithLegacyElementAccess(image);
+        var actual = PaddleLootOcrRecognizer.PrepareInput(image);
+
+        Assert.Equal(expected.Width, actual.Width);
+        Assert.Equal(expected.Pixels.Select(BitConverter.SingleToInt32Bits),
+            actual.Pixels.Select(BitConverter.SingleToInt32Bits));
+        Assert.Equal(0d, Cv2.Norm(before, image, NormTypes.INF));
+    }
+
     [Fact]
     public async Task SeparateWorkersCanReadEnglishAndGermanAtTheSameTime()
     {
@@ -112,6 +144,28 @@ public sealed class SecondaryLootOcrRecognizerTests
         using var floatingPoint = new Mat(30, 200, MatType.CV_32FC1, Scalar.All(0));
         Assert.Throws<ArgumentException>(() => engine.Recognize(empty));
         Assert.Throws<ArgumentException>(() => engine.Recognize(floatingPoint));
+    }
+
+    private static (float[] Pixels, int Width) PrepareInputWithLegacyElementAccess(Mat image)
+    {
+        var ratio = 48d * image.Width / image.Height;
+        var width = Math.Clamp((int)ratio, 320, 3200);
+        var resizedWidth = Math.Min(width, (int)Math.Ceiling(ratio));
+        using var bgr = new Mat();
+        if (image.Channels() == 1) Cv2.CvtColor(image, bgr, ColorConversionCodes.GRAY2BGR);
+        else if (image.Channels() == 4) Cv2.CvtColor(image, bgr, ColorConversionCodes.BGRA2BGR);
+        else image.CopyTo(bgr);
+        using var resized = new Mat();
+        Cv2.Resize(bgr, resized, new OpenCvSharp.Size(resizedWidth, 48), interpolation: InterpolationFlags.Linear);
+        var pixels = new float[3 * 48 * width];
+        for (var y = 0; y < 48; y++)
+        for (var x = 0; x < resizedWidth; x++)
+        {
+            var pixel = resized.At<Vec3b>(y, x);
+            for (var channel = 0; channel < 3; channel++)
+                pixels[channel * 48 * width + y * width + x] = pixel[channel] / 127.5f - 1;
+        }
+        return (pixels, width);
     }
 
     private static Mat RenderRow(string text)

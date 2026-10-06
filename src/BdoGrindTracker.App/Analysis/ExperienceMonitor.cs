@@ -1,4 +1,5 @@
 using BdoGrindTracker.App.UI;
+using BdoGrindTracker.App.Services;
 
 namespace BdoGrindTracker.App.Analysis;
 
@@ -43,7 +44,11 @@ internal sealed class ExperienceMonitor : IDisposable
                 var epoch = _epoch;
                 var ownedCopy = copy;
                 var ownedCancellation = cancellation;
-                _analysis = Task.Run(() => Read(ownedCopy, capturedAt, epoch, ownedCancellation));
+                // Minute-spaced XP reads tolerate efficient scheduling. The
+                // helper confines EcoQoS to a dedicated thread on hybrid CPUs,
+                // without changing a reusable threadpool thread or live loot OCR.
+                _analysis = CpuScheduling.RunEfficientBackgroundWork(
+                    () => Read(ownedCopy, capturedAt, epoch, ownedCancellation));
             }
             catch (Exception)
             {

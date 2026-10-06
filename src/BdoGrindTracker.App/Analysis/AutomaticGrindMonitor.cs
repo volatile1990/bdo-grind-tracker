@@ -1,4 +1,5 @@
 using BdoGrindTracker.App.Capture;
+using BdoGrindTracker.App.Services;
 using BdoGrindTracker.Core;
 using BdoGrindTracker.Ocr;
 
@@ -53,6 +54,7 @@ internal sealed class AutomaticGrindMonitor(
     internal static readonly TimeSpan AnalysisTimeout = TimeSpan.FromSeconds(5);
     public bool IsGameForeground => capture.IsGameForeground;
     public bool IsConfirming => _confirming;
+    internal Func<IDisposable> PreserveCapturePriority { get; init; } = CpuScheduling.PreserveCapturePriority;
 
     public async Task<AutoStartDetection?> CheckAsync(string language, CancellationToken cancellationToken)
     {
@@ -66,6 +68,25 @@ internal sealed class AutomaticGrindMonitor(
             return null;
         }
         if (_lastSample is { } sampled && _time.GetElapsedTime(sampled) < SampleInterval) return null;
+        // Standby samples and their confirmation burst acquire the first loot
+        // evidence too. Protect them before capture, including any OCR that
+        // continues after a canceled or timed-out probe.
+        var priorityLease = PreserveCapturePriority();
+        try
+        {
+            return await CheckCurrentSampleAsync(language, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            var pending = PendingAnalysis;
+            if (pending.IsCompleted) priorityLease.Dispose();
+            else _ = ReleaseCapturePriorityAfterAnalysisAsync(pending, priorityLease);
+        }
+    }
+
+    private async Task<AutoStartDetection?> CheckCurrentSampleAsync(string language,
+        CancellationToken cancellationToken)
+    {
         _lastSample = _time.GetTimestamp();
         using var replay = new AutoStartDetection();
         var first = capture.Capture(cancellationToken);
@@ -230,6 +251,13 @@ internal sealed class AutomaticGrindMonitor(
     private static async Task ObserveCancellationAsync(Task cancellation)
     {
         try { await cancellation.ConfigureAwait(false); } catch (Exception) { }
+    }
+
+    private static async Task ReleaseCapturePriorityAfterAnalysisAsync(Task analysis, IDisposable priorityLease)
+    {
+        try { await analysis.ConfigureAwait(false); }
+        catch (Exception) { /* The original probe already owns failure reporting. */ }
+        finally { priorityLease.Dispose(); }
     }
 
     private static async Task DisposeAfterAnalysisAsync(Task pending, ILootFrameAnalyzer analyzer,

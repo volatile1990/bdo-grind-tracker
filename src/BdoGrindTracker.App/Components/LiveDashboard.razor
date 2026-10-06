@@ -42,14 +42,14 @@
             </div>
             <div class="live-session-actions">
                 <div class="live-session-buttons">
-                    <button class="button primary" @onclick="() => Act(State.IsRunning ? Tracker.PauseAsync : Tracker.ToggleTrackingAsync)" disabled="@(Acting || (State.IsRunning ? !State.CanPause : State.IsBusy || State.IsSubmitted || !State.AnalyzerAvailable || State.TrackingBlockedReason is not null || State.MissingOcrLanguageTag is not null || State.OcrRestartRequired))" title="@(State.IsSubmitted ? T("Diese Session ist abgeschlossen. Beginne eine neue Session.") : T(State.TrackingBlockedReason))"><AppIcon Name="@(State.IsRunning ? "pause" : "play")" />@(State.IsRunning ? T("Pausieren") : State.HasSession ? T("Fortsetzen") : T("Tracking starten"))</button>
-                    <button class="button secondary" @onclick="RequestNew" disabled="@(Acting || State.IsBusy)"><AppIcon Name="plus" />@T("Neue Session")</button>
+                    <button class="button primary" @onclick="() => Act(State.IsRunning ? Tracker.PauseAsync : Tracker.ToggleTrackingAsync)" disabled="@(Acting || State.IsReadOnly || (State.IsRunning ? !State.CanPause : State.IsBusy || State.IsSubmitted || !State.AnalyzerAvailable || State.TrackingBlockedReason is not null || State.MissingOcrLanguageTag is not null || State.OcrRestartRequired))" title="@(State.IsSubmitted ? T("Diese Session ist abgeschlossen. Beginne eine neue Session.") : T(State.TrackingBlockedReason))"><AppIcon Name="@(State.IsRunning ? "pause" : "play")" />@(State.IsRunning ? T("Pausieren") : State.HasSession ? T("Fortsetzen") : T("Tracking starten"))</button>
+                    <button class="button secondary" @onclick="RequestNew" disabled="@(Acting || State.IsBusy || State.IsReadOnly)"><AppIcon Name="plus" />@T("Neue Session")</button>
                     <button type="button" class="button secondary session-share-trigger" @onclick="ShareSession" disabled="@(!State.HasSession && !State.IsDemo)" title="@T("Session teilen")" aria-label="@T("Session teilen")"><AppIcon Name="share" /></button>
                 </div>
                 <div class="live-auto-start">
                     <label class="live-auto-start-toggle">
                         <span>@T("Grind automatisch erkennen")</span>
-                        <input id="auto-start-grinding" type="checkbox" class="switch" aria-label="@T("Grind automatisch erkennen")" @bind:get="Tracker.Preferences.AutoStartGrinding" @bind:set="AutoStartChanged" disabled="@(Acting || State.IsBusy)" />
+                        <input id="auto-start-grinding" type="checkbox" class="switch" aria-label="@T("Grind automatisch erkennen")" @bind:get="Tracker.Preferences.AutoStartGrinding" @bind:set="AutoStartChanged" disabled="@(Acting || State.IsBusy || State.IsReadOnly)" />
                     </label>
                 </div>
             </div>
@@ -146,7 +146,7 @@
             </div>
         </section>
     }
-    @if (!State.IsDemo && State.MissingOcrLanguageTag is null && (!State.AnalyzerAvailable || State.TrackingBlockedReason is not null))
+    @if (!State.IsReadOnly && !State.IsDemo && State.MissingOcrLanguageTag is null && (!State.AnalyzerAvailable || State.TrackingBlockedReason is not null))
     {
         <div class="notice error-notice tracking-blocked" role="alert"><AppIcon Name="info" /><div><strong>@T("Tracking nicht möglich")</strong><span>@T(State.TrackingBlockedReason ?? State.Status)</span></div><button class="text-button" @onclick="OpenSettings">@T("Einstellungen") <AppIcon Name="arrow" /></button></div>
     }
@@ -156,7 +156,7 @@
     }
 
     <div class="live-content-grid">
-        <LootTable Title="Drops" Subtitle="" Totals="State.Loot.Totals" DurationTicks="State.Elapsed.Ticks" TrashName="@CurrentProfile?.TrashItemName" EditableSessionId="State.SessionId" AllowAddingItems="true" ShowLastDrop="true" SpotId="@State.SpotId" />
+        <LootTable Title="Drops" Subtitle="" Totals="State.Loot.Totals" DurationTicks="State.Elapsed.Ticks" TrashName="@CurrentProfile?.TrashItemName" EditableSessionId="State.SessionId" AllowAddingItems="true" ShowLastDrop="true" ShowRareDropComparison="true" SpotId="@State.SpotId" />
         <div class="session-aside">
             @{ var rating = SessionMetrics.GrindRating; }
             <section class="panel grind-rating-panel" aria-labelledby="grind-rating-title" title="@rating.Description">
@@ -176,6 +176,11 @@
                 {
                     <p class="grind-rating-empty">@T("Keine Bewertung verfügbar.")</p>
                 }
+                <label class="live-drop-rate" for="live-drop-rate" title="@T("Droprate für den Rare-Drop-Vergleich")">
+                    <span>@T("Droprate")</span>
+                    <span class="live-drop-rate-input"><input id="live-drop-rate" type="number" min="0" max="1000" step="any" @bind:get="Tracker.Preferences.DropRatePercent" @bind:set="DropRateChanged" aria-label="@T("Droprate für den Rare-Drop-Vergleich")" aria-describedby="live-drop-rate-help" disabled="@(Acting || State.IsBusy)" /><span>%</span></span>
+                </label>
+                <span id="live-drop-rate-help" class="sr-only">@T("Der Rare-Drop-Vergleich berücksichtigt deinen Dropratenbonus und dein Trash pro Stunde im Verhältnis zur Garmoth-Referenz.")</span>
             </section>
             @if (!State.Silver.IsComplete || State.Silver.IsStale)
             {
@@ -183,7 +188,19 @@
             }
         </div>
     </div>
-    @if (!State.IsDemo && !State.HasSession)
+    @if (State.IsReadOnly)
+    {
+        <div class="live-session-options">
+            <div class="store-session-tools">
+                <details class="store-session-details">
+                    <summary>@T("Store-Session · Lesemodus")</summary>
+                    <div><p>@T("Gespeicherte Zwischenstände werden automatisch aktualisiert. Die Store-App kann geöffnet bleiben. Änderungen an der Droprate gelten nur für diese Ansicht.")</p><p>@T("Zum Steuern die Store-App im Tray-Menü beenden und „Store-Session übernehmen“ wählen.")</p><span role="status">@State.DataSourceStatus</span></div>
+                </details>
+                <button class="text-button store-session-takeover" @onclick="TakeOverSession" disabled="@(Acting || State.IsBusy)">@T("Store-Session übernehmen")</button>
+            </div>
+        </div>
+    }
+    @if (!State.IsReadOnly && !State.IsDemo && !State.HasSession)
     {
         <div class="demo-invitation"><span>@T("Noch nicht im Spiel? Lerne die Oberfläche mit einer Beispielsession kennen.")</span><button class="text-button" @onclick="() => Act(() => Tracker.SetDemoAsync(true))" disabled="@(Acting || State.IsBusy)"><AppIcon Name="spark" />@T("Demo ansehen")</button></div>
     }
@@ -191,12 +208,15 @@
 
 <SessionShareDialog @ref="_shareDialog" />
 
+@if (!State.IsReadOnly)
+{
 <dialog id="live-confirm" class="modal confirm-modal" aria-labelledby="live-confirm-title" @oncancel="CloseConfirmation">
     <div class="modal-heading"><div><span class="eyebrow">SESSION</span><h2 id="live-confirm-title">@T("Neue Session beginnen?")</h2></div><button class="icon-button" @onclick="CloseConfirmation" aria-label="@T("Dialog schließen")"><AppIcon Name="close" /></button></div>
     <p>@(State.IsDemo ? T("Die Demo wird beendet. Beispieldaten werden nicht im Verlauf gespeichert.") : T("Die aktuelle Session wird beendet und im Verlauf gesichert.")) @T("Für die neue Session beginnen Zeit und Loot wieder bei null.")</p>
     @if (ActionError is not null) { <div class="notice error-notice" role="alert">@T(ActionError)</div> }
     <div class="modal-actions"><button class="button secondary" @onclick="CloseConfirmation">@T("Abbrechen")</button><button class="button primary" @onclick="ConfirmAction" disabled="@Acting">@T("Neue Session")</button></div>
 </dialog>
+}
 
 @code {
     private SessionShareDialog? _shareDialog;
@@ -211,6 +231,8 @@
     private CombatStatsState? FreshCombatStats => CombatStatsSpotRules.ForSpot(State.CombatStats, State.SpotId);
     private CombatStatsState? DisplayCombatStats => FreshCombatStats ?? CombatStatsSpotRules.ForSpot(State.SessionCombatStats, State.SpotId);
     private Task AutoStartChanged(bool enabled) => SavePreferenceChange(p => p with { AutoStartGrinding = enabled });
+    private Task DropRateChanged(decimal percent) => SavePreferenceChange(p => p with { DropRatePercent = percent });
+    private async Task TakeOverSession() => await Act(Tracker.TakeOverSessionAsync);
     private int RotationCount => SessionRotationStats.Count(State.Rotation);
     private double? RotationAverage => SessionRotationStats.Average(State.Rotation);
     private double? RotationFastest => SessionRotationStats.Fastest(State.Rotation);
@@ -258,6 +280,7 @@
     private string SessionStatus => SessionMetrics.Status;
     private async Task RequestNew()
     {
+        if (State.IsReadOnly) return;
         ClearActionError();
         if (!State.HasSession && !State.IsDemo) { await Act(Tracker.NewSessionAsync); return; }
         await JS.InvokeVoidAsync("grindcrest.showDialog", "live-confirm");
@@ -265,6 +288,7 @@
     private async Task CloseConfirmation() => await JS.InvokeVoidAsync("grindcrest.closeDialog", "live-confirm");
     private async Task ConfirmAction()
     {
+        if (State.IsReadOnly) return;
         if (State.IsRunning && !await Act(Tracker.PauseAsync)) return;
         var previousSessionId = State.SessionId;
         var succeeded = await Act(Tracker.NewSessionAsync);

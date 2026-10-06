@@ -183,6 +183,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             MonitorDeviceName = Monitors.FirstOrDefault(m => m.DeviceName == _settings.MonitorDeviceName)?.DeviceName
                 ?? Monitors.FirstOrDefault(m => m.IsPrimary)?.DeviceName ?? Monitors.FirstOrDefault()?.DeviceName,
             AutoPauseMinutes = _settings.AutoPauseMinutes,
+            DropRatePercent = _settings.DropRatePercent,
             AutoStartGrinding = _settings.AutoStartGrinding,
             AutomaticDebugLogging = _settings.AutomaticDebugLogging,
             DebugLogRetentionHours = _settings.DebugLogRetentionHours,
@@ -586,10 +587,13 @@ internal sealed partial class TrackerSessionService : ITrackerSession
         {
             var spot = detectedSpot;
             _rotationMonitor.ObserveLootEvents(analysis.NewEvents, spot);
-            var trash = TrashLootMinimumCatalog.Entries.Where(s => spot is null ? RotationProfiles.Supports(s.SpotId) : s.SpotId == spot)
-                .Select(s => s.ItemName).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            if (newLoot && analysis.NewEvents.Any(e => e.Quantity > 0 && trash.Contains(e.ItemName)))
-                _rotationMonitor.ObserveLoot(metadata.CapturedAtUtc, spot);
+            if (newLoot)
+            {
+                var trash = TrashLootMinimumCatalog.Entries.Where(s => spot is null ? RotationProfiles.Supports(s.SpotId) : s.SpotId == spot)
+                    .Select(s => s.ItemName).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                if (analysis.NewEvents.Any(e => e.Quantity > 0 && trash.Contains(e.ItemName)))
+                    _rotationMonitor.ObserveLoot(metadata.CapturedAtUtc, spot);
+            }
         }
         cancellationToken.ThrowIfCancellationRequested();
         _recording?.RecordFrame(metadata.CapturedAtUtc, analysis.Observations,
@@ -1054,7 +1058,7 @@ internal sealed partial class TrackerSessionService : ITrackerSession
             _uiMailbox.Dispose();
             _priceLifetime.Dispose();
         }
-        finally { _disposed = true; }
+        finally { _historyStore.ClearCache(); _disposed = true; }
     }
 
     public async ValueTask DisposeAsync() => await ShutdownAsync();

@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Text.Json;
 using BdoGrindTracker.App.Persistence;
 using BdoGrindTracker.App.UI;
+using BdoGrindTracker.Core;
 
 namespace BdoGrindTracker.App.Integrations.Garmoth;
 
@@ -15,6 +16,7 @@ internal sealed class GarmothGrindBenchmarkProvider : IGarmothGrindBenchmarkProv
     internal const string CollectiveUrl = "https://api.garmoth.com/api/grind-tracker/collective/all";
     internal const string MetadataUrl = "https://garmoth.com/api/trpc/grindMeta.list";
     private const int MaximumResponseBytes = 8 * 1024 * 1024;
+    private const int MaximumCacheBytes = 1024 * 1024;
     private readonly HttpClient _http;
     private readonly string? _cachePath;
     private readonly TimeProvider _time;
@@ -97,7 +99,11 @@ internal sealed class GarmothGrindBenchmarkProvider : IGarmothGrindBenchmarkProv
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 LoadCache();
-                foreach (var benchmark in received) _benchmarks[benchmark.SpotId] = benchmark;
+                foreach (var benchmark in received)
+                {
+                    var previous = _benchmarks.GetValueOrDefault(benchmark.SpotId) ?? GarmothGrindBenchmarks.Find(benchmark.SpotId);
+                    _benchmarks[benchmark.SpotId] = KeepRareReference(benchmark, previous);
+                }
                 var saved = SaveCache();
                 var message = received.Count == GarmothCatalog.SupportedSpotCount
                     ? "Garmoth-Referenzwerte aktualisiert."
@@ -138,9 +144,24 @@ internal sealed class GarmothGrindBenchmarkProvider : IGarmothGrindBenchmarkProv
     }
 
     private GarmothBenchmarkSnapshot Snapshot(string message) => new(Array.AsReadOnly(
-        GarmothGrindBenchmarks.All.Select(fallback => _benchmarks.GetValueOrDefault(fallback.SpotId, fallback))
+        GarmothGrindBenchmarks.All.Select(fallback => KeepRareReference(_benchmarks.GetValueOrDefault(fallback.SpotId, fallback), fallback))
             .Concat(_benchmarks.Values.Where(reference => GarmothGrindBenchmarks.Find(reference.SpotId) is null)
                 .OrderBy(reference => reference.SpotId, StringComparer.Ordinal)).ToArray()), message);
+
+    private GrindBenchmark KeepRareReference(GrindBenchmark received, GrindBenchmark? previous)
+    {
+        if (received.RareDropHourlyRates is not null || previous?.RareDropHourlyRates is null ||
+            previous.RareDropReferenceTrashPerHour is not > 0 ||
+            (previous.RareDropUpdatedAt ?? previous.UpdatedAt) > _time.GetUtcNow()) return received;
+        return received with
+        {
+            RareDropHourlyRates = previous.RareDropHourlyRates,
+            RareDropReferenceTrashPerHour = previous.RareDropReferenceTrashPerHour,
+            RareDropUpdatedAt = previous.RareDropUpdatedAt ?? previous.UpdatedAt,
+            RareDropSourceUrl = previous.RareDropSourceUrl ?? previous.SourceUrl,
+            RareDropRateScalingApplies = previous.RareDropRateScalingApplies,
+        };
+    }
 
     internal static IReadOnlyList<GrindBenchmark> Parse(ReadOnlyMemory<byte> collective, ReadOnlyMemory<byte> metadata,
         DateTimeOffset retrievedAt)
@@ -175,8 +196,9 @@ internal sealed class GarmothGrindBenchmarkProvider : IGarmothGrindBenchmarkProv
                 drop.TryGetProperty("is_trash", out var flag) && (flag.ValueKind == JsonValueKind.True ||
                     Numeric(flag, out var numericFlag) && numericFlag == 1)).ToArray();
             if (trash.Length != 1 || !Number(trash[0], "hourly_rate", out var rawAverage) || rawAverage <= 0) continue;
-            var multiplier = 2m;
-            if (spotMeta.TryGetProperty("dropRatios", out var ratios) && ratios.ValueKind == JsonValueKind.Object &&
+            var scales = GarmothCatalog.RareDropRateScalingApplies(spotId);
+            var multiplier = scales ? 2m : 1m;
+            if (scales && spotMeta.TryGetProperty("dropRatios", out var ratios) && ratios.ValueKind == JsonValueKind.Object &&
                 ratios.TryGetProperty("l2", out var l2) && l2.ValueKind == JsonValueKind.Number &&
                 l2.TryGetDecimal(out var ratio) && ratio >= 1) multiplier = ratio;
             var average = RoundAverage(rawAverage * multiplier);
@@ -187,12 +209,39 @@ internal sealed class GarmothGrindBenchmarkProvider : IGarmothGrindBenchmarkProv
             // These dates bound the selected reporting window, not the age of its data.
             // Garmoth can return an ongoing week whose end is still in the future.
             if (start is null || end is null || start > end || start > DateOnly.FromDateTime(retrievedAt.UtcDateTime)) continue;
+            var rareRates = ParseRareDrops(spotId, drops);
             var reference = new GrindBenchmark(spotId, average, high, top, retrievedAt,
                 $"https://garmoth.com/grind-tracker/best-grind-spots/{id}?startDate={start:yyyy-MM-dd}&endDate={end:yyyy-MM-dd}",
-                GarmothGrindBenchmarks.Conditions);
+                GarmothGrindBenchmarks.ConditionsForSpot(spotId))
+            {
+                RareDropHourlyRates = rareRates,
+                RareDropReferenceTrashPerHour = rareRates is null ? null : average,
+                RareDropRateScalingApplies = GarmothCatalog.RareDropRateScalingApplies(spotId),
+                RareDropUpdatedAt = retrievedAt,
+                RareDropSourceUrl = $"https://garmoth.com/grind-tracker/best-grind-spots/{id}?startDate={start:yyyy-MM-dd}&endDate={end:yyyy-MM-dd}",
+            };
             if (Valid(reference, retrievedAt)) result.Add(reference.SpotId, reference);
         }
         return result.Values.ToArray();
+    }
+
+    private static IReadOnlyDictionary<string, decimal>? ParseRareDrops(string spotId, JsonElement drops)
+    {
+        var rates = new Dictionary<string, decimal>(StringComparer.Ordinal);
+        var multiplier = GarmothCatalog.RareDropRateScalingApplies(spotId) ? 2m : 1m;
+        foreach (var drop in drops.EnumerateArray())
+        {
+            if (drop.ValueKind != JsonValueKind.Object || !drop.TryGetProperty("item_key", out var key) ||
+                key.ValueKind != JsonValueKind.String || key.GetString() is not { Length: > 0 and <= 64 } itemKey ||
+                !GarmothCatalog.TryGetRareDropNameForSpot(spotId, itemKey, out var name) ||
+                !drop.TryGetProperty("is_trash", out var flag) ||
+                !(flag.ValueKind == JsonValueKind.False || Numeric(flag, out var numericFlag) && numericFlag == 0) ||
+                !Number(drop, "hourly_rate", out var raw) || raw < 0 || raw > decimal.MaxValue / multiplier) continue;
+            // Garmoth calls this public setting "100%", but its client adds the
+            // base 100%: raw * (100 + 100) / 100. Retain unrounded source precision.
+            if (!rates.TryAdd(name, raw * multiplier)) throw new InvalidDataException("Duplicate Garmoth rare drop.");
+        }
+        return rates.Count == 0 ? null : rates;
     }
 
     private static bool Number(JsonElement element, string name, out decimal number)
@@ -236,9 +285,25 @@ internal sealed class GarmothGrindBenchmarkProvider : IGarmothGrindBenchmarkProv
     private static bool Valid(GrindBenchmark reference, DateTimeOffset now)
     {
         if (string.IsNullOrWhiteSpace(reference.SpotId) || !GarmothCatalog.TryGetSpot(reference.SpotId, out var id) || reference.UpdatedAt <= DateTimeOffset.UnixEpoch ||
-            reference.UpdatedAt > now || reference.Conditions != GarmothGrindBenchmarks.Conditions ||
+            reference.UpdatedAt > now || reference.Conditions != GarmothGrindBenchmarks.ConditionsForSpot(reference.SpotId) ||
             !Uri.TryCreate(reference.SourceUrl, UriKind.Absolute, out var source) || source.Scheme != "https" ||
-            source.Host != "garmoth.com" || source.AbsolutePath != $"/grind-tracker/best-grind-spots/{id}") return false;
+            source.Host != "garmoth.com" || source.AbsolutePath != $"/grind-tracker/best-grind-spots/{id}" ||
+            reference.RareDropReferenceTrashPerHour is <= 0 ||
+            reference.RareDropRateScalingApplies != GarmothCatalog.RareDropRateScalingApplies(reference.SpotId)) return false;
+        if (reference.RareDropHourlyRates is { } rates)
+        {
+            var rareUpdatedAt = reference.RareDropUpdatedAt ?? reference.UpdatedAt;
+            if (reference.RareDropReferenceTrashPerHour is not > 0 ||
+                rareUpdatedAt <= DateTimeOffset.UnixEpoch || rareUpdatedAt > now ||
+                !Uri.TryCreate(reference.RareDropSourceUrl ?? reference.SourceUrl, UriKind.Absolute, out var rareSource) ||
+                rareSource.Scheme != "https" || rareSource.Host != "garmoth.com" || !rareSource.IsDefaultPort ||
+                rareSource.UserInfo.Length != 0 || rareSource.AbsolutePath != $"/grind-tracker/best-grind-spots/{id}" ||
+                rates.Count > LootSourceCatalog.Entries.Count ||
+                rates.Any(pair => string.IsNullOrWhiteSpace(pair.Key) || pair.Value < 0 ||
+                    LootSourceCatalog.GetAllowedSource(pair.Key) != LootSource.Rare ||
+                    !GarmothCatalog.TryGetDropKeyForSpot(reference.SpotId, pair.Key, out var key) ||
+                    !GarmothCatalog.TryGetRareDropNameForSpot(reference.SpotId, key, out var canonical) || canonical != pair.Key)) return false;
+        }
         return GrindRatingEvaluator.Evaluate(reference.SpotId, 0, TimeSpan.FromHours(1), reference).Tier != GrindRatingTier.Unavailable;
     }
 
@@ -249,14 +314,39 @@ internal sealed class GarmothGrindBenchmarkProvider : IGarmothGrindBenchmarkProv
         if (_cachePath is null) return;
         try
         {
-            if (!File.Exists(_cachePath) || new FileInfo(_cachePath).Length > 65_536) return;
-            var cache = JsonSerializer.Deserialize<Cache>(File.ReadAllText(_cachePath));
+            if (!File.Exists(_cachePath) || new FileInfo(_cachePath).Length > MaximumCacheBytes) return;
+            using var stream = new FileStream(_cachePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            var cache = JsonSerializer.Deserialize<Cache>(stream);
             if (cache?.SchemaVersion != 1 || cache.Benchmarks is null) return;
             var now = _time.GetUtcNow();
-            foreach (var reference in cache.Benchmarks)
+            foreach (var stored in cache.Benchmarks)
+            {
+                // Rare-only caches from before trash normalization have no matched
+                // trash baseline. Keep their rating reference but replace the incomplete
+                // rare reference as a whole via the separately dated bundled fallback.
+                // Never infer its denominator from a possibly newer trash reporting window.
+                var migrated = stored is { RareDropHourlyRates: not null, RareDropReferenceTrashPerHour: null }
+                    ? stored with
+                    {
+                        RareDropHourlyRates = null,
+                        RareDropReferenceTrashPerHour = null,
+                        RareDropUpdatedAt = null,
+                        RareDropSourceUrl = null,
+                    }
+                    : stored;
+                // Older caches have no rare fields. They may still contain valid trash
+                // at a no-scroll spot, whose new scaling flag defaults to true in JSON.
+                var reference = migrated is { RareDropHourlyRates: null }
+                    ? migrated with
+                    {
+                        RareDropRateScalingApplies = GarmothCatalog.RareDropRateScalingApplies(migrated.SpotId),
+                        Conditions = GarmothGrindBenchmarks.ConditionsForSpot(migrated.SpotId),
+                    }
+                    : migrated;
                 if (reference is not null && Valid(reference, now) &&
                     (GarmothGrindBenchmarks.Find(reference.SpotId) is not { } fallback || reference.UpdatedAt >= fallback.UpdatedAt))
                     _benchmarks[reference.SpotId] = reference;
+            }
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException) { }
     }

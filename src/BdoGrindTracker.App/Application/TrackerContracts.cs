@@ -40,6 +40,7 @@ internal sealed record TrackerPreferences
     public string RotationMessageLanguage { get; init; } = "auto";
     public string? CharacterClassId { get; init; }
     public int AutoPauseMinutes { get; init; } = 3;
+    public decimal DropRatePercent { get; init; } = 320m;
     public bool AutoStartGrinding { get; init; }
     public bool RecordLoot { get; init; }
     public bool RecordRotation { get; init; }
@@ -63,6 +64,8 @@ internal sealed record TrackerState
     public bool IsWaitingForFirstDrop { get; init; }
     public string? AutoStartStatus { get; init; }
     public bool IsBusy { get; init; }
+    public bool IsReadOnly { get; init; }
+    public string? DataSourceStatus { get; init; }
     public bool CanEditLoot { get; init; } = true;
     public bool CanSelectSpotVariant { get; init; }
     public bool CanPause { get; init; }
@@ -148,6 +151,8 @@ internal interface ITrackerSession : IAsyncDisposable
     Task<TrackerCommandResult> ToggleTrackingAsync();
     Task<TrackerCommandResult> PauseAsync();
     Task<TrackerCommandResult> NewSessionAsync();
+    Task<TrackerCommandResult> TakeOverSessionAsync() =>
+        Task.FromResult(new TrackerCommandResult("Die Session-Übernahme ist hier nicht verfügbar."));
     Task<TrackerCommandResult> SelectSpotVariantAsync(Guid sessionId, string spotId) =>
         Task.FromResult(new TrackerCommandResult("Für diese Session kann kein Spot ausgewählt werden."));
     Task<TrackerCommandResult> SetDemoAsync(bool enabled);

@@ -1,6 +1,7 @@
 using BdoGrindTracker.App.Diagnostics;
 using BdoGrindTracker.App.Overlay;
 using BdoGrindTracker.Core;
+using OpenCvSharp;
 
 namespace BdoGrindTracker.App.Analysis;
 
@@ -154,8 +155,13 @@ internal sealed class RotationMonitor : IDisposable
     private readonly Dictionary<string, IRotationProfileMonitor?> _candidates = new(StringComparer.Ordinal);
 
     private string _language = "en";
-    internal RotationMonitor(Func<string?, IRotationProfileMonitor?>? create = null) =>
+    private readonly Func<Mat, CancellationToken, string>? _recognizeSharedBanners;
+    internal RotationMonitor(Func<string?, IRotationProfileMonitor?>? create = null,
+        Func<Mat, CancellationToken, string>? recognizeSharedBanners = null)
+    {
         _create = create ?? (spot => RotationProfiles.Create(spot, _language));
+        _recognizeSharedBanners = recognizeSharedBanners;
+    }
 
     internal void ConfigureLanguage(string language)
     {
@@ -205,7 +211,12 @@ internal sealed class RotationMonitor : IDisposable
             if (_disposed) return;
             Select(spotId);
             if (_spotId is not null) { _profile?.Observe(frame, at); return; }
-            foreach (var candidate in Candidates(at)) candidate.Observe(frame, at);
+            using var samples = new RotationFrameSamples(frame, _recognizeSharedBanners);
+            foreach (var candidate in Candidates(at))
+            {
+                if (candidate is BufferedRotationProfileMonitor buffered) buffered.Observe(frame, at, samples);
+                else candidate.Observe(frame, at);
+            }
         }
     }
 

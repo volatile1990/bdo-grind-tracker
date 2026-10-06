@@ -14,20 +14,20 @@ internal sealed class LiveSessionPresentation(TrackerState state, string? langua
     internal bool PartialSilver => CanShowSilver && !state.Silver.IsComplete;
     internal bool PartialSilverHourly => PartialSilver && SilverHourly is not null;
     internal string Duration => Presentation.Duration(Elapsed);
-    internal string DurationNote => T(state.IsDemo ? "Beispielsession" :
+    internal string DurationNote => T(state.IsReadOnly ? "Gespeicherte aktive Zeit · ohne Pausen" : state.IsDemo ? "Beispielsession" :
         state.IsRunning && state.IsWaitingForFirstDrop
             ? Elapsed == TimeSpan.Zero ? "Wartet auf den ersten Drop" : "Wartet auf den nächsten Drop"
             : "Ab erstem Drop · ohne Pausen");
     internal string DurationDescription => T("Nach jedem Start oder Fortsetzen beginnt die aktive Zeit erst mit dem ersten neu erkannten Drop. " +
         "Die Wartezeit bis dahin und Pausen zählen nicht mit. Bereits erfasste aktive Zeit bleibt erhalten.");
     internal string Trash => Presentation.Number(Presentation.Trash(state.Loot.Totals, state.SpotId), language);
-    internal string TrashHourly => Elapsed == TimeSpan.Zero ? "0" :
-        Hourly(Presentation.Trash(state.Loot.Totals, state.SpotId), Elapsed) is { } rate ? Presentation.Number(rate, language) : "—";
+    internal string TrashHourly => Elapsed == TimeSpan.Zero ? Presentation.HourlyNumber(0, language) :
+        Hourly(Presentation.Trash(state.Loot.Totals, state.SpotId), Elapsed) is { } rate ? Presentation.HourlyNumber(rate, language) : "—";
     internal string Silver => CanShowSilver ? Presentation.Silver(state.Silver.AfterTax, language) : "—";
     internal string SilverPerHour => SilverHourly is { } rate ? Presentation.Silver(rate, language) : "—";
     internal string SilverDetail => T(!state.Silver.IsComplete ? "Teilbetrag · Preise fehlen" :
         state.Silver.IsStale ? "Gespeicherte Marktpreise" : "Nach Marktsteuern");
-    internal string Status => T(state.IsDemo ? "Vorschau" : state.IsSubmitted ? "Abgeschlossen" :
+    internal string Status => T(state.IsReadOnly ? "Store-Session · Lesemodus" : state.IsDemo ? "Vorschau" : state.IsSubmitted ? "Abgeschlossen" :
         state.IsError ? "Fehler" : state.IsRunning ? "Live" : state.HasSession ? "Pausiert" : "Bereit");
     internal string LootScroll => state.LootScroll.Status switch
     {

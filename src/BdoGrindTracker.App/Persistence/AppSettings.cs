@@ -12,6 +12,10 @@ internal sealed class AppSettings
     public const int MinimumAutoPauseMinutes = 1;
     public const int MaximumAutoPauseMinutes = 60;
 
+    public const decimal DefaultDropRatePercent = 320m;
+    public const decimal MinimumDropRatePercent = 0m;
+    public const decimal MaximumDropRatePercent = 1000m;
+
     public const int DefaultDebugLogRetentionHours = 3;
     public const int MinimumDebugLogRetentionHours = 1;
     public const int MaximumDebugLogRetentionHours = 168;
@@ -43,6 +47,8 @@ internal sealed class AppSettings
     public Dictionary<string, string[]> LootColumnOrders { get; set; } = new();
 
     public int AutoPauseMinutes { get; set; } = DefaultAutoPauseMinutes;
+
+    public decimal DropRatePercent { get; set; } = DefaultDropRatePercent;
 
     public bool AutoStartGrinding { get; set; }
 
@@ -76,6 +82,10 @@ internal sealed class AppSettings
         if (DebugLogRetentionHours is < MinimumDebugLogRetentionHours or > MaximumDebugLogRetentionHours)
         {
             DebugLogRetentionHours = DefaultDebugLogRetentionHours;
+        }
+        if (DropRatePercent is < MinimumDropRatePercent or > MaximumDropRatePercent)
+        {
+            DropRatePercent = DefaultDropRatePercent;
         }
 
         try

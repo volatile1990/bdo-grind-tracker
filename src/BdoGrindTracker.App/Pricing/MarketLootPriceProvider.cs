@@ -322,7 +322,7 @@ internal sealed partial class MarketLootPriceProvider : ILootPriceProvider
         try
         {
             if (!File.Exists(_cachePath) || new FileInfo(_cachePath).Length > MaximumResponseBytes) return;
-            using var stream = File.OpenRead(_cachePath);
+            using var stream = new FileStream(_cachePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
             var stored = JsonSerializer.Deserialize<PersistedCache>(stream);
             if (stored?.SchemaVersion != 1 || stored.Regions is null) return;
             var now = _time.GetUtcNow();

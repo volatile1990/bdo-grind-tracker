@@ -5,6 +5,61 @@ namespace BdoGrindTracker.Core.Tests;
 
 public sealed class CompanionItemMatcherTests
 {
+    [Fact]
+    public void RepeatedFuzzyMatchReusesTheImmutableResultWithoutNormalizingTheCacheKey()
+    {
+        var matcher = new CompanionItemMatcher(["Black Crystal Fragment"]);
+        Assert.True(matcher.TryMatch("Black CrystaI Fragment", 10, false, out var first));
+        Assert.True(matcher.TryMatch("Black CrystaI Fragment", 10, false, out var second));
+        Assert.Same(first, second);
+
+        Assert.True(matcher.TryMatch("Black CrystaI  Fragment", 10, false, out var different));
+        Assert.Equal("Black CrystaI  Fragment", different!.ObservedText);
+        Assert.NotSame(first, different);
+    }
+
+    [Fact]
+    public void CachedFailuresDoNotCrossQuantityModeOrCatalogBoundaries()
+    {
+        var trash = new CompanionItemMatcher(["Outlaw's Mark"]);
+        Assert.False(trash.TryMatch("Outlaw's Mark", 1, false, out _));
+        Assert.False(trash.TryMatch("Outlaw's Mark", 1, false, out _));
+        Assert.True(trash.TryMatch("Outlaw's Mark", 2, false, out _));
+
+        const string banner = "You obtained Caphras Stone today";
+        var rare = new CompanionItemMatcher(["Caphras Stone"]);
+        Assert.False(rare.TryMatch(banner, 1, false, out _));
+        Assert.True(rare.TryMatch(banner, 1, true, out var match));
+        Assert.Equal("Caphras Stone", match!.CanonicalName);
+        var otherCatalog = new CompanionItemMatcher(["Memory Fragment"]);
+        Assert.False(otherCatalog.TryMatch(banner, 1, true, out _));
+    }
+
+    [Fact]
+    public void CachedMatchingEqualsTheOriginalAlgorithmAcrossKeysAndConcurrentReads()
+    {
+        var matcher = new CompanionItemMatcher([
+            "Black Crystal Fragment", "Black Gem Fragment", "Caphras Stone", "Memory Fragment",
+            "Outlaw's Mark", "Apeiron Ring", "Ominous Ring", "BON Origin Shard", "WON Origin Shard"]);
+        string[] texts = ["Black Crystal Fragment", "Black CrystaI Fragment", "Black Gem Fragrnent",
+            ItemLocalizationCatalog.GermanNames["Black Crystal Fragment"], "Outlaw's Mark",
+            "You obtained Caphras Stone today", "TRI: Apeiron Ring", "Origin Shard", "", "ZZZZZZ"];
+        var cases = texts.SelectMany(text => new[] { -1, 0, 1, 2 }.SelectMany(quantity =>
+            new[] { false, true }.Select(rare =>
+            {
+                var success = matcher.TryMatchUncached(text, quantity, rare, out var match);
+                return (Text: text, Quantity: quantity, Rare: rare, Success: success, Match: match);
+            }))).ToArray();
+
+        Parallel.For(0, cases.Length * 4, index =>
+        {
+            var expected = cases[index % cases.Length];
+            Assert.Equal(expected.Success, matcher.TryMatch(expected.Text, expected.Quantity, expected.Rare, out var actual));
+            Assert.Equal(expected.Match, actual);
+        });
+        Assert.Throws<ArgumentNullException>(() => matcher.TryMatch(null!, 1, false, out _));
+    }
+
     [Theory]
     [InlineData("Lesha's Artifact - All Damage Reduction")]
     [InlineData("Lesha's Artifact - Melee Damage Reduction")]

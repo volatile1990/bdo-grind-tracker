@@ -41,6 +41,7 @@ public sealed class CompanionItemMatcher
 
     private readonly CompanionRareCatalogEntry[] catalogEntries;
     private readonly GermanItemMatcher germanMatcher;
+    private readonly CompanionItemMatchCache matchCache = new();
 
     private bool MetadataTablePresent { get; }
 
@@ -76,6 +77,17 @@ public sealed class CompanionItemMatcher
     }
 
     public bool TryMatch(string observedText, int quantity, bool rareDropMode, out CompanionItemMatch? match)
+    {
+        ArgumentNullException.ThrowIfNull(observedText, "observedText");
+        if (matchCache.TryGet(observedText, quantity, rareDropMode, out match))
+            return match is not null;
+
+        var matched = TryMatchUncached(observedText, quantity, rareDropMode, out match);
+        matchCache.Remember(observedText, quantity, rareDropMode, match);
+        return matched;
+    }
+
+    internal bool TryMatchUncached(string observedText, int quantity, bool rareDropMode, out CompanionItemMatch? match)
     {
         ArgumentNullException.ThrowIfNull(observedText, "observedText");
         if (IsFilteredCountOneTrash(observedText, quantity))

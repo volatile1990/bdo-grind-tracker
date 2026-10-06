@@ -14,6 +14,7 @@ internal static class Presentation
     private static readonly IReadOnlyDictionary<string, string> ItemIcons = ReadItemIcons();
 
     internal static string Number(decimal value, string? language = "de") => value.ToString("N0", AppText.Culture(language));
+    internal static string HourlyNumber(decimal value, string? language = "de") => value.ToString("N2", AppText.Culture(language));
     internal static string Silver(decimal value, string? language = "de") => Math.Abs(value) switch
     {
         >= 1_000_000_000 => (value / 1_000_000_000).ToString("0.00", AppText.Culture(language)) + " " + AppText.Translate("Mrd.", language),

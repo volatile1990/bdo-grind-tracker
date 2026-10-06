@@ -59,6 +59,8 @@ internal sealed partial class TrackerSessionService
                     : "Bitte die Session pausieren, bevor du die Klasse änderst.");
             if (preferences.AutoPauseMinutes is < AppSettings.MinimumAutoPauseMinutes or > AppSettings.MaximumAutoPauseMinutes)
                 throw new ArgumentException("Auto-Pause muss zwischen 1 und 60 Minuten liegen.");
+            if (preferences.DropRatePercent is < AppSettings.MinimumDropRatePercent or > AppSettings.MaximumDropRatePercent)
+                throw new ArgumentException("Die Droprate muss zwischen 0 und 1000 % liegen.");
             if (preferences.DebugLogRetentionHours is < AppSettings.MinimumDebugLogRetentionHours or > AppSettings.MaximumDebugLogRetentionHours)
                 throw new ArgumentException("Die Aufbewahrungsdauer für Debuglogs muss zwischen 1 und 168 Stunden liegen.");
             if (preferences.CharacterClassId is { } classId && CompanionCharacterClassCatalog.FindById(classId) is null)
@@ -94,6 +96,7 @@ internal sealed partial class TrackerSessionService
             var previousCloseBehaviorConfigured = Preferences.CloseBehaviorConfigured;
             var previousDebugLogging = Preferences.AutomaticDebugLogging;
             var previousDebugHours = Preferences.DebugLogRetentionHours;
+            var previousDropRatePercent = Preferences.DropRatePercent;
             var wasAutoStartEnabled = Preferences.AutoStartGrinding;
             _settingsChangesPending = true;
             // Setup completion is published only after its setting is durable.
@@ -122,6 +125,7 @@ internal sealed partial class TrackerSessionService
                     CloseBehaviorConfigured = previousCloseBehaviorConfigured,
                     AutomaticDebugLogging = previousDebugLogging,
                     DebugLogRetentionHours = previousDebugHours,
+                    DropRatePercent = previousDropRatePercent,
                 };
                 _settings.CaptureConfigurationPath = previousCaptureConfiguration;
                 _settings.MinimizeToTray = previousMinimizeToTray;
@@ -129,6 +133,7 @@ internal sealed partial class TrackerSessionService
                 _settings.CloseBehaviorConfigured = previousCloseBehaviorConfigured;
                 _settings.AutomaticDebugLogging = previousDebugLogging;
                 _settings.DebugLogRetentionHours = previousDebugHours;
+                _settings.DropRatePercent = previousDropRatePercent;
                 return;
             }
             if (captureConfigurationChanged) RebuildCaptureAnalyzer();
@@ -172,6 +177,7 @@ internal sealed partial class TrackerSessionService
         _settings.CaptureConfigurationPath = Preferences.CaptureConfigurationPath;
         _settings.BuffRecognitionProfilePath = null;
         _settings.AutoPauseMinutes = Preferences.AutoPauseMinutes;
+        _settings.DropRatePercent = Preferences.DropRatePercent;
         _settings.AutoStartGrinding = Preferences.AutoStartGrinding;
         _settings.AutomaticDebugLogging = Preferences.AutomaticDebugLogging;
         _settings.DebugLogRetentionHours = Preferences.DebugLogRetentionHours;
@@ -230,6 +236,7 @@ internal sealed partial class TrackerSessionService
             CaptureConfigurationPath = _hasSession ? Preferences.CaptureConfigurationPath : recovered.CaptureConfigurationPath,
             BuffRecognitionProfilePath = null,
             AutoPauseMinutes = recovered.AutoPauseMinutes,
+            DropRatePercent = recovered.DropRatePercent,
             AutoStartGrinding = recovered.AutoStartGrinding,
             AutomaticDebugLogging = recovered.AutomaticDebugLogging,
             DebugLogRetentionHours = recovered.DebugLogRetentionHours,

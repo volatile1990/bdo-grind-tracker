@@ -1,0 +1,362 @@
+{
+  "result": {
+    "data": {
+      "110": {
+        "highTierTrash": 32000,
+        "topTierTrash": 46000,
+        "dropRatios": {
+          "l1": "1.47077418",
+          "agris": "2.47077418",
+          "l1_coin": "2.47077418",
+          "l2_agris": "3.47077418",
+          "l2_agris_coin": "4.47077418"
+        }
+      },
+      "121": {
+        "highTierTrash": null,
+        "topTierTrash": null,
+        "dropRatios": null
+      },
+      "124": {
+        "highTierTrash": 32000,
+        "topTierTrash": 37000,
+        "dropRatios": {
+          "l1": "1.404927245",
+          "agris": "2.404927245",
+          "l1_coin": "2.404927245",
+          "l2_agris": "3.404927245",
+          "l2_agris_coin": "4.404927245"
+        }
+      },
+      "143": {
+        "highTierTrash": 18000,
+        "topTierTrash": null,
+        "dropRatios": null
+      },
+      "145": {
+        "highTierTrash": 18000,
+        "topTierTrash": null,
+        "dropRatios": null
+      },
+      "146": {
+        "highTierTrash": 21000,
+        "topTierTrash": 24500,
+        "dropRatios": null
+      },
+      "147": {
+        "highTierTrash": null,
+        "topTierTrash": null,
+        "dropRatios": null
+      },
+      "148": {
+        "highTierTrash": 40000,
+        "topTierTrash": 50000,
+        "dropRatios": {
+          "l1": "1.470238095",
+          "agris": "2.470238095",
+          "l1_coin": "2.470238095",
+          "l2_agris": "3.470238095",
+          "l2_agris_coin": "4.470238095"
+        }
+      },
+      "149": {
+        "highTierTrash": null,
+        "topTierTrash": null,
+        "dropRatios": null
+      },
+      "151": {
+        "highTierTrash": null,
+        "topTierTrash": null,
+        "dropRatios": null
+      },
+      "153": {
+        "highTierTrash": 28000,
+        "topTierTrash": 35500,
+        "dropRatios": {
+          "l1": "1.465408805",
+          "agris": "2.465408805",
+          "l1_coin": "2.465408805",
+          "l2_agris": "3.465408805",
+          "l2_agris_coin": "4.465408805"
+        }
+      },
+      "156": {
+        "highTierTrash": 19700,
+        "topTierTrash": null,
+        "dropRatios": null
+      },
+      "157": {
+        "highTierTrash": 42000,
+        "topTierTrash": 48000,
+        "dropRatios": null
+      },
+      "160": {
+        "highTierTrash": null,
+        "topTierTrash": null,
+        "dropRatios": null
+      },
+      "161": {
+        "highTierTrash": 9500,
+        "topTierTrash": null,
+        "dropRatios": null
+      },
+      "162": {
+        "highTierTrash": 25000,
+        "topTierTrash": 27900,
+        "dropRatios": null
+      },
+      "163": {
+        "highTierTrash": null,
+        "topTierTrash": null,
+        "dropRatios": null
+      },
+      "166": {
+        "highTierTrash": 21000,
+        "topTierTrash": null,
+        "dropRatios": null
+      },
+      "167": {
+        "highTierTrash": 20400,
+        "topTierTrash": null,
+        "dropRatios": null
+      },
+      "168": {
+        "highTierTrash": 18000,
+        "topTierTrash": null,
+        "dropRatios": null
+      },
+      "169": {
+        "highTierTrash": 17000,
+        "topTierTrash": 19800,
+        "dropRatios": {
+          "l1": "1.482945036",
+          "agris": "2.037433026",
+          "l1_coin": "2.482945036",
+          "l1_agris": "2.554235145",
+          "l2_agris": "3.037433026",
+          "l1_agris_coin": "3.554235145",
+          "l2_agris_coin": "4.037433026"
+        }
+      },
+      "183": {
+        "highTierTrash": 13500,
+        "topTierTrash": null,
+        "dropRatios": {
+          "l1": "1.437348959",
+          "agris": "2.315102041",
+          "l1_coin": "2.437348959",
+          "l1_agris": "2.877348959",
+          "l2_agris": "3.315102041",
+          "l1_agris_coin": "3.877348959",
+          "l2_agris_coin": "4.315102041"
+        }
+      },
+      "184": {
+        "highTierTrash": 12700,
+        "topTierTrash": null,
+        "dropRatios": {
+          "l1": "1.463377696",
+          "agris": "2.232854864",
+          "l1_coin": "2.463377696",
+          "l1_agris": "2.769142107",
+          "l2_agris": "3.232854864",
+          "l1_agris_coin": "3.769142107",
+          "l2_agris_coin": "4.232854864"
+        }
+      },
+      "185": {
+        "highTierTrash": 14000,
+        "topTierTrash": null,
+        "dropRatios": {
+          "l1": "1.498882341",
+          "agris": "2.168326221",
+          "l1_coin": "2.498882341",
+          "l1_agris": "2.669105195",
+          "l2_agris": "3.168326221",
+          "l1_agris_coin": "3.669105195",
+          "l2_agris_coin": "4.168326221"
+        }
+      },
+      "193": {
+        "highTierTrash": 14000,
+        "topTierTrash": 15500,
+        "dropRatios": {
+          "l1": "1.469320574",
+          "agris": "2.160421053",
+          "l1_coin": "2.469320574",
+          "l1_agris": "2.689952153",
+          "l2_agris": "3.160421053",
+          "l1_agris_coin": "3.689952153",
+          "l2_agris_coin": "4.160421053"
+        }
+      },
+      "194": {
+        "highTierTrash": 19000,
+        "topTierTrash": 20500,
+        "dropRatios": {
+          "l1": "1.46298977",
+          "agris": "2.188428875",
+          "l1_coin": "2.46298977",
+          "l1_agris": "2.725197838",
+          "l2_agris": "3.188428875",
+          "l1_agris_coin": "3.725197838",
+          "l2_agris_coin": "4.188428875"
+        }
+      },
+      "198": {
+        "highTierTrash": 14500,
+        "topTierTrash": null,
+        "dropRatios": null
+      },
+      "199": {
+        "highTierTrash": null,
+        "topTierTrash": null,
+        "dropRatios": null
+      },
+      "200": {
+        "highTierTrash": 14300,
+        "topTierTrash": 16100,
+        "dropRatios": {
+          "l1": "1.245526743",
+          "agris": "2.107269746",
+          "l1_coin": "2.245526743",
+          "l1_agris": "2.861542048",
+          "l2_agris": "3.107269746",
+          "l1_agris_coin": "3.861542048",
+          "l2_agris_coin": "4.107269746"
+        }
+      },
+      "201": {
+        "highTierTrash": 13400,
+        "topTierTrash": 14600,
+        "dropRatios": {
+          "l1": "1.337179487",
+          "agris": "2.275641026",
+          "l1_coin": "2.337179487",
+          "l1_agris": "2.923076923",
+          "l2_agris": "3.275641026",
+          "l1_agris_coin": "3.923076923",
+          "l2_agris_coin": "4.275641026"
+        }
+      },
+      "208": {
+        "highTierTrash": 16500,
+        "topTierTrash": 17500,
+        "dropRatios": {
+          "l1": "1.425943623",
+          "agris": "2.257518147",
+          "l1_coin": "2.425943623",
+          "l1_agris": "2.831405082",
+          "l2_agris": "3.257518147",
+          "l1_agris_coin": "3.831405082",
+          "l2_agris_coin": "4.257518147"
+        }
+      },
+      "209": {
+        "highTierTrash": 16500,
+        "topTierTrash": 17500,
+        "dropRatios": {
+          "l1": "1.425943623",
+          "agris": "2.257518147",
+          "l1_coin": "2.425943623",
+          "l1_agris": "2.831405082",
+          "l2_agris": "3.257518147",
+          "l1_agris_coin": "3.831405082",
+          "l2_agris_coin": "4.257518147"
+        }
+      },
+      "210": {
+        "highTierTrash": 16500,
+        "topTierTrash": 17500,
+        "dropRatios": {
+          "l1": "1.425943623",
+          "agris": "2.257518147",
+          "l1_coin": "2.425943623",
+          "l1_agris": "2.831405082",
+          "l2_agris": "3.257518147",
+          "l1_agris_coin": "3.831405082",
+          "l2_agris_coin": "4.257518147"
+        }
+      },
+      "212": {
+        "highTierTrash": 14500,
+        "topTierTrash": 17900,
+        "dropRatios": {
+          "l1": "1.455217832",
+          "agris": "1.937234043",
+          "l1_coin": "2.455217832",
+          "l1_agris": "2.480749747",
+          "l2_agris": "2.937234043",
+          "l1_agris_coin": "3.480749747",
+          "l2_agris_coin": "3.937234043"
+        }
+      },
+      "213": {
+        "highTierTrash": 13500,
+        "topTierTrash": 15400,
+        "dropRatios": {
+          "l1": "1.409823352",
+          "agris": "2.241232227",
+          "l1_coin": "2.409823352",
+          "l1_agris": "2.828374469",
+          "l2_agris": "3.241232227",
+          "l1_agris_coin": "3.828374469",
+          "l2_agris_coin": "4.241232227"
+        }
+      },
+      "214": {
+        "highTierTrash": 16000,
+        "topTierTrash": 19200,
+        "dropRatios": {
+          "l1": "1.422092246",
+          "agris": "2.16875",
+          "l1_coin": "2.422092246",
+          "l1_agris": "2.745989305",
+          "l2_agris": "3.16875",
+          "l1_agris_coin": "3.745989305",
+          "l2_agris_coin": "4.16875"
+        }
+      },
+      "215": {
+        "highTierTrash": 14000,
+        "topTierTrash": 15400,
+        "dropRatios": {
+          "l1": "1.499130584",
+          "agris": "2.411765282",
+          "l1_coin": "2.499130584",
+          "l1_agris": "2.911988147",
+          "l2_agris": "3.411765282",
+          "l1_agris_coin": "3.911988147",
+          "l2_agris_coin": "4.411765282"
+        }
+      },
+      "216": {
+        "highTierTrash": 14000,
+        "topTierTrash": 15500,
+        "dropRatios": {
+          "l1": "1.442214533",
+          "agris": "2.442214533",
+          "l1_coin": "2.442214533",
+          "l2_agris": "3.442214533",
+          "l2_agris_coin": "4.442214533"
+        }
+      },
+      "217": {
+        "highTierTrash": 15600,
+        "topTierTrash": 17000,
+        "dropRatios": {
+          "l1": "1.462461022",
+          "agris": "2.462461022",
+          "l1_coin": "2.462461022",
+          "l2_agris": "3.462461022",
+          "l2_agris_coin": "4.462461022"
+        }
+      },
+      "218": {
+        "highTierTrash": null,
+        "topTierTrash": null,
+        "dropRatios": null
+      }
+    }
+  }
+}

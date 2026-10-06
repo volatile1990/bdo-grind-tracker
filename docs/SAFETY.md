@@ -44,6 +44,36 @@ Injection, keine globalen Hooks, kein Packet-Capture und kein `SendInput`. Er li
 internen Spieldaten und steuert weder BDO noch BDO Companion. Die Paddle-Modelle und
 Ziffernvorlagen sind lokal enthalten.
 
+Die automatische CPU-Priorisierung setzt ausschließlich die Prioritätsklasse
+des eigenen Tracker-Prozesses auf `BELOW_NORMAL_PRIORITY_CLASS`, sofern sie
+nicht bereits niedriger ist. Vor Beginn einer Aufnahme wird die ursprüngliche
+Prozesspriorität wiederhergestellt und bis zum Ende der geordneten
+Bildverarbeitung beibehalten. Das umfasst auch die ersten Autostart-Proben,
+deren Bestätigungsanalyse und eine nach einem Watchdog-Stopp noch laufende
+Analyse. Zwischenzeitliche externe Prioritätsänderungen werden
+respektiert. Vorschau, Smoke-Tests und reine Store-Session-Viewer werden von der
+Prozessregel ausgenommen. Die seltene XP-Auswertung läuft auf einem eigenen
+kurzlebigen Thread mit niedrigerer Threadpriorität. Auf Windows 11 wird die
+Hardware einmalig über
+`GetSystemCpuSetInformation` ohne fremdes Prozesshandle auf unterschiedliche
+CPU-Effizienzklassen geprüft. Bei solchen CPUs erhält die seltene XP-Auswertung
+über `SetThreadInformation` zusätzlich EcoQoS;
+wiederverwendete Threadpool-Threads werden dafür nicht verändert. Die
+zeitkritische Aufnahme und Loot-OCR erhalten keine explizite EcoQoS-Einstellung.
+Es gibt dafür weder CPU-Tracing noch zusätzliche Spielprozesszugriffe,
+Affinitätsänderungen, fest vorgegebene CPU-Nummern oder eine Administratorabfrage.
+Falls Windows die Einstellung nicht unterstützt oder ablehnt, läuft die App
+mit der normalen Windows-Zuteilung weiter. Daraus folgt keine Zusicherung über
+die Bewertung durch das Anti-Cheat-System.
+
+Aufnahme und Loot-OCR laufen als getrennte Tasks mit einer geordneten,
+begrenzten Bildwarteschlange. Beim normalen Stoppen werden bereits aufgenommene
+Bilder vollständig abgearbeitet. Ist die Warteschlange voll, wartet die Aufnahme
+auf freien Platz; währenddessen können kurz sichtbare Spielanzeigen verpasst
+werden. Die Prioritätsregel verlangsamt deshalb weder die Aufnahme noch die
+Hauptanalyse absichtlich. Sie garantiert keine vollständige Erkennung aller
+Spielereignisse.
+
 Ein fehlendes Windows-OCR-Sprachpaket kann der Nutzer ausdrücklich aus Grindcrest
 nachinstallieren. Dafür startet die App die Windows-Systemdatei `powershell.exe`
 mit Administratorabfrage, ohne Benutzerprofil und mit einem fest eingebetteten

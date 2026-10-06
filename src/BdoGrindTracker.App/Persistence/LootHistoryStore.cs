@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Text.Json;
 using BdoGrindTracker.App.UI;
 using BdoGrindTracker.Core;
@@ -13,7 +14,19 @@ internal sealed class LootHistoryStore
     };
 
     private readonly string _historyPath;
+    internal const int MaximumCachedEntries = 4096;
+    internal const long MaximumCacheBytes = 8 * 1024 * 1024;
+    private const int MaximumCachedEntryBytes = 512 * 1024;
+    private static readonly HashSet<string> ValidSpotIds = LootSpotCatalog.Spots
+        .Select(static spot => spot.Id).ToHashSet(StringComparer.Ordinal);
+    private readonly Dictionary<Guid, CachedEntry> _cache = [];
+    internal long CachedBytes { get; private set; }
+    internal int CachedEntryCount => _cache.Count;
+    internal long SerializedEntryCount { get; private set; }
     public string? LoadError { get; private set; }
+
+    private sealed record CachedEntry(LootHistoryEntry Source, LootHistoryEntry Normalized,
+        byte[] Json, long Bytes);
 
     public LootHistoryStore(string historyPath)
     {
@@ -25,7 +38,7 @@ internal sealed class LootHistoryStore
     {
         try
         {
-            using var stream = new FileStream(_historyPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            using var stream = new FileStream(_historyPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
             var document = JsonSerializer.Deserialize<LootHistoryDocument>(stream, JsonOptions);
             if (document is null || document.Version != 1 || document.Entries is null)
                 throw new InvalidDataException("Das Format der Verlaufsdatei wird nicht unterstützt.");
@@ -54,31 +67,118 @@ internal sealed class LootHistoryStore
     {
         ArgumentNullException.ThrowIfNull(entries);
         if (LoadError is not null) throw new IOException(LoadError);
-        var normalized = Normalize(entries);
+        var normalized = entries.Where(IsValid)
+            .Select(entry => (Source: entry, Normalized: FindCached(entry)?.Normalized ?? NormalizeEntry(entry)))
+            .Where(pair => HasContent(pair.Normalized))
+            .OrderByDescending(pair => pair.Normalized.UpdatedAt)
+            .DistinctBy(pair => pair.Normalized.SessionId).ToArray();
+        var retained = normalized.Select(pair => pair.Source.SessionId).ToHashSet();
+        foreach (var id in _cache.Keys.Where(id => !retained.Contains(id)).ToArray()) RemoveCached(id);
         var directory = Path.GetDirectoryName(_historyPath)
             ?? throw new InvalidOperationException("Der Verlaufsordner ist ungültig.");
         Directory.CreateDirectory(directory);
 
-        var document = new LootHistoryDocument
+        AtomicFile.Write(_historyPath, stream =>
         {
-            Version = 1,
-            Entries = normalized.ToList()
-        };
-        AtomicFile.Write(_historyPath, stream => JsonSerializer.Serialize(stream, document, JsonOptions));
+            using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = JsonOptions.WriteIndented });
+            writer.WriteStartObject();
+            writer.WriteNumber(nameof(LootHistoryDocument.Version), 1);
+            writer.WriteStartArray(nameof(LootHistoryDocument.Entries));
+            foreach (var (source, entry) in normalized)
+            {
+                var cached = FindCached(source);
+                if (cached is not null) writer.WriteRawValue(cached.Json, skipInputValidation: true);
+                else WriteEntry(writer, source, entry);
+            }
+            writer.WriteEndArray();
+            writer.WriteEndObject();
+        });
     }
 
-    private static IReadOnlyList<LootHistoryEntry> Normalize(IEnumerable<LootHistoryEntry> entries)
+    private CachedEntry? FindCached(LootHistoryEntry entry)
     {
-        var validSpotIds = LootSpotCatalog.Spots
-            .Select(static spot => spot.Id)
-            .ToHashSet(StringComparer.Ordinal);
+        if (!_cache.TryGetValue(entry.SessionId, out var cached)) return null;
+        if (entry.Totals is not null && LootHistoryEntrySnapshot.Matches(entry, cached.Source)) return cached;
+        RemoveCached(entry.SessionId);
+        return null;
+    }
 
-        return entries
-            .Where(entry => entry is not null &&
-                entry.SessionId != Guid.Empty &&
-                entry.Duration >= TimeSpan.Zero &&
-                validSpotIds.Contains(entry.SpotId))
-            .Select(static entry => entry with
+    private void WriteEntry(Utf8JsonWriter writer, LootHistoryEntry source, LootHistoryEntry normalized)
+    {
+        SerializedEntryCount++;
+        // Large sessions still stream normally; cache admission never limits
+        // the amount of history that can be saved or restored.
+        var estimate = LootHistoryEntrySnapshot.EstimateBytes(source);
+        var comparer = source.Totals.Comparer;
+        if (!(ReferenceEquals(comparer, StringComparer.Ordinal) || ReferenceEquals(comparer, StringComparer.OrdinalIgnoreCase) ||
+                ReferenceEquals(comparer, EqualityComparer<string>.Default)) ||
+            _cache.Count >= MaximumCachedEntries || estimate > MaximumCachedEntryBytes ||
+            CachedBytes + estimate >= MaximumCacheBytes)
+        {
+            JsonSerializer.Serialize(writer, normalized, JsonOptions);
+            return;
+        }
+        var bytes = SerializeEntry(normalized);
+        var weight = estimate + bytes.Length * 3L;
+        if (bytes.Length > MaximumCachedEntryBytes || CachedBytes + weight > MaximumCacheBytes)
+        {
+            writer.WriteRawValue(bytes, skipInputValidation: true);
+            return;
+        }
+        var snapshot = LootHistoryEntrySnapshot.Copy(source);
+        _cache.Add(source.SessionId, new(snapshot, normalized, bytes, weight));
+        CachedBytes += weight;
+        writer.WriteRawValue(bytes, skipInputValidation: true);
+    }
+
+    private static byte[] SerializeEntry(LootHistoryEntry entry)
+    {
+        // Serialize at the document's actual depth, retaining the serializer's
+        // exact escaping and indentation. The reader finds the value boundaries.
+        var buffer = new ArrayBufferWriter<byte>();
+        using (var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions { Indented = JsonOptions.WriteIndented }))
+        {
+            writer.WriteStartArray();
+            writer.WriteStartArray();
+            JsonSerializer.Serialize(writer, entry, JsonOptions);
+            writer.WriteEndArray();
+            writer.WriteEndArray();
+        }
+        var reader = new Utf8JsonReader(buffer.WrittenSpan);
+        reader.Read();
+        reader.Read();
+        var start = checked((int)reader.BytesConsumed);
+        reader.Read();
+        reader.Skip();
+        return buffer.WrittenSpan.Slice(start, checked((int)reader.BytesConsumed) - start).ToArray();
+    }
+
+    private void RemoveCached(Guid id)
+    {
+        var cached = _cache[id];
+        _cache.Remove(id);
+        CachedBytes -= cached.Bytes;
+    }
+
+    public void ClearCache()
+    {
+        _cache.Clear();
+        CachedBytes = 0;
+    }
+
+    private static bool IsValid(LootHistoryEntry entry) => entry is not null &&
+        entry.SessionId != Guid.Empty && entry.Duration >= TimeSpan.Zero && ValidSpotIds.Contains(entry.SpotId);
+
+    private static bool HasContent(LootHistoryEntry entry) =>
+        entry.Totals.Count > 0 || entry.Rotations.Count > 0 || entry.RotationTimeline.Count > 0;
+
+    private static IReadOnlyList<LootHistoryEntry> Normalize(IEnumerable<LootHistoryEntry> entries) => entries
+        .Where(IsValid).Select(NormalizeEntry).Where(HasContent)
+        .OrderByDescending(static entry => entry.UpdatedAt)
+        .DistinctBy(static entry => entry.SessionId).ToArray();
+
+    private static LootHistoryEntry NormalizeEntry(LootHistoryEntry entry) =>
+        NormalizeExperience(NormalizeAgrisDurations(entry with
             {
                 Rotations = entry.Rotations ?? [],
                 RotationTimeline = entry.RotationTimeline ?? [],
@@ -97,14 +197,7 @@ internal sealed class LootHistoryStore
                     .Distinct(StringComparer.OrdinalIgnoreCase).ToArray(),
                 GarmothPendingCorrectionIntervals = (entry.GarmothPendingCorrectionIntervals ?? [])
                     .Where(id => id != Guid.Empty).Distinct().ToArray(),
-            })
-            .Select(NormalizeAgrisDurations)
-            .Select(NormalizeExperience)
-            .Where(static entry => entry.Totals.Count > 0 || entry.Rotations.Count > 0 || entry.RotationTimeline.Count > 0)
-            .OrderByDescending(static entry => entry.UpdatedAt)
-            .DistinctBy(static entry => entry.SessionId)
-            .ToArray();
-    }
+            }));
 
     private static LootHistoryEntry NormalizeAgrisDurations(LootHistoryEntry entry)
     {

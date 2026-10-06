@@ -41,10 +41,10 @@ internal sealed class GrindRatingPresentation(GrindRatingResult result, AgrisPre
             var refreshStatus = string.IsNullOrWhiteSpace(benchmarkStatus) ? "" : " " + T(benchmarkStatus.Trim());
             if (result.Tier == GrindRatingTier.Unavailable || result.Benchmark is not { } benchmark)
                 return T("Keine Bewertung verfügbar.") + refreshStatus;
-            var thresholds = F("Average ab {0}", Presentation.Number(benchmark.AverageTrashPerHour, language));
-            if (benchmark.HighTrashPerHour is { } high) thresholds += " · " + F("High ab {0}", Presentation.Number(high, language));
-            if (benchmark.TopTrashPerHour is { } top) thresholds += " · " + F("Top ab {0}", Presentation.Number(top, language));
-            return F("Trash / h der aktiven Session: {0}. {1} Trash / h.", Presentation.Number(result.TrashPerHour!.Value, language), thresholds) + " " +
+            var thresholds = F("Average ab {0}", Presentation.HourlyNumber(benchmark.AverageTrashPerHour, language));
+            if (benchmark.HighTrashPerHour is { } high) thresholds += " · " + F("High ab {0}", Presentation.HourlyNumber(high, language));
+            if (benchmark.TopTrashPerHour is { } top) thresholds += " · " + F("Top ab {0}", Presentation.HourlyNumber(top, language));
+            return F("Trash / h der aktiven Session: {0}. {1} Trash / h.", Presentation.HourlyNumber(result.TrashPerHour!.Value, language), thresholds) + " " +
                 F("Referenz: {0} · Stand {1}.", T(benchmark.Conditions), benchmark.UpdatedAt.ToString("d", AppText.Culture(language))) + " " +
                 F("Quelle: {0}", benchmark.SourceUrl) +
                 (result.IsProvisional ? " · " + T("Vorläufig: weniger als 5 Minuten aktive Grindzeit.") : "") +

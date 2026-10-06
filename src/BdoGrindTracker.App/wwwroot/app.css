@@ -103,6 +103,20 @@ small,.item-cell small,.panel-heading p,.page-heading p,.field small,.toggle-row
 .live-auto-start-toggle .switch{flex-shrink:0}
 .live-auto-start-toggle:has(input:checked){color:#e5c991}
 .live-auto-start-toggle:has(input:disabled){cursor:default;opacity:.65}
+.live-session-options{display:flex;align-items:flex-start;flex-wrap:wrap;gap:10px 24px;margin-top:18px;padding-top:12px;border-top:1px solid var(--line);color:var(--muted);font-size:12px;line-height:1.5}
+.live-drop-rate{display:inline-flex;align-items:center;gap:8px;color:var(--muted);font-size:12px;line-height:1.5}
+.live-drop-rate-input{display:flex;align-items:center;gap:7px;flex-shrink:0;font-variant-numeric:tabular-nums}
+.live-drop-rate input{width:66px;min-width:0;min-height:30px;padding:4px 6px;border:1px solid var(--line);border-radius:5px;background:var(--panel);color:var(--text);text-align:right;font-size:12px;font-variant-numeric:tabular-nums}
+.live-drop-rate input:disabled{opacity:.5}
+.grind-rating-panel .live-drop-rate{display:flex;justify-content:space-between;flex-wrap:wrap;margin-top:16px;padding-top:12px;border-top:1px solid var(--line)}
+.store-session-tools{display:flex;align-items:flex-start;justify-content:flex-end;flex-wrap:wrap;gap:8px 16px;flex:1;min-width:0;padding-top:5px}
+.store-session-details{min-width:0;max-width:520px;overflow-wrap:anywhere}
+.store-session-details summary{cursor:pointer;color:var(--muted)}
+.store-session-details>div{padding-top:8px;line-height:1.6}
+.store-session-details p{margin:0 0 5px;font-size:12px;color:var(--muted)}
+.store-session-takeover.text-button{padding:0;font-size:12px;font-weight:400;color:var(--muted)}
+.store-session-takeover.text-button:hover:not(:disabled){color:var(--text);text-decoration:underline}
+.store-session-details summary:focus-visible,.store-session-takeover:focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:3px}
 .live-session-actions .button{min-height:40px}
 .live-session-actions .button.primary{min-width:143px}
 .live-session-actions .button.secondary{background:#14201bbd;border-color:#a6b8ac44;color:#d5dfd8}
@@ -423,6 +437,15 @@ small,.item-cell small,.panel-heading p,.page-heading p,.field small,.toggle-row
 .chronological-session-experience .experience-gain{color:#c6ddd3}
 .chronological-session-experience .experience-hourly{font-size:11px;color:#98b9ad}
 .is-loss .experience-gain,.is-loss .experience-hourly{color:var(--red)}
+.window-close-modal .window-close-options{display:grid;gap:10px;margin-top:20px}
+.window-close-modal .window-close-option{width:100%;min-width:0;justify-content:flex-start;align-items:flex-start;text-align:left;white-space:normal;padding:14px;gap:12px}
+.window-close-modal .window-close-option>.icon{width:20px;height:20px;flex-shrink:0;margin-top:2px}
+.window-close-modal .window-close-option>span{display:flex;flex-direction:column;gap:5px;min-width:0;overflow-wrap:anywhere}
+.window-close-modal .window-close-option strong{font-size:14px;font-weight:600;line-height:1.4}
+.window-close-modal .window-close-option small{font-size:13px;font-weight:400;color:var(--muted);line-height:1.5}
+.window-close-modal .window-close-feedback{margin:18px 0 0;align-items:flex-start}
+.window-close-modal .window-close-detail{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;color:var(--muted);line-height:1.6}
+.window-close-modal .window-close-status{margin-top:14px;font-size:13px;color:var(--muted)}
 .grind-rating-value{display:flex;flex-direction:column;align-items:flex-end;gap:4px;text-align:right}
 .grind-rating-value small{font-size:10px;color:var(--muted);font-weight:400}
 .grind-rating-value.metric-tone-muted{color:var(--muted)}
@@ -495,6 +518,12 @@ small,.item-cell small,.panel-heading p,.page-heading p,.field small,.toggle-row
 .item-tags>.item-tag{margin-left:0;white-space:nowrap}
 .item-tags>.last-drop-tag{display:inline-flex;align-items:center;gap:5px;letter-spacing:0;font-variant-numeric:tabular-nums}
 .last-drop-tag .icon{width:13px;height:13px;flex-shrink:0}
+.rare-drop-comparison{display:block;width:fit-content;margin-top:5px;font-size:11px;line-height:1.5;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;text-decoration:none;color:var(--muted)}
+.rare-drop-comparison.is-above{color:var(--teal)}
+.rare-drop-comparison.is-below{color:var(--gold)}
+.rare-drop-comparison.is-average{color:var(--text)}
+a.rare-drop-comparison:hover{text-decoration:underline}
+a.rare-drop-comparison:focus-visible{outline:2px solid currentColor;outline-offset:3px;border-radius:2px}
 
 /* Session buff purchases remain readable in the narrow live-session sidebar. */
 .buff-totals{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:12px;margin:0 0 14px;padding-bottom:14px;border-bottom:1px solid var(--line)}

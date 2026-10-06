@@ -1,0 +1,1796 @@
+{
+  "start_date": "2025-10-02",
+  "end_date": "2026-10-08",
+  "data": [
+    {
+      "grindspot_id": 110,
+      "start_date": "2025-10-02",
+      "end_date": "2026-10-01",
+      "total_minutes": 149890,
+      "drops": [
+        {
+          "item_key": "44490_0",
+          "is_trash": true,
+          "hourly_rate": "9598.9"
+        },
+        {
+          "item_key": "100001004_0",
+          "is_trash": false,
+          "hourly_rate": "0.16902913"
+        },
+        {
+          "item_key": "44497_0",
+          "is_trash": false,
+          "hourly_rate": "0.01044046"
+        }
+      ]
+    },
+    {
+      "grindspot_id": 121,
+      "start_date": "2025-10-02",
+      "end_date": "2026-10-08",
+      "total_minutes": 208218,
+      "drops": [
+        {
+          "item_key": "59798_0",
+          "is_trash": true,
+          "hourly_rate": "3850.3"
+        },
+        {
+          "item_key": "56284_0",
+          "is_trash": false,
+          "hourly_rate": "0.02161165"
+        }
+      ]
+    },
+    {
+      "grindspot_id": 124,
+      "start_date": "2025-10-02",
+      "end_date": "2026-10-08",
+      "total_minutes": 2234665,
+      "drops": [
+        {
+          "item_key": "59800_0",
+          "is_trash": true,
+          "hourly_rate": 11501
+        }
+      ]
+    },
+    {
+      "grindspot_id": 143,
+      "start_date": "2025-10-02",
+      "end_date": "2026-10-08",
+      "total_minutes": 116280,
+      "drops": [
+        {
+          "item_key": "44518_0",
+          "is_trash": true,
+          "hourly_rate": "7726.8"
+        },
+        {
+          "item_key": "100001004_0",
+          "is_trash": false,
+          "hourly_rate": "0.34403054"
+        },
+        {
+          "item_key": "11653_0",
+          "is_trash": false,
+          "hourly_rate": "0.27840466"
+        },
+        {
+          "item_key": "761720_0",
+          "is_trash": false,
+          "hourly_rate": "0.0744193"
+        },
+        {
+          "item_key": "56284_0",
+          "is_trash": false,
+          "hourly_rate": "0.0206903"
+        },
+        {
+          "item_key": "44271_0",
+          "is_trash": false,
+          "hourly_rate": "0.0028788"
+        }
+      ]
+    },
+    {
+      "grindspot_id": 145,
+      "start_date": "2025-10-02",
+      "end_date": "2026-10-01",
+      "total_minutes": 24991,
+      "drops": [
+        {
+          "item_key": "44521_0",
+          "is_trash": true,
+          "hourly_rate": "7187.4"
+        },
+        {
+          "item_key": "12257_0",
+          "is_trash": false,
+          "hourly_rate": "0.2594399"
+        },
+        {
+          "item_key": "100001004_0",
+          "is_trash": false,
+          "hourly_rate": "0.20861549"
+        },
+        {
+          "item_key": "44462_0",
+          "is_trash": false,
+          "hourly_rate": "0.01988305"
+        },
+        {
+          "item_key": "56284_0",
+          "is_trash": false,
+          "hourly_rate": "0.01371101"
+        }
+      ]
+    },
+    {
+      "grindspot_id": 146,
+      "start_date": "2025-10-02",
+      "end_date": "2026-10-08",
+      "total_minutes": 330819,
+      "drops": [
+        {
+          "item_key": "44520_0",
+          "is_trash": true,
+          "hourly_rate": "8210.5"
+        },
+        {
+          "item_key": "12068_0",
+          "is_trash": false,
+          "hourly_rate": "0.56637724"
+        },
+        {
+          "item_key": "100001004_0",
+          "is_trash": false,
+          "hourly_rate": "0.18000762"
+        },
+        {
+          "item_key": "56284_0",
+          "is_trash": false,
+          "hourly_rate": "0.01775006"
+        }
+      ]
+    },
+    {
+      "grindspot_id": 147,
+      "start_date": "2026-06-11",
+      "end_date": "2026-10-08",
+      "total_minutes": 24470,
+      "drops": [
+        {
+          "item_key": "65329_0",
+          "is_trash": true,
+          "hourly_rate": "9651.8"
+        },
+        {
+          "item_key": "65323_0",
+          "is_trash": false,
+          "hourly_rate": "0.37267016"
+        },
+        {
+          "item_key": "56284_0",
+          "is_trash": false,
+          "hourly_rate": "0.01844846"
+        },
+        {
+          "item_key": "65319_0",
+          "is_trash": false,
+          "hourly_rate": "0.00369305"
+        },
+        {
+          "item_key": "742269_0",
+          "is_trash": false,
+          "hourly_rate": "0.00317871"
+        }
+      ]
+    },
+    {
+      "grindspot_id": 148,
+      "start_date": "2025-10-02",
+      "end_date": "2026-10-08",
+      "total_minutes": 3137232,
+      "drops": [
+        {
+          "item_key": "65328_0",
+          "is_trash": true,
+          "hourly_rate": 14248
+        },
+        {
+          "item_key": "65323_0",
+          "is_trash": false,
+          "hourly_rate": "0.57988519"
+        },
+        {
+          "item_key": "56284_0",
+          "is_trash": false,
+          "hourly_rate": "0.02711314"
+        },
+        {
+          "item_key": "65319_0",
+          "is_trash": false,
+          "hourly_rate": "0.01834652"
+        }
+      ]
+    },
+    {
+      "grindspot_id": 149,
+      "start_date": "2026-02-19",
+      "end_date": "2026-09-10",
+      "total_minutes": 353,
+      "drops": [
+        {
+          "item_key": "44496_0",
+          "is_trash": true,
+          "hourly_rate": 23032
+        },
+        {
+          "item_key": "100001004_0",
+          "is_trash": false,
+          "hourly_rate": "0.50991501"
+        }
+      ]
+    },
+    {
+      "grindspot_id": 151,
+      "start_date": "2025-10-02",
+      "end_date": "2026-10-01",
+      "total_minutes": 10950,
+      "drops": [
+        {
+          "item_key": "44522_0",
+          "is_trash": true,
+          "hourly_rate": "4999.8"
+        },
+        {
+          "item_key": "11855_0",
+          "is_trash": false,
+          "hourly_rate": "0.58307586"
+        },
+        {
+          "item_key": "56284_0",
+          "is_trash": false,
+          "hourly_rate": "0.02707221"
+        }
+      ]
+    },
+    {
+      "grindspot_id": 153,
+      "start_date": "2026-08-27",
+      "end_date": "2026-10-08",
+      "total_minutes": 261096,
+      "drops": [
+        {
+          "item_key": "65330_0",
+          "is_trash": true,
+          "hourly_rate": "9975.7"
+        },
+        {
+          "item_key": "65323_0",
+          "is_trash": false,
+          "hourly_rate": "0.30782714"
+        },
+        {
+          "item_key": "56284_0",
+          "is_trash": false,
+          "hourly_rate": "0.0302106"
+        },
+        {
+          "item_key": "65319_0",
+          "is_trash": false,
+          "hourly_rate": "0.022016"
+        },
+        {
+          "item_key": "742269_0",
+          "is_trash": false,
+          "hourly_rate": "0.00892486"
+        },
+        {
+          "item_key": "65317_0",
+          "is_trash": false,
+          "hourly_rate": "0.00238927"
+        }
+      ]
+    },
+    {
+      "grindspot_id": 156,
+      "start_date": "2025-10-02",
+      "end_date": "2026-10-08",
+      "total_minutes": 478124,
+      "drops": [
+        {
+          "item_key": "65397_0",
+          "is_trash": true,
+          "hourly_rate": "8679.3"
+        },
+        {
+          "item_key": "11828_0",
+          "is_trash": false,
+          "hourly_rate": "0.26091209"
+        },
+        {
+          "item_key": "11629_0",
+          "is_trash": false,
+          "hourly_rate": "0.25597055"
+        },
+        {
+          "item_key": "11882_0",
+          "is_trash": false,
+          "hourly_rate": "0.18576857"
+        },
+        {
+          "item_key": "100001004_0",
+          "is_trash": false,
+          "hourly_rate": "0.02953934"
+        }
+      ]
+    },
+    {
+      "grindspot_id": 157,
+      "start_date": "2026-08-27",
+      "end_date": "2026-10-08",
+      "total_minutes": 78313,
+      "drops": [
+        {
+          "item_key": "59880_0",
+          "is_trash": true,
+          "hourly_rate": 15268
+        },
+        {
+          "item_key": "56284_0",
+          "is_trash": false,
+          "hourly_rate": "0.02269239"
+        },
+        {
+          "item_key": "742269_0",
+          "is_trash": false,
+          "hourly_rate": "0.00758728"
+        },
+        {
+          "item_key": "65317_0",
+          "is_trash": false,
+          "hourly_rate": "0.00252696"
+        }
+      ]
+    },
+    {
+      "grindspot_id": 160,
+      "start_date": "2025-10-02",
+      "end_date": "2026-08-20",
+      "total_minutes": 24002,
+      "drops": [
+        {
+          "item_key": "44524_0",
+          "is_trash": true,
+          "hourly_rate": 10091
+        },
+        {
+          "item_key": "12094_0",
+          "is_trash": false,
+          "hourly_rate": "0.2123109"
+        },
+        {
+          "item_key": "100001004_0",
+          "is_trash": false,
+          "hourly_rate": "0.09011646"
+        },
+        {
+          "item_key": "12031_0",
+          "is_trash": false,
+          "hourly_rate": "0.06658005"
+        },
+        {
+          "item_key": "56284_0",
+          "is_trash": false,
+          "hourly_rate": "0.01928142"
+        }
+      ]
+    },
+    {
+      "grindspot_id": 161,
+      "start_date": "2025-10-02",
+      "end_date": "2026-10-08",
+      "total_minutes": 483838,
+      "drops": [
+        {
+          "item_key": "56323_0",
+          "is_trash": true,
+          "hourly_rate": "4016.4"
+        },
+        {
+          "item_key": "11882_0",
+          "is_trash": false,
+          "hourly_rate": "0.20408941"
+        },
+        {
+          "item_key": "56284_0",
+          "is_trash": false,
+          "hourly_rate": "0.02112377"
+        },
+        {
+          "item_key": "44271_0",
+          "is_trash": false,
+          "hourly_rate": "0.00139985"
+        },
+        {
+          "item_key": "748021_0",
+          "is_trash": false,
+          "hourly_rate": "0.00098224"
+        },
+        {
+          "item_key": "748022_0",
+          "is_trash": false,
+          "hourly_rate": "0.00065716"
+        }
+      ]
+    },
+    {
+      "grindspot_id": 162,
+      "start_date": "2025-10-02",
+      "end_date": "2026-10-08",
+      "total_minutes": 713011,
+      "drops": [
+        {
+          "item_key": "56322_0",
+          "is_trash": true,
+          "hourly_rate": "9694.9"
+        },
+        {
+          "item_key": "11653_0",
+          "is_trash": false,
+          "hourly_rate": "0.30214233"
+        },
+        {
+          "item_key": "761720_0",
+          "is_trash": false,
+          "hourly_rate": "0.06588802"
+        },
+        {
+          "item_key": "56284_0",
+          "is_trash": false,
+          "hourly_rate": "0.02398925"
+        },
+        {
+          "item_key": "748021_0",
+          "is_trash": false,
+          "hourly_rate": "0.00131628"
+        },
+        {
+          "item_key": "748022_0",
+          "is_trash": false,
+          "hourly_rate": "0.00095429"
+        },
+        {
+          "item_key": "44271_0",
+          "is_trash": false,
+          "hourly_rate": "0.00087669"
+        }
+      ]
+    },
+    {
+      "grindspot_id": 163,
+      "start_date": "2025-10-02",
+      "end_date": "2026-10-01",
+      "total_minutes": 43882,
+      "drops": [
+        {
+          "item_key": "44525_0",
+          "is_trash": true,
+          "hourly_rate": 10594
+        },
+        {
+          "item_key": "12094_0",
+          "is_trash": false,
+          "hourly_rate": "0.24905025"
+        },
+        {
+          "item_key": "100001004_0",
+          "is_trash": false,
+          "hourly_rate": "0.07431102"
+        },
+        {
+          "item_key": "12032_0",
+          "is_trash": false,
+          "hourly_rate": "0.0385206"
+        },
+        {
+          "item_key": "56284_0",
+          "is_trash": false,
+          "hourly_rate": "0.01447547"
+        }
+      ]
+    },
+    {
+      "grindspot_id": 166,
+      "start_date": "2026-08-27",
+      "end_date": "2026-10-08",
+      "total_minutes": 44493,
+      "drops": [
+        {
+          "item_key": "56327_0",
+          "is_trash": true,
+          "hourly_rate": "8541.7"
+        },
+        {
+          "item_key": "15263_0",
+          "is_trash": false,
+          "hourly_rate": "2.092616"
+        },
+        {
+          "item_key": "15275_0",
+          "is_trash": false,
+          "hourly_rate": "0.27963301"
+        },
+        {
+          "item_key": "15269_0",
+          "is_trash": false,
+          "hourly_rate": "0.27275284"
+        },
+        {
+          "item_key": "15272_0",
+          "is_trash": false,
+          "hourly_rate": "0.27112675"
+        },
+        {
+          "item_key": "15266_0",
+          "is_trash": false,
+          "hourly_rate": "0.26859842"
+        },
+        {
+          "item_key": "15262_0",
+          "is_trash": false,
+          "hourly_rate": "0.00881525"
+        },
+        {
+          "item_key": "15268_0",
+          "is_trash": false,
+          "hourly_rate": "0.00855599"
+        },
+        {
+          "item_key": "15274_0",
+          "is_trash": false,
+          "hourly_rate": "0.00580838"
+        },
+        {
+          "item_key": "15271_0",
+          "is_trash": false,
+          "hourly_rate": "0.00553866"
+        },
+        {
+          "item_key": "15265_0",
+          "is_trash": false,
+          "hourly_rate": "0.00502762"
+        }
+      ]
+    },
+    {
+      "grindspot_id": 167,
+      "start_date": "2026-08-27",
+      "end_date": "2026-10-08",
+      "total_minutes": 17304,
+      "drops": [
+        {
+          "item_key": "56338_0",
+          "is_trash": true,
+          "hourly_rate": 8138
+        },
+        {
+          "item_key": "15263_0",
+          "is_trash": false,
+          "hourly_rate": "2.19151"
+        },
+        {
+          "item_key": "15272_0",
+          "is_trash": false,
+          "hourly_rate": "0.30676256"
+        },
+        {
+          "item_key": "15266_0",
+          "is_trash": false,
+          "hourly_rate": "0.29814149"
+        },
+        {
+          "item_key": "15275_0",
+          "is_trash": false,
+          "hourly_rate": "0.2858934"
+        },
+        {
+          "item_key": "15269_0",
+          "is_trash": false,
+          "hourly_rate": "0.25658768"
+        },
+        {
+          "item_key": "15265_0",
+          "is_trash": false,
+          "hourly_rate": "0.03142322"
+        },
+        {
+          "item_key": "15274_0",
+          "is_trash": false,
+          "hourly_rate": "0.02687376"
+        },
+        {
+          "item_key": "15262_0",
+          "is_trash": false,
+          "hourly_rate": "0.02454977"
+        },
+        {
+          "item_key": "15268_0",
+          "is_trash": false,
+          "hourly_rate": "0.02439307"
+        },
+        {
+          "item_key": "15271_0",
+          "is_trash": false,
+          "hourly_rate": "0.02025675"
+        }
+      ]
+    },
+    {
+      "grindspot_id": 168,
+      "start_date": "2025-10-02",
+      "end_date": "2026-10-08",
+      "total_minutes": 9141,
+      "drops": [
+        {
+          "item_key": "56329_0",
+          "is_trash": true,
+          "hourly_rate": "8705.2"
+        },
+        {
+          "item_key": "15263_0",
+          "is_trash": false,
+          "hourly_rate": "0.79034771"
+        },
+        {
+          "item_key": "767102_0",
+          "is_trash": false,
+          "hourly_rate": "0.07129327"
+        },
+        {
+          "item_key": "15262_0",
+          "is_trash": false,
+          "hourly_rate": "0.06134999"
+        }
+      ]
+    },
+    {
+      "grindspot_id": 169,
+      "start_date": "2026-08-27",
+      "end_date": "2026-10-08",
+      "total_minutes": 119102,
+      "drops": [
+        {
+          "item_key": "56334_0",
+          "is_trash": true,
+          "hourly_rate": "6833.5"
+        },
+        {
+          "item_key": "11882_0",
+          "is_trash": false,
+          "hourly_rate": "0.14235017"
+        },
+        {
+          "item_key": "12276_0",
+          "is_trash": false,
+          "hourly_rate": "0.09771174"
+        }
+      ]
+    },
+    {
+      "grindspot_id": 183,
+      "start_date": "2025-10-02",
+      "end_date": "2026-10-08",
+      "total_minutes": 1731403,
+      "drops": [
+        {
+          "item_key": "767244_0",
+          "is_trash": true,
+          "hourly_rate": "5693.6"
+        },
+        {
+          "item_key": "11882_0",
+          "is_trash": false,
+          "hourly_rate": "0.11692552"
+        },
+        {
+          "item_key": "12094_0",
+          "is_trash": false,
+          "hourly_rate": "0.05968993"
+        },
+        {
+          "item_key": "12276_0",
+          "is_trash": false,
+          "hourly_rate": "0.05927879"
+        },
+        {
+          "item_key": "11653_0",
+          "is_trash": false,
+          "hourly_rate": "0.05867018"
+        },
+        {
+          "item_key": "15286_0",
+          "is_trash": false,
+          "hourly_rate": "0.00879206"
+        },
+        {
+          "item_key": "761803_0",
+          "is_trash": false,
+          "hourly_rate": "0.00005474"
+        }
+      ]
+    },
+    {
+      "grindspot_id": 184,
+      "start_date": "2025-10-02",
+      "end_date": "2026-10-08",
+      "total_minutes": 1907470,
+      "drops": [
+        {
+          "item_key": "767245_0",
+          "is_trash": true,
+          "hourly_rate": "5765.6"
+        },
+        {
+          "item_key": "821254_0",
+          "is_trash": false,
+          "hourly_rate": "2.018424"
+        },
+        {
+          "item_key": "11882_0",
+          "is_trash": false,
+          "hourly_rate": "0.08238979"
+        },
+        {
+          "item_key": "12276_0",
+          "is_trash": false,
+          "hourly_rate": "0.04211572"
+        },
+        {
+          "item_key": "12094_0",
+          "is_trash": false,
+          "hourly_rate": "0.04193785"
+        },
+        {
+          "item_key": "11653_0",
+          "is_trash": false,
+          "hourly_rate": "0.04146845"
+        },
+        {
+          "item_key": "15287_0",
+          "is_trash": false,
+          "hourly_rate": "0.00932664"
+        },
+        {
+          "item_key": "761803_0",
+          "is_trash": false,
+          "hourly_rate": "0.0002686"
+        }
+      ]
+    },
+    {
+      "grindspot_id": 185,
+      "start_date": "2025-10-02",
+      "end_date": "2026-10-08",
+      "total_minutes": 3319244,
+      "drops": [
+        {
+          "item_key": "767247_0",
+          "is_trash": true,
+          "hourly_rate": "6126.1"
+        },
+        {
+          "item_key": "11882_0",
+          "is_trash": false,
+          "hourly_rate": "0.10512982"
+        },
+        {
+          "item_key": "12094_0",
+          "is_trash": false,
+          "hourly_rate": "0.09843266"
+        },
+        {
+          "item_key": "12276_0",
+          "is_trash": false,
+          "hourly_rate": "0.05241158"
+        },
+        {
+          "item_key": "11653_0",
+          "is_trash": false,
+          "hourly_rate": "0.05160396"
+        },
+        {
+          "item_key": "15290_0",
+          "is_trash": false,
+          "hourly_rate": "0.0120192"
+        },
+        {
+          "item_key": "761803_0",
+          "is_trash": false,
+          "hourly_rate": "0.00040172"
+        }
+      ]
+    },
+    {
+      "grindspot_id": 193,
+      "start_date": "2025-10-02",
+      "end_date": "2026-10-08",
+      "total_minutes": 4598523,
+      "drops": [
+        {
+          "item_key": "767246_0",
+          "is_trash": true,
+          "hourly_rate": "6273.4"
+        },
+        {
+          "item_key": "11882_0",
+          "is_trash": false,
+          "hourly_rate": "0.11722075"
+        },
+        {
+          "item_key": "12094_0",
+          "is_trash": false,
+          "hourly_rate": "0.1113485"
+        },
+        {
+          "item_key": "12276_0",
+          "is_trash": false,
+          "hourly_rate": "0.03776003"
+        },
+        {
+          "item_key": "11653_0",
+          "is_trash": false,
+          "hourly_rate": "0.0371525"
+        },
+        {
+          "item_key": "15291_0",
+          "is_trash": false,
+          "hourly_rate": "0.02637545"
+        },
+        {
+          "item_key": "821251_0",
+          "is_trash": false,
+          "hourly_rate": "0.00408421"
+        },
+        {
+          "item_key": "761803_0",
+          "is_trash": false,
+          "hourly_rate": "0.00102503"
+        }
+      ]
+    },
+    {
+      "grindspot_id": 194,
+      "start_date": "2026-08-27",
+      "end_date": "2026-10-08",
+      "total_minutes": 254049,
+      "drops": [
+        {
+          "item_key": "767248_0",
+          "is_trash": true,
+          "hourly_rate": "7919.6"
+        },
+        {
+          "item_key": "11882_0",
+          "is_trash": false,
+          "hourly_rate": "0.16816748"
+        },
+        {
+          "item_key": "12094_0",
+          "is_trash": false,
+          "hourly_rate": "0.16694305"
+        },
+        {
+          "item_key": "11653_0",
+          "is_trash": false,
+          "hourly_rate": "0.03485492"
+        },
+        {
+          "item_key": "12276_0",
+          "is_trash": false,
+          "hourly_rate": "0.0335996"
+        },
+        {
+          "item_key": "15291_0",
+          "is_trash": false,
+          "hourly_rate": "0.02387546"
+        },
+        {
+          "item_key": "821251_0",
+          "is_trash": false,
+          "hourly_rate": "0.0050898"
+        },
+        {
+          "item_key": "761803_0",
+          "is_trash": false,
+          "hourly_rate": "0.00028621"
+        }
+      ]
+    },
+    {
+      "grindspot_id": 198,
+      "start_date": "2026-01-15",
+      "end_date": "2026-10-01",
+      "total_minutes": 100097,
+      "drops": [
+        {
+          "item_key": "44526_0",
+          "is_trash": true,
+          "hourly_rate": "5831.3"
+        },
+        {
+          "item_key": "12276_0",
+          "is_trash": false,
+          "hourly_rate": "0.18694694"
+        },
+        {
+          "item_key": "12237_0",
+          "is_trash": false,
+          "hourly_rate": "0.06316077"
+        },
+        {
+          "item_key": "56284_0",
+          "is_trash": false,
+          "hourly_rate": "0.00622912"
+        },
+        {
+          "item_key": "100001004_0",
+          "is_trash": false,
+          "hourly_rate": "0.00140285"
+        },
+        {
+          "item_key": "748021_0",
+          "is_trash": false,
+          "hourly_rate": "0.00041398"
+        },
+        {
+          "item_key": "748022_0",
+          "is_trash": false,
+          "hourly_rate": "0.00028224"
+        }
+      ]
+    },
+    {
+      "grindspot_id": 199,
+      "start_date": "2026-01-15",
+      "end_date": "2026-10-08",
+      "total_minutes": 228355,
+      "drops": [
+        {
+          "item_key": "44527_0",
+          "is_trash": true,
+          "hourly_rate": 6561
+        },
+        {
+          "item_key": "12276_0",
+          "is_trash": false,
+          "hourly_rate": "0.20088685"
+        },
+        {
+          "item_key": "12236_0",
+          "is_trash": false,
+          "hourly_rate": "0.07746286"
+        },
+        {
+          "item_key": "56284_0",
+          "is_trash": false,
+          "hourly_rate": "0.00587851"
+        },
+        {
+          "item_key": "100001004_0",
+          "is_trash": false,
+          "hourly_rate": "0.00253898"
+        },
+        {
+          "item_key": "748022_0",
+          "is_trash": false,
+          "hourly_rate": "0.00157096"
+        },
+        {
+          "item_key": "748021_0",
+          "is_trash": false,
+          "hourly_rate": "0.0009655"
+        }
+      ]
+    },
+    {
+      "grindspot_id": 200,
+      "start_date": "2026-08-27",
+      "end_date": "2026-10-08",
+      "total_minutes": 25905,
+      "drops": [
+        {
+          "item_key": "56339_0",
+          "is_trash": true,
+          "hourly_rate": "5691.3"
+        },
+        {
+          "item_key": "821344_0",
+          "is_trash": false,
+          "hourly_rate": "3.00476"
+        },
+        {
+          "item_key": "11882_0",
+          "is_trash": false,
+          "hourly_rate": "0.38055431"
+        }
+      ]
+    },
+    {
+      "grindspot_id": 201,
+      "start_date": "2026-08-27",
+      "end_date": "2026-10-08",
+      "total_minutes": 113749,
+      "drops": [
+        {
+          "item_key": "56341_0",
+          "is_trash": true,
+          "hourly_rate": "5092.5"
+        },
+        {
+          "item_key": "12094_0",
+          "is_trash": false,
+          "hourly_rate": "0.34927408"
+        },
+        {
+          "item_key": "100001004_0",
+          "is_trash": false,
+          "hourly_rate": "0.03825995"
+        },
+        {
+          "item_key": "12061_0",
+          "is_trash": false,
+          "hourly_rate": "0.02462133"
+        },
+        {
+          "item_key": "44271_0",
+          "is_trash": false,
+          "hourly_rate": "0.00067943"
+        }
+      ]
+    },
+    {
+      "grindspot_id": 208,
+      "start_date": "2026-03-19",
+      "end_date": "2026-10-08",
+      "total_minutes": 63769,
+      "drops": [
+        {
+          "item_key": "767348_0",
+          "is_trash": true,
+          "hourly_rate": "7286.5"
+        },
+        {
+          "item_key": "11882_0",
+          "is_trash": false,
+          "hourly_rate": "0.13014822"
+        },
+        {
+          "item_key": "12094_0",
+          "is_trash": false,
+          "hourly_rate": "0.11943718"
+        },
+        {
+          "item_key": "11653_0",
+          "is_trash": false,
+          "hourly_rate": "0.04070111"
+        },
+        {
+          "item_key": "12276_0",
+          "is_trash": false,
+          "hourly_rate": "0.03323288"
+        },
+        {
+          "item_key": "15291_0",
+          "is_trash": false,
+          "hourly_rate": "0.02602999"
+        },
+        {
+          "item_key": "821251_0",
+          "is_trash": false,
+          "hourly_rate": "0.00812163"
+        },
+        {
+          "item_key": "761803_0",
+          "is_trash": false,
+          "hourly_rate": "0.00201818"
+        }
+      ]
+    },
+    {
+      "grindspot_id": 209,
+      "start_date": "2026-03-19",
+      "end_date": "2026-10-08",
+      "total_minutes": 97450,
+      "drops": [
+        {
+          "item_key": "767348_0",
+          "is_trash": true,
+          "hourly_rate": "7402.8"
+        },
+        {
+          "item_key": "11882_0",
+          "is_trash": false,
+          "hourly_rate": "0.12528952"
+        },
+        {
+          "item_key": "12094_0",
+          "is_trash": false,
+          "hourly_rate": "0.12141035"
+        },
+        {
+          "item_key": "12276_0",
+          "is_trash": false,
+          "hourly_rate": "0.04489321"
+        },
+        {
+          "item_key": "11653_0",
+          "is_trash": false,
+          "hourly_rate": "0.03476542"
+        },
+        {
+          "item_key": "15291_0",
+          "is_trash": false,
+          "hourly_rate": "0.02672096"
+        },
+        {
+          "item_key": "821251_0",
+          "is_trash": false,
+          "hourly_rate": "0.00648578"
+        },
+        {
+          "item_key": "761803_0",
+          "is_trash": false,
+          "hourly_rate": "0.00116841"
+        }
+      ]
+    },
+    {
+      "grindspot_id": 210,
+      "start_date": "2026-03-19",
+      "end_date": "2026-10-01",
+      "total_minutes": 50887,
+      "drops": [
+        {
+          "item_key": "767348_0",
+          "is_trash": true,
+          "hourly_rate": "7736.1"
+        },
+        {
+          "item_key": "12094_0",
+          "is_trash": false,
+          "hourly_rate": "0.13301059"
+        },
+        {
+          "item_key": "11882_0",
+          "is_trash": false,
+          "hourly_rate": "0.12845364"
+        },
+        {
+          "item_key": "11653_0",
+          "is_trash": false,
+          "hourly_rate": "0.04118742"
+        },
+        {
+          "item_key": "12276_0",
+          "is_trash": false,
+          "hourly_rate": "0.03456392"
+        },
+        {
+          "item_key": "15291_0",
+          "is_trash": false,
+          "hourly_rate": "0.022523"
+        },
+        {
+          "item_key": "821251_0",
+          "is_trash": false,
+          "hourly_rate": "0.00470411"
+        },
+        {
+          "item_key": "761803_0",
+          "is_trash": false,
+          "hourly_rate": "0.0011071"
+        }
+      ]
+    },
+    {
+      "grindspot_id": 212,
+      "start_date": "2026-09-10",
+      "end_date": "2026-10-08",
+      "total_minutes": 52697,
+      "drops": [
+        {
+          "item_key": "767350_0",
+          "is_trash": true,
+          "hourly_rate": "6201.3"
+        },
+        {
+          "item_key": "12094_0",
+          "is_trash": false,
+          "hourly_rate": "0.13883987"
+        },
+        {
+          "item_key": "11882_0",
+          "is_trash": false,
+          "hourly_rate": "0.1358148"
+        },
+        {
+          "item_key": "12276_0",
+          "is_trash": false,
+          "hourly_rate": "0.1299551"
+        },
+        {
+          "item_key": "11653_0",
+          "is_trash": false,
+          "hourly_rate": "0.12862109"
+        },
+        {
+          "item_key": "980115_0",
+          "is_trash": false,
+          "hourly_rate": "0.00338952"
+        },
+        {
+          "item_key": "767341_0",
+          "is_trash": false,
+          "hourly_rate": "0.00202124"
+        },
+        {
+          "item_key": "767342_0",
+          "is_trash": false,
+          "hourly_rate": "0.00093145"
+        },
+        {
+          "item_key": "44271_0",
+          "is_trash": false,
+          "hourly_rate": "0.00092586"
+        }
+      ]
+    },
+    {
+      "grindspot_id": 213,
+      "start_date": "2026-09-10",
+      "end_date": "2026-10-08",
+      "total_minutes": 1235879,
+      "drops": [
+        {
+          "item_key": "980127_0",
+          "is_trash": true,
+          "hourly_rate": "6181.6"
+        },
+        {
+          "item_key": "821422_0",
+          "is_trash": false,
+          "hourly_rate": "0.39342725"
+        },
+        {
+          "item_key": "821462_0",
+          "is_trash": false,
+          "hourly_rate": "0.04540472"
+        },
+        {
+          "item_key": "15294_0",
+          "is_trash": false,
+          "hourly_rate": "0.01139465"
+        },
+        {
+          "item_key": "980139_0",
+          "is_trash": false,
+          "hourly_rate": "0.00540523"
+        },
+        {
+          "item_key": "761803_0",
+          "is_trash": false,
+          "hourly_rate": "0.00371786"
+        },
+        {
+          "item_key": "11898_0",
+          "is_trash": false,
+          "hourly_rate": "0.00078231"
+        }
+      ]
+    },
+    {
+      "grindspot_id": 214,
+      "start_date": "2026-09-24",
+      "end_date": "2026-10-08",
+      "total_minutes": 334854,
+      "drops": [
+        {
+          "item_key": "980128_0",
+          "is_trash": true,
+          "hourly_rate": "6697.4"
+        },
+        {
+          "item_key": "821423_0",
+          "is_trash": false,
+          "hourly_rate": "0.41915703"
+        },
+        {
+          "item_key": "821422_0",
+          "is_trash": false,
+          "hourly_rate": "0.10735081"
+        },
+        {
+          "item_key": "821461_0",
+          "is_trash": false,
+          "hourly_rate": "0.03181991"
+        },
+        {
+          "item_key": "15295_0",
+          "is_trash": false,
+          "hourly_rate": "0.01135919"
+        },
+        {
+          "item_key": "980140_0",
+          "is_trash": false,
+          "hourly_rate": "0.00515979"
+        },
+        {
+          "item_key": "761803_0",
+          "is_trash": false,
+          "hourly_rate": "0.00453998"
+        },
+        {
+          "item_key": "12144_0",
+          "is_trash": false,
+          "hourly_rate": "0.00040002"
+        },
+        {
+          "item_key": "11898_0",
+          "is_trash": false,
+          "hourly_rate": "0.00023747"
+        }
+      ]
+    },
+    {
+      "grindspot_id": 215,
+      "start_date": "2026-09-10",
+      "end_date": "2026-10-08",
+      "total_minutes": 1394496,
+      "drops": [
+        {
+          "item_key": "980129_0",
+          "is_trash": true,
+          "hourly_rate": "6431.3"
+        },
+        {
+          "item_key": "821424_0",
+          "is_trash": false,
+          "hourly_rate": "0.35513522"
+        },
+        {
+          "item_key": "821423_0",
+          "is_trash": false,
+          "hourly_rate": "0.13632818"
+        },
+        {
+          "item_key": "821422_0",
+          "is_trash": false,
+          "hourly_rate": "0.13621522"
+        },
+        {
+          "item_key": "767338_0",
+          "is_trash": false,
+          "hourly_rate": "0.03365689"
+        },
+        {
+          "item_key": "821464_0",
+          "is_trash": false,
+          "hourly_rate": "0.02826562"
+        },
+        {
+          "item_key": "15296_0",
+          "is_trash": false,
+          "hourly_rate": "0.00755202"
+        },
+        {
+          "item_key": "767337_0",
+          "is_trash": false,
+          "hourly_rate": "0.0066476"
+        },
+        {
+          "item_key": "980141_0",
+          "is_trash": false,
+          "hourly_rate": "0.00617869"
+        },
+        {
+          "item_key": "767353_0",
+          "is_trash": false,
+          "hourly_rate": "0.001585"
+        },
+        {
+          "item_key": "761803_0",
+          "is_trash": false,
+          "hourly_rate": "0.00149169"
+        },
+        {
+          "item_key": "12298_0",
+          "is_trash": false,
+          "hourly_rate": "0.00104264"
+        },
+        {
+          "item_key": "767293_0",
+          "is_trash": false,
+          "hourly_rate": "0.00073738"
+        },
+        {
+          "item_key": "12144_0",
+          "is_trash": false,
+          "hourly_rate": "0.00073677"
+        },
+        {
+          "item_key": "11898_0",
+          "is_trash": false,
+          "hourly_rate": "0.000701"
+        },
+        {
+          "item_key": "767294_0",
+          "is_trash": false,
+          "hourly_rate": "0.00065787"
+        },
+        {
+          "item_key": "767296_0",
+          "is_trash": false,
+          "hourly_rate": "0.00047852"
+        }
+      ]
+    },
+    {
+      "grindspot_id": 216,
+      "start_date": "2026-09-10",
+      "end_date": "2026-10-08",
+      "total_minutes": 775083,
+      "drops": [
+        {
+          "item_key": "980131_0",
+          "is_trash": true,
+          "hourly_rate": "6444.6"
+        },
+        {
+          "item_key": "821421_0",
+          "is_trash": false,
+          "hourly_rate": "0.35568598"
+        },
+        {
+          "item_key": "821424_0",
+          "is_trash": false,
+          "hourly_rate": "0.15384641"
+        },
+        {
+          "item_key": "821423_0",
+          "is_trash": false,
+          "hourly_rate": "0.13325304"
+        },
+        {
+          "item_key": "821422_0",
+          "is_trash": false,
+          "hourly_rate": "0.12820075"
+        },
+        {
+          "item_key": "821463_0",
+          "is_trash": false,
+          "hourly_rate": "0.03769419"
+        },
+        {
+          "item_key": "767338_0",
+          "is_trash": false,
+          "hourly_rate": "0.03056559"
+        },
+        {
+          "item_key": "767337_0",
+          "is_trash": false,
+          "hourly_rate": "0.00794223"
+        },
+        {
+          "item_key": "15297_0",
+          "is_trash": false,
+          "hourly_rate": "0.00776708"
+        },
+        {
+          "item_key": "980142_0",
+          "is_trash": false,
+          "hourly_rate": "0.00575832"
+        },
+        {
+          "item_key": "11733_0",
+          "is_trash": false,
+          "hourly_rate": "0.00318387"
+        },
+        {
+          "item_key": "12298_0",
+          "is_trash": false,
+          "hourly_rate": "0.00316845"
+        },
+        {
+          "item_key": "11898_0",
+          "is_trash": false,
+          "hourly_rate": "0.00299134"
+        },
+        {
+          "item_key": "12144_0",
+          "is_trash": false,
+          "hourly_rate": "0.00292067"
+        },
+        {
+          "item_key": "761803_0",
+          "is_trash": false,
+          "hourly_rate": "0.00193429"
+        },
+        {
+          "item_key": "767344_0",
+          "is_trash": false,
+          "hourly_rate": "0.00034448"
+        },
+        {
+          "item_key": "767343_0",
+          "is_trash": false,
+          "hourly_rate": "0.0002522"
+        },
+        {
+          "item_key": "767294_0",
+          "is_trash": false,
+          "hourly_rate": "0.00019501"
+        },
+        {
+          "item_key": "767293_0",
+          "is_trash": false,
+          "hourly_rate": "0.00017965"
+        },
+        {
+          "item_key": "767353_0",
+          "is_trash": false,
+          "hourly_rate": "0.00011443"
+        },
+        {
+          "item_key": "767296_0",
+          "is_trash": false,
+          "hourly_rate": "0.00009266"
+        }
+      ]
+    },
+    {
+      "grindspot_id": 217,
+      "start_date": "2026-09-10",
+      "end_date": "2026-10-08",
+      "total_minutes": 57012,
+      "drops": [
+        {
+          "item_key": "980130_0",
+          "is_trash": true,
+          "hourly_rate": "6794.6"
+        },
+        {
+          "item_key": "821421_0",
+          "is_trash": false,
+          "hourly_rate": "0.34329051"
+        },
+        {
+          "item_key": "821424_0",
+          "is_trash": false,
+          "hourly_rate": "0.15755313"
+        },
+        {
+          "item_key": "821423_0",
+          "is_trash": false,
+          "hourly_rate": "0.13790702"
+        },
+        {
+          "item_key": "821422_0",
+          "is_trash": false,
+          "hourly_rate": "0.134787"
+        },
+        {
+          "item_key": "767338_0",
+          "is_trash": false,
+          "hourly_rate": "0.04691068"
+        },
+        {
+          "item_key": "15297_0",
+          "is_trash": false,
+          "hourly_rate": "0.00736322"
+        },
+        {
+          "item_key": "767337_0",
+          "is_trash": false,
+          "hourly_rate": "0.00572356"
+        },
+        {
+          "item_key": "980141_0",
+          "is_trash": false,
+          "hourly_rate": "0.00569388"
+        },
+        {
+          "item_key": "11898_0",
+          "is_trash": false,
+          "hourly_rate": "0.00544272"
+        },
+        {
+          "item_key": "821463_0",
+          "is_trash": false,
+          "hourly_rate": "0.00454444"
+        },
+        {
+          "item_key": "12298_0",
+          "is_trash": false,
+          "hourly_rate": "0.00390314"
+        },
+        {
+          "item_key": "11733_0",
+          "is_trash": false,
+          "hourly_rate": "0.00388457"
+        },
+        {
+          "item_key": "12144_0",
+          "is_trash": false,
+          "hourly_rate": "0.00382725"
+        },
+        {
+          "item_key": "761803_0",
+          "is_trash": false,
+          "hourly_rate": "0.00289617"
+        },
+        {
+          "item_key": "767344_0",
+          "is_trash": false,
+          "hourly_rate": "0.00124029"
+        },
+        {
+          "item_key": "767343_0",
+          "is_trash": false,
+          "hourly_rate": "0.00098338"
+        },
+        {
+          "item_key": "767294_0",
+          "is_trash": false,
+          "hourly_rate": "0.00022156"
+        },
+        {
+          "item_key": "767353_0",
+          "is_trash": false,
+          "hourly_rate": "0.00022156"
+        },
+        {
+          "item_key": "767296_0",
+          "is_trash": false,
+          "hourly_rate": "0.00021261"
+        },
+        {
+          "item_key": "767293_0",
+          "is_trash": false,
+          "hourly_rate": 0
+        }
+      ]
+    },
+    {
+      "grindspot_id": 218,
+      "start_date": "2026-09-03",
+      "end_date": "2026-10-08",
+      "total_minutes": 765966,
+      "drops": [
+        {
+          "item_key": "980132_0",
+          "is_trash": true,
+          "hourly_rate": "6454.6"
+        },
+        {
+          "item_key": "821421_0",
+          "is_trash": false,
+          "hourly_rate": "0.31339995"
+        },
+        {
+          "item_key": "821424_0",
+          "is_trash": false,
+          "hourly_rate": "0.26784937"
+        },
+        {
+          "item_key": "821423_0",
+          "is_trash": false,
+          "hourly_rate": "0.17933403"
+        },
+        {
+          "item_key": "821422_0",
+          "is_trash": false,
+          "hourly_rate": "0.1347268"
+        },
+        {
+          "item_key": "821464_0",
+          "is_trash": false,
+          "hourly_rate": "0.05859281"
+        },
+        {
+          "item_key": "821462_0",
+          "is_trash": false,
+          "hourly_rate": "0.05629179"
+        },
+        {
+          "item_key": "821463_0",
+          "is_trash": false,
+          "hourly_rate": "0.05463623"
+        },
+        {
+          "item_key": "821461_0",
+          "is_trash": false,
+          "hourly_rate": "0.05459895"
+        },
+        {
+          "item_key": "767338_0",
+          "is_trash": false,
+          "hourly_rate": "0.05204768"
+        },
+        {
+          "item_key": "15297_0",
+          "is_trash": false,
+          "hourly_rate": "0.01358944"
+        },
+        {
+          "item_key": "980143_0",
+          "is_trash": false,
+          "hourly_rate": "0.00863119"
+        },
+        {
+          "item_key": "767337_0",
+          "is_trash": false,
+          "hourly_rate": "0.00447107"
+        },
+        {
+          "item_key": "12144_0",
+          "is_trash": false,
+          "hourly_rate": "0.00399933"
+        },
+        {
+          "item_key": "12298_0",
+          "is_trash": false,
+          "hourly_rate": "0.00399159"
+        },
+        {
+          "item_key": "11898_0",
+          "is_trash": false,
+          "hourly_rate": "0.00398598"
+        },
+        {
+          "item_key": "11733_0",
+          "is_trash": false,
+          "hourly_rate": "0.00371158"
+        },
+        {
+          "item_key": "761803_0",
+          "is_trash": false,
+          "hourly_rate": "0.00215795"
+        },
+        {
+          "item_key": "767343_0",
+          "is_trash": false,
+          "hourly_rate": "0.0004292"
+        },
+        {
+          "item_key": "767344_0",
+          "is_trash": false,
+          "hourly_rate": "0.00030683"
+        },
+        {
+          "item_key": "767293_0",
+          "is_trash": false,
+          "hourly_rate": "0.00022898"
+        },
+        {
+          "item_key": "767353_0",
+          "is_trash": false,
+          "hourly_rate": "0.00015468"
+        },
+        {
+          "item_key": "767294_0",
+          "is_trash": false,
+          "hourly_rate": "0.00013821"
+        },
+        {
+          "item_key": "767296_0",
+          "is_trash": false,
+          "hourly_rate": "0.0001151"
+        }
+      ]
+    }
+  ]
+}

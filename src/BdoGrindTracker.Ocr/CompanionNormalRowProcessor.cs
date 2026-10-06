@@ -425,10 +425,12 @@ public sealed class CompanionNormalRowProcessor
 
     internal static Mat ConvertToHsv(Mat source)
     {
+        if (source.Type().Channels == 3)
+            return CreateOwnedMat(destination => Cv2.CvtColor(source, destination, ColorConversionCodes.BGR2HSV));
+
         using var bgr = source.Type().Channels switch
         {
             1 => ConvertGrayToBgr(source),
-            3 => source.Clone(),
             4 => ConvertBgraToBgr(source),
             _ => throw new ArgumentException(
                 "Companion row input must be an 8-bit one-, three-, or four-channel image.",

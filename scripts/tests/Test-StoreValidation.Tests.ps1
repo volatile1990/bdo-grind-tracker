@@ -27,7 +27,7 @@ foreach ($version in $invalidVersions) {
 # generated icons, native SDK tools or an application build. The complete valid
 # package and manifest checks remain in Test-StorePackage.Tests.ps1.
 $required = @('AppxManifest.xml', 'AppxBlockMap.xml', '[Content_Types].xml', 'resources.pri',
-    'Grindcrest.exe', 'BdoGrindTracker.dll', 'BdoGrindTracker.runtimeconfig.json', 'System.Private.CoreLib.dll',
+    'Grindcrest.exe', 'BdoGrindTracker.dll', 'Grindcrest.Native.dll', 'BdoGrindTracker.runtimeconfig.json', 'System.Private.CoreLib.dll',
     'wwwroot/index.html', 'data/items.en.txt', 'THIRD_PARTY_NOTICES.md', 'Assets/StoreLogo.png',
     'Assets/Square44x44Logo.png', 'Assets/Square150x150Logo.png', 'runtimes/win-x64/native/OpenCvSharpExtern.dll',
     'WebView2Loader.dll', 'wwwroot/assets/icons/test.png')

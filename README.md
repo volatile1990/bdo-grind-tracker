@@ -19,6 +19,18 @@ Silber und Stundenwerte im Dashboard und in anpassbaren Ingame-Overlays.
 - Windows-OCR-Installation mit Fortschrittsanzeige, erneuter Verfügbarkeitsprüfung und lokaler Diagnose.
 - Deutsche und englische Oberfläche einschließlich Overlays, Zahlen- und Datumsformaten; die Auswahl wird lokal gespeichert.
 
+Beim normalen Tracker-Start erhält der eigene Prozess automatisch die
+CPU-Priorität **Unter Normal**. Während Aufnahme und vollständiger Abarbeitung
+aufgenommener Bilder wird die ursprüngliche Prozesspriorität wiederhergestellt,
+damit diese Optimierung die Erfassung kurzer Loot-Anzeigen nicht ausbremst.
+Aufnahme und OCR-Verarbeitung bleiben getrennte Aufgaben mit geordneter
+Bildwarteschlange. Die einmal pro Minute laufende XP-Auswertung erhält auf
+einem eigenen kurzlebigen Hintergrundthread eine niedrigere Threadpriorität;
+auf Windows 11 mit unterschiedlichen CPU-Effizienzklassen nutzt sie zusätzlich
+EcoQoS. Windows bevorzugt dafür effiziente Kerne. Die Funktion benötigt weder
+Administratorrechte noch eine Untersuchung oder Änderung des Spielprozesses
+und garantiert keine getrennten CPU-Kerne.
+
 ## Installieren und starten
 
 Benötigt werden **Windows x64 ab Windows 10 Version 2004**, Black Desert, WebView2
@@ -295,6 +307,10 @@ Garmoth-Uploads; eine Cloud-Synchronisierung des Verlaufs findet nicht statt.
 [Sicherheitsgrenze](docs/SAFETY.md) · [Garmoth-Integration](docs/GARMOTH_INTEGRATION.md).
 
 ## Entwickeln und prüfen
+
+Die Windows-x64-App baut die native HDR-Umrechnung automatisch mit den
+Visual-Studio-C++-Buildtools. Die C#-Umrechnung bleibt als Rückfall verfügbar.
+[Native Rechenkerne, Build und lokaler Vergleich](docs/NATIVE_KERNELS.md).
 
 ### Browser-Vorschau auf macOS, Linux und Windows
 

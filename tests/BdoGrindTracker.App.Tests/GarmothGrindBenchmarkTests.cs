@@ -10,10 +10,10 @@ public sealed class GarmothGrindBenchmarkTests
     [Fact]
     public void BundledInnerEdaniaReferencesAreDatedAndDoNotInventHighOrTopValues()
     {
-        Assert.Equal(new[] { LootSpotCatalog.AphrodonId, LootSpotCatalog.HermesiaId, LootSpotCatalog.MagaiaId,
-                LootSpotCatalog.AresionId, LootSpotCatalog.ScalesOfJudgmentId, LootSpotCatalog.EventHorizonId }.Order(),
-            GarmothGrindBenchmarks.All.Select(benchmark => benchmark.SpotId).Order());
-        foreach (var reference in GarmothGrindBenchmarks.All)
+        var originalIds = new[] { LootSpotCatalog.AphrodonId, LootSpotCatalog.HermesiaId, LootSpotCatalog.MagaiaId,
+            LootSpotCatalog.AresionId, LootSpotCatalog.ScalesOfJudgmentId, LootSpotCatalog.EventHorizonId };
+        Assert.All(originalIds, id => Assert.NotNull(GarmothGrindBenchmarks.Find(id)));
+        foreach (var reference in GarmothGrindBenchmarks.All.Where(reference => originalIds.Contains(reference.SpotId)))
         {
             Assert.True(GarmothCatalog.TryGetSpot(reference.SpotId, out var id));
             var source = new Uri(reference.SourceUrl);

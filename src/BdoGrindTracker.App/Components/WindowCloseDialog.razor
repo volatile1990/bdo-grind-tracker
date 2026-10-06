@@ -1,0 +1,137 @@
+@inherits LocalizedComponentBase
+@inject IServiceProvider Services
+@inject IJSRuntime JS
+
+@{ var state = _renderedState = _controller?.State; }
+@if (_controller is not null)
+{
+    <dialog id="window-close-dialog" class="modal confirm-modal window-close-modal" data-managed-cancel aria-labelledby="window-close-title" aria-describedby="window-close-message" aria-busy="@(state?.Saving == true ? "true" : "false")">
+        @if (state is not null)
+        {
+            <div class="modal-heading">
+                <div><span class="eyebrow">Grindcrest</span><h2 id="window-close-title">@(state.Kind == WindowCloseDialogKind.Choice ? T("Was soll beim Schließen passieren?") : T(state.Title))</h2></div>
+                <button type="button" class="icon-button" data-dialog-close aria-label="@T("Dialog schließen")" @onclick="() => Dismiss(state.Id)" disabled="@state.Saving"><AppIcon Name="close" /></button>
+            </div>
+            @if (state.Kind == WindowCloseDialogKind.Choice)
+            {
+                <p id="window-close-message">@T("Deine Auswahl wird gespeichert und gilt künftig für das X. Du kannst sie unter Einstellungen → Fenster & Tray ändern.")</p>
+                <div class="window-close-options">
+                    <button type="button" class="button secondary window-close-option" data-close-choice="exit" @onclick="() => ChooseAsync(state.Id, false)" disabled="@state.Saving">
+                        <AppIcon Name="close" /><span><strong>@T("Programm beenden")</strong><small>@T("Grindcrest vollständig schließen und die Session speichern.")</small></span>
+                    </button>
+                    <button type="button" class="button secondary window-close-option" data-close-choice="tray" @onclick="() => ChooseAsync(state.Id, true)" disabled="@state.Saving">
+                        <AppIcon Name="monitor" /><span><strong>@T("In den Tray minimieren")</strong><small>@T("Das Fenster verbergen und die Erfassung im Hintergrund weiterlaufen lassen.")</small></span>
+                    </button>
+                </div>
+                @if (state.Error is not null)
+                {
+                    <div class="notice error-notice window-close-feedback" role="alert"><AppIcon Name="info" /><div><strong>@T("Auswahl konnte nicht gespeichert werden")</strong><span>@T("Grindcrest bleibt geöffnet. Bitte versuche es erneut.")</span><span class="window-close-detail">@T(state.Error)</span></div></div>
+                }
+                @if (state.Saving)
+                {
+                    <p class="window-close-status" role="status" aria-live="polite">@T("Speichert …")</p>
+                }
+                <div class="modal-actions"><button type="button" class="button secondary" data-close-cancel autofocus @onclick="() => Dismiss(state.Id)" disabled="@state.Saving">@T("Abbrechen")</button></div>
+            }
+            else
+            {
+                <p id="window-close-message" role="alert">@T(state.Message)</p>
+                @if (state.Error is not null) { <p class="window-close-detail">@T(state.Error)</p> }
+                <div class="modal-actions"><button type="button" class="button secondary" data-close-cancel autofocus @onclick="() => Dismiss(state.Id)">@T("Schließen")</button></div>
+            }
+        }
+    </dialog>
+}
+
+@code {
+    private WindowCloseDialogController? _controller;
+    private WindowCloseDialogState? _renderedState;
+    private readonly CancellationTokenSource _lifetime = new();
+    private long? _shownId;
+    private bool _attached, _syncing, _syncRequested, _closePending, _disposed;
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        _controller = Services.GetService(typeof(WindowCloseDialogController)) as WindowCloseDialogController;
+        if (_controller is not null) _controller.Changed += Changed;
+    }
+
+    private void Changed()
+    {
+        if (!_disposed) _ = InvokeAsync(() => { if (!_disposed) StateHasChanged(); });
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_disposed || _controller is null) return;
+        if (firstRender && !_attached)
+        {
+            _attached = true;
+            _controller.Attach();
+        }
+        if (!_attached) return;
+        if (_syncing) { _syncRequested = true; return; }
+        _syncing = true;
+        var closeFailed = false;
+        try
+        {
+            while (!_disposed)
+            {
+                var state = _renderedState;
+                // A newly requested state must render before it can receive focus.
+                if (state?.Id != _controller.State?.Id || state?.Id == _shownId && !_closePending) break;
+                if (state is null) _closePending = true;
+                else { _shownId = state.Id; _closePending = false; }
+                using var timeout = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+                timeout.CancelAfter(TimeSpan.FromSeconds(5));
+                try
+                {
+                    await JS.InvokeVoidAsync(state is null ? "grindcrest.closeDialog" : "grindcrest.showDialog",
+                        timeout.Token, "window-close-dialog").AsTask().WaitAsync(timeout.Token);
+                    if (state is null) { _shownId = null; _closePending = false; }
+                }
+                catch (Exception)
+                {
+                    if (_disposed) return;
+                    if (state is not null) _controller.FailPresentation(state.Id);
+                    // Retry an uncertain native close on the next render, without
+                    // a self-render loop when the browser is unavailable.
+                    else { closeFailed = true; break; }
+                }
+            }
+        }
+        finally
+        {
+            _syncing = false;
+            var syncRequested = _syncRequested;
+            _syncRequested = false;
+            if (!_disposed && !closeFailed && (syncRequested || _controller.State?.Id != _shownId))
+            {
+                StateHasChanged();
+            }
+        }
+    }
+
+    private Task ChooseAsync(long id, bool closeToTray) =>
+        _disposed ? Task.CompletedTask : _controller?.ChooseAsync(id, closeToTray) ?? Task.CompletedTask;
+
+    private void Dismiss(long? id)
+    {
+        if (!_disposed && id is { } requestId) _controller?.Dismiss(requestId);
+    }
+
+    public override void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _lifetime.Cancel();
+        if (_controller is not null)
+        {
+            _controller.Changed -= Changed;
+            if (_attached) _controller.Detach();
+        }
+        _lifetime.Dispose();
+        base.Dispose();
+    }
+}

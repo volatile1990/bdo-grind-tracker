@@ -48,7 +48,7 @@ public sealed class OverlayMetricsTests
 
         Assert.Equal("00:30:00", actual.Metrics["duration"].Value);
         Assert.Equal("1.735", actual.Metrics["trash"].Value);
-        Assert.Equal("3.470", actual.Metrics["trash-hour"].Value);
+        Assert.Equal("3.470,00", actual.Metrics["trash-hour"].Value);
         Assert.Equal("50,0 Mio.", actual.Metrics["silver"].Value);
         Assert.Equal("100,0 Mio.", actual.Metrics["silver-hour"].Value);
         Assert.Equal("429", actual.Metrics["total-drops"].Value);
@@ -102,7 +102,7 @@ public sealed class OverlayMetricsTests
         var snapshot = new OverlayMetrics().Update(new(), new() { UiLanguage = "de" });
         Assert.Equal("0", snapshot.Metrics["silver"].Value);
         Assert.Equal("—", snapshot.Metrics["silver-hour"].Value);
-        Assert.Equal("0", snapshot.Metrics["trash-hour"].Value);
+        Assert.Equal("0,00", snapshot.Metrics["trash-hour"].Value);
         Assert.Empty(snapshot.SilverDrops);
         Assert.Empty(snapshot.Drops);
     }

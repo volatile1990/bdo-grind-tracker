@@ -50,23 +50,48 @@ internal static class Program
         var emptyPreview = args.Contains("--ui-preview-empty", StringComparer.OrdinalIgnoreCase);
         var preview = uiSmokeTest || emptyPreview || args.Contains("--ui-preview", StringComparer.OrdinalIgnoreCase);
         var smokeTest = startupSmokeTest || uiSmokeTest;
-        using var instance = new Mutex(false, @"Global\Grindcrest-" +
-            System.Security.Principal.WindowsIdentity.GetCurrent().User?.Value);
-        if (!preview && !smokeTest)
+        var takeOverStoreSession = !preview && !smokeTest && args.Contains(
+            StoreSessionViewerLaunch.TakeoverArgument, StringComparer.OrdinalIgnoreCase);
+        string? viewerDirectory;
+        try
+        {
+            viewerDirectory = preview || smokeTest ? null : StoreSessionViewerLaunch.Resolve(
+                AppContext.BaseDirectory, Updates.AppUpdateRuntime.Current.PackageIdentity, args);
+        }
+        catch (Exception exception)
+        {
+            MessageBox.Show(exception.Message, "Startfehler", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            return 1;
+        }
+        var instanceMutexName = @"Global\Grindcrest-" + System.Security.Principal.WindowsIdentity.GetCurrent().User?.Value;
+        using var instance = new Mutex(false, instanceMutexName);
+        if (!preview && !smokeTest && (viewerDirectory is null || takeOverStoreSession))
         {
             bool acquired;
             try { acquired = instance.WaitOne(0); }
             catch (AbandonedMutexException) { acquired = true; }
             if (!acquired)
             {
-                MessageBox.Show("Grindcrest läuft bereits. Du kannst es über das Grindcrest-Symbol im Infobereich der Taskleiste öffnen.",
+                MessageBox.Show(takeOverStoreSession ? StoreSessionTakeover.BusyReason
+                    : "Grindcrest läuft bereits. Du kannst es über das Grindcrest-Symbol im Infobereich der Taskleiste öffnen.",
                     "Grindcrest", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return 0;
             }
         }
         try
         {
-            AppDataPaths.PrepareForStartup(useUserData: !preview && !smokeTest);
+            // Lower only this tracker process before OCR/native workers and
+            // WebView2 are created. Validation and read-only viewers retain
+            // their normal scheduling; no game process is queried or changed.
+            if (!preview && !smokeTest && (viewerDirectory is null || takeOverStoreSession))
+                CpuScheduling.ApplyBackgroundProcessPriority();
+            if (takeOverStoreSession)
+            {
+                // Resolve shared paths only in the new writer process, after it owns the same lock as the Store app.
+                Environment.SetEnvironmentVariable(AppDataPaths.DataDirectoryVariable, viewerDirectory);
+                viewerDirectory = null;
+            }
+            AppDataPaths.PrepareForStartup(useUserData: !preview && !smokeTest && viewerDirectory is null);
             _ = CoreWebView2Environment.GetAvailableBrowserVersionString();
             int? debugPort = null;
             var debugArgument = args.FirstOrDefault(arg => arg.StartsWith("--ui-debug-port=", StringComparison.Ordinal));
@@ -78,7 +103,19 @@ internal static class Program
             }
             HybridMainForm? capturePromptOwner = null;
             ITrackerSession session;
-            if (preview)
+            if (viewerDirectory is not null)
+            {
+                var sourceDirectory = viewerDirectory;
+                session = new StoreSessionViewerSession(sourceDirectory, takeOver: async () =>
+                {
+                    var result = await Task.Run(() => StoreSessionTakeover.Start(
+                        Environment.ProcessPath!, sourceDirectory, instanceMutexName));
+                    if (result.Succeeded && capturePromptOwner is { } owner)
+                        owner.BeginInvoke((Action)(() => owner.Close()));
+                    return result;
+                });
+            }
+            else if (preview)
             {
                 session = new PreviewTrackerSession(emptyPreview);
             }
@@ -112,7 +149,7 @@ internal static class Program
                         prepareWindowCapture: () => capturePromptOwner?.PrepareWindowCaptureAsync() ?? Task.FromResult(false));
                 }
             }
-            var hidden = preview && args.Contains("--ui-hidden", StringComparer.OrdinalIgnoreCase);
+            var hidden = (preview || viewerDirectory is not null) && args.Contains("--ui-hidden", StringComparer.OrdinalIgnoreCase);
             using var form = new HybridMainForm(session, smokeTest, debugPort, preview, hidden);
             capturePromptOwner = form;
             Application.Run(form);

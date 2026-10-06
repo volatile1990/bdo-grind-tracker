@@ -180,14 +180,14 @@ internal static class NativeWindowCapture
         if (selected is { } target) return target;
         if (unavailableGameWindow)
             throw new GameWindowUnavailableException("Das Black-Desert-Spielfenster ist minimiert oder nicht sichtbar. Fenster wiederherstellen und Tracking erneut starten.");
-        throw new InvalidOperationException("Kein sichtbares Black-Desert-Spielfenster gefunden. Spiel öffnen und minimierte Fenster wiederherstellen.");
+        throw new GameWindowUnavailableException("Kein sichtbares Black-Desert-Spielfenster gefunden. Spiel öffnen und minimierte Fenster wiederherstellen.");
     }
 
     internal static WindowCaptureGeometry ReadGeometry(WindowCaptureTarget target)
     {
         NativeOverlayApi.GetWindowThreadProcessId(target.Handle, out var processId);
         if (!NativeOverlayApi.IsWindow(target.Handle) || processId != target.ProcessId)
-            throw new InvalidOperationException("Das aufgenommene Black-Desert-Spielfenster wurde geschlossen. Tracking bitte erneut starten.");
+            throw new GameWindowUnavailableException("Das aufgenommene Black-Desert-Spielfenster wurde geschlossen. Tracking bitte erneut starten.");
         if (!NativeOverlayApi.IsWindowVisible(target.Handle) || NativeOverlayApi.IsIconic(target.Handle) || IsCloaked(target.Handle))
             throw new GameWindowUnavailableException("Das Black-Desert-Spielfenster ist minimiert oder nicht sichtbar. Fenster wiederherstellen und Tracking erneut starten.");
         if (!GetClientRect(target.Handle, out var client) || !GetWindowRect(target.Handle, out var window))

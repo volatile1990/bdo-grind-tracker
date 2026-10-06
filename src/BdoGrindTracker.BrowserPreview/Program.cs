@@ -1,4 +1,5 @@
 using BdoGrindTracker.App;
+using BdoGrindTracker.App.Components;
 using BdoGrindTracker.App.Overlay;
 using BdoGrindTracker.App.Persistence;
 using BdoGrindTracker.App.Services;
@@ -18,6 +19,7 @@ builder.Services.AddRazorComponents().AddInteractiveServerComponents()
     .AddHubOptions(options => options.MaximumReceiveMessageSize = 36 * 1024 * 1024);
 // A circuit owns its demo data. Separate browser tabs never share edits.
 builder.Services.AddScoped<ITrackerSession>(_ => new PreviewTrackerSession());
+builder.Services.AddScoped<WindowCloseDialogController>();
 builder.Services.AddScoped(_ => new GrindGoalStore(null));
 builder.Services.AddScoped<IOverlayService>(services => new OverlayService(
     services.GetRequiredService<ITrackerSession>(), goals: services.GetRequiredService<GrindGoalStore>()));

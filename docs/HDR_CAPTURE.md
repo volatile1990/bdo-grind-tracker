@@ -33,6 +33,12 @@ HDR-Bildwiedergabe. Negative und NaN-Werte werden schwarz, positive Unendlichkei
 weiß; der Alphakanal wird ignoriert. Eine Tabelle für alle Half-Bitmuster vermeidet
 Potenzberechnungen pro Bildpixel.
 
+Unter Windows x64 führt eine lokale C++-DLL die Pixelumrechnung mit derselben
+Tabelle aus. Sie arbeitet über P/Invoke direkt auf den vorhandenen Puffern und
+erzeugt keine zusätzlichen Threads. Bei fehlender oder inkompatibler DLL greift
+die bisherige C#-Umrechnung.
+[Build, Gleichheitsprüfung und Benchmark](NATIVE_KERNELS.md).
+
 Die neue Darstellung verwendet die bestehenden SDR-Textfilter. Der bisherige
 HDR-Filter erwartet fast weiße Pixel mit Werten ab 250/254 und würde die neue
 Darstellung weitgehend verwerfen. Deshalb werden zwei Eigenschaften getrennt

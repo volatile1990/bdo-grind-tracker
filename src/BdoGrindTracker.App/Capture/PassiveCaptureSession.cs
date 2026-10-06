@@ -1,4 +1,5 @@
 using System.Threading.Channels;
+using BdoGrindTracker.App.Services;
 
 namespace BdoGrindTracker.App.Capture;
 
@@ -147,6 +148,7 @@ internal sealed class PassiveCaptureSession : IAsyncDisposable
     internal bool HasPendingAnalysis { get { lock (_sync) return !_pendingAnalysis.IsCompleted; } }
     internal Task PendingAnalysis { get { lock (_sync) return _pendingAnalysis; } }
     internal bool AnalysisFailed { get { lock (_sync) return _analysisFailed; } }
+    internal Func<IDisposable> PreserveCapturePriority { get; init; } = CpuScheduling.PreserveCapturePriority;
 
     // HUD freshness must use the same monotonic epoch as CapturedAtUtc. A
     // Windows clock correction must not make every subsequent image stale.
@@ -201,9 +203,32 @@ internal sealed class PassiveCaptureSession : IAsyncDisposable
             _cancellation = new CancellationTokenSource();
             var token = _cancellation.Token;
             var initialFrames = takeInitialFrames?.Invoke() ?? [];
-            _runTask = Task.Run(
-                () => RunAsync(desktopRegion, onFrame, canObserveHud, initialFrames, token),
-                CancellationToken.None);
+            // Restore normal acquisition/analysis scheduling before any work is
+            // queued. Delayed UI results are fine; starving acquisition can lose
+            // transient game evidence once the bounded image queue is full.
+            var priorityLease = PreserveCapturePriority();
+            try
+            {
+                _runTask = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await RunAsync(desktopRegion, onFrame, canObserveHud, initialFrames, token)
+                            .ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        var pending = PendingAnalysis;
+                        if (pending.IsCompleted) priorityLease.Dispose();
+                        else _ = ReleaseCapturePriorityAfterAnalysisAsync(pending, priorityLease);
+                    }
+                }, CancellationToken.None);
+            }
+            catch
+            {
+                priorityLease.Dispose();
+                throw;
+            }
         }
     }
 
@@ -424,6 +449,13 @@ internal sealed class PassiveCaptureSession : IAsyncDisposable
     {
         try { await analysis.ConfigureAwait(false); }
         catch (Exception) { /* The watchdog already reported this worker as failed. */ }
+    }
+
+    private static async Task ReleaseCapturePriorityAfterAnalysisAsync(Task analysis, IDisposable priorityLease)
+    {
+        try { await analysis.ConfigureAwait(false); }
+        catch (Exception) { /* The capture watchdog already owns failure reporting. */ }
+        finally { priorityLease.Dispose(); }
     }
 
     private static bool TryObserveHud(Func<bool>? canObserveHud)

@@ -1,3 +1,5 @@
+using BdoGrindTracker.Core;
+
 namespace BdoGrindTracker.App.Integrations.Garmoth;
 
 /// <summary>
@@ -192,6 +194,28 @@ internal static partial class GarmothCatalog
         key = mapped;
         return true;
     }
+
+    internal static bool TryGetRareDropNameForSpot(string spotId, string itemKey, out string itemName)
+    {
+        itemName = string.Empty;
+        var spot = LootSpotCatalog.Spots.FirstOrDefault(spot => spot.Id == spotId);
+        if (spot is null) return false;
+        foreach (var name in spot.AllowedItems)
+        {
+            if (LootSourceCatalog.GetAllowedSource(name) == LootSource.Rare &&
+                TryGetDropKeyForSpot(spotId, name, out var mapped) && mapped == itemKey)
+            {
+                itemName = name;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Anonymous getGrindSpots response verified on 2026-10-02: IDs 32, 89, 112,
+    // 113, 149, and 150 carry "no-scroll". Only 149 is a supported local spot.
+    internal static bool RareDropRateScalingApplies(string spotId) =>
+        TryGetSpot(spotId, out var id) && id is not (32 or 89 or 112 or 113 or 149 or 150);
 
     public static bool TryGetClass(string? name, GarmothSpecialization specialization,
         out int id, out int spec)

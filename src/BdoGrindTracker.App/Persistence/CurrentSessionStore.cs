@@ -59,7 +59,7 @@ internal sealed class CurrentSessionStore(string path)
     {
         try
         {
-            using var file = new FileStream(_path, FileMode.Open, FileAccess.Read, FileShare.Read);
+            using var file = new FileStream(_path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
             if (file.Length > MaximumFileBytes) throw new InvalidDataException("Die Sitzungsdatei ist zu groß.");
             var document = JsonSerializer.Deserialize<Document>(file, JsonOptions);
             if (document is null || document.Version != 1)
